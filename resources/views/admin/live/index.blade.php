@@ -152,35 +152,54 @@
                         <form method="POST" action="{{ route('sacolinhas.store') }}" id="add-item-form">
                             @csrf
                             <div class="row">
-                                <!-- Busca de Cliente -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-user"></i>
-                                        Selecionar Cliente
-                                    </label>
-                                    
-                                    <!-- COMPONENTE DE BUSCA DE USUÁRIO -->
-                                    @include('components.user-search', [
-                                        'name' => 'client_id',
-                                        'placeholder' => 'Buscar cliente por nome, email ou telefone...',
-                                        'value' => old('client_id')
-                                    ])
-                                </div>
-                                <!-- Campo Item - NOVO COMPONENTE -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-box"></i>
-                                        Selecionar Item
-                                    </label>
-                                    
-                                    @include('components.item-search', [
-                                        'name' => 'item_id',
-                                        'priceField' => 'item_price',
-                                        'placeholder' => 'Buscar item por nome, SKU ou descrição...',
-                                        'value' => old('item_id'),
-                                        'priceValue' => old('item_price')
-                                    ])
-                                </div>
+								<!-- Busca de Cliente -->
+								<div class="col-md-6 mb-3">
+									<div class="d-flex justify-content-between align-items-center mb-2">
+										<label class="form-label mb-0">
+											<i class="fas fa-user"></i>
+											Selecionar Cliente
+										</label>
+										
+										<!-- BOTÃO NOVO CLIENTE (se tiver rota) -->
+										<a href="{{ route('admin.clientes.create') }}" 
+										   class="btn btn-sm btn-outline-info" 
+										   target="_blank"
+										   title="Cadastrar novo cliente">
+											<i class="fas fa-user-plus"></i> Novo Cliente
+										</a>
+									</div>
+									
+									@include('components.user-search', [
+										'name' => 'client_id',
+										'placeholder' => 'Buscar cliente por nome, email ou telefone...',
+										'value' => old('client_id')
+									])
+								</div>
+								<!-- Campo Item - NOVO COMPONENTE -->
+								<div class="col-md-6 mb-3">
+									<div class="d-flex justify-content-between align-items-center mb-2">
+										<label class="form-label mb-0">
+											<i class="fas fa-box"></i>
+											Selecionar Item
+										</label>
+										
+										<!-- 🎯 BOTÃO NOVO ITEM -->
+										<a href="{{ route('admin.items.create') }}" 
+										   class="btn btn-sm btn-outline-primary" 
+										   target="_blank"
+										   title="Cadastrar novo item">
+											<i class="fas fa-plus"></i> Novo Item
+										</a>
+									</div>
+									
+									@include('components.item-search', [
+										'name' => 'item_id',
+										'priceField' => 'item_price',
+										'placeholder' => 'Buscar item por nome, SKU ou descrição...',
+										'value' => old('item_id'),
+										'priceValue' => old('item_price')
+									])
+								</div>
                             </div>
                             <div class="row">
                                 <!-- Preço -->
@@ -239,7 +258,14 @@
         let liveAtiva = null;
         const DISCOUNT_PERCENTAGE = 0.5; // 50% de desconto para live do 'precinho'
 
-        document.addEventListener('DOMContentLoaded', function() {
+		// 🔧 ADICIONAR ESTAS LINHAS:
+		let itemSearchWrapper = null;
+		let selectedItem = null;
+		let itemHighlightedIndex = -1;
+
+		document.addEventListener('DOMContentLoaded', function() {
+			// 🔧 INICIALIZAR WRAPPER:
+			itemSearchWrapper = document.querySelector('[data-item-search="true"]');
             carregarLiveStatus(); // Renomeado para refletir o novo propósito
             // Event listener para seleção de usuário
             const userSearchComponent = document.querySelector('[data-user-search="true"]');
@@ -381,38 +407,89 @@
                         body: formData
                     });
                     const data = await response.json();
-                    if (data.success) {
-                        mostrarAlert(data.message, 'success');
-                        
-                        const itemPriceInput = document.getElementById('item-price');
-                        if (itemPriceInput) {
-                            itemPriceInput.value = '';
-                        }
-                        // Lógica de itemQuantityInput removida
-                        const obsTextarea = document.getElementById('obs');
-                        if (obsTextarea) {
-                            obsTextarea.value = '';
-                        }
-                        
-                        const userWrapper = document.querySelector('[data-user-search="true"]');
-                        if (userWrapper && typeof userWrapper.clear === 'function') {
-                            userWrapper.clear();
-                            console.log('DEBUG: clearSelection (User) chamada pelo formulário principal.');
-                        }
-                        
-                        const itemWrapper = document.querySelector('[data-item-search="true"]');
-                        if (itemWrapper && typeof itemWrapper.clear === 'function') {
-                            itemWrapper.clear();
-                            console.log('DEBUG: clearSelection (Item) chamada pelo formulário principal.');
-                        }
-                        document.getElementById('original-price-display').style.display = 'none'; // Limpa o display do preço original
-                        
-                        carregarSacolas();
-						                        
-                    } else {
-                        mostrarAlert(data.message, 'danger');
-                    }
-                } catch (error) {
+						if (data.success) {
+							mostrarAlert(data.message, 'success');
+							
+							console.log('🧹 === INICIANDO LIMPEZA APÓS SUCESSO ===');
+							
+							// Limpar campos de preço e observação
+							const itemPriceInput = document.getElementById('item-price');
+							if (itemPriceInput) {
+								itemPriceInput.value = '';
+							}
+							
+							const obsTextarea = document.getElementById('obs');
+							if (obsTextarea) {
+								obsTextarea.value = '';
+							}
+							
+							document.getElementById('original-price-display').style.display = 'none';
+							
+							// 🎯 LIMPAR CLIENTE - USAR EVENTO
+							console.log('🧹 Disparando evento userCleared...');
+							const userWrapper = document.querySelector('[data-user-search="true"]');
+							if (userWrapper) {
+								userWrapper.dispatchEvent(new CustomEvent('userCleared'));
+								console.log('✅ Evento userCleared disparado para cliente');
+							}
+							
+							// 🎯 LIMPAR ITEM - MÉTODO DIRETO DOM
+							console.log('🧹 Limpando item via DOM direto...');
+							
+							// Encontrar todos os elementos do item
+							const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+							const itemHiddenInput = document.querySelector('[data-item-search="true"] [data-selected-id="true"]');
+							const itemDisplayCard = document.querySelector('[data-item-search="true"] [data-selected-display="true"]');
+							const itemResultsContainer = document.querySelector('[data-item-search="true"] [data-results-container="true"]');
+							
+							console.log('Elementos do item encontrados:', {
+								itemSearchInput, 
+								itemHiddenInput, 
+								itemDisplayCard, 
+								itemResultsContainer
+							});
+							
+							// Limpar campos do item
+							if (itemSearchInput) {
+								itemSearchInput.value = '';
+								console.log('✅ Campo de busca de item limpo');
+							}
+							
+							if (itemHiddenInput) {
+								itemHiddenInput.value = '';
+								console.log('✅ Campo hidden de item limpo');
+							}
+							
+							if (itemDisplayCard) {
+								itemDisplayCard.classList.add('d-none');
+								console.log('✅ Card de item escondido');
+							}
+							
+							if (itemResultsContainer) {
+								itemResultsContainer.style.display = 'none';
+								console.log('✅ Dropdown de item escondido');
+							}
+							
+							// Resetar variáveis globais se existirem
+							if (typeof selectedItem !== 'undefined') {
+								selectedItem = null;
+								console.log('✅ selectedItem resetado');
+							}
+							
+							// 🎯 FOCAR NO CLIENTE PARA PRÓXIMA ADIÇÃO
+							setTimeout(function() {
+								const clientInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
+								if (clientInput) {
+									console.log('🎯 Focando no cliente para próxima adição...');
+									clientInput.focus();
+								}
+							}, 300);
+							
+							carregarSacolas();
+							
+							console.log('🧹 === LIMPEZA FINALIZADA ===');
+						}             
+					} catch (error) {
                     console.error('Erro:', error);
                     mostrarAlert('Erro ao adicionar item à sacola', 'danger');
                 } finally {

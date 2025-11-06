@@ -271,6 +271,8 @@
 
     <!-- JavaScript das Lives e Sacolinhas -->
     <script>
+	console.log('🚀 ARQUIVO INDEX CARREGADO: ' + window.location.pathname);
+    console.log('🚀 TIMESTAMP: ' + new Date().toLocaleString());
         let liveAtiva = null;
 
         // Carregar lives ao inicializar a página
@@ -357,29 +359,89 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        mostrarAlert(data.message, 'success');
-                        
-                        // Limpar formulário
-                        this.reset();
-                        
-                        // Limpar componentes de busca
-                        const userWrapper = document.querySelector('[data-user-search="true"]');
-                        if (userWrapper) {
-                            userWrapper.dispatchEvent(new CustomEvent('userCleared'));
-                        }
-                        
-                        const itemWrapper = document.querySelector('[data-item-search="true"]');
-                        if (itemWrapper) {
-                            itemWrapper.dispatchEvent(new CustomEvent('itemCleared'));
-                        }
-                        
-                        // Recarregar sacolas
-                        carregarSacolas();
-                        
-                    } else {
-                        mostrarAlert(data.message, 'danger');
-                    }
+					if (data.success) {
+						mostrarAlert(data.message, 'success');
+						
+						console.log('🧹 === INICIANDO LIMPEZA APÓS SUCESSO ===');
+						
+						// Limpar formulário
+						this.reset();
+						
+						// 🎯 LIMPAR CLIENTE - MÉTODO DIRETO
+						console.log('🧹 Limpando cliente diretamente...');
+						
+						// Encontrar elementos do cliente
+						const userSearchInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
+						const userHiddenInput = document.querySelector('[data-user-search="true"] [data-hidden-input="true"]');
+						const userSelectedDisplay = document.querySelector('[data-user-search="true"] [data-selected-display="true"]');
+						const userClearBtn = document.querySelector('[data-user-search="true"] [data-clear-btn="true"]');
+						const userSuggestions = document.querySelector('[data-user-search="true"] [data-suggestions="true"]');
+						
+						console.log('Elementos encontrados:', {
+							userSearchInput, 
+							userHiddenInput, 
+							userSelectedDisplay, 
+							userClearBtn, 
+							userSuggestions
+						});
+						
+						// Limpar campos do cliente
+						if (userSearchInput) {
+							userSearchInput.value = '';
+							console.log('✅ Campo de busca limpo');
+						}
+						
+						if (userHiddenInput) {
+							userHiddenInput.value = '';
+							console.log('✅ Campo hidden limpo');
+						}
+						
+						if (userSelectedDisplay) {
+							userSelectedDisplay.classList.add('d-none');
+							console.log('✅ Card do cliente escondido');
+						}
+						
+						if (userClearBtn) {
+							userClearBtn.classList.add('d-none');
+							console.log('✅ Botão clear escondido');
+						}
+						
+						if (userSuggestions) {
+							userSuggestions.style.display = 'none';
+							console.log('✅ Dropdown escondido');
+						}
+						
+						// 🎯 LIMPAR ITEM - MÉTODO DIRETO
+						console.log('🧹 Limpando item diretamente...');
+						
+						const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+						const itemHiddenInput = document.querySelector('[data-item-search="true"] [data-hidden-input="true"]');
+						const itemSelectedDisplay = document.querySelector('[data-item-search="true"] [data-selected-display="true"]');
+						const itemPrice = document.getElementById('item-price');
+						const itemQuantity = document.getElementById('item-quantity');
+						
+						if (itemSearchInput) itemSearchInput.value = '';
+						if (itemHiddenInput) itemHiddenInput.value = '';
+						if (itemSelectedDisplay) itemSelectedDisplay.classList.add('d-none');
+						if (itemPrice) itemPrice.value = '';
+						if (itemQuantity) itemQuantity.value = '1';
+						
+						console.log('✅ Item limpo');
+						
+						// 🎯 FOCAR NO CLIENTE PARA PRÓXIMA ADIÇÃO
+						setTimeout(function() {
+							if (userSearchInput) {
+								console.log('🎯 Focando no cliente...');
+								userSearchInput.focus();
+								userSearchInput.click();
+							}
+						}, 300);
+						
+						// Recarregar sacolas
+						carregarSacolas();
+						
+						console.log('🧹 === LIMPEZA FINALIZADA ===');
+					}
                 })
                 .catch(error => {
                     console.error('Erro:', error);

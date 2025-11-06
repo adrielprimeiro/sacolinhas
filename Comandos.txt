@@ -1,4 +1,5 @@
 cd /serv/sacolinhas
+cd /var/www/sacolinhas
 
 docker-compose exec app sh
 
@@ -8,7 +9,18 @@ docker exec -it mysql-db mysql -u user -p
 
 SHOW TABLES;
 
+docker exec -it mysql-db-prod mysql -u sacolinhas_user -p'SenhaSuperSegura123!' sacolinhas_db -e "DESCRIBE users;"
+--------------------------------
+Importação
 
+# Executar importação com script
+docker exec -it laravel-app php /var/www/import_items.php
+
+# Contar registros
+docker exec -it mysql-db mysql -u sacolinhas_user -p'SenhaSuperSegura123!' sacolinhas_db -e "SELECT COUNT(*) as total_items FROM items;"
+
+# Ver alguns registros
+docker exec -it mysql-db mysql -u sacolinhas_user -p'SenhaSuperSegura123!' sacolinhas_db -e "SELECT codigo, nome_do_produto, preco, marca FROM items LIMIT 5;"
 
 ------------------------------------------------------------------------------------------
 Servidor
@@ -19,9 +31,68 @@ ssh-keygen -R vps55549.publiccloud.com.br
 # Depois tentar conectar novamente
 ssh root@vps55549.publiccloud.com.br
 
+docker-compose exec db mysql -u root -pRootSuperSegura456!
 
+DB_USERNAME=sacolinhas_user
+DB_PASSWORD=SenhaSuperSegura123!
+DB_ROOT_PASSWORD=RootSuperSegura456!
 
 ---------------------
 Github
 
-https://github.com/adrielprimeiro/controle-sacolinhas.git
+https://github.com/adrielprimeiro/sacolinhas.git
+
+---------------------------------------------------
+su - webuser
+cd /var/www/sacolinhas
+
+
+------------------------------
+docker
+# Copiar o arquivo do servidor para o container
+docker cp /var/www/scripts/import_users.php laravel-app:/var/www/import_users.php
+# Verificar se o arquivo existe no container
+docker exec -it laravel-app ls -la /var/www/import_users.
+
+
+
+# 1. Atualizar autoload para reconhecer novas classes
+docker exec -it app composer dump-autoload
+
+# 2. Limpar cache de configuração
+docker exec -it [container-laravel] php artisan config:clear
+
+# 3. Limpar cache de rotas
+docker exec -it [container-laravel] php artisan route:clear
+
+# 4. Limpar cache de views
+docker exec -it [container-laravel] php artisan view:clear
+
+# 5. Recriar cache otimizado
+docker exec -it [container-laravel] php artisan config:cache
+docker exec -it [container-laravel] php artisan route:cache
+
+------------------------------------------
+reiniciar
+# Reiniciar container
+docker restart laravel-app
+
+# Aguardar container subir
+sleep 5
+
+# Limpar caches
+docker exec -it laravel-app bash -c "
+cd /var/www
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+"
+
+
+Em um projeto Laravel, Docker e Mysql
+preciso modificar o código para fazer o seguinte:
+
+
+
+Ao buscar o usuário, e não encontrar, mostrar no card abaixo uma opção de cadastrar um novo cliente. Se clicar nessa opção abrir um formulário

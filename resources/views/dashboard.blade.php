@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<style>
+    <style>
         .sidebar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
@@ -50,6 +50,33 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        
+        /* ===== MELHORIAS NO MENU ===== */
+        .nav-link {
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+        .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: bold;
+        }
+        .sidebar-brand {
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+        .nav-item {
+            margin-bottom: 4px;
+        }
+        .nav-link i {
+            width: 20px;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -58,44 +85,236 @@
             <!-- Sidebar -->
             <div class="col-md-2 sidebar text-white p-0">
                 <div class="p-3">
-                    <h4>Admin</h4>
-                    <hr>
+                    <div class="sidebar-brand">
+                        <i class="fas fa-store"></i> Admin
+                    </div>
+                    <hr class="text-white-50">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
+                               href="{{ route('dashboard') }}">
+                                <i class="fas fa-home"></i> Dashboard
+                            </a>
+                        </li>
+                        
+                        <!-- NOVA SEÇÃO DE CLIENTES -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('clientes.*') ? 'active' : '' }}" 
+                               href="{{ route('clientes.index') }}">
+                                <i class="fas fa-users"></i> Clientes
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('items.*') ? 'active' : '' }}" 
+                               href="{{ route('items.index') }}">
                                 <i class="fas fa-box"></i> Itens
                             </a>
                         </li>
+                        
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}"> <!-- Novo item no menu -->
+                            <a class="nav-link text-white {{ request()->routeIs('bags.*') ? 'active' : '' }}" 
+                               href="{{ route('bags.index') }}">
                                 <i class="fas fa-broadcast-tower"></i> Live
                             </a>
                         </li>
+                        
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}"> <!-- Atualizado para a nova rota -->
+                            <a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.sacolinhas.index') }}">
                                 <i class="fas fa-shopping-bag"></i> Sacolas
                             </a>
                         </li>
+                        
+                        <!-- SEPARADOR -->
+                        <hr class="text-white-50 my-3">
+                        
+                        <!-- SEÇÃO DE RELATÓRIOS (OPCIONAL) -->
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
+                            <a class="nav-link text-white-50 small" href="#" data-bs-toggle="collapse" data-bs-target="#relatoriosMenu">
+                                <i class="fas fa-chart-bar"></i> Relatórios
+                                <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
+                            <div class="collapse" id="relatoriosMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white-75 small" 
+                                           href="{{ route('admin.clientes.relatorios') ?? '#' }}">
+                                            <i class="fas fa-user-chart"></i> Clientes
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white-75 small" href="#">
+                                            <i class="fas fa-shopping-chart"></i> Vendas
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                        
+                        <!-- CONFIGURAÇÕES -->
+                        <li class="nav-item mt-3">
+                            <a class="nav-link text-white-50 small" href="#">
+                                <i class="fas fa-cog"></i> Configurações
+                            </a>
+                        </li>
+                        
+                        <!-- LOGOUT -->
+                        <li class="nav-item">
+                            <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
+                                    <i class="fas fa-sign-out-alt"></i> Sair
+                                </button>
+                            </form>
                         </li>
                     </ul>
                 </div>
             </div>
+            
             <!-- Main Content -->
             <div class="col-md-10 p-4">
-                <!-- Header -->
+                <!-- Header com Breadcrumbs -->
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-                    <!-- Título -->
-                    <h2>Início</h2>
-
+                    <!-- Título com Breadcrumbs -->
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-1">
+                                <li class="breadcrumb-item">
+                                    <a href="{{ route('dashboard') }}" class="text-decoration-none">
+                                        <i class="fas fa-home"></i> Home
+                                    </a>
+                                </li>
+                                @if(request()->routeIs('clientes.*'))
+                                    <li class="breadcrumb-item active">Clientes</li>
+                                @elseif(request()->routeIs('items.*'))
+                                    <li class="breadcrumb-item active">Itens</li>
+                                @elseif(request()->routeIs('bags.*'))
+                                    <li class="breadcrumb-item active">Live</li>
+                                @elseif(request()->routeIs('admin.sacolinhas.*'))
+                                    <li class="breadcrumb-item active">Sacolas</li>
+                                @else
+                                    <li class="breadcrumb-item active">Dashboard</li>
+                                @endif
+                            </ol>
+                        </nav>
+                        <h2 class="mb-0">
+                            @if(request()->routeIs('clientes.*'))
+                                <i class="fas fa-users text-primary"></i> Gestão de Clientes
+                            @elseif(request()->routeIs('items.*'))
+                                <i class="fas fa-box text-primary"></i> Gestão de Itens
+                            @elseif(request()->routeIs('bags.*'))
+                                <i class="fas fa-broadcast-tower text-primary"></i> Gestão de Lives
+                            @elseif(request()->routeIs('admin.sacolinhas.*'))
+                                <i class="fas fa-shopping-bag text-primary"></i> Gestão de Sacolas
+                            @else
+                                <i class="fas fa-home text-primary"></i> Dashboard
+                            @endif
+                        </h2>
+                    </div>
                     
+                    <!-- Ações Rápidas -->
+                    <div class="d-flex gap-2">
+                        @if(request()->routeIs('clientes.*'))
+                            <a href="{{ route('clientes.create') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Novo Cliente
+                            </a>
+                        @elseif(request()->routeIs('items.*'))
+                            <a href="{{ route('items.create') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Novo Item
+                            </a>
+                        @endif
+                        
+                        <!-- Notificações -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-bell"></i>
+                                <span class="badge bg-danger">3</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#">Novo cliente cadastrado</a></li>
+                                <li><a class="dropdown-item" href="#">Live iniciada</a></li>
+                                <li><a class="dropdown-item" href="#">Estoque baixo</a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Profile -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user"></i> {{ Auth::user()->name }}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user-edit"></i> Perfil</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="fas fa-sign-out-alt"></i> Sair
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cards de Estatísticas Rápidas (apenas no dashboard) -->
+                @if(request()->routeIs('dashboard'))
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                                <h5 class="card-title">Clientes</h5>
+                                <p class="card-text display-6">{{ \App\Models\Cliente::count() ?? 0 }}</p>
+                                <a href="{{ route('clientes.index') }}" class="btn btn-sm btn-primary">Ver Todos</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-box fa-2x text-success mb-2"></i>
+                                <h5 class="card-title">Itens</h5>
+                                <p class="card-text display-6">{{ \App\Models\Item::count() ?? 0 }}</p>
+                                <a href="{{ route('items.index') }}" class="btn btn-sm btn-success">Ver Todos</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-broadcast-tower fa-2x text-warning mb-2"></i>
+                                <h5 class="card-title">Lives Ativas</h5>
+                                <p class="card-text display-6">2</p>
+                                <a href="{{ route('bags.index') }}" class="btn btn-sm btn-warning">Gerenciar</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-shopping-bag fa-2x text-info mb-2"></i>
+                                <h5 class="card-title">Sacolas</h5>
+                                <p class="card-text display-6">15</p>
+                                <a href="{{ route('admin.sacolinhas.index') }}" class="btn btn-sm btn-info">Ver Todas</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Conteúdo da Página -->
+                <div class="row">
+                    <div class="col-12">
+                        @yield('content')
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+    
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 

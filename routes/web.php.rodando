@@ -8,7 +8,6 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\SacolinhaController;
 use App\Http\Controllers\LiveController;
-use App\Http\Controllers\ClienteController; // ← NOVA IMPORTAÇÃO
 
 // ===== ROTAS DE AUTENTICAÇÃO =====
 
@@ -38,6 +37,9 @@ Route::get('/register', function () {
 
 Route::post('/register', function (Request $request) {
     $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8|confirmed',
     ]);
 
     $user = \App\Models\User::create([
@@ -80,17 +82,6 @@ Route::middleware('auth')->group(function () {
         return redirect('/dashboard');
     })->name('home');
 
-    // ===== CLIENTES =====
-    Route::resource('clientes', ClienteController::class);
-    
-    // Ação específica para bloquear/desbloquear cliente
-    Route::patch('clientes/{cliente}/toggle-block', [ClienteController::class, 'toggleBlock'])
-         ->name('clientes.toggle_block');
-    
-    // Rota para exportar clientes (opcional)
-    Route::get('clientes/export/{format?}', [ClienteController::class, 'export'])
-         ->name('clientes.export');
-
     // ===== ITEMS =====
     Route::resource('items', ItemController::class);
     
@@ -105,25 +96,6 @@ Route::middleware('auth')->group(function () {
             'update' => 'admin.items.update',
             'destroy' => 'admin.items.destroy',
         ]);
-
-        // ===== ADMIN CLIENTES =====
-        Route::resource('clientes', ClienteController::class)->names([
-            'index' => 'admin.clientes.index',
-            'create' => 'admin.clientes.create',
-            'store' => 'admin.clientes.store',
-            'show' => 'admin.clientes.show',
-            'edit' => 'admin.clientes.edit',
-            'update' => 'admin.clientes.update',
-            'destroy' => 'admin.clientes.destroy',
-        ]);
-        
-        // Admin - Toggle bloqueio de clientes
-        Route::patch('clientes/{cliente}/toggle-block', [ClienteController::class, 'toggleBlock'])
-             ->name('admin.clientes.toggle_block');
-             
-        // Admin - Relatórios de clientes
-        Route::get('clientes/relatorios/dashboard', [ClienteController::class, 'relatorios'])
-             ->name('admin.clientes.relatorios');
     });
 
     // ===== SACOLINHAS (BAGS) =====
@@ -146,12 +118,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/search', [UserController::class, 'search'])->name('api.users.search');
         Route::get('/items/search', [ItemController::class, 'search'])->name('api.items.search');
         
-        // ===== API CLIENTES =====
-        Route::get('/clientes/search', [ClienteController::class, 'search'])->name('api.clientes.search');
-        Route::get('/clientes/buscar-por-cpf/{cpf}', [ClienteController::class, 'buscarPorCpf'])->name('api.clientes.buscar_cpf');
-        Route::get('/clientes/estatisticas', [ClienteController::class, 'estatisticas'])->name('api.clientes.estatisticas');
-        Route::get('/clientes/{cliente}/historico', [ClienteController::class, 'historico'])->name('api.clientes.historico');
-        
         // API das Sacolinhas
         Route::get('/sacolinhas/live/{liveId?}', [SacolinhaController::class, 'getBagsByLive'])->name('api.sacolinhas.live');
         Route::delete('/sacolinhas/remove', [SacolinhaController::class, 'removeItems'])->name('api.sacolinhas.remove');
@@ -160,10 +126,7 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
 
+
 Route::get('admin/sacolinhas', function () {
     return view('admin.sacolinhas.index');
 })->name('admin.sacolinhas.index');
-
-
-Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
-Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 'quickCreate']);
