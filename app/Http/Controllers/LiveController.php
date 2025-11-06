@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Live; 
-
+use App\Models\User; // <- ADICIONEI ESTE USE
 
 class LiveController extends Controller
 {
@@ -56,8 +56,6 @@ class LiveController extends Controller
     {
         try {
             $request->validate([
-                'tipo_live' => 'required|string|in:loja-aberta,precinho,outlet',
-                'plataformas' => 'required|array|min:1',
                 'plataformas.*' => 'string|in:instagram,tiktok,youtube,facebook'
             ]);
 
@@ -155,8 +153,103 @@ class LiveController extends Controller
         return response()->json(['success' => true, 'data' => $formattedLives]);
     }
 	
-	public function showLiveBagsOverview()
+    public function showLiveBagsOverview()
     {
         return view('admin.sacolinhas.index');
+    }
+
+    /**
+     * Buscar usuários
+     */
+    public function search(Request $request)
+    {
+        try {
+            $query = $request->get('q');
+            $role = $request->get('role', 'client');
+            
+            if (empty($query)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'Query vazia'
+                ]);
+            }
+
+            $users = User::where('role', $role)
+                ->where(function($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('email', 'like', "%{$query}%")
+                      ->orWhere('phone', 'like', "%{$query}%")
+                      ->orWhere('id', $query);
+                })
+                ->limit(10)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $users,
+                'search_term' => $query
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro na busca de usuários: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro na busca'
+            ], 500);
+        }
+    }
+
+    /**
+     * Criar novo cliente com dados básicos
+     */
+    public function quickCreate(Request $request)
+    {
+        try {
+            $request->validate([
+            ]);
+
+            $name = $request->input('name');
+            
+            // Gerar email temporário único
+            $emailBase = strtolower(str_replace(' ', '.', $name));
+            $emailBase = preg_replace('/[^a-z0-9.]/', '', $emailBase);
+            $timestamp = time();
+            $email = "{$emailBase}.{$timestamp}@temp.cliente.com";
+            
+            // Criar novo cliente com dados padronizados
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'phone' => null, // Será preenchido depois
+                'role' => 'client',
+                'status' => 'active',
+                'password' => bcrypt('temp123'), // Senha temporária
+                'email_verified_at' => null,
+                'created_via' => 'quick_search', // Campo para identificar origem
+                'needs_completion' => true, // Flag para indicar que precisa completar dados
+            ]);
+
+            Log::info("Novo cliente criado via busca rápida: {$user->name} (ID: {$user->id})");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente criado com sucesso!',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar_url' => $user->avatar_url ?? '/default-avatar.png',
+                    'created_now' => true
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar cliente rápido: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar cliente: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
