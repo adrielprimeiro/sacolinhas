@@ -5,16 +5,50 @@ docker-compose exec app sh
 
 # Acessar o container MySQL diretamente
 docker exec -it mysql-db mysql -u user -p 
-
-
+---------------------------------------------------------------------------------------------
+Fazer importação
+root@vps55549:/var/www/sacolinhas# 
+docker exec -it laravel-app php /var/www/import_items.php
+docker exec -it laravel-app php /var/www/import_users.php
+----------------------------------------------------------
 SHOW TABLES;
 
-docker exec -it mysql-db-prod mysql -u sacolinhas_user -p'SenhaSuperSegura123!' sacolinhas_db -e "DESCRIBE users;"
---------------------------------
+# Conectar como root
+docker exec -it mysql-db mysql -u root -p'RootSuperSegura456!' sacolinhas_db
+
+-- Estrutura da tabela
+DESCRIBE items;
+
+-- Total de registros
+SELECT COUNT(*) as total_items FROM items;
+
+-- Últimos registros
+SELECT codigo, nome_do_produto, preco, created_at 
+FROM items 
+ORDER BY created_at DESC 
+LIMIT 5;
+
+-- Por categoria
+SELECT codigo_da_categoria, COUNT(*) as quantidade 
+FROM items 
+GROUP BY codigo_da_categoria 
+ORDER BY quantidade DESC;
+
+-- Range de preços
+SELECT 
+    MIN(preco) as preco_minimo,
+    MAX(preco) as preco_maximo,
+    AVG(preco) as preco_medio,
+    COUNT(*) as total_com_preco
+FROM items 
+WHERE preco > 0;
+-----------------------------------------------------------------------------------------------
 Importação
 
 # Executar importação com script
 docker exec -it laravel-app php /var/www/import_items.php
+
+
 
 # Contar registros
 docker exec -it mysql-db mysql -u sacolinhas_user -p'SenhaSuperSegura123!' sacolinhas_db -e "SELECT COUNT(*) as total_items FROM items;"

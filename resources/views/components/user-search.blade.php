@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         suggestionsDropdown.style.display = 'block';
     }
 
-	// SUBSTITUIR função selectUser completa:
+	// função selectUser completa:
 	function selectUser(user) {
 		console.log('=== SELECIONANDO USUÁRIO ===');
 		console.log('User data:', user);
@@ -211,12 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
 			
 			console.log('Usuário selecionado com sucesso!');
 			
-			// 🎯 ADICIONAR ESTA LINHA NO FINAL:
+			
 			setTimeout(function() {
-				const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
-				if (itemInput) {
-					console.log('🎯 Focando no campo de item...');
-					itemInput.focus();
+				//const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+				const addButton = document.querySelector('#add-item-form button[type="submit"]');
+				if (addButton) {
+					console.log('🎯 Focando no botão...');
+					addButton.focus();
 				}
 			}, 200);
 		}
