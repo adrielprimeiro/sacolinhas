@@ -41,4 +41,7 @@ copy
 dir
 ls
 php
-{
+{export_sacolas_google_sheets.php
+import_clientes_planilha.php
+scripts/
+test_*.php
