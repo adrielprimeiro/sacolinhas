@@ -193,8 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // EXPOR A FUNÇÃO clearSelection através do wrapper
-    wrapper.clear = clearSelection; // <--- ADICIONE ESTA LINHA
-
+    wrapper.clear = clearSelection; 
     // Event listener para input
     elements.input.addEventListener('input', function(e) {
         const query = e.target.value.trim();

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Gerenciar Sacolinhas</title>
+    <title>Live</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -58,32 +58,92 @@
             <!-- Sidebar -->
             <div class="col-md-2 sidebar text-white p-0">
                 <div class="p-3">
-                    <h4>Admin</h4>
-                    <hr>
+                    <div class="sidebar-brand">
+                        <i class="fas fa-store"></i> Admin
+                    </div>
+                    <hr class="text-white-50">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
+                               href="{{ route('dashboard') }}">
+                                <i class="fas fa-home"></i> Dashboard
+                            </a>
+                        </li>
+						
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('clientes.*') ? 'active' : '' }}" 
+                               href="{{ route('clientes.index') }}">
+                                <i class="fas fa-users"></i> Clientes
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('items.*') ? 'active' : '' }}" 
+                               href="{{ route('items.index') }}">
                                 <i class="fas fa-box"></i> Itens
                             </a>
                         </li>
+                        
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}"> <!-- Novo item no menu -->
+                            <a class="nav-link text-white {{ request()->routeIs('bags.*') ? 'active' : '' }}" 
+                               href="{{ route('bags.index') }}">
                                 <i class="fas fa-broadcast-tower"></i> Live
                             </a>
                         </li>
+                        
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}"> <!-- Atualizado para a nova rota -->
+                            <a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.sacolinhas.index') }}">
                                 <i class="fas fa-shopping-bag"></i> Sacolas
                             </a>
                         </li>
+                        
+                        <!-- SEPARADOR -->
+                        <hr class="text-white-50 my-3">
+                        
+                        <!-- SEÇÃO DE RELATÓRIOS (OPCIONAL) -->
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
+                            <a class="nav-link text-white-50 small" href="#" data-bs-toggle="collapse" data-bs-target="#relatoriosMenu">
+                                <i class="fas fa-chart-bar"></i> Relatórios
+                                <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
+                            <div class="collapse" id="relatoriosMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white-75 small" 
+                                           href="">
+                                            <i class="fas fa-user-chart"></i> Clientes
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white-75 small" href="#">
+                                            <i class="fas fa-shopping-chart"></i> Vendas
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                        
+                        <!-- CONFIGURAÇÕES -->
+                        <li class="nav-item mt-3">
+                            <a class="nav-link text-white-50 small" href="#">
+                                <i class="fas fa-cog"></i> Configurações
+                            </a>
+                        </li>
+                        
+                        <!-- LOGOUT -->
+                        <li class="nav-item">
+                            <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
+                                    <i class="fas fa-sign-out-alt"></i> Sair
+                                </button>
+                            </form>
                         </li>
                     </ul>
                 </div>
             </div>
+
             <!-- Main Content -->
             <div class="col-md-10 p-4">
                 <!-- Header -->
@@ -152,29 +212,6 @@
                         <form method="POST" action="{{ route('sacolinhas.store') }}" id="add-item-form">
                             @csrf
                             <div class="row">
-								<!-- Busca de Cliente -->
-								<div class="col-md-6 mb-3">
-									<div class="d-flex justify-content-between align-items-center mb-2">
-										<label class="form-label mb-0">
-											<i class="fas fa-user"></i>
-											Selecionar Cliente
-										</label>
-										
-										<!-- BOTÃO NOVO CLIENTE (se tiver rota) -->
-										<a href="{{ route('admin.clientes.create') }}" 
-										   class="btn btn-sm btn-outline-info" 
-										   target="_blank"
-										   title="Cadastrar novo cliente">
-											<i class="fas fa-user-plus"></i> Novo Cliente
-										</a>
-									</div>
-									
-									@include('components.user-search', [
-										'name' => 'client_id',
-										'placeholder' => 'Buscar cliente por nome, email ou telefone...',
-										'value' => old('client_id')
-									])
-								</div>
 								<!-- Campo Item - NOVO COMPONENTE -->
 								<div class="col-md-6 mb-3">
 									<div class="d-flex justify-content-between align-items-center mb-2">
@@ -200,6 +237,30 @@
 										'priceValue' => old('item_price')
 									])
 								</div>
+								<!-- Busca de Cliente -->
+								<div class="col-md-6 mb-3">
+									<div class="d-flex justify-content-between align-items-center mb-2">
+										<label class="form-label mb-0">
+											<i class="fas fa-user"></i>
+											Selecionar Cliente
+										</label>
+										
+										<!-- BOTÃO NOVO CLIENTE (se tiver rota) -->
+										<a href="{{ route('admin.clientes.create') }}" 
+										   class="btn btn-sm btn-outline-info" 
+										   target="_blank"
+										   title="Cadastrar novo cliente">
+											<i class="fas fa-user-plus"></i> Novo Cliente
+										</a>
+									</div>
+									
+									@include('components.user-search', [
+										'name' => 'client_id',
+										'placeholder' => 'Buscar cliente por nome, email ou telefone...',
+										'value' => old('client_id')
+									])
+								</div>
+								
                             </div>
                             <div class="row">
                                 <!-- Preço -->
@@ -258,7 +319,7 @@
         let liveAtiva = null;
         const DISCOUNT_PERCENTAGE = 0.5; // 50% de desconto para live do 'precinho'
 
-		// 🔧 ADICIONAR ESTAS LINHAS:
+
 		let itemSearchWrapper = null;
 		let selectedItem = null;
 		let itemHighlightedIndex = -1;
@@ -279,7 +340,8 @@
                     if (itemInput) {
                         itemInput.focus();
                     }
-                });
+				})
+	
                 userSearchComponent.addEventListener('userCleared', function(e) {
                     console.log('Seleção de cliente limpa');
                 });
@@ -316,16 +378,14 @@
                             originalPriceDisplay.style.display = 'none';
                         }
                     }
-                    const addButton = document.querySelector('#add-item-form button[type="submit"]');
-                    if (addButton) {
-                        setTimeout(() => {
-                            addButton.focus();
-                            console.log('🎯 Foco dado no botão de adicionar');
-                        }, 100); // Pequeno delay para garantir que a seleção foi processada
-                    }                    
-                    // A linha abaixo de focar no campo de quantidade será removida no item 3
-                    // document.getElementById('item-quantity').focus();
-                });
+					setTimeout(() => {
+						const clientInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
+						if (clientInput) {
+							clientInput.focus();
+							console.log('🎯 Foco movido para o campo de cliente');
+						}
+					}, 100);
+				});
                 itemSearchComponent.addEventListener('itemCleared', function(e) {
                     console.log('Seleção de item limpa');
                     document.getElementById('item-price').value = '';
