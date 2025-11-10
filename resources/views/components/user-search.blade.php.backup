@@ -1,82 +1,41 @@
-<div class="user-search-component" data-component="user-search">
+<div class="user-search-wrapper" data-user-search="true">
     <div class="position-relative">
-        <!-- Input de Busca -->
-        <div class="input-group">
-            <span class="input-group-text">
-                <i class="fas fa-search text-muted"></i>
-            </span>
-            <input 
-                type="text" 
-                class="form-control user-search-input" 
-                placeholder="{{ $placeholder ?? 'Buscar por nome, email, telefone ou ID...' }}"
-                autocomplete="off"
-                aria-label="Buscar usuários"
-                aria-describedby="user-search-help"
-                data-bs-toggle="dropdown"
-                data-bs-auto-close="outside"
-            >
-            <button class="btn btn-outline-secondary clear-search d-none" type="button" aria-label="Limpar busca">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <!-- Dropdown de Sugestões -->
-        <ul class="dropdown-menu w-100 user-suggestions" style="max-height: 450px; overflow-y: auto;">
-            <!-- Loading -->
-            <li class="dropdown-item-text text-center py-3 loading-item d-none">
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Carregando...</span>
-                </div>
-                <div class="mt-2 text-muted small">Buscando usuários...</div>
-            </li>
-
-            <!-- Sem resultados -->
-            <li class="dropdown-item-text text-center py-3 no-results d-none">
-                <i class="fas fa-user-slash text-muted fa-2x mb-2"></i>
-                <div class="text-muted">Nenhum usuário encontrado</div>
-                <small class="text-muted">Tente buscar por nome, email, telefone ou ID</small>
-            </li>
-
-            <!-- Erro -->
-            <li class="dropdown-item-text text-center py-3 error-item d-none">
-                <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
-                <div class="text-warning">Erro ao buscar usuários</div>
-                <small class="text-muted">Tente novamente em alguns instantes</small>
-            </li>
-        </ul>
-
-        <!-- Campo Hidden para armazenar o ID selecionado -->
-        <input type="hidden" class="selected-user-id" name="{{ $name ?? 'user_id' }}" value="{{ $value ?? '' }}">
+        <input type="text" 
+               class="form-control user-search-input" 
+               placeholder="Buscar por nome, email ou ID..." 
+               autocomplete="off"
+               data-search-input="true">
         
-        <!-- Informação de ajuda -->
-        <div id="user-search-help" class="form-text">
-            Digite pelo menos 1 caractere para buscar. Use ID, nome, email ou telefone.
+        <div class="search-icon">
+            <i class="fas fa-search text-muted"></i>
         </div>
+        
+        <button class="btn btn-outline-secondary user-clear-btn d-none" type="button" data-clear-btn="true">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
 
-    <!-- Usuário Selecionado -->
-    <div class="selected-user-display mt-2 d-none">
-        <div class="card border-success">
-            <div class="card-body p-3">
-                <div class="d-flex align-items-start">
-                    <img class="selected-user-avatar rounded-circle me-3" src="" alt="" width="48" height="48">
+	<input type="hidden" 
+       class="user-selected-id" 
+       name="{{ $name ?? 'client_id' }}"    
+       value="{{ $value ?? '' }}" 
+       data-hidden-input="true">
+
+    <div class="user-suggestions-dropdown" data-suggestions="true" style="display: none;">
+    </div>
+
+    <div class="user-selected-display mt-2 d-none" data-selected-display="true">
+        <div class="card">
+            <div class="card-body p-2">
+                <div class="d-flex align-items-center">
+                    <img class="user-avatar me-2" src="" alt="Avatar" width="32" height="32" style="border-radius: 50%;">
                     <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="selected-user-name mb-1"></h6>
-                                <small class="selected-user-email text-muted d-block"></small>
-                                <small class="selected-user-phone text-info d-block"></small>
-                                <small class="selected-user-address text-muted d-block"></small>
-                                <div class="mt-1">
-                                    <span class="selected-user-role badge bg-secondary"></span>
-                                    <span class="selected-user-id-badge badge bg-primary ms-1"></span>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-selection" aria-label="Remover seleção">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+                        <div class="user-name fw-semibold"></div>
+                        <div class="user-email text-muted small"></div>
                     </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger user-remove-btn" data-remove-btn="true">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -84,356 +43,324 @@
 </div>
 
 <style>
-.user-search-component .dropdown-menu {
-    border: 1px solid #dee2e6;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+.user-search-wrapper { position: relative; }
+.user-search-wrapper .search-icon { 
+    position: absolute; right: 10px; top: 50%; 
+    transform: translateY(-50%); pointer-events: none; z-index: 2; 
+}
+.user-search-wrapper .user-clear-btn { 
+    position: absolute; right: 8px; top: 50%; 
+    transform: translateY(-50%); border: none; background: transparent; 
+    padding: 2px 6px; font-size: 12px; z-index: 3; 
+}
+.user-suggestions-dropdown { 
+    position: absolute; top: 100%; left: 0; right: 0; 
+    background: white; border: 1px solid #ddd; border-radius: 0.375rem; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); z-index: 1000; 
+    max-height: 300px; overflow-y: auto; 
+}
+.user-suggestion-item { 
+    padding: 10px 15px; cursor: pointer; 
+    border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s; 
+}
+.user-suggestion-item:hover { background-color: #f8f9fa; }
+.create-client-item { 
+    padding: 10px 15px; cursor: pointer; 
+    background-color: #e3f2fd; border-left: 4px solid #2196f3; 
+}
+.create-client-item:hover { background-color: #bbdefb; 
+}
+.user-suggestion-item.highlighted,
+.create-client-item.highlighted {
+    background-color: #007bff !important;
+    color: white !important;
 }
 
-.user-search-component .user-suggestion-item {
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
-}
-
-.user-search-component .user-suggestion-item:hover {
-    background-color: #f8f9fa;
-}
-
-.user-search-component .user-suggestion-item.active {
-    background-color: #e7f3ff;
-}
-
-.user-search-component .user-avatar {
-    width: 45px;
-    height: 45px;
-    object-fit: cover;
-}
-
-.user-search-component .selected-user-display {
-    animation: fadeIn 0.3s ease-in-out;
-}
-
-.user-search-component .role-badge {
-    font-size: 0.7em;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Responsividade */
-@media (max-width: 576px) {
-    .user-search-component .dropdown-menu {
-        max-height: 300px;
-    }
-    
-    .user-search-component .user-avatar {
-        width: 35px;
-        height: 35px;
-    }
-    
-    .user-search-component .selected-user-avatar {
-        width: 40px;
-        height: 40px;
-    }
+.user-suggestion-item.highlighted .text-muted,
+.create-client-item.highlighted .text-muted {
+    color: rgba(255, 255, 255, 0.8) !important;
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('[data-component="user-search"]').forEach(initUserSearch);
-});
+    console.log('Inicializando busca de usuários...');
+    
+    var wrapper = document.querySelector('[data-user-search="true"]');
+    var searchInput = wrapper.querySelector('[data-search-input="true"]');
+    var hiddenInput = wrapper.querySelector('[data-hidden-input="true"]');
+    var suggestionsDropdown = wrapper.querySelector('[data-suggestions="true"]');
+    var selectedDisplay = wrapper.querySelector('[data-selected-display="true"]');
+    var clearBtn = wrapper.querySelector('[data-clear-btn="true"]');
+    var removeBtn = wrapper.querySelector('[data-remove-btn="true"]');
 
-function initUserSearch(container) {
-    const input = container.querySelector('.user-search-input');
-    const dropdown = container.querySelector('.user-suggestions');
-    const hiddenInput = container.querySelector('.selected-user-id');
-    const clearBtn = container.querySelector('.clear-search');
-    const selectedDisplay = container.querySelector('.selected-user-display');
-    const removeBtn = container.querySelector('.remove-selection');
+    var debounceTimer;
+    var currentSearch = '';
 
-    let debounceTimer;
-    let currentRequest;
-    let selectedIndex = -1;
-    let suggestions = [];
-
-    // Debounce para busca
-    function debounce(func, wait) {
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(debounceTimer);
-                func(...args);
-            };
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(later, wait);
-        };
-    }
-
-    // Função de busca
-    const searchUsers = debounce(async function(query) {
-        if (query.length < 1) {
-            hideDropdown();
+    function searchUsers() {
+        var query = searchInput.value.trim();
+        currentSearch = query;
+        
+        if (!query) {
+            suggestionsDropdown.style.display = 'none';
             return;
         }
 
-        showLoading();
-
-        if (currentRequest) {
-            currentRequest.abort();
-        }
-
-        try {
-            const controller = new AbortController();
-            currentRequest = controller;
-
-            const url = `/api/users/search?q=${encodeURIComponent(query)}&limit=10&role=client`;
-
-            const response = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            const data = await response.json();
-
+        console.log('Buscando por: ' + query);
+        
+        fetch('/users/search?q=' + encodeURIComponent(query) + '&role=client')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            console.log('Resultado da busca:', data);
+            
             if (data.success) {
-                suggestions = data.data;
-                displaySuggestions(suggestions);
+                if (data.data && data.data.length > 0) {
+                    showUsers(data.data);
+                } else {
+                    showNoResults();
+                }
             } else {
                 showError();
             }
-
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('Erro na busca:', error);
-                showError();
-            }
-        } finally {
-            currentRequest = null;
-        }
-    }, 300);
-
-    // Event listeners
-    input.addEventListener('input', function(e) {
-        const query = e.target.value.trim();
-        
-        if (query) {
-            clearBtn.classList.remove('d-none');
-        } else {
-            clearBtn.classList.add('d-none');
-            hideDropdown();
-        }
-
-        if (hiddenInput.value) {
-            clearSelection();
-        }
-
-        searchUsers(query);
-    });
-
-    input.addEventListener('focus', function() {
-        if (suggestions.length > 0) {
-            showDropdown();
-        }
-    });
-
-    input.addEventListener('keydown', function(e) {
-        const items = dropdown.querySelectorAll('.user-suggestion-item');
-        
-        switch(e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-                updateSelection(items);
-                break;
-                
-            case 'ArrowUp':
-                e.preventDefault();
-                selectedIndex = Math.max(selectedIndex - 1, -1);
-                updateSelection(items);
-                break;
-                
-            case 'Enter':
-                e.preventDefault();
-                if (selectedIndex >= 0 && items[selectedIndex]) {
-                    selectUser(suggestions[selectedIndex]);
-                }
-                break;
-                
-            case 'Escape':
-                hideDropdown();
-                input.blur();
-                break;
-        }
-    });
-
-    clearBtn.addEventListener('click', function() {
-        input.value = '';
-        clearBtn.classList.add('d-none');
-        hideDropdown();
-        clearSelection();
-        input.focus();
-    });
-
-    removeBtn.addEventListener('click', function() {
-        clearSelection();
-        input.focus();
-    });
-
-    // Funções auxiliares
-    function showLoading() {
-        dropdown.innerHTML = '';
-        const loadingItem = container.querySelector('.loading-item').cloneNode(true);
-        loadingItem.classList.remove('d-none');
-        dropdown.appendChild(loadingItem);
-        showDropdown();
+        })
+        .catch(function(error) {
+            console.error('Erro na busca:', error);
+            showError();
+        });
     }
+
+	function showUsers(users) {
+		console.log('Mostrando usuários:', users);
+		suggestionsDropdown.innerHTML = '';
+		resetSelection(); // ADICIONADO
+		
+		for (var i = 0; i < users.length; i++) {
+			var user = users[i];
+			var item = document.createElement('div');
+			item.className = 'user-suggestion-item';
+			
+			var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
+			
+			item.innerHTML = '<div class="d-flex align-items-center">' +
+				'<img src="' + avatarSrc + '" alt="Avatar" width="32" height="32" style="border-radius: 50%; margin-right: 10px;">' +
+				'<div class="flex-grow-1">' +
+					'<div class="fw-semibold">' + user.name + '</div>' +
+					'<div class="text-muted small">' + user.email + '</div>' +
+				'</div>' +
+				'<div class="text-muted small">#' + user.id + '</div>' +
+			'</div>';
+			
+			item.onclick = function(userData) {
+				return function() { selectUser(userData); };
+			}(user);
+			
+			suggestionsDropdown.appendChild(item);
+		}
+		
+		suggestionsDropdown.style.display = 'block';
+	}
+    
+
+	function showNoResults() {
+		resetSelection(); // ADICIONADO
+		
+		suggestionsDropdown.innerHTML = '<div class="text-center py-3">' +
+			'<span>Nenhum usuário encontrado</span></div>' +
+			'<div class="create-client-item" onclick="createNewClient()">' +
+				'<div class="d-flex align-items-center">' +
+					'<i class="fas fa-plus-circle" style="color: #2196f3; margin-right: 8px;"></i>' +
+					'<div><div class="fw-semibold">Cadastrar Novo Cliente</div></div>' +
+				'</div>' +
+			'</div>';
+		
+		suggestionsDropdown.style.display = 'block';
+	}
 
     function showError() {
-        dropdown.innerHTML = '';
-        const errorItem = container.querySelector('.error-item').cloneNode(true);
-        errorItem.classList.remove('d-none');
-        dropdown.appendChild(errorItem);
-        showDropdown();
+        suggestionsDropdown.innerHTML = '<div class="text-center py-3 text-danger">' +
+            'Erro ao buscar usuários</div>';
+        suggestionsDropdown.style.display = 'block';
     }
 
-    function displaySuggestions(users) {
-        dropdown.innerHTML = '';
-        selectedIndex = -1;
-
-        if (users.length === 0) {
-            const noResults = container.querySelector('.no-results').cloneNode(true);
-            noResults.classList.remove('d-none');
-            dropdown.appendChild(noResults);
-        } else {
-            users.forEach((user, index) => {
-                const item = createSuggestionItem(user, index);
-                dropdown.appendChild(item);
-            });
-        }
-
-        showDropdown();
-    }
-
-    function createSuggestionItem(user, index) {
-        const li = document.createElement('li');
-        li.className = 'user-suggestion-item';
-        li.setAttribute('role', 'option');
-        li.setAttribute('aria-selected', 'false');
-        
-        const a = document.createElement('a');
-        a.className = 'dropdown-item d-flex align-items-center py-2';
-        a.href = '#';
-        
-        a.innerHTML = `
-            <img src="${user.avatar_url}" alt="${escapeHtml(user.name)}" class="user-avatar rounded-circle me-3" width="45" height="45">
-            <div class="flex-grow-1">
-                <div class="fw-bold">${escapeHtml(user.name)}</div>
-                <small class="text-muted">${escapeHtml(user.email)}</small>
-                ${user.formatted_phone ? `<br><small class="text-info"><i class="fas fa-phone fa-xs"></i> ${escapeHtml(user.formatted_phone)}</small>` : ''}
-                ${user.short_address ? `<br><small class="text-muted"><i class="fas fa-map-marker-alt fa-xs"></i> ${escapeHtml(user.short_address)}</small>` : ''}
-            </div>
-            <div class="text-end">
-                <small class="text-muted">ID: ${user.id}</small>
-                ${user.age ? `<br><small class="text-muted">${user.age} anos</small>` : ''}
-            </div>
-        `;
-
-        a.addEventListener('click', function(e) {
-            e.preventDefault();
-            selectUser(user);
-        });
-
-        li.appendChild(a);
-        return li;
-    }
-
-    function selectUser(user) {
-        hiddenInput.value = user.id;
-        input.value = user.display_name;
-        
-        // Mostrar usuário selecionado
-        selectedDisplay.querySelector('.selected-user-avatar').src = user.avatar_url;
-        selectedDisplay.querySelector('.selected-user-avatar').alt = user.name;
-        selectedDisplay.querySelector('.selected-user-name').textContent = user.name;
-        selectedDisplay.querySelector('.selected-user-email').textContent = user.email;
-        selectedDisplay.querySelector('.selected-user-phone').textContent = user.formatted_phone || 'Sem telefone';
-        selectedDisplay.querySelector('.selected-user-address').textContent = user.short_address || 'Sem endereço';
-        
-        const roleElement = selectedDisplay.querySelector('.selected-user-role');
-        roleElement.textContent = 'Cliente';
-        roleElement.className = 'badge bg-secondary';
-        
-        selectedDisplay.querySelector('.selected-user-id-badge').textContent = `ID: ${user.id}`;
-        
-        selectedDisplay.classList.remove('d-none');
-        clearBtn.classList.add('d-none');
-        
-        hideDropdown();
-        
-        // Disparar evento personalizado
-        container.dispatchEvent(new CustomEvent('userSelected', {
-            detail: { user: user }
-        }));
-    }
+	// função selectUser completa:
+	function selectUser(user) {
+		console.log('=== SELECIONANDO USUÁRIO ===');
+		console.log('User data:', user);
+		
+		hiddenInput.value = user.id;
+		searchInput.value = user.name;
+		
+		// Atualizar display
+		const avatar = selectedDisplay.querySelector('.user-avatar');
+		const name = selectedDisplay.querySelector('.user-name');
+		const email = selectedDisplay.querySelector('.user-email');
+		
+		if (avatar && name && email) {
+			var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
+			if (user.avatar_url && user.avatar_url !== null && user.avatar_url !== '') {
+				avatarSrc = user.avatar_url;
+			}
+			
+			avatar.src = avatarSrc;
+			name.textContent = user.name;
+			email.textContent = user.email;
+			
+			selectedDisplay.classList.remove('d-none');
+			suggestionsDropdown.style.display = 'none';
+			clearBtn.classList.remove('d-none');
+			
+			console.log('Usuário selecionado com sucesso!');
+			
+			
+			setTimeout(function() {
+				//const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+				const addButton = document.querySelector('#add-item-form button[type="submit"]');
+				if (addButton) {
+					console.log('🎯 Focando no botão...');
+					addButton.focus();
+				}
+			}, 200);
+		}
+		
+		console.log('=== FIM SELEÇÃO ===');
+	}	
 
     function clearSelection() {
         hiddenInput.value = '';
+        searchInput.value = '';
         selectedDisplay.classList.add('d-none');
+        clearBtn.classList.add('d-none');
+        suggestionsDropdown.style.display = 'none';
+    }
+
+    window.createNewClient = function() {
+        console.log('Criando novo cliente:', currentSearch);
         
-        container.dispatchEvent(new CustomEvent('userCleared'));
-    }
-
-    function updateSelection(items) {
-        items.forEach((item, index) => {
-            if (index === selectedIndex) {
-                item.classList.add('active');
-                item.setAttribute('aria-selected', 'true');
-                item.scrollIntoView({ block: 'nearest' });
-            } else {
-                item.classList.remove('active');
-                item.setAttribute('aria-selected', 'false');
-            }
-        });
-    }
-
-    function showDropdown() {
-        dropdown.classList.add('show');
-    }
-
-    function hideDropdown() {
-        dropdown.classList.remove('show');
-        selectedIndex = -1;
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Carregar usuário inicial se houver valor
-    if (hiddenInput.value) {
-        loadInitialUser(hiddenInput.value);
-    }
-
-    async function loadInitialUser(userId) {
-        try {
-            const response = await fetch(`/api/users/${userId}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            const data = await response.json();
-
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/users/quick-create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ name: currentSearch })
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
             if (data.success) {
-                selectUser(data.data);
+                selectUser(data.user);
+            } else {
+                alert('Erro ao criar cliente');
             }
-        } catch (error) {
-            console.error('Erro ao carregar usuário inicial:', error);
+        })
+        .catch(function(error) {
+            console.error('Erro:', error);
+            alert('Erro de comunicação');
+        });
+    };
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(searchUsers, 300);
+        
+        if (this.value.trim()) {
+            clearBtn.classList.remove('d-none');
+        } else {
+            clearBtn.classList.add('d-none');
         }
-    }
-}
+    });
+
+    clearBtn.addEventListener('click', clearSelection);
+    removeBtn.addEventListener('click', clearSelection);
+
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) {
+            suggestionsDropdown.style.display = 'none';
+        }
+    });
+	var selectedIndex = -1; // Controlar qual item está selecionado
+
+	// Navegação por teclado
+	searchInput.addEventListener('keydown', function(e) {
+		var items = suggestionsDropdown.querySelectorAll('.user-suggestion-item, .create-client-item');
+		
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+			updateHighlight(items);
+		} 
+		else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			selectedIndex = Math.max(selectedIndex - 1, -1);
+			updateHighlight(items);
+		} 
+		else if (e.key === 'Enter' && selectedIndex >= 0) {
+			e.preventDefault();
+			items[selectedIndex].click();
+		}
+		else if (e.key === 'Escape') {
+			suggestionsDropdown.style.display = 'none';
+			selectedIndex = -1;
+		}
+	});
+
+	// Função para destacar item selecionado
+	function updateHighlight(items) {
+		for (var i = 0; i < items.length; i++) {
+			if (i === selectedIndex) {
+				items[i].classList.add('highlighted');
+			} else {
+				items[i].classList.remove('highlighted');
+			}
+		}
+	}
+
+	// Resetar seleção quando mostrar novos resultados
+	function resetSelection() {
+		selectedIndex = -1;
+	}
+	
+	// Escutar evento personalizado de limpeza
+	wrapper.addEventListener('userCleared', function(e) {
+		console.log('🧹 Evento userCleared recebido - limpando seleção');
+		clearSelection();
+	});
+
+	// Também escutar evento global de item adicionado à sacola
+	document.addEventListener('bagItemAdded', function(e) {
+		console.log('🎯 Item adicionado à sacola - limpando cliente automaticamente');
+		clearSelection();
+	});	
+
+	// Função global para limpar de fora
+	window.clearUserSelectionManual = function() {
+		console.log('🧹 clearUserSelectionManual chamada');
+		
+		// Limpar campos
+		searchInput.value = '';
+		hiddenInput.value = '';
+		
+		// Esconder elementos
+		selectedDisplay.classList.add('d-none');
+		clearBtn.classList.add('d-none');
+		suggestionsDropdown.style.display = 'none';
+		
+		console.log('✅ Cliente limpo manualmente');
+	};
+
+	// Função para focar item
+	window.focusItemField = function() {
+		setTimeout(function() {
+			const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+			if (itemInput) {
+				console.log('🎯 Focando campo item...');
+				itemInput.focus();
+				itemInput.click();
+			}
+		}, 300);
+	};
+	
+    console.log('Componente carregado!');
+});
 </script>

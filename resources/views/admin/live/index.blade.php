@@ -50,6 +50,23 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+		#total-sacolas {
+			font-family: 'Courier New', monospace;
+			text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+		}
+
+		#contador-sacolas {
+			opacity: 0.8;
+		}
+
+		.card-header .text-end {
+			min-width: 150px;
+		}
+
+		/* Animação suave quando o total aparece/desaparece */
+		#total-sacolas, #contador-sacolas {
+			transition: opacity 0.3s ease;
+		}
     </style>
 </head>
 <body class="bg-light">
@@ -291,13 +308,24 @@
                     </div>
                 </div>
                 <!-- Lista de Sacolinhas -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-shopping-bag"></i>
-                            Sacolinhas da Live Atual
-                        </h6>
-                    </div>
+				<div class="card">
+					<div class="card-header">
+						<div class="d-flex justify-content-between align-items-center">
+							<h6 class="mb-0">
+								<i class="fas fa-shopping-bag"></i>
+								Sacolinhas da Live Atual
+							</h6>
+							<!-- NOVO: Total das sacolas -->
+							<div class="text-end">
+								<div id="total-sacolas" class="fw-bold text-success fs-5" style="display: none;">
+									Total: R$ 0,00
+								</div>
+								<small class="text-muted" id="contador-sacolas" style="display: none;">
+									0 sacola(s)
+								</small>
+							</div>
+						</div>
+					</div>
                     <div class="card-body">
                         <div id="bags-list">
                             <div class="text-center text-muted py-5">
@@ -586,85 +614,120 @@
 		
         // Função para exibir sacolas (sem alterações significativas aqui)
         function exibirSacolas(bags) {
-            const container = document.getElementById('bags-list');
-            
-            if (bags.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-shopping-bag fa-2x mb-2 opacity-50"></i>
-                        <h6>Nenhuma sacola ainda</h6>
-                        <p class="mb-0">Adicione itens às sacolas dos clientes.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            bags.forEach(bag => {
-                html += `
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <div class="d-flex align-items-center">
-                                <img src="${bag.client.avatar_url}" class="rounded-circle me-2" width="32" height="32">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-0">${bag.client.name}</h6>
-                                    <small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
-                                </div>
-                                <div class="text-end">
-                                    <span class="badge bg-primary">${bag.items.length} item(s)</span>
-                                    <div class="fw-bold text-success">${bag.formatted_total}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Detalhes</th>
-                                            <th>Preço</th>
-                                            <th width="80">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                `;
-                
-                bag.items.forEach(item => {
-                    const details = [];
-                    if (item.item_sku) details.push(`Código: ${item.item_sku}`); // Mudou de "SKU" para "Código"
-                    if (item.item_brand) details.push(`Marca: ${item.item_brand}`);
-                    if (item.item_color) details.push(`Cor: ${item.item_color}`);
-                    if (item.item_size) details.push(`Tam: ${item.item_size}`);
-                    
-                    html += `
-                        <tr>
-                            <td>
-                                <strong>${item.item_name}</strong>
-                            </td>
-                            <td>
-                                <small class="text-muted">${details.length > 0 ? details.join(' | ') : 'Sem detalhes adicionais'}</small>
-                            </td>
-                            <td class="fw-bold text-success">${item.formatted_total_price}</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id})" title="Remover item">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
+			const container = document.getElementById('bags-list');
+			const totalSacolas = document.getElementById('total-sacolas');
+			const contadorSacolas = document.getElementById('contador-sacolas');
+			
+			if (bags.length === 0) {
+				container.innerHTML = `
+					<div class="text-center text-muted py-3">
+						<i class="fas fa-shopping-bag fa-2x mb-2 opacity-50"></i>
+						<h6>Nenhuma sacola ainda</h6>
+						<p class="mb-0">Adicione itens às sacolas dos clientes.</p>
+					</div>
+				`;
+				
+				// Esconder total quando não há sacolas
+				totalSacolas.style.display = 'none';
+				contadorSacolas.style.display = 'none';
+				return;
+			}
+			
+			// NOVO: Calcular total de todas as sacolas
+			let totalGeral = 0;
+			let totalItens = 0;
+			
+			bags.forEach(bag => {
+				// Extrair valor numérico do formatted_total (removendo R$, espaços e convertendo vírgula para ponto)
+				const valorNumerico = parseFloat(
+					bag.formatted_total
+						.replace('R$', '')
+						.replace(/\s/g, '')
+						.replace(',', '.')
+				);
+				
+				if (!isNaN(valorNumerico)) {
+					totalGeral += valorNumerico;
+				}
+				
+				totalItens += bag.items.length;
+			});
+			
+			// Exibir total formatado
+			totalSacolas.textContent = `Total: R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+			totalSacolas.style.display = 'block';
+			
+			// Exibir contador
+			contadorSacolas.textContent = `${bags.length} sacola(s) • ${totalItens} item(s)`;
+			contadorSacolas.style.display = 'block';
+			
+			// Resto da função permanece igual
+			let html = '';
+			bags.forEach(bag => {
+				html += `
+					<div class="card mb-3">
+						<div class="card-header">
+							<div class="d-flex align-items-center">
+								<img src="${bag.client.avatar_url}" class="rounded-circle me-2" width="32" height="32">
+								<div class="flex-grow-1">
+									<h6 class="mb-0">${bag.client.name}</h6>
+									<small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
+								</div>
+								<div class="text-end">
+									<span class="badge bg-primary">${bag.items.length} item(s)</span>
+									<div class="fw-bold text-success">${bag.formatted_total}</div>
+								</div>
+							</div>
+						</div>
+						<div class="card-body p-0">
+							<div class="table-responsive">
+								<table class="table table-sm mb-0">
+									<thead class="table-light">
+										<tr>
+											<th>Item</th>
+											<th>Detalhes</th>
+											<th>Preço</th>
+											<th width="80">Ações</th>
+										</tr>
+									</thead>
+									<tbody>
+				`;
+				
+				bag.items.forEach(item => {
+					const details = [];
+					if (item.item_sku) details.push(`Código: ${item.item_sku}`);
+					if (item.item_brand) details.push(`Marca: ${item.item_brand}`);
+					if (item.item_color) details.push(`Cor: ${item.item_color}`);
+					if (item.item_size) details.push(`Tam: ${item.item_size}`);
+					
+					html += `
+						<tr>
+							<td>
+								<strong>${item.item_name}</strong>
+							</td>
+							<td>
+								<small class="text-muted">${details.length > 0 ? details.join(' | ') : 'Sem detalhes adicionais'}</small>
+							</td>
+							<td class="fw-bold text-success">${item.formatted_total_price}</td>
+							<td>
+								<button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id})" title="Remover item">
+									<i class="fas fa-trash"></i>
+								</button>
+							</td>
+						</tr>
+					`;
+				});
+				
+				html += `
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				`;
+			});
+			container.innerHTML = html;
+		}
 
         // Função simplificada para remover item único
         function removerItem(itemId, userId) {

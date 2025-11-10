@@ -159,47 +159,65 @@ class LiveController extends Controller
     }
 
     /**
-     * Buscar usuários
+     * Buscar usuários (MÉTODO ATUALIZADO)
      */
-    public function search(Request $request)
-    {
-        try {
-            $query = $request->get('q');
-            $role = $request->get('role', 'client');
-            
-            if (empty($query)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'message' => 'Query vazia'
-                ]);
-            }
+	public function search(Request $request)
+	{
+		try {
+			$query = $request->get('q', '');
+			$role = $request->get('role', 'client');
+			
+			if (empty($query)) {
+				return response()->json(['success' => true, 'data' => []]);
+			}
+			
+			$users = User::where('role', $role)
+				->where(function($q) use ($query) {
+					$searchTerm = "%{$query}%";
+					$q->where('name', 'LIKE', $searchTerm)
+					  ->orWhere('email', 'LIKE', $searchTerm)
+					  ->orWhere('phone', 'LIKE', $searchTerm)
+					  ->orWhere('remember_token', 'LIKE', $searchTerm)
+					  ->orWhere('nome_cliente', 'LIKE', $searchTerm)
+					  ->orWhere('apelido', 'LIKE', $searchTerm);
+					
+					if (is_numeric($query)) {
+						$q->orWhere('id', $query);
+					}
+				})
+				->limit(10)
+				->get();
 
-            $users = User::where('role', $role)
-                ->where(function($q) use ($query) {
-                    $q->where('name', 'like', "%{$query}%")
-                      ->orWhere('email', 'like', "%{$query}%")
-                      ->orWhere('phone', 'like', "%{$query}%")
-                      ->orWhere('id', $query);
-                })
-                ->limit(10)
-                ->get();
+			// SOLUÇÃO: Construir array manualmente para forçar inclusão do remember_token
+			$usersArray = [];
+			foreach ($users as $user) {
+				$usersArray[] = [
+					'id' => $user->id,
+					'name' => $user->name,
+					'email' => $user->email,
+					'phone' => $user->phone,
+					'remember_token' => $user->remember_token,  // FORÇADO
+					'nome_cliente' => $user->nome_cliente,
+					'apelido' => $user->apelido,
+					'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40"
+				];
+			}
 
-            return response()->json([
-                'success' => true,
-                'data' => $users,
-                'search_term' => $query
-            ]);
+			return response()->json([
+				'success' => true,
+				'data' => $usersArray,
+				'search_term' => $query
+			]);
 
-        } catch (\Exception $e) {
-            Log::error("Erro na busca de usuários: " . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro na busca'
-            ], 500);
-        }
-    }
-
+		} catch (\Exception $e) {
+			Log::error("Erro na busca: " . $e->getMessage());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro na busca'
+			], 500);
+		}
+	}
     /**
      * Criar novo cliente com dados básicos
      */

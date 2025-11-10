@@ -13,9 +13,9 @@ class Cliente extends Model
 
     protected $fillable = [
         'name', 'nome_cliente', 'email', 'password', 'cpf', 'telefone_principal',
-        'endereco', 'numero_endereco', 'complemento', 'bairro', 'cidade', 
-        'estado', 'cep', 'pais', 'data_nascimento', 'sexo', 'bloqueado',
-        'codigo_cliente', 'data_cadastro', 'observacao_cliente', 'role'
+        'endereco', 'numero_endereco', 'complemento', 'bairro', 'cidade', 'phone',
+        'estado', 'cep', 'pais', 'data_nascimento', 'sexo', 'bloqueado', 'apelido',
+        'codigo_cliente', 'data_cadastro', 'observacao_cliente', 'role','remember_token'
     ];
 
     protected $casts = [

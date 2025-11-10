@@ -21,6 +21,14 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'phone',
+        'cpf',
+        'nome_cliente',     // TikTok
+        'apelido',          // Apelido
+        'remember_token',   // Instagram
+        'bloqueado',
+        'needs_completion'
     ];
 
     /**

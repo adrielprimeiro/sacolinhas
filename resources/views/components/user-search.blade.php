@@ -2,7 +2,7 @@
     <div class="position-relative">
         <input type="text" 
                class="form-control user-search-input" 
-               placeholder="Buscar por nome, email ou ID..." 
+               placeholder="Buscar por nome, apelido, Instagram (@), TikTok, email ou ID..."
                autocomplete="off"
                data-search-input="true">
         
@@ -15,11 +15,11 @@
         </button>
     </div>
 
-	<input type="hidden" 
-       class="user-selected-id" 
-       name="{{ $name ?? 'client_id' }}"    
-       value="{{ $value ?? '' }}" 
-       data-hidden-input="true">
+    <input type="hidden" 
+           class="user-selected-id" 
+           name="{{ $name ?? 'client_id' }}"    
+           value="{{ $value ?? '' }}" 
+           data-hidden-input="true">
 
     <div class="user-suggestions-dropdown" data-suggestions="true" style="display: none;">
     </div>
@@ -31,7 +31,10 @@
                     <img class="user-avatar me-2" src="" alt="Avatar" width="32" height="32" style="border-radius: 50%;">
                     <div class="flex-grow-1">
                         <div class="user-name fw-semibold"></div>
-                        <div class="user-email text-muted small"></div>
+                        <!-- MODIFICADO: Mostrar Instagram em vez de email -->
+                        <div class="user-instagram text-muted small"></div>
+                        <!-- Área para mostrar plataformas -->
+                        <div class="user-platforms mt-1"></div>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-danger user-remove-btn" data-remove-btn="true">
                         <i class="fas fa-times"></i>
@@ -68,17 +71,36 @@
     padding: 10px 15px; cursor: pointer; 
     background-color: #e3f2fd; border-left: 4px solid #2196f3; 
 }
-.create-client-item:hover { background-color: #bbdefb; 
-}
+.create-client-item:hover { background-color: #bbdefb; }
 .user-suggestion-item.highlighted,
 .create-client-item.highlighted {
     background-color: #007bff !important;
     color: white !important;
 }
-
 .user-suggestion-item.highlighted .text-muted,
 .create-client-item.highlighted .text-muted {
     color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Estilos para badges das plataformas */
+.bg-instagram {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%) !important;
+    color: white !important;
+}
+.bg-tiktok {
+    background-color: #000000 !important;
+    color: white !important;
+}
+.platform-badge {
+    font-size: 0.7em;
+    padding: 2px 6px;
+    margin-right: 4px;
+}
+
+/* NOVO: Estilo para destacar Instagram na lista */
+.instagram-handle {
+    color: #e1306c;
+    font-weight: 500;
 }
 </style>
 
@@ -96,6 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var debounceTimer;
     var currentSearch = '';
+    var selectedIndex = -1;
+    var currentUsers = [];
 
     function searchUsers() {
         var query = searchInput.value.trim();
@@ -129,52 +153,72 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-	function showUsers(users) {
-		console.log('Mostrando usuários:', users);
-		suggestionsDropdown.innerHTML = '';
-		resetSelection(); // ADICIONADO
-		
-		for (var i = 0; i < users.length; i++) {
-			var user = users[i];
-			var item = document.createElement('div');
-			item.className = 'user-suggestion-item';
-			
-			var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
-			
-			item.innerHTML = '<div class="d-flex align-items-center">' +
-				'<img src="' + avatarSrc + '" alt="Avatar" width="32" height="32" style="border-radius: 50%; margin-right: 10px;">' +
-				'<div class="flex-grow-1">' +
-					'<div class="fw-semibold">' + user.name + '</div>' +
-					'<div class="text-muted small">' + user.email + '</div>' +
-				'</div>' +
-				'<div class="text-muted small">#' + user.id + '</div>' +
-			'</div>';
-			
-			item.onclick = function(userData) {
-				return function() { selectUser(userData); };
-			}(user);
-			
-			suggestionsDropdown.appendChild(item);
-		}
-		
-		suggestionsDropdown.style.display = 'block';
-	}
-    
+    function showUsers(users) {
+        console.log('Mostrando usuários:', users);
+        currentUsers = users;
+        suggestionsDropdown.innerHTML = '';
+        resetSelection();
+        
+        for (var i = 0; i < users.length; i++) {
+            var user = users[i];
+            var item = document.createElement('div');
+            item.className = 'user-suggestion-item';
+            item.dataset.index = i;
+            
+            var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
+            
+            // MODIFICADO: Mostrar Instagram em vez de email na segunda linha
+            var instagramDisplay = '';
+            if (user.remember_token) {
+                instagramDisplay = '<span class="instagram-handle"><i class="fab fa-instagram"></i> @' + user.remember_token + '</span>';
+            } else {
+                instagramDisplay = '<span class="text-muted">Sem Instagram</span>';
+            }
+            
+            // Incluir outras plataformas na terceira linha (mais compacto)
+            var otherPlatformsHtml = '';
+            if (user.nome_cliente) {
+                otherPlatformsHtml += '<span class="badge bg-tiktok platform-badge"><i class="fab fa-tiktok"></i> @' + user.nome_cliente + '</span>';
+            }
+            if (user.apelido) {
+                otherPlatformsHtml += '<span class="badge bg-secondary platform-badge">' + user.apelido + '</span>';
+            }
+            
+            item.innerHTML = '<div class="d-flex align-items-center">' +
+                '<img src="' + avatarSrc + '" alt="Avatar" width="32" height="32" style="border-radius: 50%; margin-right: 10px;">' +
+                '<div class="flex-grow-1">' +
+                    '<div class="fw-semibold">' + user.name + '</div>' +
+                    '<div class="small">' + instagramDisplay + '</div>' +
+                    (otherPlatformsHtml ? '<div class="mt-1">' + otherPlatformsHtml + '</div>' : '') +
+                '</div>' +
+                '<div class="text-muted small">#' + user.id + '</div>' +
+            '</div>';
+            
+            item.onclick = function(userData) {
+                return function() { selectUser(userData); };
+            }(user);
+            
+            suggestionsDropdown.appendChild(item);
+        }
+        
+        suggestionsDropdown.style.display = 'block';
+    }
 
-	function showNoResults() {
-		resetSelection(); // ADICIONADO
-		
-		suggestionsDropdown.innerHTML = '<div class="text-center py-3">' +
-			'<span>Nenhum usuário encontrado</span></div>' +
-			'<div class="create-client-item" onclick="createNewClient()">' +
-				'<div class="d-flex align-items-center">' +
-					'<i class="fas fa-plus-circle" style="color: #2196f3; margin-right: 8px;"></i>' +
-					'<div><div class="fw-semibold">Cadastrar Novo Cliente</div></div>' +
-				'</div>' +
-			'</div>';
-		
-		suggestionsDropdown.style.display = 'block';
-	}
+    function showNoResults() {
+        resetSelection();
+        
+        suggestionsDropdown.innerHTML = '<div class="text-center py-3">' +
+            '<span>Nenhum usuário encontrado</span></div>' +
+            '<div class="create-client-item" data-index="0">' +
+                '<div class="d-flex align-items-center">' +
+                    '<i class="fas fa-plus-circle" style="color: #2196f3; margin-right: 8px;"></i>' +
+                    '<div><div class="fw-semibold">Cadastrar Novo Cliente</div></div>' +
+                '</div>' +
+            '</div>';
+        
+        suggestionsDropdown.querySelector('.create-client-item').onclick = createNewClient;
+        suggestionsDropdown.style.display = 'block';
+    }
 
     function showError() {
         suggestionsDropdown.innerHTML = '<div class="text-center py-3 text-danger">' +
@@ -182,48 +226,65 @@ document.addEventListener('DOMContentLoaded', function() {
         suggestionsDropdown.style.display = 'block';
     }
 
-	// função selectUser completa:
-	function selectUser(user) {
-		console.log('=== SELECIONANDO USUÁRIO ===');
-		console.log('User data:', user);
-		
-		hiddenInput.value = user.id;
-		searchInput.value = user.name;
-		
-		// Atualizar display
-		const avatar = selectedDisplay.querySelector('.user-avatar');
-		const name = selectedDisplay.querySelector('.user-name');
-		const email = selectedDisplay.querySelector('.user-email');
-		
-		if (avatar && name && email) {
-			var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
-			if (user.avatar_url && user.avatar_url !== null && user.avatar_url !== '') {
-				avatarSrc = user.avatar_url;
-			}
-			
-			avatar.src = avatarSrc;
-			name.textContent = user.name;
-			email.textContent = user.email;
-			
-			selectedDisplay.classList.remove('d-none');
-			suggestionsDropdown.style.display = 'none';
-			clearBtn.classList.remove('d-none');
-			
-			console.log('Usuário selecionado com sucesso!');
-			
-			
-			setTimeout(function() {
-				//const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
-				const addButton = document.querySelector('#add-item-form button[type="submit"]');
-				if (addButton) {
-					console.log('🎯 Focando no botão...');
-					addButton.focus();
-				}
-			}, 200);
-		}
-		
-		console.log('=== FIM SELEÇÃO ===');
-	}	
+    function selectUser(user) {
+        console.log('=== SELECIONANDO USUÁRIO ===');
+        console.log('User data:', user);
+        
+        hiddenInput.value = user.id;
+        searchInput.value = user.name;
+        
+        // Atualizar display
+        const avatar = selectedDisplay.querySelector('.user-avatar');
+        const name = selectedDisplay.querySelector('.user-name');
+        const instagram = selectedDisplay.querySelector('.user-instagram'); // MODIFICADO
+        const platforms = selectedDisplay.querySelector('.user-platforms');
+        
+        if (avatar && name && instagram && platforms) {
+            var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
+            if (user.avatar_url && user.avatar_url !== null && user.avatar_url !== '') {
+                avatarSrc = user.avatar_url;
+            }
+            
+            avatar.src = avatarSrc;
+            name.textContent = user.name;
+            
+            // MODIFICADO: Mostrar Instagram em vez de email
+            if (user.remember_token) {
+                instagram.innerHTML = '<i class="fab fa-instagram"></i> @' + user.remember_token;
+                instagram.className = 'instagram-handle small';
+            } else {
+                instagram.textContent = 'Sem Instagram';
+                instagram.className = 'text-muted small';
+            }
+            
+            // Mostrar outras plataformas
+            var platformsHtml = '';
+            if (user.nome_cliente) {
+                platformsHtml += '<span class="badge bg-tiktok platform-badge"><i class="fab fa-tiktok"></i> @' + user.nome_cliente + '</span>';
+            }
+            if (user.apelido) {
+                platformsHtml += '<span class="badge bg-secondary platform-badge">' + user.apelido + '</span>';
+            }
+            platforms.innerHTML = platformsHtml;
+            
+            selectedDisplay.classList.remove('d-none');
+            suggestionsDropdown.style.display = 'none';
+            clearBtn.classList.remove('d-none');
+            
+            console.log('Usuário selecionado com sucesso!');
+            
+            // MODIFICADO: Focar no botão de adicionar em vez de mover para próximo campo
+            setTimeout(function() {
+                const addButton = document.querySelector('#add-item-form button[type="submit"]');
+                if (addButton) {
+                    console.log('🎯 Focando no botão adicionar...');
+                    addButton.focus();
+                }
+            }, 200);
+        }
+        
+        console.log('=== FIM SELEÇÃO ===');
+    }
 
     function clearSelection() {
         hiddenInput.value = '';
@@ -231,9 +292,10 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedDisplay.classList.add('d-none');
         clearBtn.classList.add('d-none');
         suggestionsDropdown.style.display = 'none';
+        resetSelection();
     }
 
-    window.createNewClient = function() {
+    function createNewClient() {
         console.log('Criando novo cliente:', currentSearch);
         
         var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -258,8 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erro:', error);
             alert('Erro de comunicação');
         });
-    };
+    }
 
+    // Event listeners
     searchInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(searchUsers, 300);
@@ -279,88 +342,120 @@ document.addEventListener('DOMContentLoaded', function() {
             suggestionsDropdown.style.display = 'none';
         }
     });
-	var selectedIndex = -1; // Controlar qual item está selecionado
 
-	// Navegação por teclado
-	searchInput.addEventListener('keydown', function(e) {
-		var items = suggestionsDropdown.querySelectorAll('.user-suggestion-item, .create-client-item');
-		
-		if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-			updateHighlight(items);
-		} 
-		else if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			selectedIndex = Math.max(selectedIndex - 1, -1);
-			updateHighlight(items);
-		} 
-		else if (e.key === 'Enter' && selectedIndex >= 0) {
-			e.preventDefault();
-			items[selectedIndex].click();
-		}
-		else if (e.key === 'Escape') {
-			suggestionsDropdown.style.display = 'none';
-			selectedIndex = -1;
-		}
-	});
+    // Navegação por teclado com scroll automático
+    searchInput.addEventListener('keydown', function(e) {
+        var items = suggestionsDropdown.querySelectorAll('.user-suggestion-item, .create-client-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            updateHighlight(items);
+            scrollToHighlighted(items[selectedIndex]);
+        } 
+        else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            updateHighlight(items);
+            if (selectedIndex >= 0) {
+                scrollToHighlighted(items[selectedIndex]);
+            }
+        } 
+        else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            if (items[selectedIndex].classList.contains('create-client-item')) {
+                createNewClient();
+            } else {
+                var userIndex = parseInt(items[selectedIndex].dataset.index);
+                if (currentUsers[userIndex]) {
+                    selectUser(currentUsers[userIndex]);
+                }
+            }
+        }
+        else if (e.key === 'Escape') {
+            suggestionsDropdown.style.display = 'none';
+            selectedIndex = -1;
+        }
+    });
 
-	// Função para destacar item selecionado
-	function updateHighlight(items) {
-		for (var i = 0; i < items.length; i++) {
-			if (i === selectedIndex) {
-				items[i].classList.add('highlighted');
-			} else {
-				items[i].classList.remove('highlighted');
-			}
-		}
-	}
+    function updateHighlight(items) {
+        for (var i = 0; i < items.length; i++) {
+            items[i].classList.remove('highlighted');
+        }
+        
+        if (selectedIndex >= 0 && selectedIndex < items.length) {
+            items[selectedIndex].classList.add('highlighted');
+        }
+    }
 
-	// Resetar seleção quando mostrar novos resultados
-	function resetSelection() {
-		selectedIndex = -1;
-	}
-	
-	// Escutar evento personalizado de limpeza
-	wrapper.addEventListener('userCleared', function(e) {
-		console.log('🧹 Evento userCleared recebido - limpando seleção');
-		clearSelection();
-	});
+    function scrollToHighlighted(item) {
+        if (!item) return;
+        
+        var container = suggestionsDropdown;
+        var containerTop = container.scrollTop;
+        var containerBottom = containerTop + container.clientHeight;
+        var itemTop = item.offsetTop;
+        var itemBottom = itemTop + item.offsetHeight;
+        
+        if (itemTop < containerTop) {
+            container.scrollTop = itemTop;
+        } else if (itemBottom > containerBottom) {
+            container.scrollTop = itemBottom - container.clientHeight;
+        }
+    }
 
-	// Também escutar evento global de item adicionado à sacola
-	document.addEventListener('bagItemAdded', function(e) {
-		console.log('🎯 Item adicionado à sacola - limpando cliente automaticamente');
-		clearSelection();
-	});	
+    function resetSelection() {
+        selectedIndex = -1;
+    }
 
-	// Função global para limpar de fora
-	window.clearUserSelectionManual = function() {
-		console.log('🧹 clearUserSelectionManual chamada');
-		
-		// Limpar campos
-		searchInput.value = '';
-		hiddenInput.value = '';
-		
-		// Esconder elementos
-		selectedDisplay.classList.add('d-none');
-		clearBtn.classList.add('d-none');
-		suggestionsDropdown.style.display = 'none';
-		
-		console.log('✅ Cliente limpo manualmente');
-	};
+    // MODIFICADO: Focar no campo de item após adicionar à sacola
+    document.addEventListener('itemAddedToCart', function() {
+        console.log('🛍️ Item adicionado à sacola - limpando seleção e focando no campo item');
+        clearSelection();
+        
+        // Focar no campo de busca de item
+        setTimeout(function() {
+            const itemSearchInput = document.querySelector('[data-search-input="true"]:not(.user-search-input)');
+            if (itemSearchInput) {
+                console.log('🎯 Focando no campo de item...');
+                itemSearchInput.focus();
+                itemSearchInput.select(); // Selecionar todo o texto se houver
+            }
+        }, 300);
+    });
 
-	// Função para focar item
-	window.focusItemField = function() {
-		setTimeout(function() {
-			const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
-			if (itemInput) {
-				console.log('🎯 Focando campo item...');
-				itemInput.focus();
-				itemInput.click();
-			}
-		}, 300);
-	};
-	
+    // Observer para detectar quando item é adicionado
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                var bagsContainer = document.getElementById('bags-list');
+                if (bagsContainer && mutation.target === bagsContainer) {
+                    // Sacola foi atualizada - limpar seleção e focar no campo item
+                    setTimeout(function() {
+                        if (hiddenInput.value) {
+                            console.log('🛍️ Sacola atualizada - limpando e focando no item');
+                            clearSelection();
+                            
+                            // MODIFICADO: Focar no campo de item em vez de cliente
+                            const itemSearchInput = document.querySelector('[data-search-input="true"]:not(.user-search-input)');
+                            if (itemSearchInput) {
+                                console.log('🎯 Focando no campo de item...');
+                                itemSearchInput.focus();
+                                itemSearchInput.select();
+                            }
+                        }
+                    }, 500);
+                }
+            }
+        });
+    });
+    
+    // Observar mudanças no container de sacolas
+    var bagsContainer = document.getElementById('bags-list');
+    if (bagsContainer) {
+        observer.observe(bagsContainer, { childList: true, subtree: true });
+    }
+
     console.log('Componente carregado!');
 });
 </script>
