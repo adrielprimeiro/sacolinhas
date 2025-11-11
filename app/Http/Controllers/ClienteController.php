@@ -31,25 +31,43 @@ class ClienteController extends Controller
         return view('admin.clientes.create');
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-        ]);
+	public function store(Request $request)
+	{
+		// Lógica para determinar o nome do cliente
+		$nomeCliente = trim($request->nome_cliente);
+		$instagram = trim($request->ig_instagram);
+		$tiktok = trim($request->ig_tiktok);
+		
+		// Se nome estiver vazio, usar Instagram ou TikTok
+		if (empty($nomeCliente)) {
+			if (!empty($instagram)) {
+				$nomeCliente = $instagram;
+			} elseif (!empty($tiktok)) {
+				$nomeCliente = $tiktok;
+			} else {
+				// Se todos estiverem vazios, dar erro
+				return redirect()->back()
+							   ->withErrors(['nome_cliente' => 'Preencha pelo menos o Nome, Instagram ou TikTok'])
+							   ->withInput();
+			}
+		}
+		
+		// Geração automática de email baseada no nome final
+		$nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $nomeCliente));
+		$emailAutomatico = $nomeParaEmail . '@mania.com';
+		
+		User::create([
+			'name' => $nomeCliente,                          // Nome final (preenchido ou automático)
+			'nome_cliente' => $request->ig_tiktok,           // TikTok
+			'remember_token' => $request->ig_instagram,      // Instagram
+			'email' => $emailAutomatico,                     // Email automático
+			'password' => Hash::make('123456'),              // Senha padrão
+			'role' => 'client',
+		]);
 
-        User::create([
-            'name' => $request->nome_cliente,
-            'nome_cliente' => $request->nome_cliente,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'cpf' => $request->cpf,
-            'telefone_principal' => $request->telefone_principal,
-            'role' => 'client',
-            'bloqueado' => $request->has('bloqueado'),
-        ]);
-
-        return redirect()->route('admin.clientes.index')
-                        ->with('success', 'Cliente criado com sucesso!');
-    }
+		return redirect()->route('admin.clientes.index')
+						->with('success', 'Cliente criado com sucesso!');
+	}
 
     public function show($id)
     {

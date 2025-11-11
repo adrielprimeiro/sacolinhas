@@ -167,3 +167,6 @@ Route::get('admin/sacolinhas', function () {
 
 Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
 Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 'quickCreate']);
+
+Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
+    ->name('admin.clientes.check-email');

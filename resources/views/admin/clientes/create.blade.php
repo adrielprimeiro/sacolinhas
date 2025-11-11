@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <title>Novo Cliente - Sacolinhas</title>
+    <title>Novo Cliente teste</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
@@ -27,72 +27,48 @@
                     @csrf
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="nome_cliente" class="form-label">Nome Completo *</label>
-                            <input type="text" class="form-control" name="nome_cliente" 
-                                   value="{{ old('nome_cliente') }}" required>
+                        <div class="col-md-12 mb-3">
+                            <label for="nome_cliente" class="form-label">Nome</label>
+                               <input type="text" class="form-control" 
+								   id="nome_cliente" name="nome_cliente" 
+								   placeholder="Nome do cliente">
+							<small class="text-muted">
+								<i class="fas fa-info-circle"></i>
+								Se vazio, usaremos seu Instagram ou TikTok como nome
+							</small>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
-                            <label for="email" class="form-label">Email *</label>
-                            <input type="email" class="form-control" name="email" 
-                                   value="{{ old('email') }}" required>
-                        </div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="password" class="form-label">Senha *</label>
-                            <input type="password" class="form-control" name="password" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="password_confirmation" class="form-label">Confirmar Senha *</label>
-                            <input type="password" class="form-control" name="password_confirmation" required>
-                        </div>
-                    </div>
+						<!-- Instagram -->
+						<div class="col-md-6 mb-3">
+							<label for="ig_instagram" class="form-label">
+								<i class="fab fa-instagram" style="color: #E4405F;"></i> Instagram
+							</label>
+							<div class="input-group">
+								<span class="input-group-text">@</span>
+								<input type="text" class="form-control" 
+									   id="ig_instagram" name="ig_instagram" 
+									   placeholder="seu_usuario">
+							</div>
+							<small class="text-muted">Apenas o nome do usuário, sem @</small>
+						</div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="cpf" class="form-label">CPF</label>
-                            <input type="text" class="form-control" name="cpf" 
-                                   value="{{ old('cpf') }}">
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="telefone_principal" class="form-label">Telefone</label>
-                            <input type="text" class="form-control" name="telefone_principal" 
-                                   value="{{ old('telefone_principal') }}">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="data_nascimento" class="form-label">Data de Nascimento</label>
-                            <input type="date" class="form-control" name="data_nascimento" 
-                                   value="{{ old('data_nascimento') }}">
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="sexo" class="form-label">Sexo</label>
-                            <select class="form-control" name="sexo">
-                                <option value="">Selecione...</option>
-                                <option value="masculino" {{ old('sexo') == 'masculino' ? 'selected' : '' }}>Masculino</option>
-                                <option value="feminino" {{ old('sexo') == 'feminino' ? 'selected' : '' }}>Feminino</option>
-                                <option value="outros" {{ old('sexo') == 'outros' ? 'selected' : '' }}>Outros</option>
-                                <option value="prefiro_nao_informar" {{ old('sexo') == 'prefiro_nao_informar' ? 'selected' : '' }}>Prefiro não informar</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" name="bloqueado" id="bloqueado" 
-                                   {{ old('bloqueado') ? 'checked' : '' }}>
-                            <label class="form-check-label" for="bloqueado">Cliente Bloqueado</label>
-                        </div>
-                    </div>
-
+						<!-- TikTok -->
+						<div class="col-md-6 mb-3">
+							<label for="ig_tiktok" class="form-label">
+								<i class="fab fa-tiktok" style="color: #000000;"></i> TikTok
+							</label>
+							<div class="input-group">
+								<span class="input-group-text">@</span>
+								<input type="text" class="form-control" 
+									   id="ig_tiktok" name="ig_tiktok" 
+									   placeholder="seu_usuario">
+							</div>
+							<small class="text-muted">Apenas o nome do usuário, sem @</small>
+						</div>                        
+                    </div>	
                     <div class="d-flex justify-content-between">
                         <a href="{{ route('admin.clientes.index') }}" class="btn btn-secondary">Cancelar</a>
                         <button type="submit" class="btn btn-success">💾 Salvar Cliente</button>
@@ -102,4 +78,42 @@
         </div>
     </div>
 </body>
+<script>
+	$(document).ready(function() {
+		// Preview do nome que será usado
+		function atualizarPreview() {
+			const nome = $('#nome_cliente').val().trim();
+			const instagram = $('#ig_instagram').val().trim();
+			const tiktok = $('#ig_tiktok').val().trim();
+			
+			let nomeUsado = '';
+			let emailUsado = '';
+			
+			if (nome) {
+				nomeUsado = nome;
+			} else if (instagram) {
+				nomeUsado = instagram;
+			} else if (tiktok) {
+				nomeUsado = tiktok;
+			} else {
+				nomeUsado = 'Preencha pelo menos um campo';
+			}
+			
+			emailUsado = nomeUsado.toLowerCase().replace(/[^a-z0-9]/g, '') + '@mania.com';
+			
+			$('#nome-preview').html(
+				'<i class="fas fa-user"></i> <strong>Nome:</strong> ' + nomeUsado + '<br>' +
+				'<i class="fas fa-envelope"></i> <strong>Email:</strong> ' + emailUsado
+			);
+		}
+		
+		// Atualizar preview quando qualquer campo mudar
+		$('#nome_cliente, #ig_instagram, #ig_tiktok').on('input', atualizarPreview);
+		
+		// Preview inicial
+		atualizarPreview();
+		
+		console.log('✅ Sistema de nome automático ativo!');
+	});
+</script>
 </html>
