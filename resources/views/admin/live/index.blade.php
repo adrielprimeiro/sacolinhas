@@ -287,15 +287,15 @@
                                         Preço
                                         <span id="original-price-display" class="text-muted ms-2" style="text-decoration: line-through; display: none;"></span>
                                     </label>
-                                    <input type="number"
-                                           class="form-control"
-                                           name="item_price"
-                                           id="item-price"
-                                           placeholder="0.00"
-                                           step="0.01"
-                                           min="0"
-                                           value="{{ old('item_price') }}"
-                                           required>
+									<input type="text" 
+										   class="form-control" 
+										   name="item_price" 
+										   id="item-price" 
+										   placeholder="0,00" 
+										   pattern="[0-9]+([,\.][0-9]{1,2})?" 
+										   title="Use formato: 25,50 ou 25.50"
+										   value="{{ old('item_price') }}" 
+										   required>
                                 </div>
                                 <!-- Botão -->
                                 <div class="col-md-6 mb-3 d-flex align-items-end"> <!-- Era col-md-4 -->
@@ -421,30 +421,29 @@
                 });
 			
 			// Validação em tempo real do campo de preço
-            const itemPriceInput = document.getElementById('item-price');
-            if (itemPriceInput) {
-                itemPriceInput.addEventListener('input', function(e) {
-                    const value = parseFloat(e.target.value);
-                    if (isNaN(value) || value < 0) {
-                        e.target.setCustomValidity('Por favor, informe um preço válido');
-                    } else {
-                        e.target.setCustomValidity('');
-                    }
-                });
-                
-                // Permitir apenas números e ponto decimal
-                itemPriceInput.addEventListener('keypress', function(e) {
-                    const char = String.fromCharCode(e.which);
-                    if (!/[0-9\.]/.test(char)) {
-                        e.preventDefault();
-                    }
-                    
-                    // Permitir apenas um ponto decimal
-                    if (char === '.' && e.target.value.includes('.')) {
-                        e.preventDefault();
-                    }
-                });
-            }
+			const itemPriceInput = document.getElementById('item-price');
+			if (itemPriceInput) {
+				// Permitir apenas números, vírgula e ponto
+				itemPriceInput.addEventListener('keypress', function(e) {
+					const char = String.fromCharCode(e.which);
+					if (!/[0-9,.]/.test(char)) {
+						e.preventDefault();
+					}
+				});
+				
+				// Converter vírgula para ponto na validação
+				itemPriceInput.addEventListener('input', function(e) {
+					const value = e.target.value.replace(',', '.');
+					const numValue = parseFloat(value);
+					if (isNaN(numValue) || numValue<= 0){
+						e.target.setCustomValidity('Informe um preço válido (ex: 25,50)');
+					} else {
+						e.target.setCustomValidity('');
+					}
+				});
+			}
+
+
             }
 			
 			
@@ -455,7 +454,8 @@
                 const clientId = document.querySelector('input[name="client_id"]').value;
                 const itemId = document.querySelector('input[name="item_id"]').value;
 				const itemPrice = document.getElementById('item-price').value;
-                
+                const itemPriceConverted = itemPrice.replace(',', '.');
+
                 if (!clientId) {
                     mostrarAlert('Por favor, selecione um cliente primeiro!', 'warning');
                     return false;
@@ -466,10 +466,10 @@
                     return false;
                 }
 				
-                if (!itemPrice || parseFloat(itemPrice) <= 0) { // ADICIONADO: Validar preço
-                    mostrarAlert('Por favor, informe um preço válido!', 'warning');
-                    return false;
-                }				
+                if (!itemPriceConverted || parseFloat(itemPriceConverted) <= 0) { // ADICIONADO: Validar preço
+					mostrarAlert('Por favor, informe um preço válido!', 'warning');
+					return false;
+				}		
 				
                 if (!liveAtiva) {
                     mostrarAlert('Inicie uma live antes de adicionar itens!', 'warning');
@@ -479,7 +479,7 @@
                 // Como a quantidade foi removida do frontend, definimos explicitamente como 1
                 formData.append('item_quantity', 1); 
 				// ADICIONADO: Garantir que o preço atual seja enviado
-                formData.set('item_price', itemPrice);
+                formData.set('item_price', itemPriceConverted);
                 
                 const button = this.querySelector('button[type="submit"]');
                 const originalText = button.innerHTML;
@@ -498,83 +498,87 @@
 						if (data.success) {
 							mostrarAlert(data.message, 'success');
 							
-							console.log('🧹 === INICIANDO LIMPEZA APÓS SUCESSO ===');
+							console.log('🧹 === LIMPEZA PADRONIZADA (DOM DIRETO) ===');
 							
-							// Limpar campos de preço e observação
+							// Limpar campo de preço
 							const itemPriceInput = document.getElementById('item-price');
 							if (itemPriceInput) {
 								itemPriceInput.value = '';
 							}
-							
-							const obsTextarea = document.getElementById('obs');
-							if (obsTextarea) {
-								obsTextarea.value = '';
-							}
-							
 							document.getElementById('original-price-display').style.display = 'none';
 							
-							// 🎯 LIMPAR CLIENTE - USAR EVENTO
-							console.log('🧹 Disparando evento userCleared...');
-							const userWrapper = document.querySelector('[data-user-search="true"]');
-							if (userWrapper) {
-								userWrapper.dispatchEvent(new CustomEvent('userCleared'));
-								console.log('✅ Evento userCleared disparado para cliente');
+							// 🎯 LIMPAR CLIENTE - DOM DIRETO (IGUAL AO ITEM)
+							console.log('🧹 Limpando cliente via DOM direto (sincrono)...');
+							const clientSearchInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
+							const clientHiddenInput = document.querySelector('[data-user-search="true"] [data-hidden-input="true"]');
+							const clientDisplayCard = document.querySelector('[data-user-search="true"] [data-selected-display="true"]');
+							const clientDropdown = document.querySelector('[data-user-search="true"] [data-suggestions="true"]');
+							const clientClearBtn = document.querySelector('[data-user-search="true"] [data-clear-btn="true"]');
+							
+							if (clientSearchInput) {
+								clientSearchInput.value = '';
+								console.log('✅ Campo de busca de cliente limpo');
+							}
+							if (clientHiddenInput) {
+								clientHiddenInput.value = '';
+								console.log('✅ Campo hidden de cliente limpo');
+							}
+							if (clientDisplayCard) {
+								clientDisplayCard.classList.add('d-none');
+								console.log('✅ Card de cliente escondido');
+							}
+							if (clientDropdown) {
+								clientDropdown.style.display = 'none';
+								console.log('✅ Dropdown de cliente escondido');
+							}
+							if (clientClearBtn) {
+								clientClearBtn.classList.add('d-none');
+								console.log('✅ Botão clear de cliente escondido');
 							}
 							
-							// 🎯 LIMPAR ITEM - MÉTODO DIRETO DOM
+							// 🎯 LIMPAR ITEM - DOM DIRETO (MANTÉM IGUAL)
 							console.log('🧹 Limpando item via DOM direto...');
-							
-							// Encontrar todos os elementos do item
 							const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
 							const itemHiddenInput = document.querySelector('[data-item-search="true"] [data-selected-id="true"]');
 							const itemDisplayCard = document.querySelector('[data-item-search="true"] [data-selected-display="true"]');
 							const itemResultsContainer = document.querySelector('[data-item-search="true"] [data-results-container="true"]');
 							
-							console.log('Elementos do item encontrados:', {
-								itemSearchInput, 
-								itemHiddenInput, 
-								itemDisplayCard, 
-								itemResultsContainer
-							});
-							
-							// Limpar campos do item
 							if (itemSearchInput) {
 								itemSearchInput.value = '';
 								console.log('✅ Campo de busca de item limpo');
 							}
-							
 							if (itemHiddenInput) {
 								itemHiddenInput.value = '';
 								console.log('✅ Campo hidden de item limpo');
 							}
-							
 							if (itemDisplayCard) {
 								itemDisplayCard.classList.add('d-none');
 								console.log('✅ Card de item escondido');
 							}
-							
 							if (itemResultsContainer) {
 								itemResultsContainer.style.display = 'none';
 								console.log('✅ Dropdown de item escondido');
 							}
 							
-							// Resetar variáveis globais se existirem
 							if (typeof selectedItem !== 'undefined') {
 								selectedItem = null;
 								console.log('✅ selectedItem resetado');
 							}
+							console.log('🔍 APÓS LIMPEZA - Valores dos campos:');
+							console.log('- client_id:', document.querySelector('input[name="client_id"]')?.value);
+							console.log('- item_id:', document.querySelector('input[name="item_id"]')?.value);
+							console.log('- item_price:', document.getElementById('item-price')?.value);
 							
-							// 🎯 FOCAR NO CLIENTE PARA PRÓXIMA ADIÇÃO
+							// 🎯 FOCAR NO CLIENTE PARA PRÓXIMA ADIÇÃO (SINCRONO)
 							setTimeout(function() {
-								const clientInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
-								if (clientInput) {
-									console.log('🎯 Focando no cliente para próxima adição...');
-									clientInput.focus();
+								const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
+								if (itemSearchInput) {
+									console.log('🎯 Focando no ITEM para próxima adição...');
+									itemSearchInput.focus();
 								}
-							}, 300);
+							}, 200);
 							
 							carregarSacolas();
-							
 							console.log('🧹 === LIMPEZA FINALIZADA ===');
 						}             
 					} catch (error) {

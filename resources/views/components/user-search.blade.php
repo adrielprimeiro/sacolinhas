@@ -145,37 +145,49 @@ document.addEventListener('DOMContentLoaded', function() {
     var selectedIndex = -1;
     var currentUsers = [];
 
-    function searchUsers() {
-        var query = searchInput.value.trim();
-        currentSearch = query;
-        
-        if (!query) {
-            suggestionsDropdown.style.display = 'none';
-            return;
-        }
+	function searchUsers() {
+		var query = searchInput.value.trim();
+		currentSearch = query;
+		
+		console.log('🔎 === SEGUNDA TENTATIVA DEBUG ===');
+		console.log('Query atual:', query);
+		console.log('searchInput existe?', !!searchInput);
+		console.log('suggestionsDropdown existe?', !!suggestionsDropdown);
+		
+		if (!query) {
+			console.log('Query vazia, escondendo dropdown');
+			suggestionsDropdown.style.display = 'none';
+			return;
+		}
 
-        console.log('Buscando por: ' + query);
-        
-        fetch('/users/search?q=' + encodeURIComponent(query) + '&role=client')
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            console.log('Resultado da busca:', data);
-            
-            if (data.success) {
-                if (data.data && data.data.length > 0) {
-                    showUsers(data.data);
-                } else {
-                    showNoResults();
-                }
-            } else {
-                showError();
-            }
-        })
-        .catch(function(error) {
-            console.error('Erro na busca:', error);
-            showError();
-        });
-    }
+		console.log('🌐 Fazendo fetch para: /api/users/search?q=' + encodeURIComponent(query) + '&role=client');
+		
+		fetch('/users/search?q=' + encodeURIComponent(query) + '&role=client')
+		.then(function(response) { 
+			console.log('📡 Response status:', response.status);
+			return response.json(); 
+		})
+		.then(function(data) {
+			console.log('📦 Data recebida:', data);
+			
+			if (data.success) {
+				if (data.data && data.data.length > 0) {
+					console.log('✅ Chamando showUsers com', data.data.length, 'usuários');
+					showUsers(data.data);
+				} else {
+					console.log('📭 Nenhum usuário encontrado, chamando showNoResults');
+					showNoResults();
+				}
+			} else {
+				console.log('❌ Data.success = false, chamando showError');
+				showError();
+			}
+		})
+		.catch(function(error) {
+			console.error('💥 Erro na busca:', error);
+			showError();
+		});
+	}
 
     function showUsers(users) {
         console.log('Mostrando usuários:', users);
@@ -229,15 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showNoResults() {
-        elements.dropdown.innerHTML = `
-            <div class="item-search-no-results">
-                <i class="fas fa-box-open fa-2x mb-2"></i>
-                <div>Nenhum item encontrado</div>
-            </div>
-        `;
-        showDropdown();
-        highlightedIndex = -1;
-	  }
+		suggestionsDropdown.innerHTML = `
+			<div class="user-search-no-results">
+				<i class="fas fa-search fa-2x mb-2"></i>
+				<div>Nenhum cliente encontrado</div>
+			</div>
+		`;
+		suggestionsDropdown.style.display = 'block';
+	}
 
     function showError() {
         suggestionsDropdown.innerHTML = '<div class="text-center py-3 text-danger">' +
@@ -245,65 +256,76 @@ document.addEventListener('DOMContentLoaded', function() {
         suggestionsDropdown.style.display = 'block';
     }
 
-    function selectUser(user) {
-        console.log('=== SELECIONANDO USUÁRIO ===');
-        console.log('User data:', user);
-        
-        hiddenInput.value = user.id;
-        searchInput.value = user.name;
-        
-        // Atualizar display
-        const avatar = selectedDisplay.querySelector('.user-avatar');
-        const name = selectedDisplay.querySelector('.user-name');
-        const instagram = selectedDisplay.querySelector('.user-instagram'); // MODIFICADO
-        const platforms = selectedDisplay.querySelector('.user-platforms');
-        
-        if (avatar && name && instagram && platforms) {
-            var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
-            if (user.avatar_url && user.avatar_url !== null && user.avatar_url !== '') {
-                avatarSrc = user.avatar_url;
-            }
-            
-            avatar.src = avatarSrc;
-            name.textContent = user.name;
-            
-            // MODIFICADO: Mostrar Instagram em vez de email
-            if (user.remember_token) {
-                instagram.innerHTML = '<i class="fab fa-instagram"></i> @' + user.remember_token;
-                instagram.className = 'instagram-handle small';
-            } else {
-                instagram.textContent = 'Sem Instagram';
-                instagram.className = 'text-muted small';
-            }
-            
-            // Mostrar outras plataformas
-            var platformsHtml = '';
-            if (user.nome_cliente) {
-                platformsHtml += '<span class="badge bg-tiktok platform-badge"><i class="fab fa-tiktok"></i> @' + user.nome_cliente + '</span>';
-            }
-            if (user.apelido) {
-                platformsHtml += '<span class="badge bg-secondary platform-badge">' + user.apelido + '</span>';
-            }
-            platforms.innerHTML = platformsHtml;
-            
-            selectedDisplay.classList.remove('d-none');
-            suggestionsDropdown.style.display = 'none';
-            clearBtn.classList.remove('d-none');
-            
-            console.log('Usuário selecionado com sucesso!');
-            
-            // MODIFICADO: Focar no botão de adicionar em vez de mover para próximo campo
-            setTimeout(function() {
-                const addButton = document.querySelector('#add-item-form button[type="submit"]');
-                if (addButton) {
-                    console.log('🎯 Focando no botão adicionar...');
-                    addButton.focus();
-                }
-            }, 200);
-        }
-        
-        console.log('=== FIM SELEÇÃO ===');
-    }
+	function selectUser(user) {
+		console.log('=== SELECIONANDO USUÁRIO ===');
+		console.log('User data:', user);
+		
+		hiddenInput.value = user.id;
+		searchInput.value = user.name;
+		
+		// NOVO: Recriar HTML completo do card para evitar referências quebradas
+		var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=32';
+		if (user.avatar_url && user.avatar_url !== null && user.avatar_url !== '') {
+			avatarSrc = user.avatar_url;
+		}
+		
+		var instagramHtml = '';
+		if (user.remember_token) {
+			instagramHtml = '<div class="user-instagram instagram-handle small"><i class="fab fa-instagram"></i> @' + user.remember_token + '</div>';
+		} else {
+			instagramHtml = '<div class="user-instagram text-muted small">Sem Instagram</div>';
+		}
+		
+		var platformsHtml = '';
+		if (user.nome_cliente) {
+			platformsHtml += '<span class="badge bg-tiktok platform-badge"><i class="fab fa-tiktok"></i> @' + user.nome_cliente + '</span>';
+		}
+		if (user.apelido) {
+			platformsHtml += '<span class="badge bg-secondary platform-badge">' + user.apelido + '</span>';
+		}
+		
+		// Recriar HTML completo
+		selectedDisplay.innerHTML = `
+			<div class="card">
+				<div class="card-body p-2">
+					<div class="d-flex align-items-center">
+						<img class="user-avatar me-2" src="${avatarSrc}" alt="Avatar" width="32" height="32" style="border-radius: 50%;">
+						<div class="flex-grow-1">
+							<div class="user-name fw-semibold">${user.name}</div>
+							${instagramHtml}
+							<div class="user-platforms mt-1">${platformsHtml}</div>
+						</div>
+						<button type="button" class="btn btn-sm btn-outline-danger user-remove-btn" data-remove-btn="true">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+				</div>
+			</div>
+		`;
+		
+		// Reconectar event listener do botão remove
+		const newRemoveBtn = selectedDisplay.querySelector('[data-remove-btn="true"]');
+		if (newRemoveBtn) {
+			newRemoveBtn.addEventListener('click', clearSelection);
+		}
+		
+		selectedDisplay.classList.remove('d-none');
+		suggestionsDropdown.style.display = 'none';
+		clearBtn.classList.remove('d-none');
+		
+		console.log('✅ Usuário selecionado com sucesso! (HTML recriado)');
+		
+		setTimeout(function() {
+			const addButton = document.querySelector('#add-item-form button[type="submit"]');
+			if (addButton) {
+				console.log('🎯 Focando no botão adicionar...');
+				addButton.focus();
+			}
+		}, 200);
+		
+		console.log('=== FIM SELEÇÃO ===');
+	}
+
 
     function clearSelection() {
         hiddenInput.value = '';
@@ -342,16 +364,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Event listeners
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(searchUsers, 300);
-        
-        if (this.value.trim()) {
-            clearBtn.classList.remove('d-none');
-        } else {
-            clearBtn.classList.add('d-none');
-        }
-    });
+	searchInput.addEventListener('input', function() {
+		console.log('⌨️ === INPUT EVENT DISPARADO ===');
+		console.log('Valor atual:', this.value);
+		console.log('debounceTimer antes clearTimeout:', debounceTimer);
+		
+		clearTimeout(debounceTimer);
+		
+		console.log('⏱️ Configurando novo timeout...');
+		debounceTimer = setTimeout(function() {
+			console.log('⏰ Timeout executado! Chamando searchUsers...');
+			searchUsers();
+		}, 300);
+		
+		if (this.value.trim()) {
+			clearBtn.classList.remove('d-none');
+			console.log('👁️ Botão clear mostrado');
+		} else {
+			clearBtn.classList.add('d-none');
+			console.log('🙈 Botão clear escondido');
+		}
+	});
 
     clearBtn.addEventListener('click', clearSelection);
     removeBtn.addEventListener('click', clearSelection);
@@ -442,38 +475,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 300);
     });
-
-    // Observer para detectar quando item é adicionado
-    var observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList') {
-                var bagsContainer = document.getElementById('bags-list');
-                if (bagsContainer && mutation.target === bagsContainer) {
-                    // Sacola foi atualizada - limpar seleção e focar no campo item
-                    setTimeout(function() {
-                        if (hiddenInput.value) {
-                            console.log('🛍️ Sacola atualizada - limpando e focando no item');
-                            clearSelection();
-                            
-                            // MODIFICADO: Focar no campo de item em vez de cliente
-                            const itemSearchInput = document.querySelector('[data-search-input="true"]:not(.user-search-input)');
-                            if (itemSearchInput) {
-                                console.log('🎯 Focando no campo de item...');
-                                itemSearchInput.focus();
-                                itemSearchInput.select();
-                            }
-                        }
-                    }, 500);
-                }
-            }
-        });
-    });
-    
-    // Observar mudanças no container de sacolas
-    var bagsContainer = document.getElementById('bags-list');
-    if (bagsContainer) {
-        observer.observe(bagsContainer, { childList: true, subtree: true });
-    }
 
     console.log('Componente carregado!');
 });
