@@ -142,9 +142,9 @@ Route::middleware('auth')->group(function () {
 
     // ===== API ROUTES =====
     Route::prefix('api')->group(function () {
-        // Busca de usuários e itens
-        Route::get('/users/search', [UserController::class, 'search'])->name('api.users.search');
-        Route::get('/items/search', [ItemController::class, 'search'])->name('api.items.search');
+		// Busca de usuários e itens
+		Route::get('/users/search', [ClienteController::class, 'search'])->name('api.users.search');
+		Route::get('/items/search', [ItemController::class, 'search'])->name('api.items.search');
         
         // ===== API CLIENTES =====
         Route::get('/clientes/search', [ClienteController::class, 'search'])->name('api.clientes.search');

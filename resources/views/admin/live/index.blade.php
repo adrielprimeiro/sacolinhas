@@ -264,7 +264,7 @@
 										
 										<!-- BOTÃO NOVO CLIENTE (se tiver rota) -->
 										<a href="{{ route('admin.clientes.create') }}" 
-										   class="btn btn-sm btn-outline-info" 
+										   class="btn btn-sm btn-outline-primary" 
 										   target="_blank"
 										   title="Cadastrar novo cliente">
 											<i class="fas fa-user-plus"></i> Novo Cliente

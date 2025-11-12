@@ -97,7 +97,7 @@
 .item-search-error {
     color: #dc3545;
 }
-.user-suggestion-item.highlighted,
+
 .item-suggestion-item.highlighted {
     background-color: #e9ecef; /* Cor de destaque */
     border-left: 3px solid #007bff; /* Borda para indicar destaque */

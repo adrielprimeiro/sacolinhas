@@ -46,7 +46,10 @@
 </div>
 
 <style>
-.user-search-wrapper { position: relative; }
+.user-search-wrapper {
+    position: relative;
+}
+
 .user-search-wrapper .search-icon { 
     position: absolute; right: 10px; top: 50%; 
     transform: translateY(-50%); pointer-events: none; z-index: 2; 
@@ -56,30 +59,51 @@
     transform: translateY(-50%); border: none; background: transparent; 
     padding: 2px 6px; font-size: 12px; z-index: 3; 
 }
-.user-suggestions-dropdown { 
-    position: absolute; top: 100%; left: 0; right: 0; 
-    background: white; border: 1px solid #ddd; border-radius: 0.375rem; 
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); z-index: 1000; 
-    max-height: 300px; overflow-y: auto; 
+.user-suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 2px;
 }
-.user-suggestion-item { 
-    padding: 10px 15px; cursor: pointer; 
-    border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s; 
+
+.user-suggestion-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f8f9fa;
+    transition: background-color 0.15s ease;
 }
-.user-suggestion-item:hover { background-color: #f8f9fa; }
-.create-client-item { 
-    padding: 10px 15px; cursor: pointer; 
-    background-color: #e3f2fd; border-left: 4px solid #2196f3; 
+
+.user-suggestion-item:hover {
+    background-color: #f8f9fa;
 }
-.create-client-item:hover { background-color: #bbdefb; }
-.user-suggestion-item.highlighted,
-.create-client-item.highlighted {
-    background-color: #007bff !important;
-    color: white !important;
+
+.user-suggestion-item:last-child {
+    border-bottom: none;
 }
-.user-suggestion-item.highlighted .text-muted,
-.create-client-item.highlighted .text-muted {
-    color: rgba(255, 255, 255, 0.8) !important;
+
+.user-search-loading,
+.user-search-error,
+.user-search-no-results {
+    padding: 1rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.usr-search-error {
+    color: #dc3545;
+}
+
+.user-suggestion-item.highlighted {
+    background-color: #e9ecef; /* Cor de destaque */
+    border-left: 3px solid #007bff; /* Borda para indicar destaque */
 }
 
 /* Estilos para badges das plataformas */
@@ -191,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     '<div class="small">' + instagramDisplay + '</div>' +
                     (otherPlatformsHtml ? '<div class="mt-1">' + otherPlatformsHtml + '</div>' : '') +
                 '</div>' +
-                '<div class="text-muted small">#' + user.id + '</div>' +
+                '<div class="text-muted small">' + user.id + '</div>' +
             '</div>';
             
             item.onclick = function(userData) {
@@ -205,20 +229,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showNoResults() {
-        resetSelection();
-        
-        suggestionsDropdown.innerHTML = '<div class="text-center py-3">' +
-            '<span>Nenhum usuário encontrado</span></div>' +
-            '<div class="create-client-item" data-index="0">' +
-                '<div class="d-flex align-items-center">' +
-                    '<i class="fas fa-plus-circle" style="color: #2196f3; margin-right: 8px;"></i>' +
-                    '<div><div class="fw-semibold">Cadastrar Novo Cliente</div></div>' +
-                '</div>' +
-            '</div>';
-        
-        suggestionsDropdown.querySelector('.create-client-item').onclick = createNewClient;
-        suggestionsDropdown.style.display = 'block';
-    }
+        elements.dropdown.innerHTML = `
+            <div class="item-search-no-results">
+                <i class="fas fa-box-open fa-2x mb-2"></i>
+                <div>Nenhum item encontrado</div>
+            </div>
+        `;
+        showDropdown();
+        highlightedIndex = -1;
+	  }
 
     function showError() {
         suggestionsDropdown.innerHTML = '<div class="text-center py-3 text-danger">' +

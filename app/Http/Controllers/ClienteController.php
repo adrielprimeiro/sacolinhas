@@ -162,4 +162,55 @@ class ClienteController extends Controller
                             ->with('error', 'Erro ao alterar status do cliente.');
         }
     }
+		
+	public function search(Request $request)
+	{
+		$query = $request->get('q');
+		$role = $request->get('role', 'client');
+		
+		if (!$query) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Query parameter is required',
+				'data' => []
+			]);
+		}
+
+		try {
+			$users = User::where(function($q) use ($query) {
+							$q->where('name', 'like', "%{$query}%")
+							  ->orWhere('email', 'like', "%{$query}%")
+							  ->orWhere('remember_token', 'like', "%{$query}%")
+							  ->orWhere('nome_cliente', 'like', "%{$query}%")
+							  ->orWhere('apelido', 'like', "%{$query}%")
+							  ->orWhere('id', $query);
+						})
+						->where('role', $role) // Ajuste conforme sua estrutura
+						->limit(10)
+						->get([
+							'id', 
+							'name', 
+							'email', 
+							'avatar_url', 
+							'remember_token', 
+							'nome_cliente', 
+							'apelido'
+						]);
+
+			return response()->json([
+				'success' => true,
+				'data' => $users,
+				'search_term' => $query
+			]);
+
+		} catch (\Exception $e) {
+			\Log::error('Erro na busca de clientes: ' . $e->getMessage());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro interno do servidor',
+				'data' => []
+			], 500);
+		}
+	}
 }
