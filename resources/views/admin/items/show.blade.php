@@ -117,15 +117,17 @@
                             <div class="card-body">
                                 <!-- Status e Categoria -->
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="badge bg-info fs-6">{{ $item->codigo_da_categoria ?? 'N/A' }}</span> {{-- Atualizado para codigo_da_categoria --}}
-                                    @if($item->status == 'disponivel') {{-- Ajustado para os novos status --}}
-                                        <span class="badge bg-success fs-6">Disponível</span>
-                                    @elseif($item->status == 'reservado')
+                                    <span class="badge bg-info fs-6">{{ $item->codigo ?? 'N/A' }}</span> {{-- Atualizado para codigo_da_categoria --}}
+                                    @if($item->status == 'indisponivel') {{-- Ajustado para os novos status --}}
+                                        <span class="badge bg-danger fs-6">Indisponível</span>
+									@elseif($item->status == 'disponivel')
+                                        <span class="badge bg-success text-dark fs-6">Disponível</span>	
+	                                @elseif($item->status == 'reservado')
                                         <span class="badge bg-warning text-dark fs-6">Reservado</span>
                                     @elseif($item->status == 'vendido')
-                                        <span class="badge bg-danger fs-6">Vendido</span>
-                                    @elseif($item->status == 'em_transito')
-                                        <span class="badge bg-primary fs-6">Em Trânsito</span>
+                                        <span class="badge bg-warning fs-6">Vendido</span>
+                                    @elseif($item->status == 'em_sacolinha')
+                                        <span class="badge bg-primary fs-6">Em Sacolinha</span>
                                     @else
                                         <span class="badge bg-secondary fs-6">{{ $item->status }}</span>
                                     @endif

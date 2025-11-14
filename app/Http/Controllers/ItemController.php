@@ -14,12 +14,7 @@ class ItemController extends Controller
 
         // Busca por nome do produto
         if ($request->filled('search')) {
-            $query->where('nome_do_produto', 'like', '%' . $request->search . '%');
-        }
-
-        // Filtro por categoria
-        if ($request->filled('category')) {
-            $query->where('codigo_da_categoria', $request->category);
+            $query->where('codigo', 'like',  $request->search . '%');
         }
 
         // Filtro por status
@@ -28,9 +23,8 @@ class ItemController extends Controller
         }
 
         $items = $query->paginate(10);
-        $categories = Item::distinct()->pluck('codigo_da_categoria');
-        
-        return view('admin.items.index', compact('items', 'categories'));
+         
+        return view('admin.items.index', compact('items'));
     }
 
     public function create()
@@ -53,7 +47,7 @@ class ItemController extends Controller
             'cor' => 'nullable|string',
             'tamanho' => 'nullable|string',
             'pedido' => 'nullable|string',
-            'status' => 'required|in:disponivel,reservado,vendido,em_transito',
+            'status' => 'required|in:indisponivel,disponivel,reservado,vendido,em_sacolinha',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -91,7 +85,7 @@ class ItemController extends Controller
             'cor' => 'nullable|string',
             'tamanho' => 'nullable|string',
             'pedido' => 'nullable|string',
-            'status' => 'required|in:disponivel,reservado,vendido,em_transito',
+            'status' => 'required|in:indisponivel,disponivel,reservado,vendido,em_sacolinha',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 

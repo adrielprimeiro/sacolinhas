@@ -250,7 +250,7 @@
                                         <option value="novo" {{ old('estado', $item->estado) == 'novo' ? 'selected' : '' }}>Novo</option>
                                         <option value="usado" {{ old('estado', $item->estado) == 'usado' ? 'selected' : '' }}>Usado</option>
                                         <option value="semi-novo" {{ old('estado', $item->estado) == 'semi-novo' ? 'selected' : '' }}>Semi-novo</option>
-                                        <option value="recondicionado" {{ old('estado', $item->estado) == 'recondicionado' ? 'selected' : '' }}>Recondicionado</option>
+                                        <option value="recondicionado" {{ old('estado', $item->estado) == 'com detalhe' ? 'selected' : '' }}>Recondicionado</option>
                                     </select>
                                     @error('estado')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -309,10 +309,11 @@
                                         id="status"
                                         name="status"
                                         required>
+            						<option value="indisponivel" {{ old('status', $item->status) == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
                                     <option value="disponivel" {{ old('status', $item->status) == 'disponivel' ? 'selected' : '' }}>Disponível</option>
                                     <option value="reservado" {{ old('status', $item->status) == 'reservado' ? 'selected' : '' }}>Reservado</option>
                                     <option value="vendido" {{ old('status', $item->status) == 'vendido' ? 'selected' : '' }}>Vendido</option>
-                                    <option value="em_transito" {{ old('status', $item->status) == 'em_transito' ? 'selected' : '' }}>Em Trânsito</option>
+                                    <option value="em_sacolinha" {{ old('status', $item->status) == 'em_sacolinha' ? 'selected' : '' }}>Em Sacolinha</option>
                                 </select>
                                 @error('status')
                                     <div class="invalid-feedback">{{ $message }}</div>
