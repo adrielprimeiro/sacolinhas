@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gerenciar Itens - Sacolinhas</title>
+    <title>Inventário</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -64,99 +64,6 @@
 				transform: translateY(0);
 			}
 		}
-
-		
-		/* Modal responsivo */
-		@media (max-width: 992px) {
-			.modal-xl {
-				max-width: 95%;
-			}
-		}
-		
-		/* Scanner container */
-		#qr-scanner-container {
-			border-radius: 15px;
-			overflow: hidden;
-			background: #f8f9fa;
-		}
-		
-		#qr-scanner-container video {
-			width: 100% !important;
-			height: auto !important;
-			border-radius: 15px;
-		}
-		
-		/* Controles do scanner */
-		#qr-scanner-container select,
-		#qr-scanner-container input[type="range"] {
-			margin: 8px 0;
-			width: 100%;
-			border-radius: 8px;
-		}
-		
-		/* Botões do scanner */
-		#qr-scanner-container button {
-			margin: 5px;
-			border-radius: 8px;
-			font-size: 12px;
-		}
-		
-		/* Histórico scrollable */
-		#scan-history {
-			font-size: 0.85em;
-		}
-		
-		#scan-history code {
-			font-size: 0.8em;
-			background: #f1f3f4;
-			padding: 2px 4px;
-			border-radius: 3px;
-		}
-		
-		/* Animações */
-		.alert {
-			animation: slideInFromTop 0.5s ease-out;
-		}
-		
-		@keyframes slideInFromTop {
-			from {
-				opacity: 0;
-				transform: translateY(-20px);
-			}
-			to {
-				opacity: 1;
-				transform: translateY(0);
-			}
-		}
-		
-		/* Badge personalizado */
-		.badge {
-			font-size: 0.7em;
-		}
-		
-		/* Cards do painel lateral */
-		.card {
-			border: none;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-		}
-		
-		.card-header {
-			background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-			font-weight: 600;
-			font-size: 0.9em;
-		}
-		
-		/* Spinner customizado */
-		.spinner-border-sm {
-			width: 1rem;
-			height: 1rem;
-		}
-		
-		/* Botão QR com animação */
-		#qrScanBtn:hover {
-			transform: scale(1.05);
-			transition: transform 0.2s ease;
-		}
     </style>
 </head>
 <body class="bg-light">
@@ -196,7 +103,7 @@
             <div class="col-md-10 p-4">
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Gerenciar Itens</h2>
+                    <h2>Inventário</h2>
                     <a href="{{ route('items.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Novo Item
                     </a>
@@ -221,22 +128,18 @@
 											   class="form-control"
 											   name="search"
 											   id="searchInput"
-											   placeholder="Código do produto, QR Code, ou código de barras..."
+											   placeholder="Buscar por código do produto ou escaneie o QR Code..."
 											   value="{{ request('search') }}">
 										<button type="button" 
-												class="btn btn-outline-primary position-relative"
+												class="btn btn-outline-secondary"
 												id="qrScanBtn"
-												title="Scanner Multi-formato">
+												title="Escanear QR Code">
 											<i class="fas fa-qrcode"></i>
-											<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6em;">
-												v3
-											</span>
 										</button>
 									</div>
-									<small class="text-primary mt-1">
-										<i class="fas fa-star"></i> 
-										<strong>Scanner Avançado Sprint 3!</strong> 
-										Multi-formato • Histórico • Upload de imagem
+									<small class="text-success mt-1">
+										<i class="fas fa-camera"></i> 
+										<strong>Scanner QR ativo!</strong> Clique no ícone para escanear códigos
 									</small>
 								</div>
 							 
@@ -247,101 +150,39 @@
 								</div>
 							</div>
 						</form>
-										
-				<!-- Modal QR Scanner - Sprint 3 Avançado -->
+						
+						<!-- Modal QR Scanner - Sprint 2 -->
 				<div class="modal fade" id="qrModal" tabindex="-1">
-					<div class="modal-dialog modal-xl">
+					<div class="modal-dialog modal-dialog-centered modal-lg">
 						<div class="modal-content">
 							<div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
 								<h5 class="modal-title">
 									<i class="fas fa-qrcode me-2"></i>
-									Scanner Avançado - Sprint 3
-									<span class="badge bg-light text-dark ms-2">Multi-formato</span>
+									Scanner QR Code - Live
 								</h5>
 								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 							</div>
-							<div class="modal-body">
-								<div class="row">
-									<!-- Scanner Principal -->
-									<div class="col-lg-8">
-										<div id="qr-reader" style="width: 100%; min-height: 400px; border: 2px dashed #dee2e6; border-radius: 15px; overflow: hidden;">
-											<!-- Scanner será inicializado aqui -->
-											<div class="d-flex align-items-center justify-content-center h-100 p-4">
-												<div class="text-muted text-center">
-													<i class="fas fa-camera fa-4x mb-3" style="color: #667eea;"></i>
-													<h6>Scanner Multi-formato Pronto</h6>
-													<small>QR Code • EAN-13 • EAN-8 • Code-128 • Code-39</small>
-												</div>
-											</div>
-										</div>
-										<div id="qr-result" class="mt-3">
-											<!-- Resultados aparecerão aqui -->
+							<div class="modal-body text-center">
+								<div id="qr-reader" style="width: 100%; min-height: 300px; border: 2px dashed #dee2e6; border-radius: 15px; overflow: hidden;">
+									<!-- Scanner será inicializado aqui -->
+									<div class="d-flex align-items-center justify-content-center h-100 p-4">
+										<div class="text-muted">
+											<i class="fas fa-camera fa-3x mb-3" style="color: #667eea;"></i>
+											<h6>Aguardando inicialização da câmera...</h6>
 										</div>
 									</div>
-									
-									<!-- Painel Lateral -->
-									<div class="col-lg-4">
-										<!-- Controles -->
-										<div class="card mb-3">
-											<div class="card-header">
-												<i class="fas fa-sliders-h"></i> Controles
-											</div>
-											<div class="card-body">
-												<button type="button" class="btn btn-primary btn-sm me-2" id="startScanBtn">
-													<i class="fas fa-play"></i> Iniciar
-												</button>
-												<button type="button" class="btn btn-secondary btn-sm me-2" id="stopScanBtn">
-													<i class="fas fa-pause"></i> Parar
-												</button>
-												<button type="button" class="btn btn-info btn-sm" id="uploadImageBtn">
-													<i class="fas fa-image"></i> Upload
-												</button>
-												
-												<div class="form-check form-switch mt-3">
-													<input class="form-check-input" type="checkbox" id="continuousScanToggle">
-													<label class="form-check-label" for="continuousScanToggle">
-														Modo contínuo
-													</label>
-												</div>
-											</div>
-										</div>
-										
-										<!-- Estatísticas -->
-										<div class="card mb-3">
-											<div class="card-header">
-												<i class="fas fa-chart-bar"></i> Estatísticas
-											</div>
-											<div class="card-body">
-												<div id="scan-stats">
-													<!-- Estatísticas aparecerão aqui -->
-												</div>
-											</div>
-										</div>
-										
-										<!-- Histórico -->
-										<div class="card">
-											<div class="card-header d-flex justify-content-between">
-												<span><i class="fas fa-history"></i> Histórico</span>
-												<button class="btn btn-sm btn-outline-danger" id="clearHistoryBtn">
-													<i class="fas fa-trash"></i>
-												</button>
-											</div>
-											<div class="card-body" style="max-height: 200px; overflow-y: auto;">
-												<div id="scan-history">
-													<!-- Histórico aparecerá aqui -->
-												</div>
-											</div>
-										</div>
-									</div>
+								</div>
+								<div id="qr-result" class="mt-3">
+									<!-- Resultados aparecerão aqui -->
 								</div>
 							</div>
 							<div class="modal-footer">
 								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
 									<i class="fas fa-times"></i> Fechar
 								</button>
-								<div class="text-muted small me-auto">
+								<div class="text-muted small">
 									<i class="fas fa-info-circle"></i>
-									Scanner avançado com suporte a múltiplos formatos e histórico
+									O scanner fechará automaticamente após ler um QR Code
 								</div>
 							</div>
 						</div>
