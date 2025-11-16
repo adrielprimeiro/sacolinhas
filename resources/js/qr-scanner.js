@@ -1,402 +1,362 @@
-// QR Scanner - Sprint 3 - Versão Avançada e Completa
-console.log('🚀 QR Scanner Sprint 3 - Versão Avançada Carregada');
+// ===== SCANNER QR FUNCIONAL - qr-scanner.js =====
 
-// Classe QR Scanner Avançada
-class AdvancedQRScanner {
+console.log('🚀 qr-scanner.js carregado');
+
+class QRScannerManager {
     constructor() {
         this.html5QrCode = null;
         this.isScanning = false;
-        this.scanHistory = this.loadHistory();
-        this.settings = this.loadSettings();
-        this.stats = this.loadStats();
+        this.modal = null;
+        this.scanHistory = [];
         
-        console.log('Scanner avançado inicializado');
+        // Aguardar DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            this.init();
+        }
     }
     
-    // Inicializar o scanner
     init() {
-        const qrBtn = document.getElementById('qrScanBtn');
-        const qrModal = document.getElementById('qrModal');
+        console.log('🔧 Inicializando QR Scanner Manager...');
         
-        
-        this.modalInstance = new bootstrap.Modal(qrModal);
-        this.setupEventListeners();
-        this.updateHistoryDisplay();
-        this.updateStatsDisplay();
-        
-        console.log('✅ Scanner avançado pronto para uso');
-    }
-    
-    // Event Listeners
-    setupEventListeners() {
-        const qrBtn = document.getElementById('qrScanBtn');
-        const qrModal = document.getElementById('qrModal');
-        
-        // Abrir modal
-        qrBtn.addEventListener('click', () => this.openScanner());
-        
-        // Modal events
-        qrModal.addEventListener('shown.bs.modal', () => this.startScanner());
-        qrModal.addEventListener('hidden.bs.modal', () => this.stopScanner());
-        
-        // Botões do modal
-        document.getElementById('startScanBtn')?.addEventListener('click', () => this.startScanner());
-        document.getElementById('stopScanBtn')?.addEventListener('click', () => this.stopScanner());
-        document.getElementById('uploadImageBtn')?.addEventListener('click', () => this.uploadImage());
-        document.getElementById('continuousScanToggle')?.addEventListener('change', (e) => this.toggleContinuousMode(e.target.checked));
-        document.getElementById('clearHistoryBtn')?.addEventListener('click', () => this.clearHistory());
-    }
-    
-    // Abrir scanner
-    openScanner() {
-        console.log('📷 Abrindo scanner Sprint 3');
-        this.modalInstance.show();
-        this.updateStats('opens');
-    }
-    
-    // Iniciar scanner
-    startScanner() {
-        if (this.isScanning) return;
-        
-        console.log('🔍 Iniciando scanner avançado...');
-        
-        const qrReader = document.getElementById('qr-reader');
-        const qrResult = document.getElementById('qr-result');
-        
-        // Limpar e preparar interface
-        qrReader.innerHTML = '<div id="qr-scanner-container"></div>';
-        qrResult.innerHTML = this.getLoadingHTML();
-        
-        // Configurações avançadas
-        const config = {
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-            showZoomSliderIfSupported: true,
-            supportedScanTypes: [
-                Html5QrcodeScanType.SCAN_TYPE_QRCODE,
-                Html5QrcodeScanType.SCAN_TYPE_EAN_13,
-                Html5QrcodeScanType.SCAN_TYPE_EAN_8,
-                Html5QrcodeScanType.SCAN_TYPE_CODE_128,
-                Html5QrcodeScanType.SCAN_TYPE_CODE_39
-            ]
+        // Verificar se elementos existem
+        this.elements = {
+            scanBtn: document.getElementById('qrScanBtn'),
+            modal: document.getElementById('qrModal'),
+            searchInput: document.getElementById('searchInput'),
+            qrReader: document.getElementById('qr-reader'),
+            qrResult: document.getElementById('qr-result'),
+            startBtn: document.getElementById('startScanBtn'),
+            stopBtn: document.getElementById('stopScanBtn'),
+            uploadBtn: document.getElementById('uploadImageBtn'),
+            continuousToggle: document.getElementById('continuousScanToggle'),
+            scanStats: document.getElementById('scan-stats'),
+            scanHistory: document.getElementById('scan-history'),
+            clearHistoryBtn: document.getElementById('clearHistoryBtn')
         };
         
-        // Callbacks
-        const successCallback = (decodedText, decodedResult) => this.onScanSuccess(decodedText, decodedResult);
-        const errorCallback = (error) => this.onScanError(error);
+        // Verificar se elementos principais existem
+            console.warn('⚠️ Elementos do scanner não encontrados');
+            return;
+        }
         
-        // Inicializar scanner
-        this.html5QrCode = new Html5Qrcode("qr-scanner-container");
+        // Inicializar Bootstrap Modal
+        this.modal = new bootstrap.Modal(this.elements.modal);
         
-        Html5Qrcode.getCameras().then(devices => {
-            if (!devices?.length) {
-                this.showError("Nenhuma câmera encontrada");
-                return;
+        // Setup Event Listeners
+        this.setupEventListeners();
+        
+        // Inicializar UI
+        this.updateStats();
+        this.updateHistory();
+        
+        console.log('✅ QR Scanner Manager inicializado com sucesso!');
+    }
+    
+    setupEventListeners() {
+        // Botão principal de scanner
+        this.elements.scanBtn?.addEventListener('click', () => {
+            console.log('📷 Abrindo modal do scanner...');
+            this.openModal();
+        });
+        
+        // Controles do modal
+        this.elements.startBtn?.addEventListener('click', () => this.startScanning());
+        this.elements.stopBtn?.addEventListener('click', () => this.stopScanning());
+        this.elements.uploadBtn?.addEventListener('click', () => this.uploadImage());
+        this.elements.clearHistoryBtn?.addEventListener('click', () => this.clearHistory());
+        
+        // Fechar modal - parar scanner
+        this.elements.modal?.addEventListener('hidden.bs.modal', () => {
+            this.stopScanning();
+        });
+        
+        // Enter no input de busca
+        this.elements.searchInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.performSearch();
+            }
+        });
+    }
+    
+    openModal() {
+        this.modal.show();
+        this.showPlaceholder();
+        this.updateUI();
+    }
+    
+    showPlaceholder() {
+        if (this.elements.qrReader) {
+            this.elements.qrReader.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100 p-4" style="min-height: 400px;">
+                    <div class="text-muted text-center">
+                        <i class="fas fa-camera fa-4x mb-3" style="color: #667eea;"></i>
+                        <h6>Scanner Multi-formato Pronto</h6>
+                        <small>QR Code • EAN-13 • EAN-8 • Code-128 • Code-39</small>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" onclick="qrScanner.startScanning()">
+                                <i class="fas fa-play"></i> Iniciar Scanner
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    async startScanning() {
+        try {
+            console.log('▶️ Iniciando escaneamento...');
+            
+            this.showResult('info', '<i class="fas fa-spinner fa-spin"></i> Iniciando câmera...');
+            
+            // Limpar container do reader
+            if (this.elements.qrReader) {
+                this.elements.qrReader.innerHTML = '';
             }
             
-            // Selecionar melhor câmera
-            const cameraId = this.selectBestCamera(devices);
+            // Configuração do scanner
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                showTorchButtonIfSupported: true,
+                showZoomSliderIfSupported: true,
+                defaultZoomValueIfSupported: 2
+            };
             
-            return this.html5QrCode.start(cameraId, config, successCallback, errorCallback);
-        }).then(() => {
+            // Inicializar scanner
+            this.html5QrCode = new Html5Qrcode("qr-reader");
+            
+            await this.html5QrCode.start(
+                { facingMode: "environment" }, // Câmera traseira preferida
+                config,
+                (decodedText, decodedResult) => {
+                    this.onScanSuccess(decodedText, decodedResult);
+                },
+                (errorMessage) => {
+                    // Erro silencioso - normal durante escaneamento
+                }
+            );
+            
             this.isScanning = true;
-            this.showScanningStatus();
-            this.updateStats('scans_started');
-        }).catch(err => {
-            console.error("❌ Erro ao iniciar scanner:", err);
-            this.showError("Erro ao acessar a câmera: " + err.message);
-        });
+            this.updateUI();
+            this.showResult('success', '<i class="fas fa-camera"></i> Scanner ativo! Aponte para um código...');
+            
+        } catch (error) {
+            console.error('❌ Erro ao iniciar scanner:', error);
+            
+            let errorMsg = 'Erro ao acessar câmera.';
+            if (error.message.includes('Permission')) {
+                errorMsg = 'Permissão de câmera negada. Verifique as configurações do navegador.';
+            } else if (error.message.includes('NotFoundError')) {
+                errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
+            }
+            
+            this.showResult('danger', `<i class="fas fa-exclamation-triangle"></i> ${errorMsg}`);
+            this.showPlaceholder();
+        }
     }
     
-    // Parar scanner
-    stopScanner() {
+    async stopScanning() {
+        if (this.html5QrCode && this.isScanning) {
+            try {
+                console.log('⏹️ Parando scanner...');
+                await this.html5QrCode.stop();
+                this.html5QrCode.clear();
+                this.isScanning = false;
+                console.log('✅ Scanner parado');
+                
+                this.showResult('info', '<i class="fas fa-info-circle"></i> Scanner parado.');
+                
+            } catch (error) {
+                console.error('❌ Erro ao parar scanner:', error);
+            }
+        }
         
-        this.html5QrCode.stop().then(() => {
-            console.log('⏹️ Scanner parado');
-            this.html5QrCode.clear();
-            this.isScanning = false;
-        }).catch(err => {
-            console.error("Erro ao parar scanner:", err);
-        });
+        this.updateUI();
+        setTimeout(() => this.showPlaceholder(), 1000);
     }
     
-    // Sucesso no scan
     onScanSuccess(decodedText, decodedResult) {
-        console.log('✅ Código detectado:', decodedText);
+        console.log('🎯 Código detectado:', decodedText);
         
         // Adicionar ao histórico
-        this.addToHistory(decodedText, decodedResult.decodedResult?.format);
+        this.addToHistory(decodedText);
         
-        // Feedback sonoro e vibração
-        this.playFeedback();
+        // Preencher campo de busca
+        if (this.elements.searchInput) {
+            this.elements.searchInput.value = decodedText;
+        }
         
         // Mostrar resultado
-        this.showScanResult(decodedText, decodedResult);
+        this.showResult('success', `
+            <strong><i class="fas fa-check-circle"></i> Código Escaneado!</strong><br>
+            <code class="fs-6">${decodedText}</code><br>
+            <small class="text-muted">Campo de busca preenchido automaticamente</small>
+        `);
         
-        // Preencher campo
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.value = decodedText;
-            searchInput.focus();
-        }
-        
-        // Atualizar estatísticas
-        this.updateStats('successful_scans');
-        
-        // Modo contínuo ou fechar
-        if (!this.settings.continuousMode) {
+        // Parar scanner se não estiver em modo contínuo
+        if (!this.elements.continuousToggle?.checked) {
             setTimeout(() => {
-                this.modalInstance.hide();
-                // Auto-submit se habilitado
-                if (this.settings.autoSubmit) {
-                    const form = searchInput?.closest('form');
-                    if (form) form.submit();
-                }
-        }
-    }
-    
-    // Erro no scan
-    onScanError(error) {
-        // Silenciar erros de frame normais
-        if (!error.includes("No QR code found")) {
-            console.warn("Scanner error:", error);
-        }
-    }
-    
-    // Selecionar melhor câmera
-    selectBestCamera(devices) {
-        // Preferir câmera traseira
-        const backCamera = devices.find(device => 
-            device.label.toLowerCase().includes('environment')
-        );
-        
-        return backCamera ? backCamera.id : devices[0].id;
-    }
-    
-    // Feedback sonoro e vibração
-    playFeedback() {
-        // Som de beep
-        if (this.settings.soundEnabled) {
-            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBj2Z1/LKdSEEE2e27uPotGgdBzSa1/LLfSwIJ3fJ69uWQwgWW7Xs6Z9NEg1NoPLygGMLCTGMz/HgpV0RC0Oo5O9iGCE=');
-            audio.play().catch(() => {});
+                this.stopScanning();
+                // Fechar modal após 3 segundos
+                setTimeout(() => {
+                    this.modal.hide();
+                    // Focar no campo de busca
+                    this.elements.searchInput?.focus();
+                }, 3000);
+            }, 1500);
         }
         
-        // Vibração
-        if (this.settings.vibrationEnabled && 'vibrate' in navigator) {
-            navigator.vibrate([100, 50, 100]);
+        this.updateStats();
+    }
+    
+    addToHistory(code) {
+        const timestamp = new Date().toLocaleTimeString('pt-BR');
+        this.scanHistory.unshift({
+            code: code,
+            timestamp: timestamp,
+            type: this.detectCodeType(code)
+        });
+        
+        // Limitar histórico a 10 itens
+        if (this.scanHistory.length > 10) {
+            this.scanHistory = this.scanHistory.slice(0, 10);
+        }
+        
+        this.updateHistory();
+    }
+    
+    detectCodeType(code) {
+        if (code.length === 13 && /^\d+$/.test(code)) return 'EAN-13';
+        if (code.length === 8 && /^\d+$/.test(code)) return 'EAN-8';
+        if (/^[A-Z0-9\-. $\/+%]+$/i.test(code)) return 'Code-128';
+        return 'QR Code';
+    }
+    
+    updateHistory() {
+        if (!this.elements.scanHistory) return;
+        
+        if (this.scanHistory.length === 0) {
+            this.elements.scanHistory.innerHTML = `
+                <div class="text-muted text-center">
+                    <i class="fas fa-history"></i><br>
+                    <small>Nenhum scan ainda</small>
+                </div>
+            `;
+            return;
+        }
+        
+        const historyHtml = this.scanHistory.map(item => `
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                <div>
+                    <code class="small">${item.code.length > 15 ? item.code.substring(0, 15) + '...' : item.code}</code><br>
+                    <span class="badge bg-secondary">${item.type}</span>
+                </div>
+                <small class="text-muted">${item.timestamp}</small>
+            </div>
+        `).join('');
+        
+        this.elements.scanHistory.innerHTML = historyHtml;
+    }
+    
+    updateStats() {
+        if (!this.elements.scanStats) return;
+        
+        const totalScans = this.scanHistory.length;
+        const uniqueCodes = new Set(this.scanHistory.map(item => item.code)).size;
+        
+        this.elements.scanStats.innerHTML = `
+            <div class="row text-center">
+                <div class="col-6">
+                    <div class="h5 mb-0 text-primary">${totalScans}</div>
+                    <small class="text-muted">Total</small>
+                </div>
+                <div class="col-6">
+                    <div class="h5 mb-0 text-success">${uniqueCodes}</div>
+                    <small class="text-muted">Únicos</small>
+                </div>
+            </div>
+        `;
+    }
+    
+    clearHistory() {
+        this.scanHistory = [];
+        this.updateHistory();
+        this.updateStats();
+        this.showResult('info', '<i class="fas fa-trash"></i> Histórico limpo.');
+    }
+    
+    showResult(type, message) {
+        if (this.elements.qrResult) {
+            this.elements.qrResult.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
         }
     }
     
-    // Histórico de scans
-    addToHistory(code, format) {
-        const timestamp = new Date().toISOString();
-        const entry = {
-            code,
-            timestamp,
-            id: Date.now()
-        };
-        
-        // Evitar duplicatas recentes (últimos 5 minutos)
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const isDuplicate = this.scanHistory.some(item => 
-            item.code === code && item.timestamp > fiveMinutesAgo
-        );
-        
-        if (!isDuplicate) {
-            this.scanHistory.unshift(entry);
-            
-            // Manter apenas últimos 50 itens
-            if (this.scanHistory.length > 50) {
-                this.scanHistory = this.scanHistory.slice(0, 50);
-            }
-            
-            this.saveHistory();
-            this.updateHistoryDisplay();
+    updateUI() {
+        // Atualizar estados dos botões
+        if (this.elements.startBtn) {
+            this.elements.startBtn.style.display = this.isScanning ? 'none' : 'inline-block';
+        }
+        if (this.elements.stopBtn) {
+            this.elements.stopBtn.style.display = this.isScanning ? 'inline-block' : 'none';
         }
     }
     
-    // Upload de imagem
     uploadImage() {
+        // Criar input file temporário
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
         
-        input.onchange = (e) => {
+        input.onchange = async (e) => {
             const file = e.target.files[0];
-            if (!file) return;
-            
-            const html5QrCode = new Html5Qrcode("qr-scanner-container");
-            
-            html5QrCode.scanFile(file, true).then(decodedText => {
-                console.log('✅ Código lido da imagem:', decodedText);
-                this.onScanSuccess(decodedText, { decodedResult: { format: 'IMAGE_SCAN' } });
-            }).catch(err => {
-                console.error('❌ Erro ao ler imagem:', err);
-                this.showError("Nenhum código encontrado na imagem");
-            });
+            if (file) {
+                try {
+                    this.showResult('info', '<i class="fas fa-spinner fa-spin"></i> Processando imagem...');
+                    
+                    const result = await Html5Qrcode.scanFile(file, true);
+                    this.onScanSuccess(result, null);
+                    
+                } catch (error) {
+                    console.error('Erro ao processar imagem:', error);
+                    this.showResult('warning', '<i class="fas fa-exclamation-triangle"></i> Nenhum código encontrado na imagem.');
+                }
+            }
         };
         
         input.click();
     }
     
-    // Interface HTML avançada
-    getLoadingHTML() {
-        return `
-            <div class="alert alert-info">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    <div>Iniciando câmera avançada...</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    showScanningStatus() {
-        document.getElementById('qr-result').innerHTML = `
-            <div class="alert alert-primary">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas fa-qrcode me-2"></i>
-                        <strong>Scanner Ativo!</strong> Detectando múltiplos formatos
-                    </div>
-                    <div class="badge bg-success">Sprint 3</div>
-                </div>
-                <small class="d-block mt-2">
-                    Suporta: QR Code, EAN-13, EAN-8, Code-128, Code-39
-                </small>
-            </div>
-        `;
-    }
-    
-    showScanResult(code, result) {
-        const timestamp = new Date().toLocaleString('pt-BR');
-        
-        document.getElementById('qr-result').innerHTML = `
-            <div class="alert alert-success">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">
-                        <i class="fas fa-check-circle me-2"></i>
-                        Código Detectado!
-                    </h6>
-                    <span class="badge bg-success">${format}</span>
-                </div>
-                <div class="bg-white p-2 rounded border">
-                    <code class="text-dark">${code}</code>
-                </div>
-                <small class="text-muted mt-2 d-block">
-                    <i class="fas fa-clock me-1"></i>
-                    ${timestamp}
-                </small>
-                ${!this.settings.continuousMode ? '<div class="mt-2"><small class="text-muted">Fechando automaticamente...</small></div>' : ''}
-            </div>
-        `;
-    }
-    
-    showError(message) {
-        document.getElementById('qr-result').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Erro:</strong> ${message}
-            </div>
-        `;
-    }
-    
-    // Atualizar displays
-    updateHistoryDisplay() {
-        const historyContainer = document.getElementById('scan-history');
-        if (!historyContainer) return;
-        
-        if (this.scanHistory.length === 0) {
-            historyContainer.innerHTML = '<small class="text-muted">Nenhum código escaneado ainda</small>';
-            return;
+    performSearch() {
+        const searchTerm = this.elements.searchInput?.value.trim();
+        if (searchTerm) {
+            console.log('🔍 Realizando busca por:', searchTerm);
+            // Aqui você pode implementar a lógica de busca
+            // Por exemplo, submeter o formulário ou fazer uma requisição AJAX
+            
+            // Se existe um formulário pai, submeter
+            const form = this.elements.searchInput?.closest('form');
+            if (form) {
+                form.submit();
+            }
         }
-        
-        const historyHTML = this.scanHistory.slice(0, 5).map(item => `
-            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
-                <div>
-                    <small><code>${item.code}</code></small><br>
-                    <small class="text-muted">${new Date(item.timestamp).toLocaleString('pt-BR')}</small>
-                </div>
-                <span class="badge bg-secondary">${item.format}</span>
-            </div>
-        `).join('');
-        
-        historyContainer.innerHTML = historyHTML;
-    }
-    
-    updateStatsDisplay() {
-        const statsContainer = document.getElementById('scan-stats');
-        if (!statsContainer) return;
-        
-        statsContainer.innerHTML = `
-            <div class="row text-center">
-                <div class="col-4">
-                    <small class="text-muted">Aberturas</small>
-                </div>
-                <div class="col-4">
-                    <small class="text-muted">Sucessos</small>
-                </div>
-                <div class="col-4">
-                    <div class="text-info fw-bold">${this.scanHistory.length}</div>
-                    <small class="text-muted">Histórico</small>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Storage functions
-    loadHistory() {
-        try {
-        } catch {
-            return [];
-        }
-    }
-    
-    saveHistory() {
-        localStorage.setItem('qr_scan_history', JSON.stringify(this.scanHistory));
-    }
-    
-    loadSettings() {
-        try {
-        } catch {
-            return {};
-        }
-    }
-    
-    saveSettings() {
-        localStorage.setItem('qr_scanner_settings', JSON.stringify(this.settings));
-    }
-    
-    loadStats() {
-        try {
-        } catch {
-            return {};
-        }
-    }
-    
-    updateStats(key) {
-        localStorage.setItem('qr_scanner_stats', JSON.stringify(this.stats));
-        this.updateStatsDisplay();
-    }
-    
-    clearHistory() {
-        if (confirm('Limpar todo o histórico de escaneamentos?')) {
-            this.scanHistory = [];
-            this.saveHistory();
-            this.updateHistoryDisplay();
-        }
-    }
-    
-    toggleContinuousMode(enabled) {
-        this.settings.continuousMode = enabled;
-        this.saveSettings();
-        console.log('Modo contínuo:', enabled ? 'Ativado' : 'Desativado');
     }
 }
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', function() {
-    window.qrScanner = new AdvancedQRScanner();
-    window.qrScanner.init();
-});
+// Instanciar o scanner globalmente
+let qrScanner;
+
+// Inicializar quando script carregar
+console.log('📱 Preparando QR Scanner...');
+qrScanner = new QRScannerManager();
+
+// Export para uso global
+window.qrScanner = qrScanner;

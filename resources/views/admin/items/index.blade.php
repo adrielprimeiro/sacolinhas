@@ -233,11 +233,6 @@
 											</span>
 										</button>
 									</div>
-									<small class="text-primary mt-1">
-										<i class="fas fa-star"></i> 
-										<strong>Scanner Avançado Sprint 3!</strong> 
-										Multi-formato • Histórico • Upload de imagem
-									</small>
 								</div>
 							 
 								<div class="col-md-2">
@@ -248,106 +243,26 @@
 							</div>
 						</form>
 										
-				<!-- Modal QR Scanner - Sprint 3 Avançado -->
-				<div class="modal fade" id="qrModal" tabindex="-1">
-					<div class="modal-dialog modal-xl">
-						<div class="modal-content">
-							<div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-								<h5 class="modal-title">
-									<i class="fas fa-qrcode me-2"></i>
-									Scanner Avançado - Sprint 3
-									<span class="badge bg-light text-dark ms-2">Multi-formato</span>
-								</h5>
-								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-							</div>
-							<div class="modal-body">
-								<div class="row">
-									<!-- Scanner Principal -->
-									<div class="col-lg-8">
-										<div id="qr-reader" style="width: 100%; min-height: 400px; border: 2px dashed #dee2e6; border-radius: 15px; overflow: hidden;">
-											<!-- Scanner será inicializado aqui -->
-											<div class="d-flex align-items-center justify-content-center h-100 p-4">
-												<div class="text-muted text-center">
-													<i class="fas fa-camera fa-4x mb-3" style="color: #667eea;"></i>
-													<h6>Scanner Multi-formato Pronto</h6>
-													<small>QR Code • EAN-13 • EAN-8 • Code-128 • Code-39</small>
-												</div>
-											</div>
-										</div>
-										<div id="qr-result" class="mt-3">
-											<!-- Resultados aparecerão aqui -->
-										</div>
+						<!-- Modal QR Scanner SIMPLES -->
+						<div class="modal fade" id="qrModal" tabindex="-1">
+							<div class="modal-dialog modal-lg">
+								<div class="modal-content">
+									<div class="modal-header bg-primary text-white">
+										<h5 class="modal-title">
+											<i class="fas fa-qrcode me-2"></i> Scanner QR Code
+										</h5>
+										<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 									</div>
-									
-									<!-- Painel Lateral -->
-									<div class="col-lg-4">
-										<!-- Controles -->
-										<div class="card mb-3">
-											<div class="card-header">
-												<i class="fas fa-sliders-h"></i> Controles
-											</div>
-											<div class="card-body">
-												<button type="button" class="btn btn-primary btn-sm me-2" id="startScanBtn">
-													<i class="fas fa-play"></i> Iniciar
-												</button>
-												<button type="button" class="btn btn-secondary btn-sm me-2" id="stopScanBtn">
-													<i class="fas fa-pause"></i> Parar
-												</button>
-												<button type="button" class="btn btn-info btn-sm" id="uploadImageBtn">
-													<i class="fas fa-image"></i> Upload
-												</button>
-												
-												<div class="form-check form-switch mt-3">
-													<input class="form-check-input" type="checkbox" id="continuousScanToggle">
-													<label class="form-check-label" for="continuousScanToggle">
-														Modo contínuo
-													</label>
-												</div>
-											</div>
-										</div>
+									<div class="modal-body">
+										<!-- Scanner Container -->
+										<div id="qr-reader" style="min-height: 300px; border-radius: 15px;"></div>
 										
-										<!-- Estatísticas -->
-										<div class="card mb-3">
-											<div class="card-header">
-												<i class="fas fa-chart-bar"></i> Estatísticas
-											</div>
-											<div class="card-body">
-												<div id="scan-stats">
-													<!-- Estatísticas aparecerão aqui -->
-												</div>
-											</div>
-										</div>
-										
-										<!-- Histórico -->
-										<div class="card">
-											<div class="card-header d-flex justify-content-between">
-												<span><i class="fas fa-history"></i> Histórico</span>
-												<button class="btn btn-sm btn-outline-danger" id="clearHistoryBtn">
-													<i class="fas fa-trash"></i>
-												</button>
-											</div>
-											<div class="card-body" style="max-height: 200px; overflow-y: auto;">
-												<div id="scan-history">
-													<!-- Histórico aparecerá aqui -->
-												</div>
-											</div>
-										</div>
+										<!-- Resultado -->
+										<div id="qr-result" class="mt-3"></div>
 									</div>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-									<i class="fas fa-times"></i> Fechar
-								</button>
-								<div class="text-muted small me-auto">
-									<i class="fas fa-info-circle"></i>
-									Scanner avançado com suporte a múltiplos formatos e histórico
 								</div>
 							</div>
 						</div>
-					</div>
-				</div>
-
                 <!-- Lista de Itens -->
                 <div class="card">
                     <div class="card-body">
@@ -442,44 +357,209 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Html5-QRCode Library - Sprint 2 -->
+    <!-- Html5-QRCode Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
-    <!-- QR Scanner JS - Sprint 2 -->
-    <script src="{{ asset('js/qr-scanner.js') }}"></script>
-    
-    <!-- QR Scanner JS - Sprint 1 -->
+    <!-- Scanner QR SIMPLES E COMPATÍVEL -->
     <script>
-        console.log('QR Scanner carregado - Sprint 1');
+        console.log('📱 Scanner QR Iniciando...');
 
+        // Variáveis globais
+        var scanner = null;
+        var isScanning = false;
+        var modal = null;
+
+        // Inicializar quando página carregar
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM carregado, inicializando QR Scanner...');
-            
-            // Verificar se botão QR existe
-            const qrBtn = document.getElementById('qrScanBtn');
-            const qrModal = document.getElementById('qrModal');
-            
-            if (qrBtn && qrModal) {
-                // Bootstrap modal instance
-                const modalInstance = new bootstrap.Modal(qrModal);
-                
-                qrBtn.addEventListener('click', function() {
-                    console.log('Botão QR clicado - abrindo modal');
-                    modalInstance.show();
-                    
-                    // Placeholder para Sprint 1
-                    document.getElementById('qr-result').innerHTML = 
-                        '<div class="alert alert-info">' +
-                        '<i class="fas fa-info-circle me-2"></i>' +
-                        '<strong>Sprint 1:</strong> Estrutura criada com sucesso!' +
-                        '</div>';
-                });
-                
-                console.log('QR Scanner inicializado com sucesso!');
-            } else {
-                console.warn('Elementos QR não encontrados na página');
-            }
+            console.log('🚀 Inicializando scanner...');
+            initScanner();
         });
+
+        function initScanner() {
+            // Elementos
+            var scanBtn = document.getElementById('qrScanBtn');
+            var modalElement = document.getElementById('qrModal');
+            if (!scanBtn || !modalElement){
+                console.warn('⚠️ Elementos não encontrados');
+                return;
+            }
+
+            // Modal Bootstrap
+            modal = new bootstrap.Modal(modalElement);
+            
+            // Evento do botão principal
+            scanBtn.addEventListener('click', function() {
+                console.log('🎯 Abrindo scanner...');
+                openScanner();
+            });
+
+            // Fechar modal
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                stopScanner();
+            });
+
+            console.log('✅ Scanner inicializado!');
+        }
+
+        function openScanner() {
+            modal.show();
+            
+            // Interface inicial
+            var qrReader = document.getElementById('qr-reader');
+            if (qrReader) {
+                qrReader.innerHTML = 
+                    '<div class="text-center p-5">' +
+                        '<div class="mb-4">' +
+                            '<i class="fas fa-camera fa-4x text-primary"></i>' +
+                        '</div>' +
+                        '<h4 class="mb-3">Scanner Pronto</h4>' +
+                        '<button class="btn btn-success btn-lg" onclick="startCamera()">' +
+                            '<i class="fas fa-play me-2"></i>Iniciar Câmera' +
+                        '</button>' +
+                    '</div>';
+            }
+
+            // Esconder painel lateral se existir
+            var sidebar = document.querySelector('.col-lg-4');
+            var mainPanel = document.querySelector('.col-lg-8');
+            
+            if (sidebar) sidebar.style.display = 'none';
+            if (mainPanel) mainPanel.className = 'col-12';
+        }
+
+        function startCamera() {
+            console.log('📷 Iniciando câmera...');
+            
+            // Loading
+            var qrReader = document.getElementById('qr-reader');
+            if (qrReader) {
+                qrReader.innerHTML = 
+                    '<div class="text-center p-5">' +
+                        '<div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>' +
+                        '<h5>Iniciando câmera...</h5>' +
+                        '<small class="text-muted">Aguarde um momento</small>' +
+                    '</div>';
+            }
+
+            // Inicializar scanner
+            scanner = new Html5Qrcode("qr-reader");
+            
+            var config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            };
+
+            scanner.start(
+                { facingMode: "environment" },
+                config,
+                function(decodedText) {
+                    // SUCESSO - Código encontrado
+                    console.log('✅ Código encontrado:', decodedText);
+                    onScanSuccess(decodedText);
+                },
+                function(error) {
+                    // Erro silencioso (normal durante escaneamento)
+                }
+            ).then(function() {
+                // Scanner iniciado com sucesso
+                isScanning = true;
+                showMessage('success', '📷 Scanner ativo! Aponte a câmera para o código...');
+                
+            }).catch(function(error) {
+                // Erro ao iniciar
+                console.error('❌ Erro ao iniciar:', error);
+                var errorMsg = 'Erro ao acessar câmera';
+                
+                if (error.toString().indexOf('Permission') !== -1) {
+                    errorMsg = 'Permissão de câmera negada. Permita o acesso à câmera.';
+                } else if (error.toString().indexOf('NotFound') !== -1) {
+                    errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
+                }
+                
+                showMessage('danger', '❌ ' + errorMsg);
+            });
+        }
+
+        function onScanSuccess(code) {
+            console.log('🎯 Código capturado:', code);
+            
+            // Parar scanner primeiro
+            stopScanner();
+            
+            // Preencher campo de busca
+            var searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = code;
+                searchInput.readOnly = false; // Remover readonly se existir
+            }
+
+            // Mostrar sucesso
+            showMessage('success', 
+                '<div class="text-center">' +
+                    '<i class="fas fa-check-circle fa-2x text-success mb-2"></i>' +
+                    '<h5>Código Capturado!</h5>' +
+                    '<code class="fs-5 text-primary">' + code + '</code>' +
+                    '<p class="mt-2 mb-0"><small>Realizando busca...</small></p>' +
+                '</div>'
+            );
+
+            // Aguardar 2 segundos e executar busca
+            setTimeout(function() {
+                modal.hide();
+                performSearch();
+            }, 2000);
+        }
+
+        function stopScanner() {
+            if (scanner && isScanning) {
+                scanner.stop().then(function() {
+                    scanner.clear();
+                    isScanning = false;
+                    console.log('⏹️ Scanner parado');
+                }).catch(function(error) {
+                    console.error('Erro ao parar scanner:', error);
+                });
+            }
+        }
+
+        function showMessage(type, message) {
+            var resultDiv = document.getElementById('qr-result');
+            if (resultDiv) {
+                resultDiv.innerHTML = 
+                    '<div class="alert alert-' + type + ' mt-3">' +
+                        message +
+                    '</div>';
+            }
+        }
+
+        function performSearch() {
+            console.log('🔍 Executando busca automática...');
+            
+            var searchInput = document.getElementById('searchInput');
+			if (!searchInput || !searchInput.value){
+                console.warn('Campo de busca vazio');
+                return;
+            }
+            
+            // Método 1: Tentar submeter formulário
+            var form = document.querySelector('form[method="GET"]');
+            if (form) {
+                console.log('📝 Submetendo formulário...');
+                form.submit();
+                return;
+            }
+            
+            // Método 2: Recarregar página com parâmetro
+            var code = searchInput.value;
+            var currentUrl = window.location.pathname;
+            var newUrl = currentUrl + '?search=' + encodeURIComponent(code);
+            
+            console.log('🔄 Redirecionando para:', newUrl);
+            window.location.href = newUrl;
+        }
+
+        // Log final
+        console.log('✅ Scanner QR carregado e pronto!');
     </script>
 </body>
 </html>
