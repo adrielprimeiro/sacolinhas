@@ -25,8 +25,8 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: sacolinhas_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_USER: sacolinhas_user
+      MYSQL_PASSWORD: SenhaSuperSegura123!
       MYSQL_ROOT_PASSWORD: root_password
       TZ: America/Sao_Paulo
     volumes:

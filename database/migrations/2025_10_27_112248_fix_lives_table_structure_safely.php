@@ -19,7 +19,7 @@ return new class extends Migration
                 }
             });
         }
-        
+
         // Modificar tabela lives
         Schema::table('lives', function (Blueprint $table) {
             // Remover colunas desnecessárias se existirem
@@ -29,40 +29,37 @@ return new class extends Migration
             if (Schema::hasColumn('lives', 'preco')) $columns_to_drop[] = 'preco';
             if (Schema::hasColumn('lives', 'quantidade')) $columns_to_drop[] = 'quantidade';
             if (Schema::hasColumn('lives', 'ativo')) $columns_to_drop[] = 'ativo';
-            
+
             if (!empty($columns_to_drop)) {
                 $table->dropColumn($columns_to_drop);
             }
-            
+
             // Adicionar colunas corretas se não existirem
             if (!Schema::hasColumn('lives', 'tipo_live')) {
                 $table->enum('tipo_live', ['loja-aberta', 'leilao', 'precinho'])
                       ->after('data')
                       ->comment('Tipo da transmissão');
             }
-            
+
             if (!Schema::hasColumn('lives', 'plataformas')) {
                 $table->text('plataformas')
                       ->after('tipo_live')
                       ->comment('Plataformas separadas por vírgula');
             }
         });
-        
+
         // Recriar foreign key na tabela sacolinhas
         if (Schema::hasTable('sacolinhas') && Schema::hasColumn('sacolinhas', 'live_id')) {
             Schema::table('sacolinhas', function (Blueprint $table) {
                 $table->foreign('live_id')->references('id')->on('lives')->onDelete('cascade');
             });
         }
-        
-        // Adicionar índices
-        Schema::table('lives', function (Blueprint $table) {
-            try {
-                $table->index('tipo_live');
-            } catch (Exception $e) {
-                // Ignorar se já existir
-            }
-        });
+
+        // Adicionar índices - verificar se já existe
+        $indexes = DB::select("SHOW INDEXES FROM lives WHERE Key_name = 'lives_tipo_live_index'");
+        if (empty($indexes)) {
+            DB::statement('ALTER TABLE lives ADD INDEX lives_tipo_live_index (tipo_live)');
+        }
     }
 
     public function down()
@@ -77,11 +74,11 @@ return new class extends Migration
                 }
             });
         }
-        
+
         // Reverter mudanças na tabela lives
         Schema::table('lives', function (Blueprint $table) {
             $table->dropColumn(['tipo_live', 'plataformas']);
-            
+
             // Readicionar colunas antigas
             $table->string('nome')->nullable();
             $table->text('descricao')->nullable();
@@ -89,7 +86,7 @@ return new class extends Migration
             $table->integer('quantidade')->default(0);
             $table->boolean('ativo')->default(true);
         });
-        
+
         // Recriar foreign key
         if (Schema::hasTable('sacolinhas') && Schema::hasColumn('sacolinhas', 'live_id')) {
             Schema::table('sacolinhas', function (Blueprint $table) {
