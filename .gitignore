@@ -43,3 +43,4 @@ ls
 php
 {docker/nginx/certs/
 /etc/letsencrypt/
+docker/nginx/certs/ /etc/letsencrypt/
