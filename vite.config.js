@@ -5,11 +5,20 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
-                'resources/css/app.css', 
+                'resources/css/app.css',
                 'resources/js/app.js',
-                'resources/js/qr-scanner.js'  // <- NOVA LINHA
+                'resources/js/qr-scanner.js'
             ],
             refresh: true,
         }),
     ],
+    server: {
+        host: 'localhost',
+        port: 5173,
+        hmr: {
+            host: 'localhost',
+            port: 5173,
+            protocol: 'ws'
+        }
+    }
 });
