@@ -35,7 +35,8 @@ class QRScannerManager {
             scanHistory: document.getElementById('scan-history'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn')
         };
-        
+ 
+		if (!this.elements.scanBtn || !this.elements.modal || !this.elements.qrReader){
         // Verificar se elementos principais existem
             console.warn('⚠️ Elementos do scanner não encontrados');
             return;
