@@ -41,4 +41,5 @@ copy
 dir
 ls
 php
-{
+{docker/nginx/certs/
+/etc/letsencrypt/
