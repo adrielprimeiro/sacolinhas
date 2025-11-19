@@ -145,6 +145,7 @@ Route::middleware('auth')->group(function () {
 		// Busca de usuários e itens
 		Route::get('/users/search', [ClienteController::class, 'search'])->name('api.users.search');
 		Route::get('/items/search', [ItemController::class, 'search'])->name('api.items.search');
+
         
         // ===== API CLIENTES =====
         Route::get('/clientes/search', [ClienteController::class, 'search'])->name('api.clientes.search');
@@ -170,3 +171,4 @@ Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 
 
 Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
     ->name('admin.clientes.check-email');
+	
