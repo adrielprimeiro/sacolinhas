@@ -150,4 +150,70 @@ class ItemController extends Controller
     }
 	
 	
+
+    /**
+     * Show the update status page
+     */
+    public function updateStatusPage()
+    {
+        $itemsUpdatedToday = Item::whereDate('updated_at', now()->toDateString())
+                            ->orderBy('updated_at', 'desc')
+                            ->limit(50)
+                            ->get();
+        
+        $status_options = [
+            'disponivel' => 'Disponível',
+            'indisponivel' => 'Indisponível', 
+            'em_estoque' => 'Em Estoque',
+            'reservado' => 'Reservado',
+            'vendido' => 'Vendido',
+            'em_sacolinha' => 'Em Sacolinha'
+        ];
+
+        return view('admin.items.update-status', compact('itemsUpdatedToday', 'status_options'));
+    }
+
+    /**
+     * Update item status via API
+     */
+    public function updateStatusApi(Request $request)
+    {
+        try {
+            $request->validate([
+                'item_code' => 'required|string',
+            ]);
+
+            $item = Item::where('codigo', $request->item_code)
+                       ->orWhere('id', $request->item_code)
+                       ->first();
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item não encontrado'
+                ], 404);
+            }
+
+            $item->status = $request->status;
+            $item->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status atualizado com sucesso',
+                'item' => [
+                    'id' => $item->id,
+                    'name' => $item->nome_do_produto,
+                    'brand' => $item->marca,
+                    'status' => $item->status,
+                    'updated_at' => $item->updated_at->format('d/m/Y H:i')
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

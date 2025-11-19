@@ -96,6 +96,13 @@ Route::middleware('auth')->group(function () {
     
     // Admin Items
     Route::prefix('admin')->group(function () {
+
+        // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
+        Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
+             ->name("admin.items.update-status");
+        Route::post("items/update-status", [ItemController::class, "updateStatusApi"])
+             ->name("admin.items.update-status.api");
+
         Route::resource('items', ItemController::class)->names([
             'index' => 'admin.items.index',
             'create' => 'admin.items.create',
