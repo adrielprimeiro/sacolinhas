@@ -150,70 +150,67 @@ class ItemController extends Controller
     }
 	
 	
+	    // NOVO MÉTODO PARA INVENTÁRIO
+	public function inventario(Request $request)
+	{
+		// Filtrar apenas itens modificados HOJE
+		$query = Item::whereDate('updated_at', now()->toDateString());
 
-    /**
-     * Show the update status page
-     */
-    public function updateStatusPage()
-    {
-        $itemsUpdatedToday = Item::whereDate('updated_at', now()->toDateString())
-                            ->orderBy('updated_at', 'desc')
-                            ->limit(50)
-                            ->get();
-        
-        $status_options = [
-            'disponivel' => 'Disponível',
-            'indisponivel' => 'Indisponível', 
-            'em_estoque' => 'Em Estoque',
-            'reservado' => 'Reservado',
-            'vendido' => 'Vendido',
-            'em_sacolinha' => 'Em Sacolinha'
-        ];
+		// 🎯 LÓGICA PRINCIPAL: Busca por código exato
+		if ($request->filled('search')) {
+			$codigoBuscado = trim($request->get('search'));
+			
+			// Buscar item por código EXATO
+			$itemEncontrado = Item::where('codigo', $codigoBuscado)->first();
+			
+			if ($itemEncontrado) {
+				// ✅ ITEM ENCONTRADO
+				if ($request->filled('status')) {
+					$novoStatus = $request->get('status');
+					
+					// Atualizar status e timestamp
+					$itemEncontrado->update([
+						'status' => $novoStatus,
+						'updated_at' => now()
+					]);
+					
+					$statusLabel = $this->getStatusLabel($novoStatus);
+					$message = "✅ Item '{$itemEncontrado->nome_do_produto}' (código: {$codigoBuscado}) teve status alterado para '{$statusLabel}'!";
+					
+					// 🎯 MANTER STATUS SELECIONADO na URL
+					return redirect()->route('inventario', ['status' => $novoStatus])->with('success', $message);
+				}
+				
+				// Se não tem status selecionado, apenas encontrou o item
+				$message = "✅ Item encontrado: '{$itemEncontrado->nome_do_produto}' (código: {$codigoBuscado})";
+				return redirect()->route('inventario')->with('info', $message);
+				
+			} else {
+				// ❌ ITEM NÃO ENCONTRADO - manter status se existir
+				$params = $request->filled('status') ? ['status' => $request->get('status')] : [];
+				return redirect()->route('inventario', $params)->with('warning', "❌ Item não encontrado com o código: {$codigoBuscado}");
+			}
+		}
 
-        return view('admin.items.update-status', compact('itemsUpdatedToday', 'status_options'));
-    }
+		// Filtro por status (para navegação normal)
+		if ($request->filled('status')) {
+			$query->where('status', $request->status);
+		}
 
-    /**
-     * Update item status via API
-     */
-    public function updateStatusApi(Request $request)
-    {
-        try {
-            $request->validate([
-                'item_code' => 'required|string',
-            ]);
+		// Listar itens normalmente
+		$items = $query->orderBy('updated_at', 'desc')->paginate(10);
+		
+		return view('admin.items.inventario', compact('items'));
+	}
 
-            $item = Item::where('codigo', $request->item_code)
-                       ->orWhere('id', $request->item_code)
-                       ->first();
+	private function getStatusLabel($status)
+	{
+		$labels = [
+			'disponivel' => 'Disponível',
+			'vendido' => 'Vendido',
+			'reservado' => 'Reservado'
+		];
 
-            if (!$item) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item não encontrado'
-                ], 404);
-            }
-
-            $item->status = $request->status;
-            $item->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Status atualizado com sucesso',
-                'item' => [
-                    'id' => $item->id,
-                    'name' => $item->nome_do_produto,
-                    'brand' => $item->marca,
-                    'status' => $item->status,
-                    'updated_at' => $item->updated_at->format('d/m/Y H:i')
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao atualizar status: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+		return $labels[$status] ?? $status;
+	}
 }

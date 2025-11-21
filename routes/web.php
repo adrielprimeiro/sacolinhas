@@ -93,6 +93,8 @@ Route::middleware('auth')->group(function () {
 
     // ===== ITEMS =====
     Route::resource('items', ItemController::class);
+	Route::get('/inventario', [ItemController::class, 'inventario'])->name('inventario');
+
     
     // Admin Items
     Route::prefix('admin')->group(function () {
