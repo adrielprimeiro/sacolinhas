@@ -172,7 +172,7 @@ class SacolinhaController extends Controller
 				's.user_id',
 				's.item_id',
 				's.add_at',
-				's.status',
+				'i.status', 
 				's.obs',
 				'u.id as user_id',
 				'u.name as user_name', 
@@ -301,4 +301,251 @@ class SacolinhaController extends Controller
 			], 500);
 		}
 	}
+	
+    /**
+     * Retorna as sacolas de uma live com o status CORRETO do item
+     */
+	public function getSacolinhasByLive($liveId = null)
+	{
+		try {
+			Log::info("getSacolinhasByLive iniciado com liveId: " . $liveId);
+			
+			// Se não fornecido liveId, buscar live ativa
+			if (!$liveId) {
+				$live = DB::table('lives')
+					->where('ativo', 1)
+					->orderBy('created_at', 'desc')
+					->first();
+				
+				if (!$live) {
+					return response()->json([
+						'success' => true,
+						'data' => [],
+						'message' => 'Nenhuma live ativa encontrada'
+					]);
+				}
+				
+				$liveId = $live->id;
+			}
+
+			// Verificar se existem sacolas para esta live
+			$count = DB::table('sacolinhas')->where('live_id', $liveId)->count();
+			Log::info("Registros encontrados para live $liveId: " . $count);
+
+			if ($count === 0) {
+				return response()->json([
+					'success' => true,
+					'data' => [],
+					'live_id' => $liveId,
+					'total_bags' => 0,
+					'total_items' => 0,
+					'total_value' => 0
+				]);
+			}
+
+			// Query unificada com tratamento consistente de preços
+			$sacolinhas = DB::table('sacolinhas as s')
+				->join('users as u', 's.user_id', '=', 'u.id')
+				->join('items as i', 's.item_id', '=', 'i.id')
+				->where('s.live_id', $liveId)
+				->select([
+					's.id as sacolinha_id',
+					's.user_id',
+					's.item_id',
+					's.add_at',
+					's.status as sacolinha_status',
+					's.obs',
+					// CORREÇÃO PRINCIPAL: Priorizar preço da sacolinha, fallback para preço do item
+					DB::raw('COALESCE(s.price, i.preco) as final_price'),
+					// Dados do usuário
+					'u.id as user_id',
+					'u.name as user_name', 
+					'u.email as user_email',
+					'u.avatar',
+					// Dados do item
+					'i.id as item_id',
+					'i.nome_do_produto as item_name',
+					'i.codigo as item_sku',
+					'i.marca as item_brand',
+					'i.cor as item_color',
+					'i.tamanho as item_size',
+					'i.status as item_status',
+					'i.imagem as item_image'
+				])
+				->orderBy('u.name')
+				->orderBy('s.add_at', 'desc')
+				->get();
+
+			Log::info("Query executada. Registros retornados: " . $sacolinhas->count());
+
+			// Processar e retornar no formato existente (compatibilidade)
+			$result = $sacolinhas->groupBy('user_id')->map(function ($userItems) {
+				$firstItem = $userItems->first();
+				
+				return [
+					'client' => [
+						'id' => $firstItem->user_id,
+						'name' => $firstItem->user_name,
+						'email' => $firstItem->user_email,
+						'avatar' => $firstItem->avatar
+					],
+					'total_items' => $userItems->count(),
+					'total_value' => $userItems->sum('final_price'),
+					'items' => $userItems->map(function ($item) {
+						return [
+							'sacolinha_id' => $item->sacolinha_id,
+							'item_id' => $item->item_id,
+							'item_name' => $item->item_name,
+							'item_sku' => $item->item_sku,
+							'item_brand' => $item->item_brand,
+							'item_color' => $item->item_color,
+							'item_size' => $item->item_size,
+							'item_price' => (float) $item->final_price,
+							'item_status' => $item->item_status,
+							'sacolinha_status' => $item->sacolinha_status,
+							'item_image' => $item->item_image,
+							'obs' => $item->obs,
+							'added_at' => $item->add_at
+						];
+					})->values()
+				];
+			})->values();
+
+			return response()->json([
+				'success' => true,
+				'data' => $result,
+				'live_id' => $liveId,
+				'total_bags' => $result->count(),
+				'total_items' => $sacolinhas->count(),
+				'total_value' => $result->sum('total_value')
+			]);
+
+		} catch (\Exception $e) {
+			Log::error("Erro em getSacolinhasByLive: " . $e->getMessage());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro ao buscar sacolinhas: ' . $e->getMessage()
+			], 500);
+		}
+	}
+	
+	
+	
+	/**
+	 * Atualizar status do item (independente da sacolinha)
+	 * MÉTODO NOVO - adicionar no final da classe SacolinhaController
+	 */
+	public function updateItemStatus(Request $request, $itemId)
+	{
+		try {
+			Log::info("updateItemStatus iniciado para item: $itemId");
+			
+			// Validar entrada
+			$request->validate([
+				'status' => 'required|string|in:disponivel,vendido,reservado,sacolinha,estoque'
+			]);
+
+			$newStatus = $request->input('status');
+			Log::info("Tentando alterar status do item $itemId para: $newStatus");
+
+			// Verificar se item existe
+			$item = DB::table('items')->where('id', $itemId)->first();
+			if (!$item) {
+				Log::warning("Item $itemId não encontrado");
+				return response()->json([
+					'success' => false,
+					'message' => 'Item não encontrado'
+				], 404);
+			}
+
+			Log::info("Item encontrado: {$item->nome_do_produto}, status atual: {$item->status}");
+
+			// Atualizar APENAS status do item (não mexer nas sacolas)
+			$updated = DB::table('items')
+				->where('id', $itemId)
+				->update([
+					'status' => $newStatus,
+					'updated_at' => now()
+				]);
+
+			if (!$updated) {
+				Log::error("Falha ao atualizar item $itemId no banco");
+				return response()->json([
+					'success' => false,
+					'message' => 'Erro ao atualizar item no banco de dados'
+				], 500);
+			}
+
+			Log::info("Status do item $itemId atualizado com sucesso para: $newStatus");
+
+			return response()->json([
+				'success' => true,
+				'message' => "Status alterado para '{$newStatus}' com sucesso!",
+				'data' => [
+					'item_id' => $itemId,
+					'old_status' => $item->status,
+					'new_status' => $newStatus,
+					'updated_at' => now()->toISOString()
+				]
+			]);
+
+		} catch (\Illuminate\Validation\ValidationException $e) {
+			Log::warning("Validação falhou para item $itemId: " . json_encode($e->errors()));
+			return response()->json([
+				'success' => false,
+				'message' => 'Dados inválidos',
+				'errors' => $e->errors()
+			], 422);
+			
+		} catch (\Exception $e) {
+			Log::error("Erro ao atualizar item {$itemId}: " . $e->getMessage());
+			Log::error("Linha: " . $e->getLine() . ", Arquivo: " . $e->getFile());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro interno: ' . $e->getMessage()
+			], 500);
+		}
+	}	
+	
+	/**
+	 * Consultar status atual do item (método GET)
+	 * MÉTODO NOVO - adicionar após updateItemStatus()
+	 */
+	public function getItemStatus($itemId)
+	{
+		try {
+			Log::info("getItemStatus iniciado para item: $itemId");
+			
+			// Verificar se item existe
+			$item = DB::table('items')->where('id', $itemId)->first();
+			
+			if (!$item) {
+				Log::warning("Item $itemId não encontrado para consulta de status");
+				return response()->json([
+					'success' => false,
+					'message' => 'Item não encontrado'
+				], 404);
+			}
+
+			Log::info("Status consultado - Item $itemId: {$item->status}");
+
+			return response()->json([
+				'success' => true,
+				'item_id' => $itemId,
+				'status' => $item->status,
+				'item_name' => $item->nome_do_produto
+			]);
+
+		} catch (\Exception $e) {
+			Log::error("Erro ao consultar status do item {$itemId}: " . $e->getMessage());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro interno: ' . $e->getMessage()
+			], 500);
+		}
+	}	
+	
 }

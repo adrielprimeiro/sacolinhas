@@ -254,6 +254,22 @@
 											{{ (session('last_status') ?? request('status')) == 'reservado' ? 'selected' : '' }}>
 											Reservado
 										</option>
+										
+										<option value="estoque" 
+											{{ (session('last_status') ?? request('status')) == 'estoque' ? 'selected' : '' }}>
+											Estoque
+										</option>
+										
+										<option value="sacolinha" 
+											{{ (session('last_status') ?? request('status')) == 'sacolinha' ? 'selected' : '' }}>
+											Sacolinha
+										</option>
+
+										<option value="indisponivel" 
+											{{ (session('last_status') ?? request('status')) == 'indisponivel' ? 'selected' : '' }}>
+											Indisponível
+										</option>
+										
 									</select>
 								</div>
 

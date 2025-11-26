@@ -44,6 +44,62 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        /* Estilos para os botões de status */
+        .btn-status-reservado {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #000;
+        }
+        .btn-status-sacolinha {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #fff;
+        }
+        .btn-status-reservado:hover {
+            background-color: #e0a800;
+            border-color: #d39e00;
+            color: #000;
+        }
+        .btn-status-sacolinha:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+            color: #fff;
+        }
+        /* Estilos para status dos itens */
+        .item-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-pendente {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        .status-reservado {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status-sacolinha {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-vendido {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        /* Estilo para botão ativo */
+        .btn-status-active {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        /* Limite de altura para tabela de lives */
+        .lives-table-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -80,10 +136,11 @@
             </div>
             <!-- Main Content -->
             <div class="col-md-10 p-4">
-			                <!-- Header -->
+                <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
                     <!-- Título -->
                     <h2>Gerenciar Sacolinhas</h2>
+                </div>
 
                 <!-- Alerts (mantido para mensagens genéricas) -->
                 <div id="alert-container">
@@ -95,7 +152,7 @@
                     @endif
                 </div>
 
-                <!-- Card de Busca no Topo para Filtrar Lives -->
+                <!-- Card de Busca e Lista de Lives -->
                 <div class="card mb-4">
                     <div class="card-header">
                         <h6 class="mb-0">
@@ -104,7 +161,8 @@
                         </h6>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
+                        <!-- Filtros de Busca -->
+                        <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label for="search-client" class="form-label">Filtrar por Cliente (nas sacolas da live selecionada)</label>
                                 <input type="text" class="form-control" id="search-client" placeholder="Nome ou email do cliente...">
@@ -114,63 +172,67 @@
                                 <input type="text" class="form-control" id="search-live" placeholder="Tipo de live, plataforma, ID...">
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Seção Inferior - Tabela de Lives e Sacolas da Live Selecionada -->
-                <div class="row">
-                    <!-- Coluna Esquerda: Tabela de Lives -->
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-broadcast-tower"></i>
-                                    Todas as Lives
-                                </h6>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-sm mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Tipo</th>
-                                                <th>Plataformas</th>
-                                                <th>Status</th>
-                                                <th>Criada em</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="lives-table-body">
-                                            <!-- Lives serão carregadas aqui via JavaScript -->
-                                            <tr>
-                                                <td colspan="5" class="text-center text-muted py-3">
-                                                    <i class="fas fa-spinner fa-spin me-2"></i> Carregando lives...
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                        <!-- Tabela de Lives (LIMITADA A 5) -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-broadcast-tower"></i>
+                                        Últimas 5 Lives
+                                    </h6>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary me-2" onclick="carregarTodasAsLives()" title="Recarregar Lives">
+                                            <i class="fas fa-sync-alt"></i> Recarregar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" onclick="mostrarTodasAsLives()" title="Ver Todas as Lives">
+                                            <i class="fas fa-list"></i> Ver Todas (<span id="total-lives-count">0</span>)
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="lives-table-container">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Tipo</th>
+                                                    <th>Plataformas</th>
+                                                    <th>Status</th>
+                                                    <th>Criada em</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="lives-table-body">
+                                                <!-- Lives serão carregadas aqui via JavaScript -->
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted py-3">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i> Carregando lives...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Coluna Direita: Sacolas da Live Selecionada -->
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-shopping-bag"></i>
-                                    Sacolas da Live Selecionada
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div id="selected-live-bags-display">
-                                    <div class="text-center text-muted py-5">
-                                        <i class="fas fa-hand-pointer fa-3x mb-3 opacity-50"></i>
-                                        <h5>Selecione uma live para ver suas sacolas</h5>
-                                        <p>Clique em uma live na tabela ao lado para exibir os detalhes das sacolas.</p>
-                                    </div>
-                                </div>
+                <!-- Card das Sacolas da Live Selecionada -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-shopping-bag"></i>
+                            Sacolas da Live Selecionada
+                            <span id="selected-live-info" class="text-muted ms-2"></span>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="selected-live-bags-display">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-hand-pointer fa-3x mb-3 opacity-50"></i>
+                                <h5>Selecione uma live para ver suas sacolas</h5>
+                                <p>Clique em uma live na tabela acima para exibir os detalhes das sacolas.</p>
                             </div>
                         </div>
                     </div>
@@ -186,6 +248,8 @@
     <script>
         let allLives = [];    // Todas as lives carregadas para filtragem
         let selectedLiveId = null; // ID da live selecionada na tabela para visualização de sacolas
+        let showingAllLives = false; // Controle para mostrar todas ou apenas 5 lives
+        let itemStatusCache = {}; // Cache para armazenar status dos itens localmente
 
         document.addEventListener('DOMContentLoaded', function() {
             carregarTodasAsLives(); // Carrega todas as lives na tabela ao iniciar
@@ -195,7 +259,7 @@
             document.getElementById('search-live').addEventListener('input', filterLivesTable);
         });
 
-        // Função para carregar todas as lives e popular a tabela
+        // Função para carregar todas as lives e popular a tabela (MODIFICADA)
         async function carregarTodasAsLives() {
             const livesTableBody = document.getElementById('lives-table-body');
             livesTableBody.innerHTML = `
@@ -205,73 +269,186 @@
                     </td>
                 </tr>
             `;
+            
             try {
-                // Endpoint API para buscar todas as lives
-                const response = await fetch('/api/lives/all', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                console.log('Iniciando carregamento das lives...');
+                
+                // Vamos tentar diferentes endpoints possíveis
+                const possibleEndpoints = [
+                    '/api/lives/all',
+                    '/api/lives',
+                    '/admin/api/lives',
+                    '/admin/lives/api'
+                ];
+                
+                let response = null;
+                let usedEndpoint = null;
+                
+                // Tenta cada endpoint até encontrar um que funcione
+                for (const endpoint of possibleEndpoints) {
+                    try {
+                        console.log(`Tentando endpoint: ${endpoint}`);
+                        response = await fetch(endpoint, {
+                            method: 'GET',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            usedEndpoint = endpoint;
+                            console.log(`Sucesso com endpoint: ${endpoint}`);
+                            break;
+                        }
+                        
+                    } catch (endpointError) {
+                        console.log(`Erro no endpoint ${endpoint}:`, endpointError);
+                        continue;
                     }
-                });
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error(`Nenhum endpoint funcionou. Status: ${response ? response.status : 'N/A'}`);
+                }
+                
                 const data = await response.json();
-                if (data.success) {
-                    allLives = data.data; // Armazena todas as lives para filtragem
-                    renderLivesTable(allLives);
+                console.log('Dados recebidos:', data);
+                
+                // Tenta diferentes estruturas de resposta
+                let livesData = [];
+                
+                if (data.success && data.data) {
+                    livesData = data.data;
+                } else if (data.data) {
+                    livesData = data.data;
+                } else if (Array.isArray(data)) {
+                    livesData = data;
+                } else if (data.lives) {
+                    livesData = data.lives;
                 } else {
+                    console.error('Estrutura de resposta não reconhecida:', data);
+                    throw new Error('Estrutura de dados não reconhecida');
+                }
+                
+                console.log('Lives processadas:', livesData);
+                
+                if (Array.isArray(livesData) && livesData.length > 0) {
+                    allLives = livesData; // Armazena todas as lives para filtragem
+                    
+                    // Atualiza o contador total
+                    document.getElementById('total-lives-count').textContent = livesData.length;
+                    
+                    // Renderiza apenas as primeiras 5 por padrão
+                    showingAllLives = false;
+                    renderLivesTable(livesData);
+                    mostrarAlert(`${livesData.length} lives carregadas com sucesso (endpoint: ${usedEndpoint})`, 'success');
+                } else {
+                    console.log('Nenhuma live encontrada');
+                    document.getElementById('total-lives-count').textContent = '0';
                     livesTableBody.innerHTML = `
                         <tr>
-                            <td colspan="5" class="text-center text-danger py-3">
-                                Erro ao carregar lives: ${data.message}
+                            <td colspan="5" class="text-center text-muted py-3">
+                                <i class="fas fa-info-circle me-2"></i> Nenhuma live encontrada
                             </td>
                         </tr>
                     `;
                 }
+                
             } catch (error) {
-                console.error('Erro ao carregar todas as lives:', error);
+                console.error('Erro completo ao carregar lives:', error);
                 livesTableBody.innerHTML = `
                     <tr>
                         <td colspan="5" class="text-center text-danger py-3">
-                            Erro de rede ao carregar lives.
+                            <i class="fas fa-exclamation-triangle me-2"></i> 
+                            Erro ao carregar lives: ${error.message}
+                            <br><small class="mt-2">Verifique o console do navegador para mais detalhes.</small>
                         </td>
                     </tr>
                 `;
+                mostrarAlert(`Erro ao carregar lives: ${error.message}`, 'danger');
             }
         }
 
-        // Função para renderizar a tabela de lives (pode ser filtrada)
+        // Nova função para alternar entre mostrar 5 ou todas as lives
+        function mostrarTodasAsLives() {
+            showingAllLives = !showingAllLives;
+            const button = document.querySelector('button[onclick="mostrarTodasAsLives()"]');
+            
+            if (showingAllLives) {
+                button.innerHTML = '<i class="fas fa-compress"></i> Mostrar Menos';
+                button.title = 'Mostrar apenas 5 lives';
+            } else {
+                button.innerHTML = `<i class="fas fa-list"></i> Ver Todas (<span id="total-lives-count">${allLives.length}</span>)`;
+                button.title = 'Ver todas as lives';
+            }
+            
+            renderLivesTable(allLives);
+        }
+
+        // Função para renderizar a tabela de lives (MODIFICADA para limitar a 5)
         function renderLivesTable(livesToRender) {
             const livesTableBody = document.getElementById('lives-table-body');
             let html = '';
-            if (livesToRender.length === 0) {
+            
+            console.log('Renderizando lives:', livesToRender);
+            
+            if (!livesToRender || livesToRender.length === 0) {
                 html = `
                     <tr>
                         <td colspan="5" class="text-center text-muted py-3">
-                            Nenhuma live encontrada com os critérios de busca.
+                            <i class="fas fa-search me-2"></i> Nenhuma live encontrada com os critérios de busca.
                         </td>
                     </tr>
                 `;
             } else {
-                livesToRender.forEach(live => {
-                    const statusClass = live.status === 'ativa' ? 'live-ativa' : 'live-encerrada';
-                    const formattedPlatforms = live.plataformas ? live.plataformas.split(',').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ') : 'N/A';
-                    const formattedDate = new Date(live.created_at).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    const isSelected = selectedLiveId == live.id ? 'table-primary' : ''; // Destaque se for a live selecionada
+                // LIMITAÇÃO: Mostra apenas 5 lives por padrão, ou todas se showingAllLives for true
+                const livesDisplay = showingAllLives ? livesToRender : livesToRender.slice(0, 5);
+                
+                livesDisplay.forEach(live => {
+                    console.log('Processando live:', live);
+                    
+                    // Mapeamento flexível dos campos
+                    const liveId = live.id || live.live_id || 'N/A';
+                    const liveType = live.tipo_live || live.type || live.tipo || 'N/A';
+                    const liveStatus = live.status || live.ativo === 1 ? 'ativa' : 'encerrada'; // CORRIGIDO: usa campo 'ativo'
+                    const livePlatforms = live.plataformas || live.platforms || live.platform || 'N/A';
+                    const liveCreatedAt = live.created_at || live.data || new Date().toISOString(); // CORRIGIDO: usa campo 'data'
+                    
+                    const statusClass = liveStatus === 'ativa' ? 'live-ativa' : 'live-encerrada';
+                    const formattedPlatforms = livePlatforms !== 'N/A' && livePlatforms 
+                        ? livePlatforms.split(',').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ') 
+                        : 'N/A';
+                    
+                    let formattedDate = 'N/A';
+                    try {
+                        formattedDate = new Date(liveCreatedAt).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    } catch (dateError) {
+                        console.warn('Erro ao formatar data:', dateError);
+                    }
+                    
+                    const isSelected = selectedLiveId == liveId ? 'table-primary' : '';
+                    
                     html += `
-                        <tr class="live-row ${isSelected}" data-live-id="${live.id}" style="cursor: pointer;">
-                            <td>${live.id}</td>
-                            <td>${live.tipo_live.replace('-', ' ').toUpperCase()}</td>
+                        <tr class="live-row ${isSelected}" data-live-id="${liveId}" style="cursor: pointer;">
+                            <td>${liveId}</td>
+                            <td>${liveType.toString().replace('-', ' ').toUpperCase()}</td>
                             <td>${formattedPlatforms}</td>
-                            <td><span class="live-status ${statusClass}">${live.status.toUpperCase()}</span></td>
+                            <td><span class="live-status ${statusClass}">${liveStatus.toString().toUpperCase()}</span></td>
                             <td>${formattedDate}</td>
                         </tr>
                     `;
                 });
             }
+            
             livesTableBody.innerHTML = html;
 
             // Adiciona event listeners às novas linhas
@@ -289,14 +466,17 @@
             const searchLive = document.getElementById('search-live').value.toLowerCase();
 
             const filteredLives = allLives.filter(live => {
-                const liveTypeMatch = live.tipo_live.toLowerCase().includes(searchLive);
-                const platformsMatch = live.plataformas ? live.plataformas.toLowerCase().includes(searchLive) : false;
-                const liveIdMatch = String(live.id).includes(searchLive);
+                const liveType = (live.tipo_live || live.type || '').toLowerCase();
+                const livePlatforms = (live.plataformas || live.platforms || '').toLowerCase();
+                const liveId = String(live.id || live.live_id || '');
+                
+                const liveTypeMatch = liveType.includes(searchLive);
+                const platformsMatch = livePlatforms.includes(searchLive);
+                const liveIdMatch = liveId.includes(searchLive);
 
-                // O filtro de cliente será aplicado apenas na visualização das sacolas da live selecionada.
-                // O filtro de live se aplica ao tipo, plataformas e ID.
                 return (liveTypeMatch || platformsMatch || liveIdMatch);
             });
+            
             renderLivesTable(filteredLives);
 
             // Se houver uma live selecionada e o filtro de cliente for alterado, recarrega as sacolas
@@ -305,9 +485,10 @@
             }
         }
 
-        // Função para lidar com a seleção de uma live na tabela
+        // Função para lidar com a seleção de uma live na tabela (MODIFICADA)
         function selectLive(liveId) {
             selectedLiveId = liveId;
+            console.log('Live selecionada:', liveId);
 
             // Remove destaque da linha previamente selecionada
             document.querySelectorAll('.live-row.table-primary').forEach(row => {
@@ -318,6 +499,10 @@
             const selectedRow = document.querySelector(`.live-row[data-live-id="${liveId}"]`);
             if (selectedRow) {
                 selectedRow.classList.add('table-primary');
+                
+                // Atualiza informações da live selecionada
+                const liveInfo = document.getElementById('selected-live-info');
+                liveInfo.textContent = `(Live ID: ${liveId})`;
             }
 
             // Carrega as sacolas para a live selecionada no painel de visualização
@@ -337,6 +522,8 @@
             fetch(`/api/sacolinhas/live/${liveId}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Dados das sacolas recebidos:', data); // DEBUG: mostra estrutura completa
+                    
                     if (data.success) {
                         // Filtra as sacolas por cliente se o campo de busca de cliente estiver preenchido
                         let bagsToDisplay = data.data;
@@ -372,101 +559,192 @@
                 });
         }
 
-        // Função para exibir sacolas (MODIFICADA)
-        function exibirSacolas(bags, targetContainer, currentLiveId) {
-            if (bags.length === 0) {
-                targetContainer.innerHTML = `
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-shopping-bag fa-2x mb-2 opacity-50"></i>
-                        <h6>Nenhuma sacola encontrada para esta live ou com o filtro de cliente.</h6>
-                        <p class="mb-0">Adicione itens ou ajuste o filtro de busca.</p>
-                    </div>
-                `;
-                return;
-            }
-            let html = '';
-            bags.forEach(bag => {
-                html += `
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <div class="d-flex align-items-center">
-                                <img src="${bag.client.avatar_url}" class="rounded-circle me-2" width="32" height="32">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-0">${bag.client.name}</h6>
-                                    <small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
-                                </div>
-                                <div class="text-end">
-                                    <span class="badge bg-primary me-2">Total de Itens: ${bag.total_items}</span> <!-- MODIFICADO: Texto mais explícito -->
-                                    <div class="fw-bold text-success">${bag.formatted_total}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Detalhes</th>
-                                            <th>Preço</th> <!-- MODIFICADO: De "Total" para "Preço" -->
-                                            <th width="100">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                `;
+		
+	// Função para exibir sacolas (CORRIGIDA - sem requisições extras)
+	function exibirSacolas(bags, targetContainer, currentLiveId) {
+		if (bags.length === 0) {
+			targetContainer.innerHTML = `
+				<div class="text-center text-muted py-3">
+					<i class="fas fa-shopping-bag fa-2x mb-2 opacity-50"></i>
+					<h6>Nenhuma sacola encontrada para esta live ou com o filtro de cliente.</h6>
+					<p class="mb-0">Adicione itens ou ajuste o filtro de busca.</p>
+				</div>
+			`;
+			return;
+		}
 
-                bag.items.forEach(item => {
-                    const details = [];
-                    if (item.item_sku) details.push(`SKU: ${item.item_sku}`);
-                    if (item.item_brand) details.push(`Marca: ${item.item_brand}`);
-                    if (item.item_color) details.push(`Cor: ${item.item_color}`);
-                    if (item.item_size) details.push(`Tam: ${item.item_size}`);
+		let html = '';
+		bags.forEach(bag => {
+			html += `
+				<div class="card mb-3">
+					<div class="card-header">
+						<div class="d-flex align-items-center">
+							<img src="${bag.client.avatar_url}" class="rounded-circle me-2" width="32" height="32">
+							<div class="flex-grow-1">
+								<h6 class="mb-0">${bag.client.name}</h6>
+								<small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
+							</div>
+							<div class="text-end">
+								<span class="badge bg-primary me-2">Total de Itens: ${bag.total_items}</span>
+								<div class="fw-bold text-success">${bag.formatted_total}</div>
+							</div>
+						</div>
+					</div>
+					<div class="card-body p-0">
+						<div class="table-responsive">
+							<table class="table table-sm mb-0">
+								<thead class="table-light">
+									<tr>
+										<th>Item</th>
+										<th>Detalhes</th>
+										<th>Status Real</th>
+										<th>Preço</th>
+										<th width="200">Ações</th>
+									</tr>
+								</thead>
+								<tbody>
+			`;
 
-                    html += `
-                        <tr>
-                            <td>
-                                <strong>${item.item_name}</strong>
-                            </td>
-                            <td>
-                                <small class="text-muted">${details.join(' | ')}</small>
-                            </td>
-                            <td class="fw-bold text-success">${item.formatted_total_price}</td> <!-- Mantido, pois é o preço do item -->
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-danger" onclick="removerTodosItens(${item.item_id}, ${bag.client.id}, 1, ${currentLiveId})" title="Remover item"> <!-- MODIFICADO: Botão único para remover item -->
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
+			bag.items.forEach(item => {
+				console.log('Item completo:', item);
+				
+				const details = [];
+				if (item.item_sku) details.push(`SKU: ${item.item_sku}`);
+				if (item.item_brand) details.push(`Marca: ${item.item_brand}`);
+				if (item.item_color) details.push(`Cor: ${item.item_color}`);
+				if (item.item_size) details.push(`Tam: ${item.item_size}`);
 
-                html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            targetContainer.innerHTML = html;
-        }
+				// ✅ USAR STATUS QUE JÁ VEM DA API - SEM REQUISIÇÕES EXTRAS!
+				const currentStatus = item.status || 'pendente';
 
-        // Funções de remover item (MODIFICADAS para refletir a remoção de quantidade)
+				
+				console.log(`✅ Status do item ${item.item_id}:`, currentStatus);
+				
+	
+				const statusClass = `status-${currentStatus}`;
+				const statusText = currentStatus.toUpperCase();
+
+				// Verifica se os botões devem estar ativos ou inativos
+				const reservadoActive = currentStatus === 'reservado' ? 'btn-status-active' : '';
+				const sacolinhaActive = currentStatus === 'sacolinha' ? 'btn-status-active' : '';
+
+				html += `
+					<tr>
+						<td>
+							<strong>${item.item_name}</strong>
+						</td>
+						<td>
+							<small class="text-muted">${details.join(' | ')}</small>
+						</td>
+						<td>
+							<span class="item-status ${statusClass}">${statusText}</span>
+						</td>
+						<td class="fw-bold text-success">${item.formatted_total_price}</td>
+						<td>
+							<div class="btn-group-vertical btn-group-sm d-flex gap-1">
+								<div class="btn-group btn-group-sm">
+									<button class="btn btn-status-reservado btn-sm ${reservadoActive}" 
+											onclick="alterarStatusItem(${item.item_id}, ${bag.client.id}, ${currentLiveId}, 'reservado', this)" 
+											title="Marcar como Reservado" 
+											${currentStatus === 'reservado' ? 'disabled' : ''}>
+										<i class="fas fa-clock"></i> Reservado
+									</button>
+									<button class="btn btn-status-sacolinha btn-sm ${sacolinhaActive}" 
+											onclick="alterarStatusItem(${item.item_id}, ${bag.client.id}, ${currentLiveId}, 'sacolinha', this)" 
+											title="Marcar como Sacolinha"
+											${currentStatus === 'sacolinhas' ? 'disabled' : ''}>
+										<i class="fas fa-shopping-bag"></i> Sacolinha
+									</button>
+								</div>
+								<button class="btn btn-outline-danger btn-sm" onclick="removerTodosItens(${item.item_id}, ${bag.client.id}, 1, ${currentLiveId})" title="Remover item">
+									<i class="fas fa-trash"></i> Remover
+								</button>
+							</div>
+						</td>
+					</tr>
+				`;
+			});
+
+			html += `
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			`;
+		});
+		
+		targetContainer.innerHTML = html;
+	}
+		
+		
+		// Função para alterar status do item (VERSÃO CORRIGIDA - USA ENDPOINT QUE FUNCIONA)
+		function alterarStatusItem(itemId, userId, liveId, novoStatus, buttonElement) {
+			// Desabilita o botão temporariamente para evitar cliques múltiplos
+			const originalButtonContent = buttonElement.innerHTML;
+			buttonElement.disabled = true;
+			buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Alterando...';
+
+			console.log(`🔄 Alterando status do item ${itemId} para: ${novoStatus}`);
+
+			// USAR NOSSO ENDPOINT QUE FUNCIONA
+			fetch(`/api/items/${itemId}/status`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+				},
+				body: JSON.stringify({status: novoStatus})
+			})
+			.then(response => response.json())
+			.then(data => {
+				// Restaura o botão
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalButtonContent;
+
+				if (data.success) {
+					console.log('✅ Status realmente alterado no banco:', data);
+					
+					// Armazena no cache local
+					const itemKey = `${itemId}-${userId}-${liveId}`;
+					itemStatusCache[itemKey] = novoStatus;
+					
+					// Mostra alerta de sucesso
+					mostrarAlert(`✅ Status alterado para "${novoStatus.toUpperCase()}" com sucesso!`, 'success');
+					
+					// Recarrega sacolas para mostrar mudança real
+					carregarSacolas(liveId);
+					
+				} else {
+					console.error('❌ Erro na resposta:', data);
+					mostrarAlert(`❌ Erro: ${data.message || 'Erro desconhecido'}`, 'danger');
+				}
+			})
+			.catch(error => {
+				console.error('❌ Erro na requisição:', error);
+				
+				// Restaura o botão
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalButtonContent;
+				
+				mostrarAlert(`❌ Erro de conexão: ${error.message}`, 'danger');
+			});
+		}
+
+
+
+        // Funções de remover item (mantidas)
         function removerUmItem(itemId, userId, liveIdToRefresh) {
-            // Esta função não será mais chamada diretamente, pois o botão de "Remover 1" foi removido.
-            // A função removerTodosItens será usada para remover o item.
             console.warn("removerUmItem foi chamado, mas o botão foi removido. Usando removerItens com quantidade 1.");
             removerItens(itemId, userId, 1, liveIdToRefresh);
         }
 
         function removerTodosItens(itemId, userId, quantity, liveIdToRefresh) {
-            if (!confirm(`Tem certeza que deseja remover este item da sacola?`)) { // Texto da confirmação ajustado
+            if (!confirm(`Tem certeza que deseja remover este item da sacola?`)) {
                 return;
             }
-            // Como cada item é único na sacola, remover "todos" significa remover o item.
-            removerItens(itemId, userId, 1, liveIdToRefresh); // Sempre remove 1 (o item completo)
+            removerItens(itemId, userId, 1, liveIdToRefresh);
         }
 
         function removerItens(itemId, userId, quantity, liveIdToRefresh) {
@@ -474,7 +752,7 @@
                 item_id: itemId,
                 user_id: userId,
                 live_id: liveIdToRefresh,
-                quantity: quantity // A quantidade aqui será sempre 1 para remover o item
+                quantity: quantity
             };
             fetch('/api/sacolinhas/remove', {
                     method: 'DELETE',
@@ -488,7 +766,7 @@
                 .then(data => {
                     if (data.success) {
                         mostrarAlert(data.message, 'success');
-                        carregarSacolas(liveIdToRefresh); // Recarrega a lista de sacolas da live correta
+                        carregarSacolas(liveIdToRefresh);
                     } else {
                         mostrarAlert(data.message, 'danger');
                     }
@@ -517,6 +795,49 @@
                 }
             }, 5000);
         }
+		
+		// FUNÇÃO PARA BUSCAR STATUS REAIS DOS ITENS
+	async function buscarStatusReais(items) {
+		console.log('🔍 Buscando status reais de', items.length, 'itens...');
+		
+		// Extrair apenas os IDs únicos dos itens
+		const itemIds = [...new Set(items.map(item => item.item_id))];
+		
+		try {
+			// Buscar status de todos os itens de uma vez
+			const promises = itemIds.map(itemId => 
+				fetch(`/api/items/${itemId}/status`, {
+					method: 'GET', // GET para consultar
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+					}
+				})
+				.then(response => response.json())
+				.then(data => ({itemId, status: data.status || 'pendente'}))
+				.catch(error => {
+					console.warn(`Erro ao buscar status do item ${itemId}:`, error);
+					return {itemId, status: 'pendente'};
+				})
+			);
+			
+			const statusResults = await Promise.all(promises);
+			
+			// Criar um mapa de ID → Status
+			const statusMap = {};
+			statusResults.forEach(result => {
+				statusMap[result.itemId] = result.status;
+			});
+			
+			console.log('✅ Status reais obtidos:', statusMap);
+			return statusMap;
+			
+		} catch (error) {
+			console.error('❌ Erro ao buscar status reais:', error);
+			return {};
+		}
+	}
+		
     </script>
 </body>
 </html>

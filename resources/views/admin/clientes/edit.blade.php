@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Editar: {{ $cliente->nome_cliente ?? $cliente->name }} - Sacolinhas</title>
+    <title>Editar: {{ $cliente->name }} - Sacolinhas</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -186,7 +186,7 @@
                         <h2>
                             <i class="fas fa-edit me-2 text-primary"></i>Editar Cliente
                         </h2>
-                        <p class="text-muted mb-0">{{ $cliente->nome_cliente ?? $cliente->name }}</p>
+                        <p class="text-muted mb-0">{{ $cliente->name }}</p>
                     </div>
                     <a href="{{ route('admin.clientes.show', $cliente) }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Voltar
@@ -214,8 +214,6 @@
                     </div>
                 @endif
 
-
-
                 <!-- Form Card -->
                 <div class="card">
                     <div class="card-body">
@@ -229,7 +227,7 @@
                                         <i class="fas fa-user me-2"></i>Dados Pessoais
                                     </button>
                                 </li>
-								<li class="nav-item" role="presentation">
+                                <li class="nav-item" role="presentation">
                                     <button class="nav-link" id="redes-tab" data-bs-toggle="tab" data-bs-target="#redes" type="button" role="tab">
                                         <i class="fas fa-share-alt me-2"></i>Redes Sociais
                                     </button>
@@ -274,13 +272,14 @@
                                 <div class="tab-pane fade show active" id="pessoal" role="tabpanel">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
-                                            <label for="nome_cliente" class="form-label">Nome Completo *</label>
+                                            <label for="name" class="form-label">Nome Completo *</label>
+                                            <!-- CORREÇÃO: name="name" para salvar na coluna 'name' do BD -->
                                             <input type="text" 
-                                                   class="form-control @error('nome_cliente') is-invalid @enderror" 
-                                                   name="nome_cliente" 
-                                                   value="{{ old('nome_cliente', $cliente->nome_cliente ?? $cliente->name) }}" 
+                                                   class="form-control @error('name') is-invalid @enderror" 
+                                                   name="name" 
+                                                   value="{{ old('name', $cliente->name) }}" 
                                                    required>
-                                            @error('nome_cliente')
+                                            @error('name')
                                                 <div class="form-error">{{ $message }}</div>
                                             @enderror
                                         </div>
@@ -297,13 +296,13 @@
                                         </div>
                                     </div>
 
-                                    <div class="row">
+                                    <!--<div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label for="data_nascimento" class="form-label">Data de Nascimento</label>
                                             <input type="date" 
                                                    class="form-control @error('data_nascimento') is-invalid @enderror" 
                                                    name="data_nascimento" 
-                                                   value="{{ old('data_nascimento', $cliente->data_nascimento ? $cliente->data_nascimento->format('Y-m-d') : '') }}">
+                                                   value="{{ old('data_nascimento', $cliente->data_nascimento ? \Carbon\Carbon::parse($cliente->data_nascimento)->format('Y-m-d') : '') }}">
                                             @error('data_nascimento')
                                                 <div class="form-error">{{ $message }}</div>
                                             @enderror
@@ -322,18 +321,102 @@
                                             @enderror
                                         </div>
 
-                                        <div class="col-md-4 mb-3">
-                                            <label for="birth_date" class="form-label">Nascimento (Alt.)</label>
-                                            <input type="date" 
-                                                   class="form-control @error('birth_date') is-invalid @enderror" 
-                                                   name="birth_date" 
-                                                   value="{{ old('birth_date', $cliente->birth_date ? $cliente->birth_date->format('Y-m-d') : '') }}">
-                                            <small class="text-muted-small">Campo alternativo</small>
+                                    </div>-->
+                                </div>
+								
+								<!-- ABA 2: REDES SOCIAIS -->
+                                <div class="tab-pane fade" id="redes" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="remember_token" class="form-label">
+                                                <i class="fab fa-instagram me-2" style="color: #E4405F;"></i>Instagram
+                                            </label>
+                                            <!-- CORREÇÃO: name="remember_token" para salvar na coluna 'remember_token' do BD -->
+                                            <input type="text" 
+                                                   class="form-control @error('remember_token') is-invalid @enderror" 
+                                                   name="remember_token" 
+                                                   placeholder="@seu_usuario_instagram"
+                                                   value="{{ old('remember_token', $cliente->remember_token) }}">
+                                            @error('remember_token')
+                                                <div class="form-error">{{ $message }}</div>
+                                            @enderror
+                                            <small class="text-muted-small">Usuário do Instagram</small>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label for="nome_cliente" class="form-label">
+                                                <i class="fab fa-tiktok me-2" style="color: #000;"></i>TikTok
+                                            </label>
+                                            <!-- CORREÇÃO: name="nome_cliente" para salvar na coluna 'nome_cliente' do BD -->
+                                            <input type="text" 
+                                                   class="form-control @error('nome_cliente') is-invalid @enderror" 
+                                                   name="nome_cliente" 
+                                                   id="nome_cliente"
+                                                   placeholder="@seu_usuario_tiktok"
+                                                   value="{{ old('nome_cliente', $cliente->nome_cliente) }}">
+                                            @error('nome_cliente')
+                                                <div class="form-error">{{ $message }}</div>
+                                            @enderror
+                                            <small class="text-muted-small">Usuário do TikTok</small>
                                         </div>
                                     </div>
-                                </div>
+								</div>	
 
-                                <!-- ABA 2: DOCUMENTOS -->
+								<!-- ABA 3: CONTATO -->
+                                <div class="tab-pane fade" id="contato" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="email" class="form-label">Email *</label>
+                                            <input type="email" 
+                                                   class="form-control @error('email') is-invalid @enderror" 
+                                                   name="email" 
+                                                   value="{{ old('email', $cliente->email) }}" 
+                                                   required>
+                                            @error('email')
+                                                <div class="form-error">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label for="telefone_principal" class="form-label">Telefone Principal</label>
+                                            <input type="text" 
+                                                   class="form-control @error('telefone_principal') is-invalid @enderror" 
+                                                   name="telefone_principal" 
+                                                   placeholder="(00) 00000-0000"
+                                                   value="{{ old('telefone_principal', $cliente->telefone_principal) }}">
+                                            @error('telefone_principal')
+                                                <div class="form-error">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                   
+										<div class="col-md-6 mb-3">
+											<label for="telefone_2" class="form-label">Telefone Secundário</label>
+											<input type="text" 
+												   class="form-control @error('telefone_2') is-invalid @enderror" 
+												   name="telefone_2" 
+												   placeholder="(00) 00000-0000"
+												   value="{{ old('telefone_2', $cliente->telefone_2) }}">
+											@error('telefone_2')
+												<div class="form-error">{{ $message }}</div>
+											@enderror
+										</div>
+
+										<div class="col-md-6 mb-3">
+											<label for="phone" class="form-label">Telefone (Adicional)</label>
+											<input type="text" 
+												   class="form-control @error('phone') is-invalid @enderror" 
+												   name="phone" 
+												   placeholder="(00) 00000-0000"
+												   value="{{ old('phone', $cliente->phone) }}">
+											@error('phone')
+												<div class="form-error">{{ $message }}</div>
+											@enderror
+										</div>
+                                    </div>
+								</div>
+								
+
+                                <!-- ABA 3: DOCUMENTOS -->
                                 <div class="tab-pane fade" id="documentos" role="tabpanel">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
@@ -361,62 +444,8 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- ABA 3: CONTATO -->
-                                <div class="tab-pane fade" id="contato" role="tabpanel">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="email" class="form-label">Email *</label>
-                                            <input type="email" 
-                                                   class="form-control @error('email') is-invalid @enderror" 
-                                                   name="email" 
-                                                   value="{{ old('email', $cliente->email) }}" 
-                                                   required>
-                                            @error('email')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-6 mb-3">
-                                            <label for="telefone_principal" class="form-label">Telefone Principal</label>
-                                            <input type="text" 
-                                                   class="form-control @error('telefone_principal') is-invalid @enderror" 
-                                                   name="telefone_principal" 
-                                                   placeholder="(00) 00000-0000"
-                                                   value="{{ old('telefone_principal', $cliente->telefone_principal) }}">
-                                            @error('telefone_principal')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="telefone_2" class="form-label">Telefone Secundário</label>
-                                            <input type="text" 
-                                                   class="form-control @error('telefone_2') is-invalid @enderror" 
-                                                   name="telefone_2" 
-                                                   placeholder="(00) 00000-0000"
-                                                   value="{{ old('telefone_2', $cliente->telefone_2) }}">
-                                            @error('telefone_2')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-6 mb-3">
-                                            <label for="phone" class="form-label">Telefone (Adicional)</label>
-                                            <input type="text" 
-                                                   class="form-control @error('phone') is-invalid @enderror" 
-                                                   name="phone" 
-                                                   placeholder="(00) 00000-0000"
-                                                   value="{{ old('phone', $cliente->phone) }}">
-                                            @error('phone')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                </div>
-
+        
+                          
                                 <!-- ABA 4: ENDEREÇO -->
                                 <div class="tab-pane fade" id="endereco" role="tabpanel">
                                     <div class="row">
@@ -553,13 +582,13 @@
                                                    readonly>
                                             <small class="text-muted-small">Somente leitura</small>
                                         </div>
-
+<!--
                                         <div class="col-md-3 mb-3">
                                             <label for="ultima_compra" class="form-label">Última Compra</label>
                                             <input type="datetime-local" 
                                                    class="form-control @error('ultima_compra') is-invalid @enderror" 
                                                    name="ultima_compra" 
-                                                   value="{{ old('ultima_compra', $cliente->ultima_compra ? $cliente->ultima_compra->format('Y-m-d\TH:i') : '') }}"
+                                                   value="{{ old('ultima_compra', $cliente->ultima_compra ? \Carbon\Carbon::parse($cliente->ultima_compra)->format('Y-m-d\TH:i') : '') }}"
                                                    readonly>
                                             <small class="text-muted-small">Somente leitura</small>
                                         </div>
@@ -571,7 +600,7 @@
                                             <input type="datetime-local" 
                                                    class="form-control @error('ultima_visita') is-invalid @enderror" 
                                                    name="ultima_visita" 
-                                                   value="{{ old('ultima_visita', $cliente->ultima_visita ? $cliente->ultima_visita->format('Y-m-d\TH:i') : '') }}"
+                                                   value="{{ old('ultima_visita', $cliente->ultima_visita ? \Carbon\Carbon::parse($cliente->ultima_visita)->format('Y-m-d\TH:i') : '') }}"
                                                    readonly>
                                             <small class="text-muted-small">Somente leitura</small>
                                         </div>
@@ -580,24 +609,25 @@
                                             <label for="data_cadastro" class="form-label">Data de Cadastro</label>
                                             <input type="datetime-local" 
                                                    class="form-control" 
-                                                   value="{{ $cliente->data_cadastro ? $cliente->data_cadastro->format('Y-m-d\TH:i') : '' }}"
+                                                   value="{{ $cliente->data_cadastro ? \Carbon\Carbon::parse($cliente->data_cadastro)->format('d/m/Y') : '-' }}"
                                                    readonly>
                                             <small class="text-muted-small">Somente leitura</small>
                                         </div>
                                     </div>
-
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <label for="observacao_cliente" class="form-label">Observações</label>
-                                            <textarea class="form-control @error('observacao_cliente') is-invalid @enderror" 
-                                                      name="observacao_cliente" 
-                                                      rows="4"
-                                                      placeholder="Informações adicionais sobre o cliente...">{{ old('observacao_cliente', $cliente->observacao_cliente) }}</textarea>
-                                            @error('observacao_cliente')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
+-->
+										<div class="row">	
+											<div class="col-md-12 mb-3">
+												<label for="observacao_cliente" class="form-label">Observações</label>
+												<textarea class="form-control @error('observacao_cliente') is-invalid @enderror" 
+														  name="observacao_cliente" 
+														  rows="4"
+														  placeholder="Informações adicionais sobre o cliente...">{{ old('observacao_cliente', $cliente->observacao_cliente) }}</textarea>
+												@error('observacao_cliente')
+													<div class="form-error">{{ $message }}</div>
+												@enderror
+											</div>
+										</div>
+									</div>
                                 </div>
 
                                 <!-- ABA 6: SEGURANÇA -->
@@ -648,78 +678,19 @@
                                             @enderror
                                         </div>
                                     </div>
-
+<!--
                                     <div class="mb-3">
                                         <label for="email_verified_at" class="form-label">Email Verificado em</label>
                                         <input type="datetime-local" 
                                                class="form-control @error('email_verified_at') is-invalid @enderror" 
                                                name="email_verified_at" 
-                                               value="{{ old('email_verified_at', $cliente->email_verified_at ? $cliente->email_verified_at->format('Y-m-d\TH:i') : '') }}">
+                                               value="{{ old('email_verified_at', $cliente->email_verified_at ? \Carbon\Carbon::parse($cliente->email_verified_at)->format('Y-m-d\TH:i') : '') }}">
                                         @error('email_verified_at')
                                             <div class="form-error">{{ $message }}</div>
                                         @enderror
                                     </div>
                                 </div>
-								
-								<!-- ABA 6.5: REDES SOCIAIS -->
-                                <div class="tab-pane fade" id="redes" role="tabpanel">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="remember_token" class="form-label">
-                                                <i class="fab fa-instagram me-2" style="color: #E4405F;"></i>Instagram
-                                            </label>
-                                            <input type="text" 
-                                                   class="form-control @error('remember_token') is-invalid @enderror" 
-                                                   name="remember_token" 
-                                                   placeholder="@seu_usuario_instagram"
-                                                   value="{{ old('remember_token', $cliente->remember_token) }}">
-                                            @error('remember_token')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                            <small class="text-muted-small">Usuário do Instagram</small>
-                                        </div>
-
-                                        <div class="col-md-6 mb-3">
-                                            <label for="nome_cliente" class="form-label">
-                                                <i class="fab fa-tiktok me-2" style="color: #000;"></i>TikTok
-                                            </label>
-                                            <input type="text" 
-                                                   class="form-control @error('nome_cliente') is-invalid @enderror" 
-                                                   name="nome_cliente" 
-                                                   id="nome_cliente"
-                                                   placeholder="@seu_usuario_tiktok"
-                                                   value="{{ old('nome_cliente', $cliente->nome_cliente) }}">
-                                            @error('nome_cliente')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                            <small class="text-muted-small">Usuário do TikTok</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="phone" class="form-label">
-                                                <i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>WhatsApp
-                                            </label>
-                                            <input type="text" 
-                                                   class="form-control @error('phone') is-invalid @enderror" 
-                                                   name="phone" 
-                                                   id="phone"
-                                                   placeholder="(00) 00000-0000"
-                                                   value="{{ old('phone', $cliente->phone) }}">
-                                            @error('phone')
-                                                <div class="form-error">{{ $message }}</div>
-                                            @enderror
-                                            <small class="text-muted-small">Número do WhatsApp com DDD</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="info-box mt-4">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Atenção:</strong> Esses campos são vinculados aos dados pessoais do cliente. 
-                                        Certifique-se de que estão preenchidos corretamente!
-                                    </div>
-                                </div>
+-->								
 
                                 <!-- ABA 7: STATUS -->
                                 <div class="tab-pane fade" id="status" role="tabpanel">

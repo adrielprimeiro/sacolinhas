@@ -95,7 +95,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('items', ItemController::class);
 	Route::get('/inventario', [ItemController::class, 'inventario'])->name('inventario');
 
-    
+
+
     // Admin Items
     Route::prefix('admin')->group(function () {
 
@@ -104,6 +105,8 @@ Route::middleware('auth')->group(function () {
              ->name("admin.items.update-status");
         Route::post("items/update-status", [ItemController::class, "updateStatusApi"])
              ->name("admin.items.update-status.api");
+		// Rota para atualizar status do item
+ 
 
         Route::resource('items', ItemController::class)->names([
             'index' => 'admin.items.index',
@@ -150,12 +153,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/lives/{id}', [LiveController::class, 'destroy'])->name('lives.api.destroy');
 
     // ===== API ROUTES =====
+
     Route::prefix('api')->group(function () {
 		// Busca de usuários e itens
 		Route::get('/users/search', [ClienteController::class, 'search'])->name('api.users.search');
 		Route::get('/items/search', [ItemController::class, 'search'])->name('api.items.search');
-
-        
         // ===== API CLIENTES =====
         Route::get('/clientes/search', [ClienteController::class, 'search'])->name('api.clientes.search');
         Route::get('/clientes/buscar-por-cpf/{cpf}', [ClienteController::class, 'buscarPorCpf'])->name('api.clientes.buscar_cpf');
@@ -165,7 +167,7 @@ Route::middleware('auth')->group(function () {
         // API das Sacolinhas
         Route::get('/sacolinhas/live/{liveId?}', [SacolinhaController::class, 'getBagsByLive'])->name('api.sacolinhas.live');
         Route::delete('/sacolinhas/remove', [SacolinhaController::class, 'removeItems'])->name('api.sacolinhas.remove');
-    });
+	});	
 });
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
@@ -181,3 +183,14 @@ Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 
 Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
     ->name('admin.clientes.check-email');
 	
+Route::get('/sacolinhas/live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
+Route::put('/items/{itemId}/status', [SacolinhaController::class, 'updateItemStatus']);
+
+// ROTA TEMPORÁRIA PARA TESTE - adicionar no final do web.php
+Route::patch('/api/items/{itemId}/status', [SacolinhaController::class, 'updateItemStatus'])->name('api.items.update-status');
+
+// ADICIONAR ESTA LINHA - Rota GET para consultar status do item
+Route::get('/api/items/{itemId}/status', [SacolinhaController::class, 'getItemStatus'])->name('api.items.get-status');
+
+// ADICIONAR esta rota que usa o método correto
+Route::get('/api/sacolinhas/by-live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);

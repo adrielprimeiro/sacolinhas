@@ -93,41 +93,165 @@ class ClienteController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
-    {
-        try {
-            $cliente = User::where('role', 'client')->findOrFail($id);
-            
-            $request->validate([
-            ]);
 
-            $dados = [
-                'nome_cliente' => $request->nome_cliente,
-                'name' => $request->nome_cliente,
-                'email' => $request->email,
-                'cpf' => $request->cpf,
-                'telefone_principal' => $request->telefone_principal,
-                'data_nascimento' => $request->data_nascimento,
-                'sexo' => $request->sexo,
-                'bloqueado' => $request->has('bloqueado'),
-            ];
-            
-            if ($request->filled('password')) {
-                $dados['password'] = Hash::make($request->password);
-            }
+	public function update(Request $request, $id)
+	{
+		// 🔥 LOG DETALHADO
+		\Log::info('=== UPDATE INICIADO ===');
+		\Log::info('Servidor: ' . gethostname());
+		\Log::info('PHP Version: ' . phpversion());
+		\Log::info('Timezone: ' . date_default_timezone_get());
+		\Log::info('Request Method: ' . $request->method());
+		\Log::info('Request URL: ' . $request->url());
+		\Log::info('Cliente ID: ' . $id);
+		\Log::info('Request Data:', $request->all());
+		
+		try {
+			$request->validate([
+				'name' => 'required|string|max:255',
+			]);
 
-            $cliente->update($dados);
+			$cliente = User::where('role', 'client')->findOrFail($id);
+			
+			\Log::info('Cliente encontrado:', $cliente->toArray());
+			
+			$updateData = [
+				'name' => $request->name,
+				'bloqueado' => $request->has('bloqueado') ? 1 : 0,
+			];
+			
+			\Log::info('Dados para atualizar:', $updateData);
 
-            return redirect()->route('admin.clientes.show', $cliente)
-                            ->with('success', 'Cliente atualizado com sucesso!');
-                            
-        } catch (\Exception $e) {
-            \Log::error('Erro em ClienteController@update: ' . $e->getMessage());
-            return redirect()->back()
-                            ->withErrors(['error' => 'Erro ao atualizar cliente: ' . $e->getMessage()])
-                            ->withInput();
-        }
-    }
+			$cliente->update($updateData);
+			
+			\Log::info('✅ Cliente atualizado com sucesso!');
+
+			return redirect()->route('admin.clientes.show', $cliente->id)
+							->with('success', 'Cliente atualizado com sucesso!');
+
+		} catch (\Exception $e) {
+			\Log::error('❌ ERRO ao atualizar cliente: ' . $e->getMessage());
+			\Log::error('Stack: ' . $e->getTraceAsString());
+			
+			return redirect()->back()
+							->with('error', 'Erro ao atualizar cliente: ' . $e->getMessage())
+							->withInput();
+		}
+	}
+
+/*	public function update(Request $request, $id)
+	{
+		try {
+			// VALIDAÇÃO COMPLETA DE TODOS OS CAMPOS
+			$request->validate([
+				// Dados Pessoais
+				'name' => 'required|string|max:255',
+				'apelido' => 'nullable|string|max:255',
+				//'data_nascimento' => 'nullable|date',
+				//'sexo' => 'nullable|in:M,F',
+				//'birth_date' => 'nullable|date',
+				
+				// Redes Sociais
+				'remember_token' => 'nullable|string|max:255', // Instagram
+				'nome_cliente' => 'nullable|string|max:255',   // TikTok
+				
+				// Contato
+				'email' => 'required|email|max:255|unique:users,email,' . $id,
+				'telefone_principal' => 'nullable|string|max:20',
+				'telefone_2' => 'nullable|string|max:20',
+				'phone' => 'nullable|string|max:20', // WhatsApp
+				
+				// Endereço
+				'endereco' => 'nullable|string|max:500',
+				'numero_endereco' => 'nullable|string|max:10',
+				'complemento' => 'nullable|string|max:255',
+				'bairro' => 'nullable|string|max:255',
+				'cidade' => 'nullable|string|max:255',
+				'estado' => 'nullable|string|max:2',
+				'cep' => 'nullable|string|max:10',
+				'pais' => 'nullable|string|max:255',
+				
+				// Documentos
+				'cpf' => 'nullable|string|max:14',
+				'rg' => 'nullable|string|max:20',
+				
+				// Comercial
+				'codigo_cliente' => 'nullable|string|max:50',
+				'tipo_cliente' => 'nullable|string|max:100',
+				'observacao_cliente' => 'nullable|text',
+				
+				// Segurança
+				'password' => 'nullable|string|min:6|confirmed',
+				'role' => 'nullable|in:client,admin',
+				'is_admin' => 'nullable|boolean',
+			]);
+
+			$cliente = User::where('role', 'client')->findOrFail($id);
+
+			// TODOS OS CAMPOS DO FORMULÁRIO
+			$updateData = [
+				// 📋 Dados Pessoais
+				'name' => $request->name,
+				'apelido' => $request->apelido,
+				//'data_nascimento' => $request->data_nascimento,
+				//'sexo' => $request->sexo,
+				//'birth_date' => $request->birth_date,
+				
+				// 📱 Redes Sociais (CORRIGIDO!)
+				'remember_token' => $request->remember_token, // Instagram
+				'nome_cliente' => $request->nome_cliente,     // TikTok
+				'phone' => $request->phone,                   // WhatsApp
+				
+				// 📞 Contato
+				'email' => $request->email,
+				'telefone_principal' => $request->telefone_principal,
+				'telefone_2' => $request->telefone_2,
+				
+				// 🏠 Endereço
+				'endereco' => $request->endereco,
+				'numero_endereco' => $request->numero_endereco,
+				'complemento' => $request->complemento,
+				'bairro' => $request->bairro,
+				'cidade' => $request->cidade,
+				'estado' => $request->estado,
+				'cep' => $request->cep,
+				'pais' => $request->pais,
+				
+				// 📄 Documentos
+				'cpf' => $request->cpf,
+				'rg' => $request->rg,
+				
+				// 💼 Comercial
+				'codigo_cliente' => $request->codigo_cliente,
+				'tipo_cliente' => $request->tipo_cliente,
+				'observacao_cliente' => $request->observacao_cliente,
+				
+				// 🔒 Segurança
+				'role' => $request->role ?? 'client',
+				'is_admin' => $request->boolean('is_admin'),
+				
+				// ⚡ Status
+				'bloqueado' => $request->has('bloqueado') ? 1 : 0,
+			];
+
+			// Senha (se fornecida)
+			if ($request->filled('password')) {
+				$updateData['password'] = Hash::make($request->password);
+			}
+
+			// Executar atualização
+			$cliente->update($updateData);
+
+			return redirect()->route('admin.clientes.show', $cliente->id)
+							->with('success', 'Cliente atualizado com sucesso!');
+
+		} catch (\Exception $e) {
+			\Log::error('Erro ao atualizar cliente: ' . $e->getMessage());
+			return redirect()->back()
+							->with('error', 'Erro ao atualizar cliente: ' . $e->getMessage())
+							->withInput();
+		}
+	}
 
     public function destroy($id)
     {
@@ -212,5 +336,5 @@ class ClienteController extends Controller
 				'data' => []
 			], 500);
 		}
-	}
+	}*/
 }

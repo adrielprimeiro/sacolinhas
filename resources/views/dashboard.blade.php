@@ -111,6 +111,13 @@
                                 <i class="fas fa-box"></i> Itens
                             </a>
                         </li>
+						
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('inventario') ? 'active' : '' }}" 
+							   href="{{ route('inventario') }}">
+								<i class="fas fa-clipboard-list"></i> Inventário
+							</a>
+						</li>						
                         
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('bags.*') ? 'active' : '' }}" 
