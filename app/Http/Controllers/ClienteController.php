@@ -40,46 +40,72 @@ class ClienteController extends Controller
         return view('admin.clientes.create');
     }
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'instagram' => 'nullable|string|max:255',
-            'tiktok' => 'nullable|string|max:255',
-            'whatsapp' => 'nullable|string|max:255',
-        ]);
+	public function store(Request $request)
+	{
+		// ✅ VALIDAÇÃO COM CAMPOS CORRETOS
+		$request->validate([
+			'name' => 'nullable|string|max:255',
+			'instagram' => 'nullable|string|max:255',
+			'tiktok' => 'nullable|string|max:255',
+		], [
+			'name.max' => 'O nome não pode ter mais de 255 caracteres.',
+			'instagram.max' => 'O Instagram não pode ter mais de 255 caracteres.',
+			'tiktok.max' => 'O TikTok não pode ter mais de 255 caracteres.',
+		]);
 
-        try {
-            DB::beginTransaction();
+		try {
+			DB::beginTransaction();
 
-            // ✅ USAR DADOS CORRETOS
-            $clienteData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'instagram' => $request->instagram,
-                'tiktok' => $request->tiktok, 
-                'whatsapp' => $request->whatsapp,
-                'password' => Hash::make('123456'),
-                'role' => 'client',
-            ];
+			// ✅ LÓGICA PARA DETERMINAR O NOME (igual ao original)
+			$nomeCliente = trim($request->name);
+			$instagram = trim($request->instagram);
+			$tiktok = trim($request->tiktok);
+			
+			// Se nome estiver vazio, usar Instagram ou TikTok
+			if (empty($nomeCliente)) {
+				if (!empty($instagram)) {
+					$nomeCliente = $instagram;
+				} elseif (!empty($tiktok)) {
+					$nomeCliente = $tiktok;
+				} else {
+					// Se todos estiverem vazios, dar erro
+					return redirect()->back()
+								   ->withErrors(['name' => 'Preencha pelo menos o Nome, Instagram ou TikTok'])
+								   ->withInput();
+				}
+			}
+			
+			// ✅ GERAÇÃO AUTOMÁTICA DE EMAIL (igual ao original)
+			$nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $nomeCliente));
+			$emailAutomatico = $nomeParaEmail . '@mania.com';
+			
+			// ✅ SALVAR COM CAMPOS CORRETOS
+			Cliente::create([
+				'name' => $nomeCliente,              // Nome final
+				'email' => $emailAutomatico,         // Email automático
+				'password' => Hash::make('123456'),  // Senha padrão
+				'role' => 'client',
+				
+				// ✅ CAMPOS CORRETOS PARA REDES SOCIAIS
+				'instagram' => $instagram,           // Campo correto
+				'tiktok' => $tiktok,                // Campo correto
+				'whatsapp' => null,                 // Pode ser preenchido depois
+			]);
 
-            $cliente = Cliente::create($clienteData); // ✅ Model vai gerar código automaticamente
+			DB::commit();
 
-            DB::commit();
-            
-            return redirect()->route('admin.clientes.index')
-                           ->with('success', 'Cliente criado com sucesso!');
+			return redirect()->route('admin.clientes.index')
+						   ->with('success', 'Cliente criado com sucesso!');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erro ao criar cliente: ' . $e->getMessage());
-            
-            return redirect()->back()
-                           ->with('error', 'Erro ao criar cliente.')
-                           ->withInput();
-        }
-    }
+		} catch (\Exception $e) {
+			DB::rollBack();
+			Log::error('Erro ao criar cliente: ' . $e->getMessage());
+			
+			return redirect()->back()
+						   ->with('error', 'Erro ao criar cliente.')
+						   ->withInput();
+		}
+	}
 
     public function show($id)
     {

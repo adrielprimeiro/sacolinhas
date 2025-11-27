@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Live; 
-use App\Models\User; // <- ADICIONEI ESTE USE
+use App\Models\User;
 
 class LiveController extends Controller
 {
@@ -139,27 +139,32 @@ class LiveController extends Controller
             ], 500);
         }
     }
-	
+
+    /**
+     * Obter todas as lives
+     */
     public function getAllLives()
     {
-        $lives = Live::orderBy('created_at', 'desc')->get(); // Ou adicione paginação se houver muitas lives
+        $lives = Live::orderBy('created_at', 'desc')->get();
 
-        // Formate as lives conforme necessário, por exemplo, adicionando 'status'
         $formattedLives = $lives->map(function ($live) {
-            $live->status = $live->is_active ? 'ativa' : 'encerrada'; // Assumindo um campo 'is_active'
+            $live->status = $live->is_active ? 'ativa' : 'encerrada';
             return $live;
         });
 
         return response()->json(['success' => true, 'data' => $formattedLives]);
     }
-	
+
+    /**
+     * Exibir visão de sacolas da live
+     */
     public function showLiveBagsOverview()
     {
         return view('admin.sacolinhas.index');
     }
 
     /**
-     * Buscar usuários (MÉTODO ATUALIZADO)
+     * Buscar usuários
      */
 	public function search(Request $request)
 	{
@@ -171,16 +176,27 @@ class LiveController extends Controller
 				return response()->json(['success' => true, 'data' => []]);
 			}
 			
+			// ✅ BUSCA EM AMBOS OS CAMPOS (antigos e novos)
 			$users = User::where('role', $role)
 				->where(function($q) use ($query) {
 					$searchTerm = "%{$query}%";
+					
+					// Dados pessoais
 					$q->where('name', 'LIKE', $searchTerm)
 					  ->orWhere('email', 'LIKE', $searchTerm)
-					  ->orWhere('phone', 'LIKE', $searchTerm)
+					  ->orWhere('apelido', 'LIKE', $searchTerm)
+					  
+					  // ✅ CAMPOS NOVOS (prioridade)
+					  ->orWhere('instagram', 'LIKE', $searchTerm)
+					  ->orWhere('tiktok', 'LIKE', $searchTerm)
+					  ->orWhere('whatsapp', 'LIKE', $searchTerm)
+					  
+					  // ✅ CAMPOS ANTIGOS (compatibilidade)
 					  ->orWhere('remember_token', 'LIKE', $searchTerm)
 					  ->orWhere('nome_cliente', 'LIKE', $searchTerm)
-					  ->orWhere('apelido', 'LIKE', $searchTerm);
+					  ->orWhere('phone', 'LIKE', $searchTerm);
 					
+					// Buscar por ID se for número
 					if (is_numeric($query)) {
 						$q->orWhere('id', $query);
 					}
@@ -188,18 +204,25 @@ class LiveController extends Controller
 				->limit(10)
 				->get();
 
-			// SOLUÇÃO: Construir array manualmente para forçar inclusão do remember_token
+			// ✅ CONSTRUIR ARRAY COM TODOS OS CAMPOS
 			$usersArray = [];
 			foreach ($users as $user) {
 				$usersArray[] = [
 					'id' => $user->id,
 					'name' => $user->name,
 					'email' => $user->email,
-					'phone' => $user->phone,
-					'remember_token' => $user->remember_token,  // FORÇADO
-					'nome_cliente' => $user->nome_cliente,
 					'apelido' => $user->apelido,
-					'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40"
+					'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
+					
+					// ✅ CAMPOS NOVOS
+					'instagram' => $user->instagram,
+					'tiktok' => $user->tiktok,
+					'whatsapp' => $user->whatsapp,
+					
+					// ✅ CAMPOS ANTIGOS (para compatibilidade)
+					'remember_token' => $user->remember_token,
+					'nome_cliente' => $user->nome_cliente,
+					'phone' => $user->phone
 				];
 			}
 
@@ -218,6 +241,8 @@ class LiveController extends Controller
 			], 500);
 		}
 	}
+
+
     /**
      * Criar novo cliente com dados básicos
      */
@@ -225,6 +250,7 @@ class LiveController extends Controller
     {
         try {
             $request->validate([
+                'name' => 'required|string|max:255'
             ]);
 
             $name = $request->input('name');
@@ -239,13 +265,10 @@ class LiveController extends Controller
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
-                'phone' => null, // Será preenchido depois
+                'phone' => null,
                 'role' => 'client',
-                'status' => 'active',
-                'password' => bcrypt('temp123'), // Senha temporária
+                'password' => bcrypt('temp123'),
                 'email_verified_at' => null,
-                'created_via' => 'quick_search', // Campo para identificar origem
-                'needs_completion' => true, // Flag para indicar que precisa completar dados
             ]);
 
             Log::info("Novo cliente criado via busca rápida: {$user->name} (ID: {$user->id})");
@@ -257,7 +280,7 @@ class LiveController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'avatar_url' => $user->avatar_url ?? '/default-avatar.png',
+                    'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
                     'created_now' => true
                 ]
             ]);
