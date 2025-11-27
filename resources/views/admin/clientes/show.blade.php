@@ -387,13 +387,13 @@
                                         <div>
                                             @if($cliente->temInstagram())
                                                 <a href="{{ $cliente->instagram_url }}" target="_blank" class="social-link social-instagram">
-                                                    <i class="fab fa-instagram me-1"></i>@{{ $cliente->instagram }}
+                                                    <i class="fab fa-instagram me-1"></i>{{ $cliente->instagram }}
                                                 </a>
                                             @endif
 
                                             @if($cliente->temTikTok())
                                                 <a href="{{ $cliente->tiktok_url }}" target="_blank" class="social-link social-tiktok">
-                                                    <i class="fab fa-tiktok me-1"></i>@{{ $cliente->tiktok }}
+                                                    <i class="fab fa-tiktok me-1"></i>{{ $cliente->tiktok }}
                                                 </a>
                                             @endif
                                         </div>
