@@ -8,7 +8,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\SacolinhaController;
 use App\Http\Controllers\LiveController;
-use App\Http\Controllers\ClienteController; // ← NOVA IMPORTAÇÃO
+use App\Http\Controllers\ClienteController;
 
 // ===== ROTAS DE AUTENTICAÇÃO =====
 
@@ -180,8 +180,8 @@ Route::get('admin/sacolinhas', function () {
 Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
 Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 'quickCreate']);
 
-Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
-    ->name('admin.clientes.check-email');
+/*Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
+    ->name('admin.clientes.check-email');*/
 	
 Route::get('/sacolinhas/live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
 Route::put('/items/{itemId}/status', [SacolinhaController::class, 'updateItemStatus']);
@@ -194,3 +194,6 @@ Route::get('/api/items/{itemId}/status', [SacolinhaController::class, 'getItemSt
 
 // ADICIONAR esta rota que usa o método correto
 Route::get('/api/sacolinhas/by-live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
+
+
+

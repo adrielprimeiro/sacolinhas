@@ -2,24 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Cliente; // ✅ USAR MODEL CLIENTE
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ClienteController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::where('role', 'client');
+        $query = Cliente::clientes()->with([]); // ✅ USAR SCOPE
         
         if ($request->filled('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nome_cliente', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('cpf', 'like', "%{$search}%");
-            });
+            $query->buscar($search); // ✅ USAR SCOPE DO MODEL
+        }
+        
+        if ($request->filled('status')) {
+            if ($request->status === 'bloqueado') {
+                $query->bloqueados();
+            } else {
+                $query->ativos();
+            }
+        }
+        
+        if ($request->filled('cidade')) {
+            $query->porCidade($request->cidade);
         }
         
         $clientes = $query->orderBy('created_at', 'desc')->paginate(15);
@@ -31,51 +40,54 @@ class ClienteController extends Controller
         return view('admin.clientes.create');
     }
 
-	public function store(Request $request)
-	{
-		// Lógica para determinar o nome do cliente
-		$nomeCliente = trim($request->nome_cliente);
-		$instagram = trim($request->ig_instagram);
-		$tiktok = trim($request->ig_tiktok);
-		
-		// Se nome estiver vazio, usar Instagram ou TikTok
-		if (empty($nomeCliente)) {
-			if (!empty($instagram)) {
-				$nomeCliente = $instagram;
-			} elseif (!empty($tiktok)) {
-				$nomeCliente = $tiktok;
-			} else {
-				// Se todos estiverem vazios, dar erro
-				return redirect()->back()
-							   ->withErrors(['nome_cliente' => 'Preencha pelo menos o Nome, Instagram ou TikTok'])
-							   ->withInput();
-			}
-		}
-		
-		// Geração automática de email baseada no nome final
-		$nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $nomeCliente));
-		$emailAutomatico = $nomeParaEmail . '@mania.com';
-		
-		User::create([
-			'name' => $nomeCliente,                          // Nome final (preenchido ou automático)
-			'nome_cliente' => $request->ig_tiktok,           // TikTok
-			'remember_token' => $request->ig_instagram,      // Instagram
-			'email' => $emailAutomatico,                     // Email automático
-			'password' => Hash::make('123456'),              // Senha padrão
-			'role' => 'client',
-		]);
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'instagram' => 'nullable|string|max:255',
+            'tiktok' => 'nullable|string|max:255',
+            'whatsapp' => 'nullable|string|max:255',
+        ]);
 
-		return redirect()->route('admin.clientes.index')
-						->with('success', 'Cliente criado com sucesso!');
-	}
+        try {
+            DB::beginTransaction();
+
+            // ✅ USAR DADOS CORRETOS
+            $clienteData = [
+                'name' => $request->name,
+                'email' => $request->email,
+                'instagram' => $request->instagram,
+                'tiktok' => $request->tiktok, 
+                'whatsapp' => $request->whatsapp,
+                'password' => Hash::make('123456'),
+                'role' => 'client',
+            ];
+
+            $cliente = Cliente::create($clienteData); // ✅ Model vai gerar código automaticamente
+
+            DB::commit();
+            
+            return redirect()->route('admin.clientes.index')
+                           ->with('success', 'Cliente criado com sucesso!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erro ao criar cliente: ' . $e->getMessage());
+            
+            return redirect()->back()
+                           ->with('error', 'Erro ao criar cliente.')
+                           ->withInput();
+        }
+    }
 
     public function show($id)
     {
         try {
-            $cliente = User::where('role', 'client')->findOrFail($id);
+            $cliente = Cliente::clientes()->findOrFail($id);
             return view('admin.clientes.show', compact('cliente'));
         } catch (\Exception $e) {
-            \Log::error('Erro em ClienteController@show: ' . $e->getMessage());
+            Log::error('Erro em ClienteController@show: ' . $e->getMessage());
             return redirect()->route('admin.clientes.index')
                             ->with('error', 'Cliente não encontrado.');
         }
@@ -84,82 +96,35 @@ class ClienteController extends Controller
     public function edit($id)
     {
         try {
-            $cliente = User::where('role', 'client')->findOrFail($id);
+            $cliente = Cliente::clientes()->findOrFail($id);
             return view('admin.clientes.edit', compact('cliente'));
         } catch (\Exception $e) {
-            \Log::error('Erro em ClienteController@edit: ' . $e->getMessage());
+            Log::error('Erro em ClienteController@edit: ' . $e->getMessage());
             return redirect()->route('admin.clientes.index')
                             ->with('error', 'Cliente não encontrado.');
         }
     }
 
-
 	public function update(Request $request, $id)
 	{
-		// 🔥 LOG DETALHADO
-		\Log::info('=== UPDATE INICIADO ===');
-		\Log::info('Servidor: ' . gethostname());
-		\Log::info('PHP Version: ' . phpversion());
-		\Log::info('Timezone: ' . date_default_timezone_get());
-		\Log::info('Request Method: ' . $request->method());
-		\Log::info('Request URL: ' . $request->url());
-		\Log::info('Cliente ID: ' . $id);
-		\Log::info('Request Data:', $request->all());
-		
 		try {
-			$request->validate([
-				'name' => 'required|string|max:255',
-			]);
-
-			$cliente = User::where('role', 'client')->findOrFail($id);
-			
-			\Log::info('Cliente encontrado:', $cliente->toArray());
-			
-			$updateData = [
-				'name' => $request->name,
-				'bloqueado' => $request->has('bloqueado') ? 1 : 0,
-			];
-			
-			\Log::info('Dados para atualizar:', $updateData);
-
-			$cliente->update($updateData);
-			
-			\Log::info('✅ Cliente atualizado com sucesso!');
-
-			return redirect()->route('admin.clientes.show', $cliente->id)
-							->with('success', 'Cliente atualizado com sucesso!');
-
-		} catch (\Exception $e) {
-			\Log::error('❌ ERRO ao atualizar cliente: ' . $e->getMessage());
-			\Log::error('Stack: ' . $e->getTraceAsString());
-			
-			return redirect()->back()
-							->with('error', 'Erro ao atualizar cliente: ' . $e->getMessage())
-							->withInput();
-		}
-	}
-
-/*	public function update(Request $request, $id)
-	{
-		try {
-			// VALIDAÇÃO COMPLETA DE TODOS OS CAMPOS
-			$request->validate([
+			// ✅ VALIDAÇÃO COMPLETA COM MENSAGENS CUSTOMIZADAS
+			$validated = $request->validate([
 				// Dados Pessoais
 				'name' => 'required|string|max:255',
 				'apelido' => 'nullable|string|max:255',
-				//'data_nascimento' => 'nullable|date',
-				//'sexo' => 'nullable|in:M,F',
-				//'birth_date' => 'nullable|date',
-				
-				// Redes Sociais
-				'remember_token' => 'nullable|string|max:255', // Instagram
-				'nome_cliente' => 'nullable|string|max:255',   // TikTok
+				'data_nascimento' => 'nullable|date|before:today',
+				'sexo' => 'nullable|in:M,F,Outro',
 				
 				// Contato
 				'email' => 'required|email|max:255|unique:users,email,' . $id,
 				'telefone_principal' => 'nullable|string|max:20',
 				'telefone_2' => 'nullable|string|max:20',
-				'phone' => 'nullable|string|max:20', // WhatsApp
+				
+				// Redes Sociais (CAMPOS CORRETOS!)
+				'instagram' => 'nullable|string|max:255',
+				'whatsapp' => 'nullable|string|max:255',
+				'tiktok' => 'nullable|string|max:255',
 				
 				// Endereço
 				'endereco' => 'nullable|string|max:500',
@@ -171,170 +136,171 @@ class ClienteController extends Controller
 				'cep' => 'nullable|string|max:10',
 				'pais' => 'nullable|string|max:255',
 				
-				// Documentos
-				'cpf' => 'nullable|string|max:14',
+				// Documentos - VALIDAÇÃO MELHORADA
+				'cpf' => [
+					'nullable',
+					'string',
+					'max:14',
+					'unique:users,cpf,' . $id,
+					'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/', // CPF formatado ou só números
+				],
 				'rg' => 'nullable|string|max:20',
 				
 				// Comercial
-				'codigo_cliente' => 'nullable|string|max:50',
+				'codigo_cliente' => 'nullable|integer',
 				'tipo_cliente' => 'nullable|string|max:100',
-				'observacao_cliente' => 'nullable|text',
+				'observacao_cliente' => 'nullable|string',
 				
 				// Segurança
 				'password' => 'nullable|string|min:6|confirmed',
 				'role' => 'nullable|in:client,admin',
 				'is_admin' => 'nullable|boolean',
+			], [
+				// ✅ MENSAGENS CUSTOMIZADAS
+				'name.required' => 'O nome é obrigatório.',
+				'name.max' => 'O nome não pode ter mais de 255 caracteres.',
+				
+				'email.required' => 'O email é obrigatório.',
+				'email.email' => 'Digite um email válido.',
+				'email.unique' => 'Este email já está sendo usado por outro cliente.',
+				
+				'cpf.unique' => 'Este CPF já está cadastrado para outro cliente.',
+				'cpf.regex' => 'Digite um CPF válido (000.000.000-00).',
+				
+				'data_nascimento.date' => 'Digite uma data válida.',
+				'data_nascimento.before' => 'A data de nascimento deve ser anterior a hoje.',
+				
+				'sexo.in' => 'Sexo deve ser Masculino, Feminino ou Outro.',
+				
+				'password.min' => 'A senha deve ter pelo menos 6 caracteres.',
+				'password.confirmed' => 'A confirmação da senha não confere.',
+				
+				'role.in' => 'Função deve ser Cliente ou Administrador.',
 			]);
 
-			$cliente = User::where('role', 'client')->findOrFail($id);
+			DB::beginTransaction();
 
-			// TODOS OS CAMPOS DO FORMULÁRIO
-			$updateData = [
-				// 📋 Dados Pessoais
-				'name' => $request->name,
-				'apelido' => $request->apelido,
-				//'data_nascimento' => $request->data_nascimento,
-				//'sexo' => $request->sexo,
-				//'birth_date' => $request->birth_date,
-				
-				// 📱 Redes Sociais (CORRIGIDO!)
-				'remember_token' => $request->remember_token, // Instagram
-				'nome_cliente' => $request->nome_cliente,     // TikTok
-				'phone' => $request->phone,                   // WhatsApp
-				
-				// 📞 Contato
-				'email' => $request->email,
-				'telefone_principal' => $request->telefone_principal,
-				'telefone_2' => $request->telefone_2,
-				
-				// 🏠 Endereço
-				'endereco' => $request->endereco,
-				'numero_endereco' => $request->numero_endereco,
-				'complemento' => $request->complemento,
-				'bairro' => $request->bairro,
-				'cidade' => $request->cidade,
-				'estado' => $request->estado,
-				'cep' => $request->cep,
-				'pais' => $request->pais,
-				
-				// 📄 Documentos
-				'cpf' => $request->cpf,
-				'rg' => $request->rg,
-				
-				// 💼 Comercial
-				'codigo_cliente' => $request->codigo_cliente,
-				'tipo_cliente' => $request->tipo_cliente,
-				'observacao_cliente' => $request->observacao_cliente,
-				
-				// 🔒 Segurança
-				'role' => $request->role ?? 'client',
-				'is_admin' => $request->boolean('is_admin'),
-				
-				// ⚡ Status
-				'bloqueado' => $request->has('bloqueado') ? 1 : 0,
-			];
-
-			// Senha (se fornecida)
+			$cliente = Cliente::clientes()->findOrFail($id);
+			
+			// Dados para atualizar
+			$updateData = $validated;
+			
+			// ✅ Tratar senha separadamente
 			if ($request->filled('password')) {
 				$updateData['password'] = Hash::make($request->password);
+			} else {
+				unset($updateData['password']); // Remove se vazio
 			}
 
-			// Executar atualização
+			// ✅ Tratar checkbox bloqueado
+			$updateData['bloqueado'] = $request->has('bloqueado');
+
+			// ✅ Executar atualização
 			$cliente->update($updateData);
+			
+			DB::commit();
 
 			return redirect()->route('admin.clientes.show', $cliente->id)
-							->with('success', 'Cliente atualizado com sucesso!');
+						   ->with('success', 'Cliente atualizado com sucesso!');
 
-		} catch (\Exception $e) {
-			\Log::error('Erro ao atualizar cliente: ' . $e->getMessage());
+		} catch (\Illuminate\Validation\ValidationException $e) {
+			// ✅ ERRO DE VALIDAÇÃO - RETORNA COM ERROS
 			return redirect()->back()
-							->with('error', 'Erro ao atualizar cliente: ' . $e->getMessage())
-							->withInput();
+						   ->withErrors($e->validator)
+						   ->withInput()
+						   ->with('error', 'Corrija os erros abaixo e tente novamente.');
+						   
+		} catch (\Exception $e) {
+			DB::rollBack();
+			Log::error('Erro ao atualizar cliente: ' . $e->getMessage());
+			
+			return redirect()->back()
+						   ->with('error', 'Erro interno: ' . $e->getMessage())
+						   ->withInput();
 		}
 	}
 
     public function destroy($id)
     {
         try {
-            $cliente = User::where('role', 'client')->findOrFail($id);
-            $cliente->delete();
+            $cliente = Cliente::clientes()->findOrFail($id);
+            
+            // ✅ Bloqueio ao invés de exclusão
+            $cliente->bloquear();
+            
             return redirect()->route('admin.clientes.index')
-                            ->with('success', 'Cliente removido com sucesso!');
+                            ->with('success', 'Cliente bloqueado com sucesso!');
+                            
         } catch (\Exception $e) {
-            \Log::error('Erro em ClienteController@destroy: ' . $e->getMessage());
+            Log::error('Erro em ClienteController@destroy: ' . $e->getMessage());
             return redirect()->route('admin.clientes.index')
-                            ->with('error', 'Erro ao remover cliente.');
+                            ->with('error', 'Erro ao bloquear cliente.');
         }
     }
 
-    // MÉTODO QUE ESTAVA FALTANDO!
     public function toggleBlock($id)
     {
         try {
-            $cliente = User::where('role', 'client')->findOrFail($id);
-            $cliente->bloqueado = !$cliente->bloqueado;
-            $cliente->save();
-
-            $status = $cliente->bloqueado ? 'bloqueado' : 'desbloqueado';
+            $cliente = Cliente::clientes()->findOrFail($id);
             
-            return redirect()->back()
-                            ->with('success', "Cliente {$status} com sucesso!");
+            if ($cliente->isBloqueado()) {
+                $cliente->desbloquear();
+                $message = 'Cliente desbloqueado com sucesso!';
+            } else {
+                $cliente->bloquear(); 
+                $message = 'Cliente bloqueado com sucesso!';
+            }
+            
+            return redirect()->back()->with('success', $message);
                             
         } catch (\Exception $e) {
-            \Log::error('Erro em ClienteController@toggleBlock: ' . $e->getMessage());
+            Log::error('Erro em ClienteController@toggleBlock: ' . $e->getMessage());
             return redirect()->back()
                             ->with('error', 'Erro ao alterar status do cliente.');
         }
     }
-		
-	public function search(Request $request)
-	{
-		$query = $request->get('q');
-		$role = $request->get('role', 'client');
-		
-		if (!$query) {
-			return response()->json([
-				'success' => false,
-				'message' => 'Query parameter is required',
-				'data' => []
-			]);
-		}
+    
+    public function search(Request $request)
+    {
+        $query = $request->get('q');
+        
+        if (!$query) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Query parameter is required',
+                'data' => []
+            ]);
+        }
 
-		try {
-			$users = User::where(function($q) use ($query) {
-							$q->where('name', 'like', "%{$query}%")
-							  ->orWhere('email', 'like', "%{$query}%")
-							  ->orWhere('remember_token', 'like', "%{$query}%")
-							  ->orWhere('nome_cliente', 'like', "%{$query}%")
-							  ->orWhere('apelido', 'like', "%{$query}%")
-							  ->orWhere('id', $query);
-						})
-						->where('role', $role) // Ajuste conforme sua estrutura
-						->limit(10)
-						->get([
-							'id', 
-							'name', 
-							'email', 
-							'avatar_url', 
-							'remember_token', 
-							'nome_cliente', 
-							'apelido'
-						]);
+        try {
+            $clientes = Cliente::clientes()
+                             ->buscar($query) // ✅ USAR SCOPE
+                             ->limit(10)
+                             ->get([
+                                'id', 
+                                'name', 
+                                'email', 
+                                'apelido',
+                                'instagram', 
+                                'tiktok', 
+                                'whatsapp',
+                                'codigo_cliente'
+                             ]);
 
-			return response()->json([
-				'success' => true,
-				'data' => $users,
-				'search_term' => $query
-			]);
+            return response()->json([
+                'success' => true,
+                'data' => $clientes,
+                'search_term' => $query
+            ]);
 
-		} catch (\Exception $e) {
-			\Log::error('Erro na busca de clientes: ' . $e->getMessage());
-			
-			return response()->json([
-				'success' => false,
-				'message' => 'Erro interno do servidor',
-				'data' => []
-			], 500);
-		}
-	}*/
+        } catch (\Exception $e) {
+            Log::error('Erro na busca de clientes: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro interno do servidor',
+                'data' => []
+            ], 500);
+        }
+    }
 }
