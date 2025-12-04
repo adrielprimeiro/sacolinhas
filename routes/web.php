@@ -10,6 +10,7 @@ use App\Http\Controllers\SacolinhaController;
 use App\Http\Controllers\LiveController;
 use App\Http\Controllers\ClienteController;
 
+
 // ===== ROTAS DE AUTENTICAÇÃO =====
 
 Route::get('/login', function () {
@@ -168,6 +169,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/sacolinhas/live/{liveId?}', [SacolinhaController::class, 'getBagsByLive'])->name('api.sacolinhas.live');
         Route::delete('/sacolinhas/remove', [SacolinhaController::class, 'removeItems'])->name('api.sacolinhas.remove');
 	});	
+	
 });
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
@@ -180,8 +182,8 @@ Route::get('admin/sacolinhas', function () {
 Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
 Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 'quickCreate']);
 
-/*Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
-    ->name('admin.clientes.check-email');*/
+Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
+    ->name('admin.clientes.check-email');
 	
 Route::get('/sacolinhas/live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
 Route::put('/items/{itemId}/status', [SacolinhaController::class, 'updateItemStatus']);
@@ -195,5 +197,32 @@ Route::get('/api/items/{itemId}/status', [SacolinhaController::class, 'getItemSt
 // ADICIONAR esta rota que usa o método correto
 Route::get('/api/sacolinhas/by-live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
 
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+// ===== ROTAS DE BUSCA (SEM AUTH - públicas) =====
+Route::prefix('api')->group(function () {
+    Route::get('/users/search', [ClienteController::class, 'search']);
+    Route::get('/items/search', [ItemController::class, 'search']);
+});
 
+// ===== ROTAS DE SACOLINHAS (COM AUTH) =====
+Route::prefix('api')->middleware('auth')->group(function () {
+    // Consultar sacolinha de um cliente específico
+    Route::get('/sacolinhas/{userId}', [SacolinhaController::class, 'consultarSacolinhaCliente']);
+    
+    // Obter totais da sacolinha
+    Route::get('/sacolinhas/{userId}/totais', [SacolinhaController::class, 'obterTotalSacola']);
+    
+    // Adicionar item à sacolinha
+    Route::post('/sacolinhas/add', [SacolinhaController::class, 'adicionarItemSacola']);
+    
+    // Atualizar quantidade de item
+    Route::put('/sacolinhas/{sacolinhaId}/update-quantity', [SacolinhaController::class, 'atualizarQuantidadeItem']);
+    
+    // Remover item da sacolinha
+    Route::delete('/sacolinhas/{sacolinhaId}', [SacolinhaController::class, 'removerItemSacola']);
+});
 
+// Rotas para exibir a página de consulta de sacolinhas
+Route::middleware('auth')->group(function () {
+    Route::get('/sacolinhas/consultar', [SacolinhaController::class, 'consultarView'])->name('sacolinhas.consultar');
+});

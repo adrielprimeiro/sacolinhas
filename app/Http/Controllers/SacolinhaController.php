@@ -8,6 +8,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Item;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+
 
 class SacolinhaController extends Controller
 {
@@ -547,5 +551,307 @@ class SacolinhaController extends Controller
 			], 500);
 		}
 	}	
+	
+	
+	
+/**--------------------------------------------------------------------------------------------------------------------------------------------------------	
+	*/
+	public function consultarView()
+		{
+			return view('admin.sacolinhas.bag-client');
+		}
+
+    /**
+     * Retorna todos os itens da sacolinha de um cliente específico.
+     *
+     * @param int $userId O ID do cliente.
+     * @return \Illuminate\Http\JsonResponse
+     */
+	public function consultarSacolinhaCliente($userId)
+	{
+		try {
+			Log::info("consultarSacolinhaCliente iniciado para userId: {$userId}");
+			
+			// Validar que userId é um inteiro válido
+			$userId = (int) $userId;
+			
+			if ($userId <= 0) {
+				return response()->json(
+					['message' => 'ID de cliente inválido.'], 
+					400
+				);
+			}
+
+			// Verificar se cliente existe (query simples e rápida)
+			$clienteExists = DB::table('users')
+				->where('id', $userId)
+				->exists();
+				
+			if (!$clienteExists) {
+				return response()->json(
+					['message' => 'Cliente não encontrado.'], 
+					404
+				);
+			}
+
+			// Query ultra-otimizada com apenas as colunas necessárias
+			$items = DB::table('sacolinhas as s')
+				->where('s.user_id', $userId)
+				->where('s.status', '!=', 'enviado') // Filtro na sacolinha também
+				->whereNotIn('s.item_id', function ($query) {
+					// Excluir itens com status 'enviado'
+					$query->select('items.id')
+						->from('items')
+						->where('items.status', 'enviado');
+				})
+				->join('items as i', 's.item_id', '=', 'i.id')
+				->select(
+					's.id as sacolinha_id',
+					's.item_id',
+					's.quantity',
+					's.price as sacolinha_unit_price',
+					's.obs',
+					's.add_at',
+					's.status as sacolinha_status',
+					'i.codigo',
+					'i.nome_do_produto',
+					'i.preco as item_unit_price',
+					'i.pedido',
+					'i.status as item_status'
+				)
+				->orderBy('s.add_at', 'desc')
+				->limit(500) // Proteger contra consultas muito grandes
+				->get();
+
+			Log::info("Query executada. Registros retornados: " . $items->count());
+
+			if ($items->isEmpty()) {
+				return response()->json(
+					[
+						'message' => 'Sacolinha do cliente está vazia.',
+						'data' => []
+					], 
+					200
+				);
+			}
+
+			// Formatar resposta
+			$formattedItems = $items->map(function ($item) {
+				return [
+					'sacolinha_id' => (int) $item->sacolinha_id,
+					'item_id' => (int) $item->item_id,
+					'codigo' => $item->codigo,
+					'nome_do_produto' => $item->nome_do_produto,
+					'quantity' => (int) $item->quantity,
+					'sacolinha_unit_price' => (float) $item->sacolinha_unit_price,
+					'item_unit_price' => (float) $item->item_unit_price,
+					'obs' => $item->obs,
+					'add_at' => $item->add_at,
+					'sacolinha_status' => $item->sacolinha_status,
+					'item_status' => $item->item_status,
+					'pedido' => $item->pedido,
+					'subtotal' => ((float) $item->sacolinha_unit_price) * ((int) $item->quantity)
+				];
+			});
+
+			return response()->json(
+				[
+					'message' => 'Itens da sacolinha recuperados com sucesso.',
+					'data' => $formattedItems->values(),
+					'total' => $formattedItems->count()
+				], 
+				200
+			);
+
+		} catch (\Exception $e) {
+			Log::error("Erro ao consultar sacolinha para userId {$userId}: " . $e->getMessage());
+			Log::error("Stack: " . $e->getTraceAsString());
+			
+			return response()->json(
+				['message' => 'Erro interno: ' . $e->getMessage()], 
+				500
+			);
+		}
+	}	
+	
+	
+    /**
+     * Adiciona um novo item à sacolinha do cliente ou atualiza a quantidade se já existir.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function adicionarItemSacola(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'item_id' => 'required|exists:items,id',
+                'quantity' => 'required|integer|min:1',
+                'live_id' => 'nullable|exists:lives,id', // Assumindo que a tabela 'lives' existe
+                'obs' => 'nullable|string',
+                'tray' => 'nullable|integer',
+                'status' => 'nullable|string', // Ex: 'pendente', 'reservado'
+				'price' => 'nullable|numeric|min:0',  
+            ]);
+
+            $user = User::find($validated['user_id']);
+            $item = Item::find($validated['item_id']);
+
+            if (!$user) {
+                return response()->json(['message' => 'Cliente não encontrado.'], 404);
+            }
+            if (!$item) {
+                return response()->json(['message' => 'Item não encontrado.'], 404);
+            }
+            // Verifica se o item está disponível para ser adicionado
+            if ($item->status !== 'disponivel') {
+                return response()->json(['message' => 'Item não está disponível para adição na sacolinha.'], 400);
+            }
+
+            // Tenta encontrar o item na sacolinha do usuário
+            $sacolinhaItem = Sacolinhas::where('user_id', $validated['user_id'])
+                                      ->where('item_id', $validated['item_id'])
+                                      ->first();
+
+            if ($sacolinhaItem) {
+                // Se o item já existe, atualiza a quantidade
+                $sacolinhaItem->quantity += $validated['quantity'];
+                $sacolinhaItem->obs = $validated['obs'] ?? $sacolinhaItem->obs; // Atualiza observação se fornecida
+                $sacolinhaItem->save();
+                $message = 'Quantidade do item na sacolinha atualizada com sucesso.';
+            } else {
+                // Se o item não existe, cria um novo registro na sacolinha
+                $sacolinhaItem = Sacolinhas::create([
+                    'user_id' => $validated['user_id'],
+                    'item_id' => $validated['item_id'],
+                    'live_id' => $validated['live_id'] ?? null,
+                    'quantity' => $validated['quantity'],
+                    //'price' => $item->preco, // Armazena o preço atual do item no momento da adição
+					'price' => $validated['price'] ?? $item->preco, 
+                    'add_at' => now(),
+                    'tray' => $validated['tray'] ?? null,
+                    'status' => $validated['status'] ?? 'pendente', // Status padrão para item na sacolinha
+                    'obs' => $validated['obs'] ?? null,
+                ]);
+                $message = 'Item adicionado à sacolinha com sucesso.';
+            }
+
+            // Carrega o relacionamento com o item para retornar dados completos
+            return response()->json(['message' => $message, 'data' => $sacolinhaItem->load('item')], 201);
+
+        } catch (ValidationException $e) {
+            Log::warning("Erro de validação ao adicionar item à sacolinha: " . $e->getMessage(), ['errors' => $e->errors()]);
+            return response()->json(['message' => 'Dados de entrada inválidos.', 'errors' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            Log::error("Erro interno do servidor ao adicionar item à sacolinha: " . $e->getMessage());
+            return response()->json(['message' => 'Erro interno do servidor ao adicionar item à sacolinha.'], 500);
+        }
+    }
+
+    /**
+     * Remove um item específico da sacolinha.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function removerItemSacola(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'sacolinha_id' => 'required|exists:sacolinhas,id', // ID do registro na tabela 'sacolinhas'
+            ]);
+
+            $sacolinhaItem = Sacolinhas::find($validated['sacolinha_id']);
+
+            if (!$sacolinhaItem) {
+                return response()->json(['message' => 'Item na sacolinha não encontrado.'], 404);
+            }
+
+            $sacolinhaItem->delete();
+
+            return response()->json(['message' => 'Item removido da sacolinha com sucesso.'], 200);
+
+        } catch (ValidationException $e) {
+            Log::warning("Erro de validação ao remover item da sacolinha: " . $e->getMessage(), ['errors' => $e->errors()]);
+            return response()->json(['message' => 'Dados de entrada inválidos.', 'errors' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            Log::error("Erro interno do servidor ao remover item da sacolinha: " . $e->getMessage());
+            return response()->json(['message' => 'Erro interno do servidor ao remover item da sacolinha.'], 500);
+        }
+    }
+
+    /**
+     * Retorna o total de itens e o valor total da sacola de um cliente.
+     *
+     * @param int $userId O ID do cliente.
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obterTotalSacola(int $userId)
+    {
+        try {
+            // Verifica se o cliente existe
+            if (!User::find($userId)) {
+                return response()->json(['message' => 'Cliente não encontrado.'], 404);
+            }
+
+            $sacolinhaItems = Sacolinhas::where('user_id', $userId)->get();
+
+            $totalItems = $sacolinhaItems->sum('quantity');
+            $valorTotal = $sacolinhaItems->sum(function ($item) {
+                return $item->quantity * $item->price;
+            });
+
+            return response()->json([
+                'message' => 'Totais da sacolinha recuperados com sucesso.',
+                'data' => [
+                    'total_itens' => $totalItems,
+                    'valor_total' => number_format($valorTotal, 2, '.', ''), // Formata para 2 casas decimais
+                ]
+            ], 200);
+
+        } catch (ModelNotFoundException $e) {
+            Log::error("Erro ao obter totais da sacolinha para o usuário {$userId}: Cliente não encontrado. " . $e->getMessage());
+            return response()->json(['message' => 'Cliente não encontrado.'], 404);
+        } catch (\Exception $e) {
+            Log::error("Erro interno do servidor ao obter totais da sacolinha para o usuário {$userId}: " . $e->getMessage());
+            return response()->json(['message' => 'Erro interno do servidor ao obter totais da sacolinha.'], 500);
+        }
+    }
+
+    /**
+     * Atualiza a quantidade de um item específico na sacolinha.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function atualizarQuantidadeItem(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'sacolinha_id' => 'required|exists:sacolinhas,id', // ID do registro na tabela 'sacolinhas'
+                'quantity' => 'required|integer|min:1',
+            ]);
+
+            $sacolinhaItem = Sacolinhas::find($validated['sacolinha_id']);
+
+            if (!$sacolinhaItem) {
+                return response()->json(['message' => 'Item na sacolinha não encontrado.'], 404);
+            }
+
+            $sacolinhaItem->quantity = $validated['quantity'];
+            $sacolinhaItem->save();
+
+            // Carrega o relacionamento com o item para retornar dados completos
+            return response()->json(['message' => 'Quantidade do item na sacolinha atualizada com sucesso.', 'data' => $sacolinhaItem->load('item')], 200);
+
+        } catch (ValidationException $e) {
+            Log::warning("Erro de validação ao atualizar quantidade do item na sacolinha: " . $e->getMessage(), ['errors' => $e->errors()]);
+            return response()->json(['message' => 'Dados de entrada inválidos.', 'errors' => $e->errors()], 400);
+        } catch (\Exception $e) {
+            Log::error("Erro interno do servidor ao atualizar quantidade do item na sacolinha: " . $e->getMessage());
+            return response()->json(['message' => 'Erro interno do servidor ao atualizar quantidade do item na sacolinha.'], 500);
+        }
+    }
 	
 }

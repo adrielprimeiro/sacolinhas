@@ -83,101 +83,131 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <div class="sidebar-brand">
-                        <i class="fas fa-store"></i> Admin
-                    </div>
-                    <hr class="text-white-50">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
-                               href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                        
-                        <!-- NOVA SEÇÃO DE CLIENTES -->
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('clientes.*') ? 'active' : '' }}" 
-                               href="{{ route('clientes.index') }}">
-                                <i class="fas fa-users"></i> Clientes
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('items.*') ? 'active' : '' }}" 
-                               href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-						
+			<div class="col-md-2 sidebar text-white p-0">
+				<div class="p-3">
+					<div class="sidebar-brand">
+						<i class="fas fa-store"></i> Admin
+					</div>
+					<hr class="text-white-50">
+					<ul class="nav flex-column">
 						<li class="nav-item">
-							<a class="nav-link text-white {{ request()->routeIs('inventario') ? 'active' : '' }}" 
-							   href="{{ route('inventario') }}">
-								<i class="fas fa-clipboard-list"></i> Inventário
+							<a class="nav-link text-white {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
+							   href="{{ route('dashboard') }}">
+								<i class="fas fa-home"></i> Dashboard
 							</a>
-						</li>						
-                        
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('bags.*') ? 'active' : '' }}" 
-                               href="{{ route('bags.index') }}">
-                                <i class="fas fa-broadcast-tower"></i> Live
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.sacolinhas.index') }}">
-                                <i class="fas fa-shopping-bag"></i> Sacolas
-                            </a>
-                        </li>
-                        
-                        <!-- SEPARADOR -->
-                        <hr class="text-white-50 my-3">
-                        
-                        <!-- SEÇÃO DE RELATÓRIOS (OPCIONAL) -->
-                        <li class="nav-item">
-                            <a class="nav-link text-white-50 small" href="#" data-bs-toggle="collapse" data-bs-target="#relatoriosMenu">
-                                <i class="fas fa-chart-bar"></i> Relatórios
-                                <i class="fas fa-chevron-down float-end mt-1"></i>
-                            </a>
-                            <div class="collapse" id="relatoriosMenu">
-                                <ul class="nav flex-column ms-3">
-                                    <li class="nav-item">
-                                        <a class="nav-link text-white-75 small" 
-                                           href="{{ route('admin.clientes.relatorios') ?? '#' }}">
-                                            <i class="fas fa-user-chart"></i> Clientes
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link text-white-75 small" href="#">
-                                            <i class="fas fa-shopping-chart"></i> Vendas
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
-                        </li>
-                        
-                        <!-- CONFIGURAÇÕES -->
-                        <li class="nav-item mt-3">
-                            <a class="nav-link text-white-50 small" href="#">
-                                <i class="fas fa-cog"></i> Configurações
-                            </a>
-                        </li>
-                        
-                        <!-- LOGOUT -->
-                        <li class="nav-item">
-                            <form method="POST" action="{{ route('logout') }}" class="d-inline">
-                                @csrf
-                                <button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
-                                    <i class="fas fa-sign-out-alt"></i> Sair
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+						</li>
+						
+						<!-- SEÇÃO DE CLIENTES -->
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('clientes.*') ? 'active' : '' }}" 
+							   href="{{ route('clientes.index') }}">
+								<i class="fas fa-users"></i> Clientes
+							</a>
+						</li>
+						
+						<!-- ✅ ITENS COM SUBMENU (Inventário) -->
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('items.*', 'inventario') ? 'active' : '' }}" 
+							   href="#" data-bs-toggle="collapse" data-bs-target="#itensMenu">
+								<i class="fas fa-box"></i> Itens
+								<i class="fas fa-chevron-down float-end mt-1"></i>
+							</a>
+							<div class="collapse {{ request()->routeIs('items.*', 'inventario') ? 'show' : '' }}" id="itensMenu">
+								<ul class="nav flex-column ms-3">
+									<li class="nav-item">
+										<a class="nav-link text-white {{ request()->routeIs('items.*') ? 'active' : '' }}" 
+										   href="{{ route('items.index') }}">
+											<i class="fas fa-list"></i> Lista de Itens
+										</a>
+									</li>
+									<li class="nav-item">
+										<a class="nav-link text-white {{ request()->routeIs('inventario') ? 'active' : '' }}" 
+										   href="{{ route('inventario') }}">
+											<i class="fas fa-clipboard-list"></i> Inventário
+										</a>
+									</li>
+								</ul>
+							</div>
+						</li>
+						
+						<!-- LIVE -->
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('bags.*') ? 'active' : '' }}" 
+							   href="{{ route('bags.index') }}">
+								<i class="fas fa-broadcast-tower"></i> Live
+							</a>
+						</li>
+						
+						<!-- ✅ SACOLAS COM SUBMENU (Da Live / Por Cliente) -->
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*') ? 'active' : '' }}" 
+							   href="#" data-bs-toggle="collapse" data-bs-target="#sacolinhasMenu">
+								<i class="fas fa-shopping-bag"></i> Sacolas
+								<i class="fas fa-chevron-down float-end mt-1"></i>
+							</a>
+							<div class="collapse {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*') ? 'show' : '' }}" id="sacolinhasMenu">
+								<ul class="nav flex-column ms-3">
+									<li class="nav-item">
+										<a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.*') ? 'active' : '' }}" 
+										   href="{{ route('admin.sacolinhas.index') }}">
+											<i class="fas fa-broadcast-tower"></i> Da Live
+										</a>
+									</li>
+									<li class="nav-item">
+										<a class="nav-link text-white {{ request()->routeIs('sacolinhas.cliente') ? 'active' : '' }}" 
+										   href="{{ route('sacolinhas.consultar') }}">
+											<i class="fas fa-user"></i> Por Cliente
+										</a>
+									</li>
+								</ul>
+							</div>
+						</li>
+						
+						<!-- SEPARADOR -->
+						<hr class="text-white-50 my-3">
+						
+						<!-- SEÇÃO DE RELATÓRIOS -->
+						<li class="nav-item">
+							<a class="nav-link text-white-50 small" href="#" data-bs-toggle="collapse" data-bs-target="#relatoriosMenu">
+								<i class="fas fa-chart-bar"></i> Relatórios
+								<i class="fas fa-chevron-down float-end mt-1"></i>
+							</a>
+							<div class="collapse" id="relatoriosMenu">
+								<ul class="nav flex-column ms-3">
+									<li class="nav-item">
+										<a class="nav-link text-white-75 small" 
+										   href="{{ route('admin.clientes.relatorios') ?? '#' }}">
+											<i class="fas fa-user-chart"></i> Clientes
+										</a>
+									</li>
+									<li class="nav-item">
+										<a class="nav-link text-white-75 small" href="#">
+											<i class="fas fa-shopping-chart"></i> Vendas
+										</a>
+									</li>
+								</ul>
+							</div>
+						</li>
+						
+						<!-- CONFIGURAÇÕES -->
+						<li class="nav-item mt-3">
+							<a class="nav-link text-white-50 small" href="#">
+								<i class="fas fa-cog"></i> Configurações
+							</a>
+						</li>
+						
+						<!-- LOGOUT -->
+						<li class="nav-item">
+							<form method="POST" action="{{ route('logout') }}" class="d-inline">
+								@csrf
+								<button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
+									<i class="fas fa-sign-out-alt"></i> Sair
+								</button>
+							</form>
+						</li>
+					</ul>
+				</div>
+			</div>
             
             <!-- Main Content -->
             <div class="col-md-10 p-4">
