@@ -22,7 +22,25 @@ yarn-error.log
 Thumbs.db
 
 # Logs
+storage/logs/
+storage/framework/views/
+
+# Logs
 *.log
+
+# Path encoding errors (não adicionar)
+public/C*
+C*
+
+# Commands (não adicionar ao git)
+sudo
+tail
+
+# Cache
+storage/framework/cache/
+
+# Info files
+public/info.php
 
 # Arquivos temporários
 $*

@@ -9,6 +9,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\SacolinhaController;
 use App\Http\Controllers\LiveController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\PedidoController;
 
 
 // ===== ROTAS DE AUTENTICAÇÃO =====
@@ -226,3 +227,10 @@ Route::prefix('api')->middleware('auth')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/sacolinhas/consultar', [SacolinhaController::class, 'consultarView'])->name('sacolinhas.consultar');
 });
+// ✅ Rotas para pedidos
+Route::get('/pedidos', [App\Http\Controllers\PedidoController::class, 'index'])->name('pedidos.index');
+Route::get('/pedidos/buscar-clientes', [App\Http\Controllers\PedidoController::class, 'buscarClientes']);
+Route::get('/pedidos/itens-sacolinha', [App\Http\Controllers\PedidoController::class, 'itensSacolinha']);
+Route::post('/pedidos/mover-para-pedido', [App\Http\Controllers\PedidoController::class, 'moverParaPedido']);
+Route::post('/pedidos/criar-pedido', [App\Http\Controllers\PedidoController::class, 'criarPedido']);
+Route::post('/pedidos/devolver-para-sacolinha', [App\Http\Controllers\PedidoController::class, 'devolverParaSacolinha']);

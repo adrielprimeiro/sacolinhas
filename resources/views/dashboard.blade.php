@@ -104,7 +104,13 @@
 								<i class="fas fa-users"></i> Clientes
 							</a>
 						</li>
-						
+						<!-- SEÇÃO DE PEDIDOS -->
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('pedidos.*') ? 'active' : '' }}" 
+							   href="{{ route('pedidos.index') }}">
+								<i class="fas fa-file-invoice"></i> Pedidos
+							</a>
+						</li>						
 						<!-- ✅ ITENS COM SUBMENU (Inventário) -->
 						<li class="nav-item">
 							<a class="nav-link text-white {{ request()->routeIs('items.*', 'inventario') ? 'active' : '' }}" 

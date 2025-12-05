@@ -853,5 +853,9 @@ class SacolinhaController extends Controller
             return response()->json(['message' => 'Erro interno do servidor ao atualizar quantidade do item na sacolinha.'], 500);
         }
     }
-	
+//-----------------------------------------------------------------------------------------------------------
+	public function pedidoView()
+		{
+			return view('admin.pedido.index');
+		}	
 }
