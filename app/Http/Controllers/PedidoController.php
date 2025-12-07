@@ -60,6 +60,11 @@ class PedidoController extends Controller
                     'items.codigo',
                     'items.nome_do_produto',
                     'items.preco',
+					'items.marca',           
+					'items.modelo',          
+					'items.estado',          
+					'items.cor',             
+					'items.tamanho',         			
                     'sacolinhas.price',
                     'sacolinhas.quantity',
                     'sacolinhas.add_at',
@@ -92,6 +97,10 @@ class PedidoController extends Controller
                         'codigo',
                         'nome_do_produto',
                         'preco',
+						'marca',
+						'estado',    
+						'cor',     
+						'tamanho',						
                         'status',
                         'created_at'
                     ])
@@ -129,60 +138,79 @@ class PedidoController extends Controller
     }
 
     // ✅ Mover item da sacolinha para o pedido
-    public function moverParaPedido(Request $request)
-    {
-        $sacolaId = $request->get('sacola_id');
-        $pedidoNumero = $request->get('pedido_numero');
-        $userId = $request->get('user_id');
 
-        if (!$sacolaId || !$pedidoNumero || !$userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados obrigatórios faltando'
-            ]);
-        }
+	public function moverParaPedido(Request $request)
+	{
+		$sacolaId = $request->get('sacola_id');
+		$pedidoNumero = $request->get('pedido_numero');
+		$userId = $request->get('user_id');
 
-        try {
-            DB::beginTransaction();
+		if (!$sacolaId || !$pedidoNumero) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Dados obrigatórios faltando'
+			]);
+		}
 
-            // ✅ Buscar item da sacolinha
-            $sacolaItem = DB::table('sacolinhas')
-                ->join('items', 'sacolinhas.item_id', '=', 'items.id')
-                ->where('sacolinhas.id', $sacolaId)
-                ->select('items.id as item_id', 'sacolinhas.price')
-                ->first();
+		try {
+			DB::beginTransaction();
 
-            if (!$sacolaItem) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item não encontrado'
-                ]);
-            }
+			// ✅ Buscar a sacolinha com o preço correto
+			$sacolinha = DB::table('sacolinhas')
+				->where('id', $sacolaId)
+				->where('user_id', $userId)
+				->first();
 
-            // ✅ Atualizar items.pedido = numero_pedido
-            DB::table('items')
-                ->where('id', $sacolaItem->item_id)
-                ->update(['pedido' => $pedidoNumero]);
+			if (!$sacolinha) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Item da sacolinha não encontrado'
+				]);
+			}
 
-            // ✅ Remover da sacolinha
-            DB::table('sacolinhas')->where('id', $sacolaId)->delete();
+			// ✅ Buscar o item
+			$item = DB::table('items')
+				->where('id', $sacolinha->item_id)
+				->first();
 
-            DB::commit();
+			if (!$item) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Item não encontrado'
+				]);
+			}
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Item movido para o pedido'
-            ]);
+			// ✅ Atualizar o item com o preço da SACOLINHA, não do items.preco
+			DB::table('items')
+				->where('id', $item->id)
+				->update([
+					'pedido' => $pedidoNumero,
+					'preco' => $sacolinha->price,  // ✅ Usar price da sacolinha
+					'status' => 'no_pedido',
+					'updated_at' => now()
+				]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Erro ao mover item: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao mover item'
-            ]);
-        }
-    }
+			// ✅ Deletar da sacolinha
+			DB::table('sacolinhas')
+				->where('id', $sacolaId)
+				->delete();
+
+			DB::commit();
+
+			return response()->json([
+				'success' => true,
+				'message' => 'Item movido para o pedido com sucesso'
+			]);
+
+		} catch (\Exception $e) {
+			DB::rollBack();
+			\Log::error('Erro ao mover para pedido: ' . $e->getMessage());
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro ao mover item: ' . $e->getMessage()
+			], 500);
+		}
+	}    
 
     // ✅ Devolver item do pedido para sacolinha
     public function devolverParaSacolinha(Request $request)
@@ -310,4 +338,30 @@ class PedidoController extends Controller
             ]);
         }
     }
+		
+	public function dadosCliente($clienteId)
+	{
+		try {
+			$sacolinha = DB::table('sacolinhas')
+				->join('items', 'sacolinhas.item_id', '=', 'items.id')
+				->where('sacolinhas.user_id', $clienteId)
+				->select(
+					'sacolinhas.id',
+					'sacolinhas.price',
+					'sacolinhas.created_at',
+					'items.nome as produto_nome'
+				)
+				->get();
+
+			return response()->json([
+				'sacolinha' => $sacolinha
+			]);
+
+		} catch (\Exception $e) {
+			\Log::error('Erro ao buscar dados: ' . $e->getMessage());
+			return response()->json([], 500);
+		}
+	}	
+	
+	
 }

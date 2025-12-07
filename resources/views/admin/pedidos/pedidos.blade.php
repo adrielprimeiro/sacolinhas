@@ -431,9 +431,6 @@
                                         <th>Código</th>
                                         <th>Produto</th>
                                         <th>Preço</th>
-                                        <th>Qtd</th>
-                                        <th>Subtotal</th>
-                                        <th>Status</th>
                                         <th>Data</th>
                                     </tr>
                                 </thead>
@@ -474,8 +471,6 @@
                                         <th>Código</th>
                                         <th>Produto</th>
                                         <th>Preço</th>
-                                        <th>Status</th>
-                                        <th>Data</th>
                                     </tr>
                                 </thead>
                                 <tbody id="itens-pedido-tbody">
@@ -608,6 +603,7 @@
         });
 
         function carregarDados(userId) {
+			console.log('🔍 carregarDados chamada com userId:', userId);  // ← Adicione isto
             $('#loading').show();
             $('#tabelas-container').hide();
 
@@ -615,6 +611,7 @@
                 url: '/pedidos/itens-sacolinha',
                 data: { user_id: userId },
                 success: function(response) {
+					 console.log('✅ Resposta da API:', response);  
                     if (response.success) {
                         pedidoAtual = {
                             id: response.pedido_id,
@@ -647,85 +644,112 @@
             });
         }
 
-        function preencherSacolinha(itens) {
-            const tbody = $('#itens-sacolinha-tbody');
-            tbody.empty();
+		function preencherSacolinha(itens) {
+			const tbody = $('#itens-sacolinha-tbody');
+			tbody.empty();
 
-            if (!itens.length) {
-                tbody.html('<tr><td colspan="7" class="text-center py-4">Nenhum item na sacolinha</td></tr>');
-                return;
-            }
+			if (!itens || itens.length === 0) {
+				tbody.html('<tr><td colspan="4" class="text-center">Nenhum item na sacolinha</td></tr>');
+				return;
+			}
 
-            itens.forEach(item => {
-                const data = new Date(item.add_at).toLocaleDateString('pt-BR');
-                const subtotal = (item.price * item.quantity).toFixed(2);
-                
-                tbody.append(`
-                    <tr class="item-row" data-sacola-id="${item.sacola_id}" data-item-id="${item.item_id}">
-                        <td><strong>${item.codigo}</strong></td>
-                        <td>${item.nome_do_produto}</td>
-                        <td>R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')}</td>
-                        <td class="text-center">${item.quantity}</td>
-                        <td><strong>R$ ${subtotal.replace('.', ',')}</strong></td>
-                        <td><span class="badge bg-secondary">${item.status}</span></td>
-                        <td>${data}</td>
-                    </tr>
-                `);
-            });
-        }
+			itens.forEach(item => {
+				const codigo = item.codigo || 'N/A';
+				const nome = item.nome_do_produto || 'N/A';
+				const preco = parseFloat(item.price).toFixed(2);
+				const data = new Date(item.add_at).toLocaleDateString('pt-BR');
 
-        function preencherPedido(itens, numeroPedido) {
-            const tbody = $('#itens-pedido-tbody');
-            tbody.empty();
+				// ✅ Detalhes em cinza
+				let detalhes = [];
+				if (item.marca) detalhes.push(`${item.marca}`);
+				if (item.estado) detalhes.push(`${item.estado}`);
+				if (item.cor) detalhes.push(`${item.cor}`);
+				if (item.tamanho) detalhes.push(`Tam: ${item.tamanho}`);
 
-            $('#pedido-numero-info').text(`Pedido: ${numeroPedido}`);
+				const detalhesHtml = detalhes.length > 0 
+					? `<small style="color: #999; display: block; margin-top: 4px;">${detalhes.join(' • ')}</small>`
+					: '';
 
-            if (!itens.length) {
-                tbody.html('<tr><td colspan="5" class="text-center py-4">Nenhum item no pedido ainda</td></tr>');
-                $('#pedido-total-itens').text('0');
-                $('#pedido-valor-total').text('0,00');
-                return;
-            }
+				tbody.append(`
+					<tr class="item-row" data-sacola-id="${item.sacola_id}" style="cursor: pointer;">
+						<td>${codigo}</td>
+						<td>
+							<strong>${nome}</strong>
+							${detalhesHtml}
+						</td>
+						<td>R$ ${preco}</td>
+						<td>${data}</td>
+					</tr>
+				`);
+			});
+		}
 
-            let totalItens = 0;
-            let valorTotal = 0;
-            itens.forEach(item => {
-                const data = new Date(item.created_at).toLocaleDateString('pt-BR');
-                totalItens++;
-                const preco = parseFloat(item.preco);
-                valorTotal += preco;
-                
-                tbody.append(`
-                    <tr class="item-pedido-row" data-item-id="${item.item_id}">
-                        <td><strong>${item.codigo}</strong></td>
-                        <td>${item.nome_do_produto}</td>
-                        <td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
-                        <td><span class="badge bg-info">${item.status}</span></td>
-                        <td>${data}</td>
-                    </tr>
-                `);
-            });
+		function preencherPedido(itens, numeroPedido) {
+			const tbody = $('#itens-pedido-tbody');
+			tbody.empty();
 
-            $('#pedido-total-itens').text(totalItens);
-            $('#pedido-valor-total').text(valorTotal.toFixed(2).replace('.', ','));
-        }
+			$('#pedido-numero-info').text(`Pedido: ${numeroPedido}`);
 
-        function atualizarResumoSacolinha(resumo) {
-            $('#sacolinha-total-itens').text(resumo.total_itens);
-            $('#sacolinha-valor-total').text(resumo.valor_total);
-        }
+			if (!itens.length) {
+				tbody.html('<tr><td colspan="4" class="text-center py-4">Nenhum item no pedido ainda</td></tr>');
+				$('#pedido-total-itens').text('0');
+				$('#pedido-valor-total').text('0,00');
+				return;
+			}
+
+			let totalItens = 0;
+			let valorTotal = 0;
+			
+			itens.forEach(item => {
+				const data = new Date(item.created_at).toLocaleDateString('pt-BR');
+				totalItens++;
+				const preco = parseFloat(item.preco);
+				valorTotal += preco;
+				
+				// ✅ Detalhes em cinza
+				let detalhes = [];
+				if (item.marca) detalhes.push(`${item.marca}`);
+				if (item.estado) detalhes.push(`${item.estado}`);
+				if (item.cor) detalhes.push(`${item.cor}`);
+				if (item.tamanho) detalhes.push(`Tam: ${item.tamanho}`);
+
+				const detalhesHtml = detalhes.length > 0 
+					? `<small style="color: #999; display: block; margin-top: 4px;">${detalhes.join(' • ')}</small>`
+					: '';
+				
+				tbody.append(`
+					<tr class="item-pedido-row" data-item-id="${item.item_id}" style="cursor: pointer;">
+						<td><strong>${item.codigo}</strong></td>
+						<td>
+							<strong>${item.nome_do_produto}</strong>
+							${detalhesHtml}
+						</td>
+						<td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
+					</tr>
+				`);
+			});
+
+			$('#pedido-total-itens').text(totalItens);
+			$('#pedido-valor-total').text(valorTotal.toFixed(2).replace('.', ','));
+		}
+
+		function atualizarResumoSacolinha(resumo) {
+			console.log('📊 Resumo:', resumo);
+			$('#sacolinha-total-itens').text(resumo.total_itens || '0');
+			$('#sacolinha-valor-total').text(resumo.valor_total || '0,00');
+		}
 
         // ✅ Clicar em item da sacolinha para mover
-        $(document).on('click', '.item-row', function() {
-            const sacolaId = $(this).data('sacola-id');
-            
-            if (!pedidoAtual || !pedidoAtual.numero) {
-                alert('Crie um pedido primeiro!');
-                return;
-            }
+		$(document).on('click', '.item-row', function() {
+			const sacolaId = $(this).data('sacola-id');
+			
+			if (!pedidoAtual || !pedidoAtual.numero) {
+				alert('Crie um pedido primeiro!');
+				return;
+			}
 
-            moverParaPedido(sacolaId);
-        });
+			moverParaPedido(sacolaId);
+		});
 
         function moverParaPedido(sacolaId) {
             $.ajax({
