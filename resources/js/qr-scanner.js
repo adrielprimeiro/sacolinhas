@@ -1,363 +1,219 @@
-// ===== SCANNER QR FUNCIONAL - qr-scanner.js =====
+// resources/js/qr-scanner.js
 
-console.log('🚀 qr-scanner.js carregado');
+import { BrowserQRCodeReader } from '@zxing/library';
 
-class QRScannerManager {
+class QRScanner {
     constructor() {
-        this.html5QrCode = null;
-        this.isScanning = false;
-        this.modal = null;
-        this.scanHistory = [];
-        
-        // Aguardar DOM
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        } else {
-            this.init();
-        }
+        this.codeReader = new BrowserQRCodeReader();
+        this.scanning = false;
+        this.videoElementId = 'video-scanner'; // ID do elemento <video> no HTML
+        this.searchFieldId = 'search'; // ID do campo de busca
+        this.searchFormId = 'search-form'; // ID do formulário de busca
+        this.csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     }
-    
-    init() {
-        console.log('🔧 Inicializando QR Scanner Manager...');
-        
-        // Verificar se elementos existem
-        this.elements = {
-            scanBtn: document.getElementById('qrScanBtn'),
-            modal: document.getElementById('qrModal'),
-            searchInput: document.getElementById('searchInput'),
-            qrReader: document.getElementById('qr-reader'),
-            qrResult: document.getElementById('qr-result'),
-            startBtn: document.getElementById('startScanBtn'),
-            stopBtn: document.getElementById('stopScanBtn'),
-            uploadBtn: document.getElementById('uploadImageBtn'),
-            continuousToggle: document.getElementById('continuousScanToggle'),
-            scanStats: document.getElementById('scan-stats'),
-            scanHistory: document.getElementById('scan-history'),
-            clearHistoryBtn: document.getElementById('clearHistoryBtn')
-        };
- 
-		if (!this.elements.scanBtn || !this.elements.modal || !this.elements.qrReader){
-        // Verificar se elementos principais existem
-            console.warn('⚠️ Elementos do scanner não encontrados');
-            return;
-        }
-        
-        // Inicializar Bootstrap Modal
-        this.modal = new bootstrap.Modal(this.elements.modal);
-        
-        // Setup Event Listeners
-        this.setupEventListeners();
-        
-        // Inicializar UI
-        this.updateStats();
-        this.updateHistory();
-        
-        console.log('✅ QR Scanner Manager inicializado com sucesso!');
-    }
-    
-    setupEventListeners() {
-        // Botão principal de scanner
-        this.elements.scanBtn?.addEventListener('click', () => {
-            console.log('📷 Abrindo modal do scanner...');
-            this.openModal();
-        });
-        
-        // Controles do modal
-        this.elements.startBtn?.addEventListener('click', () => this.startScanning());
-        this.elements.stopBtn?.addEventListener('click', () => this.stopScanning());
-        this.elements.uploadBtn?.addEventListener('click', () => this.uploadImage());
-        this.elements.clearHistoryBtn?.addEventListener('click', () => this.clearHistory());
-        
-        // Fechar modal - parar scanner
-        this.elements.modal?.addEventListener('hidden.bs.modal', () => {
-            this.stopScanning();
-        });
-        
-        // Enter no input de busca
-        this.elements.searchInput?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.performSearch();
-            }
-        });
-    }
-    
-    openModal() {
-        this.modal.show();
-        this.showPlaceholder();
-        this.updateUI();
-    }
-    
-    showPlaceholder() {
-        if (this.elements.qrReader) {
-            this.elements.qrReader.innerHTML = `
-                <div class="d-flex align-items-center justify-content-center h-100 p-4" style="min-height: 400px;">
-                    <div class="text-muted text-center">
-                        <i class="fas fa-camera fa-4x mb-3" style="color: #667eea;"></i>
-                        <h6>Scanner Multi-formato Pronto</h6>
-                        <small>QR Code • EAN-13 • EAN-8 • Code-128 • Code-39</small>
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-primary" onclick="qrScanner.startScanning()">
-                                <i class="fas fa-play"></i> Iniciar Scanner
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
+
+    /**
+     * Inicia o processo de escaneamento do QR Code.
+     * Seleciona a câmera traseira automaticamente.
+     */
     async startScanning() {
-        try {
-            console.log('▶️ Iniciando escaneamento...');
-            
-            this.showResult('info', '<i class="fas fa-spinner fa-spin"></i> Iniciando câmera...');
-            
-            // Limpar container do reader
-            if (this.elements.qrReader) {
-                this.elements.qrReader.innerHTML = '';
-            }
-            
-            // Configuração do scanner
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                showTorchButtonIfSupported: true,
-                showZoomSliderIfSupported: true,
-                defaultZoomValueIfSupported: 2
-            };
-            
-            // Inicializar scanner
-            this.html5QrCode = new Html5Qrcode("qr-reader");
-            
-            await this.html5QrCode.start(
-                { facingMode: "environment" }, // Câmera traseira preferida
-                config,
-                (decodedText, decodedResult) => {
-                    this.onScanSuccess(decodedText, decodedResult);
-                },
-                (errorMessage) => {
-                    // Erro silencioso - normal durante escaneamento
-                }
-            );
-            
-            this.isScanning = true;
-            this.updateUI();
-            this.showResult('success', '<i class="fas fa-camera"></i> Scanner ativo! Aponte para um código...');
-            
-        } catch (error) {
-            console.error('❌ Erro ao iniciar scanner:', error);
-            
-            let errorMsg = 'Erro ao acessar câmera.';
-            if (error.message.includes('Permission')) {
-                errorMsg = 'Permissão de câmera negada. Verifique as configurações do navegador.';
-            } else if (error.message.includes('NotFoundError')) {
-                errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
-            }
-            
-            this.showResult('danger', `<i class="fas fa-exclamation-triangle"></i> ${errorMsg}`);
-            this.showPlaceholder();
-        }
-    }
-    
-    async stopScanning() {
-        if (this.html5QrCode && this.isScanning) {
-            try {
-                console.log('⏹️ Parando scanner...');
-                await this.html5QrCode.stop();
-                this.html5QrCode.clear();
-                this.isScanning = false;
-                console.log('✅ Scanner parado');
-                
-                this.showResult('info', '<i class="fas fa-info-circle"></i> Scanner parado.');
-                
-            } catch (error) {
-                console.error('❌ Erro ao parar scanner:', error);
-            }
-        }
-        
-        this.updateUI();
-        setTimeout(() => this.showPlaceholder(), 1000);
-    }
-    
-    onScanSuccess(decodedText, decodedResult) {
-        console.log('🎯 Código detectado:', decodedText);
-        
-        // Adicionar ao histórico
-        this.addToHistory(decodedText);
-        
-        // Preencher campo de busca
-        if (this.elements.searchInput) {
-            this.elements.searchInput.value = decodedText;
-        }
-        
-        // Mostrar resultado
-        this.showResult('success', `
-            <strong><i class="fas fa-check-circle"></i> Código Escaneado!</strong><br>
-            <code class="fs-6">${decodedText}</code><br>
-            <small class="text-muted">Campo de busca preenchido automaticamente</small>
-        `);
-        
-        // Parar scanner se não estiver em modo contínuo
-        if (!this.elements.continuousToggle?.checked) {
-            setTimeout(() => {
-                this.stopScanning();
-                // Fechar modal após 3 segundos
-                setTimeout(() => {
-                    this.modal.hide();
-                    // Focar no campo de busca
-                    this.elements.searchInput?.focus();
-                }, 3000);
-            }, 1500);
-        }
-        
-        this.updateStats();
-    }
-    
-    addToHistory(code) {
-        const timestamp = new Date().toLocaleTimeString('pt-BR');
-        this.scanHistory.unshift({
-            code: code,
-            timestamp: timestamp,
-            type: this.detectCodeType(code)
-        });
-        
-        // Limitar histórico a 10 itens
-        if (this.scanHistory.length > 10) {
-            this.scanHistory = this.scanHistory.slice(0, 10);
-        }
-        
-        this.updateHistory();
-    }
-    
-    detectCodeType(code) {
-        if (code.length === 13 && /^\d+$/.test(code)) return 'EAN-13';
-        if (code.length === 8 && /^\d+$/.test(code)) return 'EAN-8';
-        if (/^[A-Z0-9\-. $\/+%]+$/i.test(code)) return 'Code-128';
-        return 'QR Code';
-    }
-    
-    updateHistory() {
-        if (!this.elements.scanHistory) return;
-        
-        if (this.scanHistory.length === 0) {
-            this.elements.scanHistory.innerHTML = `
-                <div class="text-muted text-center">
-                    <i class="fas fa-history"></i><br>
-                    <small>Nenhum scan ainda</small>
-                </div>
-            `;
+        if (this.scanning) {
+            console.warn("Scanner já está ativo.");
             return;
         }
-        
-        const historyHtml = this.scanHistory.map(item => `
-            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                <div>
-                    <code class="small">${item.code.length > 15 ? item.code.substring(0, 15) + '...' : item.code}</code><br>
-                    <span class="badge bg-secondary">${item.type}</span>
-                </div>
-                <small class="text-muted">${item.timestamp}</small>
-            </div>
-        `).join('');
-        
-        this.elements.scanHistory.innerHTML = historyHtml;
-    }
-    
-    updateStats() {
-        if (!this.elements.scanStats) return;
-        
-        const totalScans = this.scanHistory.length;
-        const uniqueCodes = new Set(this.scanHistory.map(item => item.code)).size;
-        
-        this.elements.scanStats.innerHTML = `
-            <div class="row text-center">
-                <div class="col-6">
-                    <div class="h5 mb-0 text-primary">${totalScans}</div>
-                    <small class="text-muted">Total</small>
-                </div>
-                <div class="col-6">
-                    <div class="h5 mb-0 text-success">${uniqueCodes}</div>
-                    <small class="text-muted">Únicos</small>
-                </div>
-            </div>
-        `;
-    }
-    
-    clearHistory() {
-        this.scanHistory = [];
-        this.updateHistory();
-        this.updateStats();
-        this.showResult('info', '<i class="fas fa-trash"></i> Histórico limpo.');
-    }
-    
-    showResult(type, message) {
-        if (this.elements.qrResult) {
-            this.elements.qrResult.innerHTML = `
-                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
+
+        this.scanning = true;
+        this.clearFeedback(); // Limpa mensagens de feedback anteriores
+        this.showLoading('Iniciando câmera...');
+
+        try {
+            // Tenta encontrar a câmera traseira
+            const videoInputDevices = await this.codeReader.getVideoInputDevices();
+            const backCamera = videoInputDevices.find(device =>
+                device.label.toLowerCase().includes('back') ||
+                device.label.toLowerCase().includes('rear') ||
+                device.label.toLowerCase().includes('environment')
+            );
+
+            const selectedDeviceId = backCamera ? backCamera.deviceId : undefined;
+
+            // Inicia o scanner e decodifica uma vez
+            const result = await this.codeReader.decodeOnceFromVideoDevice(
+                selectedDeviceId,
+                this.videoElementId
+            );
+
+            // Se um resultado for obtido, processa
+            if (result) {
+                this.onScanSuccess(result.text);
+            } else {
+                this.onScanError(new Error("Nenhum QR Code detectado após iniciar."));
+            }
+
+        } catch (err) {
+            console.error('Erro ao iniciar scanner ou ler QR Code:', err);
+            this.onScanError(err);
+        } finally {
+            this.hideLoading();
         }
     }
-    
-    updateUI() {
-        // Atualizar estados dos botões
-        if (this.elements.startBtn) {
-            this.elements.startBtn.style.display = this.isScanning ? 'none' : 'inline-block';
+
+    /**
+     * Para o scanner e libera os recursos da câmera.
+     */
+    stopScanning() {
+        if (this.scanning) {
+            this.codeReader.reset();
+            this.scanning = false;
+            console.log("Scanner parado.");
         }
-        if (this.elements.stopBtn) {
-            this.elements.stopBtn.style.display = this.isScanning ? 'inline-block' : 'none';
-        }
+        this.clearFeedback();
     }
-    
-    uploadImage() {
-        // Criar input file temporário
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                try {
-                    this.showResult('info', '<i class="fas fa-spinner fa-spin"></i> Processando imagem...');
-                    
-                    const result = await Html5Qrcode.scanFile(file, true);
-                    this.onScanSuccess(result, null);
-                    
-                } catch (error) {
-                    console.error('Erro ao processar imagem:', error);
-                    this.showResult('warning', '<i class="fas fa-exclamation-triangle"></i> Nenhum código encontrado na imagem.');
+
+    /**
+     * Callback para quando um QR Code é lido com sucesso.
+     * @param {string} qrCodeData - O texto decodificado do QR Code.
+     */
+    onScanSuccess(qrCodeData) {
+        this.stopScanning(); // Para o scanner imediatamente
+        $('#qrModal').modal('hide'); // Fecha o modal
+
+        // Preenche o campo de busca
+        const searchInput = document.getElementById(this.searchFieldId);
+        if (searchInput) {
+            searchInput.value = qrCodeData;
+        }
+
+        this.showSuccess('QR Code lido: ' + qrCodeData);
+
+        // Dispara a busca AJAX
+        this.searchItem(qrCodeData);
+    }
+
+    /**
+     * Callback para quando ocorre um erro na leitura do QR Code ou na câmera.
+     * @param {Error} error - O objeto de erro.
+     */
+    onScanError(error) {
+        this.stopScanning(); // Garante que o scanner seja parado
+        this.showError('Erro ao ler QR Code ou acessar câmera. Por favor, tente novamente.');
+        console.error('Detalhes do erro:', error);
+    }
+
+    /**
+     * Realiza a busca do item via AJAX.
+     * @param {string} code - O código do QR Code a ser buscado.
+     */
+    async searchItem(code) {
+        this.showLoading('Buscando item...');
+        try {
+            const response = await fetch('/inventario/search-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': this.csrfToken
+                },
+                body: JSON.stringify({ search: code })
+            });
+
+            const data = await response.json();
+            this.hideLoading();
+
+            if (data.success) {
+                this.showSuccess('Item encontrado!');
+                // Redireciona para a página do item ou atualiza a interface
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    // Se não houver redirect, você pode atualizar uma lista, por exemplo
+                    console.log('Item encontrado:', data.item);
+                    // Exemplo: document.getElementById('item-details').innerHTML = `<h3>${data.item.nome}</h3>`;
                 }
+            } else {
+                this.showError(data.message || 'Item não encontrado.');
             }
-        };
-        
-        input.click();
+        } catch (error) {
+            this.hideLoading();
+            this.showError('Erro na comunicação com o servidor.');
+            console.error('Erro na busca AJAX:', error);
+        }
     }
-    
-    performSearch() {
-        const searchTerm = this.elements.searchInput?.value.trim();
-        if (searchTerm) {
-            console.log('🔍 Realizando busca por:', searchTerm);
-            // Aqui você pode implementar a lógica de busca
-            // Por exemplo, submeter o formulário ou fazer uma requisição AJAX
-            
-            // Se existe um formulário pai, submeter
-            const form = this.elements.searchInput?.closest('form');
-            if (form) {
-                form.submit();
-            }
+
+    /**
+     * Exibe uma mensagem de sucesso.
+     * @param {string} message
+     */
+    showSuccess(message) {
+        const feedbackDiv = document.getElementById('scanner-feedback');
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = `<div class="alert alert-success" role="alert">${message}</div>`;
+            feedbackDiv.style.display = 'block';
+        }
+        // Opcional: Usar uma biblioteca de notificações como Toastr
+        // toastr.success(message);
+    }
+
+    /**
+     * Exibe uma mensagem de erro.
+     * @param {string} message
+     */
+    showError(message) {
+        const feedbackDiv = document.getElementById('scanner-feedback');
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = `<div class="alert alert-danger" role="alert">${message}</div>`;
+            feedbackDiv.style.display = 'block';
+        }
+        // Opcional: Usar uma biblioteca de notificações como Toastr
+        // toastr.error(message);
+    }
+
+    /**
+     * Exibe uma mensagem de carregamento.
+     * @param {string} message
+     */
+    showLoading(message) {
+        const feedbackDiv = document.getElementById('scanner-feedback');
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = `<div class="alert alert-info" role="alert"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}</div>`;
+            feedbackDiv.style.display = 'block';
+        }
+    }
+
+    /**
+     * Limpa todas as mensagens de feedback.
+     */
+    clearFeedback() {
+        const feedbackDiv = document.getElementById('scanner-feedback');
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = '';
+            feedbackDiv.style.display = 'none';
         }
     }
 }
 
-// Instanciar o scanner globalmente
-let qrScanner;
+// Instancia o scanner
+const qrScanner = new QRScanner();
 
-// Inicializar quando script carregar
-console.log('📱 Preparando QR Scanner...');
-qrScanner = new QRScannerManager();
+// Adiciona event listeners para o modal Bootstrap
+document.addEventListener('DOMContentLoaded', () => {
+    // Botão para abrir o modal do scanner
+    const btnQrScanner = document.getElementById('btn-qr-scanner');
+    if (btnQrScanner) {
+        btnQrScanner.addEventListener('click', () => {
+            $('#qrModal').modal('show');
+        });
+    }
 
-// Export para uso global
-window.qrScanner = qrScanner;
+    // Inicia o scanner quando o modal é exibido
+    $('#qrModal').on('shown.bs.modal', () => {
+        qrScanner.startScanning();
+    });
+
+    // Para o scanner quando o modal é ocultado
+    $('#qrModal').on('hidden.bs.modal', () => {
+        qrScanner.stopScanning();
+    });
+});
+
+// Exporta para uso em outros módulos se necessário
+export default qrScanner;

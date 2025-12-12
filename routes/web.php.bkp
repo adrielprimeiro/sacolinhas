@@ -157,10 +157,7 @@ Route::middleware('auth')->group(function () {
              ->name("admin.items.update-status");
         Route::post("items/update-status", [ItemController::class, "updateStatusApi"])
              ->name("admin.items.update-status.api");
-
-        // Rota customizada para etiqueta de sacolinha (ID=0) - inserir aqui**
-        Route::get('items/etiqueta', [ItemController::class, 'etiqueta'])
-            ->name('admin.items.etiqueta');		
+		// Rota para atualizar status do item
  
 
         Route::resource('items', ItemController::class)->names([
@@ -224,9 +221,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/sacolinhas/remove', [SacolinhaController::class, 'removeItems'])->name('api.sacolinhas.remove');
 	});	
 	
-	//ROTAS DE IMPRESSÃO
-	Route::post('/pedidos/imprimir-sacolinha', [PedidoController::class, 'imprimirSacolinha'])->name('pedidos.imprimir.sacolinha');
-    Route::post('/pedidos/imprimir-pedido', [PedidoController::class, 'imprimirPedido'])->name('pedidos.imprimir.pedido');
 });
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');

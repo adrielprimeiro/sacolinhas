@@ -181,12 +181,14 @@ class SacolinhaController extends Controller
 				'u.id as user_id',
 				'u.name as user_name', 
 				'u.email as user_email',
+				'u.instagram as user_instagram', // ✨ NOVO
+				'u.tiktok as user_tiktok',       // ✨ NOVO
 				'i.id as item_id',
 				'i.nome_do_produto as item_name',
-				'i.codigo as item_sku',        // CORRIGIDO: 'codigo' em vez de 'sku'
-				'i.marca as item_brand',       // CORRETO
-				'i.cor as item_color',         // CORRETO
-				'i.tamanho as item_size'       // CORRETO
+				'i.codigo as item_sku',
+				'i.marca as item_brand',
+				'i.cor as item_color',
+				'i.tamanho as item_size'
 			];
 
 			// MODIFICADO: Sempre usar o preço armazenado na sacola
@@ -222,25 +224,28 @@ class SacolinhaController extends Controller
 						'item_color' => $sacola->item_color,
 						'item_size' => $sacola->item_size,
 						'price' => (float) $itemPrice,
-						'formatted_total_price' => 'R$ ' . number_format($itemPrice, 2, ',', '.'), // MODIFICADO: Preço total = preço unitário para itens únicos
+						'formatted_total_price' => 'R$ ' . number_format($itemPrice, 2, ',', '.'),
 						'status' => $sacola->status,
 						'added_at' => $sacola->add_at,
 						'obs' => $sacola->obs
 					];
 				});
 
-				$totalItems = $items->count(); // MODIFICADO: Contar itens únicos
-				$totalValue = $items->sum('price'); // MODIFICADO: Somar preços individuais
+				$totalItems = $items->count();
+				$totalValue = $items->sum('price');
 
+				// ✨ MODIFICADO: Adicionar instagram e tiktok
 				return [
 					'client' => [
 						'id' => $firstItem->user_id,
 						'name' => $firstItem->user_name,
 						'email' => $firstItem->user_email,
+						'instagram' => $firstItem->user_instagram, // ✨ NOVO
+						'tiktok' => $firstItem->user_tiktok,       // ✨ NOVO
 						'avatar_url' => 'https://ui-avatars.com/api/?name=' . urlencode($firstItem->user_name) . '&background=007bff&color=fff&size=128'
 					],
 					'items' => $items->values(),
-					'total_items' => $totalItems, // MODIFICADO: Número de itens únicos
+					'total_items' => $totalItems,
 					'total_value' => $totalValue,
 					'formatted_total' => 'R$ ' . number_format($totalValue, 2, ',', '.')
 				];
@@ -251,7 +256,7 @@ class SacolinhaController extends Controller
 				'data' => $bagsByClient->values(),
 				'live_id' => $liveId,
 				'total_bags' => $bagsByClient->count(),
-				'total_items' => $sacolinhas->count(), // MODIFICADO: Total de itens únicos
+				'total_items' => $sacolinhas->count(),
 				'total_value' => $bagsByClient->sum('total_value')
 			]);
 
@@ -613,8 +618,12 @@ class SacolinhaController extends Controller
 					's.obs',
 					's.add_at',
 					's.status as sacolinha_status',
+					'i.nome_do_produto',					
 					'i.codigo',
-					'i.nome_do_produto',
+					'i.marca',
+					'i.estado',
+					'i.cor',
+					'i.tamanho',				
 					'i.preco as item_unit_price',
 					'i.pedido',
 					'i.status as item_status'
@@ -643,6 +652,11 @@ class SacolinhaController extends Controller
 					'codigo' => $item->codigo,
 					'nome_do_produto' => $item->nome_do_produto,
 					'quantity' => (int) $item->quantity,
+					'marca' => $item->marca,
+					'estado' => $item->estado,
+					'cor' => $item->cor,
+					'tamanho' => $item->tamanho,
+
 					'sacolinha_unit_price' => (float) $item->sacolinha_unit_price,
 					'item_unit_price' => (float) $item->item_unit_price,
 					'obs' => $item->obs,

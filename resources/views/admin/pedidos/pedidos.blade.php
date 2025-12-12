@@ -394,16 +394,35 @@
             </div>
 
             <!-- Card Botões -->
-            <div id="card-acoes" class="card" style="display: none;">
-                <div class="card-body">
-                    <button class="btn btn-primary me-2" id="btn-criar-pedido" style="display: none;">
-                        <i class="fas fa-plus"></i> Criar Pedido
-                    </button>
-                    <button class="btn btn-secondary" id="btn-limpar">
-                        <i class="fas fa-times"></i> Limpar Seleção
-                    </button>
-                </div>
-            </div>
+			<div class="card shadow-sm">
+				<div class="card-body">
+					<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+						
+						<div class="btn-toolbar gap-2" role="toolbar">
+							<!-- Botões de ação -->
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-success" id="btn-criar-pedido" disabled>
+									✅ Criar Pedido
+								</button>
+								<button type="button" class="btn btn-outline-secondary" id="btn-limpar-selecao">
+									🗑️ Limpar Seleção
+								</button>
+							</div>
+							
+							<!-- Botões de impressão PDF -->
+							<div class="btn-group" role="group">
+								<button type="button" class="btn btn-primary" id="btn-imprimir-sacolinha" disabled title="Baixar PDF da sacolinha do cliente">
+									🎒 PDF Sacolinha
+								</button>
+								<button type="button" class="btn btn-info" id="btn-imprimir-pedido" disabled title="Baixar PDF dos pedidos do cliente">
+									📋 PDF Pedidos
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>		
+							
 
             <!-- Tabelas: Sacolinha e Pedido -->
             <div id="tabelas-container" class="tabela-container" style="display: none;">
@@ -841,6 +860,209 @@
                 $('#cliente-dropdown').hide();
             }
         });
+		
+        // ==========================================
+        // FUNÇÕES DE IMPRESSÃO PDF
+        // ==========================================
+        
+        // Função para exibir notificações
+        function showNotification(message, type = 'info') {
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            
+            const notification = $(`
+                <div class="alert ${alertClass} alert-dismissible fade show notification-toast" role="alert" style="
+                    position: fixed; 
+                    top: 20px; 
+                    right: 20px; 
+                    z-index: 1050; 
+                    min-width: 300px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                ">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert">&times;</button>
+                </div>
+            `);
+            
+            $('body').append(notification);
+            
+            setTimeout(() => {
+                notification.fadeOut(() => notification.remove());
+            }, 5000);
+        }
+
+        // Função genérica para impressão de relatório
+        function imprimirRelatorio(url, buttonSelector, reportName) {
+            if (!clienteAtual || !clienteAtual.id) {
+                showNotification('⚠️ Por favor, selecione um cliente antes de imprimir a ' + reportName + '.', 'error');
+                return;
+            }
+
+            const $button = $(buttonSelector);
+            const originalHtml = $button.html();
+            
+            // Desabilitar botão e mostrar loading
+            $button.prop('disabled', true).html('⏳ Gerando PDF...');
+            
+            showNotification('🔄 Gerando PDF da ' + reportName + '...', 'info');
+
+            // Criar FormData para envio
+            const formData = new FormData();
+            formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+            formData.append('cliente_id', clienteAtual.id);
+
+            console.log('📤 Enviando requisição PDF:', {
+                url: url,
+                clienteId: clienteAtual.id,
+                clienteNome: clienteAtual.name
+            });
+
+            // Fazer requisição AJAX
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                xhrFields: {
+                    responseType: 'blob'
+                },
+                success: function(response, status, xhr) {
+                    console.log('✅ PDF gerado com sucesso');
+                    
+                    // Extrair nome do arquivo
+                    let filename = reportName.toLowerCase() + '_' + clienteAtual.name.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+                    
+                    const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (match && match[1]) {
+                            filename = match[1].replace(/['"]/g, '');
+                        }
+                    }
+
+                    // Criar blob e download
+                    const blob = new Blob([response], { type: 'application/pdf' });
+                    const link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(link.href);
+
+                    showNotification('✅ PDF da ' + reportName + ' baixado com sucesso!', 'success');
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Erro ao gerar relatório:', {
+                        status: xhr.status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    
+                    let errorMessage = 'Erro desconhecido ao gerar o relatório.';
+                    
+                    if (xhr.status === 404) {
+                        errorMessage = 'Rota de PDF não encontrada. Verifique se as rotas estão configuradas.';
+                    } else if (xhr.status === 500) {
+                        errorMessage = 'Erro interno do servidor.';
+                    } else if (xhr.responseJSON) {
+                        errorMessage = xhr.responseJSON.error || xhr.responseJSON.message || errorMessage;
+                    }
+                    
+                    showNotification('❌ Erro ao gerar ' + reportName + ': ' + errorMessage, 'error');
+                },
+                complete: function() {
+                    // Restaurar botão
+                    $button.html(originalHtml);
+                    $button.prop('disabled', !clienteAtual);
+                }
+            });
+        }
+
+        // Eventos de clique para os botões de impressão
+        $('#btn-imprimir-sacolinha').on('click', function() {
+            imprimirRelatorio('/pedidos/imprimir-sacolinha', this, 'Sacolinha');
+        });
+
+        $('#btn-imprimir-pedido').on('click', function() {
+            imprimirRelatorio('/pedidos/imprimir-pedido', this, 'Pedidos');
+        });
+
+        // Evento para limpar seleção (atualizado)
+        $('#btn-limpar-selecao').on('click', function() {
+            clienteAtual = null;
+            pedidoAtual = null;
+            $('#cliente-search').val('');
+            $('#cliente-info, #tabelas-container').hide();
+            $('#cliente-dropdown').hide();
+            showNotification('✅ Seleção limpa!', 'success');
+        });
+
+        // Habilitar/desabilitar botões baseado na seleção
+        function togglePrintButtons() {
+            const hasClient = clienteAtual && clienteAtual.id;
+            $('#btn-imprimir-sacolinha, #btn-imprimir-pedido').prop('disabled', !hasClient);
+            $('#btn-criar-pedido').prop('disabled', !hasClient);
+        }
+
+        // Atualizar a função de seleção de cliente existente
+        const originalClientClick = $(document).off('click', '.cliente-item').on('click', '.cliente-item', function() {
+            clienteAtual = {
+                id: $(this).data('id'),
+                name: $(this).data('name'),
+                email: $(this).data('email')
+            };
+
+            $('#cliente-search').val(clienteAtual.name);
+            $('#cliente-dropdown').hide();
+            $('#cliente-nome').text(clienteAtual.name);
+            $('#cliente-id').text(clienteAtual.id);
+            $('#cliente-info').show();
+
+            // Habilitar botões PDF
+            togglePrintButtons();
+
+            carregarDados(clienteAtual.id);
+        });
+
+        // ========================================
+        // FUNÇÕES DE DEBUG GLOBAIS
+        // ========================================
+        
+        window.debugCliente = function() {
+            console.log('=== DEBUG CLIENTE ===');
+            console.log('Cliente atual:', clienteAtual);
+            console.log('Pedido atual:', pedidoAtual);
+            console.log('Botões sacolinha:', $('#btn-imprimir-sacolinha').length);
+            console.log('Botões pedido:', $('#btn-imprimir-pedido').length);
+            console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content') ? 'presente' : 'ausente');
+            console.log('====================');
+        };
+
+        window.habilitarBotoes = function() {
+            $('#btn-imprimir-sacolinha, #btn-imprimir-pedido, #btn-criar-pedido').prop('disabled', false);
+            console.log('🔧 Botões habilitados manualmente');
+        };
+
+        window.testarPDF = function(tipo) {
+            if (!clienteAtual) {
+                console.log('⚠️ Definindo cliente teste...');
+                clienteAtual = { id: 2, name: 'Cliente Teste', email: 'teste@teste.com' };
+            }
+            
+            if (tipo === 'sacolinha') {
+                $('#btn-imprimir-sacolinha').click();
+            } else {
+                $('#btn-imprimir-pedido').click();
+            }
+        };
+
+        // Inicialização dos botões (desabilitados inicialmente)
+        togglePrintButtons();
+        
+        console.log('🚀 Sistema de PDF carregado e integrado');		
+		
     });
     </script>
 </body>

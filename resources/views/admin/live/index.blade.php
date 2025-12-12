@@ -66,6 +66,32 @@
 		/* Animação suave quando o total aparece/desaparece */
 		#total-sacolas, #contador-sacolas {
 			transition: opacity 0.3s ease;
+			
+		/* Destaque visual quando o botão tem foco */
+
+		#add-to-bag-btn:focus {
+			outline: 3px solid #0d6efd !important;
+			outline-offset: 2px;
+			box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+		}
+
+		/* Opcional: Adicione animação para ficar mais evidente */
+		#add-to-bag-btn:focus {
+			animation: pulse-focus 0.5s ease-in-out;
+		}
+
+		@keyframes pulse-focus {
+			0% {
+				box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
+			}
+			70% {
+				box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+			}
+			100% {
+				box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+			}
+		}		
+		
 		}
     </style>
 </head>
@@ -152,9 +178,9 @@
                         <li class="nav-item">
                             <form method="POST" action="{{ route('logout') }}" class="d-inline">
                                 @csrf
-                                <button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
-                                    <i class="fas fa-sign-out-alt"></i> Sair
-                                </button>
+								<button type="submit" class="nav-link text-white-50 small border-0 bg-transparent w-100 text-start">
+									<i class="fas fa-sign-out-alt"></i> Sair
+								</button>
                             </form>
                         </li>
                     </ul>
@@ -279,31 +305,48 @@
 								</div>
 								
                             </div>
-                            <div class="row">
-                                <!-- Preço -->
-                                <div class="col-md-6 mb-3"> <!-- Era col-md-4 -->
-                                    <label for="item-price" class="form-label">
-                                        <i class="fas fa-dollar-sign"></i>
-                                        Preço
-                                        <span id="original-price-display" class="text-muted ms-2" style="text-decoration: line-through; display: none;"></span>
-                                    </label>
-									<input type="text" 
-										   class="form-control" 
-										   name="item_price" 
-										   id="item-price" 
-										   placeholder="0,00" 
-										   pattern="[0-9]+([,\.][0-9]{1,2})?" 
-										   title="Use formato: 25,50 ou 25.50"
-										   value="{{ old('item_price') }}" 
-										   required>
-                                </div>
-                                <!-- Botão -->
-                                <div class="col-md-6 mb-3 d-flex align-items-end"> <!-- Era col-md-4 -->
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="fas fa-plus"></i> Adicionar à Sacola
-                                    </button>
-                                </div>
-                            </div>
+								<div class="row">
+									<!-- Preço -->
+									<div class="col-md-3 mb-3">
+										<label for="item-price" class="form-label">
+											<i class="fas fa-dollar-sign"></i>
+											Preço
+											<span id="original-price-display" class="text-muted ms-2" style="text-decoration: line-through; display: none;"></span>
+										</label>
+										<input type="text" 
+											   class="form-control" 
+											   name="item_price" 
+											   id="item-price" 
+											   placeholder="0,00" 
+											   pattern="[0-9]+([,\.][0-9]{1,2})?" 
+											   title="Use formato: 25,50 ou 25.50"
+											   value="{{ old('item_price') }}" 
+											   required>
+									</div>
+									
+									<!-- ✨ NOVO: Observações na mesma linha -->
+									<div class="col-md-5 mb-3">
+										<label for="obs" class="form-label">
+											<i class="fas fa-sticky-note"></i>
+											Observação
+										</label>
+										<textarea 
+											class="form-control" 
+											name="obs" 
+											id="obs" 
+											rows="1"
+											placeholder="Obs (opcional)"
+											maxlength="200"
+											style="resize: none; overflow: hidden;"></textarea>
+									</div>
+									
+									<!-- Botão -->
+									<div class="col-md-4 mb-3 d-flex align-items-end">
+										<button type="submit" class="btn btn-primary w-100" id="add-to-bag-btn">
+											<i class="fas fa-plus"></i> Adicionar à Sacola
+										</button>
+									</div>
+								</div>
                         </form>
                     </div>
                 </div>
@@ -357,23 +400,23 @@
 			itemSearchWrapper = document.querySelector('[data-item-search="true"]');
             carregarLiveStatus(); // Renomeado para refletir o novo propósito
             // Event listener para seleção de usuário
-            const userSearchComponent = document.querySelector('[data-user-search="true"]');
-            if (userSearchComponent) {
-                userSearchComponent.addEventListener('userSelected', function(e) {
-                    const user = e.detail.user;
-                    console.log('Cliente selecionado:', user);
-                    mostrarAlert(`Cliente selecionado: ${user.name}`, 'info');
-                    
-                    const itemInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
-                    if (itemInput) {
-                        itemInput.focus();
-                    }
+			const userSearchComponent = document.querySelector('[data-user-search="true"]');
+			if (userSearchComponent) {
+				userSearchComponent.addEventListener('userSelected', function(e) {
+					const user = e.detail.user;
+					console.log('Cliente selecionado:', user);
+					mostrarAlert(`Cliente selecionado: ${user.name}`, 'info');
+					
+					// 🎯 Foco automático para botão Adicionar à Sacola
+					setTimeout(() => {
+						const addButton = document.getElementById('add-to-bag-btn');
+						if (addButton) {
+							addButton.focus();
+							console.log('✅ Foco movido para botão Adicionar à Sacola');
+						}
+					}, 300);
 				})
-	
-                userSearchComponent.addEventListener('userCleared', function(e) {
-                    console.log('Seleção de cliente limpa');
-                });
-            }
+			}
             // Event listener para seleção de item
             const itemSearchComponent = document.querySelector('[data-item-search="true"]');
             if (itemSearchComponent) {
@@ -407,10 +450,17 @@
                         }
                     }
 					setTimeout(() => {
-						const clientInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
+						console.log('⏳ Tentando mover foco para cliente...');
+						
+						// ✅ SELETOR CORRETO
+						const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+						console.log('🔍 Element encontrado:', clientInput);
+						
 						if (clientInput) {
 							clientInput.focus();
-							console.log('🎯 Foco movido para o campo de cliente');
+							console.log('✅ Foco movido para o campo de cliente');
+						} else {
+							console.log('❌ Campo de cliente NÃO encontrado!');
 						}
 					}, 100);
 				});
@@ -420,30 +470,28 @@
                     document.getElementById('original-price-display').style.display = 'none';
                 });
 			
-			// Validação em tempo real do campo de preço
-			const itemPriceInput = document.getElementById('item-price');
-			if (itemPriceInput) {
-				// Permitir apenas números, vírgula e ponto
-				itemPriceInput.addEventListener('keypress', function(e) {
-					const char = String.fromCharCode(e.which);
-					if (!/[0-9,.]/.test(char)) {
-						e.preventDefault();
-					}
-				});
-				
-				// Converter vírgula para ponto na validação
-				itemPriceInput.addEventListener('input', function(e) {
-					const value = e.target.value.replace(',', '.');
-					const numValue = parseFloat(value);
-					if (isNaN(numValue) || numValue<= 0){
-						e.target.setCustomValidity('Informe um preço válido (ex: 25,50)');
-					} else {
-						e.target.setCustomValidity('');
-					}
-				});
-			}
-
-
+				// Validação em tempo real do campo de preço
+				const itemPriceInput = document.getElementById('item-price');
+				if (itemPriceInput) {
+					// Permitir apenas números, vírgula e ponto
+					itemPriceInput.addEventListener('keypress', function(e) {
+						const char = String.fromCharCode(e.which);
+						if (!/[0-9,.]/.test(char)) {
+							e.preventDefault();
+						}
+					});
+					
+					// Converter vírgula para ponto na validação
+					itemPriceInput.addEventListener('input', function(e) {
+						const value = e.target.value.replace(',', '.');
+						const numValue = parseFloat(value);
+						if (isNaN(numValue) || numValue<= 0){
+							e.target.setCustomValidity('Informe um preço válido (ex: 25,50)');
+						} else {
+							e.target.setCustomValidity('');
+						}
+					});
+				}
             }
 			
 			
@@ -507,13 +555,13 @@
 							}
 							document.getElementById('original-price-display').style.display = 'none';
 							
-							// 🎯 LIMPAR CLIENTE - DOM DIRETO (IGUAL AO ITEM)
+							// 🎯 LIMPAR CLIENTE - SELETORES CORRETOS
 							console.log('🧹 Limpando cliente via DOM direto (sincrono)...');
-							const clientSearchInput = document.querySelector('[data-user-search="true"] [data-search-input="true"]');
-							const clientHiddenInput = document.querySelector('[data-user-search="true"] [data-hidden-input="true"]');
-							const clientDisplayCard = document.querySelector('[data-user-search="true"] [data-selected-display="true"]');
-							const clientDropdown = document.querySelector('[data-user-search="true"] [data-suggestions="true"]');
-							const clientClearBtn = document.querySelector('[data-user-search="true"] [data-clear-btn="true"]');
+							const clientSearchInput = document.querySelector('[data-user-search="true"] .user-search-input');
+							const clientHiddenInput = document.querySelector('[data-user-search="true"] .user-selected-id');
+							const clientDisplayCard = document.querySelector('[data-user-search="true"] .user-selected-display');
+							const clientDropdown = document.querySelector('[data-user-search="true"] .user-suggestions-dropdown');
+							const clientClearBtn = document.querySelector('[data-user-search="true"] .user-clear-btn');
 							
 							if (clientSearchInput) {
 								clientSearchInput.value = '';
@@ -524,7 +572,7 @@
 								console.log('✅ Campo hidden de cliente limpo');
 							}
 							if (clientDisplayCard) {
-								clientDisplayCard.classList.add('d-none');
+								clientDisplayCard.style.display = 'none';
 								console.log('✅ Card de cliente escondido');
 							}
 							if (clientDropdown) {
@@ -532,7 +580,7 @@
 								console.log('✅ Dropdown de cliente escondido');
 							}
 							if (clientClearBtn) {
-								clientClearBtn.classList.add('d-none');
+								clientClearBtn.style.display = 'none';
 								console.log('✅ Botão clear de cliente escondido');
 							}
 							
@@ -569,7 +617,7 @@
 							console.log('- item_id:', document.querySelector('input[name="item_id"]')?.value);
 							console.log('- item_price:', document.getElementById('item-price')?.value);
 							
-							// 🎯 FOCAR NO CLIENTE PARA PRÓXIMA ADIÇÃO (SINCRONO)
+							// 🎯 FOCAR NO ITEM PARA PRÓXIMA ADIÇÃO
 							setTimeout(function() {
 								const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
 								if (itemSearchInput) {
@@ -580,7 +628,7 @@
 							
 							carregarSacolas();
 							console.log('🧹 === LIMPEZA FINALIZADA ===');
-						}             
+						}
 					} catch (error) {
                     console.error('Erro:', error);
                     mostrarAlert('Erro ao adicionar item à sacola', 'danger');
@@ -615,9 +663,10 @@
                     console.error('Erro:', error);
                 });
         }
-		
-        // Função para exibir sacolas (sem alterações significativas aqui)
-        function exibirSacolas(bags) {
+
+
+		// Função para exibir sacolas
+		function exibirSacolas(bags) {
 			const container = document.getElementById('bags-list');
 			const totalSacolas = document.getElementById('total-sacolas');
 			const contadorSacolas = document.getElementById('contador-sacolas');
@@ -642,7 +691,7 @@
 			let totalItens = 0;
 			
 			bags.forEach(bag => {
-				// Extrair valor numérico do formatted_total (removendo R$, espaços e convertendo vírgula para ponto)
+				// Extrair valor numérico do formatted_total
 				const valorNumerico = parseFloat(
 					bag.formatted_total
 						.replace('R$', '')
@@ -665,9 +714,22 @@
 			contadorSacolas.textContent = `${bags.length} sacola(s) • ${totalItens} item(s)`;
 			contadorSacolas.style.display = 'block';
 			
-			// Resto da função permanece igual
+			// Resto da função
 			let html = '';
 			bags.forEach(bag => {
+				// ✨ NOVO: Obter Instagram e TikTok do cliente
+				const instagram = bag.client.instagram || bag.client.remember_token || '';
+				const tiktok = bag.client.tiktok || bag.client.nome_cliente || '';
+				
+				// ✨ NOVO: Criar string com redes sociais em cinza
+				let socialInfo = '';
+				if (instagram) {
+					socialInfo += `<span class="text-muted ms-2">@${instagram}</span>`;
+				}
+				if (tiktok) {
+					socialInfo += `<span class="text-muted ms-2">@${tiktok}</span>`;
+				}
+				
 				html += `
 					<div class="card mb-3">
 						<div class="card-header">
@@ -675,7 +737,9 @@
 								<img src="${bag.client.avatar_url}" class="rounded-circle me-2" width="32" height="32">
 								<div class="flex-grow-1">
 									<h6 class="mb-0">${bag.client.name}</h6>
-									<small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
+									<small class="text-muted">
+										ID: ${bag.client.id} | ${socialInfo} 
+									</small>
 								</div>
 								<div class="text-end">
 									<span class="badge bg-primary">${bag.items.length} item(s)</span>
@@ -703,6 +767,17 @@
 					if (item.item_brand) details.push(`Marca: ${item.item_brand}`);
 					if (item.item_color) details.push(`Cor: ${item.item_color}`);
 					if (item.item_size) details.push(`Tam: ${item.item_size}`);
+					// ✨ NOVO: Adicionar observações se existirem
+					let obsDisplay = '';
+					if (item.obs) {
+						obsDisplay = `
+							<small class="text-muted d-block mb-1">
+								<i class="fas fa-sticky-note"></i> <strong>Obs:</strong>
+								${item.obs}
+							</small>
+
+						`;
+					}					
 					
 					html += `
 						<tr>
@@ -711,6 +786,7 @@
 							</td>
 							<td>
 								<small class="text-muted">${details.length > 0 ? details.join(' | ') : 'Sem detalhes adicionais'}</small>
+								${obsDisplay}
 							</td>
 							<td class="fw-bold text-success">${item.formatted_total_price}</td>
 							<td>
@@ -732,7 +808,6 @@
 			});
 			container.innerHTML = html;
 		}
-
         // Função simplificada para remover item único
         function removerItem(itemId, userId) {
             if (!confirm('Tem certeza que deseja remover este item da sacola?')) {

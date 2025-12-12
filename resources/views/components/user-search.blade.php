@@ -74,20 +74,35 @@ if (typeof window.initUserSearch === 'undefined') {
         const display = wrapper.querySelector('.user-selected-display');
 
         let debounceTimer = null;
+        let selectedIndex = -1;
 
-        // ✅ FUNÇÃO: Obter Instagram (novo ou antigo)
+        // ✅ FUNÇÃO: Obter Instagram
         function getInstagram(user) {
             return user.instagram || user.remember_token || '';
         }
 
-        // ✅ FUNÇÃO: Obter TikTok (novo ou antigo)
+        // ✅ FUNÇÃO: Obter TikTok
         function getTikTok(user) {
             return user.tiktok || user.nome_cliente || '';
         }
 
-        // ✅ FUNÇÃO: Obter WhatsApp (novo ou antigo)
+        // ✅ FUNÇÃO: Obter WhatsApp
         function getWhatsApp(user) {
             return user.whatsapp || user.phone || '';
+        }
+
+        // ✨ FUNÇÃO: Destacar item na navegação
+        function highlightItem(items, index) {
+            items.forEach((item, i) => {
+                if (i === index) {
+                    item.style.backgroundColor = '#e9ecef';
+                    item.style.fontWeight = 'bold';
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.style.backgroundColor = '';
+                    item.style.fontWeight = 'normal';
+                }
+            });
         }
 
         // Buscar clientes
@@ -110,7 +125,6 @@ if (typeof window.initUserSearch === 'undefined') {
                             const div = document.createElement('div');
                             div.className = 'suggestion-item';
                             
-                            // ✅ USAR FUNÇÕES AUXILIARES
                             const instagram = getInstagram(user);
                             const tiktok = getTikTok(user);
                             
@@ -125,9 +139,9 @@ if (typeof window.initUserSearch === 'undefined') {
                                 badges += `<span class="badge bg-secondary ms-1">${user.apelido}</span>`;
                             }
                             
+                           
                             div.innerHTML = `
                                 <div class="fw-bold">${user.name}</div>
-                                <div class="text-muted small">${user.email}</div>
                                 <div>${badges}</div>
                             `;
                             
@@ -149,7 +163,6 @@ if (typeof window.initUserSearch === 'undefined') {
             hiddenInput.value = user.id;
             searchInput.value = user.name;
             
-            // ✅ USAR FUNÇÕES AUXILIARES
             const instagram = getInstagram(user);
             const tiktok = getTikTok(user);
             
@@ -170,7 +183,6 @@ if (typeof window.initUserSearch === 'undefined') {
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <div class="fw-bold">${user.name}</div>
-                                <div class="text-muted small">${user.email}</div>
                                 <div>${badges}</div>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger">
@@ -185,6 +197,12 @@ if (typeof window.initUserSearch === 'undefined') {
             display.style.display = 'block';
             clearBtn.style.display = 'inline-block';
             dropdown.style.display = 'none';
+            
+            const event = new CustomEvent('userSelected', {
+                detail: { user: user }
+            });
+            wrapper.dispatchEvent(event);
+            console.log('📢 Evento userSelected disparado!', user);
         }
 
         // Limpar seleção
@@ -195,18 +213,55 @@ if (typeof window.initUserSearch === 'undefined') {
             clearBtn.style.display = 'none';
         }
 
-        // Event listeners
+        // ========== EVENT LISTENERS ==========
+        
         searchInput.addEventListener('input', function() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(searchUsers, 300);
             clearBtn.style.display = this.value ? 'inline-block' : 'none';
+            selectedIndex = -1;
         });
 
         clearBtn.addEventListener('click', clearSelection);
 
+        // ✨ Navegação com setas do teclado
+        searchInput.addEventListener('keydown', function(e) {
+            console.log('🔑 Tecla pressionada:', e.key);
+            
+            const items = dropdown.querySelectorAll('.suggestion-item');
+            console.log('📋 Total de itens:', items.length);
+            
+            if (items.length === 0) return;
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                highlightItem(items, selectedIndex);
+                console.log('⬇️ Índice:', selectedIndex);
+            } 
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                highlightItem(items, selectedIndex);
+                console.log('⬆️ Índice:', selectedIndex);
+            } 
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && items[selectedIndex]) {
+                    items[selectedIndex].click();
+                    console.log('✅ Clicado item:', selectedIndex);
+                }
+            } 
+            else if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+
         document.addEventListener('click', function(e) {
             if (!wrapper.contains(e.target)) {
                 dropdown.style.display = 'none';
+                selectedIndex = -1;
             }
         });
     };

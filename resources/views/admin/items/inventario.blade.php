@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Inventário</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -11,10 +12,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
         .card {
             border: none;
             border-radius: 15px;
@@ -30,92 +27,61 @@
             object-fit: cover;
             border-radius: 8px;
         }
-
-        #qr-scanner-container {
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        #qr-scanner-container video {
-            border-radius: 10px;
-            max-width: 100%;
-            height: auto;
-        }
-        
-        /* Customizar controles do scanner */
-        #qr-scanner-container select,
-        #qr-scanner-container input[type="range"] {
-            margin: 10px 0;
-            width: 100%;
-        }
-        
-        /* Animação para o resultado */
-        #qr-result .alert {
-            animation: fadeInUp 0.5s ease-out;
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 15px 15px;
         }
 
-        
-        /* Modal responsivo */
-        @media (max-width: 992px) {
-            .modal-xl {
-                max-width: 95%;
-            }
-        }
-        
-        /* Scanner container */
-        #qr-scanner-container {
-            border-radius: 15px;
-            overflow: hidden;
-            background: #f8f9fa;
-        }
-        
-        #qr-scanner-container video {
+        /* ZXing Scanner Styles - OTIMIZADO */
+        #video-scanner {
             width: 100% !important;
+            max-width: 500px;
             height: auto !important;
             border-radius: 15px;
+            transform: scaleX(-1); /* Espelhar para melhor UX */
+            background: #000;
         }
         
-        /* Controles do scanner */
-        #qr-scanner-container select,
-        #qr-scanner-container input[type="range"] {
-            margin: 8px 0;
-            width: 100%;
-            border-radius: 8px;
+        .scanner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            position: relative;
         }
         
-        /* Botões do scanner */
-        #qr-scanner-container button {
-            margin: 5px;
-            border-radius: 8px;
-            font-size: 12px;
+        .scanner-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 10px;
         }
         
-        /* Histórico scrollable */
-        #scan-history {
-            font-size: 0.85em;
+        .scanner-overlay {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
         }
         
-        #scan-history code {
-            font-size: 0.8em;
-            background: #f1f3f4;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-        
-        /* Animações */
+        /* Animações otimizadas */
         .alert {
-            animation: slideInFromTop 0.5s ease-out;
+            animation: slideInFromTop 0.4s ease-out;
         }
         
         @keyframes slideInFromTop {
@@ -129,306 +95,295 @@
             }
         }
         
-        /* Badge personalizado */
-        .badge {
-            font-size: 0.7em;
+        /* QR Button com animação */
+        #qrScanBtn {
+            transition: all 0.2s ease;
         }
         
-        /* Cards do painel lateral */
-        .card {
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .card-header {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-        
-        /* Spinner customizado */
-        .spinner-border-sm {
-            width: 1rem;
-            height: 1rem;
-        }
-        
-        /* Botão QR com animação */
         #qrScanBtn:hover {
             transform: scale(1.05);
-            transition: transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
-
-        /* Status Badges Customizados */
+        
+        /* Status Badges */
         .badge-status-disponivel { background-color: #198754; }
         .badge-status-vendido { background-color: #dc3545; }
         .badge-status-reservado { background-color: #ffc107; color: #000; }
+        .badge-status-estoque { background-color: #0d6efd; }
+        .badge-status-sacolinha { background-color: #6f42c1; }
+        .badge-status-indisponivel { background-color: #6c757d; }
+        
+        /* Mobile responsivo */
+        @media (max-width: 768px) {
+            #video-scanner {
+                max-width: 100%;
+            }
+            
+            .modal-lg {
+                max-width: 95%;
+            }
+        }
+        
+        /* Loading spinner personalizado */
+        .spinner-zxing {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-light">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <h4> Admin</h4>
-                    <hr>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}">
-                                <i class="fas fa-broadcast-tower"></i> Live
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}">
-                                <i class="fas fa-shopping-bag"></i> Sacolas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-0">
+                        <i class="fas fa-box me-2"></i>
+                        Inventário
+                    </h1>
+                    <small class="badge bg-light text-dark mt-2">
+                        <i class="fas fa-rocket"></i> ZXing v2.0
+                    </small>
+                </div>
+                <div>
+                    <a href="{{ route('dashboard') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Voltar para Dashboard
+                    </a>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Main Content -->
-            <div class="col-md-10 p-4">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Inventário</h2>
-                </div>
+    <div class="container-fluid px-4">
+        <!-- Alerts -->
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
 
-                <!-- Alerts -->
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i>
-                        {{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
+        @if(session('info'))
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ session('info') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
 
-                @if(session('info'))
-                    <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        <i class="fas fa-info-circle me-2"></i>
-                        {{ session('info') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
+        @if(session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {{ session('warning') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+                        
+        <!-- Filtros com QR Code ZXing -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ route('inventario') }}" id="inventory-form">
+                    <div class="row align-items-end">
+                        <!-- STATUS -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Status para Aplicar</label>
+                            <select name="status" class="form-control">
+                                <option value="">Apenas Buscar</option>
+                                <option value="disponivel" {{ (session('last_status') ?? request('status')) == 'disponivel' ? 'selected' : '' }}>Disponível</option>
+                                <option value="vendido" {{ (session('last_status') ?? request('status')) == 'vendido' ? 'selected' : '' }}>Vendido</option>
+                                <option value="reservado" {{ (session('last_status') ?? request('status')) == 'reservado' ? 'selected' : '' }}>Reservado</option>
+                                <option value="estoque" {{ (session('last_status') ?? request('status')) == 'estoque' ? 'selected' : '' }}>Estoque</option>
+                                <option value="sacolinha" {{ (session('last_status') ?? request('status')) == 'sacolinha' ? 'selected' : '' }}>Sacolinha</option>
+                                <option value="indisponivel" {{ (session('last_status') ?? request('status')) == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
+                            </select>
+                        </div>
 
-                @if(session('warning'))
-                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        {{ session('warning') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-                                
-                <!-- Filtros com QR Code -->
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <form method="GET" action="{{ route('inventario') }}">
-                            <div class="row align-items-end">
-                                <!-- CAMPO STATUS (2 colunas) -->
-								<div class="col-md-2">
-									<label class="form-label small">Status para Aplicar</label> <!-- Mudei o label para ficar claro -->
-									<select name="status" class="form-control">
-										<option value="">Apenas Buscar</option>
-										
-										<option value="disponivel" 
-											{{ (session('last_status') ?? request('status')) == 'disponivel' ? 'selected' : '' }}>
-											Disponível
-										</option>
-										
-										<option value="vendido" 
-											{{ (session('last_status') ?? request('status')) == 'vendido' ? 'selected' : '' }}>
-											Vendido
-										</option>
-										
-										<option value="reservado" 
-											{{ (session('last_status') ?? request('status')) == 'reservado' ? 'selected' : '' }}>
-											Reservado
-										</option>
-										
-										<option value="estoque" 
-											{{ (session('last_status') ?? request('status')) == 'estoque' ? 'selected' : '' }}>
-											Estoque
-										</option>
-										
-										<option value="sacolinha" 
-											{{ (session('last_status') ?? request('status')) == 'sacolinha' ? 'selected' : '' }}>
-											Sacolinha
-										</option>
-
-										<option value="indisponivel" 
-											{{ (session('last_status') ?? request('status')) == 'indisponivel' ? 'selected' : '' }}>
-											Indisponível
-										</option>
-										
-									</select>
-								</div>
-
-                                <!-- CAMPO BUSCA COM QR (6 colunas) -->
-                                <div class="col-md-6">
-                                    <label class="form-label small">Buscar produto</label>
-                                    <div class="input-group">
-                                        <input type="text"
-                                               class="form-control"
-                                               name="search"
-                                               id="searchInput"
-                                               placeholder="Código do produto, QR Code, ou código de barras..."
-                                               value="{{ request('search') }}">
-                                        <button type="button" 
-                                                class="btn btn-outline-primary position-relative"
-                                                id="qrScanBtn"
-                                                title="Scanner Multi-formato">
-                                            <i class="fas fa-qrcode"></i>
-                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6em;">
-                                                v3
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- BOTÃO FILTRAR (2 colunas) -->
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-outline-primary w-100">
-                                        <i class="fas fa-search"></i> Filtrar
-                                    </button>
-                                </div>
-
-                                <!-- BOTÃO LIMPAR (2 colunas) -->
-                                <div class="col-md-2">
-									<a href="{{ route('inventario', ['reset' => 1]) }}" class="btn btn-outline-secondary w-100" title="Reiniciar lista a partir de agora">
-										<i class="fas fa-refresh"></i> Limpar / Reiniciar
-                                    </a>
-                                </div>
+                        <!-- BUSCA COM QR ZXING -->
+                        <div class="col-md-6">
+                            <label class="form-label small">Buscar produto</label>
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control"
+                                       name="search"
+                                       id="searchInput"
+                                       placeholder="Código, QR Code, código de barras..."
+                                       value="{{ request('search') }}"
+                                       autocomplete="off">
+                                <button type="button" 
+                                        class="btn btn-outline-primary"
+                                        id="qrScanBtn"
+                                        title="Scanner ZXing - Ultra Rápido">
+                                    <i class="fas fa-qrcode me-1"></i>
+                                    <span class="badge bg-success ms-1" style="font-size: 0.6em;">ZX</span>
+                                </button>
                             </div>
-                        </form>
-                                        
-                        <!-- Modal QR Scanner SIMPLES -->
-                        <div class="modal fade" id="qrModal" tabindex="-1">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-primary text-white">
-                                        <h5 class="modal-title">
-                                            <i class="fas fa-qrcode me-2"></i> Scanner QR Code
-                                        </h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <!-- FILTRAR -->
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+
+                        <!-- LIMPAR -->
+                        <div class="col-md-2">
+                            <a href="{{ route('inventario', ['reset' => 1]) }}" class="btn btn-outline-secondary w-100" title="Reiniciar lista">
+                                <i class="fas fa-refresh"></i> Limpar
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Modal ZXing Scanner - ULTRA SIMPLES -->
+                <div class="modal fade" id="qrModal" tabindex="-1" data-bs-backdrop="static">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-qrcode me-2"></i> Scanner ZXing
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="closeModal"></button>
+                            </div>
+                            <div class="modal-body p-0">
+                                <!-- Scanner Container -->
+                                <div class="scanner-container">
+                                    <video id="video-scanner" style="display: none;"></video>
+                                    
+                                    <!-- Loading inicial -->
+                                    <div id="scanner-loading" class="scanner-loading">
+                                        <div class="text-center">
+                                            <div class="spinner-zxing mb-3"></div>
+                                            <h6>Iniciando Scanner ZXing...</h6>
+                                            <small class="text-muted">Aguarde um momento</small>
+                                        </div>
                                     </div>
-                                    <div class="modal-body">
-                                        <!-- Scanner Container -->
-                                        <div id="qr-reader" style="min-height: 300px; border-radius: 15px;"></div>
-                                        
-                                        <!-- Resultado -->
-                                        <div id="qr-result" class="mt-3"></div>
+                                    
+                                    <!-- Overlay de status -->
+                                    <div id="scanner-overlay" class="scanner-overlay" style="display: none;">
+                                        <i class="fas fa-camera me-2"></i>
+                                        Aponte para o código...
                                     </div>
                                 </div>
+                                
+                                <!-- Resultado -->
+                                <div id="scanner-result" class="p-3"></div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Lista de Itens -->
-                <div class="card">
-                    <div class="card-body">
-                        @if($items->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th width="80">Imagem</th>
-                                            <th>Nome do Produto</th>
-                                            <th>Marca</th>
-                                            <th>Cor</th>
-                                            <th>Tamanho</th>
-                                            <th>Estado</th>
-                                            <th>Preço</th>
-                                            <th width="150" class="text-center">Status Atual</th> <!-- COLUNA MODIFICADA -->
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($items as $item)
-                                            <tr>
-                                                <td>
-                                                    @if($item->image)
-                                                        <img src="{{ asset('storage/' . $item->image) }}"
-                                                             alt="{{ $item->nome_do_produto }}"
-                                                             class="item-image">
-                                                    @else
-                                                        <div class="item-image bg-secondary d-flex align-items-center justify-content-center">
-                                                            <i class="fas fa-image text-white"></i>
-                                                        </div>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <strong>{{ $item->nome_do_produto }}</strong><br>
-                                                    @if($item->codigo)
-                                                        <small class="text-muted"><i class="fas fa-barcode"></i> {{ $item->codigo }}</small>
-                                                    @endif
-                                                </td>
-                                                <td>{{ $item->marca ?? 'N/A' }}</td>
-                                                <td>{{ $item->cor ?? 'N/A' }}</td>
-                                                <td>{{ $item->tamanho ?? 'N/A' }}</td>
-                                                <td>{{ ucfirst($item->estado ?? 'N/A') }}</td>
-                                                <td>
-                                                    <strong class="text-success">`R$ {{ number_format($item->preco, 2, ',', '.') }}`</strong>
-                                                </td>
-                                                <!-- COLUNA STATUS (SUBSTITUINDO AÇÕES) -->
-                                                <td class="text-center">
-                                                    @php
-                                                        $statusClass = match($item->status) {
-                                                            'disponivel' => 'badge-status-disponivel',
-                                                            'vendido' => 'badge-status-vendido',
-                                                            'reservado' => 'badge-status-reservado',
-                                                            default => 'bg-secondary'
-                                                        };
-                                                        
-                                                        $statusIcon = match($item->status) {
-                                                            'disponivel' => 'fa-check-circle',
-                                                            'vendido' => 'fa-shopping-bag',
-                                                            'reservado' => 'fa-clock',
-                                                            default => 'fa-question-circle'
-                                                        };
-                                                    @endphp
-                                                    
-                                                    <div class="d-flex flex-column align-items-center">
-                                                        <span class="badge {{ $statusClass }} p-2 mb-1 w-100">
-                                                            <i class="fas {{ $statusIcon }} me-1"></i>
-                                                            {{ ucfirst($item->status) }}
-                                                        </span>
-                                                        <small class="text-muted" style="font-size: 0.75em;">
-                                                            <i class="fas fa-history"></i> {{ $item->updated_at->format('d/m H:i') }}
-                                                        </small>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Paginação -->
-                            <div class="d-flex justify-content-center mt-4">
-                                {{ $items->appends(request()->query())->links() }}
-                            </div>
-                        @else
-                            <div class="text-center py-5">
-                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">Nenhum item encontrado</h5>
-                                <p class="text-muted">Comece criando seu primeiro item!</p>
-                                <a href="{{ route('items.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus"></i> Criar Primeiro Item
-                                </a>
-                            </div>
-                        @endif
+        <!-- Lista de Itens -->
+        <div class="card">
+            <div class="card-body">
+                @if($items->count() > 0)
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="80">Imagem</th>
+                                    <th>Nome do Produto</th>
+                                    <th>Marca</th>
+                                    <th>Cor</th>
+                                    <th>Tamanho</th>
+                                    <th>Estado</th>
+                                    <th>Preço</th>
+                                    <th width="150" class="text-center">Status Atual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($items as $item)
+                                    <tr>
+                                        <td>
+                                            @if($item->image)
+                                                <img src="{{ asset('storage/' . $item->image) }}"
+                                                     alt="{{ $item->nome_do_produto }}"
+                                                     class="item-image">
+                                            @else
+                                                <div class="item-image bg-secondary d-flex align-items-center justify-content-center">
+                                                    <i class="fas fa-image text-white"></i>
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <strong>{{ $item->nome_do_produto }}</strong><br>
+                                            @if($item->codigo)
+                                                <small class="text-muted"><i class="fas fa-barcode"></i> {{ $item->codigo }}</small>
+                                            @endif
+                                        </td>
+                                        <td>{{ $item->marca ?? 'N/A' }}</td>
+                                        <td>{{ $item->cor ?? 'N/A' }}</td>
+                                        <td>{{ $item->tamanho ?? 'N/A' }}</td>
+                                        <td>{{ ucfirst($item->estado ?? 'N/A') }}</td>
+                                        <td>
+                                            <strong class="text-success">`R$ {{ number_format($item->preco, 2, ',', '.') }}`</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            @php
+                                                $statusClass = match($item->status) {
+                                                    'disponivel' => 'badge-status-disponivel',
+                                                    'vendido' => 'badge-status-vendido',
+                                                    'reservado' => 'badge-status-reservado',
+                                                    'estoque' => 'badge-status-estoque',
+                                                    'sacolinha' => 'badge-status-sacolinha',
+                                                    'indisponivel' => 'badge-status-indisponivel',
+                                                    default => 'bg-secondary'
+                                                };
+                                                
+                                                $statusIcon = match($item->status) {
+                                                    'disponivel' => 'fa-check-circle',
+                                                    'vendido' => 'fa-shopping-bag',
+                                                    'reservado' => 'fa-clock',
+                                                    'estoque' => 'fa-boxes',
+                                                    'sacolinha' => 'fa-shopping-bag',
+                                                    'indisponivel' => 'fa-times-circle',
+                                                    default => 'fa-question-circle'
+                                                };
+                                            @endphp
+                                            
+                                            <div class="d-flex flex-column align-items-center">
+                                                <span class="badge {{ $statusClass }} p-2 mb-1 w-100">
+                                                    <i class="fas {{ $statusIcon }} me-1"></i>
+                                                    {{ ucfirst($item->status) }}
+                                                </span>
+                                                <small class="text-muted" style="font-size: 0.75em;">
+                                                    <i class="fas fa-history"></i> {{ $item->updated_at->format('d/m H:i') }}
+                                                </small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+
+                    <!-- Paginação -->
+                    <div class="d-flex justify-content-center mt-4">
+                        {{ $items->appends(request()->query())->links() }}
+                    </div>
+                @else
+                    <div class="text-center py-5">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum item encontrado</h5>
+                        <p class="text-muted">Comece criando seu primeiro item!</p>
+                        <a href="{{ route('items.create') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Criar Primeiro Item
+                        </a>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -436,213 +391,395 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Html5-QRCode Library -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <!-- Scanner QR SIMPLES E COMPATÍVEL -->
+    <!-- ZXing Library - MUITO MAIS RÁPIDO -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
+
+    <!-- Scanner ZXing - IMPLEMENTAÇÃO ULTRA RÁPIDA -->
     <script>
-        console.log('📱 Scanner QR Inventário Iniciando...');
+    console.log('🚀 ZXing Scanner OTIMIZADO...');
 
-        // Variáveis globais
-        var scanner = null;
-        var isScanning = false;
-        var modal = null;
+    let codeReader = null;
+    let scanning = false;
+    let modal = null;
+    let videoElement = null;
 
-        // Inicializar quando página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Inicializando scanner no inventário...');
-            initScanner();
-            initEnterKey(); // 🎯 NOVO: Inicializar tecla Enter
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof ZXing !== 'undefined') {
+            console.log('✅ ZXing carregado!');
+            initZXingScanner();
+        }
+        initEnterKey();
+    });
 
-        function initScanner() {
-            // Elementos
-            var scanBtn = document.getElementById('qrScanBtn');
-            var modalElement = document.getElementById('qrModal');
-            
-            if (!scanBtn || !modalElement) {
-                console.warn('⚠️ Elementos não encontrados');
-                return;
-            }
+    function initZXingScanner() {
+        const scanBtn = document.getElementById('qrScanBtn');
+        const modalElement = document.getElementById('qrModal');
+        const closeBtn = document.getElementById('closeModal');
+        
+        if (!scanBtn || !modalElement) return;
 
-            // Modal Bootstrap
+        try {
+            codeReader = new ZXing.BrowserQRCodeReader();
             modal = new bootstrap.Modal(modalElement);
+            videoElement = document.getElementById('video-scanner');
             
-            // Evento do botão principal
-            scanBtn.addEventListener('click', function() {
-                console.log('🎯 Abrindo scanner no inventário...');
-                openScanner();
+            // Otimização Canvas (elimina warning)
+            if (videoElement) {
+                videoElement.setAttribute('willReadFrequently', 'true');
+            }
+            
+            scanBtn.addEventListener('click', requestCameraPermission);
+            if (closeBtn) closeBtn.addEventListener('click', closeScanner);
+            
+            // OTIMIZAÇÃO: Eventos sem auto-start
+            modalElement.addEventListener('shown.bs.modal', function() {
+                // Delay para evitar múltiplos starts
+                setTimeout(startZXingCamera, 500);
             });
+            modalElement.addEventListener('hidden.bs.modal', stopZXingScanner);
 
-            // Fechar modal
-            modalElement.addEventListener('hidden.bs.modal', function() {
-                stopScanner();
+            console.log('✅ ZXing otimizado inicializado!');
+        } catch (error) {
+            console.error('❌ Erro:', error);
+        }
+    }
+
+    async function requestCameraPermission() {
+        console.log('🎥 Solicitando permissão...');
+        
+        try {
+            // Verificar se já tem permissão
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                } 
             });
-
-            console.log('✅ Scanner inventário inicializado!');
+            
+            // Parar stream temporário
+            stream.getTracks().forEach(track => track.stop());
+            
+            console.log('✅ Permissão OK!');
+            openZXingScanner();
+            
+        } catch (error) {
+            console.error('❌ Permissão negada:', error);
+            showPermissionError();
         }
+    }
 
-        // 🎯 NOVA FUNÇÃO: Detectar Enter no campo de busca
-        function initEnterKey() {
-            var searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' || e.keyCode === 13) {
-                        e.preventDefault();
-                        console.log('⌨️ Enter pressionado - acionando filtro...');
-                        submitForm();
-                    }
-                });
-                console.log('✅ Tecla Enter configurada!');
-            }
+    function openZXingScanner() {
+        console.log('📱 Abrindo scanner otimizado...');
+        
+        // Reset UI
+        resetScannerUI();
+        
+        // Abrir modal
+        modal.show();
+    }
+
+    function resetScannerUI() {
+        const loading = document.getElementById('scanner-loading');
+        const video = document.getElementById('video-scanner');
+        const overlay = document.getElementById('scanner-overlay');
+        const result = document.getElementById('scanner-result');
+        
+        if (loading) loading.style.display = 'block';
+        if (video) {
+            video.style.display = 'none';
+            // OTIMIZAÇÃO: Parar vídeo se já estiver rodando
+            video.pause();
+            video.currentTime = 0;
         }
+        if (overlay) overlay.style.display = 'none';
+        if (result) result.innerHTML = '';
+    }
 
-        function openScanner() {
-            modal.show();
-            
-            // Interface inicial
-            var qrReader = document.getElementById('qr-reader');
-            if (qrReader) {
-                qrReader.innerHTML = 
-                    '<div class="text-center p-5">' +
-                        '<div class="mb-4">' +
-                            '<i class="fas fa-camera fa-4x text-primary"></i>' +
-                        '</div>' +
-                        '<h4 class="mb-3">Scanner Pronto</h4>' +
-                        '<p class="text-muted">Vai automaticamente filtrar após capturar</p>' +
-                        '<button class="btn btn-success btn-lg" onclick="startCamera()">' +
-                            '<i class="fas fa-play me-2"></i>Iniciar Câmera' +
-                        '</button>' +
-                    '</div>';
-            }
-
-            // Esconder painel lateral se existir
-            var sidebar = document.querySelector('.col-lg-4');
-            var mainPanel = document.querySelector('.col-lg-8');
-            
-            if (sidebar) sidebar.style.display = 'none';
-            if (mainPanel) mainPanel.className = 'col-12';
+    async function startZXingCamera() {
+        if (scanning || !codeReader) {
+            console.log('⚠️ Scanner já ativo ou não disponível');
+            return;
         }
-
-        function startCamera() {
-            console.log('📷 Iniciando câmera no inventário...');
+        
+        console.log('📷 Iniciando câmera traseira...');
+        
+        try {
+            scanning = true;
             
-            // Loading
-            var qrReader = document.getElementById('qr-reader');
-            if (qrReader) {
-                qrReader.innerHTML = 
-                    '<div class="text-center p-5">' +
-                        '<div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>' +
-                        '<h5>Iniciando câmera...</h5>' +
-                        '<small class="text-muted">Aguarde um momento</small>' +
-                    '</div>';
-            }
-
-            // Inicializar scanner
-            scanner = new Html5Qrcode("qr-reader");
+            const videoInputDevices = await codeReader.getVideoInputDevices();
+            console.log('📹 Câmeras encontradas:', videoInputDevices.length);
             
-            var config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            };
-
-            scanner.start(
-                { facingMode: "environment" },
-                config,
-                function(decodedText) {
-                    // SUCESSO - Código encontrado
-                    console.log('✅ Código encontrado no inventário:', decodedText);
-                    onScanSuccess(decodedText);
-                },
-                function(error) {
-                    // Erro silencioso (normal durante escaneamento)
-                }
-            ).then(function() {
-                // Scanner iniciado com sucesso
-                isScanning = true;
-                showMessage('success', '📷 Scanner ativo! Aponte para o código...');
-                
-            }).catch(function(error) {
-                // Erro ao iniciar
-                console.error('❌ Erro ao iniciar:', error);
-                var errorMsg = 'Erro ao acessar câmera';
-                
-                if (error.toString().indexOf('Permission') !== -1) {
-                    errorMsg = 'Permissão de câmera negada. Permita o acesso à câmera.';
-                } else if (error.toString().indexOf('NotFound') !== -1) {
-                    errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
-                }
-                
-                showMessage('danger', '❌ ' + errorMsg);
+            // Listar todas as câmeras para debug
+            videoInputDevices.forEach((device, index) => {
+                console.log(`📷 Câmera ${index}:`, device.label, '| ID:', device.deviceId);
             });
-        }
-
-        function onScanSuccess(code) {
-            console.log('🎯 Código capturado no inventário:', code);
             
-            // Parar scanner primeiro
-            stopScanner();
+            // MÚLTIPLAS ESTRATÉGIAS para encontrar câmera traseira
+            let selectedDeviceId = null;
             
-            // Preencher campo de busca
-            var searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.value = code;
-                searchInput.readOnly = false;
-            }
-
-            // Mostrar sucesso
-            showMessage('success', 
-                '<div class="text-center">' +
-                    '<i class="fas fa-check-circle fa-2x text-success mb-2"></i>' +
-                    '<h5>Código Capturado!</h5>' +
-                    '<code class="fs-5 text-primary">' + code + '</code>' +
-                    '<p class="mt-2 mb-0"><small>Processando automaticamente...</small></p>' +
-                '</div>'
-            );
-
-            // 🎯 AGUARDAR 1 SEGUNDO E SUBMETER AUTOMATICAMENTE
-            setTimeout(function() {
-                modal.hide();
-                console.log('🚀 Auto-submetendo formulário após QR...');
-                submitForm();
-            }, 1000);
-        }
-
-        // 🎯 NOVA FUNÇÃO CENTRALIZADA: Submeter formulário
-        function submitForm() {
-            var form = document.querySelector('form[method="GET"]');
-            if (form) {
-                console.log('📝 Submetendo formulário automaticamente...');
-                form.submit();
+            // Estratégia 1: Procurar por palavras-chave (mais específicas)
+            const backCamera = videoInputDevices.find(device => {
+                const label = device.label.toLowerCase();
+                return (
+                    label.includes('back') ||
+                    label.includes('rear') ||
+                    label.includes('environment') ||
+                    label.includes('world') ||
+                    label.includes('traseira') ||
+                    label.includes('principal') ||
+                    // Padrões específicos de fabricantes
+                    label.includes('camera2 0') ||  // Android padrão
+                    label.includes('0, facing back') ||
+                    label.includes('back camera') ||
+                    !label.includes('front') && !label.includes('user') && !label.includes('face')
+                );
+            });
+            
+            if (backCamera) {
+                selectedDeviceId = backCamera.deviceId;
+                console.log('✅ Câmera traseira encontrada:', backCamera.label);
             } else {
-                console.warn('⚠️ Formulário não encontrado');
+                // Estratégia 2: Se não encontrou, usar constraints do navegador
+                console.log('⚠️ Câmera traseira não encontrada por label, tentando facingMode...');
+                
+                try {
+                    // Tentar forçar câmera traseira via constraints
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            facingMode: { exact: 'environment' }  // Força câmera traseira
+                        }
+                    });
+                    
+                    // Pegar o device ID do stream ativo
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    selectedDeviceId = settings.deviceId;
+                    
+                    console.log('✅ Câmera traseira forçada via facingMode:', settings);
+                    
+                    // Parar stream temporário
+                    stream.getTracks().forEach(t => t.stop());
+                    
+                } catch (facingError) {
+                    console.warn('⚠️ Não conseguiu forçar facingMode:', facingError);
+                    
+                    // Estratégia 3: Usar a última câmera (geralmente é a traseira)
+                    if (videoInputDevices.length > 1) {
+                        selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
+                        console.log('🎯 Usando última câmera (provavelmente traseira)');
+                    } else {
+                        selectedDeviceId = videoInputDevices[0]?.deviceId;
+                        console.log('🎯 Usando única câmera disponível');
+                    }
+                }
+            }
+            
+            if (!selectedDeviceId) {
+                throw new Error('Nenhuma câmera disponível');
+            }
+            
+            console.log('🎯 ID da câmera selecionada:', selectedDeviceId);
+            
+            // Mostrar vídeo
+            if (videoElement) {
+                videoElement.style.display = 'block';
+            }
+            
+            // Esconder loading
+            const loading = document.getElementById('scanner-loading');
+            if (loading) loading.style.display = 'none';
+            
+            // Mostrar overlay
+            const overlay = document.getElementById('scanner-overlay');
+            if (overlay) {
+                overlay.style.display = 'block';
+                overlay.innerHTML = '<i class="fas fa-camera me-2"></i>Câmera traseira ativa - Aponte para o código...';
+            }
+            
+            // Configurações otimizadas
+            const hints = new Map();
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+            
+            // Iniciar decodificação com a câmera selecionada
+            const result = await codeReader.decodeOnceFromVideoDevice(selectedDeviceId, 'video-scanner', hints);
+            
+            console.log('✅ Código capturado com câmera traseira:', result.text);
+            onZXingScanSuccess(result.text);
+            
+        } catch (error) {
+            console.error('❌ Erro na câmera traseira:', error);
+            handleZXingError(error);
+        }
+    }
+
+    function onZXingScanSuccess(code) {
+        console.log('🎯 Processando código:', code);
+        
+        // Parar scanner imediatamente
+        stopZXingScanner();
+        
+        // UI de sucesso
+        showScanResult('success', 
+            `<div class="text-center py-3">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="text-success">✅ Código Capturado!</h5>
+                <div class="alert alert-success mb-3">
+                    <code class="fs-5 text-dark">${code}</code>
+                </div>
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                <small class="text-muted">Processando automaticamente...</small>
+            </div>`
+        );
+        
+        // Preencher campo
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = code;
+        }
+        
+        // Auto-submit otimizado
+        setTimeout(() => {
+            modal.hide();
+            
+            // Delay adicional para garantir que modal fechou
+            setTimeout(() => {
+                const form = document.getElementById('inventory-form');
+                if (form) {
+                    console.log('📝 Submetendo formulário...');
+                    form.submit();
+                }
+            }, 300);
+        }, 1200);
+    }
+
+    function handleZXingError(error) {
+        console.error('❌ Erro ZXing:', error.name, error.message);
+        
+        let errorMsg = 'Erro desconhecido';
+        let instructions = '';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMsg = '🚨 Câmera bloqueada';
+            instructions = `
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-info-circle"></i> Como resolver:</h6>
+                    <ol class="text-start small mb-0">
+                        <li>Clique no ícone 🔒 na barra de endereços</li>
+                        <li>Altere "Câmera" para "Permitir"</li>
+                        <li>Recarregue a página (F5)</li>
+                    </ol>
+                </div>
+            `;
+        } else if (error.name === 'NotFoundError') {
+            errorMsg = '📷 Nenhuma câmera encontrada';
+        } else if (error.name === 'NotSupportedError') {
+            errorMsg = '❌ Câmera não suportada';
+        }
+        
+        showScanResult('danger', 
+            `<div class="text-center py-3">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
+                <h6 class="text-danger">${errorMsg}</h6>
+                ${instructions}
+                <div class="mt-3">
+                    <button class="btn btn-primary me-2" onclick="startZXingCamera()">
+                        <i class="fas fa-redo me-1"></i> Tentar Novamente
+                    </button>
+                    <button class="btn btn-secondary" onclick="useManualInput()">
+                        <i class="fas fa-keyboard me-1"></i> Digitar Manual
+                    </button>
+                </div>
+            </div>`
+        );
+    }
+
+    function stopZXingScanner() {
+        if (codeReader && scanning) {
+            try {
+                codeReader.reset();
+                scanning = false;
+                
+                // OTIMIZAÇÃO: Limpar vídeo completamente
+                if (videoElement) {
+                    videoElement.pause();
+                    videoElement.currentTime = 0;
+                    videoElement.style.display = 'none';
+                }
+                
+                console.log('⏹️ Scanner parado e limpo');
+            } catch (error) {
+                console.warn('⚠️ Erro ao parar scanner:', error);
             }
         }
+    }
 
-        function stopScanner() {
-            if (scanner && isScanning) {
-                scanner.stop().then(function() {
-                    scanner.clear();
-                    isScanning = false;
-                    console.log('⏹️ Scanner parado');
-                }).catch(function(error) {
-                    console.error('Erro ao parar scanner:', error);
-                });
-            }
+    function closeScanner() {
+        stopZXingScanner();
+        modal.hide();
+    }
+
+    function useManualInput() {
+        modal.hide();
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.placeholder = 'Digite o código aqui...';
         }
+    }
 
-        function showMessage(type, message) {
-            var resultDiv = document.getElementById('qr-result');
-            if (resultDiv) {
-                resultDiv.innerHTML = 
-                    '<div class="alert alert-' + type + ' mt-3">' +
-                        message +
-                    '</div>';
-            }
+    function showScanResult(type, message) {
+        const loading = document.getElementById('scanner-loading');
+        const video = document.getElementById('video-scanner');
+        const overlay = document.getElementById('scanner-overlay');
+        const result = document.getElementById('scanner-result');
+        
+        if (loading) loading.style.display = 'none';
+        if (video) video.style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
+        if (result) {
+            result.innerHTML = `<div class="alert alert-${type} mb-0">${message}</div>`;
         }
+    }
 
-        // Log final
-        console.log('✅ Scanner QR Inventário com Auto-Submit carregado!');
+    function showPermissionError() {
+        alert(`🚨 CÂMERA BLOQUEADA!
+
+    📋 Para usar o scanner:
+    1️⃣ Clique no ícone 🔒 na barra de endereços
+    2️⃣ Mude "Câmera" para "Permitir"  
+    3️⃣ Recarregue a página (F5)
+    4️⃣ Tente novamente
+
+    ⌨️ Ou digite o código no campo de busca.`);
+        
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.placeholder = 'Digite o código (câmera bloqueada)';
+        }
+    }
+
+    function initEnterKey() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('inventory-form').submit();
+                }
+            });
+        }
+    }
+
+    // Limpeza ao sair
+    window.addEventListener('beforeunload', function() {
+        stopZXingScanner();
+    });
+
+    console.log('✅ ZXing Scanner OTIMIZADO pronto! 🚀');
     </script>
+
 </body>
 </html>

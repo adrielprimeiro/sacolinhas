@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf; // Importar a facade do DomPDF
+
 
 class PedidoController extends Controller
 {
@@ -363,5 +365,271 @@ class PedidoController extends Controller
 		}
 	}	
 	
-	
+
+
+	/**
+	 * Imprimir Sacolinha em PDF - VERSÃO CORRIGIDA
+	 */
+	public function imprimirSacolinha(Request $request)
+	{
+		try {
+			$clienteId = $request->input('cliente_id');
+			
+			if (!$clienteId) {
+				return response()->json(['error' => 'Cliente não selecionado'], 400);
+			}
+
+			// Buscar cliente na tabela USERS (não clientes!)
+			$cliente = \App\Models\User::find($clienteId);
+			
+			if (!$cliente) {
+				return response()->json(['error' => 'Cliente não encontrado'], 404);
+			}
+
+			// Buscar itens da sacolinha
+			$itensSacolinha = \DB::table('sacolinhas')
+				->join('items', 'sacolinhas.item_id', '=', 'items.id')
+				->where('sacolinhas.user_id', $clienteId)
+				->select(
+					'items.codigo',
+					'items.nome_do_produto',
+					'sacolinhas.price',
+					'items.marca',
+					'items.estado',
+					'items.cor',
+					'items.tamanho',
+					'sacolinhas.add_at'
+				)
+				->get();
+
+			if ($itensSacolinha->count() === 0) {
+				return response()->json(['error' => 'Nenhum item encontrado na sacolinha'], 404);
+			}
+
+			$valorTotal = $itensSacolinha->sum('price');
+			$totalItens = $itensSacolinha->count();
+
+			// Gerar PDF simples
+			$html = '
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta charset="UTF-8">
+				<title>Sacolinha - ' . $cliente->name . '</title>
+				<style>
+					body { font-family: Arial, sans-serif; font-size: 12px; }
+					table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+					th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+					th { background: #f0f0f0; }
+					.header { text-align: center; margin-bottom: 20px; }
+					.total { background: #e8f4fd; font-weight: bold; }
+				</style>
+			</head>
+			<body>
+				<div class="header">
+					<h1>🎒 Sacolinha</h1>
+					<p><strong>Cliente:</strong> ' . $cliente->name . '</p>
+					<p><strong>Email:</strong> ' . $cliente->email . '</p>
+					<p><strong>Data:</strong> ' . date('d/m/Y H:i:s') . '</p>
+					<p><strong>Total de Itens:</strong> ' . $totalItens . '</p>
+					<p><strong>Valor Total:</strong> R$ ' . number_format($valorTotal, 2, ',', '.') . '</p>
+				</div>
+				
+				<table>
+					<thead>
+						<tr>
+							<th>Código</th>
+							<th>Produto</th>
+							<th>Detalhes</th>
+							<th>Preço</th>
+							<th>Data</th>
+						</tr>
+					</thead>
+					<tbody>';
+
+			foreach ($itensSacolinha as $item) {
+				$detalhes = [];
+				if($item->marca) $detalhes[] = $item->marca;
+				if($item->estado) $detalhes[] = $item->estado;
+				if($item->cor) $detalhes[] = $item->cor;
+				if($item->tamanho) $detalhes[] = 'Tam: ' . $item->tamanho;
+				
+				$html .= '<tr>
+					<td>' . ($item->codigo ?? 'N/A') . '</td>
+					<td><strong>' . $item->nome_do_produto . '</strong></td>
+					<td>' . implode(' • ', $detalhes) . '</td>
+					<td style="text-align: right;">R$ ' . number_format($item->price, 2, ',', '.') . '</td>
+					<td>' . \Carbon\Carbon::parse($item->add_at)->format('d/m/Y') . '</td>
+				</tr>';
+			}
+
+			$html .= '
+					</tbody>
+					<tfoot>
+						<tr class="total">
+							<td colspan="3"><strong>TOTAL GERAL:</strong></td>
+							<td style="text-align: right;"><strong>R$ ' . number_format($valorTotal, 2, ',', '.') . '</strong></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</body>
+			</html>';
+
+			// Gerar PDF
+			$pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+			
+			$filename = 'sacolinha_' . str_replace(' ', '_', $cliente->name) . '_' . date('Y-m-d_H-i-s') . '.pdf';
+			
+			return $pdf->download($filename);
+
+		} catch (\Exception $e) {
+			\Log::error('Erro PDF Sacolinha:', [
+				'message' => $e->getMessage(),
+				'file' => $e->getFile(),
+				'line' => $e->getLine()
+			]);
+			
+			return response()->json([
+				'error' => 'Erro: ' . $e->getMessage()
+			], 500);
+		}
+	}
+
+
+
+	/**
+	 * Imprimir Pedidos - VERSÃO CORRIGIDA PARA COLLATION
+	 */
+	public function imprimirPedido(Request $request)
+	{
+		try {
+			$clienteId = $request->input('cliente_id');
+			
+			if (!$clienteId) {
+				return response()->json(['error' => 'Cliente não selecionado'], 400);
+			}
+
+			// Buscar cliente
+			$cliente = \App\Models\User::find($clienteId);
+			
+			if (!$cliente) {
+				return response()->json(['error' => 'Cliente não encontrado'], 404);
+			}
+
+			// Query CORRIGIDA - forçando collation
+			$itensPedido = \DB::table('items')
+				->join('pedidos', \DB::raw('items.pedido COLLATE utf8mb4_unicode_ci'), '=', \DB::raw('pedidos.numero_pedido COLLATE utf8mb4_unicode_ci'))
+				->where('pedidos.user_id', $clienteId)
+				->whereNotNull('items.pedido')
+				->select(
+					'items.codigo',
+					'items.nome_do_produto',
+					'items.preco',
+					'items.marca',
+					'items.estado',
+					'items.cor',
+					'items.tamanho',
+					'items.pedido as numero_pedido',
+					'items.created_at'
+				)
+				->orderBy('items.created_at', 'desc')
+				->get();
+
+			if ($itensPedido->count() === 0) {
+				return response()->json(['error' => 'Nenhum item encontrado nos pedidos'], 404);
+			}
+
+			$valorTotal = $itensPedido->sum('preco');
+			$totalItens = $itensPedido->count();
+
+			// HTML para PDF
+			$html = '
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta charset="UTF-8">
+				<title>Pedidos - ' . $cliente->name . '</title>
+				<style>
+					body { font-family: Arial, sans-serif; font-size: 12px; }
+					table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+					th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+					th { background: #f0f0f0; }
+					.header { text-align: center; margin-bottom: 20px; }
+					.total { background: #e8f4fd; font-weight: bold; }
+				</style>
+			</head>
+			<body>
+				<div class="header">
+					<h1>Pedido</h1>
+					<p><strong>Cliente:</strong> ' . $cliente->name . '</p>
+					<p><strong>Email:</strong> ' . $cliente->email . '</p>
+					<p><strong>Data:</strong> ' . date('d/m/Y H:i:s') . '</p>
+					<p><strong>Total de Itens:</strong> ' . $totalItens . '</p>
+					<p><strong>Valor Total:</strong> R$ ' . number_format($valorTotal, 2, ',', '.') . '</p>
+				</div>
+				
+				<table>
+					<thead>
+						<tr>
+							<th>Pedido</th>
+							<th>Código</th>
+							<th>Produto</th>
+							<th>Detalhes</th>
+							<th>Preço</th>
+							<th>Data</th>
+						</tr>
+					</thead>
+					<tbody>';
+
+			foreach ($itensPedido as $item) {
+				$detalhes = [];
+				if($item->marca) $detalhes[] = $item->marca;
+				if($item->estado) $detalhes[] = $item->estado;
+				if($item->cor) $detalhes[] = $item->cor;
+				if($item->tamanho) $detalhes[] = 'Tam: ' . $item->tamanho;
+				
+				$html .= '<tr>
+					<td><strong>' . ($item->numero_pedido ?? 'N/A') . '</strong></td>
+					<td>' . ($item->codigo ?? 'N/A') . '</td>
+					<td><strong>' . $item->nome_do_produto . '</strong></td>
+					<td>' . implode(' • ', $detalhes) . '</td>
+					<td style="text-align: right;">R$ ' . number_format($item->preco, 2, ',', '.') . '</td>
+					<td>' . \Carbon\Carbon::parse($item->created_at)->format('d/m/Y') . '</td>
+				</tr>';
+			}
+
+			$html .= '
+					</tbody>
+					<tfoot>
+						<tr class="total">
+							<td colspan="4"><strong>TOTAL GERAL:</strong></td>
+							<td style="text-align: right;"><strong>R$ ' . number_format($valorTotal, 2, ',', '.') . '</strong></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</body>
+			</html>';
+
+			// Gerar PDF
+			$pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+			
+			$filename = 'pedidos_' . str_replace(' ', '_', $cliente->name) . '_' . date('Y-m-d_H-i-s') . '.pdf';
+			
+			return $pdf->download($filename);
+
+		} catch (\Exception $e) {
+			\Log::error('Erro PDF Pedidos:', [
+				'message' => $e->getMessage(),
+				'file' => $e->getFile(),
+				'line' => $e->getLine()
+			]);
+			
+			return response()->json([
+				'error' => 'Erro: ' . $e->getMessage()
+			], 500);
+		}
+	}
+
 }

@@ -230,4 +230,12 @@ class ItemController extends Controller
 
 		return $labels[$status] ?? $status;
 	}
+	
+	public function etiqueta()
+    {
+        // Aqui você pode adicionar lógica, como verificar permissões ou carregar dados iniciais
+        // Exemplo: $bagItems = Bag::where('id', 0)->first(); // Se precisar de dados
+
+        return view('admin.items.etiqueta');
+    }
 }

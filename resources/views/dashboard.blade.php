@@ -77,6 +77,65 @@
             width: 20px;
             margin-right: 8px;
         }
+		
+	  
+		/* NOVOS ESTILOS PARA CARDS DO ESTOQUE */
+		.card.h-100 {
+			transition: transform 0.3s ease, box-shadow 0.3s ease;
+		}
+		
+		.card.h-100:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+		}
+		
+		.card-title {
+			font-weight: 600;
+		}
+		
+		.badge {
+			font-size: 0.9em;
+			padding: 8px 12px;
+		}
+		
+		.border-info {
+			border-color: #0dcaf0 !important;
+			border-width: 2px !important;
+		}
+		
+		.border-success {
+			border-color: #198754 !important;
+			border-width: 2px !important;
+		}
+		
+		.border-danger {
+			border-color: #dc3545 !important;
+			border-width: 2px !important;
+		}
+		
+		.border-warning {
+			border-color: #ffc107 !important;
+			border-width: 2px !important;
+		}
+		
+		/* Cor roxa para sacolas */
+		.text-purple {
+			color: #6f42c1 !important;
+		}
+		
+		/* Responsividade */
+		@media (max-width: 768px) {
+			.card .display-6 {
+				font-size: 2rem;
+			}
+			
+			.card h6 {
+				font-size: 0.9rem;
+			}
+		}
+			
+			
+		
     </style>
 </head>
 <body class="bg-light">
@@ -302,51 +361,131 @@
                     </div>
                 </div>
 
-                <!-- Cards de Estatísticas Rápidas (apenas no dashboard) -->
-                @if(request()->routeIs('dashboard'))
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="fas fa-users fa-2x text-primary mb-2"></i>
-                                <h5 class="card-title">Clientes</h5>
-                                <p class="card-text display-6">{{ \App\Models\Cliente::count() ?? 0 }}</p>
-                                <a href="{{ route('clientes.index') }}" class="btn btn-sm btn-primary">Ver Todos</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="fas fa-box fa-2x text-success mb-2"></i>
-                                <h5 class="card-title">Itens</h5>
-                                <p class="card-text display-6">{{ \App\Models\Item::count() ?? 0 }}</p>
-                                <a href="{{ route('items.index') }}" class="btn btn-sm btn-success">Ver Todos</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="fas fa-broadcast-tower fa-2x text-warning mb-2"></i>
-                                <h5 class="card-title">Lives Ativas</h5>
-                                <p class="card-text display-6">2</p>
-                                <a href="{{ route('bags.index') }}" class="btn btn-sm btn-warning">Gerenciar</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="fas fa-shopping-bag fa-2x text-info mb-2"></i>
-                                <h5 class="card-title">Sacolas</h5>
-                                <p class="card-text display-6">15</p>
-                                <a href="{{ route('admin.sacolinhas.index') }}" class="btn btn-sm btn-info">Ver Todas</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @endif
+				<!-- Cards de Estatísticas Rápidas (apenas no dashboard) -->
+				@if(request()->routeIs('dashboard'))
+
+				<div class="row mb-4">
+					<!-- Card Clientes -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100">
+							<div class="card-body">
+								<i class="fas fa-users fa-2x text-primary mb-2"></i>
+								<h5 class="card-title">Clientes</h5>
+								<p class="card-text display-6">{{ $estatisticas['total_clientes'] ?? 0 }}</p>
+								<a href="{{ route('clientes.index') }}" class="btn btn-sm btn-primary">Ver Todos</a>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Card Itens Total -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100">
+							<div class="card-body">
+								<i class="fas fa-box fa-2x text-success mb-2"></i>
+								<h5 class="card-title">Itens Total</h5>
+								<p class="card-text display-6">{{ $estatisticas['total_itens'] ?? 0 }}</p>
+								<a href="{{ route('items.index') }}" class="btn btn-sm btn-success">Ver Todos</a>
+							</div>
+						</div>
+					</div>
+
+					<!-- CARD ESTOQUE - COM DADOS -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100 border-info">
+							<div class="card-body">
+								<i class="fas fa-warehouse fa-2x text-info mb-2"></i>
+								<h5 class="card-title text-info">Estoque</h5>
+								
+								<!-- Quantidade -->
+								<div class="mb-2">
+									<h6 class="mb-1">📦 Quantidade</h6>
+									<span class="badge bg-info fs-6">{{ $estoqueInfo['quantidade'] ?? 0 }} itens</span>
+								</div>
+								
+								<!-- Valor Total -->
+								<div class="mb-2">
+									<h6 class="mb-1">💰 Valor Total</h6>
+									<span class="text-success fw-bold">R$ {{ number_format($estoqueInfo['valor_total'] ?? 0, 2, ',', '.') }}</span>
+								</div>
+								
+								<!-- Valor Médio -->
+								<div class="mb-3">
+									<h6 class="mb-1">📊 Valor Médio</h6>
+									<span class="text-warning fw-bold">R$ {{ number_format($estoqueInfo['valor_medio'] ?? 0, 2, ',', '.') }}</span>
+								</div>
+								
+								<a href="{{ route('inventario') }}?status=estoque" class="btn btn-sm btn-info">
+									<i class="fas fa-eye me-1"></i>Ver Estoque
+								</a>
+							</div>
+						</div>
+					</div>
+
+					<!-- Card Lives -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100">
+							<div class="card-body">
+								<i class="fas fa-broadcast-tower fa-2x text-warning mb-2"></i>
+								<h5 class="card-title">Lives Ativas</h5>
+								<p class="card-text display-6">2</p>
+								<a href="{{ route('bags.index') }}" class="btn btn-sm btn-warning">Gerenciar</a>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Segunda linha de cards -->
+				<div class="row mb-4">
+					<!-- Card Disponíveis -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100 border-success">
+							<div class="card-body">
+								<i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+								<h5 class="card-title text-success">Disponíveis</h5>
+								<p class="card-text display-6">{{ $estatisticas['itens_disponiveis'] ?? 0 }}</p>
+								<a href="{{ route('inventario') }}?status=disponivel" class="btn btn-sm btn-success">Ver</a>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Card Vendidos -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100 border-danger">
+							<div class="card-body">
+								<i class="fas fa-shopping-cart fa-2x text-danger mb-2"></i>
+								<h5 class="card-title text-danger">Vendidos</h5>
+								<p class="card-text display-6">{{ $estatisticas['itens_vendidos'] ?? 0 }}</p>
+								<a href="{{ route('inventario') }}?status=vendido" class="btn btn-sm btn-danger">Ver</a>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Card Reservados -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100 border-warning">
+							<div class="card-body">
+								<i class="fas fa-clock fa-2x text-warning mb-2"></i>
+								<h5 class="card-title text-warning">Reservados</h5>
+								<p class="card-text display-6">{{ $estatisticas['itens_reservados'] ?? 0 }}</p>
+								<a href="{{ route('inventario') }}?status=reservado" class="btn btn-sm btn-warning">Ver</a>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Card Sacolas -->
+					<div class="col-md-3 col-sm-6 mb-3">
+						<div class="card text-center h-100">
+							<div class="card-body">
+								<i class="fas fa-shopping-bag fa-2x text-purple mb-2"></i>
+								<h5 class="card-title">Sacolas</h5>
+								<p class="card-text display-6">15</p>
+								<a href="{{ route('admin.sacolinhas.index') }}" class="btn btn-sm" style="background: #6f42c1; color: white;">Ver Todas</a>
+							</div>
+						</div>
+					</div>
+				</div>
+				@endif
+
 
                 <!-- Conteúdo da Página -->
                 <div class="row">
