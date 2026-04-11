@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\ImageEditBatch;
+use App\Services\ImageEditing\GeminiBatchImageEditService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+
+class PollGeminiBatchStatusJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 300;
+    public int $tries = 3;
+
+    public function handle(GeminiBatchImageEditService $service): void
+    {
+        $batchIds = ImageEditBatch::query()
+            ->where('provider', 'gemini')
+            ->where('mode', 'batch')
+            ->whereIn('status', ['submitted', 'running'])
+            ->pluck('id');
+
+        foreach ($batchIds as $batchId) {
+            DB::transaction(function () use ($batchId, $service) {
+                $batch = ImageEditBatch::where('id', $batchId)->lockForUpdate()->first();
+
+                if (!$batch || $batch->isTerminal()) {
+                    return;
+                }
+
+                $result = $service->syncBatchStatus($batch->id);
+
+                $batch->refresh();
+
+                if (!($result['success'] ?? false)) {
+                    return;
+                }
+
+                if (($result['status'] ?? null) === 'succeeded' && $batch->status !== 'result_processing') {
+                    $batch->update([
+                        'status' => 'result_processing',
+                    ]);
+
+                    ProcessGeminiBatchResultJob::dispatch($batch->id);
+                }
+            });
+        }
+    }
+}

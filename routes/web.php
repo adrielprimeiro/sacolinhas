@@ -4,35 +4,52 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\SacolinhaController;
 use App\Http\Controllers\LiveController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\ContaCorrenteController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\ImportItemsController;
+use App\Http\Controllers\WhatsappController;
+use App\Http\Controllers\TwilioOutController;
+use App\Http\Controllers\LiveWhatsAppController;
+use App\Http\Controllers\Admin\AdminPedidoController;
+use App\Http\Controllers\Admin\ChatController;
+use App\Http\Controllers\PortalClienteController;
+use App\Http\Controllers\SacolinhaVencidaController;
+use App\Http\Controllers\Admin\ClubeMensalidadesController;
+use App\Http\Controllers\ClassificacaoFinanceiraController;
+use App\Http\Controllers\LojaController;
+use App\Http\Controllers\OrphanPhotoController;
+use App\Http\Controllers\ImageGroupController;
+use App\Http\Controllers\ItemMediaController;
+//use App\Http\Controllers\GeminiBatchImageEditController;
+//use App\Http\Controllers\ImagemBatchController;
+use App\Http\Controllers\PontuacoesController;
+use App\Http\Controllers\Admin\GruposController;  
+
+
+// Rota que vai disparar o envio das imagens
+//Route::get('/teste-enviar-gemini', [App\Http\Controllers\ImagemBatchController::class, 'enviarParaEdicao']);
+
+
+//Editar Imagem Batch
+//Route::post('/image-edits/batch', [GeminiBatchImageEditController::class, 'submit']);
+//Route::get('/image-edits/batch/{batchId}', [GeminiBatchImageEditController::class, 'show']);
+//Route::get('/image-edits/batch/{batchId}/status', [GeminiBatchImageEditController::class, 'status']);
+
 
 
 // ===== ROTAS DE AUTENTICAÇÃO =====
-
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
-
-Route::post('/login', function (Request $request) {
-    $credentials = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
-
-    if (Auth::attempt($credentials)) {
-        $request->session()->regenerate();
-        return redirect()->intended('/dashboard');
-    }
-
-    return back()->withErrors([
-        'email' => 'As credenciais fornecidas não coincidem com nossos registros.',
-    ])->onlyInput('email');
-});
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::get('/register', function () {
     return view('auth.register');
@@ -52,13 +69,6 @@ Route::post('/register', function (Request $request) {
     return redirect('/dashboard');
 });
 
-Route::post('/logout', function (Request $request) {
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-    return redirect('/');
-})->name('logout');
-
 Route::get('/password/reset', function () {
     return view('auth.forgot-password');
 })->name('password.request');
@@ -69,65 +79,15 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+
+
 // ===== ROTAS PROTEGIDAS =====
 
 Route::middleware('auth')->group(function () {
     
     // Dashboard
-	// COM DADOS DO ESTOQUE
-	Route::get('/dashboard', function () {
-		
-		try {
-			// Calcular informações do estoque
-			$itensEstoque = \App\Models\Item::where('status', 'estoque')->get();
-			
-			$estoqueInfo = [
-				'quantidade' => $itensEstoque->count(),
-				'valor_total' => $itensEstoque->sum('preco'),
-				'valor_medio' => $itensEstoque->count() > 0 ? 
-					round($itensEstoque->sum('preco') / $itensEstoque->count(), 2) : 0
-			];
-			
-			// Outras estatísticas úteis (opcional)
-			$estatisticas = [
-				'total_clientes' => \App\Models\Cliente::count(),
-				'total_itens' => \App\Models\Item::count(),
-				'itens_disponiveis' => \App\Models\Item::where('status', 'disponivel')->count(),
-				'itens_vendidos' => \App\Models\Item::where('status', 'vendido')->count(),
-				'itens_reservados' => \App\Models\Item::where('status', 'reservado')->count(),
-				'itens_estoque' => $estoqueInfo['quantidade'],
-			];
-			
-			// Log para debug (remover depois)
-			\Log::info('Dashboard - Estoque Info:', $estoqueInfo);
-			\Log::info('Dashboard - Estatísticas:', $estatisticas);
-			
-			return view('dashboard', compact('estoqueInfo', 'estatisticas'));
-			
-		} catch (\Exception $e) {
-			// Em caso de erro, log e valores padrão
-			\Log::error('Erro ao carregar dashboard: ' . $e->getMessage());
-			
-			$estoqueInfo = [
-				'quantidade' => 0,
-				'valor_total' => 0,
-				'valor_medio' => 0
-			];
-			
-			$estatisticas = [
-				'total_clientes' => 0,
-				'total_itens' => 0,
-				'itens_disponiveis' => 0,
-				'itens_vendidos' => 0,
-				'itens_reservados' => 0,
-				'itens_estoque' => 0,
-			];
-			
-			return view('dashboard', compact('estoqueInfo', 'estatisticas'));
-		}
-		
-	})->name('dashboard');
-    
+	Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
     Route::get('/home', function () {
         return redirect('/dashboard');
     })->name('home');
@@ -161,7 +121,8 @@ Route::middleware('auth')->group(function () {
         // Rota customizada para etiqueta de sacolinha (ID=0) - inserir aqui**
         Route::get('items/etiqueta', [ItemController::class, 'etiqueta'])
             ->name('admin.items.etiqueta');		
- 
+ 		Route::post('/items/{item}/media/reorder', [ItemMediaController::class, 'reorder'])
+			->name('items.media.reorder');
 
         Route::resource('items', ItemController::class)->names([
             'index' => 'admin.items.index',
@@ -173,6 +134,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.items.destroy',
         ]);
 
+
         // ===== ADMIN CLIENTES =====
         Route::resource('clientes', ClienteController::class)->names([
             'index' => 'admin.clientes.index',
@@ -183,7 +145,40 @@ Route::middleware('auth')->group(function () {
             'update' => 'admin.clientes.update',
             'destroy' => 'admin.clientes.destroy',
         ]);
-        
+		
+		//ROTAS DE financeiro
+		Route::resource('financeiro', ContaCorrenteController::class)->names([
+			'index' => 'admin.financeiro.index',
+			'create' => 'admin.financeiro.create',
+			'store' => 'admin.financeiro.store',
+			'show' => 'admin.financeiro.show',
+			'edit' => 'admin.financeiro.edit',
+			'update' => 'admin.financeiro.update',
+			'destroy' => 'admin.financeiro.destroy',
+		]);	
+		
+		//classificacao financeira
+		Route::resource('classificacao_financeira', ClassificacaoFinanceiraController::class)->names([
+			'index' => 'classificacao_financeira.index',
+			'create' => 'classificacao_financeira.create',
+			'store' => 'classificacao_financeira.store',
+			'show' => 'classificacao_financeira.show',
+			'edit' => 'classificacao_financeira.edit',
+			'update' => 'classificacao_financeira.update',
+			'destroy' => 'classificacao_financeira.destroy',
+		]);	
+		
+        // ===== ADMIN PEDIDOS (CRUD) =====
+		Route::resource('pedido', AdminPedidoController::class)->names([
+			'index' => 'admin.pedido.index',
+			'create' => 'admin.pedido.create',
+			'store' => 'admin.pedido.store',
+			'show' => 'admin.pedido.show',
+			'edit' => 'admin.pedido.edit',
+			'update' => 'admin.pedido.update',
+			'destroy' => 'admin.pedido.destroy',
+		]);		
+		
         // Admin - Toggle bloqueio de clientes
         Route::patch('clientes/{cliente}/toggle-block', [ClienteController::class, 'toggleBlock'])
              ->name('admin.clientes.toggle_block');
@@ -191,6 +186,15 @@ Route::middleware('auth')->group(function () {
         // Admin - Relatórios de clientes
         Route::get('clientes/relatorios/dashboard', [ClienteController::class, 'relatorios'])
              ->name('admin.clientes.relatorios');
+			 
+			 
+			// Rota para atribuição de chat
+		Route::post('/chat/api/assign', [ChatController::class, 'assignConversation'])->name('admin.chat.api.assign');
+		Route::get('/chat/api/admins', [ChatController::class, 'getAdmins'])->name('admin.chat.api.admins');
+		Route::get('/chat/api/admins', [ChatController::class, 'getAdmins'])
+		->name('admin.chat.api.admins');
+		Route::post('chat/api/assign', [ChatController::class, 'assignConversation'])
+		->name('admin.chat.api.assign');	 
     });
 
     // ===== SACOLINHAS (BAGS) =====
@@ -200,12 +204,15 @@ Route::middleware('auth')->group(function () {
     
     // Operações das sacolinhas
     Route::post('/sacolinhas', [SacolinhaController::class, 'store'])->name('sacolinhas.store');
+	// Em routes/web.php
+    Route::post('/sacolinhas/adicionar-item', [SacolinhaController::class, 'adicionarItemSacola'])->name('sacolinhas.adicionar_item');
 
     // ===== LIVES =====
     // API para Lives (AJAX)
     Route::get('/lives', [LiveController::class, 'index'])->name('lives.api.index');
     Route::post('/lives', [LiveController::class, 'store'])->name('lives.api.store');
-    Route::delete('/lives/{id}', [LiveController::class, 'destroy'])->name('lives.api.destroy');
+    //Route::delete('/lives/{id}', [LiveController::class, 'destroy'])->name('lives.api.destroy');
+	
 
     // ===== API ROUTES =====
 
@@ -224,10 +231,34 @@ Route::middleware('auth')->group(function () {
         Route::delete('/sacolinhas/remove', [SacolinhaController::class, 'removeItems'])->name('api.sacolinhas.remove');
 	});	
 	
-	//ROTAS DE IMPRESSÃO
-	Route::post('/pedidos/imprimir-sacolinha', [PedidoController::class, 'imprimirSacolinha'])->name('pedidos.imprimir.sacolinha');
+
+
+    // ===== ROTAS DE PEDIDOS =====
+    Route::get('/pedidos', [PedidoController::class, 'index'])->name('pedidos.index');
+    Route::post('/pedidos/criar-pedido', [PedidoController::class, 'criarPedido'])->name('pedidos.criar');
+    Route::post('/pedidos/atualizar-status', [PedidoController::class, 'atualizarStatusPedido'])->name('pedidos.atualizar-status');
+
+    // Rotas para itens de sacolinha/pedido (AJAX)
+    Route::post('/pedidos/itens-sacolinha', [PedidoController::class, 'itensSacolinha']); // POST para carregar sacolinha
+    Route::post('/pedidos/itens-pedido', [PedidoController::class, 'itensPedido']); // POST para carregar pedido
+
+    // Rotas de Movimentação de Itens
+    Route::post('/pedidos/mover-para-pedido', [PedidoController::class, 'moverParaPedido']);
+    Route::post('/pedidos/devolver-para-sacolinha', [PedidoController::class, 'devolverParaSacolinha']);
+
+    // Rota para registrar débito (se for parte do fluxo de pedido)
+    Route::post('/pedidos/registrar-debito-conclusao', [ContaCorrenteController::class, 'registrarDebitoConclusao']);
+
+    // ROTAS DE IMPRESSÃO (estas já estavam aqui, apenas confirmando)
+    Route::post('/pedidos/imprimir-sacolinha', [PedidoController::class, 'imprimirSacolinha'])->name('pedidos.imprimir.sacolinha');
     Route::post('/pedidos/imprimir-pedido', [PedidoController::class, 'imprimirPedido'])->name('pedidos.imprimir.pedido');
+
+    // Rotas de busca Pedido cliente
+    Route::get('/pedidos/buscar-clientes', [PedidoController::class, 'buscarClientes']); 
+
 });
+
+Route::post('/loja/adicionar-item', [LojaController::class, 'adicionarItemSacola'])->name('loja.adicionar_item');
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
 
@@ -263,6 +294,9 @@ Route::prefix('api')->group(function () {
 
 // ===== ROTAS DE SACOLINHAS (COM AUTH) =====
 Route::prefix('api')->middleware('auth')->group(function () {
+	// Buscar limites do cliente
+    Route::get('/sacolinhas/limites', [SacolinhaController::class, 'getLimites'])->name('sacolinhas.limites');		
+	
     // Consultar sacolinha de um cliente específico
     Route::get('/sacolinhas/{userId}', [SacolinhaController::class, 'consultarSacolinhaCliente']);
     
@@ -270,25 +304,218 @@ Route::prefix('api')->middleware('auth')->group(function () {
     Route::get('/sacolinhas/{userId}/totais', [SacolinhaController::class, 'obterTotalSacola']);
     
     // Adicionar item à sacolinha
-    Route::post('/sacolinhas/add', [SacolinhaController::class, 'adicionarItemSacola']);
+	Route::post('/sacolinhas/add', [SacolinhaController::class, 'adicionarItemSacola'])->name('sacolinhas.add');
     
     // Atualizar quantidade de item
     Route::put('/sacolinhas/{sacolinhaId}/update-quantity', [SacolinhaController::class, 'atualizarQuantidadeItem']);
     
     // Remover item da sacolinha
     Route::delete('/sacolinhas/{sacolinhaId}', [SacolinhaController::class, 'removerItemSacola']);
+	
 });
 
 // Rotas para exibir a página de consulta de sacolinhas
 Route::middleware('auth')->group(function () {
     Route::get('/sacolinhas/consultar', [SacolinhaController::class, 'consultarView'])->name('sacolinhas.consultar');
 });
-// ✅ Rotas para pedidos
-Route::get('/pedidos', [App\Http\Controllers\PedidoController::class, 'index'])->name('pedidos.index');
-Route::get('/pedidos/buscar-clientes', [App\Http\Controllers\PedidoController::class, 'buscarClientes']);
-Route::get('/pedidos/itens-sacolinha', [App\Http\Controllers\PedidoController::class, 'itensSacolinha']);
-Route::post('/pedidos/mover-para-pedido', [App\Http\Controllers\PedidoController::class, 'moverParaPedido']);
-Route::post('/pedidos/criar-pedido', [App\Http\Controllers\PedidoController::class, 'criarPedido']);
-Route::post('/pedidos/devolver-para-sacolinha', [App\Http\Controllers\PedidoController::class, 'devolverParaSacolinha']);
+//Rota para procurar a sacolinha pelo codigo do item
+Route::get('/admin/sacolinhas/qrcode-scanner', [InventarioController::class, 'index'])
+    ->name('admin.sacolinhas.qrcode.scanner');  
 
+
+
+    // Rota para a importação (sem autenticação, menos seguro)
+Route::post('/import-items', [ImportItemsController::class, 'import'])->withoutMiddleware(['web', 'csrf']);
+
+Route::post('/twilio-in', [WhatsappController::class, 'in'])->withoutMiddleware([VerifyCsrfToken::class]);
+Route::post('/twilio-out', [TwilioOutController::class, 'send'])->withoutMiddleware([VerifyCsrfToken::class]);
+Route::post('/twilio-status', [ChatController::class, 'twilioStatus'])->withoutMiddleware([VerifyCsrfToken::class]);
+
+
+
+
+Route::post('/admin/live/{liveId}/send-whatsapp', [LiveWhatsAppController::class, 'send'])
+    ->withoutMiddleware([VerifyCsrfToken::class]);
+//Encerrar live
+Route::delete('lives/{id}', [LiveController::class, 'destroy'])->withoutMiddleware([VerifyCsrfToken::class]);	
+//Msg para cliente individual de uma live
+Route::post('/lives/{liveId}/sacolas/{userId}/whatsapp/first', [LiveController::class, 'sendFirstToClient']);	
+
+
+
+// (Opcional) Agrupa rotas do admin para proteger com senha depois
+/*Route::prefix('admin')->middleware(['auth'])->group(function () {
+    
+    // Página principal do chat
+    Route::get('/chat', [ChatController::class, 'index'])->name('admin.chat.index');
+
+    // API para o frontend
+    Route::get('/chat/api/conversations', [ChatController::class, 'getConversations'])->name('admin.chat.api.conversations');
+    Route::get('/chat/api/messages/{userId}', [ChatController::class, 'getMessages'])->name('admin.chat.api.messages');
+    Route::post('/chat/api/send', [ChatController::class, 'sendMessage'])->name('admin.chat.api.send');
+});
+*/
+// (Opcional) Agrupa rotas do admin para proteger com senha depois
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    
+    // Página principal do chat
+    Route::get('/chat', [ChatController::class, 'index'])->name('admin.chat.index');
+
+    // API para o frontend (sem CSRF para evitar 419)
+    Route::get('/chat/api/conversations', [ChatController::class, 'getConversations'])->name('admin.chat.api.conversations');
+    Route::get('/chat/api/messages/{userId}', [ChatController::class, 'getMessages'])->name('admin.chat.api.messages');
+    Route::post('/chat/api/send', [ChatController::class, 'sendMessage'])->name('admin.chat.api.send');
+    
+    // NOVA ROTA: Download de mídia (anexos)
+    Route::get('/chat/download/{id}', [ChatController::class, 'downloadMedia'])->name('admin.chat.download');
+    
+})->withoutMiddleware([VerifyCsrfToken::class]);
+
+
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    // ✅ NOVAS ROTAS LIVE FINALIZE
+    Route::post('/live/{liveId}/finalize', [LiveController::class, 'finalize'])->name('admin.live.finalize');
+    Route::get('/live/{liveId}/status', [LiveController::class, 'status'])->name('admin.live.status');
+    Route::post('/live/{liveId}/retry', [LiveController::class, 'retryFailed'])->name('admin.live.retry');
+});
+
+
+Route::prefix('admin/whatsapp-dashboard')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\ChatController::class, 'dashboard'])->name('admin.whatsapp.dashboard');
+    Route::get('/api/stats', [\App\Http\Controllers\Admin\ChatController::class, 'getDashboardStats']);
+});
+
+Route::post('/admin/whatsapp-dashboard/api/conflicts/{id}/send-msg2', [ChatController::class, 'sendMsg2FromConflict'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+	
+Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markMessagesAsRead']);
+
+
+// ============================================
+// PORTAL DO CLIENTE (NOVO)
+// ============================================
+Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->group(function () {
+    
+    // Dashboard do cliente
+    Route::get('/dashboard', [PortalClienteController::class, 'dashboard'])->name('dashboard');
+    
+    // Perfil do cliente
+    Route::get('/perfil', [PortalClienteController::class, 'perfil'])->name('perfil');
+	Route::put('/perfil', [PortalClienteController::class, 'perfilAtualizar'])->name('perfil.atualizar');
+    
+    // Histórico de pedidos
+    Route::get('/pedidos', [PortalClienteController::class, 'pedidos'])->name('pedidos');
+    
+    // Sacolinha atual
+    Route::get('/sacolinha', [PortalClienteController::class, 'sacolinha'])->name('sacolinha');
+	
+    //Saldo para dashboard
+	Route::get('/movimentacao', [PortalClienteController::class, 'movimentacao'])->name('movimentacao');
+	
+    Route::delete('/sacolinha/{id}', [PortalClienteController::class, 'sacolinhaExcluir'])->name('sacolinha.excluir');
+
+});
+
+//Sacolinhas Vencidas
+Route::get('/admin/vencimentos', [SacolinhaVencidaController::class, 'index'])
+    ->name('admin.vencimentos');
+
+Route::get('/admin/vencimentos/cliente/{user}', [\App\Http\Controllers\Admin\RelatorioVencimentosController::class, 'show'])
+    ->name('admin.vencimentos.cliente');
+	
+Route::post('/admin/vencimentos/cliente/{user}/whatsapp', [SacolinhaVencidaController::class, 'sendWhatsappVencidos'])
+    ->name('admin.vencimentos.whatsapp.send');
+	
+
+//Controle Clube
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+    Route::get('clube/mensalidades/registrar', [ClubeMensalidadesController::class, 'create'])
+        ->name('admin.clube.mensalidades.create');
+
+    Route::post('clube/mensalidades/registrar', [ClubeMensalidadesController::class, 'store'])
+        ->name('admin.clube.mensalidades.store');
+});
+//Game
+Route::get('/dashboard-pontuacoes', [PontuacoesController::class, 'dashboard'])->middleware('auth');
+
+
+
+
+
+
+//Devolução pedido
+Route::post('/admin/pedido/{pedido}/devolucao', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'devolucao'])
+    ->name('admin.pedido.devolucao');
+	
+// rota para deletar uma mídia específica
+Route::delete('/items/{item}/medias/{medias}', [App\Http\Controllers\ItemController::class, 'destroyMedia'])
+    ->name('items.medias.destroy')
+    ->middleware('auth');	
+Route::post('/items/{item}/media', [ItemController::class, 'uploadMedia'])
+    ->name('items.media.upload')
+    ->middleware('auth');
+	
+//rotas de Loja
+Route::get('/loja', [LojaController::class, 'index'])->name('loja.index');
+Route::get('/loja/produtos/{item}', [LojaController::class, 'show'])->name('loja.show');
+
+//Edição de imagem do intem
+Route::post('/items/{item}/media/ai-edit', [ItemController::class, 'aiEditMedia'])
+  ->name('items.media.aiEdit')
+  ->middleware('auth');
+  
+//Edição de várias imagens 
+Route::get('upload-batch', function () {
+    return view('upload-batch');
+})->middleware('auth')->name('upload.batch.form');
+
+Route::post('upload-batch', [App\Http\Controllers\BatchUploadController::class, 'upload'])
+    ->middleware('auth')
+    ->name('upload.batch');  
+	
+//imagens sem Item_id	
+Route::get('/orphan-photos', [App\Http\Controllers\OrphanPhotoController::class, 'index'])->name('orphan.photos');
+Route::delete('/orphan-photos/{id}', [App\Http\Controllers\OrphanPhotoController::class, 'destroy']);
+
+
+//Agrupando imagens
+Route::get('/image-groups', [ImageGroupController::class, 'index'])->name('image-groups.index');
+Route::post('/image-groups/{id}/add-media', [ImageGroupController::class, 'addMedia']);
+Route::post('/image-groups/{id}/remove-media', [ImageGroupController::class, 'removeMedia']);
+Route::post('/image-groups/merge', [ImageGroupController::class, 'merge']);
+
+Route::post('/image-groups/group-orphans', [ImageGroupController::class, 'groupOrphans'])
+    ->name('image-groups.group-orphans');
+Route::post('/image-groups/{group}/edit', [App\Http\Controllers\ImageGroupController::class, 'editGroup'])
+    ->name('image-groups.edit');
+
+Route::post('/image-groups/{group}/transfer', [ImageGroupController::class, 'transferToItem'])
+    ->name('image-groups.transfer');	
+Route::post('/image-groups/orphans/delete', [ImageGroupController::class, 'deleteOrphans'])
+    ->name('image-groups.orphans.delete');
+	
+Route::post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
+    ->name('image-groups.buscar-codigo');	
+	
+	
+//Item->Sacolinha
+Route::prefix('admin/sacolinhas')->group(function () {
+    // Página principal do scanner
+    Route::get('/qrcode-scanner', [ItemController::class, 'scannerSacolinha'])
+        ->name('admin.sacolinhas.qrcode.scanner');
+
+    // API para buscar o item pelo código
+    Route::get('/buscar-item', [ItemController::class, 'buscarPorCodigo'])
+        ->name('admin.sacolinhas.qrcode.buscar-item');
+
+    // API para atualizar apenas o status
+    Route::patch('/item/{item}/status', [ItemController::class, 'atualizarStatusRapido'])
+        ->name('admin.sacolinhas.qrcode.atualizar-status');
+});
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('grupos', \App\Http\Controllers\Admin\GruposController::class)->middleware('can:admin');
+    Route::post('grupos/{grupo}/membros', [\App\Http\Controllers\Admin\GruposController::class, 'addMembro'])->middleware('can:admin')->name('grupos.addMembro');
+    Route::delete('grupos/{grupo}/membros/{user}', [\App\Http\Controllers\Admin\GruposController::class, 'removeMembro'])->middleware('can:admin')->name('grupos.removeMembro');
+});
 

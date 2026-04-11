@@ -34,5 +34,26 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+	
+	'twilio' => [
+		'account_sid'   => env('TWILIO_ACCOUNT_SID'),
+		'auth_token'    => env('TWILIO_AUTH_TOKEN'),
+		'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+	],	
+	
+	'gemini' => [
+    'api_key' => env('GEMINI_API_KEY'),
+	'paid_api_key' => env('GEMINI_PAID_API_KEY'),
+    'model' => 'gemini-3.1-flash-image-preview', // ou o modelo que preferir
+	],
+
+/*
+'gemini' => [
+    'api_key' => env('GEMINI_API_KEY'),
+    'model' => env('GEMINI_MODEL', 'gemini-3.1-flash-image-preview'),
+    'batch_model' => env('GEMINI_BATCH_MODEL', 'gemini-2.0-flash'),
+    'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+    'timeout' => env('GEMINI_TIMEOUT', 120),
+],*/
 
 ];

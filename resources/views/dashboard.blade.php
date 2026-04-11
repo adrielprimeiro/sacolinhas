@@ -4,7 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Minha Mania</title>
+    <title>Dashboard</title>
+	<link rel="icon" href="{{ asset('favicon.ico') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -134,7 +137,17 @@
 			}
 		}
 			
-			
+		/* Estilo para a cor de fundo roxa */
+		.bg-purple {
+			background-color: #6f42c1 !important; /* Usando o mesmo tom de roxo do text-purple */
+			color: #ffffff !important; /* Cor do texto branca para contrastar com o fundo roxo */
+		}
+
+		/* Estilo para a borda roxa (usado no card) */
+		.border-purple {
+			border-color: #6f42c1 !important;
+			border-width: 2px !important;
+		}	
 		
     </style>
 </head>
@@ -155,7 +168,12 @@
 								<i class="fas fa-home"></i> Dashboard
 							</a>
 						</li>
-						
+						<li class="nav-item">
+							<a class="nav-link text-white {{ request()->routeIs('financeiro.*') ? 'active' : '' }}" 
+							   href="{{ route('admin.financeiro.index') }}">
+								<i class="fas fa-wallet mr-1"></i>Financeiro
+							</a>
+						</li>						
 						<!-- SEÇÃO DE CLIENTES -->
 						<li class="nav-item">
 							<a class="nav-link text-white {{ request()->routeIs('clientes.*') ? 'active' : '' }}" 
@@ -191,6 +209,23 @@
 											<i class="fas fa-clipboard-list"></i> Inventário
 										</a>
 									</li>
+
+									<!-- Download Imagens -->
+									<li class="nav-item">
+									  <a class="nav-link text-white {{ request()->routeIs('inventario') ? 'active' : '' }}"
+										 href="{{ route('upload.batch.form') }}">
+										<i class="fas fa-download"></i> Download Imagens
+									  </a>
+									</li>
+
+									<!-- Imagens->Item -->
+									<li class="nav-item">
+									  <a class="nav-link text-white {{ request()->routeIs('inventario') ? 'active' : '' }}"
+										 href="{{ route('image-groups.index') }}">
+										<i class="fas fa-image"></i> Imagens->Item
+									  </a>
+									</li>									
+									
 								</ul>
 							</div>
 						</li>
@@ -224,6 +259,12 @@
 											<i class="fas fa-user"></i> Por Cliente
 										</a>
 									</li>
+									<li class="nav-item">
+										<a class="nav-link text-white {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'active' : '' }}" 
+										   href="{{ route('admin.sacolinhas.qrcode.scanner') }}">
+											<i class="fas fa-qrcode me-2"></i> Item->Sacolinha
+										</a>
+									</li>									
 								</ul>
 							</div>
 						</li>
@@ -364,128 +405,183 @@
 				<!-- Cards de Estatísticas Rápidas (apenas no dashboard) -->
 				@if(request()->routeIs('dashboard'))
 
-				<div class="row mb-4">
-					<!-- Card Clientes -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100">
-							<div class="card-body">
-								<i class="fas fa-users fa-2x text-primary mb-2"></i>
-								<h5 class="card-title">Clientes</h5>
-								<p class="card-text display-6">{{ $estatisticas['total_clientes'] ?? 0 }}</p>
-								<a href="{{ route('clientes.index') }}" class="btn btn-sm btn-primary">Ver Todos</a>
+					<!-- Linha 1 -->
+					<div class="row g-3 mb-4">
+
+						<!-- Card: Atenção - Vencimentos -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-danger">
+								<div class="card-body">
+									<i class="fas fa-triangle-exclamation fa-2x text-danger mb-2"></i>
+									<h5 class="card-title text-danger">Atenção - Vencimentos</h5>
+
+									<div class="mb-2">
+										<div class="small text-muted">Sacolinhas com vencimento hoje</div>
+										<span class="badge bg-danger fs-6">
+											{{ $alertasVencimento['sacolas_vencem_hoje'] ?? 0 }}
+										</span>
+									</div>
+
+
+									<div class="mb-2">
+										<div class="small text-muted">Itens vencendo hoje</div>
+										<span class="badge bg-danger fs-6">
+											{{ $alertasVencimento['itens_vencem_hoje'] ?? 0 }}
+										</span>
+									</div>
+
+									<div class="mb-3">
+										<div class="small text-muted">Valor dos itens vencendo hoje</div>
+										<div class="fw-bold text-danger">
+											R$ {{ number_format($alertasVencimento['valor_itens_vencem_hoje'] ?? 0, 2, ',', '.') }}
+										</div>
+									</div>
+
+									<a href="{{ route('admin.vencimentos') }}" class="btn btn-danger btn-sm">
+										Ver sacolas
+									</a>
+								</div>
 							</div>
 						</div>
-					</div>
-					
-					<!-- Card Itens Total -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100">
-							<div class="card-body">
-								<i class="fas fa-box fa-2x text-success mb-2"></i>
-								<h5 class="card-title">Itens Total</h5>
-								<p class="card-text display-6">{{ $estatisticas['total_itens'] ?? 0 }}</p>
-								<a href="{{ route('items.index') }}" class="btn btn-sm btn-success">Ver Todos</a>
+
+						<!-- Card: Estoque -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-info">
+								<div class="card-body">
+									<i class="fas fa-warehouse fa-2x text-info mb-2"></i>
+									<h5 class="card-title text-info">Estoque</h5>
+
+									<div class="mb-2">
+										<div class="small text-muted">Quantidade</div>
+										<span class="badge bg-info fs-6">
+											{{ $estoqueInfo['quantidade'] ?? 0 }} itens
+										</span>
+									</div>
+
+									<div class="mb-2">
+										<div class="small text-muted">Valor Total</div>
+										<div class="text-success fw-bold">
+											R$ {{ number_format($estoqueInfo['valor_total'] ?? 0, 2, ',', '.') }}
+										</div>
+									</div>
+
+									<div class="mb-3">
+										<div class="small text-muted">Valor Médio</div>
+										<div class="text-warning fw-bold">
+											R$ {{ number_format($estoqueInfo['valor_medio'] ?? 0, 2, ',', '.') }}
+										</div>
+									</div>
+
+									<a href="{{ route('inventario') }}?status=estoque" class="btn btn-sm btn-info">
+										<i class="fas fa-eye me-1"></i>Ver Estoque
+									</a>
+								</div>
 							</div>
 						</div>
+
+						<!-- Card: Sacolas -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-purple">
+								<div class="card-body">
+									<i class="fas fa-shopping-bag fa-2x text-purple mb-2"></i>
+									<h5 class="card-title text-purple">Sacolas</h5>
+
+									<div class="mb-2">
+										<div class="small text-muted">Total de Sacolas</div>
+										<span class="badge bg-purple fs-6">
+											{{ $sacolasInfo['total_sacolas'] ?? 0 }}
+										</span>
+									</div>
+
+									<div class="mb-2">
+										<div class="small text-muted">Itens em Sacolas</div>
+										<div class="text-info fw-bold">
+											{{ $sacolasInfo['total_itens'] ?? 0 }} itens
+										</div>
+									</div>
+
+									<div class="mb-3">
+										<div class="small text-muted">Valor Total</div>
+										<div class="text-success fw-bold">
+											R$ {{ number_format($sacolasInfo['valor_total'] ?? 0, 2, ',', '.') }}
+										</div>
+									</div>
+
+									<a href="{{ route('admin.sacolinhas.index') }}" class="btn btn-sm" style="background: #6f42c1; color: white;">
+										Ver Todas
+									</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- Card: Clientes -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100">
+								<div class="card-body">
+									<i class="fas fa-users fa-2x text-primary mb-2"></i>
+									<h5 class="card-title">Clientes</h5>
+									<p class="card-text display-6">{{ $estatisticas['total_clientes'] ?? 0 }}</p>
+									<a href="{{ route('clientes.index') }}" class="btn btn-sm btn-primary">Ver Todos</a>
+								</div>
+							</div>
+						</div>
+
 					</div>
 
-					<!-- CARD ESTOQUE - COM DADOS -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100 border-info">
-							<div class="card-body">
-								<i class="fas fa-warehouse fa-2x text-info mb-2"></i>
-								<h5 class="card-title text-info">Estoque</h5>
-								
-								<!-- Quantidade -->
-								<div class="mb-2">
-									<h6 class="mb-1">📦 Quantidade</h6>
-									<span class="badge bg-info fs-6">{{ $estoqueInfo['quantidade'] ?? 0 }} itens</span>
+					<!-- Linha 2 -->
+					<div class="row g-3 mb-4">
+
+						<!-- Card: Disponíveis -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-success">
+								<div class="card-body">
+									<i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+									<h5 class="card-title text-success">Disponíveis</h5>
+									<p class="card-text display-6">{{ $estatisticas['itens_disponiveis'] ?? 0 }}</p>
+									<a href="{{ route('inventario') }}?status=disponivel" class="btn btn-sm btn-success">Ver</a>
 								</div>
-								
-								<!-- Valor Total -->
-								<div class="mb-2">
-									<h6 class="mb-1">💰 Valor Total</h6>
-									<span class="text-success fw-bold">R$ {{ number_format($estoqueInfo['valor_total'] ?? 0, 2, ',', '.') }}</span>
-								</div>
-								
-								<!-- Valor Médio -->
-								<div class="mb-3">
-									<h6 class="mb-1">📊 Valor Médio</h6>
-									<span class="text-warning fw-bold">R$ {{ number_format($estoqueInfo['valor_medio'] ?? 0, 2, ',', '.') }}</span>
-								</div>
-								
-								<a href="{{ route('inventario') }}?status=estoque" class="btn btn-sm btn-info">
-									<i class="fas fa-eye me-1"></i>Ver Estoque
-								</a>
 							</div>
 						</div>
+
+						<!-- Card: Vendidos -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-danger">
+								<div class="card-body">
+									<i class="fas fa-shopping-cart fa-2x text-danger mb-2"></i>
+									<h5 class="card-title text-danger">Vendidos</h5>
+									<p class="card-text display-6">{{ $estatisticas['itens_vendidos'] ?? 0 }}</p>
+									<a href="{{ route('inventario') }}?status=vendido" class="btn btn-sm btn-danger">Ver</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- Card: Reservados -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100 border-warning">
+								<div class="card-body">
+									<i class="fas fa-clock fa-2x text-warning mb-2"></i>
+									<h5 class="card-title text-warning">Reservados</h5>
+									<p class="card-text display-6">{{ $estatisticas['itens_reservados'] ?? 0 }}</p>
+									<a href="{{ route('inventario') }}?status=reservado" class="btn btn-sm btn-warning">Ver</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- Card: Itens Total -->
+						<div class="col-12 col-sm-6 col-lg-3">
+							<div class="card text-center h-100">
+								<div class="card-body">
+									<i class="fas fa-box fa-2x text-success mb-2"></i>
+									<h5 class="card-title">Itens Total</h5>
+									<p class="card-text display-6">{{ $estatisticas['total_itens'] ?? 0 }}</p>
+									<a href="{{ route('items.index') }}" class="btn btn-sm btn-success">Ver Todos</a>
+								</div>
+							</div>
+						</div>
+
 					</div>
 
-					<!-- Card Lives -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100">
-							<div class="card-body">
-								<i class="fas fa-broadcast-tower fa-2x text-warning mb-2"></i>
-								<h5 class="card-title">Lives Ativas</h5>
-								<p class="card-text display-6">2</p>
-								<a href="{{ route('bags.index') }}" class="btn btn-sm btn-warning">Gerenciar</a>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Segunda linha de cards -->
-				<div class="row mb-4">
-					<!-- Card Disponíveis -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100 border-success">
-							<div class="card-body">
-								<i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-								<h5 class="card-title text-success">Disponíveis</h5>
-								<p class="card-text display-6">{{ $estatisticas['itens_disponiveis'] ?? 0 }}</p>
-								<a href="{{ route('inventario') }}?status=disponivel" class="btn btn-sm btn-success">Ver</a>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Card Vendidos -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100 border-danger">
-							<div class="card-body">
-								<i class="fas fa-shopping-cart fa-2x text-danger mb-2"></i>
-								<h5 class="card-title text-danger">Vendidos</h5>
-								<p class="card-text display-6">{{ $estatisticas['itens_vendidos'] ?? 0 }}</p>
-								<a href="{{ route('inventario') }}?status=vendido" class="btn btn-sm btn-danger">Ver</a>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Card Reservados -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100 border-warning">
-							<div class="card-body">
-								<i class="fas fa-clock fa-2x text-warning mb-2"></i>
-								<h5 class="card-title text-warning">Reservados</h5>
-								<p class="card-text display-6">{{ $estatisticas['itens_reservados'] ?? 0 }}</p>
-								<a href="{{ route('inventario') }}?status=reservado" class="btn btn-sm btn-warning">Ver</a>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Card Sacolas -->
-					<div class="col-md-3 col-sm-6 mb-3">
-						<div class="card text-center h-100">
-							<div class="card-body">
-								<i class="fas fa-shopping-bag fa-2x text-purple mb-2"></i>
-								<h5 class="card-title">Sacolas</h5>
-								<p class="card-text display-6">15</p>
-								<a href="{{ route('admin.sacolinhas.index') }}" class="btn btn-sm" style="background: #6f42c1; color: white;">Ver Todas</a>
-							</div>
-						</div>
-					</div>
-				</div>
 				@endif
-
 
                 <!-- Conteúdo da Página -->
                 <div class="row">

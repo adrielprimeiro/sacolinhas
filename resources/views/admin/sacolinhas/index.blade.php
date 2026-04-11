@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Gerenciar Sacolas</title>
+	<link rel="icon" href="{{ asset('favicon.ico') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -100,6 +103,11 @@
             max-height: 300px;
             overflow-y: auto;
         }
+		
+		.status-solicitado-na-live {
+			background-color: #cfe2ff;
+			color: #084298;
+		}		
     </style>
 </head>
 <body class="bg-light">
@@ -584,9 +592,18 @@
 								<h6 class="mb-0">${bag.client.name}</h6>
 								<small class="text-muted">${bag.client.email} (ID: ${bag.client.id})</small>
 							</div>
-							<div class="text-end">
-								<span class="badge bg-primary me-2">Total de Itens: ${bag.total_items}</span>
-								<div class="fw-bold text-success">${bag.formatted_total}</div>
+							
+							<div class="text-end d-flex align-items-center gap-2">
+							  <button class="btn btn-success btn-sm"
+									  onclick="enviarMsg1Cliente(${currentLiveId}, ${bag.client.id}, this)"
+									  title="Enviar mensagem no WhatsApp para este cliente">
+								  <i class="fab fa-whatsapp"></i>
+							  </button>
+
+							  <div class="text-end">
+								  <span class="badge bg-primary me-2">Total de Itens: ${bag.total_items}</span>
+								  <div class="fw-bold text-success">${bag.formatted_total}</div>
+							  </div>
 							</div>
 						</div>
 					</div>
@@ -616,12 +633,8 @@
 
 				// ✅ USAR STATUS QUE JÁ VEM DA API - SEM REQUISIÇÕES EXTRAS!
 				const currentStatus = item.status || 'pendente';
-
-				
-				console.log(`✅ Status do item ${item.item_id}:`, currentStatus);
-				
-	
-				const statusClass = `status-${currentStatus}`;
+				const normalizedStatus = currentStatus.toLowerCase().replace(/\s+/g, '-');
+				const statusClass = `status-${normalizedStatus}`;
 				const statusText = currentStatus.toUpperCase();
 
 				// Verifica se os botões devem estar ativos ou inativos
@@ -836,6 +849,41 @@
 			console.error('❌ Erro ao buscar status reais:', error);
 			return {};
 		}
+	}
+
+
+	async function enviarMsg1Cliente(liveId, userId, btn) {
+	  if (!confirm('Enviar msg1 (template) para este cliente?')) return;
+
+	  const original = btn.innerHTML;
+	  btn.disabled = true;
+	  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+	  try {
+		fetch(`/lives/${liveId}/sacolas/${userId}/whatsapp/first`, {
+		  method: 'POST',
+		  headers: {
+			'Accept': 'application/json',
+			'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+			'X-Requested-With': 'XMLHttpRequest'
+		  }
+		});
+
+		const data = await res.json();
+
+		if (data.success) {
+			  mostrarAlert(data.message || 'Enfileirado com sucesso!', 'success');
+			} else if (data.already_sent) {
+			  mostrarAlert(data.message || 'Já enviado anteriormente.', 'warning');
+			} else {
+			  mostrarAlert(data.message || 'Erro ao enviar msg1.', 'danger');
+			}
+	  } catch (e) {
+		mostrarAlert(`Erro: ${e.message}`, 'danger');
+	  } finally {
+		btn.disabled = false;
+		btn.innerHTML = original;
+	  }
 	}
 		
     </script>

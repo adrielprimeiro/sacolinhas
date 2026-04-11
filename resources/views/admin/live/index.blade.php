@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Live</title>
+	<link rel="icon" href="{{ asset('favicon.ico') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+	
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -718,17 +722,18 @@
 			let html = '';
 			bags.forEach(bag => {
 				// ✨ NOVO: Obter Instagram e TikTok do cliente
-				const instagram = bag.client.instagram || bag.client.remember_token || '';
-				const tiktok = bag.client.tiktok || bag.client.nome_cliente || '';
-				
+				//const instagram = bag.client.instagram || bag.client.remember_token || '';
+				//const tiktok = bag.client.tiktok || bag.client.nome_cliente || '';
+				const whatsapp = bag.client.whatsapp || 'N/A';
+			
 				// ✨ NOVO: Criar string com redes sociais em cinza
-				let socialInfo = '';
-				if (instagram) {
+				let socialInfo = `<span class="text-muted ms-2">${whatsapp}</span>`; 
+				/*if (instagram) {
 					socialInfo += `<span class="text-muted ms-2">@${instagram}</span>`;
 				}
 				if (tiktok) {
 					socialInfo += `<span class="text-muted ms-2">@${tiktok}</span>`;
-				}
+				*/
 				
 				html += `
 					<div class="card mb-3">
@@ -1074,39 +1079,42 @@
                 // REMOVIDO: atualizarEstadoControlesLive(); // Agora é chamado por carregarLiveStatus().finally
             });
         }
+
         // Função para encerrar live (sem alterações significativas, apenas a chamada para carregarLiveStatus)
-        function encerrarLive(liveId) {
-            if (!confirm('Tem certeza que deseja encerrar esta live?')) {
-                return;
-            }
-            fetch(`/lives/${liveId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    mostrarAlert(data.message, 'success');
-                    liveAtiva = null; // Limpa a live ativa
-                    carregarLiveStatus(); // Atualiza o status e os controles
-                } else {
-                    mostrarAlert(data.message || 'Erro ao encerrar live', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                mostrarAlert('Erro ao encerrar live', 'danger');
-            })
-            .finally(() => {
-                // ADICIONADO: Se o botão foi desabilitado, reabilitá-lo aqui.
-                // Não é necessário chamar atualizarEstadoControlesLive() aqui, pois carregarLiveStatus().finally já faz isso.
-                // Se você tiver um estado de carregamento para o botão, você o redefiniria aqui.
-            });
-        }
+		function encerrarLive(liveId) {
+			if (!confirm('Tem certeza que deseja encerrar esta live?')) return;
+
+			const enviar = confirm(
+				'Deseja encerrar a live E enviar as mensagens do WhatsApp?\n\n' +
+				'OK = Encerrar com envio\n' +
+				'Cancelar = Encerrar sem enviar'
+			);
+
+			fetch(`/lives/${liveId}?enviar_whatsapp=${enviar ? 1 : 0}`, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+					'X-Requested-With': 'XMLHttpRequest'
+				}
+			})
+			.then(r => r.json())
+			.then(data => {
+				if (data.success) {
+					mostrarAlert(data.message, 'success');
+					liveAtiva = null;
+					carregarLiveStatus();
+				} else {
+					mostrarAlert(data.error || data.message || 'Erro ao encerrar live', 'danger');
+				}
+			})
+			.catch(err => {
+				console.error(err);
+				mostrarAlert('Erro ao encerrar live', 'danger');
+			});
+		}
+
+
     function selectItem(item) {
         console.log('📦 Item selecionado(selectItem):', item);
 		console.log('DEBUG: liveAtiva no momento da seleção do item:', liveAtiva); 

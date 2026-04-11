@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
@@ -23,6 +25,7 @@ class User extends Authenticatable
         'password',
         'role',
         'phone',
+		'whatsapp', 
         'cpf',
         'nome_cliente',     // TikTok
         'apelido',          // Apelido
@@ -41,6 +44,27 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    /**
+     * Obtém a última movimentação de ContaCorrente para o usuário, representando seu saldo atual.
+     */
+    public function latestContaCorrente()
+    {
+        return $this->hasOne(ContaCorrente::class, 'user_id')
+                    ->latest('data_movimentacao') // Ordena pela data da movimentação (mais recente primeiro)
+                    ->latest('id');               // Para desempate, pega o ID mais alto
+    }
+
     /**
      * Get the attributes that should be cast.
      *
@@ -53,4 +77,21 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+	
+	public function whatsappMessages()
+	{
+		return $this->hasMany(WhatsappMessage::class);
+	}
+
+
+	public function grupos()
+	{
+		return $this->belongsToMany(Grupo::class, 'grupo_membros');
+	}
+
+	public function grupoAtual()
+	{
+		return $this->belongsToMany(Grupo::class, 'grupo_membros')->latest('pivot_created_at')->first();
+	}	
+	
 }

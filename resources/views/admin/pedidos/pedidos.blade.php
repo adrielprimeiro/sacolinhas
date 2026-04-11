@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Controle de Pedidos</title>
+	<link rel="icon" href="{{ asset('favicon.ico') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+	
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -371,7 +375,9 @@
             <!-- Card Busca Cliente -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-search"></i> Selecionar Cliente</h5>
+                    <h6 class="mb-0">
+                        <i class="fas fa-search"></i> Selecionar Cliente
+                    </h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -381,48 +387,26 @@
                                 <input type="text" id="cliente-search" class="form-control" 
                                        placeholder="Digite nome ou email..." autocomplete="off">
                                 <div id="cliente-dropdown" class="list-group cliente-dropdown" style="display: none;"></div>
+
+								<button type="button" class="btn btn-outline-secondary" id="btn-limpar-selecao">
+									🗑️ Limpar Seleção
+								</button>	
+								<button type="button" id="btn-criar-pedido" class="btn btn-success" disabled>
+									<i class="fas fa-check me-2"></i>Criar Pedido
+								</button>								
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div id="cliente-info" class="alert alert-success mt-3" style="display: none;">
                                 <strong>✓ Cliente:</strong> <span id="cliente-nome"></span><br>
-                                <small>ID: <span id="cliente-id"></span></small>
+								<i class="fas fa-tasks"></i><strong> Saldo:</strong> <span id="cliente-saldo" class="text-primary fw-bold">R$ 0,00</span><br>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Card Botões -->
-			<div class="card shadow-sm">
-				<div class="card-body">
-					<div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-						
-						<div class="btn-toolbar gap-2" role="toolbar">
-							<!-- Botões de ação -->
-							<div class="btn-group" role="group">
-								<button type="button" class="btn btn-success" id="btn-criar-pedido" disabled>
-									✅ Criar Pedido
-								</button>
-								<button type="button" class="btn btn-outline-secondary" id="btn-limpar-selecao">
-									🗑️ Limpar Seleção
-								</button>
-							</div>
-							
-							<!-- Botões de impressão PDF -->
-							<div class="btn-group" role="group">
-								<button type="button" class="btn btn-primary" id="btn-imprimir-sacolinha" disabled title="Baixar PDF da sacolinha do cliente">
-									🎒 PDF Sacolinha
-								</button>
-								<button type="button" class="btn btn-info" id="btn-imprimir-pedido" disabled title="Baixar PDF dos pedidos do cliente">
-									📋 PDF Pedidos
-								</button>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>		
-							
+
 
             <!-- Tabelas: Sacolinha e Pedido -->
             <div id="tabelas-container" class="tabela-container" style="display: none;">
@@ -435,11 +419,20 @@
                                 <small>Clique no item para mover para o pedido</small>
                             </div>
                             <div class="info-resumo">
-                                <small>Total Itens:</small>
-                                <strong id="sacolinha-total-itens">0</strong>
-                                <small>Valor Total:</small>
-                                <strong>R$ <span id="sacolinha-valor-total">0,00</span></strong>
+								<button type="button" id="btn-imprimir-sacolinha" class="btn btn-info text-white w-100 btn-lg" disabled>
+									<i class="fas fa-print me-2"></i> Imprimir
+								</button>
+								<div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+									<small>Itens:</small>
+									<strong id="sacolinha-total-itens">0</strong>
+
+									<small>Valor Total:</small>
+									<strong>R$ <span id="sacolinha-valor-total">0,00</span></strong>
+								</div>
                             </div>
+							
+							
+
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -466,21 +459,49 @@
                 </div>
 
                 <!-- Tabela Pedido -->
-                <div id="tabela-pedido-card" class="card" style="display: none;">
-                    <div class="card-header bg-light text-blue">
-                        <div class="card-header-info">
-                            <div>
-                                <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Itens no Pedido</h5>
-                                <small id="pedido-numero-info">Pedido Pendente</small>
-                                <small style="display: block; margin-top: 5px;">Clique no item para devolver para sacolinha</small>
-                            </div>
-                            <div class="info-resumo">
-                                <small>Total Itens:</small>
-                                <strong id="pedido-total-itens">0</strong>
-                                <small>Valor Total:</small>
-                                <strong>R$ <span id="pedido-valor-total">0,00</span></strong>
-                            </div>
-                        </div>
+				<div class="card-header bg-light text-blue">
+				    <div class="card-header-info d-flex justify-content-between align-items-start w-100">
+					
+						<div>
+						  <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Itens no Pedido</h5>
+						  <small id="pedido-numero-info">Pedido Pendente</small>
+						  <small style="display: block; margin-top: 5px;">Clique no item para devolver para sacolinha</small>
+						  <br>
+						  <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+							<small>Itens:</small>
+							<strong id="pedido-total-itens">0</strong>
+							<small>Valor:</small>
+							<strong>R$ <span id="pedido-valor">0,00</span></strong>
+						  </div>
+						</div>
+
+						<div class="info-resumo d-flex flex-column align-items-end gap-2 text-end">
+						  <button type="button" id="btn-imprimir-pedido" class="btn btn-secondary" disabled>
+							<i class="fas fa-print me-2"></i>Imprimir Pedidos
+						  </button>
+
+						  <div class="input-group" style="width: 250px;">
+							<select class="form-select" id="status-pedido">
+							  <option value="" selected disabled>Alterar Status...</option>
+							  <option value="pendente">Pendente</option>
+							  <option value="processando">Processando</option>
+							  <option value="pago">Pago</option>
+							  <option value="enviado">Enviado</option>
+							  <option value="concluido">Concluído</option>
+							  <option value="cancelado">Cancelado</option>
+							</select>
+							<button class="btn btn-primary" type="button" id="btn-atualizar-status">
+							  <i class="fas fa-sync-alt me-1"></i>Atualizar
+							</button>
+						  </div>
+
+						  <div style="display:flex; align-items:center; gap:6px; white-space:nowrap; justify-content:flex-end;">
+							<small>Frete:</small>
+							<strong>R$ <span id="frete">0,00</span></strong>
+							<small>Valor Total:</small>
+							<strong>R$ <span id="pedido-valor-total">0,00</span></strong>
+						  </div>
+						</div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -571,9 +592,14 @@
             clientes.forEach(cliente => {
                 dropdown.append(`
                     <div class="list-group-item cliente-item" 
-                         data-id="${cliente.id}" data-name="${cliente.name}" data-email="${cliente.email}">
+                         data-id="${cliente.id}" 
+                         data-name="${cliente.name}" 
+                         data-email="${cliente.email}"
+                         data-saldo="${cliente.saldo_bruto}"             {{-- NOVO: Saldo bruto --}}
+                         data-saldo-formatado="${cliente.saldo_formatado}"> {{-- NOVO: Saldo formatado --}}
                         <strong>${cliente.name}</strong><br>
-                        <small>${cliente.email} - ID: ${cliente.id}</small>
+                        <small>${cliente.email}</small><br>
+                        <small>Saldo: ${cliente.saldo_formatado}</small> {{-- NOVO: Exibe o saldo no dropdown --}}
                     </div>
                 `);
             });
@@ -581,6 +607,7 @@
             dropdown.show();
             posicionarDropdown();
         }
+
 
         function posicionarDropdown() {
             const input = $('#cliente-search');
@@ -604,64 +631,188 @@
         });
 
         // ✅ Selecionar cliente
-        $(document).on('click', '.cliente-item', function() {
-            clienteAtual = {
-                id: $(this).data('id'),
-                name: $(this).data('name'),
-                email: $(this).data('email')
-            };
+		$(document).on('click', '.cliente-item', function() {
+			const clickedItem = $(this); 
+			clienteAtual = {
+				id: clickedItem.data('id'),
+				name: clickedItem.data('name'),
+				email: clickedItem.data('email'),
+				saldo_formatado: clickedItem.data('saldo-formatado'),
+				saldo_bruto: clickedItem.data('saldo')    
+			};
 
-            $('#cliente-search').val(clienteAtual.name);
-            $('#cliente-dropdown').hide();
-            $('#cliente-nome').text(clienteAtual.name);
-            $('#cliente-id').text(clienteAtual.id);
-            $('#cliente-info').show();
-            $('#card-acoes').show();
+			// 2. Logar o objeto clienteAtual completo
+			console.log('Objeto clienteAtual após preenchimento:', clienteAtual);
+			// 3. Logar o valor que será inserido no #cliente-saldo
+			console.log('Valor que será inserido no #cliente-saldo:', clienteAtual.saldo_formatado);
 
-            carregarDados(clienteAtual.id);
-        });
 
-        function carregarDados(userId) {
-			console.log('🔍 carregarDados chamada com userId:', userId);  // ← Adicione isto
-            $('#loading').show();
-            $('#tabelas-container').hide();
+			$('#cliente-search').val(clienteAtual.name);
+			$('#cliente-dropdown').hide();
+			$('#cliente-nome').text(clienteAtual.name);
+			$('#cliente-saldo').text(clienteAtual.saldo_formatado); 
+			$('#cliente-info').show();
+			$('#card-acoes').show();
 
-            $.ajax({
-                url: '/pedidos/itens-sacolinha',
-                data: { user_id: userId },
-                success: function(response) {
-					 console.log('✅ Resposta da API:', response);  
-                    if (response.success) {
-                        pedidoAtual = {
-                            id: response.pedido_id,
-                            numero: response.pedido_numero
-                        };
+			carregarDados(clienteAtual.id);
+			togglePrintButtons();
+		});
+		
 
-                        preencherSacolinha(response.itens_sacolinha);
-                        atualizarResumoSacolinha(response.resumo);
-                        
-                        if (response.resumo.tem_pedido_pendente) {
-                            preencherPedido(response.itens_pedido, response.pedido_numero);
-                            $('#tabela-pedido-card').show();
-                            $('#btn-criar-pedido').hide();
-                        } else {
-                            $('#tabela-pedido-card').hide();
-                            $('#btn-criar-pedido').show();
-                        }
-                        
-                        $('#tabelas-container').show();
-                    } else {
-                        alert('Erro: ' + response.message);
-                    }
-                },
-                error: function() {
-                    alert('Erro ao carregar dados');
-                },
-                complete: function() {
-                    $('#loading').hide();
-                }
-            });
-        }
+		// ✅ CRIAR PEDIDO - Evento de clique
+		$('#btn-criar-pedido').on('click', function() {
+			if (!clienteAtual || !clienteAtual.id) {
+				alert('⚠️ Por favor, selecione um cliente primeiro');
+				return;
+			}
+
+			// Desabilitar botão
+			const $btn = $(this);
+			const originalText = $btn.html();
+			$btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Criando...');
+
+			$.ajax({
+				url: '/pedidos/criar-pedido',
+				type: 'POST',
+				data: {
+					_token: $('meta[name="csrf-token"]').attr('content'),
+					user_id: clienteAtual.id
+				},
+				success: function(response) {
+					if (response.success) {
+						showNotification('✅ Pedido criado: ' + response.pedido_numero, 'success');
+						console.log('✅ Novo pedido:', response);
+						
+						// Recarregar dados
+						carregarDados(clienteAtual.id);
+					} else {
+						showNotification('❌ ' + response.message, 'error');
+					}
+				},
+				error: function(xhr) {
+					const errorMsg = xhr.responseJSON?.message || 'Erro ao criar pedido';
+					showNotification('❌ ' + errorMsg, 'error');
+					console.error('❌ Erro:', xhr);
+				},
+				complete: function() {
+					// Restaurar botão
+					$btn.html(originalText).prop('disabled', false);
+				}
+			});
+		});
+
+
+		function carregarDados(userId) {
+			if (!userId) return;
+
+			$('#loading').show();
+			$('#card-acoes, #tabelas-container').hide();
+
+			// ✅ CHAMADA 1: Carregar SACOLINHA
+			$.ajax({
+				url: '/pedidos/itens-sacolinha',
+				type: 'POST',
+				data: { 
+					_token: $('meta[name="csrf-token"]').attr('content'),
+					user_id: userId 
+				},
+				success: function(response) {
+					console.log('✅ Sacolinha carregada:', response);  
+					if (response.success) {
+						preencherSacolinha(response.itens_sacolinha);
+						atualizarResumoSacolinha(response.resumo);
+					} else {
+						alert('Erro: ' + response.message);
+					}
+				},
+				error: function() {
+					alert('Erro ao carregar sacolinha');
+				}
+			});
+
+			// ✅ CHAMADA 2: Carregar PEDIDO (separado)
+			$.ajax({
+				url: '/pedidos/itens-pedido',
+				type: 'POST',
+				data: { 
+					_token: $('meta[name="csrf-token"]').attr('content'),
+					user_id: userId 
+				},
+				success: function(response) {
+					console.log('✅ Pedido carregado:', response);  
+					console.log('pedido_status:', response.pedido_status);
+					console.log('pedido_valor_frete:', response.pedido_valor_frete);
+					const frete = parseFloat(response.pedido_valor_frete) || 0;
+					if (response.success) {
+						if (response.tem_pedido) {
+							pedidoAtual = {
+							  id: response.pedido_id,
+							  numero: response.pedido_numero,
+							  status: response.pedido_status
+							};
+							const status = normalizarStatus(response.pedido_status);
+							$('#status-pedido').val(status);
+
+							const frete = response.pedido_valor_frete ?? 0;
+							$('#frete').text(formatMoneyBR(frete));							
+
+					
+							preencherPedido(response.itens_pedido, response.pedido_numero, frete);
+							
+							// ✅ Verificar status
+							if (response.pedido_status === 'concluido') {
+								// Pedido concluído: desabilitar card
+								$('#tabela-pedido-card').show();
+								$('#tabela-pedido-card').css({
+									'opacity': '0.5',
+									'pointer-events': 'none',
+									'background-color': '#f0f0f0'
+								});
+								$('#tabela-pedido-card').find('button, select, input').prop('disabled', true);
+								$('#pedido-numero-info').html(`
+									Pedido: ${response.pedido_numero}
+									<span class="badge bg-success ms-2">Concluído</span>
+								`);
+								$('#btn-criar-pedido').show().prop('disabled', false);
+							} else {
+								// Pedido ativo: habilitar card
+								$('#tabela-pedido-card').show();
+								$('#tabela-pedido-card').css({
+									'opacity': '1',
+									'pointer-events': 'auto',
+									'background-color': 'white'
+								});
+								$('#status-pedido').val('');
+								$('#pedido-valor-frete').val('R$ 0,00');
+								$('#tabela-pedido-card').find('button, select, input').prop('disabled', false);
+								const statusLabel = response.pedido_status.charAt(0).toUpperCase() + response.pedido_status.slice(1);
+								$('#pedido-numero-info').html(`
+									Pedido: ${response.pedido_numero}
+									<span class="badge bg-warning ms-2">${statusLabel}</span>
+								`);
+								$('#btn-criar-pedido').hide();
+							}
+						} else {
+							// ✅ Sem pedido: ocultar card e mostrar botão "Criar Pedido"
+							$('#status-pedido').val('');
+							$('#frete').text('0,00');  
+							$('#pedido-valor-total').text('0,00');  
+							$('#tabela-pedido-card').hide();
+							$('#btn-criar-pedido').show().prop('disabled', false);
+						}
+					}
+				},
+				error: function(xhr) {
+					console.error('❌ Erro ao carregar pedido:', xhr);
+					alert('Erro ao carregar pedido');
+				},
+				complete: function() {
+					$('#loading').hide();
+					$('#tabelas-container').show();
+				}
+			});
+		}		
+		
 
 		function preencherSacolinha(itens) {
 			const tbody = $('#itens-sacolinha-tbody');
@@ -690,7 +841,10 @@
 					: '';
 
 				tbody.append(`
-					<tr class="item-row" data-sacola-id="${item.sacola_id}" style="cursor: pointer;">
+					<tr class="item-row" 
+						data-sacola-id="${item.sacola_id}"
+						data-item-id="${item.item_id}">
+						style="cursor: pointer;">
 						<td>${codigo}</td>
 						<td>
 							<strong>${nome}</strong>
@@ -703,53 +857,64 @@
 			});
 		}
 
-		function preencherPedido(itens, numeroPedido) {
-			const tbody = $('#itens-pedido-tbody');
-			tbody.empty();
+		function preencherPedido(itens, numeroPedido, valorFrete) {
+		  const tbody = $('#itens-pedido-tbody');
+		  tbody.empty();
 
-			$('#pedido-numero-info').text(`Pedido: ${numeroPedido}`);
+		  $('#pedido-numero-info').text(`Pedido: ${numeroPedido}`);
 
-			if (!itens.length) {
-				tbody.html('<tr><td colspan="4" class="text-center py-4">Nenhum item no pedido ainda</td></tr>');
-				$('#pedido-total-itens').text('0');
-				$('#pedido-valor-total').text('0,00');
-				return;
-			}
+		  if (!itens || itens.length === 0) {
+			tbody.html('<tr><td colspan="4" class="text-center py-4">Nenhum item no pedido ainda</td></tr>');
+			$('#pedido-total-itens').text('0');
+			$('#pedido-valor').text('0,00');
+			$('#frete').text(formatMoneyBR(valorFrete || 0));
+			$('#pedido-valor-total').text(formatMoneyBR(valorFrete || 0));
+			return;
+		  }
 
-			let totalItens = 0;
-			let valorTotal = 0;
-			
-			itens.forEach(item => {
-				const data = new Date(item.created_at).toLocaleDateString('pt-BR');
-				totalItens++;
-				const preco = parseFloat(item.preco);
-				valorTotal += preco;
-				
-				// ✅ Detalhes em cinza
-				let detalhes = [];
-				if (item.marca) detalhes.push(`${item.marca}`);
-				if (item.estado) detalhes.push(`${item.estado}`);
-				if (item.cor) detalhes.push(`${item.cor}`);
-				if (item.tamanho) detalhes.push(`Tam: ${item.tamanho}`);
+		  let totalItens = itens.length;
+		  let valorItens = 0;
 
-				const detalhesHtml = detalhes.length > 0 
-					? `<small style="color: #999; display: block; margin-top: 4px;">${detalhes.join(' • ')}</small>`
-					: '';
-				
-				tbody.append(`
-					<tr class="item-pedido-row" data-item-id="${item.item_id}" style="cursor: pointer;">
-						<td><strong>${item.codigo}</strong></td>
-						<td>
-							<strong>${item.nome_do_produto}</strong>
-							${detalhesHtml}
-						</td>
-						<td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
-					</tr>
-				`);
-			});
+		  itens.forEach(item => {
+			const valorItem = parseFloat(item.valor_total) || parseFloat(item.preco) || 0;
+			valorItens += valorItem;
 
-			$('#pedido-total-itens').text(totalItens);
-			$('#pedido-valor-total').text(valorTotal.toFixed(2).replace('.', ','));
+			let detalhes = [];
+			if (item.marca) detalhes.push(`${item.marca}`);
+			if (item.estado) detalhes.push(`${item.estado}`);
+			if (item.cor) detalhes.push(`${item.cor}`);
+			if (item.tamanho) detalhes.push(`Tam: ${item.tamanho}`);
+
+			const detalhesHtml = detalhes.length > 0
+			  ? `<small style="color: #999; display: block; margin-top: 4px;">${detalhes.join(' • ')}</small>`
+			  : '';
+
+			const valorFormatado = formatMoneyBR(valorItem);
+
+			tbody.append(`
+			  <tr class="item-pedido-row"
+				data-item-pedido-id="${item.item_pedido_id}"
+				data-item-id="${item.item_id}"
+				style="cursor: pointer;">
+				<td><strong>${item.codigo}</strong></td>
+				<td>
+				  <strong>${item.nome_do_produto}</strong>
+				  ${detalhesHtml}
+				</td>
+				<td class="text-end"><strong>R$ ${valorFormatado}</strong></td>
+			  </tr>
+			`);
+		  });
+
+		  const freteNum = parseFloat(valorFrete) || 0;
+		  const valorTotal = valorItens + freteNum;
+
+		  $('#pedido-total-itens').text(totalItens);
+
+		  // ✅ nos spans, só número (sem "R$")
+		  $('#pedido-valor').text(formatMoneyBR(valorItens));
+		  $('#frete').text(formatMoneyBR(freteNum));
+		  $('#pedido-valor-total').text(formatMoneyBR(valorTotal));
 		}
 
 		function atualizarResumoSacolinha(resumo) {
@@ -760,90 +925,223 @@
 
         // ✅ Clicar em item da sacolinha para mover
 		$(document).on('click', '.item-row', function() {
+			console.log('🛒 Clicou em item da SACOLINHA');
+			console.log('Dados disponíveis:', $(this).data());
+			
 			const sacolaId = $(this).data('sacola-id');
 			
-			if (!pedidoAtual || !pedidoAtual.numero) {
-				alert('Crie um pedido primeiro!');
+			console.log('🔍 sacolaId:', sacolaId);
+			
+			if (!sacolaId) {
+				console.error('❌ ERRO: sacolaId é null/undefined!');
+				alert('Erro: ID da sacolinha inválido');
+				return;
+			}
+			
+			if (confirm('Mover este item para o pedido?')) {
+				moverParaPedido(sacolaId);
+			}
+		});
+
+		function moverParaPedido(sacolaId) {
+			if (!pedidoAtual || !pedidoAtual.id) {
+				alert('❌ Nenhum pedido disponível. Crie um pedido primeiro!');
 				return;
 			}
 
-			moverParaPedido(sacolaId);
+			$.ajax({
+				url: '/pedidos/mover-para-pedido',
+				type: 'POST',
+				data: { 
+					_token: $('meta[name="csrf-token"]').attr('content'),
+					sacola_id: sacolaId,
+					pedido_id: pedidoAtual.id,
+					user_id: clienteAtual.id
+				},
+				success: function(response) {
+					console.log('✅ Resposta:', response);
+					if (response.success) {
+						showNotification('✅ Item movido para o pedido!', 'success');
+						carregarDados(clienteAtual.id);  // Recarregar dados
+					} else {
+						showNotification('❌ ' + response.message, 'error');
+					}
+				},
+				error: function(xhr) {
+					console.error('❌ Erro:', xhr);
+					showNotification('❌ Erro ao mover item', 'error');
+				}
+			});
+		}
+
+		// ✅ Clicar em item do pedido para devolver
+		$(document).on('click', '.item-pedido-row', function() {
+			console.log('📦 Clicou em item do PEDIDO');
+			console.log('Dados disponíveis:', $(this).data());
+			
+			const itemPedidoId = $(this).data('item-pedido-id');
+			
+			console.log('🔍 itemPedidoId:', itemPedidoId);
+			
+			if (!itemPedidoId) {
+				console.error('❌ ERRO: itemPedidoId é null/undefined!');
+				alert('Erro: ID do item inválido');
+				return;
+			}
+			
+			if (confirm('Devolver este item para a sacolinha?')) {
+				devolverParaSacolinha(itemPedidoId);
+			}
 		});
 
-        function moverParaPedido(sacolaId) {
-            $.ajax({
-                url: '/pedidos/mover-para-pedido',
-                type: 'POST',
-                data: { 
-                    sacola_id: sacolaId,
-                    pedido_numero: pedidoAtual.numero,
-                    user_id: clienteAtual.id
-                },
-                success: function(response) {
-                    if (response.success) {
-                        carregarDados(clienteAtual.id);
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function() {
-                    alert('Erro ao mover item');
-                }
-            });
-        }
 
-        // ✅ Clicar em item do pedido para devolver
-        $(document).on('click', '.item-pedido-row', function() {
-            const itemId = $(this).data('item-id');
-            
-            if (confirm('Devolver este item para a sacolinha?')) {
-                devolverParaSacolinha(itemId);
-            }
-        });
+		function devolverParaSacolinha(itemPedidoId) {
+			console.log('⬅️ Devolvendo item pedido:', itemPedidoId);
+			
+			$.post('/pedidos/devolver-para-sacolinha', {
+				item_pedido_id: itemPedidoId,
+				user_id:        clienteAtual.id
+			})
+			.done(function(response) {
+				console.log('✅ Resposta:', response);
+				if (response.success) {
+					carregarDados(clienteAtual.id);
+				} else {
+					alert('Erro: ' + response.message);
+				}
+			})
+			.fail(function(error) {
+				console.error('❌ Erro:', error);
+				alert('Erro ao devolver item');
+			});
+		}
 
-        function devolverParaSacolinha(itemId) {
-            $.ajax({
-                url: '/pedidos/devolver-para-sacolinha',
-                type: 'POST',
-                data: { 
-                    item_id: itemId,
-                    user_id: clienteAtual.id
-                },
-                success: function(response) {
-                    if (response.success) {
-                        carregarDados(clienteAtual.id);
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function() {
-                    alert('Erro ao devolver item');
-                }
-            });
-        }
 
-        // ✅ Criar novo pedido
-        $('#btn-criar-pedido').click(function() {
-            $.ajax({
-                url: '/pedidos/criar-pedido',
-                type: 'POST',
-                data: { user_id: clienteAtual.id },
-                success: function(response) {
-                    if (response.success) {
-                        pedidoAtual = {
-                            id: response.pedido_id,
-                            numero: response.pedido_numero
-                        };
-                        carregarDados(clienteAtual.id);
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function() {
-                    alert('Erro ao criar pedido');
-                }
-            });
-        });
+		// ✅ Atualizar Status do Pedido
+		$('#btn-atualizar-status').on('click', function() {
+			const statusSelecionado = $('#status-pedido').val();
+			
+			if (!statusSelecionado) {
+				alert('Por favor, selecione um status');
+				return;
+			}
+			
+			if (!pedidoAtual || !pedidoAtual.id) {
+				alert('Por favor, selecione um pedido primeiro');
+				return;
+			}
+
+			// --- VERIFICAÇÃO DE SALDO PARA STATUS 'CONCLUIDO' ---
+			let valorTotalPedido = 0; // Inicializa com 0
+			if (statusSelecionado === 'concluido') {
+				if (!clienteAtual || clienteAtual.saldo_bruto === undefined || clienteAtual.saldo_bruto === null) {
+					alert('Não foi possível verificar o saldo do cliente. Por favor, recarregue a página ou selecione o cliente novamente.');
+					return;
+				}
+
+				const saldoCliente = parseFloat(clienteAtual.saldo_bruto);
+				
+				const pedidoValorTotalText = $('#pedido-valor-total').text().replace('R$ ', '').replace(',', '.');
+				valorTotalPedido = parseFloat(pedidoValorTotalText); // Atribui o valor aqui
+
+				if (isNaN(valorTotalPedido)) {
+					alert('Não foi possível obter o valor total do pedido para verificação de saldo.');
+					return;
+				}
+
+				if (saldoCliente < valorTotalPedido) {
+					alert(`❌ Saldo insuficiente! O saldo atual do cliente (${clienteAtual.saldo_formatado}) é menor que o valor total do pedido (R$ ${valorTotalPedido.toFixed(2).replace('.', ',')}).`);
+					return; // Impede a atualização do status
+				}
+			}
+			// --- FIM DA VERIFICAÇÃO DE SALDO ---
+			
+			// Desabilitar botão
+			$(this).prop('disabled', true);
+			const originalText = $(this).html();
+			$(this).html('<i class="fas fa-spinner fa-spin me-1"></i>Atualizando...');
+			
+			$.ajax({
+				url: '/pedidos/atualizar-status',
+				type: 'POST',
+				data: {
+					_token: $('meta[name="csrf-token"]').attr('content'),
+					pedido_id: pedidoAtual.id,
+					status: statusSelecionado
+				},
+				success: function(response) {
+					if (response.success) {
+						showNotification('✅ Status atualizado para: ' + statusSelecionado, 'success');
+						$('#status-pedido').val('').prop('disabled', false);
+						
+						if (statusSelecionado === 'concluido') {
+							$.ajax({
+								url: '/pedidos/registrar-debito-conclusao',
+								type: 'POST',
+								data: {
+									_token: $('meta[name="csrf-token"]').attr('content'),
+									user_id: clienteAtual.id,
+									valor: valorTotalPedido,
+									pedido_id: pedidoAtual.id,
+									pedido_numero: pedidoAtual.numero
+								},
+								success: function(debitoResponse) {
+									if (debitoResponse.success) {
+										showNotification('✅ Lançamento de débito do pedido registrado!', 'success');
+										
+										// --- NOVO: ATUALIZAÇÃO OTIMISTA DO SALDO NO FRONTEND ---
+										// Subtrai o valor do pedido do saldo bruto atual
+										clienteAtual.saldo_bruto -= valorTotalPedido;
+										// Reformatar o saldo para exibição
+										clienteAtual.saldo_formatado = 'R$ ' + clienteAtual.saldo_bruto.toFixed(2).replace('.', ',');
+										// Atualiza o elemento HTML com o novo saldo
+										$('#cliente-saldo').text(clienteAtual.saldo_formatado);
+										showNotification('✅ Saldo do cliente atualizado na tela!', 'info');
+										// --- FIM NOVO ---
+
+									} else {
+										showNotification('❌ Erro ao registrar débito do pedido: ' + debitoResponse.message, 'error');
+									}
+								},
+								error: function(debitoXhr) {
+									const debitoErrorMsg = debitoXhr.responseJSON?.message || 'Erro ao registrar débito do pedido';
+									showNotification('❌ ' + debitoErrorMsg, 'error');
+								},
+								complete: function() {
+									// Recarrega os dados da sacolinha/pedido.
+									// Isso também fará uma busca pelo saldo mais recente do backend,
+									// garantindo que o frontend esteja sempre sincronizado.
+									carregarDados(clienteAtual.id); 
+								}
+							});
+						} else {
+							// Se não for 'concluido', apenas recarrega os dados
+							carregarDados(clienteAtual.id); 
+						}
+
+					} else {
+						showNotification('❌ ' + response.message, 'error');
+					}
+				},
+				error: function(xhr) {
+					const errorMsg = xhr.responseJSON?.message || 'Erro ao atualizar status';
+					showNotification('❌ ' + errorMsg, 'error');
+				},
+				complete: function() {
+					$('#btn-atualizar-status').html(originalText).prop('disabled', false);
+				}
+			});
+
+		});
+
+		
+		function limparTabelaPedido() {
+			$('#itens-pedido-tbody').html(
+				'<tr><td colspan="4" class="text-center py-4">Nenhum item no pedido ainda</td></tr>'
+			);
+			$('#pedido-total-itens').text('0');
+			$('#pedido-valor-total').text('0,00');
+		}
 
         // ✅ Limpar seleção
         $('#btn-limpar').click(function() {
@@ -892,102 +1190,95 @@
         }
 
         // Função genérica para impressão de relatório
-        function imprimirRelatorio(url, buttonSelector, reportName) {
-            if (!clienteAtual || !clienteAtual.id) {
-                showNotification('⚠️ Por favor, selecione um cliente antes de imprimir a ' + reportName + '.', 'error');
-                return;
-            }
+		function imprimirRelatorio(url, buttonSelector, reportName, extraData = {}) {
+			if (!clienteAtual || !clienteAtual.id) {
+				showNotification('⚠️ Por favor, selecione um cliente antes de imprimir a ' + reportName + '.', 'error');
+				return;
+			}
 
-            const $button = $(buttonSelector);
-            const originalHtml = $button.html();
-            
-            // Desabilitar botão e mostrar loading
-            $button.prop('disabled', true).html('⏳ Gerando PDF...');
-            
-            showNotification('🔄 Gerando PDF da ' + reportName + '...', 'info');
+			const $button = $(buttonSelector);
+			const originalHtml = $button.html();
 
-            // Criar FormData para envio
-            const formData = new FormData();
-            formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
-            formData.append('cliente_id', clienteAtual.id);
+			$button.prop('disabled', true).html('⏳ Gerando PDF...');
+			showNotification('🔄 Gerando PDF da ' + reportName + '...', 'info');
 
-            console.log('📤 Enviando requisição PDF:', {
-                url: url,
-                clienteId: clienteAtual.id,
-                clienteNome: clienteAtual.name
-            });
+			const formData = new FormData();
+			formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+			formData.append('cliente_id', clienteAtual.id);
 
-            // Fazer requisição AJAX
-            $.ajax({
-                url: url,
-                method: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                xhrFields: {
-                    responseType: 'blob'
-                },
-                success: function(response, status, xhr) {
-                    console.log('✅ PDF gerado com sucesso');
-                    
-                    // Extrair nome do arquivo
-                    let filename = reportName.toLowerCase() + '_' + clienteAtual.name.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
-                    
-                    const contentDisposition = xhr.getResponseHeader('Content-Disposition');
-                    if (contentDisposition) {
-                        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-                        if (match && match[1]) {
-                            filename = match[1].replace(/['"]/g, '');
-                        }
-                    }
+			// ✅ adiciona campos extras (ex.: pedido_id)
+			Object.keys(extraData).forEach((key) => {
+				if (extraData[key] !== undefined && extraData[key] !== null && extraData[key] !== '') {
+					formData.append(key, extraData[key]);
+				}
+			});
 
-                    // Criar blob e download
-                    const blob = new Blob([response], { type: 'application/pdf' });
-                    const link = document.createElement('a');
-                    link.href = window.URL.createObjectURL(blob);
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(link.href);
+			console.log('📤 Enviando requisição PDF:', {
+				url: url,
+				clienteId: clienteAtual.id,
+				extraData: extraData
+			});
 
-                    showNotification('✅ PDF da ' + reportName + ' baixado com sucesso!', 'success');
-                },
-                error: function(xhr, status, error) {
-                    console.error('❌ Erro ao gerar relatório:', {
-                        status: xhr.status,
-                        error: error,
-                        response: xhr.responseText
-                    });
-                    
-                    let errorMessage = 'Erro desconhecido ao gerar o relatório.';
-                    
-                    if (xhr.status === 404) {
-                        errorMessage = 'Rota de PDF não encontrada. Verifique se as rotas estão configuradas.';
-                    } else if (xhr.status === 500) {
-                        errorMessage = 'Erro interno do servidor.';
-                    } else if (xhr.responseJSON) {
-                        errorMessage = xhr.responseJSON.error || xhr.responseJSON.message || errorMessage;
-                    }
-                    
-                    showNotification('❌ Erro ao gerar ' + reportName + ': ' + errorMessage, 'error');
-                },
-                complete: function() {
-                    // Restaurar botão
-                    $button.html(originalHtml);
-                    $button.prop('disabled', !clienteAtual);
-                }
-            });
-        }
+			$.ajax({
+				url: url,
+				method: 'POST',
+				data: formData,
+				processData: false,
+				contentType: false,
+				xhrFields: { responseType: 'blob' },
+				success: function(response, status, xhr) {
+					let filename = reportName.toLowerCase() + '_' + clienteAtual.name.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+
+					const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+					if (contentDisposition) {
+						const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+						if (match && match[1]) filename = match[1].replace(/['"]/g, '');
+					}
+
+					const blob = new Blob([response], { type: 'application/pdf' });
+					const link = document.createElement('a');
+					link.href = window.URL.createObjectURL(blob);
+					link.download = filename;
+					document.body.appendChild(link);
+					link.click();
+					document.body.removeChild(link);
+					window.URL.revokeObjectURL(link.href);
+
+					showNotification('✅ PDF da ' + reportName + ' baixado com sucesso!', 'success');
+				},
+				error: function(xhr, status, error) {
+					console.error('❌ Erro ao gerar relatório:', { status: xhr.status, error: error, response: xhr.responseText });
+
+					let errorMessage = 'Erro desconhecido ao gerar o relatório.';
+					if (xhr.status === 404) errorMessage = 'Rota de PDF não encontrada. Verifique se as rotas estão configuradas.';
+					else if (xhr.status === 500) errorMessage = 'Erro interno do servidor.';
+					else if (xhr.responseJSON) errorMessage = xhr.responseJSON.error || xhr.responseJSON.message || errorMessage;
+
+					showNotification('❌ Erro ao gerar ' + reportName + ': ' + errorMessage, 'error');
+				},
+				complete: function() {
+					$button.html(originalHtml);
+					$button.prop('disabled', !clienteAtual);
+				}
+			});
+		}
+
 
         // Eventos de clique para os botões de impressão
         $('#btn-imprimir-sacolinha').on('click', function() {
             imprimirRelatorio('/pedidos/imprimir-sacolinha', this, 'Sacolinha');
         });
 
-        $('#btn-imprimir-pedido').on('click', function() {
-            imprimirRelatorio('/pedidos/imprimir-pedido', this, 'Pedidos');
-        });
+		$('#btn-imprimir-pedido').on('click', function() {
+			if (!pedidoAtual || !pedidoAtual.id) {
+				showNotification('⚠️ Nenhum pedido selecionado/carregado para imprimir.', 'error');
+				return;
+			}
+
+			imprimirRelatorio('/pedidos/imprimir-pedido', this, 'Pedido', {
+				pedido_id: pedidoAtual.id
+			});
+		});
 
         // Evento para limpar seleção (atualizado)
         $('#btn-limpar-selecao').on('click', function() {
@@ -1000,31 +1291,12 @@
         });
 
         // Habilitar/desabilitar botões baseado na seleção
-        function togglePrintButtons() {
-            const hasClient = clienteAtual && clienteAtual.id;
-            $('#btn-imprimir-sacolinha, #btn-imprimir-pedido').prop('disabled', !hasClient);
-            $('#btn-criar-pedido').prop('disabled', !hasClient);
-        }
+		function togglePrintButtons() {
+			const ativo = Boolean(clienteAtual && clienteAtual.id);
+			$('#btn-imprimir-sacolinha, #btn-imprimir-pedido, #btn-criar-pedido')
+				.prop('disabled', !ativo);
+		}
 
-        // Atualizar a função de seleção de cliente existente
-        const originalClientClick = $(document).off('click', '.cliente-item').on('click', '.cliente-item', function() {
-            clienteAtual = {
-                id: $(this).data('id'),
-                name: $(this).data('name'),
-                email: $(this).data('email')
-            };
-
-            $('#cliente-search').val(clienteAtual.name);
-            $('#cliente-dropdown').hide();
-            $('#cliente-nome').text(clienteAtual.name);
-            $('#cliente-id').text(clienteAtual.id);
-            $('#cliente-info').show();
-
-            // Habilitar botões PDF
-            togglePrintButtons();
-
-            carregarDados(clienteAtual.id);
-        });
 
         // ========================================
         // FUNÇÕES DE DEBUG GLOBAIS
@@ -1064,6 +1336,18 @@
         console.log('🚀 Sistema de PDF carregado e integrado');		
 		
     });
+	
+	function formatMoneyBR(value) {
+	  const n = Number(value) || 0;
+	  return n.toFixed(2).replace('.', ',');
+	}
+
+	function normalizarStatus(status) {
+	  return (status || '').toString().trim().toLowerCase()
+		.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+	
+	
     </script>
 </body>
 </html>

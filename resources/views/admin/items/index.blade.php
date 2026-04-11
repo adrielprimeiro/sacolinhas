@@ -1,565 +1,292 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Itens</title>
+@extends('layouts.app')
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+@section('title', 'Itens')
 
-    <style>
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-        .item-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
+@section('content')
 
-		#qr-scanner-container {
-			border-radius: 10px;
-			overflow: hidden;
-		}
-		
-		#qr-scanner-container video {
-			border-radius: 10px;
-			max-width: 100%;
-			height: auto;
-		}
-		
-		/* Customizar controles do scanner */
-		#qr-scanner-container select,
-		#qr-scanner-container input[type="range"] {
-			margin: 10px 0;
-			width: 100%;
-		}
-		
-		/* Animação para o resultado */
-		#qr-result .alert {
-			animation: fadeInUp 0.5s ease-out;
-		}
-		
-		@keyframes fadeInUp {
-			from {
-				opacity: 0;
-				transform: translateY(20px);
-			}
-			to {
-				opacity: 1;
-				transform: translateY(0);
-			}
-		}
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-semibold text-gray-800">Itens</h1>
 
-		
-		/* Modal responsivo */
-		@media (max-width: 992px) {
-			.modal-xl {
-				max-width: 95%;
-			}
-		}
-		
-		/* Scanner container */
-		#qr-scanner-container {
-			border-radius: 15px;
-			overflow: hidden;
-			background: #f8f9fa;
-		}
-		
-		#qr-scanner-container video {
-			width: 100% !important;
-			height: auto !important;
-			border-radius: 15px;
-		}
-		
-		/* Controles do scanner */
-		#qr-scanner-container select,
-		#qr-scanner-container input[type="range"] {
-			margin: 8px 0;
-			width: 100%;
-			border-radius: 8px;
-		}
-		
-		/* Botões do scanner */
-		#qr-scanner-container button {
-			margin: 5px;
-			border-radius: 8px;
-			font-size: 12px;
-		}
-		
-		/* Histórico scrollable */
-		#scan-history {
-			font-size: 0.85em;
-		}
-		
-		#scan-history code {
-			font-size: 0.8em;
-			background: #f1f3f4;
-			padding: 2px 4px;
-			border-radius: 3px;
-		}
-		
-		/* Animações */
-		.alert {
-			animation: slideInFromTop 0.5s ease-out;
-		}
-		
-		@keyframes slideInFromTop {
-			from {
-				opacity: 0;
-				transform: translateY(-20px);
-			}
-			to {
-				opacity: 1;
-				transform: translateY(0);
-			}
-		}
-		
-		/* Badge personalizado */
-		.badge {
-			font-size: 0.7em;
-		}
-		
-		/* Cards do painel lateral */
-		.card {
-			border: none;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-		}
-		
-		.card-header {
-			background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-			font-weight: 600;
-			font-size: 0.9em;
-		}
-		
-		/* Spinner customizado */
-		.spinner-border-sm {
-			width: 1rem;
-			height: 1rem;
-		}
-		
-		/* Botão QR com animação */
-		#qrScanBtn:hover {
-			transform: scale(1.05);
-			transition: transform 0.2s ease;
-		}
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <h4> Admin</h4>
-                    <hr>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}"> <!-- Novo item no menu -->
-                                <i class="fas fa-broadcast-tower"></i> Live
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}"> <!-- Atualizado para a nova rota -->
-                                <i class="fas fa-shopping-bag"></i> Sacolas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
+        <a href="{{ route('items.create') }}"
+           class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300">
+            <i class="fas fa-plus-circle mr-2"></i> Novo Item
+        </a>
+    </div>
+
+    @if (session('success'))
+        <div class="mb-4 bg-green-100 border border-green-200 text-green-800 px-4 py-3 rounded">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="mb-4 bg-red-100 border border-red-200 text-red-800 px-4 py-3 rounded">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <div class="bg-white shadow-lg rounded-lg p-4 mb-6">
+        <form id="itemsFilterForm" method="GET" action="{{ route('items.index') }}">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+
+                <div class="md:col-span-5">
+                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Buscar por código</label>
+                    <div class="relative">
+                        <input
+                            id="codigo"
+                            name="codigo"
+                            value="{{ request('codigo') }}"
+                            class="w-full border border-gray-300 rounded-md pl-3 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Digite ou leia o QRCode"
+                            autocomplete="off"
+                        />
+
+                        <button type="button"
+                                id="btnToggleQr"
+                                class="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-gray-500 hover:text-indigo-700"
+                                title="Ler QRCode">
+                            <i class="fas fa-qrcode text-lg"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Main Content -->
-            <div class="col-md-10 p-4">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Gerenciar Itens</h2>
-                    <a href="{{ route('items.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Novo Item
+                <div class="md:col-span-3">
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por status</label>
+                    <select
+                        id="status"
+                        name="status"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Todos</option>
+						<option value="indisponivel" {{ request('status') == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
+                        <option value="disponivel" {{ request('status') == 'disponivel' ? 'selected' : '' }}>Disponível</option>
+                        <option value="reservado" {{ request('status') == 'reservado' ? 'selected' : '' }}>Reservado</option>
+                        <option value="vendido" {{ request('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
+                        <option value="em_sacolinha" {{ request('status') == 'em_sacolinha' ? 'selected' : '' }}>Em Sacolinha</option>
+						<option value="loja" {{ request('status') == 'loja' ? 'selected' : '' }}>Loja</option>
+                        <option value="estoque" {{ request('status') == 'estoque' ? 'selected' : '' }}>Estoque</option>						
+						<option value="live" {{ request('status') == 'live' ? 'selected' : '' }}>Live</option>
+                        <option value="solicitado na loja" {{ request('status') == 'solicitado na loja' ? 'selected' : '' }}>Solicitado na Loja</option>
+						<option value="solicitado na live" {{ request('status') == 'solicitado na live' ? 'selected' : '' }}>Solicitado na Live</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-4 flex gap-2">
+                    <button type="submit"
+                            class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md shadow-md transition">
+                        Filtrar
+                    </button>
+
+                    <a href="{{ route('items.index') }}"
+                       class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition">
+                        Limpar
                     </a>
                 </div>
 
-                <!-- Alerts -->
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-								
-				<!-- Filtros com QR Code - Sprint 1 -->
-				<div class="card mb-4">
-					<div class="card-body">
-						<form method="GET" action="{{ route('items.index') }}">
-							<div class="row">
-								<div class="col-md-4">
-									<div class="input-group">
-										<input type="text"
-											   class="form-control"
-											   name="search"
-											   id="searchInput"
-											   placeholder="Código do produto, QR Code, ou código de barras..."
-											   value="{{ request('search') }}">
-										<button type="button" 
-												class="btn btn-outline-primary position-relative"
-												id="qrScanBtn"
-												title="Scanner Multi-formato">
-											<i class="fas fa-qrcode"></i>
-											<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6em;">
-												v3
-											</span>
-										</button>
-									</div>
-								</div>
-							 
-								<div class="col-md-2">
-									<button type="submit" class="btn btn-outline-primary w-100">
-										<i class="fas fa-search"></i> Filtrar
-									</button>
-								</div>
-							</div>
-						</form>
-										
-						<!-- Modal QR Scanner SIMPLES -->
-						<div class="modal fade" id="qrModal" tabindex="-1">
-							<div class="modal-dialog modal-lg">
-								<div class="modal-content">
-									<div class="modal-header bg-primary text-white">
-										<h5 class="modal-title">
-											<i class="fas fa-qrcode me-2"></i> Scanner QR Code
-										</h5>
-										<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-									</div>
-									<div class="modal-body">
-										<!-- Scanner Container -->
-										<div id="qr-reader" style="min-height: 300px; border-radius: 15px;"></div>
-										
-										<!-- Resultado -->
-										<div id="qr-result" class="mt-3"></div>
-									</div>
-								</div>
-							</div>
-						</div>
-                <!-- Lista de Itens -->
-                <div class="card">
-                    <div class="card-body">
-                        @if($items->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Imagem</th>
-                                            <th>Nome do Produto</th> {{-- Atualizado --}}
-                                            <th>Marca</th> {{-- Nova coluna --}}
-                                            <th>Cor</th> {{-- Nova coluna --}}
-                                            <th>Tamanho</th> {{-- Nova coluna --}}
-                                            <th>Estado</th> {{-- Nova coluna --}}
-                                            <th>Preço</th>
-                                            <th>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($items as $item)
-                                            <tr>
-                                                <td>
-                                                    @if($item->image)
-                                                        <img src="{{ asset('storage/' . $item->image) }}"
-                                                             alt="{{ $item->nome_do_produto }}" {{-- Atualizado --}}
-                                                             class="item-image">
-                                                    @else
-                                                        <div class="item-image bg-secondary d-flex align-items-center justify-content-center">
-                                                            <i class="fas fa-image text-white"></i>
-                                                        </div>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <strong>{{ $item->nome_do_produto }}</strong><br> {{-- Atualizado --}}
-                                                    <small class="text-muted">{{ Str::limit($item->descricao, 50) }}</small> {{-- Atualizado --}}
-                                                </td>
-                                                <td>{{ $item->marca ?? 'N/A' }}</td> {{-- Nova coluna --}}
-                                                <td>{{ $item->cor ?? 'N/A' }}</td> {{-- Nova coluna --}}
-                                                <td>{{ $item->tamanho ?? 'N/A' }}</td> {{-- Nova coluna --}}
-                                                <td>{{ ucfirst($item->estado ?? 'N/A') }}</td> {{-- Nova coluna, com ucfirst para formatar --}}
-                                                <td>
-                                                    <strong class="text-success">R$ {{ number_format($item->preco, 2, ',', '.') }}</strong> {{-- Atualizado para $item->preco --}}
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{{ route('items.show', $item) }}"
-                                                           class="btn btn-sm btn-outline-info">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        <a href="{{ route('items.edit', $item) }}"
-                                                           class="btn btn-sm btn-outline-warning">
-                                                            <i class="fas fa-edit"></i>
-                                                        </a>
-                                                        <form action="{{ route('items.destroy', $item) }}"
-                                                              method="POST"
-                                                              style="display: inline;"
-                                                              onsubmit="return confirm('Tem certeza que deseja deletar este item?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Paginação -->
-                            <div class="d-flex justify-content-center mt-4">
-                                {{ $items->links() }}
-                            </div>
-                        @else
-                            <div class="text-center py-5">
-                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">Nenhum item encontrado</h5>
-                                <p class="text-muted">Comece criando seu primeiro item!</p>
-                                <a href="{{ route('items.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus"></i> Criar Primeiro Item
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-                </div>
             </div>
+        </form>
+
+        <div id="qrReaderWrap" class="hidden mt-4 border border-gray-200 rounded-md p-3">
+            <div class="text-sm text-gray-600 mb-2">
+                Permita o acesso à câmera e aponte para o QRCode.
+            </div>
+            <div id="qrReader" class="w-full"></div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Html5-QRCode Library -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <!-- Scanner QR SIMPLES E COMPATÍVEL -->
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                        <th class="py-3 px-6 text-left">Imagem</th>
+                        <th class="py-3 px-6 text-left">Código</th>
+                        <th class="py-3 px-6 text-left">Produto</th>
+                        <th class="py-3 px-6 text-left">Detalhes</th>
+                        <th class="py-3 px-6 text-left">Status</th>
+                        <th class="py-3 px-6 text-left">Preço</th>
+                        <th class="py-3 px-6 text-center">Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody class="text-gray-700 text-sm">
+                    @forelse ($items as $item)
+                        @php
+                            $codigo = $item->codigo ?? $item->code ?? null;
+                            $nome = $item->nome_do_produto
+                                ?? $item->nome
+                                ?? $item->name
+                                ?? $item->produto
+                                ?? '—';
+
+                            $marca = $item->marca ?? null;
+                            $cor = $item->cor ?? null;
+                            $tamanho = $item->tamanho ?? $item->tam ?? null;
+                            $estado = $item->estado ?? null;
+
+                            $statusRaw = $item->status ?? $item->situacao ?? '—';
+                            $status = strtolower((string) $statusRaw);
+
+                            $pill = 'bg-gray-200 text-gray-800';
+                            if (in_array($status, ['disponivel','disponível','ativo','available'])) $pill = 'bg-green-200 text-green-800';
+                            if (in_array($status, ['reservado','reserved'])) $pill = 'bg-yellow-200 text-yellow-800';
+                            if (in_array($status, ['vendido','sold','inativo','indisponivel','indisponível'])) $pill = 'bg-red-200 text-red-800';
+
+                            $preco = $item->preco ?? $item->price ?? null;
+
+                            $img = $item->imagem_url
+                                ?? $item->imagem
+                                ?? $item->foto
+                                ?? $item->foto_url
+                                ?? null;
+
+                            $detalhesParts = [];
+                            if ($marca) $detalhesParts[] = $marca;
+                            if ($cor) $detalhesParts[] = $cor;
+                            if ($tamanho) $detalhesParts[] = 'Tam: ' . $tamanho;
+                            if ($estado) $detalhesParts[] = $estado;
+
+                            $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '—';
+                        @endphp
+
+                        <tr class="border-b border-gray-200 hover:bg-gray-100 align-top">
+                            <td class="py-3 px-6 text-left whitespace-nowrap">
+                                @if ($img)
+                                    <img src="{{ $img }}" alt="Imagem do item"
+                                         class="w-12 h-12 rounded-md object-cover border border-gray-200">
+                                @else
+                                    <div class="w-12 h-12 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                @endif
+                            </td>
+
+                            <td class="py-3 px-6 text-left whitespace-nowrap font-medium">
+                                {{ $codigo ?? '—' }}
+                            </td>
+
+                            <td class="py-3 px-6 text-left">
+                                {{ $nome }}
+                            </td>
+
+                            <td class="py-3 px-6 text-left text-gray-600">
+                                {{ $detalhes }}
+                            </td>
+
+                            <td class="py-3 px-6 text-left">
+                                <span class="{{ $pill }} py-1 px-3 rounded-full text-xs font-semibold">
+                                    {{ $statusRaw }}
+                                </span>
+                            </td>
+
+                            <td class="py-3 px-6 text-left font-medium whitespace-nowrap">
+                                @if ($preco !== null)
+                                    R$ {{ number_format((float) $preco, 2, ',', '.') }}
+                                @else
+                                    —
+                                @endif
+                            </td>
+
+                            <td class="py-3 px-6 text-center">
+                                <div class="flex item-center justify-center space-x-2">
+                                    <a href="{{ route('items.show', $item) }}"
+                                       class="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 flex items-center justify-center transition duration-300"
+                                       title="Ver">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    <a href="{{ route('items.edit', $item) }}"
+                                       class="w-8 h-8 rounded-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 flex items-center justify-center transition duration-300"
+                                       title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    <form action="{{ route('items.destroy', $item) }}"
+                                          method="POST"
+                                          onsubmit="return confirm('Tem certeza que deseja excluir este item?');"
+                                          class="inline-block">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="w-8 h-8 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center transition duration-300"
+                                                title="Excluir">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="py-6 px-6 text-center text-gray-500">
+                                Nenhum item encontrado.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="p-4 border-t border-gray-200">
+            {{ $items->appends(request()->query())->links() }}
+        </div>
+    </div>
+
+@endsection
+
+@push('scripts')
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
-        console.log('📱 Scanner QR Iniciando...');
+        (function () {
+            let qrScanner = null;
+            let running = false;
 
-        // Variáveis globais
-        var scanner = null;
-        var isScanning = false;
-        var modal = null;
+            const btn = document.getElementById('btnToggleQr');
+            const wrap = document.getElementById('qrReaderWrap');
+            const input = document.getElementById('codigo');
+            const form = document.getElementById('itemsFilterForm');
 
-        // Inicializar quando página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Inicializando scanner...');
-            initScanner();
-        });
+            if (!btn || !wrap || !input || !form) return;
 
-        function initScanner() {
-            // Elementos
-            var scanBtn = document.getElementById('qrScanBtn');
-            var modalElement = document.getElementById('qrModal');
-            if (!scanBtn || !modalElement){
-                console.warn('⚠️ Elementos não encontrados');
-                return;
+            async function stopScanner() {
+                if (!qrScanner || !running) return;
+                try { await qrScanner.stop(); } catch (e) {}
+                running = false;
             }
 
-            // Modal Bootstrap
-            modal = new bootstrap.Modal(modalElement);
-            
-            // Evento do botão principal
-            scanBtn.addEventListener('click', function() {
-                console.log('🎯 Abrindo scanner...');
-                openScanner();
-            });
+            btn.addEventListener('click', async () => {
+                const opening = wrap.classList.contains('hidden');
 
-            // Fechar modal
-            modalElement.addEventListener('hidden.bs.modal', function() {
-                stopScanner();
-            });
+                if (opening) {
+                    wrap.classList.remove('hidden');
 
-            console.log('✅ Scanner inicializado!');
-        }
+                    if (!qrScanner) qrScanner = new Html5Qrcode("qrReader");
 
-        function openScanner() {
-            modal.show();
-            
-            // Interface inicial
-            var qrReader = document.getElementById('qr-reader');
-            if (qrReader) {
-                qrReader.innerHTML = 
-                    '<div class="text-center p-5">' +
-                        '<div class="mb-4">' +
-                            '<i class="fas fa-camera fa-4x text-primary"></i>' +
-                        '</div>' +
-                        '<h4 class="mb-3">Scanner Pronto</h4>' +
-                        '<button class="btn btn-success btn-lg" onclick="startCamera()">' +
-                            '<i class="fas fa-play me-2"></i>Iniciar Câmera' +
-                        '</button>' +
-                    '</div>';
-            }
+                    try {
+                        await qrScanner.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: { width: 240, height: 240 } },
+                            async (decodedText) => {
+                                input.value = decodedText;
+                                await stopScanner();
+                                wrap.classList.add('hidden');
+                                form.submit();
+                            }
+                        );
 
-            // Esconder painel lateral se existir
-            var sidebar = document.querySelector('.col-lg-4');
-            var mainPanel = document.querySelector('.col-lg-8');
-            
-            if (sidebar) sidebar.style.display = 'none';
-            if (mainPanel) mainPanel.className = 'col-12';
-        }
-
-        function startCamera() {
-            console.log('📷 Iniciando câmera...');
-            
-            // Loading
-            var qrReader = document.getElementById('qr-reader');
-            if (qrReader) {
-                qrReader.innerHTML = 
-                    '<div class="text-center p-5">' +
-                        '<div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>' +
-                        '<h5>Iniciando câmera...</h5>' +
-                        '<small class="text-muted">Aguarde um momento</small>' +
-                    '</div>';
-            }
-
-            // Inicializar scanner
-            scanner = new Html5Qrcode("qr-reader");
-            
-            var config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            };
-
-            scanner.start(
-                { facingMode: "environment" },
-                config,
-                function(decodedText) {
-                    // SUCESSO - Código encontrado
-                    console.log('✅ Código encontrado:', decodedText);
-                    onScanSuccess(decodedText);
-                },
-                function(error) {
-                    // Erro silencioso (normal durante escaneamento)
+                        running = true;
+                    } catch (e) {
+                        console.error(e);
+                        wrap.classList.add('hidden');
+                        alert('Não foi possível acessar a câmera. Verifique permissões do navegador.');
+                    }
+                } else {
+                    await stopScanner();
+                    wrap.classList.add('hidden');
                 }
-            ).then(function() {
-                // Scanner iniciado com sucesso
-                isScanning = true;
-                showMessage('success', '📷 Scanner ativo! Aponte a câmera para o código...');
-                
-            }).catch(function(error) {
-                // Erro ao iniciar
-                console.error('❌ Erro ao iniciar:', error);
-                var errorMsg = 'Erro ao acessar câmera';
-                
-                if (error.toString().indexOf('Permission') !== -1) {
-                    errorMsg = 'Permissão de câmera negada. Permita o acesso à câmera.';
-                } else if (error.toString().indexOf('NotFound') !== -1) {
-                    errorMsg = 'Nenhuma câmera encontrada no dispositivo.';
-                }
-                
-                showMessage('danger', '❌ ' + errorMsg);
             });
-        }
 
-        function onScanSuccess(code) {
-            console.log('🎯 Código capturado:', code);
-            
-            // Parar scanner primeiro
-            stopScanner();
-            
-            // Preencher campo de busca
-            var searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.value = code;
-                searchInput.readOnly = false; // Remover readonly se existir
-            }
-
-            // Mostrar sucesso
-            showMessage('success', 
-                '<div class="text-center">' +
-                    '<i class="fas fa-check-circle fa-2x text-success mb-2"></i>' +
-                    '<h5>Código Capturado!</h5>' +
-                    '<code class="fs-5 text-primary">' + code + '</code>' +
-                    '<p class="mt-2 mb-0"><small>Realizando busca...</small></p>' +
-                '</div>'
-            );
-
-            // Aguardar 2 segundos e executar busca
-            setTimeout(function() {
-                modal.hide();
-                performSearch();
-            }, 2000);
-        }
-
-        function stopScanner() {
-            if (scanner && isScanning) {
-                scanner.stop().then(function() {
-                    scanner.clear();
-                    isScanning = false;
-                    console.log('⏹️ Scanner parado');
-                }).catch(function(error) {
-                    console.error('Erro ao parar scanner:', error);
-                });
-            }
-        }
-
-        function showMessage(type, message) {
-            var resultDiv = document.getElementById('qr-result');
-            if (resultDiv) {
-                resultDiv.innerHTML = 
-                    '<div class="alert alert-' + type + ' mt-3">' +
-                        message +
-                    '</div>';
-            }
-        }
-
-        function performSearch() {
-            console.log('🔍 Executando busca automática...');
-            
-            var searchInput = document.getElementById('searchInput');
-			if (!searchInput || !searchInput.value){
-                console.warn('Campo de busca vazio');
-                return;
-            }
-            
-            // Método 1: Tentar submeter formulário
-            var form = document.querySelector('form[method="GET"]');
-            if (form) {
-                console.log('📝 Submetendo formulário...');
-                form.submit();
-                return;
-            }
-            
-            // Método 2: Recarregar página com parâmetro
-            var code = searchInput.value;
-            var currentUrl = window.location.pathname;
-            var newUrl = currentUrl + '?search=' + encodeURIComponent(code);
-            
-            console.log('🔄 Redirecionando para:', newUrl);
-            window.location.href = newUrl;
-        }
-
-        // Log final
-        console.log('✅ Scanner QR carregado e pronto!');
+            window.addEventListener('beforeunload', () => { stopScanner(); });
+        })();
     </script>
-</body>
-</html>
+@endpush

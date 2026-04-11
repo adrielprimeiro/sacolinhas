@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Item;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Models\ClienteLimite;
 
 
 class SacolinhaController extends Controller
@@ -20,114 +21,131 @@ class SacolinhaController extends Controller
         return view('admin.live.index');
     }
 
-	public function store(Request $request)
-	{
-		try {
-			// Validação
-			$request->validate([
-				'client_id' => 'required|integer|exists:users,id',
-				'item_id' => 'required|integer|exists:items,id',
-				'item_price' => 'required|numeric|min:0',
-			]);
+    public function store(Request $request)
+    {
+        try {
+            // Validação básica
+            $request->validate([
+                'client_id' => 'required|integer|exists:users,id',
+                'item_id' => 'required|integer|exists:items,id',
+                'item_price' => 'required|numeric|min:0',
+            ]);
 
-			// Buscar live ativa
-			$liveAtiva = DB::table('lives')
-						  ->where('ativo', 1)
-						  ->orderBy('created_at', 'desc')
-						  ->first();
+            $result = DB::transaction(function () use ($request) {
+                
+                // 1. Buscar live ativa
+                $liveAtiva = DB::table('lives')
+                              ->where('ativo', 1)
+                              ->orderBy('created_at', 'desc')
+                              ->first();
 
-			if (!$liveAtiva) {
-				return response()->json([
-					'success' => false,
-					'message' => 'Não há live ativa no momento!'
-				], 400);
-			}
+                if (!$liveAtiva) {
+                    throw new \Exception('Não há live ativa no momento!', 400);
+                }
 
-			// Buscar dados do cliente
-			$client = User::find($request->client_id);
-			if (!$client) {
-				return response()->json([
-					'success' => false,
-					'message' => 'Cliente não encontrado!'
-				], 404);
-			}
+                // 2. Verificar se o item já está na sacola (duplicidade)
+                $sacolaExistente = Sacolinhas::where([
+                    'user_id' => $request->client_id,
+                    'item_id' => $request->item_id,
+                    'live_id' => $liveAtiva->id
+                ])->first();
 
-			// Buscar dados do item
-			$item = DB::table('items')->where('id', $request->item_id)->first();
-			if (!$item) {
-				return response()->json([
-					'success' => false,
-					'message' => 'Item não encontrado!'
-				], 404);
-			}
+                if ($sacolaExistente) {
+                    return ['duplicate' => true];
+                }
 
-			// MODIFICADO: Verificar se item já existe na sacola (evitar duplicatas)
-			$sacolaExistente = Sacolinhas::where([
-				'user_id' => $request->client_id,
-				'item_id' => $request->item_id,
-				'live_id' => $liveAtiva->id
-			])->first();
+                // ---------------------------------------------------------
+                // ✅ LÓGICA DE LIMITE SOLICITADA
+                // ---------------------------------------------------------
+                
+                // 1. Buscar o valor de limite_disponivel
+                $limiteDisponivel = DB::table('cliente_limites')
+                    ->where('user_id', $request->client_id)
+                    ->where('ativo', 1)
+                    ->value('limite_disponivel') ?? 0;
 
-			if ($sacolaExistente) {
-				return response()->json([
-					'success' => false,
-					'message' => 'Este item já está na sacola deste cliente!'
-				]);
-			}
+                $priceToStore = (float) $request->item_price;
 
-			// Verificar se as colunas existem
-			$columns = \Schema::getColumnListing('sacolinhas');
+                // 2. Verificar se o valor é maior ou igual ao do item
+                // 2.1 Menor -> 'em analise' | 2.2 Maior ou igual -> 'live'
+                $status = ($limiteDisponivel >= $priceToStore) ? 'live' : 'em analise';
+
+                // ---------------------------------------------------------
+
+                // Preparar dados para gravação
+                $columns = \Schema::getColumnListing('sacolinhas');
+                $data = [
+                    'user_id' => $request->client_id,
+                    'item_id' => $request->item_id,
+                    'live_id' => $liveAtiva->id,
+                    'add_at'  => now(),
+                    'status'  => $status, // ✅ Status definido pela lógica acima
+                    'obs'     => $request->obs ?? null
+                ];
+
+                if (in_array('quantity', $columns)) $data['quantity'] = 1;
+                if (in_array('price', $columns))    $data['price']    = $priceToStore;
+
+                // 3. Gravar na sacolinha
+                // A matemática (UPDATE cliente_limites) é feita pelo seu Trigger no MySQL
+                $sacolinha = Sacolinhas::create($data);
+
+				// 4. Atualizar status do item
+				DB::table('items')
+					->where('id', $request->item_id)
+					->update([
+						'status' => 'solicitado na live',
+						'updated_at' => now(),
+					]);
+
+                return [
+                    'success' => true,
+                    'sacolinha' => $sacolinha,
+                    'status' => $status,
+                    'price' => $priceToStore
+                ];
+            });
 			
-			// MODIFICADO: Usar o preço enviado pelo formulário (não o preço original do item)
-			$priceToStore = (float) $request->item_price;
+			
+            if (isset($result['duplicate'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este item já está na sacola deste cliente!'
+                ]);
+            }
 
-			// Preparar dados para inserção
-			$data = [
-				'user_id' => $request->client_id,
-				'item_id' => $request->item_id,
-				'live_id' => $liveAtiva->id,
-				'add_at' => now(),
-				'status' => 'pendente',
-				'obs' => $request->obs ?? null
-			];
+            return response()->json([
+                'success' => true,
+                'message' => 'Item adicionado à sacola com sucesso!',
+                'data' => [
+                    'sacolinha' => $result['sacolinha'],
+                    'status' => $result['status'],
+                    'price' => $result['price'],
+                    'formatted_price' => 'R$ ' . number_format($result['price'], 2, ',', '.'),
+                ]
+            ]);
 
-			// MODIFICADO: Sempre quantidade 1 para itens únicos
-			if (in_array('quantity', $columns)) {
-				$data['quantity'] = 1;
-			}
-			if (in_array('price', $columns)) {
-				$data['price'] = $priceToStore;
-			}
+        } catch (\Exception $e) {
+            Log::error("Erro ao adicionar item à sacola: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
-			// Criar nova entrada (sem lógica de atualização de quantidade)
-			$sacolinha = Sacolinhas::create($data);
+    // ✅ MANTENHA APENAS UMA VEZ ESTE MÉTODO OU REMOVA SE NÃO USAR MAIS
+    private function getClienteLimiteDisponivel(int $userId): float
+    {
+        return (float) DB::table('cliente_limites')
+            ->where('user_id', $userId)
+            ->where('ativo', 1)
+            ->value('limite_disponivel') ?? 0.0;
+    }
 
-			return response()->json([
-				'success' => true,
-				'message' => 'Item adicionado à sacola com sucesso!',
-				'data' => [
-					'sacolinha' => $sacolinha,
-					'client' => [
-						'id' => $client->id,
-						'name' => $client->name,
-						'email' => $client->email
-					],
-					'item' => [
-						'id' => $item->id,
-						'name' => $item->nome_do_produto,
-						'price' => $priceToStore, // MODIFICADO: Retornar o preço usado na sacola
-						'formatted_price' => 'R$ ' . number_format($priceToStore, 2, ',', '.')
-					]
-				]
-			]);
-		} catch (\Exception $e) {
-			Log::error("Erro ao adicionar item à sacola: " . $e->getMessage());
-			return response()->json([
-				'success' => false,
-				'message' => 'Erro interno: ' . $e->getMessage()
-			], 500);
-		}
-	}
+
+    
+
 
 	public function getBagsByLive($liveId = null)
 	{
@@ -183,6 +201,7 @@ class SacolinhaController extends Controller
 				'u.email as user_email',
 				'u.instagram as user_instagram', // ✨ NOVO
 				'u.tiktok as user_tiktok',       // ✨ NOVO
+				'u.whatsapp as user_whatsapp' ,       // ✨ NOVO
 				'i.id as item_id',
 				'i.nome_do_produto as item_name',
 				'i.codigo as item_sku',
@@ -242,6 +261,7 @@ class SacolinhaController extends Controller
 						'email' => $firstItem->user_email,
 						'instagram' => $firstItem->user_instagram, // ✨ NOVO
 						'tiktok' => $firstItem->user_tiktok,       // ✨ NOVO
+						'whatsapp' => $firstItem->user_whatsapp,       // ✨ NOVO
 						'avatar_url' => 'https://ui-avatars.com/api/?name=' . urlencode($firstItem->user_name) . '&background=007bff&color=fff&size=128'
 					],
 					'items' => $items->values(),
@@ -274,6 +294,8 @@ class SacolinhaController extends Controller
 
 	public function removeItems(Request $request)
 	{
+		Log::info("removeItems HIT! All data: " . json_encode($request->all()));
+       
 		try {
 			$request->validate([
 				'item_id' => 'required|integer',
@@ -281,33 +303,52 @@ class SacolinhaController extends Controller
 				'live_id' => 'required|integer'
 			]);
 
-			$sacola = Sacolinhas::where([
-				'item_id' => $request->item_id,
-				'user_id' => $request->user_id,
-				'live_id' => $request->live_id
-			])->first();
+			// Usamos transaction para garantir que o status 'estoque' seja a palavra final
+			DB::transaction(function () use ($request) {
+				
+				// 1. Buscar a sacola
+				$sacola = Sacolinhas::where([
+					'item_id' => $request->item_id,
+					'user_id' => $request->user_id,
+					'live_id' => $request->live_id
+				])->first();
 
-			if (!$sacola) {
-				return response()->json([
-					'success' => false,
-					'message' => 'Item não encontrado na sacola'
-				], 404);
-			}
+				if (!$sacola) {
+					throw new \Exception('Item não encontrado na sacola', 404);
+				}
 
-			// MODIFICADO: Sempre remover completamente (itens únicos)
-			$sacola->delete();
+				// (Opcional) Cálculo de valor caso você use para atualizar limites depois
+				// $valorMudanca = ($sacola->price ?? 0) * ($sacola->quantity ?? 1);
+
+				// 2. Remover da sacola (Isso dispara o Trigger de DELETE do BD)
+				$sacola->delete();
+
+				// 3. FORÇA BRUTA: Atualizar status para 'estoque'
+				// Executado após o delete, garantindo que sobrescreve qualquer alteração do Trigger
+				DB::table('items')
+					->where('id', $request->item_id)
+					->update([
+						'status' => 'estoque',
+						'updated_at' => now()
+					]);
+			});
 
 			return response()->json([
 				'success' => true,
-				'message' => 'Item removido da sacola com sucesso!'
+				'message' => 'Item removido da sacola e devolvido ao estoque!'
 			]);
 
 		} catch (\Exception $e) {
+			// Tratamento para retornar 404 se foi a exceção que lançamos acima
+			$code = $e->getCode();
+			if ($code < 100 || $code > 599) $code = 500;
+
 			Log::error("Erro ao remover item: " . $e->getMessage());
+			
 			return response()->json([
 				'success' => false,
-				'message' => 'Erro ao remover item: ' . $e->getMessage()
-			], 500);
+				'message' => $e->getMessage()
+			], $code);
 		}
 	}
 	
@@ -690,78 +731,116 @@ class SacolinhaController extends Controller
 	
 	
     /**
-     * Adiciona um novo item à sacolinha do cliente ou atualiza a quantidade se já existir.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Adiciona um novo item à sacolinha (Padrão Live ID = 1)
      */
-    public function adicionarItemSacola(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'user_id' => 'required|exists:users,id',
-                'item_id' => 'required|exists:items,id',
-                'quantity' => 'required|integer|min:1',
-                'live_id' => 'nullable|exists:lives,id', // Assumindo que a tabela 'lives' existe
-                'obs' => 'nullable|string',
-                'tray' => 'nullable|integer',
-                'status' => 'nullable|string', // Ex: 'pendente', 'reservado'
-				'price' => 'nullable|numeric|min:0',  
-            ]);
+	public function adicionarItemSacola(Request $request)
+	{
+		try {
+			$validated = $request->validate([
+				'user_id' => 'nullable|exists:users,id',
+				'item_id' => 'required|exists:items,id',
+				'quantity' => 'nullable|integer|min:1',
+				'obs' => 'nullable|string',
+				'tray' => 'nullable|integer',
+				'status' => 'nullable|string',
+				'price' => 'nullable|numeric|min:0',
+			]);
 
-            $user = User::find($validated['user_id']);
-            $item = Item::find($validated['item_id']);
+			$result = DB::transaction(function () use ($validated) {
 
-            if (!$user) {
-                return response()->json(['message' => 'Cliente não encontrado.'], 404);
-            }
-            if (!$item) {
-                return response()->json(['message' => 'Item não encontrado.'], 404);
-            }
-            // Verifica se o item está disponível para ser adicionado
-            if ($item->status !== 'disponivel') {
-                return response()->json(['message' => 'Item não está disponível para adição na sacolinha.'], 400);
-            }
+				$liveId = 1; // 🔒 FIXO: sempre live 1
 
-            // Tenta encontrar o item na sacolinha do usuário
-            $sacolinhaItem = Sacolinhas::where('user_id', $validated['user_id'])
-                                      ->where('item_id', $validated['item_id'])
-                                      ->first();
+				$itemId = (int) $validated['item_id'];
+				$userId = isset($validated['user_id'])
+					? (int) $validated['user_id']
+					: (int) auth()->id();
 
-            if ($sacolinhaItem) {
-                // Se o item já existe, atualiza a quantidade
-                $sacolinhaItem->quantity += $validated['quantity'];
-                $sacolinhaItem->obs = $validated['obs'] ?? $sacolinhaItem->obs; // Atualiza observação se fornecida
-                $sacolinhaItem->save();
-                $message = 'Quantidade do item na sacolinha atualizada com sucesso.';
-            } else {
-                // Se o item não existe, cria um novo registro na sacolinha
-                $sacolinhaItem = Sacolinhas::create([
-                    'user_id' => $validated['user_id'],
-                    'item_id' => $validated['item_id'],
-                    'live_id' => $validated['live_id'] ?? null,
-                    'quantity' => $validated['quantity'],
-                    //'price' => $item->preco, // Armazena o preço atual do item no momento da adição
-					'price' => $validated['price'] ?? $item->preco, 
-                    'add_at' => now(),
-                    'tray' => $validated['tray'] ?? null,
-                    'status' => $validated['status'] ?? 'pendente', // Status padrão para item na sacolinha
-                    'obs' => $validated['obs'] ?? null,
-                ]);
-                $message = 'Item adicionado à sacolinha com sucesso.';
-            }
+				if (!$userId) {
+					return [
+						'success' => false,
+						'code' => 401,
+						'message' => 'Você precisa estar logado.'
+					];
+				}
 
-            // Carrega o relacionamento com o item para retornar dados completos
-            return response()->json(['message' => $message, 'data' => $sacolinhaItem->load('item')], 201);
+				$quantity = (int) ($validated['quantity'] ?? 1);
 
-        } catch (ValidationException $e) {
-            Log::warning("Erro de validação ao adicionar item à sacolinha: " . $e->getMessage(), ['errors' => $e->errors()]);
-            return response()->json(['message' => 'Dados de entrada inválidos.', 'errors' => $e->errors()], 400);
-        } catch (\Exception $e) {
-            Log::error("Erro interno do servidor ao adicionar item à sacolinha: " . $e->getMessage());
-            return response()->json(['message' => 'Erro interno do servidor ao adicionar item à sacolinha.'], 500);
-        }
-    }
+				// Preço: se não vier, pega do items.preco.
+				// Recomendo também IGNORAR o preço do request e sempre buscar do banco (mais seguro),
+				// mas mantive seu comportamento.
+				$price = $validated['price'] ?? DB::table('items')->where('id', $itemId)->value('preco');
+
+				// 1) lock para evitar concorrência
+				$sacolinhaItem = Sacolinhas::where('user_id', $userId)
+					->where('item_id', $itemId)
+					->where('live_id', $liveId)
+					->lockForUpdate()
+					->first();
+
+				if ($sacolinhaItem) {
+					$sacolinhaItem->quantity += $quantity;
+					if (array_key_exists('obs', $validated)) $sacolinhaItem->obs = $validated['obs'];
+					if (array_key_exists('price', $validated) && $validated['price'] !== null) $sacolinhaItem->price = $price;
+					$sacolinhaItem->save();
+					$message = 'Quantidade atualizada.';
+				} else {
+					$sacolinhaItem = Sacolinhas::create([
+						'user_id' => $userId,
+						'item_id' => $itemId,
+						'live_id' => $liveId,
+						'quantity' => $quantity,
+						'price' => $price,
+						'add_at' => now(),
+						'tray' => $validated['tray'] ?? null,
+						'status' => $validated['status'] ?? 'pendente',
+						'obs' => $validated['obs'] ?? null,
+					]);
+					$message = 'Item adicionado à sacola.';
+				}
+
+				// 2) Atualiza status do item
+				DB::table('items')
+					->where('id', $itemId)
+					->update([
+						'status' => 'sacolinha',
+						'updated_at' => now()
+					]);
+
+				return [
+					'success' => true,
+					'code' => 201,
+					'message' => $message,
+					'sacolinha' => $sacolinhaItem
+				];
+			});
+
+			if (!$result['success']) {
+				return response()->json([
+					'success' => false,
+					'message' => $result['message'],
+				], $result['code']);
+			}
+
+			return response()->json([
+				'success' => true,
+				'message' => $result['message'],
+				'data' => $result['sacolinha']
+			], $result['code']);
+
+		} catch (\Illuminate\Validation\ValidationException $e) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro de validação.',
+				'errors' => $e->errors(),
+			], 422);
+		} catch (\Exception $e) {
+			Log::error("Erro adicionarItemSacola: " . $e->getMessage());
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro interno: ' . $e->getMessage()
+			], 500);
+		}
+	}
 
     /**
      * Remove um item específico da sacolinha.
@@ -769,29 +848,50 @@ class SacolinhaController extends Controller
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function removerItemSacola(Request $request)
+    public function removerItemSacola(Request $request, $sacolinhaId)  // ✅ Param route explícito
     {
         try {
             $validated = $request->validate([
-                'sacolinha_id' => 'required|exists:sacolinhas,id', // ID do registro na tabela 'sacolinhas'
+                'sacolinha_id' => ['sometimes', 'exists:sacolinhas,id'],  // ✅ Opcional (usa route fallback)
             ]);
 
-            $sacolinhaItem = Sacolinhas::find($validated['sacolinha_id']);
+            $sacolinhaId = $sacolinhaId ?: $validated['sacolinha_id'] ?? null;  // ✅ Prioriza route param
+
+            if (!$sacolinhaId || !is_numeric($sacolinhaId)) {
+                return response()->json(['message' => 'ID da sacolinha inválido.'], 400);
+            }
+
+            $sacolinhaItem = Sacolinhas::find($sacolinhaId);
 
             if (!$sacolinhaItem) {
                 return response()->json(['message' => 'Item na sacolinha não encontrado.'], 404);
             }
 
-            $sacolinhaItem->delete();
+            // ✅ ATUALIZAÇÃO DE STATUS DO ITEM (Novo Bloco)
+            // Busca o item original usando o ID salvo na sacolinha
+            $item = Item::find($sacolinhaItem->item_id);
+            
+            if ($item) {
+                // Atualiza o status para 'Fora da Sacola'
+                $item->update(['status' => 'Fora da Sacola']);
+            }
 
-            return response()->json(['message' => 'Item removido da sacolinha com sucesso.'], 200);
+            // Remove o registro da sacolinha
+            $sacolinhaItem->delete(); 
+
+            Log::info("Item sacolinha_id {$sacolinhaId} removido para user {$sacolinhaItem->user_id}. Status do item atualizado.");
+
+            return response()->json([
+                'success' => true,  // ✅ Para JS if(response.success)
+                'message' => 'Item removido da sacolinha e status atualizado.'
+            ], 200);
 
         } catch (ValidationException $e) {
-            Log::warning("Erro de validação ao remover item da sacolinha: " . $e->getMessage(), ['errors' => $e->errors()]);
+            Log::warning("Validação removerItemSacola: " . $e->getMessage(), $e->errors());
             return response()->json(['message' => 'Dados de entrada inválidos.', 'errors' => $e->errors()], 400);
         } catch (\Exception $e) {
-            Log::error("Erro interno do servidor ao remover item da sacolinha: " . $e->getMessage());
-            return response()->json(['message' => 'Erro interno do servidor ao remover item da sacolinha.'], 500);
+            Log::error("Erro removerItemSacola sacolinha_id {$sacolinhaId}: " . $e->getMessage());
+            return response()->json(['message' => 'Erro interno.'], 500);
         }
     }
 
@@ -872,4 +972,72 @@ class SacolinhaController extends Controller
 		{
 			return view('admin.pedido.index');
 		}	
+		
+//-----------------------------------------------------------------------------------------------------------		
+//Controle dos Limites
+
+	public function getLimites(Request $request)
+	{
+		try {
+			$userId = $request->query('user_id') ?: $request->input('user_id');
+			
+			Log::info("getLimites HIT! user_id: {$userId}", $request->all());
+
+			if (!$userId) {
+				Log::warning("getLimites: user_id vazio", $request->all());
+				return response()->json(['error' => 'User ID não fornecido'], 400);
+			}
+
+			// ✅ FORÇAR BUSCA DIRETA NO BD (ignorar accessors)
+			$limite = \DB::table('cliente_limites')
+				->where('user_id', $userId)
+				->where('ativo', 1)
+				->first();
+
+			if (!$limite) {
+				Log::info("Criando limites default para user {$userId}");
+				
+				try {
+					\DB::table('cliente_limites')->insert([
+						'user_id' => $userId,
+						'limite_credito' => 100.00,
+						'limite_utilizado' => 0.00,
+						'limite_disponivel' => 100.00,
+						'ativo' => 1,
+						'created_at' => now(),
+						'updated_at' => now()
+					]);
+					
+					// Buscar novamente após criar
+					$limite = \DB::table('cliente_limites')
+						->where('user_id', $userId)
+						->where('ativo', 1)
+						->first();
+						
+				} catch (\Exception $e) {
+					Log::error("Erro ao criar limite: " . $e->getMessage());
+					return response()->json(['error' => 'Erro ao criar limite'], 500);
+				}
+			}
+
+			Log::info("Limites retornados (BD direto): " . json_encode([
+				'credito' => $limite->limite_credito,
+				'utilizado' => $limite->limite_utilizado,
+				'disponivel' => $limite->limite_disponivel
+			]));
+
+			return response()->json([
+				'credito' => number_format($limite->limite_credito, 2, ',', '.'),
+				'utilizado' => number_format($limite->limite_utilizado, 2, ',', '.'),
+				'disponivel' => number_format($limite->limite_disponivel, 2, ',', '.'),
+			]);
+
+		} catch (\Exception $e) {
+			Log::error("Erro em getLimites: " . $e->getMessage());
+			return response()->json(['error' => 'Erro interno do servidor'], 500);
+		}
+	}
+
+
+		
 }

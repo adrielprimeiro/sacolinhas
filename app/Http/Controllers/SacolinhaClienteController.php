@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Sacolinha;
 use App\Models\User;
+use App\Models\Item;
 
 class SacolinhaClienteController extends Controller
 {
@@ -40,7 +41,7 @@ class SacolinhaClienteController extends Controller
                 FROM sacolinhas s
                 INNER JOIN users u ON s.user_id = u.id
                 INNER JOIN items i ON s.item_id = i.id
-                WHERE s.user_id = ? AND i.status != 'enviado'
+                WHERE s.user_id = ? AND i.status = 'sacolinha'
                 GROUP BY s.user_id, u.name, u.email, u.avatar
             ", [$clienteId]);
 
@@ -70,52 +71,65 @@ class SacolinhaClienteController extends Controller
     }
 
     // API: Adiciona item à sacolinha do cliente
-    public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'user_id' => 'required|integer|exists:users,id',
-                'item_id' => 'required|integer|exists:items,id',
-                'item_price' => 'required|numeric|min:0',
-                'item_obs' => 'nullable|string',
-                'item_pedido' => 'nullable|string',
-            ]);
+	public function store(Request $request)
+	{
+		// Inicia uma transação para garantir integridade
+		\DB::beginTransaction();
 
-            Log::info("Adicionando item {$validated['item_id']} para cliente {$validated['user_id']}");
+		try {
+			$validated = $request->validate([
+				'user_id' => 'required|integer|exists:users,id',
+				'item_id' => 'required|integer|exists:items,id',
+				'item_price' => 'required|numeric|min:0',
+				'item_obs' => 'nullable|string',
+				'item_pedido' => 'nullable|string',
+			]);
 
-            // Verificar se item já está na sacolinha
-            $existe = Sacolinha::where('user_id', $validated['user_id'])
-                              ->where('item_id', $validated['item_id'])
-                              ->first();
+			Log::info("Adicionando item {$validated['item_id']} para cliente {$validated['user_id']}");
 
-            if ($existe) {
-                return response()->json(['error' => 'Item já está na sacolinha deste cliente'], 409);
-            }
+			// Verificar se item já está na sacolinha
+			$existe = Sacolinha::where('user_id', $validated['user_id'])
+							  ->where('item_id', $validated['item_id'])
+							  ->first();
 
-            $sacolinha = Sacolinha::create([
-                'user_id' => $validated['user_id'],
-                'item_id' => $validated['item_id'],
-                'live_id' => 1, // Live padrão
-                'price' => $validated['item_price'],
-                'obs' => $validated['item_obs'] ?? '',
-                'pedido' => $validated['item_pedido'] ?? '',
-                'add_at' => now(),
-                'status' => 'ativo'
-            ]);
+			if ($existe) {
+				\DB::rollBack();
+				return response()->json(['error' => 'Item já está na sacolinha deste cliente'], 409);
+			}
 
-            Log::info("Item adicionado com sucesso. ID: {$sacolinha->id}");
+			// 1. Criar o registro na sacolinha
+			$sacolinha = Sacolinha::create([
+				'user_id' => $validated['user_id'],
+				'item_id' => $validated['item_id'],
+				'live_id' => 1, // Live padrão
+				'price' => $validated['item_price'],
+				'obs' => $validated['item_obs'] ?? '',
+				'pedido' => $validated['item_pedido'] ?? '',
+				'add_at' => now(),
+				'status' => 'ativo'
+			]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Item adicionado com sucesso!',
-                'data' => $sacolinha
-            ]);
+			// 2. Atualizar o status do item na tabela 'items'
+			// Assumindo que o status desejado seja 'vendido' ou 'reservado'
+			\App\Models\Item::where('id', $validated['item_id'])->update([
+				'status' => 'sacolinha' 
+			]);
 
-        } catch (\Exception $e) {
-            Log::error("Erro ao adicionar item: " . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
+			\DB::commit();
+			Log::info("Item adicionado e status atualizado com sucesso. ID Sacolinha: {$sacolinha->id}");
+
+			return response()->json([
+				'success' => true,
+				'message' => 'Item adicionado com sucesso!',
+				'data' => $sacolinha
+			]);
+
+		} catch (\Exception $e) {
+			\DB::rollBack();
+			Log::error("Erro ao adicionar item: " . $e->getMessage());
+			return response()->json(['error' => $e->getMessage()], 500);
+		}
+	}
 
     // API: Remove item da sacolinha
     public function removeItems(Request $request)

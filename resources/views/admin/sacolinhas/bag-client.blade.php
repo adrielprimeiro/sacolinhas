@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sacolinha Cliente</title>
+	<link rel="icon" href="{{ asset('favicon.ico') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -321,12 +324,15 @@
                             <div id="cliente-list" class="list-group position-absolute" style="width: 85%; max-width: 400px; display: none; margin-top: 2px;">
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="alert alert-info mt-3" id="cliente-info" style="display: none; margin-bottom: 0;">
-                                <strong>✓</strong> <span id="cliente-nome" class="fw-bold"></span><br>
-                                <small>(<span id="cliente-email"></span>)</small>
-                            </div>
-                        </div>
+						<div class="col-md-4">
+							<div class="alert alert-info mt-3" id="cliente-info" style="display: none; margin-bottom: 0;">
+								<strong>✓</strong> <span id="cliente-nome" class="fw-bold"></span><br>
+								<!-- NOVOS CAMPOS -->
+								<strong>Crédito:</strong> <span id="limite-credito" class="text-primary fw-bold">R$ 0,00</span><br>
+								<strong>Utilizado:</strong> <span id="limite-utilizado" class="text-warning fw-bold">R$ 0,00</span><br>
+								<strong>Disponível:</strong> <span id="limite-disponivel" class="text-success fw-bold">R$ 0,00</span>
+							</div>
+						</div>
                     </div>
                 </div>
             </div>
@@ -418,259 +424,301 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
     <script>
-$(document).ready(function() {
-    let clienteId = null;
-    let sacolinhaData = [];
-    const csrfToken = $('meta[name="csrf-token"]').attr('content');
+	$(document).ready(function() {
+		let clienteId = null;
+		let sacolinhaData = [];
+		const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
-    // ===== BUSCA CLIENTE =====
-    $('#cliente-search').on('keyup', function() {
-        const search = $(this).val();
-        if (search.length < 2) {
-            $('#cliente-list').hide();
-            return;
-        }
+		// ===== BUSCA CLIENTE =====
+		$('#cliente-search').on('keyup', function() {
+			const search = $(this).val();
+			if (search.length < 1) {
+				$('#cliente-list').hide();
+				return;
+			}
 
-        $.ajax({
-            url: '/api/users/search?q=' + encodeURIComponent(search),
-            method: 'GET',
-            success: function(data) {
-                renderClienteResults(data);
-            },
-            error: function(err) {
-                $('#cliente-list').html('<div class="list-group-item text-danger">Erro ao buscar</div>').show();
-            }
-        });
-    });
+			$.ajax({
+				url: '/api/users/search?q=' + encodeURIComponent(search),
+				method: 'GET',
+				success: function(data) {
+					renderClienteResults(data);
+				},
+				error: function(err) {
+					$('#cliente-list').html('<div class="list-group-item text-danger">Erro ao buscar</div>').show();
+				}
+			});
+		});
 
-    function renderClienteResults(data) {
-        const list = $('#cliente-list');
-        list.empty();
-        let clientes = Array.isArray(data) ? data : (data && data.data ? data.data : []);
-        
-        if (!clientes.length) {
-            list.html('<div class="list-group-item text-muted">Nenhum resultado</div>');
-            list.show();
-            return;
-        }
+		function renderClienteResults(data) {
+			const list = $('#cliente-list');
+			list.empty();
+			let clientes = Array.isArray(data) ? data : (data && data.data ? data.data : []);
+			
+			if (!clientes.length) {
+				list.html('<div class="list-group-item text-muted">Nenhum resultado</div>');
+				list.show();
+				return;
+			}
 
-        clientes.forEach(cliente => {
-            list.append(`
-                <button type="button" class="list-group-item list-group-item-action cliente-item" 
-                    data-id="${cliente.id}" data-name="${cliente.name}" data-email="${cliente.email}">
-                    <div class="fw-bold">${cliente.name}</div>
-                    <small class="text-muted">${cliente.email}</small>
-                </button>
-            `);
-        });
-        list.show();
-    }
-
-    $(document).on('click', '.cliente-item', function() {
-        clienteId = $(this).data('id');
-        $('#cliente-search').val($(this).data('name'));
-        $('#cliente-list').hide();
-        $('#cliente-info').show();
-        $('#cliente-nome').text($(this).data('name'));
-        $('#cliente-email').text($(this).data('email'));
-        carregarSacolinha(clienteId);
-    });
-
-    // ===== CARREGAR SACOLINHA =====
-    function carregarSacolinha(userId) {
-        if (!userId) {
-            sacolinhaData = [];
-            renderSacola();
-            return;
-        }
-
-        $.ajax({
-            url: '/api/sacolinhas/' + userId,
-            method: 'GET',
-            headers: {'X-CSRF-TOKEN': csrfToken},
-            success: function(response) {
-                sacolinhaData = response && response.data ? response.data : [];
-                renderSacola();
-            },
-            error: function() {
-                sacolinhaData = [];
-                renderSacola();
-            }
-        });
-    }
-
-	function renderSacola() {
-		const body = $('#sacolinha-body');
-		body.empty();
-
-		if (!sacolinhaData.length) {
-			body.append($('#empty-row').clone());
-			atualizarTotais();
-			return;
+			clientes.forEach(cliente => {
+				list.append(`
+					<button type="button" class="list-group-item list-group-item-action cliente-item" 
+						data-id="${cliente.id}" data-name="${cliente.name}" data-email="${cliente.email}">
+						<div class="fw-bold">${cliente.name}</div>
+						<small class="text-muted">${cliente.email}</small>
+					</button>
+				`);
+			});
+			list.show();
 		}
 
-		sacolinhaData.forEach(item => {
-			// ✅ Melhor tratamento do preço
-			const preco = parseFloat(item.price || item.sacolinha_unit_price || item.item?.price || 0);
-			const qtd = parseInt(item.quantity || 1);
-			const data = new Date(item.add_at).toLocaleDateString('pt-BR');
-
-			console.log('Item:', item, 'Preço:', preco);  // ✅ DEBUG
-
-			body.append(`
-				<tr data-sacola-id="${item.sacolinha_id}">
-					<td>${item.codigo || item.item?.sku || '-'}</td>
-					<td>${item.nome_do_produto || item.item?.name || '-'}</td>
-					<td>R$ ${preco.toFixed(2)}</td>
-					<td>${data}</td>
-					<td><small>${item.obs || '-'}</small></td>
-					<td class="text-center">
-						<button class="btn btn-sm btn-danger btn-remove">
-							<i class="fas fa-trash"></i>
-						</button>
-					</td>
-				</tr>
-			`);
+		$(document).on('click', '.cliente-item', function() {
+			clienteId = $(this).data('id');
+			clienteAtualId = clienteId; 
+			$('#cliente-search').val($(this).data('name'));
+			$('#cliente-list').hide();
+			$('#cliente-info').show();
+			$('#cliente-nome').text($(this).data('name'));
+			$('#cliente-email').text($(this).data('email'));
+			carregarLimites(clienteId);  
+			carregarSacolinha(clienteId);
 		});
-		atualizarTotais();
-	}
 
-	function atualizarTotais() {
-		let total = 0, valor = 0;
-		sacolinhaData.forEach(item => {
-			const qtd = parseInt(item.quantity || 1);
-			// ✅ Melhor tratamento do preço
-			const preco = parseFloat(item.price || item.sacolinha_unit_price || item.item?.price || 0);
-			total += qtd;
-			valor += qtd * preco;
-		});
-		$('#total-itens-badge').text(total);
-		$('#total-valor').text(valor.toFixed(2).replace('.', ','));
-	}
-
-    // ===== BUSCA ITEM =====
-    $('#item-search').on('keyup', function() {
-        const search = $(this).val();
-        if (search.length < 2) {
-            $('#item-list').hide();
-            return;
-        }
-
-        $.ajax({
-            url: '/api/items/search?q=' + encodeURIComponent(search),
-            method: 'GET',
-            success: function(data) {
-                renderItemResults(data);
-            },
-            error: function() {
-                $('#item-list').html('<div class="list-group-item text-danger">Erro</div>').show();
-            }
-        });
-    });
-
-    function renderItemResults(data) {
-        const list = $('#item-list');
-        list.empty();
-        let items = Array.isArray(data) ? data : (data && data.data ? data.data : []);
-
-        if (!items.length) {
-            list.html('<div class="list-group-item text-muted">Nenhum resultado</div>');
-            list.show();
-            return;
-        }
-
-        items.forEach(item => {
-            list.append(`
-                <button type="button" class="list-group-item list-group-item-action item-result"
-                    data-id="${item.id}" data-name="${item.name}" data-codigo="${item.sku}" 
-                    data-price="${item.price}">
-                    <div class="fw-bold">${item.sku} - ${item.name}</div>
-                    <small class="text-success">R$ ${parseFloat(item.price).toFixed(2)}</small>
-                </button>
-            `);
-        });
-        list.show();
-    }
-
-    let selectedItemId = null;
-    $(document).on('click', '.item-result', function() {
-        selectedItemId = $(this).data('id');
-        $('#item-search').val($(this).data('codigo') + ' - ' + $(this).data('name'));
-        $('#item-price').val(parseFloat($(this).data('price')).toFixed(2));
-        $('#item-list').hide();
-        $('#btn-add-item').prop('disabled', false);
-    });
-
-    $('#btn-add-item').on('click', function() {
-        if (!clienteId) {
-            alert('Selecione um cliente');
-            return;
-        }
-        if (!selectedItemId) {
-            alert('Selecione um item');
-            return;
-        }
-
-        $.ajax({
-            url: '/api/sacolinhas/add',
-            method: 'POST',
-            data: {
-                user_id: clienteId,
-                item_id: selectedItemId,
-                quantity: 1,
-                live_id: 1,
-                price: parseFloat($('#item-price').val()) || 0,
-                obs: null,
-                tray: null,
-                status: 'sacolinha'
-            },
-            headers: {'X-CSRF-TOKEN': csrfToken},
-            success: function() {
-                alert('Item adicionado!');
-                $('#item-search').val('');
-                $('#item-price').val('0');
-                selectedItemId = null;
-                $('#btn-add-item').prop('disabled', true);
-                carregarSacolinha(clienteId);
-            },
-            error: function() {
-                alert('Erro ao adicionar');
-            }
-        });
-    });
-
-	// ===== REMOVER ITEM =====
-	$(document).on('click', '.btn-remove', function() {
-		if (!confirm('Remover?')) return;
-		
-		const sacolinhaId = $(this).closest('tr').data('sacola-id');
-		console.log('Tentando remover sacolinha_id:', sacolinhaId);
-		
-		$.ajax({
-			url: '/api/sacolinhas/' + sacolinhaId,
-			method: 'DELETE',
-			data: {
-				sacolinha_id: sacolinhaId  // ✅ ADICIONAR ISTO
-			},
-			headers: {'X-CSRF-TOKEN': csrfToken},
-			success: function(response) {
-				console.log('Removido com sucesso:', response);
-				sacolinhaData = sacolinhaData.filter(item => item.sacolinha_id != sacolinhaId);
+		// ===== CARREGAR SACOLINHA =====
+		function carregarSacolinha(userId) {
+			if (!userId) {
+				sacolinhaData = [];
 				renderSacola();
-				alert('Item removido!');
-			},
-			error: function(err) {
-				console.error('Erro ao remover:', err);
-				alert('Erro ao remover o item');
+				return;
 			}
-		});
-	});
 
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#cliente-search, #cliente-list').length) $('#cliente-list').hide();
-        if (!$(e.target).closest('#item-search, #item-list').length) $('#item-list').hide();
-    });
-});
+			$.ajax({
+				url: '/api/sacolinhas/' + userId,
+				method: 'GET',
+				headers: {'X-CSRF-TOKEN': csrfToken},
+				success: function(response) {
+					sacolinhaData = response && response.data ? response.data : [];
+					renderSacola();
+				},
+				error: function() {
+					sacolinhaData = [];
+					renderSacola();
+				}
+			});
+		}
+
+		function renderSacola() {
+			const body = $('#sacolinha-body');
+			body.empty();
+
+			if (!sacolinhaData.length) {
+				body.append($('#empty-row').clone());
+				atualizarTotais();
+				return;
+			}
+
+			sacolinhaData.forEach(item => {
+				// ✅ Melhor tratamento do preço
+				const preco = parseFloat(item.price || item.sacolinha_unit_price || item.item?.price || 0);
+				const qtd = parseInt(item.quantity || 1);
+				const data = new Date(item.add_at).toLocaleDateString('pt-BR');
+
+				console.log('Item:', item, 'Preço:', preco);  // ✅ DEBUG
+
+					body.append(`
+						<tr data-sacolinha-id="${item.sacolinha_id}" data-item-id="${item.item_id}">
+							<td>${item.codigo || '-'}</td>
+							<td>${item.nome_do_produto || '-'}</td>
+							<td>R$ ${preco.toFixed(2)}</td>
+							<td>${data}</td>
+							<td><small>${item.obs || '-'}</small></td>
+							<td class="text-center">
+								<button class="btn btn-sm btn-danger btn-remove">
+									<i class="fas fa-trash"></i>
+								</button>
+							</td>
+						</tr>
+					`);
+			});
+			atualizarTotais();
+		}
+
+		function atualizarTotais() {
+			let total = 0, valor = 0;
+			sacolinhaData.forEach(item => {
+				const qtd = parseInt(item.quantity || 1);
+				// ✅ Melhor tratamento do preço
+				const preco = parseFloat(item.price || item.sacolinha_unit_price || item.item?.price || 0);
+				total += qtd;
+				valor += qtd * preco;
+			});
+			$('#total-itens-badge').text(total);
+			$('#total-valor').text(valor.toFixed(2).replace('.', ','));
+		}
+
+		// ===== BUSCA ITEM =====
+		$('#item-search').on('keyup', function() {
+			const search = $(this).val();
+			if (search.length < 2) {
+				$('#item-list').hide();
+				return;
+			}
+
+			$.ajax({
+				url: '/api/items/search?q=' + encodeURIComponent(search),
+				method: 'GET',
+				success: function(data) {
+					renderItemResults(data);
+				},
+				error: function() {
+					$('#item-list').html('<div class="list-group-item text-danger">Erro</div>').show();
+				}
+			});
+		});
+
+		function renderItemResults(data) {
+			const list = $('#item-list');
+			list.empty();
+			let items = Array.isArray(data) ? data : (data && data.data ? data.data : []);
+
+			if (!items.length) {
+				list.html('<div class="list-group-item text-muted">Nenhum resultado</div>');
+				list.show();
+				return;
+			}
+
+			items.forEach(item => {
+				list.append(`
+					<button type="button" class="list-group-item list-group-item-action item-result"
+						data-id="${item.id}" data-name="${item.name}" data-codigo="${item.sku}" 
+						data-price="${item.price}">
+						<div class="fw-bold">${item.sku} - ${item.name}</div>
+						<small class="text-success">R$ ${parseFloat(item.price).toFixed(2)}</small>
+					</button>
+				`);
+			});
+			list.show();
+		}
+
+		let selectedItemId = null;
+		$(document).on('click', '.item-result', function() {
+			selectedItemId = $(this).data('id');
+			$('#item-search').val($(this).data('codigo') + ' - ' + $(this).data('name'));
+			$('#item-price').val(parseFloat($(this).data('price')).toFixed(2));
+			$('#item-list').hide();
+			$('#btn-add-item').prop('disabled', false);
+		});
+
+		$('#btn-add-item').on('click', function() {
+			if (!clienteId || !selectedItemId) {
+				alert('Selecione cliente e item!');
+				return;
+			}
+
+			const price = parseFloat($('#item-price').val());
+			if (isNaN(price) || price <= 0) {
+				alert('Preço inválido!');
+				return;
+			}
+
+			$.ajax({
+				url: '/sacolinhas/adicionar-item', // Nova rota criada
+				method: 'POST',
+				data: {
+					user_id: clienteId,       // MUDADO: de client_id para user_id
+					item_id: selectedItemId,
+					price: price,             // MUDADO: de item_price para price
+					quantity: 1,              // ADICIONADO: geralmente obrigatório nesta função
+					obs: null,
+					_token: $('meta[name="csrf-token"]').attr('content') // Garantir token CSRF
+				},
+				headers: { 
+					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+					'Accept': 'application/json'
+				},
+				success: function(response) {
+					console.log('Add success:', response);
+					if (response.success) {
+						alert('Item adicionado!');
+						$('#item-search').val('');
+						$('#item-price').val('');
+						selectedItemId = null;
+						$('#btn-add-item').prop('disabled', true);
+						carregarSacolinha(clienteId);
+						carregarLimites(clienteId);  // ✅ Muda agora!
+					} else {
+						alert(response.message || 'Falha');
+					}
+				},
+				error: function(xhr) {
+					console.error('Add error:', xhr.responseJSON);
+					const err = xhr.responseJSON || {};
+					if (xhr.status === 422) {
+						alert('Validação: ' + Object.values(err.errors || {}).flat().join(', '));
+					} else {
+						alert('Erro add: ' + err.message);
+					}
+				}
+			});
+		});
+
+		// ===== REMOVER ITEM =====
+		$(document).on('click', '.btn-remove', function() {
+			if (!confirm('Remover item?')) return;
+
+			const row = $(this).closest('tr');
+			const sacolinhaId = row.data('sacolinha-id');
+
+			console.log('Remove sacolinha_id:', sacolinhaId);
+
+			$.ajax({
+				url: `/api/sacolinhas/${sacolinhaId}`,  // ✅ Route param
+				method: 'DELETE',
+				headers: {
+					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+					'Accept': 'application/json'
+					// Sem Content-Type/data (DELETE puro)
+				},
+				success: function(response) {
+					console.log('Remove OK:', response);
+					if (response.success !== false) {  // ✅ Compatível
+						row.remove();
+						carregarSacolinha(clienteId);
+						carregarLimites(clienteId);  // Triggers atualizaram!
+						alert('Removido!');
+					} else {
+						alert(response.message || 'Falha');
+					}
+				},
+				error: function(xhr) {
+					console.error('Remove error:', xhr.status, xhr.responseJSON);
+					const err = xhr.responseJSON || {};
+					alert('Erro: ' + (err.message || Object.values(err.errors || {}).flat().join(', ')));
+				}
+			});
+		});
+		$(document).on('click', function(e) {
+			if (!$(e.target).closest('#cliente-search, #cliente-list').length) $('#cliente-list').hide();
+			if (!$(e.target).closest('#item-search, #item-list').length) $('#item-list').hide();
+		});
+		// Função para carregar limites (CORRIGIDA: só se userId válido)
+		function carregarLimites(userId) {
+			if (!userId) return;  // ✅ NOVO: Ignora se vazio
+			$.ajax({
+				url: '/api/sacolinhas/limites', 
+				method: 'GET',
+				data: { user_id: userId },
+				success: function(data) {
+					$('#limite-credito').text(data.credito || 'R$ 0,00');
+					$('#limite-utilizado').text(data.utilizado || 'R$ 0,00');
+					$('#limite-disponivel').text(data.disponivel || 'R$ 0,00');
+				},
+				error: function() {
+					console.error('Erro limites user:', userId);
+				}
+			});
+		}
+	});
     </script>
 </body>
 </html>

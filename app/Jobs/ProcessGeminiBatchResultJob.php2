@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\ImageEditBatch;
+use App\Services\ImageEditing\GeminiBatchResultProcessor;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+
+class ProcessGeminiBatchResultJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 600;
+    public int $tries = 3;
+
+    public function __construct(
+        public int $batchId,
+    ) {
+    }
+
+    public function handle(GeminiBatchResultProcessor $processor): void
+    {
+        $batch = ImageEditBatch::find($this->batchId);
+
+        if (!$batch) {
+            return;
+        }
+
+        if (
+            in_array($batch->status, ['succeeded', 'partially_succeeded', 'failed', 'cancelled'], true)
+            && (int) $batch->processed_items > 0
+        ) {
+            return;
+        }
+
+        $processor->process($batch->id);
+    }
+}

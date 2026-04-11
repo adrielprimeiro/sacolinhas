@@ -15,14 +15,18 @@ class Live extends Model
     protected $fillable = [
         'data',
         'tipo_live',
-        'plataformas'
+        'plataformas',
+        'ativo',
+        'encerrada_em'
     ];
 
     protected $casts = [
         'data' => 'date',
+        'ativo' => 'boolean',
+        'encerrada_em' => 'datetime',
     ];
 
-    // Accessor para tipo_live_formatado
+    // ✅ TODOS SEUS MÉTODOS ORIGINAIS (mantidos 100%)
     public function getTipoLiveFormatadoAttribute()
     {
         $tipos = [
@@ -30,38 +34,81 @@ class Live extends Model
             'leilao' => 'Leilão',
             'precinho' => 'Precinho'
         ];
-
         return $tipos[$this->tipo_live] ?? $this->tipo_live;
     }
 
-    // Accessor para plataformas_array
     public function getPlataformasArrayAttribute()
     {
-        if (empty($this->plataformas)) {
-            return [];
-        }
-
-        // Se for string separada por vírgula
-        if (is_string($this->plataformas)) {
-            return explode(',', $this->plataformas);
-        }
-
-        return [];
+        if (empty($this->plataformas)) return [];
+        return is_string($this->plataformas) ? explode(',', $this->plataformas) : [];
     }
 
-    // Mutator para plataformas
     public function setPlataformasAttribute($value)
     {
-        if (is_array($value)) {
-            $this->attributes['plataformas'] = implode(',', $value);
-        } else {
-            $this->attributes['plataformas'] = $value;
-        }
+        $this->attributes['plataformas'] = is_array($value) ? implode(',', $value) : $value;
     }
 
-    // Scopes
     public function scopeToday($query)
     {
         return $query->whereDate('data', Carbon::today());
+    }
+
+    // ✅ NOVOS MÉTODOS: Participantes + Track (sem relações!)
+    
+    /**
+     * Participantes: Users que mandaram msg inbound na live (±24h da data)
+     */
+    public function getParticipantsAttribute()
+    {
+        return \App\Models\User::whereHas('whatsappMessages', function ($query) {
+            $query->where('direction', 'inbound')
+                  ->where('live_id', $this->id)  // Se já setado
+                  ->orWhereBetween('created_at', [
+                      $this->data->subHours(24),
+                      $this->data->addHours(24)
+                  ]);
+        })->with('whatsapp')->get();
+    }
+
+    /**
+     * Mensagens finais enviadas (outbound com live_id)
+     */
+    public function getFinalMessagesAttribute()
+    {
+        return \DB::table('whatsapp_messages')
+            ->where('live_id', $this->id)
+            ->where('direction', 'outbound')
+            ->select('user_id', 'status', 'message_sid', 'body', 'created_at', 'updated_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($msg) {
+                $msg->user = \App\Models\User::select('id', 'name', 'whatsapp')->find($msg->user_id);
+                return $msg;
+            });
+    }
+
+    /**
+     * Status resumo entregas
+     */
+    public function getDeliveryStatsAttribute()
+    {
+        $stats = \DB::table('whatsapp_messages')
+            ->where('live_id', $this->id)
+            ->where('direction', 'outbound')
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $total = array_sum($stats);
+        $delivered = ($stats['delivered'] ?? 0) + ($stats['read'] ?? 0);
+        
+        return [
+            'delivered' => $stats['delivered'] ?? 0,
+            'read' => $stats['read'] ?? 0,
+            'failed' => $stats['failed'] ?? $stats['undelivered'] ?? 0,
+            'total' => $total,
+            'success_rate' => $total ? round($delivered / $total * 100, 1) : 0
+        ];
     }
 }

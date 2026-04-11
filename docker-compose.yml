@@ -18,13 +18,22 @@ services:
     networks:
       - sacolinhas-network
     environment:
-      - TZ=America/Sao_Paulo
-      - DB_HOST=mysql-db
-      - DB_DATABASE=sacolinhas_db
-      - DB_USERNAME=sacolinhas_user
-      - DB_PASSWORD=SenhaSuperSegura123!
+      TZ: America/Sao_Paulo
+      QUEUE_CONNECTION: database
+      DB_HOST: db
+      DB_DATABASE: sacolinhas_db
+      DB_USERNAME: sacolinhas_user
+      DB_PASSWORD: SenhaSuperSegura123!
+      PHP_UPLOAD_MAX_FILESIZE: 500M
+      PHP_POST_MAX_SIZE: 500M
+      PHP_MAX_EXECUTION_TIME: 600  
 
   db:
+    healthcheck:
+     test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+     interval: 5s
+     timeout: 3s
+     retries: 20
     image: mysql:8.0
     container_name: mysql-db
     environment:
@@ -32,8 +41,8 @@ services:
       MYSQL_DATABASE: sacolinhas_db
       MYSQL_USER: sacolinhas_user
       MYSQL_PASSWORD: SenhaSuperSegura123!
-      TZ: America/
-      command: --default-authentication-plugin=mysql_native_password --default-time-zone='-03:00'
+      TZ: America/Sao_Paulo
+    command: --default-authentication-plugin=mysql_native_password --default-time-zone='America/Sao_Paulo' --log_bin_trust_function_creators=1
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
@@ -42,35 +51,59 @@ services:
       - sacolinhas-network
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
     container_name: nginx-server
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./:/var/www
-      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/letsencrypt:/etc/letsencrypt
+      - ./docker/letsencrypt-lib:/var/lib/letsencrypt
+      - ./docker/letsencrypt-log:/var/log/letsencrypt
     depends_on:
       - app
     networks:
       - sacolinhas-network
 
-  vite:
+      
+
+  laravel-worker:
     build:
-      context: ./docker/vite
+      context: ./docker/app
       dockerfile: Dockerfile
-    container_name: sacolinhas-vite
+    container_name: sacolinhas_worker
     working_dir: /var/www
     volumes:
       - ./:/var/www
-    ports:
-      - "5173:5173"
+    restart: always
+    depends_on:
+      - db
+      - app
     networks:
       - sacolinhas-network
+    environment:
+      - TZ=America/Sao_Paulo
+      - QUEUE_CONNECTION=database
+      - DB_HOST=mysql-db
+      - DB_DATABASE=sacolinhas_db
+      - DB_USERNAME=sacolinhas_user
+      - DB_PASSWORD=SenhaSuperSegura123!
+    # Script que espera o banco ficar pronto antes de iniciar o worker
+    command: >
+      sh -c "
+      echo 'Iniciando worker...' &&
+      php /var/www/docker/app/wait-for-mysql.php &&
+      echo 'Banco pronto, iniciando queue worker...' &&
+      php artisan queue:work --queue=whatsapp,default --tries=3 --sleep=1 --backoff=5 --timeout=120
+      "
 
 volumes:
   mysql_data:
+  backups:
 
 networks:
   sacolinhas-network:

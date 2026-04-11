@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Sacolinhas;
+use App\Models\ItemMedia;
 
 class Item extends Model
 {
     use HasFactory;
+	
+	protected $table = 'items';
 
     protected $fillable = [
         'codigo',
@@ -70,4 +74,17 @@ class Item extends Model
     {
         return $query->where('status', 'disponivel');
     }
+    public function sacolinha()
+    {
+       return $this->hasOne(Sacolinhas::class, 'item_id');
+    }	
+	
+	// relação com ItemMedia (ordenada)
+	public function medias()
+	{
+		return $this->hasMany(ItemMedia::class, 'item_id')
+			->orderBy('position')
+			->orderBy('id');
+	}
+	
 }

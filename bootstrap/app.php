@@ -11,7 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // REGISTRO DOS MIDDLEWARES AQUI DENTRO
+        $middleware->alias([
+			'check.admin' => \App\Http\Middleware\CheckAdmin::class, // Novo para portal admin
+			'check.client' => \App\Http\Middleware\CheckClient::class, 
+            // O 'admin' original continua funcionando
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

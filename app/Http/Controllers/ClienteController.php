@@ -249,21 +249,29 @@ class ClienteController extends Controller
     public function destroy($id)
     {
         try {
+            // Busca o cliente (usando o escopo 'clientes' se aplicável)
             $cliente = Cliente::clientes()->findOrFail($id);
             
-            // ✅ Bloqueio ao invés de exclusão
-            $cliente->bloquear();
+            // ✅ MUDANÇA: Exclusão real do registro
+            $cliente->delete();
             
             return redirect()->route('admin.clientes.index')
-                            ->with('success', 'Cliente bloqueado com sucesso!');
+                            ->with('success', 'Cliente excluído com sucesso!');
+                            
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Captura erro específico de chave estrangeira (caso o cliente tenha sacolinhas/pedidos)
+            Log::error('Erro de integridade ao excluir cliente: ' . $e->getMessage());
+            return redirect()->route('admin.clientes.index')
+                            ->with('error', 'Não é possível excluir este cliente pois ele possui registros vinculados (sacolinhas, pedidos, etc).');
                             
         } catch (\Exception $e) {
             Log::error('Erro em ClienteController@destroy: ' . $e->getMessage());
             return redirect()->route('admin.clientes.index')
-                            ->with('error', 'Erro ao bloquear cliente.');
+                            ->with('error', 'Erro ao excluir cliente.');
         }
     }
-
+	
+	
     public function toggleBlock($id)
     {
         try {

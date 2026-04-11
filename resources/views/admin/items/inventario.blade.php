@@ -95,14 +95,25 @@
             }
         }
         
-        /* QR Button com animação */
+        /* QR Button com animação - DESTAQUE */
         #qrScanBtn {
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            font-size: 1.2em !important;
+            min-height: 120px;
+            padding: 2rem 4rem !important;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
+		
+		@media (max-width: 768px) {
+			#qrScanBtn {
+				min-height: 600px;  /* Altura específica para mobile */
+			}
+		}		
         
         #qrScanBtn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
         }
         
         /* Status Badges */
@@ -121,6 +132,11 @@
             
             .modal-lg {
                 max-width: 95%;
+            }
+
+            #qrScanBtn {
+                width: 100% !important;
+                margin-bottom: 1rem;
             }
         }
         
@@ -190,63 +206,71 @@
             </div>
         @endif
                         
-        <!-- Filtros com QR Code ZXing -->
+        <!-- Filtros com QR Code ZXing - LAYOUT MODIFICADO -->
         <div class="card mb-4">
             <div class="card-body">
                 <form method="GET" action="{{ route('inventario') }}" id="inventory-form">
-                    <div class="row align-items-end">
-                        <!-- STATUS -->
-                        <div class="col-md-2">
-                            <label class="form-label small">Status para Aplicar</label>
-                            <select name="status" class="form-control">
-                                <option value="">Apenas Buscar</option>
-                                <option value="disponivel" {{ (session('last_status') ?? request('status')) == 'disponivel' ? 'selected' : '' }}>Disponível</option>
-                                <option value="vendido" {{ (session('last_status') ?? request('status')) == 'vendido' ? 'selected' : '' }}>Vendido</option>
-                                <option value="reservado" {{ (session('last_status') ?? request('status')) == 'reservado' ? 'selected' : '' }}>Reservado</option>
-                                <option value="estoque" {{ (session('last_status') ?? request('status')) == 'estoque' ? 'selected' : '' }}>Estoque</option>
-                                <option value="sacolinha" {{ (session('last_status') ?? request('status')) == 'sacolinha' ? 'selected' : '' }}>Sacolinha</option>
-                                <option value="indisponivel" {{ (session('last_status') ?? request('status')) == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
-                            </select>
-                        </div>
-
-                        <!-- BUSCA COM QR ZXING -->
-                        <div class="col-md-6">
-                            <label class="form-label small">Buscar produto</label>
-                            <div class="input-group">
-                                <input type="text"
-                                       class="form-control"
-                                       name="search"
-                                       id="searchInput"
-                                       placeholder="Código, QR Code, código de barras..."
-                                       value="{{ request('search') }}"
-                                       autocomplete="off">
-                                <button type="button" 
-                                        class="btn btn-outline-primary"
-                                        id="qrScanBtn"
-                                        title="Scanner ZXing - Ultra Rápido">
-                                    <i class="fas fa-qrcode me-1"></i>
-                                    <span class="badge bg-success ms-1" style="font-size: 0.6em;">ZX</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- FILTRAR -->
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-outline-primary w-100">
-                                <i class="fas fa-search"></i> Filtrar
+                    <!-- 1. BOTÃO QR DESTAQUE NA PARTE SUPERIOR (MAIOR) -->
+                    <div class="row mb-4">
+                        <div class="col-12 text-center">
+                            <button type="button" 
+                                    class="btn btn-primary btn-lg w-100 w-md-auto" 
+                                    id="qrScanBtn"
+                                    title="Scanner ZXing - Ultra Rápido"
+                                    style="max-width: 350px;">
+                                <i class="fas fa-qrcode me-2 fa-lg"></i>
+                                <span>ESCANEIE O CÓDIGO</span>
+                                <span class="badge bg-success ms-2" style="font-size: 0.7em;">ZX</span>
                             </button>
                         </div>
+                    </div>
 
-                        <!-- LIMPAR -->
-                        <div class="col-md-2">
-                            <a href="{{ route('inventario', ['reset' => 1]) }}" class="btn btn-outline-secondary w-100" title="Reiniciar lista">
-                                <i class="fas fa-refresh"></i> Limpar
+                    <!-- 2. SELEÇÃO DE STATUS LOGO ABAIXO -->
+                    <div class="row align-items-end mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Status para Aplicar</label>
+                            <select name="status" class="form-control form-control-lg">
+                                <option value="">Apenas Buscar</option>
+							    <option value="indisponivel" {{ old('status', $item->status) == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
+								<option value="disponivel" {{ old('status', $item->status) == 'disponivel' ? 'selected' : '' }}>Disponível</option>
+								<option value="reservado" {{ old('status', $item->status) == 'reservado' ? 'selected' : '' }}>Reservado</option>
+								<option value="vendido" {{ old('status', $item->status) == 'vendido' ? 'selected' : '' }}>Vendido</option>
+								<option value="em_sacolinha" {{ old('status', $item->status) == 'em_sacolinha' ? 'selected' : '' }}>Em Sacolinha</option>
+								<option value="loja" {{ old('status', $item->status) == 'loja' ? 'selected' : '' }}>Loja</option>
+								<option value="estoque" {{ old('status', $item->status) == 'estoque' ? 'selected' : '' }}>Estoque</option>
+								<option value="live" {{ old('status', $item->status) == 'live' ? 'selected' : '' }}>Live</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Buscar produto</label>
+                            <input type="text"
+                                   class="form-control form-control-lg"
+                                   name="search"
+                                   id="searchInput"
+                                   placeholder="Código, QR Code, código de barras..."
+                                   value="{{ request('search') }}"
+                                   autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- 3. BOTÕES FILTRAR E LIMPAR (MENOR NO FINAL) -->
+                    <div class="row">
+                        <div class="col-md-6 mb-2 mb-md-0">
+                            <button type="submit" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-search me-1"></i>
+                                Filtrar
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{{ route('inventario', ['reset' => 1]) }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-refresh me-1"></i>
+                                Limpar
                             </a>
                         </div>
                     </div>
                 </form>
                 
-                <!-- Modal ZXing Scanner - ULTRA SIMPLES -->
+                <!-- Modal ZXing Scanner - ULTRA SIMPLES (mantido igual) -->
                 <div class="modal fade" id="qrModal" tabindex="-1" data-bs-backdrop="static">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
@@ -286,7 +310,7 @@
             </div>
         </div>
 
-        <!-- Lista de Itens -->
+        <!-- Lista de Itens (mantida igual) -->
         <div class="card">
             <div class="card-body">
                 @if($items->count() > 0)
@@ -329,7 +353,7 @@
                                         <td>{{ $item->tamanho ?? 'N/A' }}</td>
                                         <td>{{ ucfirst($item->estado ?? 'N/A') }}</td>
                                         <td>
-                                            <strong class="text-success">`R$ {{ number_format($item->preco, 2, ',', '.') }}`</strong>
+                                            <strong class="text-success">R$ {{ number_format($item->preco, 2, ',', '.') }}</strong>
                                         </td>
                                         <td class="text-center">
                                             @php
@@ -394,10 +418,8 @@
     <!-- ZXing Library - MUITO MAIS RÁPIDO -->
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
 
-    <!-- Scanner ZXing - IMPLEMENTAÇÃO ULTRA RÁPIDA -->
+    <!-- Scanner ZXing - IMPLEMENTAÇÃO ULTRA RÁPIDA (mantido igual) -->
     <script>
-    console.log('🚀 ZXing Scanner OTIMIZADO...');
-
     let codeReader = null;
     let scanning = false;
     let modal = null;

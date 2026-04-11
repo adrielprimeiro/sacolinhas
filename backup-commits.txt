@@ -1,5 +1,0 @@
-ba6e70f sem aquivo de comandos
-a7e55ca Iserido o valor total das sacolas na live
-5e9c318 Troca de posição de campos de busca (Cliente/Item->Item/cliente)
-f36ecea Novo cliente e Item na Live
-5800431 Adicionar configurações de produção

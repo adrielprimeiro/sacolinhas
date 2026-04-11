@@ -55,10 +55,10 @@
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">Entrar</button> <!-- Botão correto para login -->
                             </div>
-                            <div class="text-center mt-3">
-                                <p>Não tem uma conta? <a href="{{ route('register') }}">Crie uma agora</a></p> <!-- Link para registro -->
+                            <!--<div class="text-center mt-3">
+                                <p>Não tem uma conta? <a href="{{ route('register') }}">Crie uma agora</a></p> 
                                 <p><a href="{{ route('password.request') }}">Esqueceu sua senha?</a></p>
-                            </div>
+                            </div>-->
                         </form>
                     </div>
                 </div>
