@@ -21,16 +21,13 @@
         <!-- Navegação Superior (Botões menos ovalados) -->
         <header class="absolute top-0 right-0 p-6 lg:p-10 w-full flex justify-end">
             <nav class="flex items-center gap-3">
-                <!-- Botão Padrão (Igual para os 3) -->
-                @php $btnClass = "px-5 py-2 text-[13px] font-medium bg-white border border-[#e3e3e0] text-[#706f6c] rounded-lg shadow-sm hover:text-black hover:border-neutral-300 transition-all active:scale-95 dark:bg-[#161615] dark:border-[#3E3E3A] dark:text-[#A1A09A] dark:hover:text-white"; @endphp
-
-                <a href="{{ route('login') }}" class="{{ $btnClass }}">
+                <a href="{{ route('login') }}" class="px-5 py-2 text-[13px] font-medium bg-white border border-[#e3e3e0] text-[#706f6c] rounded-lg shadow-sm hover:text-black hover:border-neutral-300 transition-all active:scale-95 dark:bg-[#161615] dark:border-[#3E3E3A] dark:text-[#A1A09A] dark:hover:text-white">
                     ADM
                 </a>
-                <a href="https://minhamania.net/login" target="_blank" class="{{ $btnClass }}">
+                <a href="https://minhamania.net/login" target="_blank" class="px-5 py-2 text-[13px] font-medium bg-white border border-[#e3e3e0] text-[#706f6c] rounded-lg shadow-sm hover:text-black hover:border-neutral-300 transition-all active:scale-95 dark:bg-[#161615] dark:border-[#3E3E3A] dark:text-[#A1A09A] dark:hover:text-white">
                     Clube Mania 
                 </a>
-                <a href="https://minhamania.net/loja" target="_blank" class="{{ $btnClass }}">
+                <a href="https://minhamania.net/loja" target="_blank" class="px-5 py-2 text-[13px] font-medium bg-white border border-[#e3e3e0] text-[#706f6c] rounded-lg shadow-sm hover:text-black hover:border-neutral-300 transition-all active:scale-95 dark:bg-[#161615] dark:border-[#3E3E3A] dark:text-[#A1A09A] dark:hover:text-white">
                     Loja 
                 </a>
             </nav>
