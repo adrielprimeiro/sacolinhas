@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 1.5 Instalar bibliotecas de IA do Python globalmente
-RUN pip3 install --break-system-packages rembg pillow
+RUN pip3 install --break-system-packages "rembg[cpu]" pillow
 
 # 2. Configurar Timezone do Sistema e do PHP
 ENV TZ=America/Sao_Paulo
