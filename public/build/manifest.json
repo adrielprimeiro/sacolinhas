@@ -1,0 +1,25 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-OvXsIdNn.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-BWYyET7g.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "resources/js/qr-scanner.js"
+    ]
+  },
+  "resources/js/qr-scanner.js": {
+    "file": "assets/qr-scanner-DnpACGRX.js",
+    "name": "qr-scanner",
+    "src": "resources/js/qr-scanner.js",
+    "isEntry": true
+  }
+}
