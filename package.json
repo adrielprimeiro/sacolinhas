@@ -4,10 +4,11 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-		"tailwind:init": "node ./node_modules/tailwindcss/lib/cli.js init -p",
+        "tailwind:init": "node ./node_modules/tailwindcss/lib/cli.js init -p",
         "dev": "vite"
     },
     "devDependencies": {
+        "@tailwindcss/forms": "^0.5.11",
         "@tailwindcss/vite": "^4.0.0",
         "autoprefixer": "^10.4.23",
         "axios": "^1.11.0",
