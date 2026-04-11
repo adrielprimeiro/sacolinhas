@@ -1,0 +1,48 @@
+# HTTP
+server {
+    listen 80;
+    listen [::]:80;
+    server_name vps55549.publiccloud.com.br;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name vps55549.publiccloud.com.br;
+
+    ssl_certificate /etc/letsencrypt/live/vps55549.publiccloud.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/vps55549.publiccloud.com.br/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    root /var/www/public;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass app:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.env {
+        deny all;
+    }
+
+    client_max_body_size 20M;
+}

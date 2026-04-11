@@ -1,0 +1,474 @@
+@extends('layouts.app')
+
+@section('title', 'Editar ' . $item->nome_do_produto)
+
+@section('content')
+<div class="flex justify-between items-start mb-6">
+  <div>
+    <h1 class="text-3xl font-semibold text-gray-800">Editar Item</h1>
+    <nav class="mt-2 text-sm text-gray-500">
+      <a href="{{ route('items.index') }}" class="hover:text-blue-600">Itens</a>
+      <span class="mx-2">/</span>
+      <span class="text-gray-700">Editar: {{ $item->nome_do_produto }}</span>
+    </nav>
+  </div>
+  <a href="{{ route('items.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition">
+    <i class="fas fa-arrow-left mr-2"></i> Voltar para a Lista
+  </a>
+</div>
+
+@if ($errors->any())
+  <div class="mb-4 bg-red-100 border border-red-200 text-red-800 px-4 py-3 rounded">
+    <div class="font-semibold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i> Corrija os erros abaixo:</div>
+    <ul class="list-disc pl-5">
+      @foreach ($errors->all() as $error)
+        <li>{{ $error }}</li>
+      @endforeach
+    </ul>
+  </div>
+@endif
+
+{{-- Overlay de carregamento (oculto) --}}
+<div id="uploadOverlay" class="hidden fixed inset-0 bg-white/70 z-50 items-center justify-center">
+  <div class="bg-white border border-gray-200 shadow-lg rounded-lg px-4 py-3 text-sm text-gray-700">
+    <span class="font-semibold">Enviando mídias…</span>
+    <span class="ml-2 text-gray-500">aguarde</span>
+  </div>
+</div>
+
+<form method="POST" action="{{ route('items.update', $item) }}" enctype="multipart/form-data">
+  @csrf
+  @method('PUT')
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    {{-- Coluna 1: Galeria de Imagens e Mídias --}}
+    <div class="lg:col-span-1">
+      <div class="bg-white shadow-lg rounded-lg p-6 sticky top-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Imagens e Mídias</h3>
+
+        {{-- ✅ id="mediaGrid" fica AQUI (grid da galeria) --}}
+        <div id="mediaGrid" class="grid grid-cols-3 gap-3 mb-4">
+          @forelse ($item->medias as $media)
+            <div class="relative group">
+              @php
+                $rawUrl = $media->thumbnail_url ?: $media->url;
+                $isAbsolute = $rawUrl && (str_starts_with($rawUrl, 'http://') || str_starts_with($rawUrl, 'https://'));
+                $normalized = $rawUrl ? ltrim($rawUrl, '/') : null;
+
+                if ($isAbsolute) {
+                  $finalUrl = $rawUrl;
+                } elseif ($normalized && str_starts_with($normalized, 'storage/')) {
+                  $finalUrl = url('/' . $normalized);
+                } elseif ($normalized) {
+                  $finalUrl = asset('storage/' . $normalized);
+                } else {
+                  $finalUrl = null;
+                }
+
+                $ext = $rawUrl ? strtolower(pathinfo(parse_url($rawUrl, PHP_URL_PATH) ?? $rawUrl, PATHINFO_EXTENSION)) : null;
+                $isImageByExt = in_array($ext, ['jpg','jpeg','png','webp','gif','heic','heif']);
+                $isImage = ($media->media_type === 'image') || $isImageByExt;
+              @endphp
+
+              @if($isImage)
+                @if($finalUrl)
+                  <img src="{{ $finalUrl }}"
+                       alt="{{ $media->alt_text ?? 'Mídia do item' }}"
+                       class="w-full h-24 object-cover rounded-md border border-gray-200">
+                @else
+                  <div class="w-full h-24 rounded-md border border-gray-200 bg-gray-50 flex items-center justify-center text-xs text-gray-500">
+                    Sem URL de imagem
+                  </div>
+                @endif
+              @else
+                @if($finalUrl)
+                  <img src="{{ $finalUrl }}"
+                       alt="{{ $media->alt_text ?? 'Mídia do item' }}"
+                       class="w-full h-24 object-cover rounded-md border border-gray-200">
+                  <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-md">
+                    <i class="fas fa-play text-white text-2xl"></i>
+                  </div>
+                @else
+                  <div class="w-full h-24 rounded-md border border-gray-200 bg-gray-50 flex items-center justify-center text-xs text-gray-500">
+                    Vídeo sem miniatura
+                  </div>
+                @endif
+              @endif
+
+              @if ($media->is_cover)
+                <div class="absolute top-1 right-1 bg-yellow-400 text-white w-5 h-5 flex items-center justify-center rounded-full text-xs" title="Imagem de Capa">
+                  <i class="fas fa-star"></i>
+                </div>
+              @endif
+
+              <div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button type="button"
+                        onclick="document.getElementById('delete-medias-{{ $media->id }}').submit();"
+                        class="bg-red-600 text-white w-6 h-6 flex items-center justify-center rounded-full -mt-2 -mr-2 shadow-lg"
+                        title="Remover Mídia">
+                  <i class="fas fa-times text-sm"></i>
+                </button>
+              </div>
+            </div>
+          @empty
+            <div class="col-span-3 text-center text-sm text-gray-500 py-4">
+              Nenhuma mídia cadastrada.
+            </div>
+          @endforelse
+        </div>
+
+        {{-- Quadrinho "+" --}}
+        <button type="button"
+                id="addMediaPlaceholder"
+                class="w-full h-24 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition"
+                aria-label="Adicionar mídias">
+          <span class="text-gray-400 text-3xl font-semibold leading-none">+</span>
+        </button>
+
+        <input type="file"
+               id="new_media"
+               name="new_media[]"
+               multiple
+               accept="image/*,video/*"
+               class="hidden">
+      </div>
+    </div>
+
+    {{-- Coluna 2: Formulário de Detalhes do Item (PRESERVADO) --}}
+    <div class="lg:col-span-2">
+      <div class="bg-white shadow-lg rounded-lg p-6">
+
+        {{-- Linha 1: Código + Nome --}}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-6">
+            <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Código *</label>
+            <div class="relative">
+              <input type="text" id="codigo" name="codigo"
+                     value="{{ old('codigo', $item->codigo) }}"
+                     required
+                     class="w-full border border-gray-300 rounded-md pl-3 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('codigo') border-red-400 @enderror"
+                     placeholder="Ex: SKU12345" autocomplete="off" />
+
+              <button type="button" id="btnToggleQr"
+                      class="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-gray-500 hover:text-indigo-700"
+                      title="Ler QRCode e preencher o código">
+                <i class="fas fa-qrcode text-lg"></i>
+              </button>
+            </div>
+            @error('codigo')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+
+            <div id="qrReaderWrap" class="hidden mt-3 border border-gray-200 rounded-md p-3 bg-gray-50">
+              <div class="text-sm text-gray-600 mb-2">Permita o acesso à câmera e aponte para o QRCode.</div>
+              <div id="qrReader" class="w-full"></div>
+              <div class="mt-2">
+                <button type="button" id="btnCloseQr" class="text-sm text-gray-600 hover:text-gray-900">Fechar leitor</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-6">
+            <label for="nome_do_produto" class="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
+            <input type="text" id="nome_do_produto" name="nome_do_produto"
+                   value="{{ old('nome_do_produto', $item->nome_do_produto) }}"
+                   required
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('nome_do_produto') border-red-400 @enderror"
+                   placeholder="Ex: Hambúrguer Artesanal" />
+            @error('nome_do_produto')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+        </div>
+
+        {{-- Descrição --}}
+        <div class="mt-4">
+          <label for="descricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+          <textarea id="descricao" name="descricao" rows="4"
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('descricao') border-red-400 @enderror"
+                    placeholder="Descreva o item, ingredientes, características especiais...">{{ old('descricao', $item->descricao) }}</textarea>
+          @error('descricao')
+            <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+          @enderror
+        </div>
+
+        {{-- Linha 2: Custo + Preço + Categoria --}}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+          <div class="md:col-span-4">
+            <label for="custo" class="block text-sm font-medium text-gray-700 mb-1">Custo (R$)</label>
+            <div class="flex">
+              <span class="inline-flex items-center px-3 rounded-l-md border border-gray-300 bg-gray-50 text-gray-600">R$</span>
+              <input type="number" id="custo" name="custo"
+                     value="{{ old('custo', $item->custo) }}"
+                     step="0.01" min="0"
+                     class="w-full border border-gray-300 rounded-r-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('custo') border-red-400 @enderror" />
+            </div>
+            @error('custo')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="preco" class="block text-sm font-medium text-gray-700 mb-1">Preço (R$) *</label>
+            <div class="flex">
+              <span class="inline-flex items-center px-3 rounded-l-md border border-gray-300 bg-gray-50 text-gray-600">R$</span>
+              <input type="number" id="preco" name="preco"
+                     value="{{ old('preco', $item->preco) }}"
+                     step="0.01" min="0.01" required
+                     class="w-full border border-gray-300 rounded-r-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('preco') border-red-400 @enderror"
+                     placeholder="0,00" />
+            </div>
+            @error('preco')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="codigo_da_categoria" class="block text-sm font-medium text-gray-700 mb-1">Código da Categoria</label>
+            <input type="text" id="codigo_da_categoria" name="codigo_da_categoria"
+                   value="{{ old('codigo_da_categoria', $item->codigo_da_categoria) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('codigo_da_categoria') border-red-400 @enderror"
+                   placeholder="Ex: LANCHES, BEBIDAS" />
+            @error('codigo_da_categoria')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+        </div>
+
+        {{-- Linha 3: Marca + Modelo + Estado --}}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+          <div class="md:col-span-4">
+            <label for="marca" class="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+            <input type="text" id="marca" name="marca"
+                   value="{{ old('marca', $item->marca) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('marca') border-red-400 @enderror"
+                   placeholder="Ex: Nike, Apple" />
+            @error('marca')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="modelo" class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+            <input type="text" id="modelo" name="modelo"
+                   value="{{ old('modelo', $item->modelo) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('modelo') border-red-400 @enderror"
+                   placeholder="Ex: Air Max, iPhone 15" />
+            @error('modelo')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="estado" class="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
+            <select id="estado" name="estado" required
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 @error('estado') border-red-400 @enderror">
+              <option value="novo" {{ old('estado', $item->estado) == 'novo' ? 'selected' : '' }}>Novo</option>
+              <option value="usado" {{ old('estado', $item->estado) == 'usado' ? 'selected' : '' }}>Usado</option>
+              <option value="semi-novo" {{ old('estado', $item->estado) == 'semi-novo' ? 'selected' : '' }}>Semi-novo</option>
+              <option value="recondicionado" {{ old('estado', $item->estado) == 'recondicionado' ? 'selected' : '' }}>Recondicionado</option>
+            </select>
+            @error('estado')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+        </div>
+
+        {{-- Linha 4: Cor + Tamanho + Pedido --}}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+          <div class="md:col-span-4">
+            <label for="cor" class="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+            <input type="text" id="cor" name="cor"
+                   value="{{ old('cor', $item->cor) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('cor') border-red-400 @enderror"
+                   placeholder="Ex: Azul, Vermelho" />
+            @error('cor')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="tamanho" class="block text-sm font-medium text-gray-700 mb-1">Tamanho</label>
+            <input type="text" id="tamanho" name="tamanho"
+                   value="{{ old('tamanho', $item->tamanho) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('tamanho') border-red-400 @enderror"
+                   placeholder="Ex: P, M, G, 38, 40" />
+            @error('tamanho')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+
+          <div class="md:col-span-4">
+            <label for="pedido" class="block text-sm font-medium text-gray-700 mb-1">Pedido (Opcional)</label>
+            <input type="text" id="pedido" name="pedido"
+                   value="{{ old('pedido', $item->pedido) }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('pedido') border-red-400 @enderror"
+                   placeholder="Ex: Pedido#123" />
+            @error('pedido')
+              <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
+          </div>
+        </div>
+
+        {{-- Status --}}
+        <div class="mt-4">
+          <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+          <select id="status" name="status" required
+                  class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 @error('status') border-red-400 @enderror">
+            <option value="indisponivel" {{ old('status', $item->status) == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
+            <option value="disponivel" {{ old('status', $item->status) == 'disponivel' ? 'selected' : '' }}>Disponível</option>
+            <option value="reservado" {{ old('status', $item->status) == 'reservado' ? 'selected' : '' }}>Reservado</option>
+            <option value="vendido" {{ old('status', $item->status) == 'vendido' ? 'selected' : '' }}>Vendido</option>
+            <option value="em_sacolinha" {{ old('status', $item->status) == 'em_sacolinha' ? 'selected' : '' }}>Em Sacolinha</option>
+            <option value="loja" {{ old('status', $item->status) == 'loja' ? 'selected' : '' }}>Loja</option>
+            <option value="estoque" {{ old('status', $item->status) == 'estoque' ? 'selected' : '' }}>Estoque</option>
+            <option value="live" {{ old('status', $item->status) == 'live' ? 'selected' : '' }}>Live</option>
+          </select>
+          @error('status')
+            <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+          @enderror
+        </div>
+
+        {{-- Botões --}}
+        <div class="mt-8 flex justify-end border-t border-gray-200 pt-6">
+          <a href="{{ route('items.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition mr-3">
+            Cancelar
+          </a>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition">
+            <i class="fas fa-save mr-2"></i> Salvar Alterações
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</form>
+
+{{-- deletes --}}
+@foreach($item->medias as $media)
+  <form id="delete-medias-{{ $media->id }}"
+        action="{{ route('items.medias.destroy', ['item' => $item->id, 'medias' => $media->id]) }}"
+        method="POST" style="display:none;">
+    @csrf
+    @method('DELETE')
+  </form>
+@endforeach
+
+@endsection
+
+@push('scripts')
+<script src="https://unpkg.com/html5-qrcode"></script>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<script>
+(function () {
+  const addBtn = document.getElementById('addMediaPlaceholder');
+  const input = document.getElementById('new_media');
+  const grid = document.getElementById('mediaGrid');
+  const overlay = document.getElementById('uploadOverlay');
+
+  const uploadUrl = "{{ route('items.media.upload', $item) }}";
+
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  }
+
+  function showOverlay() {
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+  }
+
+  function hideOverlay() {
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+  }
+
+  function addLoadingCard() {
+    if (!grid) return null;
+    const card = document.createElement('div');
+    card.className = 'rounded-md border border-gray-200 bg-gray-50 w-full h-24 flex items-center justify-center text-xs text-gray-600';
+    card.textContent = 'Carregando...';
+    grid.prepend(card);
+    return card;
+  }
+
+  async function uploadFiles(files) {
+    const fd = new FormData();
+    for (const f of files) fd.append('new_media[]', f);
+
+    const resp = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' },
+      body: fd,
+    });
+
+    const ct = resp.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await resp.text();
+      console.error('Resposta não-JSON:', text.slice(0, 400));
+      throw new Error('Upload não retornou JSON (provável redirect/HTML).');
+    }
+
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      console.error(data);
+      throw new Error('Falha ao enviar a mídia.');
+    }
+    return data;
+  }
+
+  if (addBtn && input) {
+    addBtn.addEventListener('click', () => input.click());
+
+    input.addEventListener('change', async () => {
+      if (!input.files || !input.files.length) return;
+
+      const loadingCard = addLoadingCard();
+      showOverlay();
+
+      try {
+        const data = await uploadFiles(input.files);
+
+        if (loadingCard) loadingCard.remove();
+
+        if (grid && Array.isArray(data.media)) {
+          data.media.forEach(m => {
+            const imgSrc = m.final_url || m.thumb || m.url || null;
+            if (!imgSrc) return;
+
+            const wrap = document.createElement('div');
+            wrap.className = 'relative group';
+
+            if (m.media_type === 'image') {
+              wrap.innerHTML = `<img src="${imgSrc}" class="w-full h-24 object-cover rounded-md border border-gray-200" alt="Mídia do item">`;
+            } else {
+              wrap.innerHTML = `
+                <img src="${imgSrc}" class="w-full h-24 object-cover rounded-md border border-gray-200" alt="Vídeo do item">
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-md">
+                  <i class="fas fa-play text-white text-2xl"></i>
+                </div>
+              `;
+            }
+
+            grid.prepend(wrap);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+        if (loadingCard) loadingCard.remove();
+        alert('Falha no upload. Verifique a rota de upload (deve retornar JSON).');
+      } finally {
+        hideOverlay();
+        input.value = '';
+      }
+    });
+  }
+
+  // QR code (mantém seu código original; se quiser, eu encaixo aqui)
+})();
+</script>
+@endpush

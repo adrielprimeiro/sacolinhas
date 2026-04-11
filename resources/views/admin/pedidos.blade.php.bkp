@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Controle de Pedidos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .card { margin-bottom: 1rem; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .cliente-dropdown { position: absolute; z-index: 1000; width: 100%; max-height: 300px; overflow-y: auto; }
+        .cliente-item { cursor: pointer; padding: 10px; border-bottom: 1px solid #eee; }
+        .cliente-item:hover { background: #f8f9fa; }
+        .info-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .table-sm th { background: #343a40; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="fas fa-file-invoice text-primary"></i> Controle de Pedidos
+                </h2>
+
+                <!-- Card Busca Cliente -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-search"></i> Selecionar Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label class="form-label">Buscar Cliente</label>
+                                <div class="position-relative">
+                                    <input type="text" id="cliente-search" class="form-control" 
+                                           placeholder="Digite nome ou email..." autocomplete="off">
+                                    <div id="cliente-dropdown" class="list-group cliente-dropdown" style="display: none;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div id="cliente-info" class="alert alert-success mt-3" style="display: none;">
+                                    <strong>✓ Cliente:</strong> <span id="cliente-nome"></span><br>
+                                    <small>ID: <span id="cliente-id"></span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cards Resumo -->
+                <div id="resumo-cards" class="row" style="display: none;">
+                    <div class="col-md-4">
+                        <div class="card info-card text-center">
+                            <div class="card-body">
+                                <h3 id="total-itens">0</h3>
+                                <small><i class="fas fa-shopping-basket"></i> Total Itens</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card info-card text-center">
+                            <div class="card-body">
+                                <h3>R$ <span id="valor-total">0,00</span></h3>
+                                <small><i class="fas fa-dollar-sign"></i> Valor Total</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card info-card text-center">
+                            <div class="card-body">
+                                <button class="btn btn-light btn-sm" id="btn-criar-pedido">
+                                    <i class="fas fa-plus"></i> Criar Pedido
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela Itens -->
+                <div id="tabela-card" class="card" style="display: none;">
+                    <div class="card-header d-flex justify-content-between">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Itens na Sacolinha</h5>
+                        <button class="btn btn-outline-danger btn-sm" id="btn-limpar">
+                            <i class="fas fa-times"></i> Limpar
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Produto</th>
+                                        <th>Preço Original</th>
+                                        <th>Preço Sacola</th>
+                                        <th>Qtd</th>
+                                        <th>Subtotal</th>
+                                        <th>Status</th>
+                                        <th>Data</th>
+                                        <th>Obs</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itens-tbody">
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4 text-muted">
+                                            Selecione um cliente para visualizar sua sacolinha
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading -->
+                <div id="loading" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Carregando...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    $(document).ready(function() {
+        let clienteAtual = null;
+        let debounceTimer = null;
+
+        // Busca cliente
+        $('#cliente-search').on('input', function() {
+            const termo = $(this).val().trim();
+            
+            clearTimeout(debounceTimer);
+            
+            if (termo.length < 2) {
+                $('#cliente-dropdown').hide();
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                buscarClientes(termo);
+            }, 300);
+        });
+
+        function buscarClientes(termo) {
+            $.ajax({
+                url: '/pedidos/buscar-clientes',
+                data: { termo: termo },
+                success: function(clientes) {
+                    mostrarDropdown(clientes);
+                },
+                error: function() {
+                    $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro na busca</div>').show();
+                }
+            });
+        }
+
+        function mostrarDropdown(clientes) {
+            const dropdown = $('#cliente-dropdown');
+            dropdown.empty();
+
+            if (!clientes.length) {
+                dropdown.html('<div class="list-group-item">Nenhum cliente encontrado</div>').show();
+                return;
+            }
+
+            clientes.forEach(cliente => {
+                dropdown.append(`
+                    <div class="list-group-item cliente-item" 
+                         data-id="${cliente.id}" data-name="${cliente.name}" data-email="${cliente.email}">
+                        <strong>${cliente.name}</strong><br>
+                        <small>${cliente.email} - ID: ${cliente.id}</small>
+                    </div>
+                `);
+            });
+            dropdown.show();
+        }
+
+        // Selecionar cliente
+        $(document).on('click', '.cliente-item', function() {
+            clienteAtual = {
+                id: $(this).data('id'),
+                name: $(this).data('name'),
+                email: $(this).data('email')
+            };
+
+            $('#cliente-search').val(clienteAtual.name);
+            $('#cliente-dropdown').hide();
+            $('#cliente-nome').text(clienteAtual.name);
+            $('#cliente-id').text(clienteAtual.id);
+            $('#cliente-info').show();
+
+            carregarSacolinha(clienteAtual.id);
+        });
+
+        function carregarSacolinha(userId) {
+            $('#loading').show();
+            $('#resumo-cards, #tabela-card').hide();
+
+            $.ajax({
+                url: '/pedidos/itens-sacolinha',
+                data: { user_id: userId },
+                success: function(response) {
+                    if (response.success) {
+                        preencherTabela(response.itens);
+                        atualizarResumo(response.resumo);
+                        $('#resumo-cards, #tabela-card').show();
+                    } else {
+                        alert('Erro: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('Erro ao carregar itens da sacolinha');
+                },
+                complete: function() {
+                    $('#loading').hide();
+                }
+            });
+        }
+
+        function preencherTabela(itens) {
+            const tbody = $('#itens-tbody');
+            tbody.empty();
+
+            if (!itens.length) {
+                tbody.html('<tr><td colspan="9" class="text-center py-4">Nenhum item na sacolinha</td></tr>');
+                return;
+            }
+
+            itens.forEach(item => {
+                const data = new Date(item.add_at).toLocaleDateString('pt-BR');
+                const subtotal = (item.price * item.quantity).toFixed(2);
+                
+                tbody.append(`
+                    <tr>
+                        <td><strong>${item.codigo}</strong></td>
+                        <td>${item.nome_do_produto}</td>
+                        <td>R$ ${parseFloat(item.preco).toFixed(2).replace('.', ',')}</td>
+                        <td class="text-success"><strong>R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')}</strong></td>
+                        <td class="text-center">${item.quantity}</td>
+                        <td><strong>R$ ${subtotal.replace('.', ',')}</strong></td>
+                        <td><span class="badge bg-secondary">${item.status}</span></td>
+                        <td>${data}</td>
+                        <td><small>${item.obs || '-'}</small></td>
+                    </tr>
+                `);
+            });
+        }
+
+        function atualizarResumo(resumo) {
+            $('#total-itens').text(resumo.total_itens);
+            $('#valor-total').text(resumo.valor_total);
+        }
+
+        // Limpar seleção
+        $('#btn-limpar').click(function() {
+            clienteAtual = null;
+            $('#cliente-search').val('');
+            $('#cliente-info, #resumo-cards, #tabela-card').hide();
+            $('#cliente-dropdown').hide();
+        });
+
+        // Fechar dropdown ao clicar fora
+        $(document).click(function(e) {
+            if (!$(e.target).closest('#cliente-search, #cliente-dropdown').length) {
+                $('#cliente-dropdown').hide();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
