@@ -212,16 +212,42 @@
 <script>
     let selectedIds = [];
 
+    // DEBUGGER PERSISTENTE
     function vLog(msg) {
         const log = document.getElementById('visual-debug-log');
         const entry = document.createElement('div');
-        entry.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+        const time = new Date().toLocaleTimeString();
+        const text = `> ${time}: ${msg}`;
+        entry.textContent = text;
         log.prepend(entry);
         console.log(`[OrphanTransfer] ${msg}`);
+        
+        // Salva no localStorage para persistir após reload
+        let history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
+        history.unshift(text);
+        localStorage.setItem('orphan_debug_history', JSON.stringify(history.slice(0, 50)));
+    }
+
+    // Carregar histórico ao iniciar
+    window.addEventListener('load', () => {
+        const history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
+        history.forEach(msg => {
+            const log = document.getElementById('visual-debug-log');
+            const entry = document.createElement('div');
+            entry.textContent = msg;
+            entry.style.opacity = '0.6';
+            log.appendChild(entry);
+        });
+        vLog("Página Carregada/Recarregada");
+    });
+
+    function limparLog() {
+        localStorage.removeItem('orphan_debug_history');
+        location.reload();
     }
 
     window.onerror = function(message, source, lineno, colno, error) {
-        vLog(`ERRO JS: ${message} (Linha: ${lineno})`);
+        vLog(`CRITICAL JS ERROR: ${message} (L:${lineno})`);
     };
 
     function updateUI() {
@@ -280,6 +306,7 @@
     }
 
     function abrirModalTransferencia() {
+        vLog(`Abrindo modal para ${selectedIds.length} fotos`);
         if (selectedIds.length === 0) return;
 
         const modal = document.getElementById('modal-transferencia');
@@ -319,7 +346,11 @@
         if (event.key === 'Escape') fecharModalTransferencia();
         if (event.key === 'Enter') {
             const input = document.getElementById('input-codigo');
-            if (document.activeElement === input) confirmarTransferencia();
+            if (document.activeElement === input) {
+                event.preventDefault();
+                vLog("Enter pressionado no input");
+                confirmarTransferencia();
+            }
         }
     }
 
@@ -349,13 +380,9 @@
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<span>PROCESSANDO...</span>';
+        btn.innerHTML = '<span>AGUARDE...</span>';
 
-        console.log("[OrphanDebug] Iniciando transferência", {
-            codigo: codigo,
-            media_ids: selectedIds
-        });
-
+        vLog("Enviando Fetch...");
         fetch("{{ route('image-groups.transfer-orphans') }}", {
             method: 'POST',
             headers: {
@@ -369,28 +396,31 @@
             })
         })
         .then(async (response) => {
+            vLog(`Servidor respondeu HTTP ${response.status}`);
             const data = await response.json();
-            console.log("[OrphanDebug] Resposta do servidor", data);
+            vLog(`Resposta JSON: ${JSON.stringify(data).substring(0, 100)}...`);
             if (!response.ok) throw data;
             return data;
         })
         .then(data => {
             if (data.success) {
-                console.log("[OrphanDebug] Sucesso! Recarregando...");
-                location.reload();
+                vLog("SUCESSO! Aguardando 3s para recarregar...");
+                btn.innerHTML = '<span>✓ SUCESSO!</span>';
+                btn.classList.add('bg-emerald-600');
+                setTimeout(() => location.reload(), 3000);
             }
         })
         .catch(error => {
-            console.error("[OrphanDebug] Erro capturado", error);
+            vLog(`ERRO: ${JSON.stringify(error)}`);
             btn.disabled = false;
             btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
             
-            let msg = error.message || 'Erro de conexão ou segurança (CSRF). Tente atualizar a página.';
+            let msg = error.message || 'Erro de conexão ou segurança (419/CSRF).';
             if (error.errors && error.errors.codigo) {
                 msg = error.errors.codigo[0];
             }
             
-            alert("FALHA NA ASSOCIAÇÃO: " + msg);
+            alert("FALHA: " + msg);
             
             feedback.textContent = msg;
             feedback.classList.remove('hidden', 'text-indigo-600');
@@ -402,7 +432,7 @@
     function deletarSelecionadas() {
         if (selectedIds.length === 0) return;
 
-        if (!confirm(`Deseja realmente deletar as ${selectedIds.length} imagens selecionadas? Esta ação é irreversível!`)) {
+        if (!confirm(`Deseja realmente deletar as ${selectedIds.length} imagens selecionadas?`)) {
             return;
         }
 
@@ -424,12 +454,15 @@
             })
         })
         .then(async (response) => {
-            const data = await response.json();
-            if (!response.ok) throw data;
-            return data;
+            if (!response.ok) {
+                const data = await response.json();
+                throw data;
+            }
+            return response.json();
         })
         .then(data => {
             if (data.success) {
+                vLog("Imagens deletadas.");
                 location.reload();
             }
         })
@@ -454,6 +487,7 @@
         }
 
         searchTimeout = setTimeout(() => {
+            vLog(`Buscando código: ${codigo}`);
             fetch("{{ route('image-groups.buscar-codigo') }}", {
                 method: 'POST',
                 headers: {
@@ -466,6 +500,7 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    vLog("Item encontrado via AJAX");
                     feedback.textContent = '✓ Item encontrado';
                     feedback.classList.remove('hidden', 'text-red-600');
                     feedback.classList.add('text-indigo-600');
@@ -474,17 +509,12 @@
                         <div class="flex items-center gap-4">
                             <div class="flex-1">
                                 <h4 class="font-bold text-indigo-900">${data.item.nome_do_produto}</h4>
-                                <div class="text-xs text-indigo-700 flex flex-wrap gap-2 mt-1">
-                                    <span class="bg-white/50 px-1.5 py-0.5 rounded">ID: ${data.item.id}</span>
-                                    ${data.item.marca ? `<span class="bg-white/50 px-1.5 py-0.5 rounded">${data.item.marca}</span>` : ''}
-                                    ${data.item.cor ? `<span class="bg-white/50 px-1.5 py-0.5 rounded">${data.item.cor}</span>` : ''}
-                                    ${data.item.tamanho ? `<span class="bg-white/50 px-1.5 py-0.5 rounded">${data.item.tamanho}</span>` : ''}
-                                </div>
                             </div>
                         </div>
                     `;
                     preview.classList.remove('hidden');
                 } else {
+                    vLog("Item NÃO encontrado");
                     feedback.textContent = '× Código não encontrado';
                     feedback.classList.remove('hidden', 'text-indigo-600');
                     feedback.classList.add('text-red-600');
@@ -503,13 +533,16 @@
         const btnConfirmar = document.getElementById('btn-confirmar');
         if (btnConfirmar) {
             btnConfirmar.addEventListener('click', (e) => {
+                e.preventDefault();
                 vLog("Botão Confirmar clicado!");
                 confirmarTransferencia();
             });
-        } else {
-            vLog("ERRO: Botão btn-confirmar não encontrado!");
         }
     });
+
+    // Botão de Limpar Log
+    document.getElementById('visual-debug-log').onclick = limparLog;
+    document.getElementById('visual-debug-log').title = "Clique para limpar histórico e recarregar";
 </script>
 
 <style>
