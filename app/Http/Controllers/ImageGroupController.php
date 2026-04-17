@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 
 class ImageGroupController extends Controller
@@ -348,22 +349,22 @@ class ImageGroupController extends Controller
 		Log::info("[OrphanTransfer] Posição inicial", ['last_position' => $lastPosition]);
 
 		$updatedCount = 0;
-		// Move as selecionadas para o item usando Eloquent (mais seguro que query builder direto)
+		// Usamos DB::table direto para forçar a gravação e ignorar qualquer trava do Eloquent
 		foreach ($selectedIds as $index => $mediaId) {
-			$media = ItemMedia::find($mediaId);
+			$affected = DB::table('item_media')
+				->where('id', $mediaId)
+				->update([
+					'item_id' => $item->id,
+					'group_id' => null,
+					'position' => $lastPosition + $index + 1,
+					'updated_at' => now(),
+				]);
 			
-			if ($media) {
-				$media->item_id = $item->id;
-				$media->group_id = null;
-				$media->position = $lastPosition + $index + 1;
-				
-				if ($media->save()) {
-					$updatedCount++;
-				} else {
-					Log::error("[OrphanTransfer] Falha ao salvar ItemMedia", ['id' => $mediaId]);
-				}
+			if ($affected) {
+				$updatedCount++;
+				Log::info("[OrphanTransfer] Gravado via DB::table", ['id' => $mediaId]);
 			} else {
-				Log::warning("[OrphanTransfer] ItemMedia não encontrado no banco", ['id' => $mediaId]);
+				Log::error("[OrphanTransfer] Nenhuma linha afetada para o ID", ['id' => $mediaId]);
 			}
 		}
 
