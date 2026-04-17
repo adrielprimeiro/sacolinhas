@@ -347,10 +347,12 @@
             btn.disabled = false;
             btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
             
-            let msg = error.message || 'Erro ao associar item.';
+            let msg = error.message || 'Erro de conexão ou segurança (CSRF). Tente atualizar a página.';
             if (error.errors && error.errors.codigo) {
                 msg = error.errors.codigo[0];
             }
+            
+            alert("FALHA NA ASSOCIAÇÃO: " + msg);
             
             feedback.textContent = msg;
             feedback.classList.remove('hidden', 'text-indigo-600');

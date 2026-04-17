@@ -270,6 +270,8 @@ class ImageGroupController extends Controller
 
 	public function buscarCodigo(Request $request)
 	{
+		Log::info("[OrphanDebug] Chamada buscarCodigo", ['codigo' => $request->codigo]);
+		
 		$request->validate([
 			'codigo' => ['required', 'string']
 		]);
@@ -302,6 +304,8 @@ class ImageGroupController extends Controller
 
 	public function transferSelectedOrphans(Request $request)
 	{
+		Log::info("[OrphanDebug] Chamada transferSelectedOrphans RECIBIDA");
+
 		$data = $request->validate([
 			'codigo' => ['required', 'string', 'max:100'],
 			'media_ids' => ['required', 'array'],
