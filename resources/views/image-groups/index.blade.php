@@ -3,6 +3,28 @@
 @section('title', 'Fotos Órfãs')
 
 @section('content')
+<style>
+    /* GARANTIA DE VISIBILIDADE DO SELETOR */
+    .orphan-checkbox:checked + .custom-checkbox-div {
+        background-color: #4f46e5 !important; /* Indigo 600 */
+        border-color: #4f46e5 !important;
+    }
+    .orphan-checkbox:checked + .custom-checkbox-div svg {
+        color: white !important;
+        opacity: 1 !important;
+    }
+    
+    /* GARANTIA DE Z-INDEX PARA MODAIS */
+    #modal-zoom { z-index: 9999 !important; }
+    #modal-transferencia { z-index: 9998 !important; }
+
+    /* Efeito de seleção no card */
+    .orphan-card.is-selected {
+        border-color: #4f46e5 !important;
+        background-color: rgba(79, 70, 229, 0.05) !important;
+    }
+</style>
+
 <div class="max-w-7xl mx-auto py-8 px-4" id="orphan-app">
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 sticky top-0 bg-gray-50/95 py-4 z-30">
         <div>
@@ -52,7 +74,7 @@
         @forelse($orphans as $media)
             @php $thumbUrl = "/storage/" . ($media->thumbnail_url ?: $media->url); @endphp
             <div 
-                class="relative group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-400 orphan-card"
+                class="relative group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border-2 border-transparent orphan-card"
                 data-id="{{ $media->id }}"
                 data-thumb="{{ $thumbUrl }}"
             >
@@ -66,17 +88,17 @@
                 </div>
 
                 <!-- Checkbox de Seleção -->
-                <div class="absolute top-3 right-3 z-10">
-                    <label class="relative flex items-center justify-center cursor-pointer group/cb">
+                <div class="absolute top-3 right-3 z-20">
+                    <label class="relative flex items-center justify-center cursor-pointer">
                         <input
                             type="checkbox"
                             value="{{ $media->id }}"
-                            class="orphan-checkbox peer sr-only"
+                            class="orphan-checkbox sr-only"
                             onchange="updateUI()"
                         >
-                        <!-- Estilo customizado por cima do nativo oculto -->
-                        <div class="w-10 h-10 bg-white/80 backdrop-blur-md border-2 border-gray-200 rounded-full shadow-lg flex items-center justify-center transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 group-hover/cb:border-indigo-400 group-hover/cb:scale-110">
-                            <svg class="w-6 h-6 text-transparent peer-checked:group-[]:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: transparent;">
+                        <!-- Estilo customizado (Controlado via CSS lá em cima) -->
+                        <div class="custom-checkbox-div w-10 h-10 bg-white/90 backdrop-blur-md border-2 border-gray-300 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110">
+                            <svg class="w-6 h-6 opacity-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
                             </svg>
                         </div>
@@ -99,10 +121,12 @@
     </div>
 </div>
 
+<!-- MODAIS NO FINAL DO BODY PARA EVITAR PROBLEMAS DE STACKING CONTEXT -->
+
 <!-- Modal de Zoom -->
 <div
     id="modal-zoom"
-    class="fixed inset-0 z-[200] hidden bg-black/95 items-center justify-center p-4 cursor-zoom-out"
+    class="fixed inset-0 hidden bg-black/95 items-center justify-center p-4 cursor-zoom-out"
     onclick="fecharZoom()"
 >
     <img id="img-zoom" class="max-w-full max-h-full rounded-lg shadow-2xl animate-in zoom-in duration-200">
@@ -112,10 +136,10 @@
 <!-- Modal de Transferência -->
 <div
     id="modal-transferencia"
-    class="fixed inset-0 z-[150] hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4"
+    class="fixed inset-0 hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4"
     onkeydown="handleModalKeys(event)"
 >
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-300" onclick="event.stopPropagation()">
         <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
             <h3 class="text-xl font-extrabold text-gray-900">Associar a Item</h3>
             <button onclick="fecharModalTransferencia()" class="text-gray-400 hover:text-gray-600 text-2xl transition">&times;</button>
@@ -176,18 +200,13 @@
             countSpan.classList.add('hidden');
         }
 
-        // Estilizar cards selecionados e ícones
+        // Estilizar cards selecionados
         document.querySelectorAll('.orphan-card').forEach(card => {
             const cb = card.querySelector('.orphan-checkbox');
-            const svg = card.querySelector('svg');
             if (cb.checked) {
-                card.classList.add('border-indigo-600', 'bg-indigo-50/30');
-                card.classList.remove('border-transparent');
-                svg.style.color = "white";
+                card.classList.add('is-selected');
             } else {
-                card.classList.remove('border-indigo-600', 'bg-indigo-50/30');
-                card.classList.add('border-transparent');
-                svg.style.color = "transparent";
+                card.classList.remove('is-selected');
             }
         });
     }
@@ -231,8 +250,8 @@
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
         
-        input.value = '';
-        input.focus();
+        // Pequeno atraso para garantir o foco após a animação do modal
+        setTimeout(() => input.focus(), 100);
         
         document.getElementById('item-preview').classList.add('hidden');
         document.getElementById('codigo-feedback').classList.add('hidden');
@@ -246,20 +265,15 @@
     }
 
     function handleModalKeys(event) {
-        if (event.key === 'Escape') {
-            fecharModalTransferencia();
-        }
+        if (event.key === 'Escape') fecharModalTransferencia();
         if (event.key === 'Enter') {
             const input = document.getElementById('input-codigo');
-            if (document.activeElement === input) {
-                confirmarTransferencia();
-            }
+            if (document.activeElement === input) confirmarTransferencia();
         }
     }
 
-    // Atalhos globais
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !document.getElementById('modal-transferencia').classList.contains('flex')) {
+        if (e.key === 'Enter' && document.getElementById('modal-transferencia').classList.contains('hidden') && document.getElementById('modal-zoom').classList.contains('hidden')) {
             if (selectedIds.length > 0) {
                 abrirModalTransferencia();
                 e.preventDefault();
@@ -313,7 +327,6 @@
         });
     }
 
-    // Feedback de busca de código ao digitar (opcional, mas bom pra UX)
     let searchTimeout;
     document.getElementById('input-codigo').addEventListener('input', function() {
         const codigo = this.value.trim();
