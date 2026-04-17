@@ -351,5 +351,35 @@ class ImageGroupController extends Controller
 			'message' => "Fotos associadas com sucesso ao item {$item->codigo}.",
 		]);
 	}
+
+	public function deleteSelectedOrphans(Request $request)
+	{
+		$data = $request->validate([
+			'media_ids' => ['required', 'array'],
+			'media_ids.*' => ['integer'],
+		]);
+
+		$medias = ItemMedia::whereIn('id', $data['media_ids'])
+			->whereNull('item_id')
+			->whereNull('group_id')
+			->get();
+
+		$deleted = 0;
+		foreach ($medias as $media) {
+			if ($media->url && Storage::disk('public')->exists($media->url)) {
+				Storage::disk('public')->delete($media->url);
+			}
+			if ($media->thumbnail_url && Storage::disk('public')->exists($media->thumbnail_url)) {
+				Storage::disk('public')->delete($media->thumbnail_url);
+			}
+			$media->delete();
+			$deleted++;
+		}
+
+		return response()->json([
+			'success' => true,
+			'message' => "{$deleted} imagens deletadas com sucesso."
+		]);
+	}
 	
 }

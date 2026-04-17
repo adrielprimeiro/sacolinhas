@@ -47,6 +47,15 @@
                 <span class="bg-indigo-500 px-1.5 py-0.5 rounded text-[10px] hidden md:block">ENTER</span>
             </button>
 
+            <button
+                type="button"
+                id="btn-deletar-selecionadas"
+                onclick="deletarSelecionadas()"
+                class="hidden bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-6 py-2.5 rounded-lg text-sm font-bold border-2 border-red-100 hover:border-red-600 transition-all active:scale-95 flex items-center gap-2"
+            >
+                <span>Deletar Selecionadas</span>
+            </button>
+
             <form
                 method="POST"
                 action="{{ route('image-groups.orphans.delete') }}"
@@ -186,17 +195,26 @@
         const checkboxes = document.querySelectorAll('.orphan-checkbox:checked');
         selectedIds = Array.from(checkboxes).map(cb => cb.value);
         
-        const btn = document.getElementById('btn-abrir-transferencia');
+        const btnTransfer = document.getElementById('btn-abrir-transferencia');
+        const btnDelete = document.getElementById('btn-deletar-selecionadas');
         const countSpan = document.getElementById('selection-count');
         
         if (selectedIds.length > 0) {
-            btn.classList.remove('hidden');
-            btn.classList.add('flex');
+            btnTransfer.classList.remove('hidden');
+            btnTransfer.classList.add('flex');
+            
+            btnDelete.classList.remove('hidden');
+            btnDelete.classList.add('flex');
+            
             countSpan.classList.remove('hidden');
             countSpan.textContent = `${selectedIds.length} selecionada${selectedIds.length > 1 ? 's' : ''}`;
         } else {
-            btn.classList.add('hidden');
-            btn.classList.remove('flex');
+            btnTransfer.classList.add('hidden');
+            btnTransfer.classList.remove('flex');
+            
+            btnDelete.classList.add('hidden');
+            btnDelete.classList.remove('flex');
+            
             countSpan.classList.add('hidden');
         }
 
@@ -324,6 +342,47 @@
             feedback.classList.remove('hidden', 'text-indigo-600');
             feedback.classList.add('text-red-600');
             document.getElementById('input-codigo').focus();
+        });
+    }
+
+    function deletarSelecionadas() {
+        if (selectedIds.length === 0) return;
+
+        if (!confirm(`Deseja realmente deletar as ${selectedIds.length} imagens selecionadas? Esta ação é irreversível!`)) {
+            return;
+        }
+
+        const btn = document.getElementById('btn-deletar-selecionadas');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span>DELETANDO...</span>';
+
+        fetch("{{ route('image-groups.orphans.delete-selected') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                media_ids: selectedIds
+            })
+        })
+        .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) throw data;
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            alert(error.message || 'Erro ao deletar imagens.');
         });
     }
 
