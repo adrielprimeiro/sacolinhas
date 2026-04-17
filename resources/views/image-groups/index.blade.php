@@ -40,7 +40,8 @@
         overflow-y: auto;
         z-index: 99999;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        pointer-events: none;
+        pointer-events: auto; /* Permite cliques agora */
+        cursor: pointer;
         display: block;
     }
 </style>

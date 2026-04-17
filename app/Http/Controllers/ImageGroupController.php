@@ -361,10 +361,17 @@ class ImageGroupController extends Controller
 				]);
 			
 			if ($affected) {
-				$updatedCount++;
-				Log::info("[OrphanTransfer] Gravado via DB::table", ['id' => $mediaId]);
+				// VERIFICAÇÃO DE SEGURANÇA: Tenta ler o dado que acabou de ser gravado
+				$verificacao = DB::table('item_media')->where('id', $mediaId)->where('item_id', $item->id)->first();
+				
+				if ($verificacao) {
+					$updatedCount++;
+					Log::info("[OrphanTransfer] Foto confirmada no banco", ['id' => $mediaId, 'item' => $item->id]);
+				} else {
+					Log::error("[OrphanTransfer] FALHA CRÍTICA: O banco retornou sucesso mas o dado não foi encontrado!", ['id' => $mediaId]);
+				}
 			} else {
-				Log::error("[OrphanTransfer] Nenhuma linha afetada para o ID", ['id' => $mediaId]);
+				Log::error("[OrphanTransfer] Nenhuma linha afetada para o ID (Pode não existir mais)", ['id' => $mediaId]);
 			}
 		}
 
