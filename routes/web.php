@@ -506,7 +506,7 @@ Route::post('/image-groups/orphans/delete', [ImageGroupController::class, 'delet
 Route::post('/image-groups/transfer-orphans', [ImageGroupController::class, 'transferSelectedOrphans'])
     ->name('image-groups.transfer-orphans');
 	
-Route squashed:post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
+Route::post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
     ->name('image-groups.buscar-codigo');
 
 Route::post('/image-groups/orphans/delete-selected', [ImageGroupController::class, 'deleteSelectedOrphans'])
