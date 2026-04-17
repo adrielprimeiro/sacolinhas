@@ -23,7 +23,29 @@
         border-color: #4f46e5 !important;
         background-color: rgba(79, 70, 229, 0.05) !important;
     }
+
+    /* VISUAL DEBUGGER OVERLAY */
+    #visual-debug-log {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: #1e293b;
+        color: #38bdf8;
+        padding: 10px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 11px;
+        max-width: 300px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 99999;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+        display: block;
+    }
 </style>
+
+<div id="visual-debug-log">Log Iniciado...</div>
 
 <div class="max-w-7xl mx-auto py-8 px-4" id="orphan-app">
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 sticky top-0 bg-gray-50/95 py-4 z-30">
@@ -178,7 +200,6 @@
                 <button
                     type="button"
                     id="btn-confirmar"
-                    onclick="confirmarTransferencia()"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-lg"
                 >
                     <span>CONFIRMAR (ENTER)</span>
@@ -190,6 +211,18 @@
 
 <script>
     let selectedIds = [];
+
+    function vLog(msg) {
+        const log = document.getElementById('visual-debug-log');
+        const entry = document.createElement('div');
+        entry.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+        log.prepend(entry);
+        console.log(`[OrphanTransfer] ${msg}`);
+    }
+
+    window.onerror = function(message, source, lineno, colno, error) {
+        vLog(`ERRO JS: ${message} (Linha: ${lineno})`);
+    };
 
     function updateUI() {
         const checkboxes = document.querySelectorAll('.orphan-checkbox:checked');
@@ -300,13 +333,18 @@
     });
 
     function confirmarTransferencia() {
-        const codigo = document.getElementById('input-codigo').value.trim();
+        vLog("Iniciando confirmarTransferencia...");
+        const inputCodigo = document.getElementById('input-codigo');
+        const codigo = inputCodigo ? inputCodigo.value.trim() : null;
         const btn = document.getElementById('btn-confirmar');
         const feedback = document.getElementById('codigo-feedback');
 
+        vLog(`Dados: código=${codigo}, medias=${selectedIds.length}`);
+
         if (!codigo) {
+            vLog("FALHA: Código vazio.");
             alert('Por favor, digite o código do item.');
-            document.getElementById('input-codigo').focus();
+            inputCodigo.focus();
             return;
         }
 
@@ -458,6 +496,19 @@
                 preview.classList.add('hidden');
             });
         }, 300);
+    });
+
+    // Registrar Evento do Botão de Confirmar via JS para maior robustez
+    document.addEventListener('DOMContentLoaded', () => {
+        const btnConfirmar = document.getElementById('btn-confirmar');
+        if (btnConfirmar) {
+            btnConfirmar.addEventListener('click', (e) => {
+                vLog("Botão Confirmar clicado!");
+                confirmarTransferencia();
+            });
+        } else {
+            vLog("ERRO: Botão btn-confirmar não encontrado!");
+        }
     });
 </script>
 
