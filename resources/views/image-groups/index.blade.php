@@ -313,6 +313,11 @@
         btn.disabled = true;
         btn.innerHTML = '<span>PROCESSANDO...</span>';
 
+        console.log("[OrphanDebug] Iniciando transferência", {
+            codigo: codigo,
+            media_ids: selectedIds
+        });
+
         fetch("{{ route('image-groups.transfer-orphans') }}", {
             method: 'POST',
             headers: {
@@ -327,18 +332,27 @@
         })
         .then(async (response) => {
             const data = await response.json();
+            console.log("[OrphanDebug] Resposta do servidor", data);
             if (!response.ok) throw data;
             return data;
         })
         .then(data => {
             if (data.success) {
+                console.log("[OrphanDebug] Sucesso! Recarregando...");
                 location.reload();
             }
         })
         .catch(error => {
+            console.error("[OrphanDebug] Erro capturado", error);
             btn.disabled = false;
             btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
-            feedback.textContent = error.message || 'Erro ao associar item.';
+            
+            let msg = error.message || 'Erro ao associar item.';
+            if (error.errors && error.errors.codigo) {
+                msg = error.errors.codigo[0];
+            }
+            
+            feedback.textContent = msg;
             feedback.classList.remove('hidden', 'text-indigo-600');
             feedback.classList.add('text-red-600');
             document.getElementById('input-codigo').focus();

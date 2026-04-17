@@ -8,6 +8,7 @@ use App\Models\ItemMedia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 
 class ImageGroupController extends Controller
@@ -310,9 +311,16 @@ class ImageGroupController extends Controller
 		$codigo = trim((string) $data['codigo']);
 		$selectedIds = $data['media_ids'];
 
+		Log::info("[OrphanTransfer] Início da transferência", [
+			'codigo' => $codigo,
+			'num_fotos' => count($selectedIds),
+			'media_ids' => $selectedIds
+		]);
+
 		$item = Item::query()->where('codigo', $codigo)->first();
 
 		if (!$item) {
+			Log::warning("[OrphanTransfer] Item não encontrado", ['codigo' => $codigo]);
 			return response()->json([
 				'success' => false,
 				'message' => "Nenhum item encontrado com o código '{$codigo}'.",
@@ -322,33 +330,47 @@ class ImageGroupController extends Controller
 			], 422);
 		}
 
+		Log::info("[OrphanTransfer] Item encontrado", ['item_id' => $item->id, 'status_atual' => $item->status]);
+
 		// Atualiza o item para status loja se estiver disponível/null
 		if (in_array($item->status, ['disponivel', null])) {
 			$item->status = 'loja';
 			$item->save();
+			Log::info("[OrphanTransfer] Status do item atualizado para 'loja'");
 		}
 
 		// Determina a última posição das mídias já existentes no item
 		$lastPosition = ItemMedia::where('item_id', $item->id)->max('position') ?? 0;
+		Log::info("[OrphanTransfer] Posição inicial", ['last_position' => $lastPosition]);
 
-		// Move as selecionadas para o item
+		$updatedCount = 0;
+		// Move as selecionadas para o item usando Eloquent (mais seguro que query builder direto)
 		foreach ($selectedIds as $index => $mediaId) {
-			ItemMedia::query()
-				->where('id', $mediaId)
-				->whereNull('item_id')
-				->update([
-					'item_id' => $item->id,
-					'group_id' => null, // Garante que saiu de qualquer grupo
-					'position' => $lastPosition + $index + 1,
-				]);
+			$media = ItemMedia::find($mediaId);
+			
+			if ($media) {
+				$media->item_id = $item->id;
+				$media->group_id = null;
+				$media->position = $lastPosition + $index + 1;
+				
+				if ($media->save()) {
+					$updatedCount++;
+				} else {
+					Log::error("[OrphanTransfer] Falha ao salvar ItemMedia", ['id' => $mediaId]);
+				}
+			} else {
+				Log::warning("[OrphanTransfer] ItemMedia não encontrado no banco", ['id' => $mediaId]);
+			}
 		}
+
+		Log::info("[OrphanTransfer] Transferência finalizada", ['sucesso' => $updatedCount]);
 
 		return response()->json([
 			'success' => true,
 			'item_id' => $item->id,
 			'codigo' => $item->codigo,
 			'edit_url' => route('items.edit', $item),
-			'message' => "Fotos associadas com sucesso ao item {$item->codigo}.",
+			'message' => "{$updatedCount} foto(s) associada(s) com sucesso ao item {$item->codigo}.",
 		]);
 	}
 
