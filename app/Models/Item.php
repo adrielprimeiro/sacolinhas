@@ -86,5 +86,52 @@ class Item extends Model
 			->orderBy('position')
 			->orderBy('id');
 	}
-	
+
+    /**
+     * Relacionamento com Categorias
+     */
+    public function categorias()
+    {
+        return $this->belongsToMany(Categoria::class);
+    }
+
+    /**
+     * Accessor para o Preço Final (dinâmico com base nos descontos de categorias)
+     */
+    public function getFinalPriceAttribute()
+    {
+        $originalPrice = (float) $this->preco;
+        $maxDiscountValue = 0;
+
+        foreach ($this->categorias as $categoria) {
+            $effectiveDiscount = $categoria->getEffectiveDiscount();
+            
+            if ($effectiveDiscount) {
+                $discountValue = 0;
+                
+                if ($effectiveDiscount['type'] === 'porcentagem') {
+                    $discountValue = $originalPrice * ($effectiveDiscount['value'] / 100);
+                } else if ($effectiveDiscount['type'] === 'fixo') {
+                    $discountValue = $effectiveDiscount['value'];
+                }
+
+                // Mantemos o maior desconto absoluto economizado
+                if ($discountValue > $maxDiscountValue) {
+                    $maxDiscountValue = $discountValue;
+                }
+            }
+        }
+
+        $finalPrice = $originalPrice - $maxDiscountValue;
+        
+        return $finalPrice < 0 ? 0 : (float) $finalPrice;
+    }
+
+    /**
+     * Accessor para Preço Final formatado
+     */
+    public function getFormattedFinalPriceAttribute()
+    {
+        return 'R$ ' . number_format((float) $this->final_price, 2, ',', '.');
+    }
 }

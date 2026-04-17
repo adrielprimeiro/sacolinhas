@@ -221,6 +221,9 @@
           </div>
         </div>
 
+        {{-- Categorias Novo Sistema --}}
+        @include('admin.items.partials.categories', ['item' => $item])
+
         {{-- Linha 3: Marca + Modelo + Estado --}}
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
           <div class="md:col-span-4">

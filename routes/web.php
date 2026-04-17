@@ -179,6 +179,16 @@ Route::middleware('auth')->group(function () {
 			'destroy' => 'admin.pedido.destroy',
 		]);		
 		
+        // ===== ADMIN CATEGORIAS =====
+        Route::resource('categorias', \App\Http\Controllers\CategoriaController::class)->names([
+            'index' => 'admin.categorias.index',
+            'create' => 'admin.categorias.create',
+            'store' => 'admin.categorias.store',
+            'edit' => 'admin.categorias.edit',
+            'update' => 'admin.categorias.update',
+            'destroy' => 'admin.categorias.destroy',
+        ]);
+		
         // Admin - Toggle bloqueio de clientes
         Route::patch('clientes/{cliente}/toggle-block', [ClienteController::class, 'toggleBlock'])
              ->name('admin.clientes.toggle_block');
@@ -493,6 +503,8 @@ Route::post('/image-groups/{group}/transfer', [ImageGroupController::class, 'tra
     ->name('image-groups.transfer');	
 Route::post('/image-groups/orphans/delete', [ImageGroupController::class, 'deleteOrphans'])
     ->name('image-groups.orphans.delete');
+Route::post('/image-groups/transfer-orphans', [ImageGroupController::class, 'transferSelectedOrphans'])
+    ->name('image-groups.transfer-orphans');
 	
 Route::post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
     ->name('image-groups.buscar-codigo');	

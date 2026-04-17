@@ -61,7 +61,11 @@ class ItemController extends Controller
             $validated['image'] = $request->file('image')->store('items', 'public');
         }
 
-        Item::create($validated);
+        $item = Item::create($validated);
+        
+        if ($request->has('categorias')) {
+            $item->categorias()->sync($request->categorias);
+        }
 
         return redirect()->route('items.index')->with('success', 'Item criado com sucesso!');
     }
@@ -108,6 +112,12 @@ class ItemController extends Controller
 		}
 
 		$item->update($validated);
+
+        if ($request->has('categorias')) {
+            $item->categorias()->sync($request->categorias);
+        } else {
+            $item->categorias()->detach();
+        }
 
 		// Lógica para upload de novas mídias
 		if ($request->hasFile('new_media')) {

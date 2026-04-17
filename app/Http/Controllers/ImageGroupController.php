@@ -297,6 +297,59 @@ class ImageGroupController extends Controller
 				'status' => $item->status ?? null,
 			]
 		]);
-	}	
+	}
+
+	public function transferSelectedOrphans(Request $request)
+	{
+		$data = $request->validate([
+			'codigo' => ['required', 'string', 'max:100'],
+			'media_ids' => ['required', 'array'],
+			'media_ids.*' => ['integer'],
+		]);
+
+		$codigo = trim((string) $data['codigo']);
+		$selectedIds = $data['media_ids'];
+
+		$item = Item::query()->where('codigo', $codigo)->first();
+
+		if (!$item) {
+			return response()->json([
+				'success' => false,
+				'message' => "Nenhum item encontrado com o código '{$codigo}'.",
+				'errors' => [
+					'codigo' => ["Nenhum item encontrado com o código '{$codigo}'."]
+				]
+			], 422);
+		}
+
+		// Atualiza o item para status loja se estiver disponível/null
+		if (in_array($item->status, ['disponivel', null])) {
+			$item->status = 'loja';
+			$item->save();
+		}
+
+		// Determina a última posição das mídias já existentes no item
+		$lastPosition = ItemMedia::where('item_id', $item->id)->max('position') ?? 0;
+
+		// Move as selecionadas para o item
+		foreach ($selectedIds as $index => $mediaId) {
+			ItemMedia::query()
+				->where('id', $mediaId)
+				->whereNull('item_id')
+				->update([
+					'item_id' => $item->id,
+					'group_id' => null, // Garante que saiu de qualquer grupo
+					'position' => $lastPosition + $index + 1,
+				]);
+		}
+
+		return response()->json([
+			'success' => true,
+			'item_id' => $item->id,
+			'codigo' => $item->codigo,
+			'edit_url' => route('items.edit', $item),
+			'message' => "Fotos associadas com sucesso ao item {$item->codigo}.",
+		]);
+	}
 	
 }

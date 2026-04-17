@@ -103,6 +103,12 @@
 					<span>Itens</span>
 				</a>
 
+                <a href="{{ route('admin.categorias.index') }}"
+				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
+					<i class="fas fa-tags text-gray-500 w-5"></i>
+					<span>Categorias</span>
+				</a>
+
 				<a href="{{ route('bags.index') }}"
 				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('bags.*') ? 'bg-gray-100 font-semibold' : '' }}">
 					<i class="fas fa-broadcast-tower text-gray-500 w-5"></i>
