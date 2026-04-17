@@ -213,20 +213,32 @@
 <script>
     let selectedIds = [];
 
-    // DEBUGGER PERSISTENTE
-    function vLog(msg) {
-        const log = document.getElementById('visual-debug-log');
-        const entry = document.createElement('div');
-        const time = new Date().toLocaleTimeString();
-        const text = `> ${time}: ${msg}`;
-        entry.textContent = text;
-        log.prepend(entry);
-        console.log(`[OrphanTransfer] ${msg}`);
-        
-        // Salva no localStorage para persistir após reload
-        let history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
-        history.unshift(text);
-        localStorage.setItem('orphan_debug_history', JSON.stringify(history.slice(0, 50)));
+    // DEBUGGER PERSISTENTE (Hardenizado contra erros de memória)
+    function vLog(msg, color = '#38bdf8') {
+        try {
+            const log = document.getElementById('visual-debug-log');
+            if (!log) return;
+
+            const entry = document.createElement('div');
+            entry.style.color = color;
+            const time = new Date().toLocaleTimeString();
+            const text = `> ${time}: ${msg}`;
+            entry.textContent = text;
+            log.prepend(entry);
+            console.log(`[OrphanTransfer] ${msg}`);
+            
+            // Salva no localStorage com segurança
+            try {
+                let history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
+                history.unshift(text);
+                localStorage.setItem('orphan_debug_history', JSON.stringify(history.slice(0, 30)));
+            } catch (e) {
+                // Se o localStorage estiver cheio ou corrompido, limpa e continua
+                localStorage.removeItem('orphan_debug_history');
+            }
+        } catch (err) {
+            console.error("vLog failed", err);
+        }
     }
 
     // Carregar histórico ao iniciar
@@ -365,69 +377,71 @@
     });
 
     function confirmarTransferencia() {
-        vLog("Iniciando confirmarTransferencia...");
-        const inputCodigo = document.getElementById('input-codigo');
-        const codigo = inputCodigo ? inputCodigo.value.trim() : null;
-        const btn = document.getElementById('btn-confirmar');
-        const feedback = document.getElementById('codigo-feedback');
+        try {
+            vLog("Iniciando confirmarTransferencia...");
+            const inputCodigo = document.getElementById('input-codigo');
+            const codigo = inputCodigo ? inputCodigo.value.trim() : null;
+            const btn = document.getElementById('btn-confirmar');
+            const feedback = document.getElementById('codigo-feedback');
 
-        vLog(`Dados: código=${codigo}, medias=${selectedIds.length}`);
+            if (!selectedIds || selectedIds.length === 0) {
+                vLog("FALHA: Nenhuma foto selecionada.", "red");
+                return;
+            }
 
-        if (!codigo) {
-            vLog("FALHA: Código vazio.");
-            alert('Por favor, digite o código do item.');
-            inputCodigo.focus();
-            return;
-        }
+            vLog(`Ação: Vincular ${selectedIds.length} fotos ao código ${codigo}`);
 
-        btn.disabled = true;
-        btn.innerHTML = '<span>AGUARDE...</span>';
+            if (!codigo) {
+                vLog("FALHA: Código vazio.", "red");
+                alert('Por favor, digite o código do item.');
+                if (inputCodigo) inputCodigo.focus();
+                return;
+            }
 
-        vLog("Enviando Fetch...");
-        fetch("{{ route('image-groups.transfer-orphans') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                codigo: codigo,
-                media_ids: selectedIds
+            btn.disabled = true;
+            btn.innerHTML = '<span>AGUARDE...</span>';
+
+            vLog("Disparando Fetch...");
+            fetch("{{ route('image-groups.transfer-orphans') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    codigo: codigo,
+                    media_ids: selectedIds
+                })
             })
-        })
-        .then(async (response) => {
-            vLog(`Servidor respondeu HTTP ${response.status}`);
-            const data = await response.json();
-            vLog(`Resposta JSON: ${JSON.stringify(data).substring(0, 100)}...`);
-            if (!response.ok) throw data;
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                vLog("SUCESSO! Aguardando 3s para recarregar...");
-                btn.innerHTML = '<span>✓ SUCESSO!</span>';
-                btn.classList.add('bg-emerald-600');
-                setTimeout(() => location.reload(), 3000);
-            }
-        })
-        .catch(error => {
-            vLog(`ERRO: ${JSON.stringify(error)}`);
-            btn.disabled = false;
-            btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
-            
-            let msg = error.message || 'Erro de conexão ou segurança (419/CSRF).';
-            if (error.errors && error.errors.codigo) {
-                msg = error.errors.codigo[0];
-            }
-            
-            alert("FALHA: " + msg);
-            
-            feedback.textContent = msg;
-            feedback.classList.remove('hidden', 'text-indigo-600');
-            feedback.classList.add('text-red-600');
-            document.getElementById('input-codigo').focus();
-        });
+            .then(async (response) => {
+                vLog(`Status HTTP: ${response.status}`);
+                const data = await response.json();
+                if (!response.ok) throw data;
+                return data;
+            })
+            .then(data => {
+                if (data.success) {
+                    vLog("✓ SUCESSO NO BANCO!", "#10b981");
+                    vLog("Aguardando 3s para atualizar...", "#10b981");
+                    btn.innerHTML = '<span>✓ SUCESSO!</span>';
+                    btn.style.backgroundColor = '#10b981';
+                    setTimeout(() => location.reload(), 3000);
+                }
+            })
+            .catch(error => {
+                vLog(`ERRO SERVIDOR: ${JSON.stringify(error)}`, "red");
+                btn.disabled = false;
+                btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
+                let msg = error.message || 'Erro de segurança ou limite de tempo.';
+                alert("FALHA: " + msg);
+                if (feedback) feedback.textContent = msg;
+            });
+
+        } catch (fatalError) {
+            vLog(`CRASH JS: ${fatalError.message}`, "red");
+            alert("ERRO CRÍTICO NO NAVEGADOR: " + fatalError.message);
+        }
     }
 
     function deletarSelecionadas() {
