@@ -50,31 +50,40 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
         @forelse($orphans as $media)
+            @php $thumbUrl = "/storage/" . ($media->thumbnail_url ?: $media->url); @endphp
             <div 
-                class="relative group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-400 cursor-pointer orphan-card"
-                onclick="toggleCard(this, event)"
+                class="relative group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-400 orphan-card"
                 data-id="{{ $media->id }}"
-                data-thumb="/storage/{{ $media->thumbnail_url ?: $media->url }}"
+                data-thumb="{{ $thumbUrl }}"
             >
-                <div class="aspect-square overflow-hidden bg-gray-100">
+                <!-- Área de Clique para Zoom -->
+                <div class="aspect-square overflow-hidden bg-gray-100 cursor-zoom-in" onclick="abrirZoom('{{ $thumbUrl }}')">
                     <img
-                        src="/storage/{{ $media->thumbnail_url ?: $media->url }}"
+                        src="{{ $thumbUrl }}"
                         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         loading="lazy"
                     >
                 </div>
 
-                <!-- Checkbox Customizado -->
-                <div class="absolute top-4 right-4 z-20">
-                    <input
-                        type="checkbox"
-                        value="{{ $media->id }}"
-                        class="orphan-checkbox w-7 h-7 rounded-full border-2 border-white bg-white/20 checked:bg-indigo-600 checked:border-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer shadow-md appearance-none checked:after:content-['✓'] checked:after:text-white checked:after:flex checked:after:items-center checked:after:justify-center checked:after:font-bold"
-                        onclick="event.stopPropagation(); updateUI();"
-                    >
+                <!-- Checkbox de Seleção -->
+                <div class="absolute top-3 right-3 z-10">
+                    <label class="relative flex items-center justify-center cursor-pointer group/cb">
+                        <input
+                            type="checkbox"
+                            value="{{ $media->id }}"
+                            class="orphan-checkbox peer sr-only"
+                            onchange="updateUI()"
+                        >
+                        <!-- Estilo customizado por cima do nativo oculto -->
+                        <div class="w-10 h-10 bg-white/80 backdrop-blur-md border-2 border-gray-200 rounded-full shadow-lg flex items-center justify-center transition-all peer-checked:bg-indigo-600 peer-checked:border-indigo-600 group-hover/cb:border-indigo-400 group-hover/cb:scale-110">
+                            <svg class="w-6 h-6 text-transparent peer-checked:group-[]:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: transparent;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </label>
                 </div>
                 
-                <div class="absolute inset-0 bg-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                <div class="absolute inset-0 bg-indigo-900/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
             </div>
         @empty
             <div class="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
@@ -90,10 +99,20 @@
     </div>
 </div>
 
+<!-- Modal de Zoom -->
+<div
+    id="modal-zoom"
+    class="fixed inset-0 z-[200] hidden bg-black/95 items-center justify-center p-4 cursor-zoom-out"
+    onclick="fecharZoom()"
+>
+    <img id="img-zoom" class="max-w-full max-h-full rounded-lg shadow-2xl animate-in zoom-in duration-200">
+    <button class="absolute top-6 right-6 text-white text-4xl hover:scale-110 transition">&times;</button>
+</div>
+
 <!-- Modal de Transferência -->
 <div
     id="modal-transferencia"
-    class="fixed inset-0 z-[100] hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4"
+    class="fixed inset-0 z-[150] hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4"
     onkeydown="handleModalKeys(event)"
 >
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -139,12 +158,6 @@
 <script>
     let selectedIds = [];
 
-    function toggleCard(card, event) {
-        const checkbox = card.querySelector('.orphan-checkbox');
-        checkbox.checked = !checkbox.checked;
-        updateUI();
-    }
-
     function updateUI() {
         const checkboxes = document.querySelectorAll('.orphan-checkbox:checked');
         selectedIds = Array.from(checkboxes).map(cb => cb.value);
@@ -163,17 +176,37 @@
             countSpan.classList.add('hidden');
         }
 
-        // Estilizar cards selecionados
+        // Estilizar cards selecionados e ícones
         document.querySelectorAll('.orphan-card').forEach(card => {
             const cb = card.querySelector('.orphan-checkbox');
+            const svg = card.querySelector('svg');
             if (cb.checked) {
-                card.classList.add('border-indigo-600', 'bg-indigo-50/30', 'scale-[0.98]', 'shadow-inner');
+                card.classList.add('border-indigo-600', 'bg-indigo-50/30');
                 card.classList.remove('border-transparent');
+                svg.style.color = "white";
             } else {
-                card.classList.remove('border-indigo-600', 'bg-indigo-50/30', 'scale-[0.98]', 'shadow-inner');
+                card.classList.remove('border-indigo-600', 'bg-indigo-50/30');
                 card.classList.add('border-transparent');
+                svg.style.color = "transparent";
             }
         });
+    }
+
+    function abrirZoom(url) {
+        const modal = document.getElementById('modal-zoom');
+        document.getElementById('img-zoom').src = url;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function fecharZoom() {
+        const modal = document.getElementById('modal-zoom');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        if (document.getElementById('modal-transferencia').classList.contains('hidden')) {
+            document.body.style.overflow = 'auto';
+        }
     }
 
     function abrirModalTransferencia() {
