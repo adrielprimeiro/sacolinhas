@@ -335,8 +335,8 @@ class ImageGroupController extends Controller
 			'media_ids' => $selectedIds
 		]);
 
-		// Busca insensível a maiúsculas/minúsculas para garantir que encontre 04nb ou 04NB
-		$item = Item::whereRaw('LOWER(codigo) = ?', [Str::lower($codigo)])->first();
+		// Busca simples e direta (mesma lógica do buscarCodigo)
+		$item = Item::where('codigo', $codigo)->first();
 
 		if (!$item) {
 			Log::warning("[OrphanTransfer] Item não encontrado", ['codigo' => $codigo]);
