@@ -168,47 +168,63 @@
 <!-- Modal de Transferência -->
 <div
     id="modal-transferencia"
-    class="fixed inset-0 hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4"
+    class="fixed inset-0 hidden bg-gray-900/80 backdrop-blur-sm items-center justify-center p-4 z-[100]"
     onkeydown="handleModalKeys(event)"
 >
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-300" onclick="event.stopPropagation()">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <h3 class="text-xl font-extrabold text-gray-900">Associar a Item</h3>
-            <button onclick="fecharModalTransferencia()" class="text-gray-400 hover:text-gray-600 text-2xl transition">&times;</button>
+    <!-- Card Principal -->
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-xl font-extrabold text-gray-900">Vincular fotos a Item</h3>
+            <button onclick="fecharModalTransferencia()" class="bg-white border rounded-full w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 transition shadow-sm">&times;</button>
         </div>
 
-        <div class="p-8">
-            <!-- Miniaturas Selecionadas -->
-            <div id="modal-thumbs" class="flex flex-wrap gap-2 mb-8 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+        <!-- Corpo (Scrollable) -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+            <!-- Grid de Fotos (Ordenáveis) -->
+            <div class="mb-8">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Ordem das Imagens (Arraste para organizar)</label>
+                <div id="modal-thumbs" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-1">
+                    <!-- Preenchido via JS com miniaturas de 112px -->
+                </div>
+            </div>
 
-            <div class="space-y-6">
-                <div>
-                    <label for="input-codigo" class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Código do Item</label>
-                    <input
-                        type="text"
-                        id="input-codigo"
-                        class="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-2xl font-bold focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-gray-300"
-                        placeholder="Ex: 1234"
-                        autocomplete="off"
+            <!-- Dados do Item -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start border-t pt-8">
+                <div class="space-y-4">
+                    <div>
+                        <label for="input-codigo" class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Código do Item</label>
+                        <input
+                            type="text"
+                            id="input-codigo"
+                            class="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 text-2xl font-black focus:border-indigo-500 focus:ring-0 outline-none transition-all placeholder:text-gray-200 uppercase"
+                            placeholder="Ex: 04Y5"
+                            autocomplete="off"
+                        >
+                        <div id="codigo-feedback" class="mt-2 text-xs font-bold hidden"></div>
+                    </div>
+
+                    <button
+                        type="button"
+                        id="btn-confirmar"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-lg"
                     >
-                    <div id="codigo-feedback" class="mt-2 text-sm hidden"></div>
+                        <span>CONFIRMAR (ENTER)</span>
+                    </button>
+                    <p class="text-[9px] text-center text-gray-400 uppercase font-bold tracking-widest">As fotos serão movidas para a galeria do item</p>
                 </div>
 
-                <div id="item-preview" class="hidden p-4 rounded-2xl bg-indigo-50 border border-indigo-100 animate-in slide-in-from-top-2">
-                    <!-- Preenchido via JS -->
+                <!-- Preview Inteligente -->
+                <div id="item-preview" class="hidden p-5 rounded-2xl border-2 border-indigo-50 bg-indigo-50/30 min-h-[160px] animate-in slide-in-from-top-2">
+                    <!-- Preenchido via JS após encontrar código -->
                 </div>
-
-                <button
-                    type="button"
-                    id="btn-confirmar"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-lg"
-                >
-                    <span>CONFIRMAR (ENTER)</span>
-                </button>
             </div>
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
 <script>
     let selectedIds = [];
@@ -331,17 +347,32 @@
         selectedIds.forEach(id => {
             const card = document.querySelector(`.orphan-card[data-id="${id}"]`);
             const thumbUrl = card.dataset.thumb;
-            const img = document.createElement('img');
-            img.src = thumbUrl;
-            img.className = "w-12 h-12 object-cover rounded-lg shadow-sm border border-white";
-            thumbsContainer.appendChild(img);
+            
+            const div = document.createElement('div');
+            div.className = "relative group cursor-move aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-indigo-500 transition shadow-sm";
+            div.setAttribute('data-id', id);
+            div.innerHTML = `
+                <img src="${thumbUrl}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition"></div>
+                <div class="absolute top-1 right-1 bg-white/90 rounded p-1 text-[10px] font-bold text-gray-500 border shadow-sm opacity-50">
+                    <i class="fas fa-grip-vertical"></i>
+                </div>
+            `;
+            thumbsContainer.appendChild(div);
         });
+
+        // Inicializar Sortable
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(thumbsContainer, {
+                animation: 150,
+                ghostClass: 'opacity-20'
+            });
+        }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
         
-        // Pequeno atraso para garantir o foco após a animação do modal
         setTimeout(() => input.focus(), 100);
         
         document.getElementById('item-preview').classList.add('hidden');
@@ -384,12 +415,12 @@
             const btn = document.getElementById('btn-confirmar');
             const feedback = document.getElementById('codigo-feedback');
 
-            if (!selectedIds || selectedIds.length === 0) {
-                vLog("FALHA: Nenhuma foto selecionada.", "red");
-                return;
-            }
-
-            vLog(`Ação: Vincular ${selectedIds.length} fotos ao código ${codigo}`);
+            vLog("Coletando ordem final das fotos...");
+            const thumbsContainer = document.getElementById('modal-thumbs');
+            const orderedIds = Array.from(thumbsContainer.querySelectorAll('[data-id]'))
+                                    .map(el => el.getAttribute('data-id'));
+            
+            vLog(`Ação: Vincular ${orderedIds.length} fotos ao código ${codigo}`);
 
             if (!codigo) {
                 vLog("FALHA: Código vazio.", "red");
@@ -411,7 +442,7 @@
                 },
                 body: JSON.stringify({
                     codigo: codigo,
-                    media_ids: selectedIds
+                    media_ids: orderedIds
                 })
             })
             .then(async (response) => {
@@ -523,12 +554,27 @@
                     vLog("Item encontrado via AJAX");
                     feedback.textContent = '✓ Item encontrado';
                     feedback.classList.remove('hidden', 'text-red-600');
-                    feedback.classList.add('text-indigo-600');
-                    
+                    const statusColors = {
+                        'disponivel': 'bg-green-100 text-green-700',
+                        'loja': 'bg-indigo-100 text-indigo-700',
+                        'estoque': 'bg-gray-100 text-gray-700',
+                        'reservado': 'bg-yellow-100 text-yellow-700',
+                        'vendido': 'bg-red-100 text-red-700'
+                    };
+                    const statusColor = statusColors[data.item.status] || 'bg-gray-100 text-gray-700';
+
                     preview.innerHTML = `
-                        <div class="flex items-center gap-4">
-                            <div class="flex-1">
-                                <h4 class="font-bold text-indigo-900">${data.item.nome_do_produto}</h4>
+                        <div class="flex flex-col space-y-3">
+                            <div class="flex justify-between items-start gap-2">
+                                <h1 class="text-lg font-black text-indigo-900 leading-tight">${data.item.nome_do_produto}</h1>
+                                <span class="whitespace-nowrap px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${statusColor}">${data.item.status}</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Marca</span> <span class="text-gray-700 font-bold truncate">${data.item.marca || '-'}</span></div>
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Tamanho</span> <span class="text-gray-700 font-bold truncate">${data.item.tamanho || '-'}</span></div>
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Cor</span> <span class="text-gray-700 font-bold truncate">${data.item.cor || '-'}</span></div>
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Estado</span> <span class="text-gray-700 font-bold truncate capitalize">${data.item.estado || '-'}</span></div>
                             </div>
                         </div>
                     `;
