@@ -556,7 +556,6 @@
         if (btnConfirmar) {
             btnConfirmar.addEventListener('click', (e) => {
                 e.preventDefault();
-                vLog("Botão Confirmar clicado!");
                 confirmarTransferencia();
             });
         }
