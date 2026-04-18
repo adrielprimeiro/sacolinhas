@@ -370,7 +370,9 @@ class ImageGroupController extends Controller
 				->update([
 					'item_id' => $item->id,
 					'group_id' => null,
+					'media_type' => 'image', // GARANTIA: Define como imagem para aparecer nos filtros
 					'position' => $lastPosition + $index + 1,
+					'is_cover' => ($lastPosition + $index === 0), // Define como capa se for a primeira do item
 					'updated_at' => now(),
 				]);
 			
@@ -394,11 +396,17 @@ class ImageGroupController extends Controller
 		// Se o item não tiver imagem principal e conseguimos vincular fotos, 
 		// definimos a primeira delas como a imagem de capa do item.
 		if ($updatedCount > 0 && empty($item->image)) {
-			$first = DB::table('item_media')->where('item_id', $item->id)->orderBy('position')->first();
+			// Busca a imagem que acabamos de vincular para usar como capa principal do Item
+			$first = DB::table('item_media')
+				->where('item_id', $item->id)
+				->where('media_type', 'image')
+				->orderBy('position')
+				->first();
+			
 			if ($first) {
 				$item->image = $first->url;
 				$item->save();
-				Log::info("[OrphanTransfer] Item estava sem capa. Definida automaticamente.", ['item' => $item->id]);
+				Log::info("[OrphanTransfer] Item estava sem capa. URL definida: " . $item->image);
 			}
 		}
 
