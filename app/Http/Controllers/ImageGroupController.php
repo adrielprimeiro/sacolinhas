@@ -324,6 +324,8 @@ class ImageGroupController extends Controller
 			'codigo' => ['required', 'string', 'max:100'],
 			'media_ids' => ['required', 'array'],
 			'media_ids.*' => ['integer'],
+			'status' => ['nullable', 'string', 'max:50'],
+			'estado' => ['nullable', 'string', 'max:50'],
 		]);
 
 		$codigo = trim((string) $data['codigo']);
@@ -332,7 +334,8 @@ class ImageGroupController extends Controller
 		Log::info("[OrphanTransfer] Início da transferência", [
 			'codigo' => $codigo,
 			'num_fotos' => count($selectedIds),
-			'media_ids' => $selectedIds
+			'status_novo' => $data['status'] ?? 'não alterado',
+			'estado_novo' => $data['estado'] ?? 'não alterado'
 		]);
 
 		// Busca simples e direta (mesma lógica do buscarCodigo)
@@ -349,13 +352,17 @@ class ImageGroupController extends Controller
 			], 422);
 		}
 
-		Log::info("[OrphanTransfer] Item encontrado", ['item_id' => $item->id, 'status_atual' => $item->status]);
-
-		// Atualiza o item para status loja se estiver disponível/null
-		if (in_array($item->status, ['disponivel', null])) {
-			$item->status = 'loja';
+		// Atualiza Status e Estado se enviados
+		if (!empty($data['status'])) {
+			$item->status = $data['status'];
+		}
+		if (!empty($data['estado'])) {
+			$item->estado = $data['estado'];
+		}
+		
+		if ($item->isDirty(['status', 'estado'])) {
 			$item->save();
-			Log::info("[OrphanTransfer] Status do item atualizado para 'loja'");
+			Log::info("[OrphanTransfer] Item atualizado", ['id' => $item->id, 'status' => $item->status, 'estado' => $item->estado]);
 		}
 
 		// Determina a última posição das mídias já existentes no item

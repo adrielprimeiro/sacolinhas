@@ -229,55 +229,10 @@
 <script>
     let selectedIds = [];
 
-    // DEBUGGER PERSISTENTE (Hardenizado contra erros de memória)
-    function vLog(msg, color = '#38bdf8') {
-        try {
-            const log = document.getElementById('visual-debug-log');
-            if (!log) return;
-
-            const entry = document.createElement('div');
-            entry.style.color = color;
-            const time = new Date().toLocaleTimeString();
-            const text = `> ${time}: ${msg}`;
-            entry.textContent = text;
-            log.prepend(entry);
-            console.log(`[OrphanTransfer] ${msg}`);
-            
-            // Salva no localStorage com segurança
-            try {
-                let history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
-                history.unshift(text);
-                localStorage.setItem('orphan_debug_history', JSON.stringify(history.slice(0, 30)));
-            } catch (e) {
-                // Se o localStorage estiver cheio ou corrompido, limpa e continua
-                localStorage.removeItem('orphan_debug_history');
-            }
-        } catch (err) {
-            console.error("vLog failed", err);
-        }
-    }
-
-    // Carregar histórico ao iniciar
+    // Carregar histórico do log caso existam erros graves (opcional, mantendo apenas console)
     window.addEventListener('load', () => {
-        const history = JSON.parse(localStorage.getItem('orphan_debug_history') || '[]');
-        history.forEach(msg => {
-            const log = document.getElementById('visual-debug-log');
-            const entry = document.createElement('div');
-            entry.textContent = msg;
-            entry.style.opacity = '0.6';
-            log.appendChild(entry);
-        });
-        vLog("Página Carregada/Recarregada");
+        console.log("[OrphanTransfer] Interface Iniciada");
     });
-
-    function limparLog() {
-        localStorage.removeItem('orphan_debug_history');
-        location.reload();
-    }
-
-    window.onerror = function(message, source, lineno, colno, error) {
-        vLog(`CRITICAL JS ERROR: ${message} (L:${lineno})`);
-    };
 
     function updateUI() {
         const checkboxes = document.querySelectorAll('.orphan-checkbox:checked');
@@ -335,7 +290,6 @@
     }
 
     function abrirModalTransferencia() {
-        vLog(`Abrindo modal para ${selectedIds.length} fotos`);
         if (selectedIds.length === 0) return;
 
         const modal = document.getElementById('modal-transferencia');
@@ -392,7 +346,6 @@
             const input = document.getElementById('input-codigo');
             if (document.activeElement === input) {
                 event.preventDefault();
-                vLog("Enter pressionado no input");
                 confirmarTransferencia();
             }
         }
@@ -409,21 +362,21 @@
 
     function confirmarTransferencia() {
         try {
-            vLog("Iniciando confirmarTransferencia...");
             const inputCodigo = document.getElementById('input-codigo');
             const codigo = inputCodigo ? inputCodigo.value.trim() : null;
             const btn = document.getElementById('btn-confirmar');
             const feedback = document.getElementById('codigo-feedback');
 
-            vLog("Coletando ordem final das fotos...");
+            const statusSelect = document.getElementById('edit-status');
+            const estadoSelect = document.getElementById('edit-estado');
+            const status = statusSelect ? statusSelect.value : null;
+            const estado = estadoSelect ? estadoSelect.value : null;
+
             const thumbsContainer = document.getElementById('modal-thumbs');
             const orderedIds = Array.from(thumbsContainer.querySelectorAll('[data-id]'))
                                     .map(el => el.getAttribute('data-id'));
             
-            vLog(`Ação: Vincular ${orderedIds.length} fotos ao código ${codigo}`);
-
             if (!codigo) {
-                vLog("FALHA: Código vazio.", "red");
                 alert('Por favor, digite o código do item.');
                 if (inputCodigo) inputCodigo.focus();
                 return;
@@ -432,7 +385,6 @@
             btn.disabled = true;
             btn.innerHTML = '<span>AGUARDE...</span>';
 
-            vLog("Disparando Fetch...");
             fetch("{{ route('image-groups.transfer-orphans') }}", {
                 method: 'POST',
                 headers: {
@@ -442,31 +394,24 @@
                 },
                 body: JSON.stringify({
                     codigo: codigo,
-                    media_ids: orderedIds
+                    media_ids: orderedIds,
+                    status: status,
+                    estado: estado
                 })
             })
             .then(async (response) => {
-                vLog(`Status HTTP: ${response.status}`);
                 const data = await response.json();
                 if (!response.ok) throw data;
                 return data;
             })
             .then(data => {
                 if (data.success) {
-                    vLog("✓ SUCESSO NO BANCO!", "#10b981");
-                    
-                    if (data.edit_url) {
-                        vLog(`CLIQUE AQUI: <a href="${data.edit_url}" target="_blank" style="color: white; font-weight: bold; text-decoration: underline;">[ABRIR ITEM]</a>`, "#10b981");
-                    }
-
-                    vLog("Aguardando 3s para atualizar...", "#10b981");
                     btn.innerHTML = '<span>✓ SUCESSO!</span>';
                     btn.style.backgroundColor = '#10b981';
-                    setTimeout(() => location.reload(), 3000);
+                    setTimeout(() => location.reload(), 2000);
                 }
             })
             .catch(error => {
-                vLog(`ERRO SERVIDOR: ${JSON.stringify(error)}`, "red");
                 btn.disabled = false;
                 btn.innerHTML = '<span>CONFIRMAR (ENTER)</span>';
                 let msg = error.message || 'Erro de segurança ou limite de tempo.';
@@ -475,8 +420,7 @@
             });
 
         } catch (fatalError) {
-            vLog(`CRASH JS: ${fatalError.message}`, "red");
-            alert("ERRO CRÍTICO NO NAVEGADOR: " + fatalError.message);
+            alert("ERRO CRÍTICO: " + fatalError.message);
         }
     }
 
@@ -513,7 +457,6 @@
         })
         .then(data => {
             if (data.success) {
-                vLog("Imagens deletadas.");
                 location.reload();
             }
         })
@@ -538,7 +481,6 @@
         }
 
         searchTimeout = setTimeout(() => {
-            vLog(`Buscando código: ${codigo}`);
             fetch("{{ route('image-groups.buscar-codigo') }}", {
                 method: 'POST',
                 headers: {
@@ -551,39 +493,53 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    vLog("Item encontrado via AJAX");
-                    feedback.textContent = '✓ Item encontrado';
-                    feedback.classList.remove('hidden', 'text-red-600');
-                    const statusColors = {
-                        'disponivel': 'bg-green-100 text-green-700',
-                        'loja': 'bg-indigo-100 text-indigo-700',
-                        'estoque': 'bg-gray-100 text-gray-700',
-                        'reservado': 'bg-yellow-100 text-yellow-700',
-                        'vendido': 'bg-red-100 text-red-700'
-                    };
-                    const statusColor = statusColors[data.item.status] || 'bg-gray-100 text-gray-700';
-
+                    feedback.classList.add('hidden');
+                    
                     preview.innerHTML = `
-                        <div class="flex flex-col space-y-3">
-                            <div class="flex justify-between items-start gap-2">
-                                <h1 class="text-lg font-black text-indigo-900 leading-tight">${data.item.nome_do_produto}</h1>
-                                <span class="whitespace-nowrap px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${statusColor}">${data.item.status}</span>
-                            </div>
+                        <div class="flex flex-col space-y-4">
+                            <h1 class="text-xl font-black text-indigo-900 leading-tight">${data.item.nome_do_produto}</h1>
                             
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
-                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Marca</span> <span class="text-gray-700 font-bold truncate">${data.item.marca || '-'}</span></div>
-                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Tamanho</span> <span class="text-gray-700 font-bold truncate">${data.item.tamanho || '-'}</span></div>
-                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Cor</span> <span class="text-gray-700 font-bold truncate">${data.item.cor || '-'}</span></div>
-                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px] tracking-wider">Estado</span> <span class="text-gray-700 font-bold truncate capitalize">${data.item.estado || '-'}</span></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</label>
+                                    <select id="edit-status" class="w-full bg-white border border-indigo-100 rounded-lg text-[11px] font-bold p-2 outline-none focus:border-indigo-400">
+                                        <option value="disponivel">Disponível</option>
+                                        <option value="loja">Loja</option>
+                                        <option value="estoque">Estoque</option>
+                                        <option value="reservado">Reservado</option>
+                                        <option value="vendido">Vendido</option>
+                                        <option value="live">Live</option>
+                                        <option value="em_sacolinha">Em Sacolinha</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Estado</label>
+                                    <select id="edit-estado" class="w-full bg-white border border-indigo-100 rounded-lg text-[11px] font-bold p-2 outline-none focus:border-indigo-400">
+                                        <option value="novo">Novo</option>
+                                        <option value="semi-novo">Semi-novo</option>
+                                        <option value="usado">Usado</option>
+                                        <option value="recondicionado">Recondicionado</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] bg-white/50 p-3 rounded-xl border border-white/50">
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px]">Marca:</span> <span class="text-gray-700 font-bold">${data.item.marca || '-'}</span></div>
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px]">Tamanho:</span> <span class="text-gray-700 font-bold">${data.item.tamanho || '-'}</span></div>
+                                <div class="flex flex-col"><span class="text-gray-400 font-bold uppercase text-[8px]">Cor:</span> <span class="text-gray-700 font-bold">${data.item.cor || '-'}</span></div>
                             </div>
                         </div>
                     `;
+                    
+                    // Sincroniza valores atuais
+                    document.getElementById('edit-status').value = data.item.status;
+                    document.getElementById('edit-estado').value = data.item.estado;
+
                     preview.classList.remove('hidden');
                 } else {
-                    vLog("Item NÃO encontrado");
                     feedback.textContent = '× Código não encontrado';
-                    feedback.classList.remove('hidden', 'text-indigo-600');
-                    feedback.classList.add('text-red-600');
+                    feedback.classList.remove('hidden');
+                    feedback.className = 'mt-2 text-xs font-bold text-red-500';
                     preview.classList.add('hidden');
                 }
             })
@@ -606,9 +562,7 @@
         }
     });
 
-    // Botão de Limpar Log
-    document.getElementById('visual-debug-log').onclick = limparLog;
-    document.getElementById('visual-debug-log').title = "Clique para limpar histórico e recarregar";
+    // Botão de Limpar Log (Removido)
 </script>
 
 <style>
