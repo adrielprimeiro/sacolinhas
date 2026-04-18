@@ -423,6 +423,11 @@
             .then(data => {
                 if (data.success) {
                     vLog("✓ SUCESSO NO BANCO!", "#10b981");
+                    
+                    if (data.edit_url) {
+                        vLog(`CLIQUE AQUI: <a href="${data.edit_url}" target="_blank" style="color: white; font-weight: bold; text-decoration: underline;">[ABRIR ITEM]</a>`, "#10b981");
+                    }
+
                     vLog("Aguardando 3s para atualizar...", "#10b981");
                     btn.innerHTML = '<span>✓ SUCESSO!</span>';
                     btn.style.backgroundColor = '#10b981';

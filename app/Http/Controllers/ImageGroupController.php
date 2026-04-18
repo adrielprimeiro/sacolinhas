@@ -277,9 +277,9 @@ class ImageGroupController extends Controller
 			'codigo' => ['required', 'string']
 		]);
 
-		$codigo = trim($request->codigo);
-
-		$item = Item::where('codigo', $codigo)->first();
+		$codigo = trim((string) $request->codigo);
+		// Busca insensível a maiúsculas/minúsculas
+		$item = Item::whereRaw('LOWER(codigo) = ?', [Str::lower($codigo)])->first();
 
 		if (!$item) {
 			return response()->json([
@@ -322,7 +322,8 @@ class ImageGroupController extends Controller
 			'media_ids' => $selectedIds
 		]);
 
-		$item = Item::query()->where('codigo', $codigo)->first();
+		// Busca insensível a maiúsculas/minúsculas para garantir que encontre 04nb ou 04NB
+		$item = Item::whereRaw('LOWER(codigo) = ?', [Str::lower($codigo)])->first();
 
 		if (!$item) {
 			Log::warning("[OrphanTransfer] Item não encontrado", ['codigo' => $codigo]);
@@ -376,6 +377,20 @@ class ImageGroupController extends Controller
 		}
 
 		Log::info("[OrphanTransfer] Transferência finalizada", ['sucesso' => $updatedCount]);
+
+		// Se o item não tiver imagem principal e conseguimos vincular fotos, 
+		// definimos a primeira delas como a imagem de capa do item.
+		if ($updatedCount > 0 && empty($item->image)) {
+			$first = DB::table('item_media')->where('item_id', $item->id)->orderBy('position')->first();
+			if ($first) {
+				$item->image = $first->url;
+				$item->save();
+				Log::info("[OrphanTransfer] Item estava sem capa. Definida automaticamente.", ['item' => $item->id]);
+			}
+		}
+
+		// 'Toca' o item para limpar qualquer cache de visualização
+		$item->touch();
 
 		return response()->json([
 			'success' => true,
