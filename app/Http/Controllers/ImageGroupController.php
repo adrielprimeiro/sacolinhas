@@ -279,13 +279,25 @@ class ImageGroupController extends Controller
 		]);
 
 		$codigo = trim((string) $request->codigo);
-		// Busca insensível a maiúsculas/minúsculas
-		$item = Item::whereRaw('LOWER(codigo) = ?', [Str::lower($codigo)])->first();
+		
+		// Busca simples: tenta exato primeiro, depois LIKE
+		$item = Item::where('codigo', $codigo)->first();
+		
+		if (!$item) {
+			$item = Item::where('codigo', 'LIKE', $codigo)->first();
+		}
+
+		Log::info("[OrphanDebug] Resultado buscarCodigo", [
+			'codigo_buscado' => $codigo,
+			'encontrou' => $item ? true : false,
+			'item_id' => $item ? $item->id : null,
+			'sample_codigos' => Item::limit(5)->pluck('codigo')->toArray(),
+		]);
 
 		if (!$item) {
 			return response()->json([
 				'success' => false,
-				'message' => 'Nenhum item encontrado para este código.'
+				'message' => "Código '{$codigo}' não encontrado."
 			], 404);
 		}
 
