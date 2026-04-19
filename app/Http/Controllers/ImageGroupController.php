@@ -219,6 +219,9 @@ class ImageGroupController extends Controller
 
 		$group->delete();
 
+		// Sincroniza a imagem principal do item após a transferência
+		$item->syncMainImage();
+
 		if ($request->expectsJson()) {
 			return response()->json([
 				'success' => true,
@@ -400,21 +403,8 @@ class ImageGroupController extends Controller
 
 		Log::info("[OrphanTransfer] Transferência finalizada", ['sucesso' => $updatedCount]);
 
-		// Se o item não tiver imagem principal e conseguimos vincular fotos, 
-		// definimos a primeira delas como a imagem de capa do item.
-		if ($updatedCount > 0 && empty($item->image)) {
-			// Busca a imagem que acabamos de vincular para usar como capa principal do Item
-			$first = DB::table('item_media')
-				->where('item_id', $item->id)
-				->where('media_type', 'image')
-				->orderBy('position')
-				->first();
-			
-			if ($first) {
-				$item->image = $first->url;
-				$item->save();
-				Log::info("[OrphanTransfer] Item estava sem capa. URL definida: " . $item->image);
-			}
+		if ($updatedCount > 0) {
+			$item->syncMainImage();
 		}
 
 		// 'Toca' o item para limpar qualquer cache de visualização

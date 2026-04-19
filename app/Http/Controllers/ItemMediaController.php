@@ -38,6 +38,9 @@ class ItemMediaController extends Controller
                 }
             });
 
+            // Sincroniza a imagem principal após reordenar
+            $item->syncMainImage();
+
             return response()->json(['ok' => true]);
 
         } catch (\Exception $e) {

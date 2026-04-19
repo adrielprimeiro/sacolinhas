@@ -134,4 +134,33 @@ class Item extends Model
     {
         return 'R$ ' . number_format((float) $this->final_price, 2, ',', '.');
     }
+
+    /**
+     * Sincroniza a imagem principal do item com a primeira mídia da galeria.
+     * Define is_cover = true para a primeira e false para as demais.
+     */
+    public function syncMainImage()
+    {
+        // Pega todas as mídias ordenadas
+        $medias = $this->medias()->orderBy('position')->orderBy('id')->get();
+        
+        if ($medias->isEmpty()) {
+            return;
+        }
+
+        $first = $medias->first();
+        
+        // Atualiza o campo image do item
+        // Preferimos o thumbnail_url se disponível para performance, ou a url original
+        $this->image = $first->thumbnail_url ?: $first->url;
+        $this->save();
+
+        // Atualiza is_cover em lote para otimizar
+        foreach ($medias as $index => $media) {
+            $isCover = ($index === 0);
+            if ($media->is_cover !== (bool) $isCover) {
+                $media->update(['is_cover' => $isCover]);
+            }
+        }
+    }
 }

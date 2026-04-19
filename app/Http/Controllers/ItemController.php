@@ -148,6 +148,7 @@ class ItemController extends Controller
 					'metadata' => $out['metadata'],
 				]);
 			}
+			$item->syncMainImage();
 		}
 
 		// ✨ A MÁGICA ESTÁ AQUI:
@@ -196,6 +197,9 @@ class ItemController extends Controller
 
 		// Deleta o registro do banco
 		$medias->delete();
+
+		// Sincroniza a imagem principal após remover
+		$item->syncMainImage();
 
 		return back()->with('success', 'Mídia removida com sucesso.');
 	}	
@@ -410,6 +414,9 @@ class ItemController extends Controller
 			];
 		}
 
+		// Sincroniza a imagem principal após o upload
+		$item->syncMainImage();
+
 		return response()->json([
 			'ok' => true,
 			'media' => $created,
@@ -471,6 +478,8 @@ class ItemController extends Controller
 				'edited_at' => now()->toIso8601String(),
 			]),
 		]);
+
+		$item->syncMainImage();
 
 		return response()->json([
 			'ok' => true,
