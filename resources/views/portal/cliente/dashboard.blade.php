@@ -190,7 +190,7 @@
                 <span class="text-sm text-gray-700">Sacolinha</span>
             </a>
             
-            <a href="#" 
+            <a href="{{ route('portal.ranking') }}"
                class="flex flex-col items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
                 <i class="fas fa-gamepad text-2xl text-yellow-500 mb-2"></i>
                 <span class="text-sm text-gray-700">Jogar</span>

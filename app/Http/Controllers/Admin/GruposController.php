@@ -47,9 +47,7 @@ class GruposController extends Controller
 
         DB::table('grupos')->insert([
             'nome' => $request->nome,
-            'lider_id' => $request->lider_id,
-            'created_at' => now(),
-            'updated_at' => now()
+            'lider_id' => $request->lider_id
         ]);
 
         return redirect()->route('admin.grupos.index')->with('success', 'Grupo criado!');
@@ -83,8 +81,7 @@ class GruposController extends Controller
 
         DB::table('grupos')->where('id', $id)->update([
             'nome' => $request->nome,
-            'lider_id' => $request->lider_id,
-            'updated_at' => now()
+            'lider_id' => $request->lider_id
         ]);
 
         return redirect()->route('admin.grupos.index')->with('success', 'Grupo atualizado!');
@@ -101,8 +98,7 @@ class GruposController extends Controller
         $request->validate(['user_id' => 'required|exists:users,id']);
         DB::table('grupo_membros')->insert([
             'grupo_id' => $grupo,
-            'user_id' => $request->user_id,
-            'created_at' => now()
+            'user_id' => $request->user_id
         ]);
         return back()->with('success', 'Membro adicionado!');
     }

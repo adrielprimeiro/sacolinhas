@@ -143,9 +143,9 @@
             <i class="fas fa-receipt text-2xl text-green-500 mb-2"></i>
             <span class="text-sm text-gray-700 font-medium">Pedidos</span>
         </a>
-        <a href="#" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200 text-center">
-            <i class="fas fa-gamepad text-2xl text-yellow-500 mb-2"></i>
-            <span class="text-sm text-gray-700 font-medium">Desafios</span>
+        <a href="{{ route('portal.desafios') }}" class="flex flex-col items-center p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition duration-200 text-center">
+            <i class="fas fa-trophy text-2xl text-indigo-500 mb-2"></i>
+            <span class="text-sm text-indigo-700 font-medium">Desafios</span>
         </a>
         <a href="#" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200 text-center">
             <i class="fas fa-trophy text-2xl text-purple-500 mb-2"></i>

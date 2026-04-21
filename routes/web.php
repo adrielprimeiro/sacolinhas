@@ -424,6 +424,9 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
 	
     Route::delete('/sacolinha/{id}', [PortalClienteController::class, 'sacolinhaExcluir'])->name('sacolinha.excluir');
 
+    // Desafios do Clube
+    Route::get('/desafios', [PortalClienteController::class, 'desafios'])->name('desafios');
+
 });
 
 //Sacolinhas Vencidas
@@ -437,16 +440,40 @@ Route::post('/admin/vencimentos/cliente/{user}/whatsapp', [SacolinhaVencidaContr
     ->name('admin.vencimentos.whatsapp.send');
 	
 
+use App\Http\Controllers\Admin\ClubeDashboardController;
+use App\Http\Controllers\Admin\DesafiosController;
+
 //Controle Clube
 Route::prefix('admin')->middleware(['auth'])->group(function () {
-    Route::get('clube/mensalidades/registrar', [ClubeMensalidadesController::class, 'create'])
-        ->name('admin.clube.mensalidades.create');
+    Route::prefix('clube')->name('admin.clube.')->group(function () {
+        Route::get('/', [ClubeDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/desafio', [ClubeDashboardController::class, 'lancarDesafio'])->name('desafio.lancar');
+        Route::post('/pagamento', [ClubeDashboardController::class, 'registrarPagamento'])->name('pagamento.registrar');
+        Route::post('/mudar-grupo', [ClubeDashboardController::class, 'mudarGrupo'])->name('mudar-grupo');
 
-    Route::post('clube/mensalidades/registrar', [ClubeMensalidadesController::class, 'store'])
-        ->name('admin.clube.mensalidades.store');
+        Route::get('mensalidades/registrar', [ClubeMensalidadesController::class, 'create'])
+            ->name('mensalidades.create');
+
+        Route::post('mensalidades/registrar', [ClubeMensalidadesController::class, 'store'])
+            ->name('mensalidades.store');
+
+        // CRUD de Desafios
+        Route::resource('desafios', DesafiosController::class)->names([
+            'index'   => 'desafios.index',
+            'create'  => 'desafios.create',
+            'store'   => 'desafios.store',
+            'edit'    => 'desafios.edit',
+            'update'  => 'desafios.update',
+            'destroy' => 'desafios.destroy',
+        ]);
+    });
 });
+
+
+
 //Game
-Route::get('/dashboard-pontuacoes', [PontuacoesController::class, 'dashboard'])->middleware('auth');
+Route::get('/dashboard-pontuacoes', [PontuacoesController::class, 'dashboard'])->middleware('auth')->name('portal.ranking');
+
 
 
 

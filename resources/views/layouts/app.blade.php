@@ -133,6 +133,18 @@
 					<span>Pedidos</span>
 				</a>
 
+                <a href="{{ route('admin.clube.dashboard') }}"
+                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
+                    <i class="fas fa-crown text-gray-500 w-5"></i>
+                    <span>Painel do Clube</span>
+                </a>
+
+                <a href="{{ route('admin.clube.desafios.index') }}"
+                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.desafios.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                    <i class="fas fa-trophy text-gray-500 w-5"></i>
+                    <span>Desafios</span>
+                </a>
+
 				<div class="my-4 border-t border-gray-200"></div>
 
 				@auth

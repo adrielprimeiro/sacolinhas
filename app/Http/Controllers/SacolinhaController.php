@@ -320,10 +320,13 @@ class SacolinhaController extends Controller
 				// (Opcional) Cálculo de valor caso você use para atualizar limites depois
 				// $valorMudanca = ($sacola->price ?? 0) * ($sacola->quantity ?? 1);
 
-				// 2. Remover da sacola (Isso dispara o Trigger de DELETE do BD)
+				// 2. Remover da sacola (Isso dispara o Trigger de DELETE do BD para o limite)
 				$sacola->delete();
 
-				// 3. FORÇA BRUTA: Atualizar status para 'estoque'
+				// 3. REGRA NOVA: Diminuir 1 ponto ao retirar da sacolinha
+				\App\Services\PontuacoesService::updateItemPoints($request->user_id, -1);
+
+				// 4. FORÇA BRUTA: Atualizar status para 'estoque'
 				// Executado após o delete, garantindo que sobrescreve qualquer alteração do Trigger
 				DB::table('items')
 					->where('id', $request->item_id)
@@ -331,6 +334,7 @@ class SacolinhaController extends Controller
 						'status' => 'estoque',
 						'updated_at' => now()
 					]);
+
 			});
 
 			return response()->json([
@@ -876,8 +880,13 @@ class SacolinhaController extends Controller
                 $item->update(['status' => 'Fora da Sacola']);
             }
 
+            // ✅ REGRA NOVA: Diminuir 1 ponto ao retirar da sacolinha
+            \App\Services\PontuacoesService::updateItemPoints($sacolinhaItem->user_id, -1);
+
             // Remove o registro da sacolinha
             $sacolinhaItem->delete(); 
+
+
 
             Log::info("Item sacolinha_id {$sacolinhaId} removido para user {$sacolinhaItem->user_id}. Status do item atualizado.");
 

@@ -575,8 +575,8 @@ class PedidoController extends Controller
 
 			$pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
 			
-			$clienteNameSanitized = str_replace('/[\/\\]/', '_', $cliente->name);
-			$filename = 'sacolinha_' . str_replace(' ', '_', $clienteNameSanitized) . '_' . date('Y-m-d_H-i-s') . '.pdf';
+			$clienteNameSanitized = str_replace(['/', '\\', ' '], '_', $cliente->name);
+			$filename = 'sacolinha_' . $clienteNameSanitized . '_' . date('Y-m-d_H-i-s') . '.pdf';
 			
 			return $pdf->download($filename);
 
@@ -728,9 +728,8 @@ class PedidoController extends Controller
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'portrait');
             \Log::info('imprimirPedido: PDF object successfully created.');			
 
-			$clienteNameSanitized = str_replace('/[\/\\]/', '_', $cliente->name); 
-
-			$filename = 'pedidos_' . str_replace(' ', '_', $clienteNameSanitized) . '_' . date('Y-m-d_H-i-s') . '.pdf';
+			$clienteNameSanitized = str_replace(['/', '\\', ' '], '_', $cliente->name);
+			$filename = 'pedidos_' . $clienteNameSanitized . '_' . date('Y-m-d_H-i-s') . '.pdf';
 
 			 \Log::info('imprimirPedido: Filename for PDF: ' . $filename);
 
@@ -797,11 +796,29 @@ class PedidoController extends Controller
 
             // ✅ Atualizar status do pedido
             DB::table('pedidos')
-                ->where('id', $pedidoId)
                 ->update([
                     'status_pedido' => $novoStatus,
                     'updated_at' => now()
                 ]);
+
+            // 🎁 REGRA NOVA: 1 ponto a cada R$10,00 no pedido (apenas sobre o valor dos itens)
+            // A pontuação é creditada apenas na transição para o status 'concluido'
+            if ($novoStatus === 'concluido' && $pedido->status_pedido !== 'concluido') {
+                $valorItens = DB::table('items_pedido')
+                    ->where('pedido_id', $pedidoId)
+                    ->where('status_item', 'ativo')
+                    ->sum(DB::raw('preco_unitario * quantidade'));
+
+
+
+                $pontosGanhar = floor($valorItens / 10);
+
+                if ($pontosGanhar > 0) {
+                    \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, $pontosGanhar);
+                    Log::info("✅ Pontos creditados ao cliente {$pedido->user_id}: {$pontosGanhar} pontos por pedido de R$ {$valorItens}");
+                }
+            }
+
 
             // 🚀 NOVA LÓGICA: Atualizar status dos itens associados ao pedido através da tabela pivot 'items_pedido'
             // Primeiro, obtenha todos os IDs dos itens relacionados a este pedido na tabela 'items_pedido'

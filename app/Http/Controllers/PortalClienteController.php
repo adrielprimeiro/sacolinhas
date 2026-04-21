@@ -267,5 +267,35 @@ class PortalClienteController extends Controller
 									  ->get();
 		
 		return view('portal.cliente.movimentacao', compact('user', 'movimentacoes'));
-	}	
+	}
+
+    public function desafios()
+    {
+        $user = Auth::user();
+
+        // Desafios ativos e dentro do prazo
+        $desafios = \App\Models\Desafio::where('status', 'ativo')
+            ->where(function ($q) {
+                $hoje = now()->toDateString();
+                $q->whereNull('inicio_em')->orWhereDate('inicio_em', '<=', $hoje);
+            })
+            ->where(function ($q) {
+                $hoje = now()->toDateString();
+                $q->whereNull('fim_em')->orWhereDate('fim_em', '>=', $hoje);
+            })
+            ->orderBy('nome')
+            ->get();
+
+        // Histórico de pontos de desafio lançados para este cliente
+        $historico = DB::table('pontos_desafios')
+            ->where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        // Total de pontos de desafios acumulados
+        $totalDesafios = $historico->sum('pontos');
+
+        return view('portal.cliente.desafios', compact('user', 'desafios', 'historico', 'totalDesafios'));
+    }
 }
