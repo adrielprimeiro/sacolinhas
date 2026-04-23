@@ -436,8 +436,12 @@
                             $imgUrl = $cover?->url;
                             $sub = trim(($item->marca ?? '') . ' ' . ($item->modelo ?? ''));
                         @endphp
+                        @php
+                            $hasPromotion = $item->final_price < $item->preco;
+                        @endphp
 
-                        <div class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
+                        <div class="group overflow-hidden rounded-2xl border transition hover:shadow-md
+                            {{ $hasPromotion ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-zinc-200 shadow-sm' }}">
                             <a href="{{ route('loja.show', $item) }}" class="block">
                                 <div class="relative aspect-[4/5] w-full overflow-hidden bg-zinc-100">
                                     @php
@@ -474,12 +478,12 @@
                                         </span>
                                     </div>
 
-                                    @if($item->final_price < $item->preco)
+                                    @if($hasPromotion)
                                         @php
                                             $percent = round(100 - ($item->final_price / $item->preco * 100));
                                         @endphp
                                         <div class="absolute right-3 bottom-3">
-                                            <span class="inline-flex items-center rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-purple-700">
+                                            <span class="inline-flex items-center rounded-full bg-red-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-red-700">
                                                 -{{ $percent }}% OFF
                                             </span>
                                         </div>
@@ -498,11 +502,11 @@
                                     @endif
 
                                     <div class="mt-2 flex items-baseline justify-end gap-2">
-                                        @if($item->final_price < $item->preco)
+                                        @if($hasPromotion)
                                             <span class="text-xs font-medium text-zinc-400 line-through">
                                                 {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
                                             </span>
-                                            <span class="text-lg font-extrabold text-purple-600 tabular-nums">
+                                            <span class="text-lg font-extrabold text-red-600 tabular-nums">
                                                 {{ $item->formatted_final_price }}
                                             </span>
                                         @else
@@ -514,18 +518,18 @@
                                 </div>
                             </a>
 
-                            <div class="border-t border-zinc-100 px-4 py-2">
+                            <div class="border-t px-4 py-2 {{ $hasPromotion ? 'border-purple-200' : 'border-zinc-100' }}">
                                 <div class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
                                     @if($item->cor)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">{{ $item->cor }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">{{ $item->cor }}</span>
                                     @endif
 
                                     @if($item->tamanho)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">{{ $item->tamanho }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">{{ $item->tamanho }}</span>
                                     @endif
 
                                     @if($item->codigo_da_categoria)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">Cat: {{ $item->codigo_da_categoria }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">Cat: {{ $item->codigo_da_categoria }}</span>
                                     @endif
                                 </div>
                             </div>
