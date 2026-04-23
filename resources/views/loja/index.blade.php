@@ -441,7 +441,7 @@
                         @endphp
 
                         <div class="group overflow-hidden rounded-2xl border transition hover:shadow-md
-                            {{ $hasPromotion ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-zinc-200 shadow-sm' }}">
+                            {{ $hasPromotion ? 'bg-rose-50 border-rose-200 shadow-sm' : 'bg-white border-zinc-200 shadow-sm' }}">
                             <a href="{{ route('loja.show', $item) }}" class="block">
                                 <div class="relative aspect-[4/5] w-full overflow-hidden bg-zinc-100">
                                     @php
@@ -518,18 +518,18 @@
                                 </div>
                             </a>
 
-                            <div class="border-t px-4 py-2 {{ $hasPromotion ? 'border-purple-200' : 'border-zinc-100' }}">
+                            <div class="border-t px-4 py-2 {{ $hasPromotion ? 'border-rose-200' : 'border-zinc-100' }}">
                                 <div class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
                                     @if($item->cor)
-                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">{{ $item->cor }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-rose-100' : 'bg-zinc-100' }}">{{ $item->cor }}</span>
                                     @endif
 
                                     @if($item->tamanho)
-                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">{{ $item->tamanho }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-rose-100' : 'bg-zinc-100' }}">{{ $item->tamanho }}</span>
                                     @endif
 
                                     @if($item->codigo_da_categoria)
-                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-purple-100' : 'bg-zinc-100' }}">Cat: {{ $item->codigo_da_categoria }}</span>
+                                        <span class="rounded-full px-2 py-1 {{ $hasPromotion ? 'bg-rose-100' : 'bg-zinc-100' }}">Cat: {{ $item->codigo_da_categoria }}</span>
                                     @endif
                                 </div>
                             </div>
