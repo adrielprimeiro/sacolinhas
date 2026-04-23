@@ -468,10 +468,18 @@
                                         </div>
                                     @endif
 
-                                    <div class="absolute left-3 top-3">
-                                        <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
+                                    <div class="absolute left-3 top-3 flex flex-col gap-2">
+                                        <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 shadow-sm ring-1 ring-zinc-200">
                                             {{ $item->estado }}
                                         </span>
+                                        @if($item->final_price < $item->preco)
+                                            @php
+                                                $percent = round(100 - ($item->final_price / $item->preco * 100));
+                                            @endphp
+                                            <span class="inline-flex items-center rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-purple-700">
+                                                -{{ $percent }}% OFF
+                                            </span>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -486,14 +494,19 @@
                                         </div>
                                     @endif
 
-                                    <div class="mt-2 flex items-baseline justify-between gap-3">
-                                        <div class="text-xs font-medium text-zinc-500">
-                                            {{ $item->codigo }}
-                                        </div>
-
-                                        <div class="text-sm font-semibold text-zinc-900 text-right tabular-nums">
-                                            {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
-                                        </div>
+                                    <div class="mt-2 flex flex-col items-end gap-0.5">
+                                        @if($item->final_price < $item->preco)
+                                            <div class="text-[10px] font-medium text-zinc-400 line-through">
+                                                {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
+                                            </div>
+                                            <div class="text-sm font-bold text-purple-600 tabular-nums">
+                                                {{ $item->formatted_final_price }}
+                                            </div>
+                                        @else
+                                            <div class="text-sm font-semibold text-zinc-900 tabular-nums">
+                                                {{ $item->formatted_final_price }}
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </a>

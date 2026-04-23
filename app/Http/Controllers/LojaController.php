@@ -97,7 +97,8 @@ class LojaController extends Controller
                         ->orderByDesc('is_cover')
                         ->orderBy('position')
                         ->orderBy('id');
-                }
+                },
+                'categorias'
             ])
             ->orderByDesc('created_at')
             ->paginate(24)
