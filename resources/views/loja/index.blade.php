@@ -437,7 +437,7 @@
                             $sub = trim(($item->marca ?? '') . ' ' . ($item->modelo ?? ''));
                         @endphp
 
-                        <div class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
+                        <div class="group overflow-hidden rounded-2xl border border-purple-800 bg-purple-700 shadow-sm transition hover:shadow-md">
                             <a href="{{ route('loja.show', $item) }}" class="block">
                                 <div class="relative aspect-[4/5] w-full overflow-hidden bg-zinc-100">
                                     @php
@@ -479,7 +479,7 @@
                                             $percent = round(100 - ($item->final_price / $item->preco * 100));
                                         @endphp
                                         <div class="absolute right-3 bottom-3">
-                                            <span class="inline-flex items-center rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-purple-700">
+                                            <span class="inline-flex items-center rounded-full bg-red-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-red-700">
                                                 -{{ $percent }}% OFF
                                             </span>
                                         </div>
@@ -487,26 +487,26 @@
                                 </div>
 
                                 <div class="p-4">
-                                    <div class="line-clamp-2 text-sm font-semibold leading-5 text-zinc-900">
+                                    <div class="line-clamp-2 text-sm font-semibold leading-5 text-white">
                                         {{ $item->nome_do_produto }}
                                     </div>
 
                                     @if($sub !== '')
-                                        <div class="mt-1 line-clamp-1 text-xs text-zinc-500">
+                                        <div class="mt-1 line-clamp-1 text-xs text-purple-200">
                                             {{ $sub }}
                                         </div>
                                     @endif
 
                                     <div class="mt-2 flex items-baseline justify-end gap-2">
                                         @if($item->final_price < $item->preco)
-                                            <span class="text-[10px] font-medium text-zinc-400 line-through">
+                                            <span class="text-xs font-medium text-purple-300 line-through">
                                                 {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
                                             </span>
-                                            <span class="text-lg font-extrabold text-purple-600 tabular-nums">
+                                            <span class="text-xl font-extrabold text-red-500 tabular-nums">
                                                 {{ $item->formatted_final_price }}
                                             </span>
                                         @else
-                                            <span class="text-base font-bold text-zinc-900 tabular-nums">
+                                            <span class="text-base font-bold text-white tabular-nums">
                                                 {{ $item->formatted_final_price }}
                                             </span>
                                         @endif
@@ -514,18 +514,18 @@
                                 </div>
                             </a>
 
-                            <div class="border-t border-zinc-100 px-4 py-2">
-                                <div class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
+                            <div class="border-t border-purple-800/50 px-4 py-2">
+                                <div class="mt-2 flex flex-wrap gap-2 text-xs text-purple-200">
                                     @if($item->cor)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">{{ $item->cor }}</span>
+                                        <span class="rounded-full bg-purple-800/50 px-2 py-1">{{ $item->cor }}</span>
                                     @endif
 
                                     @if($item->tamanho)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">{{ $item->tamanho }}</span>
+                                        <span class="rounded-full bg-purple-800/50 px-2 py-1">{{ $item->tamanho }}</span>
                                     @endif
 
                                     @if($item->codigo_da_categoria)
-                                        <span class="rounded-full bg-zinc-100 px-2 py-1">Cat: {{ $item->codigo_da_categoria }}</span>
+                                        <span class="rounded-full bg-purple-800/50 px-2 py-1">Cat: {{ $item->codigo_da_categoria }}</span>
                                     @endif
                                 </div>
                             </div>
