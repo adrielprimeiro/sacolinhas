@@ -84,6 +84,17 @@
                                     alt="{{ $first?->alt_text ?? $item->nome_do_produto }}"
                                     class="h-full w-full object-cover cursor-pointer select-none"
                                 />
+
+                                @if($item->final_price < $item->preco)
+                                    @php
+                                        $percent = round(100 - ($item->final_price / $item->preco * 100));
+                                    @endphp
+                                    <div class="absolute right-4 bottom-4">
+                                        <span class="inline-flex items-center rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xl ring-1 ring-red-700">
+                                            -{{ $percent }}% OFF
+                                        </span>
+                                    </div>
+                                @endif
                             @else
                                 <div class="flex h-full w-full items-center justify-center text-sm text-zinc-400">
                                     Sem imagem
@@ -159,8 +170,19 @@
                         @endif
 
                         <div class="mt-5 flex items-baseline justify-between">
-                            <div class="text-2xl font-semibold text-zinc-900">
-                                {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
+                            <div class="flex items-baseline gap-3">
+                                @if($item->final_price < $item->preco)
+                                    <span class="text-sm font-medium text-zinc-400 line-through">
+                                        {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
+                                    </span>
+                                    <div class="text-3xl font-extrabold text-red-600 tabular-nums">
+                                        {{ $item->formatted_final_price }}
+                                    </div>
+                                @else
+                                    <div class="text-3xl font-bold text-zinc-900 tabular-nums">
+                                        {{ $item->formatted_final_price }}
+                                    </div>
+                                @endif
                             </div>
                             <div class="text-xs text-zinc-500">
                                 Código: <span class="font-medium text-zinc-700">{{ $item->codigo }}</span>
@@ -173,7 +195,7 @@
                                 <input type="hidden" name="user_id" value="{{ auth()->id() }}">
                                 <input type="hidden" name="item_id" value="{{ $item->id }}">
                                 <input type="hidden" name="quantity" value="1">
-                                <input type="hidden" name="price" value="{{ number_format((float)$item->preco, 2, '.', '') }}">
+                                <input type="hidden" name="price" value="{{ number_format((float)$item->final_price, 2, '.', '') }}">
                                 <input type="hidden" name="live_id" value="1">
 
                                 <button

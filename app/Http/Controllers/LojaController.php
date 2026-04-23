@@ -157,7 +157,8 @@ class LojaController extends Controller
                     ->orderByDesc('is_cover')
                     ->orderBy('position')
                     ->orderBy('id');
-            }
+            },
+            'categorias'
         ]);
 
         return view('loja.show', compact('item'));
