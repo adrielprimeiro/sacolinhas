@@ -497,18 +497,18 @@
                                         </div>
                                     @endif
 
-                                    <div class="mt-2 flex flex-col items-end gap-0.5">
+                                    <div class="mt-2 flex items-baseline justify-end gap-2">
                                         @if($item->final_price < $item->preco)
-                                            <div class="text-[10px] font-medium text-zinc-400 line-through">
+                                            <span class="text-[10px] font-medium text-zinc-400 line-through">
                                                 {{ 'R$ ' . number_format((float)$item->preco, 2, ',', '.') }}
-                                            </div>
-                                            <div class="text-sm font-bold text-purple-600 tabular-nums">
+                                            </span>
+                                            <span class="text-lg font-extrabold text-purple-600 tabular-nums">
                                                 {{ $item->formatted_final_price }}
-                                            </div>
+                                            </span>
                                         @else
-                                            <div class="text-sm font-semibold text-zinc-900 tabular-nums">
+                                            <span class="text-base font-bold text-zinc-900 tabular-nums">
                                                 {{ $item->formatted_final_price }}
-                                            </div>
+                                            </span>
                                         @endif
                                     </div>
                                 </div>
