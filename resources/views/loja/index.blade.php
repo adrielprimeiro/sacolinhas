@@ -468,19 +468,22 @@
                                         </div>
                                     @endif
 
-                                    <div class="absolute left-3 top-3 flex flex-col gap-2">
+                                    <div class="absolute left-3 top-3">
                                         <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 shadow-sm ring-1 ring-zinc-200">
                                             {{ $item->estado }}
                                         </span>
-                                        @if($item->final_price < $item->preco)
-                                            @php
-                                                $percent = round(100 - ($item->final_price / $item->preco * 100));
-                                            @endphp
-                                            <span class="inline-flex items-center rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-purple-700">
+                                    </div>
+
+                                    @if($item->final_price < $item->preco)
+                                        @php
+                                            $percent = round(100 - ($item->final_price / $item->preco * 100));
+                                        @endphp
+                                        <div class="absolute right-3 bottom-3">
+                                            <span class="inline-flex items-center rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold text-white shadow-lg ring-1 ring-purple-700">
                                                 -{{ $percent }}% OFF
                                             </span>
-                                        @endif
-                                    </div>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <div class="p-4">
