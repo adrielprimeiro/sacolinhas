@@ -66,6 +66,85 @@
             </div>
         </header>
 
+        <!-- Barra de Categorias -->
+        @if($categorias->isNotEmpty())
+        <nav class="sticky top-[69px] z-30 border-b border-zinc-200 bg-white shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center gap-2 md:gap-8 overflow-x-auto md:overflow-visible py-0 scrollbar-none" style="scrollbar-width:none;-ms-overflow-style:none;">
+                    <a
+                        href="{{ route('loja.index', array_filter(request()->except('categoria', 'page'))) }}"
+                        class="shrink-0 whitespace-nowrap px-4 py-4 text-sm font-semibold transition-all duration-200 border-b-2
+                            {{ is_null($categoriaAtiva) ? 'text-purple-600 border-purple-600' : 'text-zinc-600 border-transparent hover:text-purple-600 hover:border-purple-600' }}"
+                    >
+                        Todos
+                    </a>
+
+                    @foreach($categorias as $cat)
+                        @php
+                            $isActive = $categoriaAtiva?->id === $cat->id;
+                            $params = array_filter(request()->except('categoria', 'page'));
+                            $params['categoria'] = $cat->slug;
+                        @endphp
+                        <div class="shrink-0 group/cat">
+                            <a
+                                href="{{ route('loja.index', $params) }}"
+                                class="flex items-center gap-1.5 whitespace-nowrap px-4 py-4 text-sm font-semibold transition-all duration-200 border-b-2 border-transparent hover:text-purple-600 hover:border-purple-600
+                                    {{ $isActive ? 'text-purple-600 border-purple-600' : 'text-zinc-600' }}"
+                            >
+                                {{ $cat->name }}
+                                @if($cat->children->isNotEmpty())
+                                    <i class="fas fa-chevron-down text-[10px] opacity-40 group-hover/cat:rotate-180 transition-transform"></i>
+                                @endif
+                            </a>
+
+                            @if($cat->children->isNotEmpty())
+                                {{-- Mega Menu Estilo Repassa --}}
+                                <div class="absolute left-0 top-full hidden w-screen max-w-7xl bg-white border-t border-zinc-100 shadow-2xl z-50 group-hover/cat:block" style="left: 50%; transform: translateX(-50%);">
+                                    <div class="mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-12 px-8 py-10">
+                                        @foreach($cat->children as $child)
+                                            @php
+                                                $childParams = array_filter(request()->except('categoria', 'page'));
+                                                $childParams['categoria'] = $child->slug;
+                                            @endphp
+                                            <div class="flex flex-col gap-3">
+                                                <a
+                                                    href="{{ route('loja.index', $childParams) }}"
+                                                    class="text-sm font-bold text-zinc-900 hover:text-purple-600 transition-colors uppercase tracking-wider"
+                                                >
+                                                    {{ $child->name }}
+                                                </a>
+                                                
+                                                <div class="flex flex-col gap-2">
+                                                    @foreach($child->children as $subChild)
+                                                        @php
+                                                            $subChildParams = array_filter(request()->except('categoria', 'page'));
+                                                            $subChildParams['categoria'] = $subChild->slug;
+                                                        @endphp
+                                                        <a
+                                                            href="{{ route('loja.index', $subChildParams) }}"
+                                                            class="text-sm text-zinc-500 hover:text-purple-600 transition-colors"
+                                                        >
+                                                            {{ $subChild->name }}
+                                                        </a>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <div class="bg-zinc-50 px-8 py-4 border-t border-zinc-100">
+                                        <a href="{{ route('loja.index', $params) }}" class="text-xs font-bold text-purple-600 hover:underline uppercase tracking-widest">
+                                            Ver tudo em {{ $cat->name }} →
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </nav>
+        @endif
+
         <!-- Overlay do menu -->
         <div
             id="filterOverlay"
@@ -275,6 +354,7 @@
 
                 @if(
                     request()->filled('q') ||
+                    request()->filled('categoria') ||
                     request()->filled('codigo_da_categoria') ||
                     request()->filled('marca') ||
                     request()->filled('cor') ||
@@ -290,9 +370,9 @@
                             </span>
                         @endif
 
-                        @if(request('codigo_da_categoria'))
-                            <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
-                                Categoria: {{ request('codigo_da_categoria') }}
+                        @if($categoriaAtiva)
+                            <span class="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
+                                {{ $categoriaAtiva->name }}
                             </span>
                         @endif
 
@@ -469,6 +549,29 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 closeFilterMenu();
+            }
+        });
+
+        // Corrigir dropdowns no mobile
+        document.querySelectorAll('.group\/cat').forEach(group => {
+            const trigger = group.querySelector('.cat-trigger');
+            const dropdown = group.querySelector('.cat-dropdown');
+            
+            if (trigger && dropdown) {
+                trigger.addEventListener('click', (e) => {
+                    if (window.innerWidth < 768) {
+                        const isHidden = dropdown.classList.contains('hidden');
+                        
+                        // Fecha outros
+                        document.querySelectorAll('.cat-dropdown').forEach(d => d.classList.add('hidden'));
+                        
+                        if (isHidden) {
+                            e.preventDefault(); // Na primeira vez abre o menu
+                            dropdown.classList.remove('hidden');
+                        }
+                        // Na segunda vez (clique no link ja aberto), ele navega normalmente
+                    }
+                });
             }
         });
     </script>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Categoria;
 use App\Models\Item;
 use App\Models\Sacolinhas;
 use Illuminate\Http\Request;
@@ -31,7 +32,25 @@ class LojaController extends Controller
             });
         }
 
-        // Categoria
+        // Categoria por slug
+        if ($request->filled('categoria')) {
+            $slug = trim($request->string('categoria')->toString());
+            $categoria = Categoria::where('slug', $slug)->first();
+            if ($categoria) {
+                // Filtra pelos itens que têm esta categoria (ou subcategorias)
+                $ids = $this->collectCategoryIds($categoria);
+                $query->where(function ($q) use ($ids, $categoria) {
+                    $q->whereHas('categorias', function ($sq) use ($ids) {
+                        $sq->whereIn('categorias.id', $ids);
+                    })
+                    ->orWhereIn('codigo_da_categoria', $ids)
+                    ->orWhere('codigo_da_categoria', $categoria->name)
+                    ->orWhere('codigo_da_categoria', $categoria->slug);
+                });
+            }
+        }
+
+        // Categoria (legado: codigo_da_categoria)
         if ($request->filled('codigo_da_categoria')) {
             $query->where('codigo_da_categoria', trim($request->string('codigo_da_categoria')->toString()));
         }
@@ -84,7 +103,45 @@ class LojaController extends Controller
             ->paginate(24)
             ->withQueryString();
 
-        return view('loja.index', compact('items'));
+        // Categorias raiz para o menu (carrega apenas se houver itens 'loja' nelas ou nos filhos)
+        $categorias = Categoria::whereNull('parent_id')
+            ->where(function($query) {
+                $query->whereHas('items', function($q) { $q->where('status', 'loja'); })
+                      ->orWhereHas('children.items', function($q) { $q->where('status', 'loja'); })
+                      ->orWhereHas('children.children.items', function($q) { $q->where('status', 'loja'); });
+            })
+            ->orderBy('name')
+            ->with(['children' => function($query) {
+                $query->where(function($q) {
+                    $q->whereHas('items', function($sq) { $sq->where('status', 'loja'); })
+                      ->orWhereHas('children.items', function($sq) { $sq->where('status', 'loja'); });
+                })
+                ->orderBy('name')
+                ->with(['children' => function($query) {
+                    $query->whereHas('items', function($q) { $q->where('status', 'loja'); })
+                          ->orderBy('name');
+                }]);
+            }])
+            ->get();
+
+        $categoriaAtiva = null;
+        if ($request->filled('categoria')) {
+            $categoriaAtiva = Categoria::where('slug', $request->string('categoria')->toString())->first();
+        }
+
+        return view('loja.index', compact('items', 'categorias', 'categoriaAtiva'));
+    }
+
+    /**
+     * Coleta recursivamente os IDs de uma categoria e seus filhos.
+     */
+    private function collectCategoryIds(Categoria $categoria): array
+    {
+        $ids = [$categoria->id];
+        foreach ($categoria->children as $child) {
+            $ids = array_merge($ids, $this->collectCategoryIds($child));
+        }
+        return $ids;
     }
 
     public function show(Item $item)
