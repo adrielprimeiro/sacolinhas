@@ -59,13 +59,15 @@ class MercadoPagoController extends Controller
         // Gera uma chave de idempotência para evitar cobranças duplicadas
         $idempotencyKey = $pedido->id . '_' . time();
 
-        $response = Http::withToken($accessToken)
-            ->withHeaders(['X-Idempotency-Key' => $idempotencyKey])
-            ->post($url, $data);
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($accessToken)
+                ->withHeaders(['X-Idempotency-Key' => $idempotencyKey])
+                ->post($url, $data);
 
-        if ($response->successful()) {
-            $paymentInfo = $response->json();
-            $status = $paymentInfo['status'] ?? null;
+            if ($response->successful()) {
+                $paymentInfo = $response->json();
+                $status = $paymentInfo['status'] ?? null;
 
             // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
             if ($status === 'approved') {
@@ -95,10 +97,17 @@ class MercadoPagoController extends Controller
 
         Log::error('Erro ao processar pagamento Mercado Pago: ' . $response->body());
         
-        return response()->json([
-            'error' => 'Falha ao processar o pagamento.',
-            'details' => $response->json()
-        ], $response->status());
+            return response()->json([
+                'error' => 'Falha ao processar o pagamento.',
+                'details' => $response->json()
+            ], $response->status());
+
+        } catch (\Exception $e) {
+            Log::error('Exceção ao processar pagamento Mercado Pago: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Falha na comunicação com o Mercado Pago: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -113,7 +122,8 @@ class MercadoPagoController extends Controller
             
             $accessToken = config('services.mercadopago.access_token');
             
-            $response = Http::withToken($accessToken)
+            $response = Http::withoutVerifying()
+                ->withToken($accessToken)
                 ->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
 
             if ($response->successful()) {

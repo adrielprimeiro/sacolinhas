@@ -113,11 +113,19 @@
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
-                                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                                "Accept": "application/json"
                             },
                             body: JSON.stringify(formData)
                         })
-                        .then((response) => response.json())
+                        .then(async (response) => {
+                            if (!response.ok) {
+                                let text = await response.text();
+                                console.error("Error Response:", text);
+                                throw new Error("Erro HTTP " + response.status + ". Veja o console.");
+                            }
+                            return response.json();
+                        })
                         .then((data) => {
                             if (data.error) {
                                 reject();
@@ -129,7 +137,8 @@
                         })
                         .catch((error) => {
                             reject();
-                            alert("Erro de comunicação com o servidor.");
+                            console.error(error);
+                            alert("Erro de comunicação com o servidor: " + error.message);
                         })
                     });
                 },
