@@ -427,6 +427,10 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
     // Desafios do Clube
     Route::get('/desafios', [PortalClienteController::class, 'desafios'])->name('desafios');
 
+    // Mercado Pago Checkout Transparente
+    Route::get('/mercadopago/{pedido}/checkout', [\App\Http\Controllers\MercadoPagoController::class, 'checkout'])->name('mercadopago.checkout');
+    Route::post('/mercadopago/{pedido}/process', [\App\Http\Controllers\MercadoPagoController::class, 'processPayment'])->name('mercadopago.process');
+
 });
 
 //Sacolinhas Vencidas
