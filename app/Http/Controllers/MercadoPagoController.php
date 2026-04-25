@@ -91,8 +91,23 @@ class MercadoPagoController extends Controller
                     $pedido->status_pagamento = 'pendente';
                 }
 
-                // Salva a forma de pagamento, ex: credit_card, pix, ticket
-                $pedido->forma_pagamento = $paymentInfo['payment_method_id'] ?? null;
+                // Mapeia o tipo de pagamento do MP para o nosso ENUM do banco de dados
+                // ENUM: 'pix','cartao_credito','cartao_debito','boleto','dinheiro','transferencia'
+                $paymentTypeId = $paymentInfo['payment_type_id'] ?? null;
+                $paymentMethodId = $paymentInfo['payment_method_id'] ?? null;
+                
+                $formaPagamento = null;
+                if ($paymentTypeId === 'credit_card') {
+                    $formaPagamento = 'cartao_credito';
+                } elseif ($paymentTypeId === 'debit_card') {
+                    $formaPagamento = 'cartao_debito';
+                } elseif ($paymentTypeId === 'ticket') {
+                    $formaPagamento = 'boleto';
+                } elseif ($paymentTypeId === 'bank_transfer' || $paymentMethodId === 'pix') {
+                    $formaPagamento = 'pix';
+                }
+
+                $pedido->forma_pagamento = $formaPagamento;
                 $pedido->save();
 
                 return response()->json([
