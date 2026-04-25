@@ -46,6 +46,17 @@ class MercadoPagoController extends Controller
         // Pega os dados enviados pelo Brick
         $data = $request->all();
 
+        // Limpeza de campos vazios que causam erro 500 no MP
+        if (empty($data['issuer_id'])) {
+            unset($data['issuer_id']);
+        }
+        if (empty($data['payer']['entity_type'])) {
+            unset($data['payer']['entity_type']);
+        }
+        if (isset($data['payer']['entity_type']) && !in_array($data['payer']['entity_type'], ['individual', 'association'])) {
+            $data['payer']['entity_type'] = 'individual'; // Corrige aviso do console
+        }
+
         // O valor tem que ser exatamente o do pedido para segurança
         $data['transaction_amount'] = (float) $pedido->valor_total;
         $data['description'] = 'Pedido #' . $pedido->numero_pedido;
@@ -57,7 +68,9 @@ class MercadoPagoController extends Controller
         }
 
         // Gera uma chave de idempotência para evitar cobranças duplicadas
-        $idempotencyKey = $pedido->id . '_' . time();
+        // IMPORTANTE: Se time() for usado, retentativas legítimas falham.
+        // Vamos usar uniqid() para garantir que seja sempre único.
+        $idempotencyKey = $pedido->id . '_' . uniqid();
 
         try {
             $response = Http::withoutVerifying()
@@ -69,43 +82,45 @@ class MercadoPagoController extends Controller
                 $paymentInfo = $response->json();
                 $status = $paymentInfo['status'] ?? null;
 
-            // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
-            if ($status === 'approved') {
-                $pedido->status_pagamento = 'pago';
-            } elseif ($status === 'rejected' || $status === 'cancelled') {
-                $pedido->status_pagamento = 'cancelado';
-            } elseif ($status === 'in_process' || $status === 'pending') {
-                $pedido->status_pagamento = 'pendente';
+                // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
+                if ($status === 'approved') {
+                    $pedido->status_pagamento = 'pago';
+                } elseif ($status === 'rejected' || $status === 'cancelled') {
+                    $pedido->status_pagamento = 'cancelado';
+                } elseif ($status === 'in_process' || $status === 'pending') {
+                    $pedido->status_pagamento = 'pendente';
+                }
+
+                // Salva a forma de pagamento, ex: credit_card, pix, ticket
+                $pedido->forma_pagamento = $paymentInfo['payment_method_id'] ?? null;
+                $pedido->save();
+
+                return response()->json([
+                    'success' => true,
+                    'status' => $status,
+                    'status_detail' => $paymentInfo['status_detail'] ?? null,
+                    'payment_id' => $paymentInfo['id'] ?? null,
+                    // Dados do PIX
+                    'qr_code_base64' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null,
+                    'qr_code' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code'] ?? null,
+                    // Dados Boleto
+                    'ticket_url' => $paymentInfo['transaction_details']['external_resource_url'] ?? null,
+                ]);
             }
 
-            // Salva a forma de pagamento, ex: credit_card, pix, ticket
-            $pedido->forma_pagamento = $paymentInfo['payment_method_id'] ?? null;
-            $pedido->save();
-
-            return response()->json([
-                'success' => true,
-                'status' => $status,
-                'status_detail' => $paymentInfo['status_detail'] ?? null,
-                'payment_id' => $paymentInfo['id'] ?? null,
-                // Dados do PIX
-                'qr_code_base64' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null,
-                'qr_code' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code'] ?? null,
-                // Dados Boleto
-                'ticket_url' => $paymentInfo['transaction_details']['external_resource_url'] ?? null,
-            ]);
-        }
-
-        Log::error('Erro ao processar pagamento Mercado Pago: ' . $response->body());
-        
+            Log::error('Erro ao processar pagamento Mercado Pago: ' . $response->body());
+            
             return response()->json([
                 'error' => 'Falha ao processar o pagamento.',
-                'details' => $response->json()
+                'details' => $response->json(),
+                'payload_sent' => $data
             ], $response->status());
 
         } catch (\Exception $e) {
             Log::error('Exceção ao processar pagamento Mercado Pago: ' . $e->getMessage());
             return response()->json([
-                'error' => 'Falha na comunicação com o Mercado Pago: ' . $e->getMessage()
+                'error' => 'Falha na comunicação com o Mercado Pago: ' . $e->getMessage(),
+                'payload_sent' => $data
             ], 500);
         }
     }
