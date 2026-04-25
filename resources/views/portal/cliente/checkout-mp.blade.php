@@ -162,31 +162,57 @@
         const resultContainer = document.getElementById('payment-result');
         resultContainer.classList.remove('hidden');
 
-        if (paymentMethod === 'bank_transfer') { // PIX
+        if (data.status === 'approved') {
+            document.getElementById('result-success').classList.remove('hidden');
+
+        } else if (data.status === 'rejected' || data.status === 'cancelled') {
+            // Pagamento recusado — mostra mensagem amigável e permite tentar novamente
+            const motivo = data.mensagem_rejeicao || 'Pagamento recusado. Por favor, tente com outro cartão.';
+            resultContainer.innerHTML = `
+                <div class="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <i class="fas fa-times text-2xl text-red-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento Recusado</h2>
+                <p class="text-gray-600 mb-6">${motivo}</p>
+                <button onclick="location.reload()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                    Tentar Novamente
+                </button>
+                <div class="mt-4">
+                    <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline text-sm">Voltar aos Meus Pedidos</a>
+                </div>
+            `;
+
+        } else if (paymentMethod === 'bank_transfer') {
+            // PIX
             document.getElementById('result-pix').classList.remove('hidden');
             document.getElementById('pix-qrcode-img').src = 'data:image/jpeg;base64,' + data.qr_code_base64;
             document.getElementById('pix-copia-cola').value = data.qr_code;
-        } else if (paymentMethod === 'ticket') { // Boleto ou lotérica
+
+        } else if (paymentMethod === 'ticket') {
+            // Boleto
             document.getElementById('result-ticket').classList.remove('hidden');
             document.getElementById('ticket-url').href = data.ticket_url;
-        } else { // Cartões (aprovados imediatamente ou pendentes)
-            if (data.status === 'approved') {
-                document.getElementById('result-success').classList.remove('hidden');
-            } else if (data.status === 'in_process' || data.status === 'pending') {
-                document.getElementById('result-success').classList.remove('hidden');
-                document.getElementById('result-success').innerHTML = `
-                    <div class="mx-auto w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
-                        <i class="fas fa-clock text-2xl text-yellow-600"></i>
-                    </div>
-                    <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento em Análise</h2>
-                    <p class="text-gray-600 mb-6">Seu pagamento está sendo processado. O status será atualizado em breve.</p>
-                    <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
-                        Voltar aos Meus Pedidos
-                    </a>
-                `;
-            } else {
-                resultContainer.innerHTML = `<h2 class="text-xl font-bold text-red-600 mb-2">Pagamento Recusado</h2><p class="mb-4">Houve um problema com seu pagamento.</p><a href="javascript:location.reload()" class="bg-blue-500 text-white px-4 py-2 rounded">Tentar Novamente</a>`;
-            }
+
+        } else if (data.status === 'in_process' || data.status === 'pending') {
+            // Pagamento em análise (ex: antifraude do banco)
+            document.getElementById('result-success').classList.remove('hidden');
+            document.getElementById('result-success').innerHTML = `
+                <div class="mx-auto w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
+                    <i class="fas fa-clock text-2xl text-yellow-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento em Análise</h2>
+                <p class="text-gray-600 mb-6">Seu pagamento está sendo revisado pelo banco. Você receberá uma confirmação em breve e o status do pedido será atualizado automaticamente.</p>
+                <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                    Voltar aos Meus Pedidos
+                </a>
+            `;
+        } else {
+            // Fallback genérico
+            resultContainer.innerHTML = `
+                <h2 class="text-xl font-bold text-red-600 mb-2">Erro no Pagamento</h2>
+                <p class="mb-4">Não foi possível concluir o pagamento. Por favor, tente novamente.</p>
+                <button onclick="location.reload()" class="bg-blue-500 text-white px-4 py-2 rounded">Tentar Novamente</button>
+            `;
         }
     }
 

@@ -110,14 +110,35 @@ class MercadoPagoController extends Controller
                 $pedido->forma_pagamento = $formaPagamento;
                 $pedido->save();
 
+                // Traduz o status_detail do Mercado Pago para mensagem amigável em português
+                $statusDetail = $paymentInfo['status_detail'] ?? null;
+                $mensagemRejeicao = match($statusDetail) {
+                    'cc_rejected_bad_filled_card_number' => 'Número do cartão inválido. Por favor, verifique e tente novamente.',
+                    'cc_rejected_bad_filled_date'        => 'Data de vencimento inválida. Por favor, verifique e tente novamente.',
+                    'cc_rejected_bad_filled_other'       => 'Dados do cartão inválidos. Por favor, verifique e tente novamente.',
+                    'cc_rejected_bad_filled_security_code' => 'Código de segurança (CVV) inválido. Por favor, verifique e tente novamente.',
+                    'cc_rejected_blacklist'              => 'Não foi possível processar o pagamento com este cartão. Por favor, utilize outro cartão.',
+                    'cc_rejected_call_for_authorize'     => 'O banco recusou a transação. Por favor, entre em contato com seu banco ou utilize outro cartão.',
+                    'cc_rejected_card_disabled'          => 'O cartão está inativo. Por favor, ative-o pelo aplicativo do seu banco ou utilize outro cartão.',
+                    'cc_rejected_card_error'             => 'Não foi possível processar o pagamento. Por favor, utilize outro cartão.',
+                    'cc_rejected_duplicated_payment'     => 'Este pagamento já foi processado anteriormente.',
+                    'cc_rejected_high_risk'              => 'Pagamento recusado pelos controles de segurança. Por favor, utilize outro cartão.',
+                    'cc_rejected_insufficient_amount'    => 'Saldo insuficiente. Por favor, verifique o limite do seu cartão.',
+                    'cc_rejected_invalid_installments'   => 'O número de parcelas não é aceito por este cartão.',
+                    'cc_rejected_max_attempts'           => 'Número máximo de tentativas atingido. Por favor, utilize outro cartão.',
+                    'cc_rejected_other_reason'           => 'Pagamento recusado pelo banco. Por favor, utilize outro cartão.',
+                    default                              => null,
+                };
+
                 return response()->json([
-                    'success' => true,
-                    'status' => $status,
-                    'status_detail' => $paymentInfo['status_detail'] ?? null,
-                    'payment_id' => $paymentInfo['id'] ?? null,
+                    'success'           => true,
+                    'status'            => $status,
+                    'status_detail'     => $statusDetail,
+                    'mensagem_rejeicao' => $mensagemRejeicao,
+                    'payment_id'        => $paymentInfo['id'] ?? null,
                     // Dados do PIX
                     'qr_code_base64' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null,
-                    'qr_code' => $paymentInfo['point_of_interaction']['transaction_data']['qr_code'] ?? null,
+                    'qr_code'        => $paymentInfo['point_of_interaction']['transaction_data']['qr_code'] ?? null,
                     // Dados Boleto
                     'ticket_url' => $paymentInfo['transaction_details']['external_resource_url'] ?? null,
                 ]);
