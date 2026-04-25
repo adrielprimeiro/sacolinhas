@@ -9,11 +9,9 @@ class CategoriaSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        DB::table('categorias')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-
-        DB::table('categorias')->insert([
+        // INSERT IGNORE: insere apenas categorias que não existem ainda.
+        // Preserva os vínculos de categoria_item no servidor.
+        $categorias = [
             ['id' => 1, 'name' => 'Feminino', 'slug' => 'feminino', 'parent_id' => null, 'valor_desconto' => 10.00, 'tipo_desconto' => 'porcentagem', 'descricao' => '', 'created_at' => '2026-04-15 22:10:26', 'updated_at' => '2026-04-15 22:10:26'],
             ['id' => 2, 'name' => 'Roupas', 'slug' => 'feminino-roupas', 'parent_id' => 1, 'valor_desconto' => 0.00, 'tipo_desconto' => 'porcentagem', 'descricao' => '', 'created_at' => '2026-04-15 22:10:26', 'updated_at' => '2026-04-15 22:10:26'],
             ['id' => 3, 'name' => 'Vestidos', 'slug' => 'feminino-roupas-vestidos', 'parent_id' => 2, 'valor_desconto' => 0.00, 'tipo_desconto' => 'porcentagem', 'descricao' => '', 'created_at' => '2026-04-15 22:10:26', 'updated_at' => '2026-04-15 22:10:26'],
@@ -78,6 +76,10 @@ class CategoriaSeeder extends Seeder
             ['id' => 62, 'name' => 'Almofadas', 'slug' => 'casa-decoracao-almofadas', 'parent_id' => 61, 'valor_desconto' => 0.00, 'tipo_desconto' => 'fixo', 'descricao' => '', 'created_at' => '2026-04-15 22:10:28', 'updated_at' => '2026-04-15 22:10:28'],
             ['id' => 63, 'name' => 'Tapetes', 'slug' => 'casa-decoracao-tapetes', 'parent_id' => 61, 'valor_desconto' => 23.00, 'tipo_desconto' => 'porcentagem', 'descricao' => '', 'created_at' => '2026-04-15 22:10:28', 'updated_at' => '2026-04-15 22:10:28'],
             ['id' => 64, 'name' => 'Velas Aromáticas', 'slug' => 'casa-decoracao-velas-aromaticas', 'parent_id' => 61, 'valor_desconto' => 0.00, 'tipo_desconto' => 'fixo', 'descricao' => '', 'created_at' => '2026-04-15 22:10:28', 'updated_at' => '2026-04-15 22:10:28'],
-        ]);
+        ];
+
+        foreach ($categorias as $categoria) {
+            DB::table('categorias')->insertOrIgnore($categoria);
+        }
     }
 }
