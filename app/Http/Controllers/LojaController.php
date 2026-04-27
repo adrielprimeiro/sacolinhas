@@ -104,24 +104,47 @@ class LojaController extends Controller
             ->paginate(24)
             ->withQueryString();
 
-        // Categorias raiz para o menu (carrega apenas se houver itens 'loja' nelas ou nos filhos)
+        // 1. Encontrar todos os IDs de categorias que possuem itens com status 'loja'
+        $categoriesWithItems = DB::table('categoria_item')
+            ->join('items', 'items.id', '=', 'categoria_item.item_id')
+            ->where('items.status', 'loja')
+            ->distinct()
+            ->pluck('categoria_id')
+            ->toArray();
+
+        // 2. Encontrar todos os ancestrais dessas categorias para saber quais mostrar no menu
+        $allVisibleCategoryIds = [];
+        if (!empty($categoriesWithItems)) {
+            $currentLevelIds = $categoriesWithItems;
+            $allVisibleCategoryIds = $categoriesWithItems;
+
+            while (!empty($currentLevelIds)) {
+                $parents = Categoria::whereIn('id', $currentLevelIds)
+                    ->whereNotNull('parent_id')
+                    ->pluck('parent_id')
+                    ->unique()
+                    ->toArray();
+                
+                $allVisibleCategoryIds = array_unique(array_merge($allVisibleCategoryIds, $parents));
+                $currentLevelIds = $parents;
+            }
+        }
+
+        // 3. Carregar as categorias raiz que estão na lista de visíveis
         $categorias = Categoria::whereNull('parent_id')
-            ->where(function($query) {
-                $query->whereHas('items', function($q) { $q->where('status', 'loja'); })
-                      ->orWhereHas('children.items', function($q) { $q->where('status', 'loja'); })
-                      ->orWhereHas('children.children.items', function($q) { $q->where('status', 'loja'); });
-            })
+            ->whereIn('id', $allVisibleCategoryIds)
             ->orderBy('name')
-            ->with(['children' => function($query) {
-                $query->where(function($q) {
-                    $q->whereHas('items', function($sq) { $sq->where('status', 'loja'); })
-                      ->orWhereHas('children.items', function($sq) { $sq->where('status', 'loja'); });
-                })
-                ->orderBy('name')
-                ->with(['children' => function($query) {
-                    $query->whereHas('items', function($q) { $q->where('status', 'loja'); })
-                          ->orderBy('name');
-                }]);
+            ->with(['children' => function($query) use ($allVisibleCategoryIds) {
+                $query->whereIn('id', $allVisibleCategoryIds)
+                    ->orderBy('name')
+                    ->with(['children' => function($query) use ($allVisibleCategoryIds) {
+                        $query->whereIn('id', $allVisibleCategoryIds)
+                            ->orderBy('name')
+                            ->with(['children' => function($query) use ($allVisibleCategoryIds) {
+                                $query->whereIn('id', $allVisibleCategoryIds)
+                                    ->orderBy('name');
+                            }]);
+                    }]);
             }])
             ->get();
 
