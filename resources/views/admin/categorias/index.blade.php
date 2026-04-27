@@ -14,22 +14,25 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2">
-            {{-- Expandir / Recolher tudo --}}
+        <div class="flex items-center gap-2" x-data>
             <button
-                x-data
+                type="button"
                 @click="$dispatch('expand-all')"
                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
             >
-                <i class="fas fa-expand-alt text-xs"></i>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                </svg>
                 Expandir tudo
             </button>
             <button
-                x-data
+                type="button"
                 @click="$dispatch('collapse-all')"
                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
             >
-                <i class="fas fa-compress-alt text-xs"></i>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                </svg>
                 Recolher tudo
             </button>
 

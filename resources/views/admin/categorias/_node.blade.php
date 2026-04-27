@@ -1,98 +1,92 @@
 {{-- resources/views/admin/categorias/_node.blade.php --}}
-{{-- Componente recursivo: renderiza um nó da árvore e seus filhos --}}
+@php $temFilhos = $categoria->children->isNotEmpty(); @endphp
 
-<div
-    x-data="{ open: false }"
-    class="select-none"
+<div 
+    x-data="{ open: false }" 
+    class="categoria-node"
+    @expand-all.window="open = true"
+    @collapse-all.window="open = false"
 >
-    {{-- Linha do nó --}}
+    {{-- Linha principal --}}
     <div
         class="flex items-center gap-2 group rounded-lg px-2 py-1.5 hover:bg-gray-50 transition-colors"
-        style="padding-left: {{ 0.5 + ($nivel * 1.25) }}rem"
+        style="padding-left: {{ 0.5 + ($nivel * 1.5) }}rem"
     >
-        {{-- Ícone expand/collapse (só aparece se tiver filhos) --}}
-        @if ($categoria->children->isNotEmpty())
-            <button
-                @click="open = !open"
-                class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
-            >
-                <i class="fas text-xs" :class="open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-            </button>
-        @else
-            <span class="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+        {{-- Botão expand/collapse --}}
+        <div class="w-6 h-6 flex-shrink-0 flex items-center justify-center">
+            @if ($temFilhos)
+                <button
+                    type="button"
+                    @click="open = !open"
+                    class="p-1 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                >
+                    <svg x-show="!open" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <svg x-show="open" class="w-4 h-4" x-cloak fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                    </svg>
+                </button>
+            @else
                 <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
-            </span>
-        @endif
-
-        {{-- Ícone da categoria --}}
-        <span class="flex-shrink-0 text-{{ $nivel === 0 ? 'blue' : ($nivel === 1 ? 'indigo' : 'violet') }}-500 text-xs">
-            <i class="fas fa-{{ $nivel === 0 ? 'folder' : ($nivel === 1 ? 'folder-open' : 'tag') }}"></i>
-        </span>
-
-        {{-- Nome e slug --}}
-        <div class="flex-1 min-w-0">
-            <span class="text-sm font-{{ $nivel === 0 ? 'semibold' : 'medium' }} text-gray-{{ $nivel === 0 ? '900' : '700' }} truncate">
-                {{ $categoria->name }}
-            </span>
-            <span class="ml-2 text-xs text-gray-400 font-mono">/{{ $categoria->slug }}</span>
+            @endif
         </div>
 
-        {{-- Badge desconto --}}
+        {{-- Nome --}}
+        <div 
+            class="flex-1 flex items-center gap-2 cursor-pointer select-none"
+            @click="if($temFilhos) open = !open"
+        >
+            <span class="text-sm {{ $nivel === 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700' }}">
+                {{ $categoria->name }}
+            </span>
+            <span class="text-xs text-gray-400 font-mono">/{{ $categoria->slug }}</span>
+        </div>
+
+        {{-- Badge Desconto --}}
         @if ($categoria->valor_desconto > 0)
-            <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">
+            <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
                 {{ $categoria->tipo_desconto === 'porcentagem' ? $categoria->valor_desconto . '%' : 'R$ ' . number_format($categoria->valor_desconto, 2, ',', '.') }}
             </span>
         @endif
 
-        {{-- Badge nº de itens diretos --}}
-        @if (isset($categoria->items_count) && $categoria->items_count > 0)
-            <span class="flex-shrink-0 px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-600">
-                {{ $categoria->items_count }} itens
-            </span>
-        @endif
-
-        {{-- Ações (aparecem no hover) --}}
+        {{-- Ações --}}
         <div class="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <a
                 href="{{ route('admin.categorias.edit', $categoria) }}"
-                class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                class="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Editar"
             >
-                <i class="fas fa-edit"></i>
-                <span class="hidden sm:inline">Editar</span>
+                <i class="fas fa-edit text-xs"></i>
             </a>
 
             <form
                 action="{{ route('admin.categorias.destroy', $categoria) }}"
                 method="POST"
                 class="inline"
-                onsubmit="return confirm('Excluir a categoria \'{{ addslashes($categoria->name) }}\' e todas as suas subcategorias?')"
+                onsubmit="return confirm('Excluir \'{{ addslashes($categoria->name) }}\'?')"
             >
                 @csrf
                 @method('DELETE')
                 <button
                     type="submit"
-                    class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                    class="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
                     title="Excluir"
                 >
-                    <i class="fas fa-trash-alt"></i>
-                    <span class="hidden sm:inline">Excluir</span>
+                    <i class="fas fa-trash-alt text-xs"></i>
                 </button>
             </form>
         </div>
     </div>
 
-    {{-- Filhos (mostrados/ocultados via Alpine) --}}
-    @if ($categoria->children->isNotEmpty())
-        <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-            {{-- Linha vertical de indentação --}}
-            <div class="relative" style="padding-left: {{ 0.5 + ($nivel * 1.25) + 0.625 }}rem">
-                <div class="absolute left-0 top-0 bottom-0 border-l-2 border-gray-100" style="left: {{ 0.5 + ($nivel * 1.25) + 0.625 }}rem"></div>
+    {{-- Filhos --}}
+    @if ($temFilhos)
+        <div x-show="open" x-cloak style="display: none;">
+            <div class="relative ml-3 border-l border-gray-100">
+                @foreach ($categoria->children->sortBy('name') as $filho)
+                    @include('admin.categorias._node', ['categoria' => $filho, 'nivel' => $nivel + 1])
+                @endforeach
             </div>
-
-            @foreach ($categoria->children->sortBy('name') as $filho)
-                @include('admin.categorias._node', ['categoria' => $filho, 'nivel' => $nivel + 1])
-            @endforeach
         </div>
     @endif
 </div>
