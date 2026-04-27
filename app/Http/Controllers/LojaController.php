@@ -131,22 +131,48 @@ class LojaController extends Controller
         }
 
         // 3. Carregar as categorias raiz que estão na lista de visíveis
+        // Para uma ordenação precisa (contando filhos), carregamos a árvore e ordenamos via PHP
         $categorias = Categoria::whereNull('parent_id')
             ->whereIn('id', $allVisibleCategoryIds)
-            ->orderBy('name')
             ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                 $query->whereIn('id', $allVisibleCategoryIds)
-                    ->orderBy('name')
+                    ->withCount(['items' => function($q) { $q->where('status', 'loja'); }])
                     ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                         $query->whereIn('id', $allVisibleCategoryIds)
-                            ->orderBy('name')
-                            ->with(['children' => function($query) use ($allVisibleCategoryIds) {
-                                $query->whereIn('id', $allVisibleCategoryIds)
-                                    ->orderBy('name');
-                            }]);
+                            ->withCount(['items' => function($q) { $q->where('status', 'loja'); }]);
                     }]);
             }])
+            ->withCount(['items' => function($q) { $q->where('status', 'loja'); }])
             ->get();
+
+        // Função para calcular total de itens na árvore (recursivo)
+        $getTotalItems = function($cat) use (&$getTotalItems) {
+            $count = $cat->items_count ?? 0;
+            foreach ($cat->children as $child) {
+                $count += $getTotalItems($child);
+            }
+            $cat->total_recursive_items = $count;
+            return $count;
+        };
+
+        // Calcula os totais e ordena recursivamente
+        foreach ($categorias as $cat) {
+            $getTotalItems($cat);
+        }
+
+        // Ordena as raízes pelo total de itens na árvore inteira
+        $categorias = $categorias->sortByDesc('total_recursive_items')->values();
+
+        // Ordena os filhos de cada nível
+        foreach ($categorias as $cat) {
+            $cat->setRelation('children', $cat->children->sortByDesc(function($child) use (&$getTotalItems) {
+                return $getTotalItems($child);
+            })->values());
+            
+            foreach ($cat->children as $child) {
+                $child->setRelation('children', $child->children->sortByDesc('items_count')->values());
+            }
+        }
 
         $categoriaAtiva = null;
         if ($request->filled('categoria')) {
