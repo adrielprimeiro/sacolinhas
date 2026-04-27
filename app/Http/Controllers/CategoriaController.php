@@ -10,8 +10,48 @@ class CategoriaController extends Controller
 {
     public function index()
     {
-        $categorias = Categoria::with('parent')->get();
-        return view('admin.categorias.index', compact('categorias'));
+        // Carrega apenas as categorias raiz com toda a árvore de filhos aninhada
+        $categorias = Categoria::whereNull('parent_id')
+            ->withCount('items')
+            ->with($this->treeWith())
+            ->orderBy('name')
+            ->get();
+
+        $totalCategorias = Categoria::count();
+        $totalRaiz       = $categorias->count();
+
+        return view('admin.categorias.index', compact('categorias', 'totalCategorias', 'totalRaiz'));
+    }
+
+    /**
+     * Carrega a árvore de filhos recursivamente até 5 níveis com contagem de itens
+     */
+    private function treeWith(): array
+    {
+        $nivel = fn($depth) => $depth > 0
+            ? ['children' => fn($q) => $q->withCount('items')->orderBy('name')->with(['children' => fn($q2) => $q2->withCount('items')->orderBy('name')])]
+            : ['children' => fn($q) => $q->withCount('items')->orderBy('name')];
+
+        return [
+            'children' => fn($q) => $q
+                ->withCount('items')
+                ->orderBy('name')
+                ->with([
+                    'children' => fn($q2) => $q2
+                        ->withCount('items')
+                        ->orderBy('name')
+                        ->with([
+                            'children' => fn($q3) => $q3
+                                ->withCount('items')
+                                ->orderBy('name')
+                                ->with([
+                                    'children' => fn($q4) => $q4
+                                        ->withCount('items')
+                                        ->orderBy('name')
+                                ])
+                        ])
+                ])
+        ];
     }
 
     public function create()

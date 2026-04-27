@@ -3,69 +3,94 @@
 @section('title', 'Gerenciar Categorias')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-semibold text-gray-900">Categorias de Itens</h1>
-        <a href="{{ route('admin.categorias.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
-            <i class="fas fa-plus mr-2"></i> Nova Categoria
-        </a>
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    {{-- Cabeçalho --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Categorias</h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {{ $totalCategorias }} categorias · {{ $totalRaiz }} grupos raiz
+            </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+            {{-- Expandir / Recolher tudo --}}
+            <button
+                x-data
+                @click="$dispatch('expand-all')"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+            >
+                <i class="fas fa-expand-alt text-xs"></i>
+                Expandir tudo
+            </button>
+            <button
+                x-data
+                @click="$dispatch('collapse-all')"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+            >
+                <i class="fas fa-compress-alt text-xs"></i>
+                Recolher tudo
+            </button>
+
+            <a
+                href="{{ route('admin.categorias.create') }}"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
+            >
+                <i class="fas fa-plus"></i>
+                Nova Categoria
+            </a>
+        </div>
     </div>
 
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria Pai</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Desconto</th>
-                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @forelse ($categorias as $categoria)
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">
-                                {{ $categoria->name }}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                /{{ $categoria->slug }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $categoria->parent ? $categoria->parent->name : '-' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            @if ($categoria->valor_desconto > 0)
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    {{ $categoria->tipo_desconto == 'porcentagem' ? $categoria->valor_desconto . '%' : 'R$ ' . number_format($categoria->valor_desconto, 2, ',', '.') }}
-                                </span>
-                            @else
-                                <span class="text-gray-400">Nenhum</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{{ route('admin.categorias.edit', $categoria) }}" class="text-blue-600 hover:text-blue-900 mr-3">
-                                <i class="fas fa-edit"></i> Editar
-                            </a>
-                            <form action="{{ route('admin.categorias.destroy', $categoria) }}" method="POST" class="inline-block" onsubmit="return confirm('Tem certeza que deseja excluir esta categoria?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">
-                                    <i class="fas fa-trash-alt"></i> Excluir
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                            Nenhuma categoria cadastrada.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+    @if (session('success'))
+        <div class="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
+            <i class="fas fa-check-circle"></i>
+            {{ session('success') }}
+        </div>
+    @endif
+
+    {{-- Árvore de categorias --}}
+    <div
+        class="bg-white shadow-sm rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"
+        x-data="{}"
+        @expand-all.window="$el.querySelectorAll('[x-data]').forEach(el => { if(el._x_dataStack) { el._x_dataStack[0].open = true } })"
+        @collapse-all.window="$el.querySelectorAll('[x-data]').forEach(el => { if(el._x_dataStack) { el._x_dataStack[0].open = false } })"
+    >
+        @forelse ($categorias as $categoria)
+            <div class="py-0.5">
+                @include('admin.categorias._node', ['categoria' => $categoria, 'nivel' => 0])
+            </div>
+        @empty
+            <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+                <i class="fas fa-folder-open text-4xl mb-3"></i>
+                <p class="text-sm font-medium">Nenhuma categoria cadastrada</p>
+                <a href="{{ route('admin.categorias.create') }}" class="mt-3 text-sm text-blue-600 hover:underline">
+                    Criar a primeira categoria
+                </a>
+            </div>
+        @endforelse
+    </div>
+
+    {{-- Legenda --}}
+    <div class="mt-4 flex flex-wrap items-center gap-4 text-xs text-gray-400">
+        <span class="flex items-center gap-1.5">
+            <i class="fas fa-folder text-blue-400"></i> Categoria raiz
+        </span>
+        <span class="flex items-center gap-1.5">
+            <i class="fas fa-folder-open text-indigo-400"></i> Subcategoria
+        </span>
+        <span class="flex items-center gap-1.5">
+            <i class="fas fa-tag text-violet-400"></i> Categoria folha
+        </span>
+        <span class="flex items-center gap-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">%</span>
+            Desconto ativo
+        </span>
     </div>
 </div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
 @endsection
