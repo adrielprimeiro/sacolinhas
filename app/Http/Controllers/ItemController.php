@@ -27,9 +27,24 @@ class ItemController extends Controller
 			$query->where('status', $request->status);
 		}
 
-		$items = $query->paginate(15);
+        if ($request->filled('categoria_id')) {
+            if ($request->categoria_id === 'none') {
+                $query->whereDoesntHave('categorias');
+            } else {
+                $query->whereHas('categorias', function ($q) use ($request) {
+                    $q->where('categorias.id', $request->categoria_id);
+                });
+            }
+        }
 
-		return view('admin.items.index', compact('items'));
+		$items = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+
+        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
+            ->with($this->categoryTreeWith())
+            ->orderBy('name')
+            ->get();
+
+		return view('admin.items.index', compact('items', 'treeCategories'));
 	}
 		
 
