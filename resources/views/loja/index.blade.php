@@ -187,18 +187,6 @@
                     >
                 </div>
 
-                <div>
-                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                        Categoria
-                    </label>
-                    <input
-                        type="text"
-                        name="codigo_da_categoria"
-                        value="{{ request('codigo_da_categoria') }}"
-                        placeholder="Ex: 123"
-                        class="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
-                    >
-                </div>
 
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
@@ -250,7 +238,6 @@
                         <option value="">Todos</option>
                         <option value="novo" {{ request('estado') === 'novo' ? 'selected' : '' }}>Novo</option>
                         <option value="seminovo" {{ request('estado') === 'seminovo' ? 'selected' : '' }}>Seminovo</option>
-                        <option value="usado" {{ request('estado') === 'usado' ? 'selected' : '' }}>Usado</option>
                     </select>
                 </div>
 
@@ -355,7 +342,6 @@
                 @if(
                     request()->filled('q') ||
                     request()->filled('categoria') ||
-                    request()->filled('codigo_da_categoria') ||
                     request()->filled('marca') ||
                     request()->filled('cor') ||
                     request()->filled('tamanho') ||
