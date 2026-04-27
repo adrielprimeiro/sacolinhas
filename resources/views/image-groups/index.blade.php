@@ -529,22 +529,23 @@
                             </div>
 
                             {{-- Seletor de Categorias --}}
-                            <div class="space-y-1.5" x-data="{ 
-                                search: '', 
+                            <div class="space-y-1.5" x-data='{ 
+                                search: "", 
                                 open: false,
                                 selected: ${JSON.stringify(itemCats.length > 0 ? itemCats : (suggestedId ? [suggestedId] : []))},
                                 all: ${JSON.stringify(allCats)},
-                                suggested: ${suggestedId || 'null'},
+                                suggested: ${suggestedId || "null"},
                                 get filtered() {
                                     if (!this.search) return this.all;
-                                    return this.all.filter(c => c.path.toLowerCase().includes(this.search.toLowerCase()));
+                                    const s = this.search.toLowerCase();
+                                    return this.all.filter(c => c.path.toLowerCase().includes(s));
                                 },
                                 toggle(id) {
                                     const idx = this.selected.indexOf(id);
                                     if (idx > -1) this.selected.splice(idx, 1);
                                     else this.selected.push(id);
                                 }
-                            }">
+                            }'>
                                 <label class="block text-[8px] font-black text-gray-400 uppercase tracking-widest">Categorias</label>
                                 
                                 <div class="relative">
