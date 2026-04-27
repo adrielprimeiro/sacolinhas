@@ -1,31 +1,59 @@
 {{-- resources/views/admin/items/partials/categories.blade.php --}}
 @php
-    $allCategories = \App\Models\Categoria::all();
     $selectedCategories = isset($item) ? $item->categorias->pluck('id')->toArray() : [];
 @endphp
 
-<div class="mt-4 border-t border-gray-100 pt-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Categorias do Produto</label>
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-        @foreach ($allCategories as $cat)
-            <label class="inline-flex items-center p-2 rounded hover:bg-gray-50 border border-gray-100 cursor-pointer transition duration-150">
-                <input type="checkbox" name="categorias[]" value="{{ $cat->id }}" 
-                    class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500"
-                    {{ in_array($cat->id, $selectedCategories) ? 'checked' : '' }}>
-                <span class="ml-2 text-sm text-gray-700">{{ $cat->name }}</span>
-            </label>
-        @endforeach
+<div class="mt-6 border-t border-gray-100 pt-4">
+    <div class="flex items-center justify-between mb-3">
+        <label class="block text-sm font-bold text-gray-700">Categorias do Produto</label>
+        
+        <div class="flex items-center gap-2" x-data>
+            <button type="button" @click="$dispatch('expand-all-cats')" class="text-[10px] uppercase font-bold text-gray-400 hover:text-blue-600 transition-colors">
+                Expandir tudo
+            </button>
+            <span class="text-gray-300 text-[10px]">|</span>
+            <button type="button" @click="$dispatch('collapse-all-cats')" class="text-[10px] uppercase font-bold text-gray-400 hover:text-blue-600 transition-colors">
+                Recolher
+            </button>
+        </div>
     </div>
-    @if($allCategories->isEmpty())
-        <p class="text-sm text-gray-500 italic">Nenhuma categoria cadastrada. <a href="{{ route('admin.categorias.create') }}" class="text-blue-600 hover:underline">Criar uma agora</a>.</p>
-    @endif
+
+    <div 
+        class="bg-gray-50/50 rounded-xl border border-gray-100 p-3 max-h-[400px] overflow-y-auto custom-scrollbar"
+    >
+        @forelse ($treeCategories ?? [] as $cat)
+            @include('admin.items.partials._category_node', [
+                'categoria' => $cat, 
+                'nivel' => 0,
+                'selectedCategories' => $selectedCategories
+            ])
+        @empty
+            <div class="text-center py-4">
+                <p class="text-sm text-gray-500 italic">Nenhuma categoria cadastrada.</p>
+                <a href="{{ route('admin.categorias.create') }}" class="text-xs text-blue-600 font-bold hover:underline">
+                    Criar Categorias
+                </a>
+            </div>
+        @endforelse
+    </div>
+    
+    @error('categorias')
+        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+    @enderror
 </div>
 
 @if(isset($item) && (float)$item->final_price < (float)$item->preco)
-    <div class="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
-        <p class="text-sm text-green-800">
-            <i class="fas fa-tag mr-2"></i> <strong>Melhor Preço Aplicado:</strong> 
-            De <span class="line-through">{{ $item->formatted_price }}</span> por <strong>{{ $item->formatted_final_price }}</strong>
+    <div class="mt-4 p-3 bg-green-50 rounded-lg border border-green-100">
+        <p class="text-xs text-green-800">
+            <i class="fas fa-magic mr-1.5"></i> <strong>Melhor Preço Aplicado:</strong> 
+            De <span class="line-through">{{ $item->formatted_price }}</span> por <span class="font-bold text-sm">{{ $item->formatted_final_price }}</span>
         </p>
     </div>
 @endif
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+</style>

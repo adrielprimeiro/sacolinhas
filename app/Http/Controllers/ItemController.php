@@ -35,7 +35,11 @@ class ItemController extends Controller
 
     public function create()
     {
-        return view('admin.items.create');
+        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
+            ->with($this->categoryTreeWith())
+            ->orderBy('name')
+            ->get();
+        return view('admin.items.create', compact('treeCategories'));
     }
 
     public function store(Request $request)
@@ -80,9 +84,31 @@ class ItemController extends Controller
 		// Carrega o item com suas mídias, ordenadas pela coluna 'position'
 		$item->load(['medias' => function ($query) {
 			$query->orderBy('position', 'asc');
-		}]);
-		return view('admin.items.edit', compact('item'));
+		}, 'categorias']);
+
+        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
+            ->with($this->categoryTreeWith())
+            ->orderBy('name')
+            ->get();
+
+		return view('admin.items.edit', compact('item', 'treeCategories'));
 	}
+
+    /**
+     * Helper para carregar a árvore de categorias
+     */
+    private function categoryTreeWith(): array
+    {
+        return [
+            'children' => fn($q) => $q->orderBy('name')->with([
+                'children' => fn($q2) => $q2->orderBy('name')->with([
+                    'children' => fn($q3) => $q3->orderBy('name')->with([
+                        'children' => fn($q4) => $q4->orderBy('name')
+                    ])
+                ])
+            ])
+        ];
+    }
 	
 	
 	public function update(Request $request, Item $item)
