@@ -190,10 +190,10 @@
                 </div>
             </div>
 
-            <!-- Dados do Item -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start border-t pt-8">
-                <div class="space-y-4">
-                    <div>
+            <!-- Dados do Item e Ação -->
+            <div class="border-t pt-6">
+                <div class="flex flex-col md:flex-row items-end gap-3 mb-4">
+                    <div class="flex-1 w-full">
                         <label for="input-codigo" class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Código do Item</label>
                         <input
                             type="text"
@@ -202,21 +202,20 @@
                             placeholder="Ex: 04Y5"
                             autocomplete="off"
                         >
-                        <div id="codigo-feedback" class="mt-2 text-xs font-bold hidden"></div>
                     </div>
-
                     <button
                         type="button"
                         id="btn-confirmar"
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-lg"
+                        class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 text-lg whitespace-nowrap"
                     >
-                        <span>CONFIRMAR (ENTER)</span>
+                        <span>CONFIRMAR</span>
                     </button>
-                    <p class="text-[9px] text-center text-gray-400 uppercase font-bold tracking-widest">As fotos serão movidas para a galeria do item</p>
                 </div>
+                
+                <div id="codigo-feedback" class="mb-4 text-xs font-bold hidden"></div>
 
                 <!-- Preview Inteligente -->
-                <div id="item-preview" class="hidden p-5 rounded-2xl border-2 border-indigo-50 bg-indigo-50/30 min-h-[160px] animate-in slide-in-from-top-2">
+                <div id="item-preview" class="hidden p-6 rounded-3xl border-2 border-indigo-50 bg-indigo-50/30 animate-in slide-in-from-top-2">
                     <!-- Preenchido via JS após encontrar código -->
                 </div>
             </div>
