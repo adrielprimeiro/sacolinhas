@@ -273,7 +273,7 @@ class ImageGroupController extends Controller
 	}	
 	
 
-	public function buscarCodigo(Request $request)
+	public function buscarCodigo(Request $request, \App\Services\CategoryService $categoryService)
 	{
 		Log::info("[OrphanDebug] Chamada buscarCodigo", ['codigo' => $request->codigo]);
 		
@@ -283,19 +283,11 @@ class ImageGroupController extends Controller
 
 		$codigo = trim((string) $request->codigo);
 		
-		// Busca simples: tenta exato primeiro, depois LIKE
 		$item = Item::where('codigo', $codigo)->first();
 		
 		if (!$item) {
 			$item = Item::where('codigo', 'LIKE', $codigo)->first();
 		}
-
-		Log::info("[OrphanDebug] Resultado buscarCodigo", [
-			'codigo_buscado' => $codigo,
-			'encontrou' => $item ? true : false,
-			'item_id' => $item ? $item->id : null,
-			'sample_codigos' => Item::limit(5)->pluck('codigo')->toArray(),
-		]);
 
 		if (!$item) {
 			return response()->json([
@@ -303,6 +295,9 @@ class ImageGroupController extends Controller
 				'message' => "Código '{$codigo}' não encontrado."
 			], 404);
 		}
+
+        $suggestedCategoryId = $categoryService->suggestCategory($item->nome_do_produto);
+        $allCategories = $categoryService->getCategoryOptions();
 
 		return response()->json([
 			'success' => true,
@@ -315,7 +310,10 @@ class ImageGroupController extends Controller
 				'tamanho' => $item->tamanho ?? null,
 				'estado' => $item->estado ?? null,
 				'status' => $item->status ?? null,
-			]
+                'categorias' => $item->categorias->pluck('id')->toArray(),
+			],
+            'suggested_category_id' => $suggestedCategoryId,
+            'all_categories' => $allCategories
 		]);
 	}
 
@@ -329,33 +327,24 @@ class ImageGroupController extends Controller
 			'media_ids.*' => ['integer'],
 			'status' => ['nullable', 'string', 'max:50'],
 			'estado' => ['nullable', 'string', 'max:50'],
+            'categorias' => ['nullable', 'array'],
+            'categorias.*' => ['integer'],
 		]);
 
 		$codigo = trim((string) $data['codigo']);
 		$selectedIds = $data['media_ids'];
 
-		Log::info("[OrphanTransfer] Início da transferência", [
-			'codigo' => $codigo,
-			'num_fotos' => count($selectedIds),
-			'status_novo' => $data['status'] ?? 'não alterado',
-			'estado_novo' => $data['estado'] ?? 'não alterado'
-		]);
-
-		// Busca simples e direta (mesma lógica do buscarCodigo)
+		// Busca simples e direta
 		$item = Item::where('codigo', $codigo)->first();
 
 		if (!$item) {
-			Log::warning("[OrphanTransfer] Item não encontrado", ['codigo' => $codigo]);
 			return response()->json([
 				'success' => false,
 				'message' => "Nenhum item encontrado com o código '{$codigo}'.",
-				'errors' => [
-					'codigo' => ["Nenhum item encontrado com o código '{$codigo}'."]
-				]
 			], 422);
 		}
 
-		// Atualiza Status e Estado se enviados
+		// Atualiza Status e Estado
 		if (!empty($data['status'])) {
 			$item->status = $data['status'];
 		}
@@ -365,8 +354,12 @@ class ImageGroupController extends Controller
 		
 		if ($item->isDirty(['status', 'estado'])) {
 			$item->save();
-			Log::info("[OrphanTransfer] Item atualizado", ['id' => $item->id, 'status' => $item->status, 'estado' => $item->estado]);
 		}
+
+        // Sincroniza Categorias
+        if (isset($data['categorias'])) {
+            $item->categorias()->sync($data['categorias']);
+        }
 
 		// Determina a última posição das mídias já existentes no item
 		$lastPosition = ItemMedia::where('item_id', $item->id)->max('position') ?? 0;

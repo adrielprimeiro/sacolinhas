@@ -385,20 +385,23 @@
             btn.disabled = true;
             btn.innerHTML = '<span>AGUARDE...</span>';
 
-            fetch("{{ route('image-groups.transfer-orphans') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    codigo: codigo,
-                    media_ids: orderedIds,
-                    status: status,
-                    estado: estado
-                })
-            })
+                    const categorias = Array.from(document.querySelectorAll('input[name="modal_categorias[]"]')).map(el => el.value);
+
+                    fetch("{{ route('image-groups.transfer-orphans') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            codigo: codigo,
+                            media_ids: orderedIds,
+                            status: status,
+                            estado: estado,
+                            categorias: categorias
+                        })
+                    })
             .then(async (response) => {
                 const data = await response.json();
                 if (!response.ok) throw data;
@@ -493,8 +496,10 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    feedback.classList.add('hidden');
-                    
+                    const suggestedId = data.suggested_category_id;
+                    const allCats = data.all_categories;
+                    const itemCats = data.item.categorias || [];
+
                     preview.innerHTML = `
                         <div class="flex flex-col space-y-4">
                             <h1 class="text-xl font-black text-indigo-900 leading-tight">${data.item.nome_do_produto}</h1>
@@ -520,6 +525,68 @@
                                         <option value="usado">Usado</option>
                                         <option value="recondicionado">Recondicionado</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            {{-- Seletor de Categorias --}}
+                            <div class="space-y-1.5" x-data="{ 
+                                search: '', 
+                                open: false,
+                                selected: ${JSON.stringify(itemCats.length > 0 ? itemCats : (suggestedId ? [suggestedId] : []))},
+                                all: ${JSON.stringify(allCats)},
+                                suggested: ${suggestedId || 'null'},
+                                get filtered() {
+                                    if (!this.search) return this.all;
+                                    return this.all.filter(c => c.path.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                toggle(id) {
+                                    const idx = this.selected.indexOf(id);
+                                    if (idx > -1) this.selected.splice(idx, 1);
+                                    else this.selected.push(id);
+                                }
+                            }">
+                                <label class="block text-[8px] font-black text-gray-400 uppercase tracking-widest">Categorias</label>
+                                
+                                <div class="relative">
+                                    <div @click="open = !open" class="w-full bg-white border border-indigo-100 rounded-xl p-2.5 cursor-pointer min-h-[40px] flex flex-wrap gap-1">
+                                        <template x-if="selected.length === 0">
+                                            <span class="text-[10px] text-gray-400 font-bold italic">Nenhuma selecionada</span>
+                                        </template>
+                                        <template x-for="id in selected" :key="id">
+                                            <div class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                <span x-text="all.find(c => c.id == id)?.name"></span>
+                                                <input type="hidden" name="modal_categorias[]" :value="id">
+                                                <span @click.stop="toggle(id)" class="hover:text-red-500">×</span>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div x-show="open" @click.away="open = false" class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 p-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                        <input type="text" x-model="search" placeholder="Filtrar categorias..." class="w-full border border-gray-100 rounded-lg px-3 py-2 text-xs mb-2 outline-none focus:border-indigo-300">
+                                        
+                                        <div class="space-y-1">
+                                            <template x-for="cat in filtered" :key="cat.id">
+                                                <div 
+                                                    @click="toggle(cat.id)"
+                                                    class="p-2 rounded-lg cursor-pointer hover:bg-gray-50 flex items-center justify-between group"
+                                                    :class="selected.includes(cat.id) ? 'bg-indigo-50' : ''"
+                                                >
+                                                    <div class="flex flex-col">
+                                                        <span class="text-[10px] font-bold" :class="selected.includes(cat.id) ? 'text-indigo-700' : 'text-gray-700'" x-text="cat.name"></span>
+                                                        <span class="text-[8px] text-gray-400" x-text="cat.path"></span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2">
+                                                        <template x-if="cat.id == suggested">
+                                                            <span class="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Sugestão</span>
+                                                        </template>
+                                                        <div class="w-4 h-4 border-2 rounded flex items-center justify-center transition-colors" :class="selected.includes(cat.id) ? 'bg-indigo-600 border-indigo-600' : 'border-gray-200'">
+                                                            <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
