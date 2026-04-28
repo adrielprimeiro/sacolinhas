@@ -94,6 +94,10 @@ class CategoriaController extends Controller
             'parent_id'      => 'nullable|exists:categorias,id',
             'valor_desconto' => 'required|numeric|min:0',
             'tipo_desconto'  => 'required|in:porcentagem,fixo',
+            'altura'         => 'nullable|numeric|min:0',
+            'largura'        => 'nullable|numeric|min:0',
+            'comprimento'    => 'nullable|numeric|min:0',
+            'peso'           => 'nullable|numeric|min:0',
         ]);
 
         $validated['slug'] = $this->gerarSlug($validated['name'], $validated['parent_id'] ?? null);
@@ -116,6 +120,10 @@ class CategoriaController extends Controller
             'parent_id'      => 'nullable|exists:categorias,id',
             'valor_desconto' => 'required|numeric|min:0',
             'tipo_desconto'  => 'required|in:porcentagem,fixo',
+            'altura'         => 'nullable|numeric|min:0',
+            'largura'        => 'nullable|numeric|min:0',
+            'comprimento'    => 'nullable|numeric|min:0',
+            'peso'           => 'nullable|numeric|min:0',
         ]);
 
         $validated['slug'] = $this->gerarSlug($validated['name'], $validated['parent_id'] ?? null, $categoria->id);

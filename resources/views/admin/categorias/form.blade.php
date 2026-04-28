@@ -76,6 +76,38 @@
                         <option value="fixo" {{ old('tipo_desconto', $categoria->tipo_desconto ?? '') == 'fixo' ? 'selected' : '' }}>Valor Fixo (R$)</option>
                     </select>
                 </div>
+
+                <div class="col-span-2 border-t border-gray-100 my-2 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4"><i class="fas fa-box mr-2"></i> Dimensões Médias (para frete)</h3>
+                </div>
+
+                {{-- Altura --}}
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1">
+                    <label for="altura" class="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label>
+                    <input type="number" step="0.01" name="altura" id="altura" value="{{ old('altura', $categoria->altura ?? '') }}" 
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                {{-- Largura --}}
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1">
+                    <label for="largura" class="block text-sm font-medium text-gray-700 mb-1">Largura (cm)</label>
+                    <input type="number" step="0.01" name="largura" id="largura" value="{{ old('largura', $categoria->largura ?? '') }}" 
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                {{-- Comprimento --}}
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1">
+                    <label for="comprimento" class="block text-sm font-medium text-gray-700 mb-1">Comprimento (cm)</label>
+                    <input type="number" step="0.01" name="comprimento" id="comprimento" value="{{ old('comprimento', $categoria->comprimento ?? '') }}" 
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                {{-- Peso --}}
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1">
+                    <label for="peso" class="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                    <input type="number" step="0.001" name="peso" id="peso" value="{{ old('peso', $categoria->peso ?? '') }}" 
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
             </div>
 
             <div class="mt-8 flex justify-end space-x-3">

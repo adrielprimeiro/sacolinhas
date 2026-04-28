@@ -15,11 +15,19 @@ class Categoria extends Model
         'slug',
         'parent_id',
         'valor_desconto',
-        'tipo_desconto'
+        'tipo_desconto',
+        'altura',
+        'largura',
+        'comprimento',
+        'peso'
     ];
 
     protected $casts = [
         'valor_desconto' => 'decimal:2',
+        'altura' => 'decimal:2',
+        'largura' => 'decimal:2',
+        'comprimento' => 'decimal:2',
+        'peso' => 'decimal:3',
     ];
 
     protected static function boot()
