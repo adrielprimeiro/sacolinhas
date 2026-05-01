@@ -9,11 +9,25 @@
     <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
         <div>
             <h1 class="text-xl font-bold text-gray-800">Minha Sacolinha</h1>
-            <p class="text-gray-600 text-sm">Itens reservados para você</p>
+            <p class="text-gray-600 text-sm">
+                <span class="font-bold">{{ $itens->count() }}</span> {{ $itens->count() == 1 ? 'Item reservado' : 'Itens reservados' }} pra você
+            </p>
+            <div class="mt-2 flex items-baseline gap-2">
+                <p class="text-xs text-gray-500 uppercase font-semibold">Total:</p>
+                <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+            </div>
         </div>
-        <div class="text-right">
-            <p class="text-xs text-gray-500">Total</p>
-            <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+        <div class="flex flex-col gap-2 min-w-[180px]">
+            <button id="btnFecharSacolinha" 
+                    disabled
+                    class="w-full bg-gray-200 text-gray-400 text-xs font-bold py-2 px-4 rounded-lg cursor-not-allowed transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
+                <i class="fas fa-check-circle"></i> Fechar Sacolinha
+            </button>
+            <button id="btnSimularFrete" 
+                    disabled
+                    class="w-full border-2 border-gray-200 text-gray-400 text-xs font-bold py-1.5 px-4 rounded-lg cursor-not-allowed transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
+                <i class="fas fa-truck"></i> Simular Frete
+            </button>
         </div>
     </div>
 
@@ -114,8 +128,13 @@
 
     <!-- Lista -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-800">Itens</h2>
+        <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center justify-between flex-1">
+                <h2 class="text-sm font-semibold text-gray-800">Itens</h2>
+                <p class="text-[11px] md:text-xs text-gray-500 font-medium italic">
+                    Selecione os Itens que você quer incluir no seu PEDIDO ou simular FRETE
+                </p>
+            </div>
             <div class="flex items-center gap-4">
                 <span id="totalSelecionado" class="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full hidden">
                     <span class="font-semibold">Selecionados:</span> 
@@ -208,6 +227,7 @@
                                     <input type="checkbox" 
                                            name="selecionar[]" 
                                            value="{{ $item->sacolinha_id }}" 
+                                           data-item-id="{{ $item->item_id }}"
                                            data-price="{{ $item->price ?? 0 }}"
                                            data-em-analise="{{ $emAnalise ? 'true' : 'false' }}"
                                            class="item-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-5 w-5">
@@ -268,6 +288,7 @@
                                     <input type="checkbox" 
                                            name="selecionar[]" 
                                            value="{{ $item->sacolinha_id }}" 
+                                           data-item-id="{{ $item->item_id }}"
                                            data-price="{{ $item->price ?? 0 }}"
                                            data-em-analise="{{ $emAnalise ? 'true' : 'false' }}"
                                            class="item-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-5 w-5">
@@ -302,6 +323,39 @@
         @endif
     </div>
 
+    <!-- Modal Simular Frete -->
+    <div id="modalFrete" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Simular Frete</h3>
+                <button id="btnCloseModalFrete" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label for="cepInput" class="block text-sm font-medium text-gray-700 mb-1">Informe seu CEP</label>
+                <div class="flex gap-2">
+                    <input type="text" id="cepInput" class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="00000-000" maxlength="9">
+                    <button id="btnCalcularFreteAPI" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
+                        Calcular
+                    </button>
+                </div>
+                <p id="cepError" class="text-red-500 text-xs mt-1 hidden"></p>
+            </div>
+            
+            <!-- Resultados do Frete -->
+            <div id="freteResults" class="space-y-3 mt-4 hidden max-h-60 overflow-y-auto">
+                <!-- Opções de frete serão injetadas aqui -->
+            </div>
+            
+            <!-- Loading -->
+            <div id="freteLoading" class="hidden text-center py-4">
+                <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+                <p class="text-sm text-gray-500 mt-2">Calculando as melhores opções...</p>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- JavaScript para calcular total dos selecionados e controlar botão -->
@@ -313,6 +367,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const selecionadosValor = document.getElementById('selecionadosValor');
     const btnExcluirSelecionados = document.getElementById('btnExcluirSelecionados');
     const mensagemBotao = document.getElementById('mensagemBotao');
+    const btnFecharSacolinha = document.getElementById('btnFecharSacolinha');
+    const btnSimularFrete = document.getElementById('btnSimularFrete');
     
     // Valor do excedente (vem do controller)
     const excedente = parseFloat({{ $excedente ?? 0 }});
@@ -335,8 +391,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+
+            // Habilitar botões de ação
+            if (btnFecharSacolinha) {
+                btnFecharSacolinha.disabled = false;
+                btnFecharSacolinha.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btnFecharSacolinha.classList.add('bg-green-600', 'hover:bg-green-700', 'text-white', 'cursor-pointer');
+            }
+            if (btnSimularFrete) {
+                btnSimularFrete.disabled = false;
+                btnSimularFrete.classList.remove('border-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btnSimularFrete.classList.add('border-blue-600', 'text-blue-600', 'hover:bg-blue-50', 'cursor-pointer');
+            }
         } else {
             totalContainer.classList.add('hidden');
+            
+            // Desabilitar botões de ação
+            if (btnFecharSacolinha) {
+                btnFecharSacolinha.disabled = true;
+                btnFecharSacolinha.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btnFecharSacolinha.classList.remove('bg-green-600', 'hover:bg-green-700', 'text-white', 'cursor-pointer');
+            }
+            if (btnSimularFrete) {
+                btnSimularFrete.disabled = true;
+                btnSimularFrete.classList.add('border-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btnSimularFrete.classList.remove('border-blue-600', 'text-blue-600', 'hover:bg-blue-50', 'cursor-pointer');
+            }
         }
         
         // Atualizar valor dos selecionados no card
@@ -368,6 +448,170 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Inicializar
     updateTotais();
+
+    // Lógica Fechar Sacolinha
+    if (btnFecharSacolinha) {
+        btnFecharSacolinha.addEventListener('click', async function() {
+            // Pegar IDs selecionados (sacolinha_id)
+            const selectedIds = [];
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedIds.push(checkbox.value);
+                }
+            });
+
+            if (selectedIds.length === 0) return;
+
+            btnFecharSacolinha.disabled = true;
+            btnFecharSacolinha.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
+
+            try {
+                const response = await fetch("{{ route('portal.checkout.iniciar') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        itens: selectedIds
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Erro ao iniciar checkout: ' + (data.message || 'Erro desconhecido'));
+                    btnFecharSacolinha.disabled = false;
+                    btnFecharSacolinha.innerHTML = '<i class="fas fa-check-circle"></i> Fechar Sacolinha';
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro de comunicação com o servidor.');
+                btnFecharSacolinha.disabled = false;
+                btnFecharSacolinha.innerHTML = '<i class="fas fa-check-circle"></i> Fechar Sacolinha';
+            }
+        });
+    }
+
+    // Lógica do Modal de Frete
+    const modalFrete = document.getElementById('modalFrete');
+    const btnCloseModalFrete = document.getElementById('btnCloseModalFrete');
+    const btnCalcularFreteAPI = document.getElementById('btnCalcularFreteAPI');
+    const cepInput = document.getElementById('cepInput');
+    const freteResults = document.getElementById('freteResults');
+    const freteLoading = document.getElementById('freteLoading');
+    const cepError = document.getElementById('cepError');
+
+    // Máscara CEP
+    cepInput.addEventListener('input', function(e) {
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,5})(\d{0,3})/);
+        e.target.value = !x[2] ? x[1] : x[1] + '-' + x[2];
+    });
+
+    if (btnSimularFrete) {
+        btnSimularFrete.addEventListener('click', function() {
+            modalFrete.classList.remove('hidden');
+            freteResults.classList.add('hidden');
+            freteResults.innerHTML = '';
+            cepInput.value = '';
+            cepError.classList.add('hidden');
+        });
+    }
+
+    btnCloseModalFrete.addEventListener('click', function() {
+        modalFrete.classList.add('hidden');
+    });
+
+    btnCalcularFreteAPI.addEventListener('click', async function() {
+        const cep = cepInput.value.replace(/\D/g, '');
+        if (cep.length !== 8) {
+            cepError.textContent = 'Digite um CEP válido com 8 dígitos.';
+            cepError.classList.remove('hidden');
+            return;
+        }
+        cepError.classList.add('hidden');
+
+        // Pegar IDs dos itens selecionados
+        const selectedItems = [];
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedItems.push(checkbox.dataset.itemId);
+            }
+        });
+
+        if (selectedItems.length === 0) {
+            cepError.textContent = 'Nenhum item selecionado.';
+            cepError.classList.remove('hidden');
+            return;
+        }
+
+        // Mostrar loading
+        freteLoading.classList.remove('hidden');
+        freteResults.classList.add('hidden');
+        freteResults.innerHTML = '';
+
+        try {
+            const response = await fetch('{{ route("api.frete.simular") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    cep: cep,
+                    itens: selectedItems
+                })
+            });
+
+            const data = await response.json();
+
+            freteLoading.classList.add('hidden');
+            freteResults.classList.remove('hidden');
+
+            if (data.success && data.options && data.options.length > 0) {
+                let html = '<p class="text-xs text-gray-500 font-semibold uppercase mb-2">Opções de Envio</p>';
+                
+                data.options.forEach(opt => {
+                    html += `
+                    <div class="border border-gray-200 rounded-md p-3 flex justify-between items-center hover:bg-gray-50 transition">
+                        <div class="flex items-center gap-3">
+                            <img src="${opt.company.picture}" alt="${opt.company.name}" class="h-8 w-8 object-contain">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">${opt.name}</p>
+                                <p class="text-xs text-gray-500">Entrega em até ${opt.delivery_time} dias úteis</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-gray-900">R$ ${parseFloat(opt.price).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                        </div>
+                    </div>`;
+                });
+                
+                // Mostrar dimensões calculadas (debug/transparência)
+                html += `
+                <div class="mt-4 p-2 bg-gray-50 rounded text-xs text-gray-500 text-center">
+                    Pacote calculado: ${data.package.weight}kg | ${data.package.length}x${data.package.width}x${data.package.height}cm
+                </div>`;
+                
+                freteResults.innerHTML = html;
+            } else {
+                freteResults.innerHTML = `<div class="text-center p-4 text-red-500 text-sm">
+                    ${data.message || 'Nenhuma opção de frete disponível para este CEP.'}
+                </div>`;
+            }
+
+        } catch (error) {
+            console.error('Erro ao calcular frete:', error);
+            freteLoading.classList.add('hidden');
+            freteResults.classList.remove('hidden');
+            freteResults.innerHTML = `<div class="text-center p-4 text-red-500 text-sm">Erro ao conectar com o servidor. Tente novamente.</div>`;
+        }
+    });
+
 });
 </script>
 @endsection

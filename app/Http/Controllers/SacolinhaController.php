@@ -1047,6 +1047,43 @@ class SacolinhaController extends Controller
 		}
 	}
 
+    /**
+     * Simula o frete dos itens selecionados na sacolinha
+     */
+    public function simularFrete(Request $request, \App\Services\ShippingCalculatorService $calculator, \App\Services\MelhorEnvioService $melhorEnvio)
+    {
+        try {
+            $request->validate([
+                'cep' => 'required|string',
+                'itens' => 'required|array',
+                'itens.*' => 'integer|exists:items,id'
+            ]);
 
-		
+            // Calcula dimensões e peso com a nova lógica
+            $packageData = $calculator->calculateForItems($request->itens);
+
+            // Cota no Melhor Envio
+            $result = $melhorEnvio->calculateShipping($request->cep, $packageData);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'options' => $result['options'],
+                    'package' => $packageData
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'Erro desconhecido ao cotar o frete.'
+            ], 400);
+
+        } catch (\Exception $e) {
+            Log::error("Erro na simulação de frete: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro interno ao simular frete.'
+            ], 500);
+        }
+    }
 }

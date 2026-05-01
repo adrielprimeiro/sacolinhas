@@ -106,7 +106,7 @@ class PortalClienteController extends Controller
 	{
 		$user = Auth::user();
 
-		$request->validate([
+		$rules = [
 			'name' => ['required', 'string', 'max:255'],
 			'email' => [
 				'required',
@@ -114,13 +114,32 @@ class PortalClienteController extends Controller
 				'max:255',
 				Rule::unique('users', 'email')->ignore($user->id),
 			],
+            'cep' => ['nullable', 'string', 'max:9'],
+            'endereco' => ['nullable', 'string', 'max:255'],
+            'numero_endereco' => ['nullable', 'string', 'max:20'],
+            'complemento' => ['nullable', 'string', 'max:255'],
+            'bairro' => ['nullable', 'string', 'max:100'],
+            'cidade' => ['nullable', 'string', 'max:100'],
+            'estado' => ['nullable', 'string', 'max:2'],
+		];
 
-			// senha opcional
-			'password' => ['nullable', 'string', 'min:6', 'confirmed'],
-		]);
+        if ($request->filled('password')) {
+            $rules['password'] = ['required', 'string', 'min:6', 'confirmed'];
+        }
+
+        $request->validate($rules);
 
 		$user->name = $request->name;
 		$user->email = $request->email;
+
+        // Atualizar endereço
+        $user->cep = $request->cep;
+        $user->endereco = $request->endereco;
+        $user->numero_endereco = $request->numero_endereco;
+        $user->complemento = $request->complemento;
+        $user->bairro = $request->bairro;
+        $user->cidade = $request->cidade;
+        $user->estado = $request->estado;
 
 		if (!empty($request->password)) {
 			$user->password = Hash::make($request->password);

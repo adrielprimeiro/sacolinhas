@@ -266,6 +266,12 @@ Route::middleware('auth')->group(function () {
     // Rotas de busca Pedido cliente
     Route::get('/pedidos/buscar-clientes', [PedidoController::class, 'buscarClientes']); 
 
+    // ===== FLUXO DE CHECKOUT (FECHAR SACOLINHA) =====
+    Route::post('/checkout/iniciar', [App\Http\Controllers\Portal\CheckoutController::class, 'iniciar'])->name('portal.checkout.iniciar');
+    Route::get('/checkout/{pedido}', [App\Http\Controllers\Portal\CheckoutController::class, 'show'])->name('portal.checkout.show');
+    Route::post('/checkout/{pedido}/cancelar', [App\Http\Controllers\Portal\CheckoutController::class, 'cancelar'])->name('portal.checkout.cancelar');
+    Route::post('/checkout/{pedido}/confirmar', [App\Http\Controllers\Portal\CheckoutController::class, 'finalizarRevision'])->name('portal.checkout.confirmar');
+
 });
 
 Route::post('/loja/adicionar-item', [LojaController::class, 'adicionarItemSacola'])->name('loja.adicionar_item');
@@ -321,6 +327,9 @@ Route::prefix('api')->middleware('auth')->group(function () {
     
     // Remover item da sacolinha
     Route::delete('/sacolinhas/{sacolinhaId}', [SacolinhaController::class, 'removerItemSacola']);
+
+    // Simular Frete da Sacolinha
+    Route::post('/frete/simular', [SacolinhaController::class, 'simularFrete'])->name('api.frete.simular');
 	
 });
 
