@@ -183,6 +183,11 @@ class CheckoutController extends Controller
      */
     public function finalizarRevision(Request $request, $pedidoId)
     {
+        Log::info('Tentativa de finalizar checkout', [
+            'pedido_id' => $pedidoId,
+            'request' => $request->all()
+        ]);
+
         $request->validate([
             'shipping_id' => 'required|string',
             'shipping_price' => 'required|numeric',
