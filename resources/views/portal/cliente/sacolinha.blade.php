@@ -15,6 +15,12 @@
             <div class="mt-2 flex items-baseline gap-2">
                 <p class="text-xs text-gray-500 uppercase font-semibold">Total:</p>
                 <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+                
+                <!-- Badge Dinâmico de Selecionados -->
+                <div id="totalSelecionado" class="hidden flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 ml-2">
+                    <span class="text-[10px] text-blue-600 font-bold uppercase">Selecionado:</span>
+                    <span class="text-sm font-bold text-blue-700">R$ 0,00</span>
+                </div>
             </div>
         </div>
         <div class="flex flex-col gap-2 min-w-[180px]">
@@ -386,11 +392,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Atualizar badge no cabeçalho
         if (selectedCount > 0) {
-            totalContainer.classList.remove('hidden');
-            totalSpan.textContent = 'R$ ' + totalSelecionados.toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+            if (totalContainer) totalContainer.classList.remove('hidden');
+            if (totalSpan) {
+                totalSpan.textContent = 'R$ ' + totalSelecionados.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
 
             // Habilitar botões de ação
             if (btnFecharSacolinha) {
@@ -404,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnSimularFrete.classList.add('border-blue-600', 'text-blue-600', 'hover:bg-blue-50', 'cursor-pointer');
             }
         } else {
-            totalContainer.classList.add('hidden');
+            if (totalContainer) totalContainer.classList.add('hidden');
             
             // Desabilitar botões de ação
             if (btnFecharSacolinha) {
@@ -420,25 +428,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Atualizar valor dos selecionados no card
-        selecionadosValor.textContent = 'R$ ' + totalSelecionados.toLocaleString('pt-BR', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        
-        // Controlar botão Excluir Selecionados
-        if (totalSelecionados >= excedente) {
-            btnExcluirSelecionados.disabled = false;
-            btnExcluirSelecionados.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
-            btnExcluirSelecionados.classList.add('bg-red-500', 'hover:bg-red-600', 'text-white', 'cursor-pointer');
-            mensagemBotao.textContent = 'Clique para excluir os itens selecionados';
-        } else {
-            btnExcluirSelecionados.disabled = true;
-            btnExcluirSelecionados.classList.remove('bg-red-500', 'hover:bg-red-600', 'text-white', 'cursor-pointer');
-            btnExcluirSelecionados.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
-            mensagemBotao.textContent = 'Selecione itens no valor de R$ ' + excedente.toLocaleString('pt-BR', {
+        if (selecionadosValor) {
+            selecionadosValor.textContent = 'R$ ' + totalSelecionados.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
-            }) + ' para habilitar';
+            });
+        }
+        
+        // Controlar botão Excluir Selecionados
+        if (btnExcluirSelecionados) {
+            if (totalSelecionados >= excedente) {
+                btnExcluirSelecionados.disabled = false;
+                btnExcluirSelecionados.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                btnExcluirSelecionados.classList.add('bg-red-500', 'hover:bg-red-600', 'text-white', 'cursor-pointer');
+                if (mensagemBotao) mensagemBotao.textContent = 'Clique para excluir os itens selecionados';
+            } else {
+                btnExcluirSelecionados.disabled = true;
+                btnExcluirSelecionados.classList.remove('bg-red-500', 'hover:bg-red-600', 'text-white', 'cursor-pointer');
+                btnExcluirSelecionados.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                if (mensagemBotao) {
+                    mensagemBotao.textContent = 'Selecione itens no valor de R$ ' + excedente.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + ' para habilitar';
+                }
+            }
         }
     }
     
