@@ -85,6 +85,10 @@ class MercadoPagoController extends Controller
                 // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
                 if ($status === 'approved') {
                     $pedido->status_pagamento = 'pago';
+                    
+                    // Baixa automática de estoque
+                    $this->darBaixaEstoque($pedido);
+
                 } elseif ($status === 'rejected' || $status === 'cancelled') {
                     $pedido->status_pagamento = 'cancelado';
                 } elseif ($status === 'in_process' || $status === 'pending') {
@@ -189,6 +193,10 @@ class MercadoPagoController extends Controller
                     if ($pedido) {
                         if ($status === 'approved') {
                             $pedido->status_pagamento = 'pago';
+                            
+                            // Baixa automática de estoque via Webhook
+                            $this->darBaixaEstoque($pedido);
+
                         } elseif ($status === 'rejected' || $status === 'cancelled') {
                             $pedido->status_pagamento = 'cancelado';
                         } elseif ($status === 'pending' || $status === 'in_process') {
@@ -202,5 +210,28 @@ class MercadoPagoController extends Controller
         }
 
         return response()->json(['status' => 'success'], 200);
+    }
+
+    /**
+     * Altera o status dos itens vinculados ao pedido para 'vendido'.
+     */
+    private function darBaixaEstoque(Pedido $pedido)
+    {
+        // Busca os IDs dos itens através da tabela items_pedido
+        $itemIds = DB::table('items_pedido')
+            ->where('pedido_id', $pedido->id)
+            ->pluck('item_id');
+
+        if ($itemIds->count() > 0) {
+            // Atualiza o status na tabela items
+            DB::table('items')
+                ->whereIn('id', $itemIds)
+                ->update([
+                    'status' => 'vendido',
+                    'updated_at' => now()
+                ]);
+
+            Log::info("Estoque baixado para o pedido #{$pedido->id}", ['items' => $itemIds]);
+        }
     }
 }
