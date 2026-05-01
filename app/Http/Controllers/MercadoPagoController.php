@@ -170,6 +170,12 @@ class MercadoPagoController extends Controller
      */
     public function webhook(Request $request)
     {
+        Log::info('Webhook Mercado Pago recebido', [
+            'query' => $request->query(),
+            'body' => $request->all(),
+            'headers' => $request->headers->all()
+        ]);
+
         $topic = $request->query('topic') ?? $request->input('type');
         $paymentId = $request->query('id') ?? $request->input('data.id');
 
