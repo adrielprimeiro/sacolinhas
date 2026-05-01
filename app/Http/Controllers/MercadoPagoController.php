@@ -171,25 +171,37 @@ class MercadoPagoController extends Controller
     public function webhook(Request $request)
     {
         Log::info('Webhook Mercado Pago recebido', [
-            'query' => $request->query(),
-            'body' => $request->all(),
-            'headers' => $request->headers->all()
+            'all' => $request->all(),
+            'query' => $request->query()
         ]);
 
-        $topic = $request->query('topic') ?? $request->input('type');
-        $paymentId = $request->query('id') ?? $request->input('data.id');
+        // Tenta capturar o ID do pagamento de várias formas possíveis que o MP envia
+        $paymentId = $request->input('data.id') 
+                  ?? $request->input('id') 
+                  ?? $request->query('id') 
+                  ?? $request->query('data_id');
 
-        if (str_starts_with($topic, 'payment') && $paymentId) {
+        // Tenta capturar o tópico/tipo
+        $topic = $request->input('type') 
+              ?? $request->input('topic') 
+              ?? $request->query('type') 
+              ?? $request->query('topic');
+
+        Log::info('Dados extraídos do Webhook', ['paymentId' => $paymentId, 'topic' => $topic]);
+
+        if (($topic === 'payment' || $topic === 'payment.updated') && $paymentId) {
             
             $accessToken = config('services.mercadopago.access_token');
             
+            Log::info("Consultando detalhes do pagamento {$paymentId} no Mercado Pago...");
+
             $response = Http::withoutVerifying()
                 ->withToken($accessToken)
                 ->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
 
             if ($response->successful()) {
                 $paymentInfo = $response->json();
-                Log::info('Dados do pagamento consultados na API do MP', ['paymentInfo' => $paymentInfo]);
+                Log::info('Resposta da API do MP recebida com sucesso', ['status' => $paymentInfo['status'] ?? 'N/A']);
                 
                 $status = $paymentInfo['status'] ?? null;
                 $pedidoId = $paymentInfo['external_reference'] ?? null;
