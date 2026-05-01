@@ -83,7 +83,7 @@
                         <div class="text-center py-6">
                             <i class="fas fa-truck-loading text-gray-300 text-4xl mb-2"></i>
                             <p class="text-sm text-gray-500">Não foi possível calcular o frete. Verifique seu CEP no perfil.</p>
-                            <a href="{{ route('portal.perfil') }}" class="text-blue-600 text-xs font-bold mt-2 inline-block">ATUALIZAR MEU CEP</a>
+                            <a href="{{ route('portal.perfil') }}?return_to={{ urlencode(url()->current()) }}" class="text-blue-600 text-xs font-bold mt-2 inline-block">ATUALIZAR MEU CEP</a>
                         </div>
                     @endif
                 </div>

@@ -96,10 +96,11 @@ class PortalClienteController extends Controller
 	}
     
 
-	public function perfil()
+	public function perfil(Request $request)
 	{
 		$user = Auth::user();
-		return view('portal.cliente.perfil', compact('user'));
+        $returnTo = $request->query('return_to');
+		return view('portal.cliente.perfil', compact('user', 'returnTo'));
 	}
 
 	public function perfilAtualizar(Request $request)
@@ -147,8 +148,7 @@ class PortalClienteController extends Controller
 
 		$user->save();
 
-		return redirect()
-			->route('portal.dashboard')
+		return redirect($request->input('return_to', route('portal.dashboard')))
 			->with('success', 'Perfil atualizado com sucesso.');
 	}
 	

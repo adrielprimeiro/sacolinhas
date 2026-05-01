@@ -40,6 +40,10 @@
         <form action="{{ route('portal.perfil.atualizar') }}" method="POST" class="p-4 space-y-4" autocomplete="off">
             @csrf
             @method('PUT')
+            
+            @if($returnTo)
+                <input type="hidden" name="return_to" value="{{ $returnTo }}">
+            @endif
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
