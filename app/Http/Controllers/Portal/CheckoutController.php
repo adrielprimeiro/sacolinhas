@@ -199,10 +199,16 @@ class CheckoutController extends Controller
                 ->where('user_id', auth()->id())
                 ->firstOrFail();
 
+            // Calcular o subtotal dos itens no pedido
+            $subtotal = DB::table('items_pedido')
+                ->where('pedido_id', $pedidoId)
+                ->select(DB::raw('SUM(preco_unitario * quantidade) as total'))
+                ->first()->total ?? 0;
+
             $pedido->valor_frete = $request->shipping_price;
+            $pedido->valor_total = $subtotal + $request->shipping_price;
             $pedido->status_pedido = 'pendente'; 
             
-            // Opcional: salvar o nome da transportadora nas observações ou log
             $pedido->save();
 
             return response()->json([
