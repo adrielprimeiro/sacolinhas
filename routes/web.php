@@ -34,6 +34,10 @@ use App\Http\Controllers\ItemMediaController;
 use App\Http\Controllers\PontuacoesController;
 use App\Http\Controllers\Admin\GruposController;  
 
+// Webhook Mercado Pago (Público)
+Route::post('/mercadopago/webhook', [\App\Http\Controllers\MercadoPagoController::class, 'webhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 
 // Rota que vai disparar o envio das imagens
 //Route::get('/teste-enviar-gemini', [App\Http\Controllers\ImagemBatchController::class, 'enviarParaEdicao']);
@@ -441,6 +445,7 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
     Route::post('/mercadopago/{pedido}/process', [\App\Http\Controllers\MercadoPagoController::class, 'processPayment'])->name('mercadopago.process')->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 });
+
 
 //Sacolinhas Vencidas
 Route::get('/admin/vencimentos', [SacolinhaVencidaController::class, 'index'])
