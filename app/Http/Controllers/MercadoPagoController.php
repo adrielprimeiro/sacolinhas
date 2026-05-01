@@ -189,14 +189,22 @@ class MercadoPagoController extends Controller
 
             if ($response->successful()) {
                 $paymentInfo = $response->json();
+                Log::info('Dados do pagamento consultados na API do MP', ['paymentInfo' => $paymentInfo]);
                 
                 $status = $paymentInfo['status'] ?? null;
                 $pedidoId = $paymentInfo['external_reference'] ?? null;
+
+                Log::info('Tentando localizar pedido para atualização', [
+                    'external_reference' => $pedidoId,
+                    'status_mp' => $status
+                ]);
 
                 if ($pedidoId && $status) {
                     $pedido = Pedido::find($pedidoId);
                     
                     if ($pedido) {
+                        Log::info("Pedido #{$pedido->id} localizado. Status atual: {$pedido->status_pagamento}. Novo status: {$status}");
+                        
                         if ($status === 'approved') {
                             $pedido->status_pagamento = 'pago';
                             
@@ -210,8 +218,16 @@ class MercadoPagoController extends Controller
                         }
                         
                         $pedido->save();
+                        Log::info("Pedido #{$pedido->id} atualizado com sucesso para {$pedido->status_pagamento}");
+                    } else {
+                        Log::warning("Pedido ID {$pedidoId} não encontrado no banco de dados.");
                     }
                 }
+            } else {
+                Log::error('Erro ao consultar pagamento no Mercado Pago via Webhook', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
             }
         }
 
