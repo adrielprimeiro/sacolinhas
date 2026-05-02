@@ -25,17 +25,43 @@
                 @enderror
             </div>
             
-            <div>
+            <div class="relative" id="lider-combobox">
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Líder (Opcional)</label>
-                <select name="lider_id" 
-                        class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-indigo-400 focus:ring-0 outline-none text-gray-900 font-bold transition">
-                    <option value="">Sem líder definido</option>
+                <div class="relative">
+                    <input type="text" id="lider-search" autocomplete="off"
+                           placeholder="Buscar por nome ou email..."
+                           class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-indigo-400 focus:ring-0 outline-none text-gray-900 font-bold transition @error('lider_id') border-red-500 @enderror"
+                           oninput="filtrarLideres(this.value)"
+                           onfocus="abrirDropdown()">
+                    <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"></i>
+                </div>
+                
+                <div id="lider-dropdown" 
+                     class="hidden absolute left-0 right-0 mt-2 bg-white border-2 border-gray-100 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto overflow-x-hidden">
+                    <div class="p-2 border-b border-gray-50">
+                        <div class="cursor-pointer p-3 hover:bg-indigo-50 rounded-xl transition flex items-center gap-2"
+                             onclick="selecionarLider('', 'Sem líder definido')">
+                            <i class="fas fa-user-slash text-gray-400 text-xs"></i>
+                            <span class="text-sm font-bold text-gray-500 italic">Sem líder definido</span>
+                        </div>
+                    </div>
                     @foreach($usuarios as $user)
-                        <option value="{{ $user->id }}" {{ old('lider_id', $grupo->lider_id) == $user->id ? 'selected' : '' }}>
-                            {{ $user->name }} ({{ $user->email }})
-                        </option>
+                        <div class="lider-option cursor-pointer p-3 hover:bg-indigo-50 rounded-xl transition flex items-center gap-3 border-b border-gray-50 last:border-0"
+                             data-id="{{ $user->id }}"
+                             data-nome="{{ $user->name }}"
+                             data-email="{{ $user->email }}"
+                             onclick="selecionarLider('{{ $user->id }}', '{{ addslashes($user->name) }}')">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">
+                                {{ substr($user->name, 0, 1) }}
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm font-bold text-gray-900 leading-tight">{{ $user->name }}</div>
+                                <div class="text-[10px] text-gray-400">{{ $user->email }}</div>
+                            </div>
+                        </div>
                     @endforeach
-                </select>
+                </div>
+                <input type="hidden" name="lider_id" id="lider_id_input" value="{{ old('lider_id', $grupo->lider_id) }}">
                 @error('lider_id')
                     <p class="mt-1 text-xs text-red-600 font-bold">{{ $message }}</p>
                 @enderror
@@ -54,4 +80,50 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    function abrirDropdown() {
+        document.getElementById('lider-dropdown').classList.remove('hidden');
+    }
+
+    function filtrarLideres(query) {
+        abrirDropdown();
+        const q = query.toLowerCase().trim();
+        document.querySelectorAll('.lider-option').forEach(opt => {
+            const nome = opt.dataset.nome.toLowerCase();
+            const email = opt.dataset.email.toLowerCase();
+            opt.style.display = (nome.includes(q) || email.includes(q)) ? '' : 'none';
+        });
+    }
+
+    function selecionarLider(id, nome) {
+        document.getElementById('lider-search').value = nome;
+        document.getElementById('lider_id_input').value = id;
+        document.getElementById('lider-dropdown').classList.add('hidden');
+    }
+
+    document.addEventListener('click', function(e) {
+        const combobox = document.getElementById('lider-combobox');
+        if (combobox && !combobox.contains(e.target)) {
+            document.getElementById('lider-dropdown').classList.add('hidden');
+        }
+    });
+
+    // Inicialização do valor atual
+    window.addEventListener('load', function() {
+        @php 
+            $liderId = old('lider_id', $grupo->lider_id);
+            $u = $usuarios->where('id', $liderId)->first(); 
+        @endphp
+        @if($u) 
+            selecionarLider('{{ $u->id }}', '{{ addslashes($u->name) }}'); 
+        @endif
+    });
+</script>
+<style>
+    #lider-dropdown::-webkit-scrollbar { display: none; }
+    #lider-dropdown { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+@endpush
 @endsection
