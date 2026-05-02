@@ -84,8 +84,8 @@ class CheckoutController extends Controller
                 ]);
             });
 
-        } catch (\Exception $e) {
-            Log::error('Erro ao iniciar checkout: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Erro ao iniciar checkout: ' . $e->getMessage() . ' - Linha: ' . $e->getLine());
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao processar checkout. Tente novamente.'
