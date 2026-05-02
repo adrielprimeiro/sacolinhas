@@ -493,12 +493,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 let data;
-                const textResponse = await response.text();
+                let textResponse = await response.text();
                 try {
+                    // Vacina: Se o servidor mandou múltiplos JSONs grudados ou lixo antes,
+                    // procuramos onde começa a resposta verdadeira de sucesso.
+                    const successIndex = textResponse.lastIndexOf('{"success":');
+                    if (successIndex > 0) {
+                        console.warn("Lixo detectado antes do JSON real. Limpando...", textResponse.substring(0, successIndex));
+                        textResponse = textResponse.substring(successIndex);
+                    }
                     data = JSON.parse(textResponse);
                 } catch (e) {
-                    console.error("Servidor não retornou JSON. Retornou:", textResponse);
-                    alert("O servidor respondeu com um erro fatal ou página HTML. Verifique o console ou me mande o log! Resposta: " + textResponse.substring(0, 150));
+                    console.error("Servidor não retornou JSON válido. Retornou:", textResponse);
+                    alert("O servidor respondeu com um erro fatal ou página HTML. Verifique o console! Resposta: " + textResponse.substring(0, 150));
                     btnFecharSacolinha.disabled = false;
                     btnFecharSacolinha.innerHTML = '<i class="fas fa-check-circle"></i> Fechar Sacolinha';
                     return;
