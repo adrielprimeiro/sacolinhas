@@ -126,17 +126,28 @@
                             }
                             
                             try {
-                                // Vacina robusta contra lixo no retorno (extrai apenas o objeto JSON)
-                                const firstBrace = text.indexOf('{');
-                                const lastBrace = text.lastIndexOf('}');
+                                // Vacina ultra-robusta: se houver múltiplos objetos JSON (ex: payload ecoado + resposta),
+                                // busca o início do último objeto que parece ser a resposta real.
+                                const successIdx = text.lastIndexOf('{"success":');
+                                const statusIdx = text.lastIndexOf('{"status":');
+                                const lastStart = Math.max(successIdx, statusIdx);
                                 
-                                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                                    const cleanedText = text.substring(firstBrace, lastBrace + 1);
-                                    if (cleanedText !== text) {
-                                        console.warn("Lixo detectado na resposta do servidor. Limpando...");
-                                        text = cleanedText;
+                                if (lastStart !== -1) {
+                                    text = text.substring(lastStart);
+                                } else {
+                                    // Fallback: se não achar as chaves conhecidas, tenta pegar o último bloco { ... }
+                                    const lastOpenBrace = text.lastIndexOf('{');
+                                    if (lastOpenBrace !== -1) {
+                                        text = text.substring(lastOpenBrace);
                                     }
                                 }
+
+                                // Garante que a string termine exatamente no último fechamento de chave
+                                const lastCloseBrace = text.lastIndexOf('}');
+                                if (lastCloseBrace !== -1) {
+                                    text = text.substring(0, lastCloseBrace + 1);
+                                }
+
                                 return JSON.parse(text);
                             } catch (e) {
                                 console.error("JSON Parse Error:", e, text);
