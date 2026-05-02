@@ -19,7 +19,7 @@ class MercadoPagoController extends Controller
             abort(403, 'Acesso não autorizado.');
         }
 
-        if ($pedido->status_pagamento === 'pago') {
+        if ($pedido->status_pagamento === 'aprovado') {
             return redirect()->route('portal.pedidos')->with('info', 'Este pedido já está pago.');
         }
 
@@ -85,15 +85,18 @@ class MercadoPagoController extends Controller
 
                 // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
                 if ($status === 'approved') {
-                    $pedido->status_pagamento = 'pago';
+                    $pedido->status_pagamento = 'aprovado';
+                    $pedido->status_pedido = 'pago';
                     
                     // Baixa automática de estoque
                     $this->darBaixaEstoque($pedido);
 
                 } elseif ($status === 'rejected' || $status === 'cancelled') {
-                    $pedido->status_pagamento = 'cancelado';
+                    $pedido->status_pagamento = 'rejeitado';
+                    $pedido->status_pedido = 'cancelado';
                 } elseif ($status === 'in_process' || $status === 'pending') {
                     $pedido->status_pagamento = 'pendente';
+                    $pedido->status_pedido = 'pendente';
                 }
 
                 // Mapeia o tipo de pagamento do MP para o nosso ENUM do banco de dados
@@ -219,15 +222,18 @@ class MercadoPagoController extends Controller
                         Log::info("Pedido #{$pedido->id} localizado. Status atual: {$pedido->status_pagamento}. Novo status: {$status}");
                         
                         if ($status === 'approved') {
-                            $pedido->status_pagamento = 'pago';
+                            $pedido->status_pagamento = 'aprovado';
+                            $pedido->status_pedido = 'pago';
                             
                             // Baixa automática de estoque via Webhook
                             $this->darBaixaEstoque($pedido);
 
                         } elseif ($status === 'rejected' || $status === 'cancelled') {
-                            $pedido->status_pagamento = 'cancelado';
+                            $pedido->status_pagamento = 'rejeitado';
+                            $pedido->status_pedido = 'cancelado';
                         } elseif ($status === 'pending' || $status === 'in_process') {
                             $pedido->status_pagamento = 'pendente';
+                            $pedido->status_pedido = 'pendente';
                         }
                         
                         $pedido->save();
