@@ -59,7 +59,9 @@ class MelhorEnvioService
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->token,
                 'User-Agent' => 'ManiadeMelissa (' . env('MAIL_FROM_ADDRESS', 'contato@maniademelissa.com') . ')'
-            ]);
+            ])
+            ->timeout(15)
+            ->retry(3, 500); // Tenta 3 vezes com 500ms de intervalo se falhar
 
             // Desabilitar verificação SSL no ambiente local (resolve o cURL error 60 no Windows)
             if (env('APP_ENV') === 'local') {
