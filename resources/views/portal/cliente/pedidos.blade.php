@@ -165,6 +165,19 @@
                                                         </div>
                                                     </div>
                                                 @endforeach
+                                            <div class="mt-4 pt-3 border-t border-gray-200 space-y-1 text-right max-w-xs ml-auto">
+                                                <div class="flex justify-between text-xs text-gray-500">
+                                                    <span>Subtotal Itens:</span>
+                                                    <span class="font-medium text-gray-800">R$ {{ number_format($itensPedido->sum('valor_total'), 2, ',', '.') }}</span>
+                                                </div>
+                                                <div class="flex justify-between text-xs text-gray-500">
+                                                    <span>Frete:</span>
+                                                    <span class="font-medium text-gray-800">R$ {{ number_format($pedido->valor_frete ?? 0, 2, ',', '.') }}</span>
+                                                </div>
+                                                <div class="flex justify-between text-sm font-bold text-gray-900 pt-1 border-t border-gray-100">
+                                                    <span>Total Pago:</span>
+                                                    <span>R$ {{ number_format($pedido->valor_total ?? 0, 2, ',', '.') }}</span>
+                                                </div>
                                             </div>
                                         @else
                                             <p class="text-sm text-gray-600">Nenhum item encontrado para este pedido.</p>
@@ -317,6 +330,21 @@
                                             </p>
                                         </div>
                                     @endforeach
+
+                                    <div class="mt-3 pt-3 border-t border-gray-200 space-y-1">
+                                        <div class="flex justify-between text-xs text-gray-500">
+                                            <span>Subtotal Itens:</span>
+                                            <span class="font-medium text-gray-800">R$ {{ number_format($itensPedido->sum('valor_total'), 2, ',', '.') }}</span>
+                                        </div>
+                                        <div class="flex justify-between text-xs text-gray-500">
+                                            <span>Frete:</span>
+                                            <span class="font-medium text-gray-800">R$ {{ number_format($pedido->valor_frete ?? 0, 2, ',', '.') }}</span>
+                                        </div>
+                                        <div class="flex justify-between text-sm font-bold text-gray-900 pt-1 border-t border-gray-100">
+                                            <span>Total Pago:</span>
+                                            <span>R$ {{ number_format($pedido->valor_total ?? 0, 2, ',', '.') }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             @else
                                 <p class="text-sm text-gray-600">Nenhum item encontrado para este pedido.</p>
