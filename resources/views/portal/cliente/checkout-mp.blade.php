@@ -119,12 +119,29 @@
                             body: JSON.stringify(formData)
                         })
                         .then(async (response) => {
+                            let text = await response.text();
                             if (!response.ok) {
-                                let text = await response.text();
                                 console.error("Error Response:", text);
                                 throw new Error("Erro HTTP " + response.status + ". Veja o console.");
                             }
-                            return response.json();
+                            
+                            try {
+                                // Vacina robusta contra lixo no retorno (extrai apenas o objeto JSON)
+                                const firstBrace = text.indexOf('{');
+                                const lastBrace = text.lastIndexOf('}');
+                                
+                                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                                    const cleanedText = text.substring(firstBrace, lastBrace + 1);
+                                    if (cleanedText !== text) {
+                                        console.warn("Lixo detectado na resposta do servidor. Limpando...");
+                                        text = cleanedText;
+                                    }
+                                }
+                                return JSON.parse(text);
+                            } catch (e) {
+                                console.error("JSON Parse Error:", e, text);
+                                throw new Error("Resposta inválida do servidor. Verifique o console.");
+                            }
                         })
                         .then((data) => {
                             if (data.error) {
