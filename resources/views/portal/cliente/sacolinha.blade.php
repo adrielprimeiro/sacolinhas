@@ -492,7 +492,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
 
-                const data = await response.json();
+                let data;
+                const textResponse = await response.text();
+                try {
+                    data = JSON.parse(textResponse);
+                } catch (e) {
+                    console.error("Servidor não retornou JSON. Retornou:", textResponse);
+                    alert("O servidor respondeu com um erro fatal ou página HTML. Verifique o console ou me mande o log! Resposta: " + textResponse.substring(0, 150));
+                    btnFecharSacolinha.disabled = false;
+                    btnFecharSacolinha.innerHTML = '<i class="fas fa-check-circle"></i> Fechar Sacolinha';
+                    return;
+                }
 
                 if (data.success && data.redirect) {
                     window.location.href = data.redirect;
