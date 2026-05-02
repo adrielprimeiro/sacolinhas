@@ -187,7 +187,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
-            const data = await response.json();
+            let rawText = await response.text();
+            const idx = rawText.lastIndexOf('{"success":');
+            if (idx > 0) rawText = rawText.substring(idx);
+            const data = JSON.parse(rawText);
 
             if (data.success && data.redirect) {
                 window.location.href = data.redirect;
@@ -198,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error(error);
-            alert('Erro de comunicação com o servidor.');
+            alert('Erro de comunicação com o servidor: ' + error.message);
             btnConfirmar.disabled = false;
             btnConfirmar.innerHTML = 'IR PARA O PAGAMENTO <i class="fas fa-arrow-right"></i>';
         }
@@ -217,7 +220,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Accept': 'application/json'
                 }
             });
-            const data = await response.json();
+            let rawText = await response.text();
+            const idx = rawText.lastIndexOf('{"success":');
+            if (idx > 0) rawText = rawText.substring(idx);
+            const data = JSON.parse(rawText);
             if (data.success) {
                 window.location.href = "{{ route('portal.sacolinha') }}";
             } else {
