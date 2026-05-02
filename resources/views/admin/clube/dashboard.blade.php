@@ -15,6 +15,10 @@
            class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition shadow-sm">
             <i class="fas fa-trophy"></i> <span class="hidden sm:inline">Gerenciar </span>Desafios
         </a>
+        <a href="{{ route('admin.grupos.index') }}"
+           class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition shadow-sm">
+            <i class="fas fa-users"></i> <span class="hidden sm:inline">Gerenciar </span>Grupos
+        </a>
         <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100">
             <label for="mes_filtro" class="text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:block">Mês:</label>
             <form action="{{ route('admin.clube.dashboard') }}" method="GET" id="formFiltroMes">
