@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-2xl mx-auto">
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100">
         <div class="p-6 border-b border-gray-100 bg-gray-50/50">
             <h1 class="text-2xl font-black text-gray-900 tracking-tight">Novo Grupo 👥</h1>
             <p class="text-gray-500 text-sm mt-0.5">Preencha os dados abaixo para criar a equipe.</p>
