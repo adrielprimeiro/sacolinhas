@@ -811,7 +811,7 @@ class PedidoController extends Controller
 
 
 
-                $pontosGanhar = floor($valorItens / 10);
+                $pontosGanhar = ceil($valorItens / 10);
 
                 if ($pontosGanhar > 0) {
                     \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, $pontosGanhar);

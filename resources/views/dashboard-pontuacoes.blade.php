@@ -34,6 +34,7 @@
             <ul class="space-y-1 text-sm">
                 <li><span class="opacity-90">💰 Mensalidade:</span> {{ number_format($meusPontos->pontos_mensalidade, 0, ',', '.') }}</li>
                 <li><span class="opacity-90">🛒 Itens:</span> {{ number_format($meusPontos->pontos_itens, 0, ',', '.') }}</li>
+                <li><span class="opacity-90">🗑️ Item retirado:</span> {{ number_format($meusPontos->pontos_retirados, 0, ',', '.') }}</li>
                 <li><span class="opacity-90">⭐ Desafios:</span> {{ number_format($meusPontos->pontos_desafios, 0, ',', '.') }}</li>
                 <li><span class="opacity-90">👥 Bônus Grupo:</span> {{ number_format($meusPontos->pontos_bonus_grupo, 0, ',', '.') }}</li>
             </ul>
@@ -50,6 +51,7 @@
                     <li><span class="opacity-90">💰 Mensal ({{ $membrosPagosGrupo ?? 0 }}/{{ $totalMembrosGrupo ?? 0 }} em dia):</span> {{ number_format($pontosGrupo->pontos_mensalidades ?? 0, 0, ',', '.') }}</li>
                     <li><span class="opacity-90">⭐ Desafios:</span> {{ number_format($pontosGrupo->pontos_desafios ?? 0, 0, ',', '.') }}</li>
                     <li><span class="opacity-90">🛒 Itens total:</span> {{ number_format($pontosGrupo->pontos_itens ?? 0, 0, ',', '.') }}</li>
+                    <li><span class="opacity-90">🗑️ Itens retirados:</span> {{ number_format($pontosGrupo->pontos_retirados ?? 0, 0, ',', '.') }}</li>
                 </ul>
                 <p class="text-sm mb-2 opacity-90">Seu bônus: {{ number_format($meusPontos->pontos_bonus_grupo ?? 0, 0, ',', '.') }} pts (50%)</p>
                 <a href="#" class="w-full bg-white/20 hover:bg-white/30 text-xs px-3 py-2 rounded-full transition duration-200 text-center block">Ver Grupo</a>

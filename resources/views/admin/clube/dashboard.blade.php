@@ -164,6 +164,7 @@
         <div class="flex items-center justify-between">
             <div class="text-[9px] text-gray-400 font-bold uppercase tracking-tight space-x-2">
                 <span>Itens: {{ $p->pontos_itens ?: 0 }}</span>
+                <span>Retir: {{ $p->pontos_retirados ?: 0 }}</span>
                 <span>Mês: {{ $p->pontos_mensalidade ?: 0 }}</span>
                 <span>Desaf: {{ $p->pontos_desafios ?: 0 }}</span>
             </div>
@@ -242,6 +243,7 @@
                         <div class="font-black text-gray-900 text-lg">{{ number_format($p->pontos_total ?: 0, 0, ',', '.') }}</div>
                         <div class="text-[10px] text-gray-400 font-bold space-x-2 uppercase tracking-tighter">
                             <span>Itens: {{ number_format($p->pontos_itens ?: 0, 0) }}</span>
+                            <span>Retir: {{ number_format($p->pontos_retirados ?: 0, 0) }}</span>
                             <span>Mês: {{ number_format($p->pontos_mensalidade ?: 0, 0) }}</span>
                             <span>Desaf: {{ number_format($p->pontos_desafios ?: 0, 0) }}</span>
                         </div>

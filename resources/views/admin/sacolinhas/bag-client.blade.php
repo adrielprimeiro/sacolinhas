@@ -418,6 +418,35 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmação de Remoção -->
+    <div class="modal fade" id="modalRemoverItem" tabindex="-1" aria-labelledby="modalRemoverItemLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalRemoverItemLabel">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> Confirmar Remoção
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="mb-2">Escolha como deseja remover este item da sacolinha:</p>
+                    <div class="p-2 border rounded bg-light mb-3">
+                        <div id="remover-item-nome" class="fw-bold"></div>
+                        <div id="remover-item-preco" class="text-primary"></div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex flex-column gap-2">
+                    <button type="button" class="btn btn-danger w-100 py-2" id="btn-remover-com-desconto">
+                        <i class="fas fa-percent"></i> Retirar descontando pontos
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary w-100 py-2" id="btn-remover-sem-desconto">
+                        <i class="fas fa-trash-alt"></i> Retirar sem desconto nos pontos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
@@ -526,7 +555,7 @@
 				console.log('Item:', item, 'Preço:', preco);  // ✅ DEBUG
 
 					body.append(`
-						<tr data-sacolinha-id="${item.sacolinha_id}" data-item-id="${item.item_id}">
+						<tr data-sacolinha-id="${item.sacolinha_id}" data-item-id="${item.item_id}" data-price="${preco}" data-name="${item.nome_do_produto}">
 							<td>${item.codigo || '-'}</td>
 							<td>${item.nome_do_produto || '-'}</td>
 							<td>R$ ${preco.toFixed(2)}</td>
@@ -663,40 +692,68 @@
 		});
 
 		// ===== REMOVER ITEM =====
+		let itemParaRemover = null;
+		const modalRemover = new bootstrap.Modal(document.getElementById('modalRemoverItem'));
+
 		$(document).on('click', '.btn-remove', function() {
-			if (!confirm('Remover item?')) return;
-
 			const row = $(this).closest('tr');
-			const sacolinhaId = row.data('sacolinha-id');
+			itemParaRemover = {
+				id: row.data('sacolinha-id'),
+				name: row.data('name'),
+				price: row.data('price'),
+				row: row
+			};
 
-			console.log('Remove sacolinha_id:', sacolinhaId);
+			$('#remover-item-nome').text(itemParaRemover.name);
+			$('#remover-item-preco').text('R$ ' + parseFloat(itemParaRemover.price).toFixed(2).replace('.', ','));
+			
+			modalRemover.show();
+		});
+
+		$('#btn-remover-com-desconto').on('click', function() {
+			executarRemocao(true);
+		});
+
+		$('#btn-remover-sem-desconto').on('click', function() {
+			executarRemocao(false);
+		});
+
+		function executarRemocao(descontar) {
+			if (!itemParaRemover) return;
+
+			const sacolinhaId = itemParaRemover.id;
+			const row = itemParaRemover.row;
 
 			$.ajax({
-				url: `/api/sacolinhas/${sacolinhaId}`,  // ✅ Route param
+				url: `/api/sacolinhas/${sacolinhaId}`,
 				method: 'DELETE',
+				data: {
+					descontar_pontos: descontar
+				},
 				headers: {
-					'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+					'X-CSRF-TOKEN': csrfToken,
 					'Accept': 'application/json'
-					// Sem Content-Type/data (DELETE puro)
 				},
 				success: function(response) {
-					console.log('Remove OK:', response);
-					if (response.success !== false) {  // ✅ Compatível
+					if (response.success) {
+						modalRemover.hide();
 						row.remove();
 						carregarSacolinha(clienteId);
-						carregarLimites(clienteId);  // Triggers atualizaram!
-						alert('Removido!');
+						carregarLimites(clienteId);
+						
+						// Toast ou Alert simples
+						const msg = descontar ? 'Item removido com desconto de pontos!' : 'Item removido sem desconto de pontos.';
+						alert(msg);
 					} else {
-						alert(response.message || 'Falha');
+						alert(response.message || 'Falha ao remover item.');
 					}
 				},
 				error: function(xhr) {
 					console.error('Remove error:', xhr.status, xhr.responseJSON);
-					const err = xhr.responseJSON || {};
-					alert('Erro: ' + (err.message || Object.values(err.errors || {}).flat().join(', ')));
+					alert('Erro ao remover item.');
 				}
 			});
-		});
+		}
 		$(document).on('click', function(e) {
 			if (!$(e.target).closest('#cliente-search, #cliente-list').length) $('#cliente-list').hide();
 			if (!$(e.target).closest('#item-search, #item-list').length) $('#item-list').hide();

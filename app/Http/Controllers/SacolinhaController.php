@@ -292,69 +292,78 @@ class SacolinhaController extends Controller
 		}
 	}
 
-	public function removeItems(Request $request)
-	{
-		Log::info("removeItems HIT! All data: " . json_encode($request->all()));
-       
-		try {
-			$request->validate([
-				'item_id' => 'required|integer',
-				'user_id' => 'required|integer',
-				'live_id' => 'required|integer'
-			]);
+    public function removeItems(Request $request)
+    {
+        try {
+            $request->validate([
+                'item_id' => 'required|integer',
+                'user_id' => 'required|integer',
+                'live_id' => 'required|integer',
+                'descontar_pontos' => ['sometimes'], // Leniente para formatos variados
+            ]);
 
-			// Usamos transaction para garantir que o status 'estoque' seja a palavra final
-			DB::transaction(function () use ($request) {
-				
-				// 1. Buscar a sacola
-				$sacola = Sacolinhas::where([
-					'item_id' => $request->item_id,
-					'user_id' => $request->user_id,
-					'live_id' => $request->live_id
-				])->first();
+            $descontarPontos = filter_var($request->input('descontar_pontos'), FILTER_VALIDATE_BOOLEAN);
 
-				if (!$sacola) {
-					throw new \Exception('Item não encontrado na sacola', 404);
-				}
+            // Usamos transaction para garantir que o status 'estoque' seja a palavra final
+            DB::transaction(function () use ($request, $descontarPontos) {
+                
+                // 1. Buscar a sacola
+                $sacola = Sacolinhas::where([
+                    'item_id' => $request->item_id,
+                    'user_id' => $request->user_id,
+                    'live_id' => $request->live_id
+                ])->first();
 
-				// (Opcional) Cálculo de valor caso você use para atualizar limites depois
-				// $valorMudanca = ($sacola->price ?? 0) * ($sacola->quantity ?? 1);
+                if (!$sacola) {
+                    throw new \Exception('Item não encontrado na sacola', 404);
+                }
 
-				// 2. Remover da sacola (Isso dispara o Trigger de DELETE do BD para o limite)
-				$sacola->delete();
+                // 2. REGRA NOVA: Diminuir pontos apenas se solicitado
+                if ($descontarPontos) {
+                    // Preço do item na sacolinha ou fallback para o preço do item na tabela items
+                    $itemOriginal = Item::find($request->item_id);
+                    $price = (float) ($sacola->price ?: ($itemOriginal ? $itemOriginal->preco : 0));
+                    
+                    // Cálculo: 1 ponto a cada R$ 10,00 (arredondamento para cima)
+                    $pointsToDeduct = ceil($price / 10);
+                    
+                    if ($pointsToDeduct > 0) {
+                        \App\Services\PontuacoesService::updateItemPoints($request->user_id, -$pointsToDeduct);
+                        Log::info("Descontado {$pointsToDeduct} pontos de user {$request->user_id} pela remoção do item de valor R$ {$price} (via removeItems)");
+                    }
+                }
 
-				// 3. REGRA NOVA: Diminuir 1 ponto ao retirar da sacolinha
-				\App\Services\PontuacoesService::updateItemPoints($request->user_id, -1);
+                // 3. Remover da sacola (Isso dispara o Trigger de DELETE do BD para o limite)
+                $sacola->delete();
 
-				// 4. FORÇA BRUTA: Atualizar status para 'estoque'
-				// Executado após o delete, garantindo que sobrescreve qualquer alteração do Trigger
-				DB::table('items')
-					->where('id', $request->item_id)
-					->update([
-						'status' => 'estoque',
-						'updated_at' => now()
-					]);
+                // 4. FORÇA BRUTA: Atualizar status para 'estoque'
+                // Executado após o delete, garantindo que sobrescreve qualquer alteração do Trigger
+                DB::table('items')
+                    ->where('id', $request->item_id)
+                    ->update([
+                        'status' => 'estoque',
+                        'updated_at' => now()
+                    ]);
 
-			});
+            });
 
-			return response()->json([
-				'success' => true,
-				'message' => 'Item removido da sacola e devolvido ao estoque!'
-			]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Item removido da sacola.' . ($descontarPontos ? ' Pontos descontados.' : '')
+            ]);
 
-		} catch (\Exception $e) {
-			// Tratamento para retornar 404 se foi a exceção que lançamos acima
-			$code = $e->getCode();
-			if ($code < 100 || $code > 599) $code = 500;
+        } catch (\Exception $e) {
+            $code = $e->getCode();
+            if ($code < 100 || $code > 599) $code = 500;
 
-			Log::error("Erro ao remover item: " . $e->getMessage());
-			
-			return response()->json([
-				'success' => false,
-				'message' => $e->getMessage()
-			], $code);
-		}
-	}
+            Log::error("Erro ao remover item: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $code);
+        }
+    }
 	
     /**
      * Retorna as sacolas de uma live com o status CORRETO do item
@@ -856,10 +865,12 @@ class SacolinhaController extends Controller
     {
         try {
             $validated = $request->validate([
-                'sacolinha_id' => ['sometimes', 'exists:sacolinhas,id'],  // ✅ Opcional (usa route fallback)
+                'sacolinha_id' => ['sometimes', 'exists:sacolinhas,id'],
+                'descontar_pontos' => ['sometimes'], // Removido 'boolean' para evitar falhas de conversão do jQuery
             ]);
 
             $sacolinhaId = $sacolinhaId ?: $validated['sacolinha_id'] ?? null;  // ✅ Prioriza route param
+            $descontarPontos = filter_var($request->input('descontar_pontos'), FILTER_VALIDATE_BOOLEAN);
 
             if (!$sacolinhaId || !is_numeric($sacolinhaId)) {
                 return response()->json(['message' => 'ID da sacolinha inválido.'], 400);
@@ -871,28 +882,36 @@ class SacolinhaController extends Controller
                 return response()->json(['message' => 'Item na sacolinha não encontrado.'], 404);
             }
 
-            // ✅ ATUALIZAÇÃO DE STATUS DO ITEM (Novo Bloco)
-            // Busca o item original usando o ID salvo na sacolinha
+            // ✅ ATUALIZAÇÃO DE STATUS DO ITEM
             $item = Item::find($sacolinhaItem->item_id);
             
             if ($item) {
-                // Atualiza o status para 'Fora da Sacola'
-                $item->update(['status' => 'Fora da Sacola']);
+                // Atualiza o status para 'estoque'
+                $item->update(['status' => 'estoque']);
             }
 
-            // ✅ REGRA NOVA: Diminuir 1 ponto ao retirar da sacolinha
-            \App\Services\PontuacoesService::updateItemPoints($sacolinhaItem->user_id, -1);
+            // ✅ REGRA NOVA: Diminuir pontos apenas se solicitado
+            if ($descontarPontos) {
+                // Preço do item na sacolinha ou fallback para o preço do item
+                $price = (float) ($sacolinhaItem->price ?: ($item ? $item->preco : 0));
+                
+                // Cálculo: 1 ponto a cada R$ 10,00 (arredondamento para cima)
+                $pointsToDeduct = ceil($price / 10);
+                
+                if ($pointsToDeduct > 0) {
+                    \App\Services\PontuacoesService::updateItemPoints($sacolinhaItem->user_id, -$pointsToDeduct);
+                    Log::info("Descontado {$pointsToDeduct} pontos de user {$sacolinhaItem->user_id} pela remoção do item de valor R$ {$price}");
+                }
+            }
 
             // Remove o registro da sacolinha
             $sacolinhaItem->delete(); 
 
-
-
             Log::info("Item sacolinha_id {$sacolinhaId} removido para user {$sacolinhaItem->user_id}. Status do item atualizado.");
 
             return response()->json([
-                'success' => true,  // ✅ Para JS if(response.success)
-                'message' => 'Item removido da sacolinha e status atualizado.'
+                'success' => true,
+                'message' => 'Item removido da sacolinha.' . ($descontarPontos ? ' Pontos descontados.' : '')
             ], 200);
 
         } catch (ValidationException $e) {

@@ -22,35 +22,41 @@ class PontuacoesService
             ->value('grupo_id');
 
         DB::transaction(function () use ($userId, $mesAno, $points, $grupoId) {
-            // 1. Garantir que o registro do cliente existe
+            // 1. Garantir que os registros existem
             DB::table('pontuacoes_clientes')->updateOrInsert(
                 ['user_id' => $userId, 'mes_ano' => $mesAno],
-                ['pontos_itens' => DB::raw('COALESCE(pontos_itens, 0)')]
+                [
+                    'pontos_itens' => DB::raw('COALESCE(pontos_itens, 0)'),
+                    'pontos_retirados' => DB::raw('COALESCE(pontos_retirados, 0)')
+                ]
             );
             
-            // 2. Incrementar/Decrementar pontos_itens do cliente
+            // 2. Incrementar pontos_itens ou pontos_retirados do cliente
+            $column = $points >= 0 ? 'pontos_itens' : 'pontos_retirados';
             DB::table('pontuacoes_clientes')
                 ->where('user_id', $userId)
                 ->where('mes_ano', $mesAno)
-                ->increment('pontos_itens', $points);
+                ->increment($column, $points);
 
             // 3. Se tiver grupo, atualizar pontos do grupo também
             if ($grupoId) {
                 DB::table('pontuacoes_grupos')->updateOrInsert(
                     ['grupo_id' => $grupoId, 'mes_ano' => $mesAno],
-                    ['pontos_itens' => DB::raw('COALESCE(pontos_itens, 0)')]
+                    [
+                        'pontos_itens' => DB::raw('COALESCE(pontos_itens, 0)'),
+                        'pontos_retirados' => DB::raw('COALESCE(pontos_retirados, 0)')
+                    ]
                 );
 
                 DB::table('pontuacoes_grupos')
                     ->where('grupo_id', $grupoId)
                     ->where('mes_ano', $mesAno)
-                    ->increment('pontos_itens', $points);
+                    ->increment($column, $points);
                 
-                // 4. Rodar procedure de sincronização do grupo (para atualizar bônus dos outros membros)
-                // Usamos a procedure que já existe no banco
+                // 4. Rodar procedure de sincronização do grupo
                 DB::unprepared("CALL atualizar_pontuacoes_grupo($grupoId, '$mesAno')");
             } else {
-                // Se não tem grupo, apenas roda a do user para garantir outros bônus se existirem
+                // Se não tem grupo, apenas roda a do user
                 DB::unprepared("CALL atualizar_pontuacoes_user($userId, '$mesAno')");
             }
         });

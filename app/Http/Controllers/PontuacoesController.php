@@ -17,10 +17,10 @@ class PontuacoesController extends Controller
         $meusPontos = DB::table('pontuacoes_clientes')
             ->where('user_id', $user->id)
             ->where('mes_ano', $mesAtual)
-            ->select('total', 'pontos_mensalidade', 'pontos_itens', 'pontos_desafios', 'pontos_bonus_grupo')
+            ->select('total', 'pontos_mensalidade', 'pontos_itens', 'pontos_desafios', 'pontos_bonus_grupo', 'pontos_retirados')
             ->first() ?? (object)[
                 'total' => 0, 'pontos_mensalidade' => 0, 'pontos_itens' => 0,
-                'pontos_desafios' => 0, 'pontos_bonus_grupo' => 0
+                'pontos_desafios' => 0, 'pontos_bonus_grupo' => 0, 'pontos_retirados' => 0
             ];
 
         // 2. Meu grupo (Informações e Pontuações)
@@ -39,8 +39,8 @@ class PontuacoesController extends Controller
             $pontosGrupo = DB::table('pontuacoes_grupos')
                 ->where('grupo_id', $meuGrupo->grupo_id)
                 ->where('mes_ano', $mesAtual)
-                ->select('total', 'pontos_mensalidades', 'pontos_itens')
-                ->first() ?? (object)['total' => 0, 'pontos_mensalidades' => 0, 'pontos_itens' => 0];
+                ->select('total', 'pontos_mensalidades', 'pontos_itens', 'pontos_retirados')
+                ->first() ?? (object)['total' => 0, 'pontos_mensalidades' => 0, 'pontos_itens' => 0, 'pontos_retirados' => 0];
 
             // Contagem de membros (Total e Em Dia)
             $membrosIds = DB::table('grupo_membros')

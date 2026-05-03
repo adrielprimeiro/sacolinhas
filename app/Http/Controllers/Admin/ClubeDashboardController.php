@@ -56,6 +56,7 @@ class ClubeDashboardController extends Controller
                 'pontuacoes_clientes.pontos_itens',
                 'pontuacoes_clientes.pontos_desafios',
                 'pontuacoes_clientes.pontos_bonus_grupo',
+                'pontuacoes_clientes.pontos_retirados',
                 'grupos.nome as grupo_nome',
                 'clube_mensalidades.status_pagamento',
                 'clube_mensalidades.pago_em'

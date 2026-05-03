@@ -710,7 +710,7 @@
 							</td>
 							<td class="fw-bold text-success">${item.formatted_total_price}</td>
 							<td>
-								<button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id})" title="Remover item">
+								<button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id}, '${item.item_name.replace(/'/g, "\\'")}', '${item.formatted_total_price}')" title="Remover item">
 									<i class="fas fa-trash"></i>
 								</button>
 							</td>
@@ -729,17 +729,43 @@
 			container.innerHTML = html;
 		}
 
-        // Função simplificada para remover item único
-        function removerItem(itemId, userId) {
-            if (!confirm('Tem certeza que deseja remover este item da sacola?')) {
-                return;
-            }
+        // Variáveis globais para controle da remoção
+        let itemParaRemover = null;
+
+        function removerItem(itemId, userId, itemName, itemPrice) {
+            itemParaRemover = { itemId, userId, liveId: liveAtiva.id };
+            
+            document.getElementById('remove_item_name').innerText = itemName || 'Item';
+            document.getElementById('remove_item_price').innerText = itemPrice || 'R$ 0,00';
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalConfirmarRemocao'));
+            modal.show();
+        }
+
+        // Event listeners para os botões do modal de remoção
+        document.getElementById('btnConfirmarComDesconto').addEventListener('click', function() {
+            executarRemocao(true);
+        });
+
+        document.getElementById('btnConfirmarSemDesconto').addEventListener('click', function() {
+            executarRemocao(false);
+        });
+
+        function executarRemocao(descontarPontos) {
+            if (!itemParaRemover) return;
+            
+            const { itemId, userId, liveId } = itemParaRemover;
             
             const data = {
                 item_id: itemId,
                 user_id: userId,
-                live_id: liveAtiva.id
+                live_id: liveId,
+                descontar_pontos: descontarPontos
             };
+            
+            const modalElement = document.getElementById('modalConfirmarRemocao');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) modal.hide();
             
             fetch('/api/sacolinhas/remove', {
                 method: 'DELETE',
@@ -761,6 +787,9 @@
             .catch(error => {
                 console.error('Erro:', error);
                 mostrarAlert('Erro ao remover item', 'danger');
+            })
+            .finally(() => {
+                itemParaRemover = null;
             });
         }
 
@@ -940,6 +969,38 @@ function clearSelection(type) {
             document.dispatchEvent(new CustomEvent('itemCleared'));
         }
     }
+    <!-- Modal de Confirmação de Remoção com Pontuação -->
+    <div class="modal fade" id="modalConfirmarRemocao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-danger text-white border-0" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Remover Item
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="mb-1 text-muted text-uppercase fw-bold small">Você está removendo:</p>
+                    <h4 id="remove_item_name" class="fw-bold text-dark mb-3"></h4>
+                    <div class="bg-light p-3 rounded-3 mb-4">
+                        <p class="mb-0 text-muted">Valor do item: <strong id="remove_item_price" class="text-danger"></strong></p>
+                    </div>
+                    <p class="text-secondary mb-0">Como deseja prosseguir com a pontuação do cliente?</p>
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light d-flex flex-column gap-2" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+                    <button type="button" class="btn btn-danger w-100 py-2 fw-bold" id="btnConfirmarComDesconto">
+                        <i class="fas fa-minus-circle me-1"></i> Retirar descontando pontos
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary w-100 py-2 fw-bold" id="btnConfirmarSemDesconto">
+                        <i class="fas fa-check me-1"></i> Retirar SEM desconto nos pontos
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none mt-1" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     </script>
 </body>
 </html>
