@@ -568,14 +568,22 @@
             $.ajax({
                 url: '/pedidos/buscar-clientes',
                 type: 'GET',
-                dataType: 'json',
                 data: { termo: termo },
-                success: function(clientes) {
-                    mostrarDropdown(clientes);
+                success: function(rawResponse) {
+                    try {
+                        let text = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
+                        const idx = text.indexOf('[');
+                        if (idx >= 0) text = text.substring(idx);
+                        const clientes = JSON.parse(text);
+                        mostrarDropdown(clientes);
+                    } catch (e) {
+                        console.error('Erro no parser da busca:', e, rawResponse);
+                        $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro na busca. Tente novamente.</div>').show();
+                    }
                 },
                 error: function(xhr) {
                     console.error('Erro ao buscar clientes:', xhr);
-                    $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro na busca. Tente novamente.</div>').show();
+                    $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro de rede. Verifique o servidor.</div>').show();
                 }
             });
         }
