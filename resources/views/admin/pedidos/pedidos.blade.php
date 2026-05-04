@@ -731,7 +731,11 @@
 				},
 				error: function(xhr) {
 					console.error('Erro na requisição da sacolinha:', xhr);
-					alert('Erro ao carregar sacolinha. Verifique o servidor.');
+					let errorDetails = xhr.status + ' - ' + xhr.statusText;
+					if (xhr.responseText) {
+					    errorDetails += '\nResposta: ' + xhr.responseText.substring(0, 100);
+					}
+					alert('Erro ao carregar sacolinha. Detalhes: ' + errorDetails);
 				}
 			});
 
