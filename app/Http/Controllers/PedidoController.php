@@ -36,7 +36,7 @@ class PedidoController extends Controller
             // Mapeia os resultados para incluir o saldo formatado
             $clientes = $clientes->map(function ($cliente) {
                 // Acessa o saldo_atual do relacionamento carregado, ou 0 se não houver movimentações
-                $saldo = $cliente->latestContaCorrente->saldo_atual ?? 0;
+                $saldo = $cliente->latestContaCorrente?->saldo_atual ?? 0;
 
                 // Adiciona o saldo formatado e o saldo bruto ao objeto do cliente
                 $cliente->saldo_formatado = 'R$ ' . number_format($saldo, 2, ',', '.');
@@ -48,7 +48,7 @@ class PedidoController extends Controller
             });
 
             return response()->json($clientes);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Erro buscar clientes: ' . $e->getMessage());
             return response()->json([]);
         }

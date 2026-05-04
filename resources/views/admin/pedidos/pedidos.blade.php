@@ -567,12 +567,15 @@
         function buscarClientes(termo) {
             $.ajax({
                 url: '/pedidos/buscar-clientes',
+                type: 'GET',
+                dataType: 'json',
                 data: { termo: termo },
                 success: function(clientes) {
                     mostrarDropdown(clientes);
                 },
-                error: function() {
-                    $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro na busca</div>').show();
+                error: function(xhr) {
+                    console.error('Erro ao buscar clientes:', xhr);
+                    $('#cliente-dropdown').html('<div class="list-group-item text-danger">Erro na busca. Tente novamente.</div>').show();
                 }
             });
         }
@@ -712,6 +715,7 @@
 			$.ajax({
 				url: '/pedidos/itens-sacolinha',
 				type: 'POST',
+				dataType: 'json',
 				data: { 
 					_token: $('meta[name="csrf-token"]').attr('content'),
 					user_id: userId 
@@ -722,11 +726,12 @@
 						preencherSacolinha(response.itens_sacolinha);
 						atualizarResumoSacolinha(response.resumo);
 					} else {
-						alert('Erro: ' + response.message);
+						alert('Erro: ' + (response.message || 'Erro desconhecido.'));
 					}
 				},
-				error: function() {
-					alert('Erro ao carregar sacolinha');
+				error: function(xhr) {
+					console.error('Erro na requisição da sacolinha:', xhr);
+					alert('Erro ao carregar sacolinha. Verifique o servidor.');
 				}
 			});
 
@@ -734,6 +739,7 @@
 			$.ajax({
 				url: '/pedidos/itens-pedido',
 				type: 'POST',
+				dataType: 'json',
 				data: { 
 					_token: $('meta[name="csrf-token"]').attr('content'),
 					user_id: userId 
@@ -964,12 +970,12 @@
 						showNotification('✅ Item movido para o pedido!', 'success');
 						carregarDados(clienteAtual.id);  // Recarregar dados
 					} else {
-						showNotification('❌ ' + response.message, 'error');
+						showNotification('❌ ' + (response.message || 'Erro desconhecido.'), 'error');
 					}
 				},
 				error: function(xhr) {
 					console.error('❌ Erro:', xhr);
-					showNotification('❌ Erro ao mover item', 'error');
+					showNotification('❌ Erro de comunicação com o servidor ao mover item', 'error');
 				}
 			});
 		}
