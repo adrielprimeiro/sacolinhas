@@ -715,18 +715,27 @@
 			$.ajax({
 				url: '/pedidos/itens-sacolinha',
 				type: 'POST',
-				dataType: 'json',
 				data: { 
 					_token: $('meta[name="csrf-token"]').attr('content'),
 					user_id: userId 
 				},
-				success: function(response) {
-					console.log('✅ Sacolinha carregada:', response);  
-					if (response.success) {
-						preencherSacolinha(response.itens_sacolinha);
-						atualizarResumoSacolinha(response.resumo);
-					} else {
-						alert('Erro: ' + (response.message || 'Erro desconhecido.'));
+				success: function(rawResponse) {
+					try {
+						let text = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
+						const idx = text.lastIndexOf('{"success":');
+						if (idx > 0) text = text.substring(idx);
+						const response = JSON.parse(text);
+						
+						console.log('✅ Sacolinha carregada:', response);  
+						if (response.success) {
+							preencherSacolinha(response.itens_sacolinha);
+							atualizarResumoSacolinha(response.resumo);
+						} else {
+							alert('Erro: ' + (response.message || 'Erro desconhecido.'));
+						}
+					} catch(e) {
+						alert('Erro ao processar a resposta da sacolinha. Verifique o servidor.');
+						console.error(e, rawResponse);
 					}
 				},
 				error: function(xhr) {
@@ -743,15 +752,20 @@
 			$.ajax({
 				url: '/pedidos/itens-pedido',
 				type: 'POST',
-				dataType: 'json',
 				data: { 
 					_token: $('meta[name="csrf-token"]').attr('content'),
 					user_id: userId 
 				},
-				success: function(response) {
-					console.log('✅ Pedido carregado:', response);  
-					console.log('pedido_status:', response.pedido_status);
-					console.log('pedido_valor_frete:', response.pedido_valor_frete);
+				success: function(rawResponse) {
+					try {
+						let text = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
+						const idx = text.lastIndexOf('{"success":');
+						if (idx > 0) text = text.substring(idx);
+						const response = JSON.parse(text);
+						
+						console.log('✅ Pedido carregado:', response);  
+						console.log('pedido_status:', response.pedido_status);
+						console.log('pedido_valor_frete:', response.pedido_valor_frete);
 					const frete = parseFloat(response.pedido_valor_frete) || 0;
 					if (response.success) {
 						if (response.tem_pedido) {
@@ -810,11 +824,16 @@
 							$('#tabela-pedido-card').hide();
 							$('#btn-criar-pedido').show().prop('disabled', false);
 						}
+					} catch(e) {
+						alert('Erro ao processar a resposta do pedido. Verifique o servidor.');
+						console.error(e, rawResponse);
 					}
 				},
 				error: function(xhr) {
 					console.error('❌ Erro ao carregar pedido:', xhr);
-					alert('Erro ao carregar pedido');
+					let err = xhr.status + ' ' + xhr.statusText;
+					if (xhr.responseText) err += '\n' + xhr.responseText.substring(0, 150);
+					alert('Erro ao carregar pedido. Detalhes: ' + err);
 				},
 				complete: function() {
 					$('#loading').hide();
