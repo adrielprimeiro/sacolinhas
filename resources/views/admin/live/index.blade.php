@@ -391,6 +391,26 @@
 
     <!-- JavaScript das Lives e Sacolinhas -->
     <script>
+        // Vacina global anti-lixo para limpar JSONs corrompidos pelo servidor
+        function parseJsonSafely(response) {
+            return response.text().then(text => {
+                let idxObj = text.indexOf('{');
+                let idxArr = text.indexOf('[');
+                let startIdx = -1;
+                if (idxObj !== -1 && idxArr !== -1) startIdx = Math.min(idxObj, idxArr);
+                else if (idxObj !== -1) startIdx = idxObj;
+                else if (idxArr !== -1) startIdx = idxArr;
+                
+                if (startIdx > 0) text = text.substring(startIdx);
+                try {
+                    return JSON.parse(text);
+                } catch(e) {
+                    console.error("Falha no parse do JSON:", text);
+                    throw e;
+                }
+            });
+        }
+
         let liveAtiva = null;
         const DISCOUNT_PERCENTAGE = 0.5; // 50% de desconto para live do 'precinho'
 
@@ -655,7 +675,7 @@
                 return;
             }
             fetch(`/api/sacolinhas/live/${liveAtiva.id}`)
-                .then(response => response.json())
+                .then(parseJsonSafely)
                 .then(data => {
                     if (data.success) {
                         exibirSacolas(data.data);						
@@ -859,7 +879,7 @@
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => response.json())
+            .then(parseJsonSafely)
             .then(data => {
                 if (data.success) {
                     mostrarAlert(data.message, 'success');
@@ -887,7 +907,7 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(parseJsonSafely)
             .then(data => {
                 console.log('📡 Resposta da API de live(carregarLiveStatus):', data);
                 const liveStatusDisplay = document.getElementById('live-status-display');
@@ -1089,7 +1109,7 @@
                 },
                 body: JSON.stringify(dados)
             })
-            .then(response => response.json())
+            .then(parseJsonSafely)
             .then(data => {
                 if (data.success) {
                     mostrarAlert(data.message, 'success');
@@ -1127,7 +1147,7 @@
 					'X-Requested-With': 'XMLHttpRequest'
 				}
 			})
-			.then(r => r.json())
+			.then(parseJsonSafely)
 			.then(data => {
 				if (data.success) {
 					mostrarAlert(data.message, 'success');
