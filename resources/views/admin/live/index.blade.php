@@ -394,12 +394,16 @@
         // Vacina global anti-lixo para limpar JSONs corrompidos pelo servidor
         function parseJsonSafely(response) {
             return response.text().then(text => {
-                let idxObj = text.indexOf('{');
-                let idxArr = text.indexOf('[');
-                let startIdx = -1;
-                if (idxObj !== -1 && idxArr !== -1) startIdx = Math.min(idxObj, idxArr);
-                else if (idxObj !== -1) startIdx = idxObj;
-                else if (idxArr !== -1) startIdx = idxArr;
+                let idxSuccess = text.lastIndexOf('{"success":');
+                let idxError = text.lastIndexOf('{"error":');
+                let startIdx = Math.max(idxSuccess, idxError);
+                
+                if (startIdx === -1) {
+                    // Se não tem success nem error, tenta o primeiro { ou [
+                    let idxObj = text.lastIndexOf('{');
+                    let idxArr = text.lastIndexOf('[');
+                    startIdx = Math.max(idxObj, idxArr);
+                }
                 
                 if (startIdx > 0) text = text.substring(startIdx);
                 try {
