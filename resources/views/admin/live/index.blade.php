@@ -1310,6 +1310,8 @@ function clearSelection(type) {
             console.log('DEBUG: Evento itemCleared disparado.');
         }
     }
+    </script>
+
     <!-- Modal de Confirmação de Remoção com Pontuação -->
     <div id="modalConfirmarRemocao" class="fixed inset-0 z-[9999] hidden flex items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeModals()"></div>
@@ -1350,6 +1352,5 @@ function clearSelection(type) {
             </div>
         </div>
     </div>
-    </script>
 </body>
 </html>
