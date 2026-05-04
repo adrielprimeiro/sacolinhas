@@ -832,6 +832,7 @@
 							$('#tabela-pedido-card').hide();
 							$('#btn-criar-pedido').show().prop('disabled', false);
 						}
+					} // FECHA: if (response.success)
 					} catch(e) {
 						alert('Erro ao processar a resposta do pedido. Verifique o servidor.');
 						console.error(e, rawResponse);
