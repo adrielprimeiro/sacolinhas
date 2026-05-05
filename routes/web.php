@@ -579,3 +579,54 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('grupos/{grupo}/membros/{user}', [\App\Http\Controllers\Admin\GruposController::class, 'removeMembro'])->middleware('can:admin')->name('grupos.removeMembro');
 });
 
+// =====================================================================
+// ===== MÓDULO FINANCEIRO (Regime de Competência + Caixa) =============
+// =====================================================================
+use App\Http\Controllers\Financeiro\FinanceiroDashboardController;
+use App\Http\Controllers\Financeiro\LancamentoController;
+use App\Http\Controllers\Financeiro\ContaBancariaController;
+use App\Http\Controllers\Financeiro\OrcamentoController;
+use App\Http\Controllers\Financeiro\ConciliacaoController;
+
+Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
+
+    // Dashboard
+    Route::get('/', [FinanceiroDashboardController::class, 'index'])->name('dashboard');
+
+    // Contas Bancárias
+    Route::prefix('contas')->name('contas.')->group(function () {
+        Route::get('/',                          [ContaBancariaController::class, 'index'])->name('index');
+        Route::post('/',                         [ContaBancariaController::class, 'store'])->name('store');
+        Route::put('/{contaBancaria}',           [ContaBancariaController::class, 'update'])->name('update');
+        Route::delete('/{contaBancaria}',        [ContaBancariaController::class, 'destroy'])->name('destroy');
+        Route::get('/{contaBancaria}/extrato',   [ContaBancariaController::class, 'extrato'])->name('extrato');
+    });
+
+    // Lançamentos
+    Route::prefix('lancamentos')->name('lancamentos.')->group(function () {
+        Route::get('/',                          [LancamentoController::class, 'index'])->name('index');
+        Route::post('/',                         [LancamentoController::class, 'store'])->name('store');
+        Route::get('/{lancamento}',              [LancamentoController::class, 'show'])->name('show');
+        Route::put('/{lancamento}',              [LancamentoController::class, 'update'])->name('update');
+        Route::delete('/{lancamento}',           [LancamentoController::class, 'destroy'])->name('destroy');
+        Route::post('/{lancamento}/baixar',      [LancamentoController::class, 'baixar'])->name('baixar');
+        Route::post('/{lancamento}/cancelar',    [LancamentoController::class, 'cancelar'])->name('cancelar');
+    });
+
+    // AJAX Selects
+    Route::get('/search/pessoas',        [LancamentoController::class, 'searchPessoas'])->name('search.pessoas');
+    Route::get('/search/classificacoes', [LancamentoController::class, 'searchClassificacoes'])->name('search.classificacoes');
+
+    // Orçamento (Previsto x Realizado)
+    Route::prefix('orcamento')->name('orcamento.')->group(function () {
+        Route::get('/',    [OrcamentoController::class, 'index'])->name('index');
+        Route::post('/',   [OrcamentoController::class, 'upsert'])->name('upsert');
+    });
+
+    // Conciliação
+    Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
+        Route::get('/',          [ConciliacaoController::class, 'index'])->name('index');
+        Route::post('/vincular', [ConciliacaoController::class, 'vincular'])->name('vincular');
+    });
+});
+

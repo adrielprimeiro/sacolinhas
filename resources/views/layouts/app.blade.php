@@ -125,9 +125,9 @@
 					<span>Plano de Contas</span>
 				</a>
 
-				<a href="{{ route('admin.financeiro.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.financeiro.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-wallet text-gray-500 w-5"></i>
+				<a href="{{ route('financeiro.dashboard') }}"
+				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.*') ? 'bg-gray-100 font-semibold' : '' }}">
+					<i class="fas fa-chart-line text-gray-500 w-5"></i>
 					<span>Financeiro</span>
 				</a>
 

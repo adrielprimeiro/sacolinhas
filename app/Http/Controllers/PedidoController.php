@@ -93,7 +93,7 @@ class PedidoController extends Controller
 				->get();
 
 			$totalItens = $itens->sum('quantity');
-			$valorTotal = $itens->sum(fn($item) => $item->price * $item->quantity);
+			$valorTotal = $itens->sum(fn($item) => (float)($item->price ?? 0) * (float)($item->quantity ?? 0));
 
 			return response()->json([
 				'success' => true,
@@ -104,11 +104,11 @@ class PedidoController extends Controller
 					'quantidade_produtos' => $itens->count()
 				]
 			]);
-		} catch (\Exception $e) {
-			Log::error('Erro itens sacolinha: ' . $e->getMessage());
+		} catch (\Throwable $e) {
+			Log::error('Erro itens sacolinha: ' . $e->getMessage() . ' no arquivo ' . $e->getFile() . ':' . $e->getLine());
 			return response()->json([
 				'success' => false,
-				'message' => 'Erro ao carregar itens'
+				'message' => 'Erro interno ao processar itens da sacolinha: ' . $e->getMessage()
 			]);
 		}
 	}
@@ -187,11 +187,11 @@ class PedidoController extends Controller
 					'quantidade_itens_pedido' => count($itensPedido)
 				]
 			]);
-		} catch (\Exception $e) {
-			Log::error('Erro itens pedido: ' . $e->getMessage());
+		} catch (\Throwable $e) {
+			Log::error('Erro itens pedido: ' . $e->getMessage() . ' no arquivo ' . $e->getFile() . ':' . $e->getLine());
 			return response()->json([
 				'success' => false,
-				'message' => 'Erro ao carregar itens do pedido'
+				'message' => 'Erro interno ao carregar itens do pedido: ' . $e->getMessage()
 			]);
 		}
 	}	
@@ -238,9 +238,9 @@ class PedidoController extends Controller
                 'pedido_numero' => $numeroPedido,
                 'message'       => 'Pedido criado com sucesso'
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Erro ao criar pedido: ' . $e->getMessage());
+            Log::error('Erro ao criar pedido: ' . $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine());
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao criar pedido'

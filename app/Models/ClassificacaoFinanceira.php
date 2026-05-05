@@ -31,4 +31,20 @@ class ClassificacaoFinanceira extends Model
     {
         return $this->hasMany(self::class, 'id_pai');
     }
+
+    /**
+     * Os lançamentos financeiros classificados nesta categoria.
+     */
+    public function lancamentos(): HasMany
+    {
+        return $this->hasMany(Lancamento::class, 'classificacao_financeira_id');
+    }
+
+    /**
+     * Os orçamentos mensais desta categoria.
+     */
+    public function orcamentos(): HasMany
+    {
+        return $this->hasMany(Orcamento::class, 'classificacao_financeira_id');
+    }
 }
