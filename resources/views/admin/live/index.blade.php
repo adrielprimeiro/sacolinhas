@@ -464,11 +464,11 @@
 		let selectedItem = null;
 		let itemHighlightedIndex = -1;
 
-		document.addEventListener('DOMContentLoaded', function() {
-			// 🔧 INICIALIZAR WRAPPER:
-			itemSearchWrapper = document.querySelector('[data-item-search="true"]');
-            carregarLiveStatus(); // Renomeado para refletir o novo propósito
-            // Event listener para seleção de usuário
+		// 🔧 INICIALIZAR WRAPPER:
+		itemSearchWrapper = document.querySelector('[data-item-search="true"]');
+        carregarLiveStatus(); // Renomeado para refletir o novo propósito
+        
+        // Event listener para seleção de usuário
 			const userSearchComponent = document.querySelector('[data-user-search="true"]');
 			if (userSearchComponent) {
 				userSearchComponent.addEventListener('userSelected', function(e) {
@@ -706,7 +706,6 @@
                     button.innerHTML = originalText;
                 }
             });
-        });
         // Função para carregar sacolas (sem alterações significativas aqui)
         function carregarSacolas() {
             if (!liveAtiva) {
@@ -1384,5 +1383,7 @@ function clearSelection(type) {
             document.dispatchEvent(new CustomEvent('itemCleared'));
             console.log('DEBUG: Evento itemCleared disparado.');
         }
+    }
+    </script>
 </body>
 </html>
