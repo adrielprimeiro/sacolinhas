@@ -227,7 +227,7 @@
                         </div>
                     </div>
                     <!-- Botão -->
-                    <button type="button" id="toggle-live" class="btn btn-primary">
+                    <button type="button" id="toggle-live" class="btn btn-primary" onclick="handleToggleLiveClick()">
                         <i class="fas fa-plus"></i> Nova Live
                     </button>
                 </div>
@@ -1119,25 +1119,31 @@
                 platformCheckboxes.forEach(checkbox => checkbox.disabled = false);
             }
         }
-        // Event listener para o botão toggle (sem alterações)
-        document.getElementById('toggle-live').addEventListener('click', function() {
+        // Event listener para o botão toggle
+        function handleToggleLiveClick() {
+            console.log("🔥 Botão toggle-live clicado!");
             if (liveAtiva) {
+                console.log("Encerrando live ativa:", liveAtiva.id);
                 encerrarLive(liveAtiva.id);
             } else {
+                console.log("Criando nova live...");
                 criarNovaLive();
             }
-        });
+        }
 
-        // Função para criar nova live (sem alterações significativas, apenas a chamada para carregarLiveStatus)
+        // Função para criar nova live
         function criarNovaLive() {
+            console.log("🛠️ Iniciando criarNovaLive...");
             const tipoLive = document.getElementById('live-type').value;
             const plataformas = Array.from(document.querySelectorAll('.platform-checkbox:checked'))
                                    .map(checkbox => checkbox.value);
 
             if (plataformas.length === 0) {
+                console.log("⚠️ Nenhuma plataforma selecionada!");
                 mostrarAlert('Selecione pelo menos uma plataforma!', 'warning');
                 return;
             }
+            console.log("Plataformas selecionadas:", plataformas, "Tipo:", tipoLive);
             const dados = {
                 tipo_live: tipoLive,
                 plataformas: plataformas
@@ -1145,6 +1151,7 @@
             const button = document.getElementById('toggle-live');
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+            console.log("📡 Enviando POST para /lives com payload:", dados);
             fetch('/lives', {
                 method: 'POST',
                 headers: {
