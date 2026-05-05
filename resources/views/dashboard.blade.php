@@ -170,7 +170,7 @@
 						</li>
 						<li class="nav-item">
 							<a class="nav-link text-white {{ request()->routeIs('financeiro.*') ? 'active' : '' }}" 
-							   href="{{ route('admin.financeiro.index') }}">
+							   href="{{ route('financeiro.dashboard') }}">
 								<i class="fas fa-wallet mr-1"></i>Financeiro
 							</a>
 						</li>						

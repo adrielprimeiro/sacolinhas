@@ -512,7 +512,7 @@ class LiveController extends Controller
         $lives = Live::orderBy('created_at', 'desc')->get();
 
         $formattedLives = $lives->map(function ($live) {
-            $live->status = $live->is_active ? 'ativa' : 'encerrada';
+            $live->status = $live->ativo ? 'ativa' : 'encerrada';
             return $live;
         });
 

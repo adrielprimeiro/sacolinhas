@@ -28,6 +28,10 @@
        class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition">
         <i class="fas fa-balance-scale mr-1"></i> Conciliação
     </a>
+    <a href="{{ route('financeiro.pessoas.index') }}"
+       class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition">
+        <i class="fas fa-users mr-1"></i> Contatos
+    </a>
 </div>
 
 {{-- ===== KPI CARDS - CONTAS BANCÁRIAS ===== --}}
@@ -238,6 +242,10 @@
     <a href="{{ route('financeiro.orcamento.index') }}"
        class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition">
         <i class="fas fa-chart-bar"></i> Ver Orçamento
+    </a>
+    <a href="{{ route('financeiro.pessoas.index') }}"
+       class="inline-flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition">
+        <i class="fas fa-users"></i> Gerenciar Contatos
     </a>
 </div>
 

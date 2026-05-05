@@ -249,8 +249,39 @@
             </div>
         </div>
     </div>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Modal de Confirmação de Remoção com Pontuação -->
+    <div class="modal fade" id="modalConfirmarRemocao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-danger text-white border-0" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Remover Item
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="mb-1 text-muted text-uppercase fw-bold small">Você está removendo:</p>
+                    <h4 id="remove_item_name" class="fw-bold text-dark mb-3"></h4>
+                    <div class="bg-light p-3 rounded-3 mb-4">
+                        <p class="mb-0 text-muted">Valor do item: <strong id="remove_item_price" class="text-danger"></strong></p>
+                    </div>
+                    <p class="text-secondary mb-0">Como deseja prosseguir com a pontuação do cliente?</p>
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light d-flex flex-column gap-2" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+                    <button type="button" class="btn btn-danger w-100 py-2 fw-bold" id="btnConfirmarComDesconto">
+                        <i class="fas fa-minus-circle me-1"></i> Retirar descontando pontos
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary w-100 py-2 fw-bold" id="btnConfirmarSemDesconto">
+                        <i class="fas fa-check me-1"></i> Retirar SEM desconto nos pontos
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none mt-1" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- JavaScript das Lives e Sacolinhas -->
     <script>
@@ -284,9 +315,8 @@
                 // Vamos tentar diferentes endpoints possíveis
                 const possibleEndpoints = [
                     '/api/lives/all',
-                    '/api/lives',
-                    '/admin/api/lives',
-                    '/admin/lives/api'
+                    '/lives',
+                    '/admin/api/lives'
                 ];
                 
                 let response = null;
@@ -296,26 +326,21 @@
                 for (const endpoint of possibleEndpoints) {
                     try {
                         console.log(`Tentando endpoint: ${endpoint}`);
-                        response = await fetch(endpoint, {
+                        const tempRes = await fetch(endpoint, {
                             method: 'GET',
                             headers: {
                                 'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                'Accept': 'application/json'
                             }
                         });
                         
-                        if (response.ok) {
+                        if (tempRes.ok && tempRes.headers.get('content-type')?.includes('application/json')) {
+                            response = tempRes;
                             usedEndpoint = endpoint;
                             console.log(`Sucesso com endpoint: ${endpoint}`);
                             break;
                         }
-                        
-                    } catch (endpointError) {
-                        console.log(`Erro no endpoint ${endpoint}:`, endpointError);
-                        continue;
-                    }
+                    } catch (e) { continue; }
                 }
                 
                 if (!response || !response.ok) {
@@ -886,7 +911,7 @@
 	  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
 	  try {
-		fetch(`/lives/${liveId}/sacolas/${userId}/whatsapp/first`, {
+		const res = await fetch(`/lives/${liveId}/sacolas/${userId}/whatsapp/first`, {
 		  method: 'POST',
 		  headers: {
 			'Accept': 'application/json',
@@ -911,39 +936,8 @@
 		btn.innerHTML = original;
 	  }
 	}
-		
-    <!-- Modal de Confirmação de Remoção com Pontuação -->
-    <div class="modal fade" id="modalConfirmarRemocao" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header bg-danger text-white border-0" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
-                    <h5 class="modal-title fw-bold">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Remover Item
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4 text-center">
-                    <p class="mb-1 text-muted text-uppercase fw-bold small">Você está removendo:</p>
-                    <h4 id="remove_item_name" class="fw-bold text-dark mb-3"></h4>
-                    <div class="bg-light p-3 rounded-3 mb-4">
-                        <p class="mb-0 text-muted">Valor do item: <strong id="remove_item_price" class="text-danger"></strong></p>
-                    </div>
-                    <p class="text-secondary mb-0">Como deseja prosseguir com a pontuação do cliente?</p>
-                </div>
-                <div class="modal-footer border-0 p-3 bg-light d-flex flex-column gap-2" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
-                    <button type="button" class="btn btn-danger w-100 py-2 fw-bold" id="btnConfirmarComDesconto">
-                        <i class="fas fa-minus-circle me-1"></i> Retirar descontando pontos
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary w-100 py-2 fw-bold" id="btnConfirmarSemDesconto">
-                        <i class="fas fa-check me-1"></i> Retirar SEM desconto nos pontos
-                    </button>
-                    <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none mt-1" data-bs-dismiss="modal">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
     </script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

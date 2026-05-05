@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ContaBancaria extends Model
 {
+    protected $table = 'contas_bancarias';
+
     protected $fillable = [
         'nome',
         'tipo',

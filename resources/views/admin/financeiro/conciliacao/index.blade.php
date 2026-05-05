@@ -12,6 +12,7 @@
     <a href="{{ route('financeiro.contas.index') }}" class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition whitespace-nowrap"><i class="fas fa-university mr-1"></i> Contas</a>
     <a href="{{ route('financeiro.orcamento.index') }}" class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition whitespace-nowrap"><i class="fas fa-chart-bar mr-1"></i> Orçamento</a>
     <a href="{{ route('financeiro.conciliacao.index') }}" class="px-4 py-2 rounded-t text-sm font-semibold bg-indigo-600 text-white whitespace-nowrap"><i class="fas fa-balance-scale mr-1"></i> Conciliação</a>
+    <a href="{{ route('financeiro.pessoas.index') }}" class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition whitespace-nowrap"><i class="fas fa-users mr-1"></i> Contatos</a>
 </div>
 
 {{-- Cabeçalho + seletor de conta --}}

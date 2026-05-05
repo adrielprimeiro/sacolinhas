@@ -28,6 +28,10 @@
        class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition whitespace-nowrap">
         <i class="fas fa-balance-scale mr-1"></i> Conciliação
     </a>
+    <a href="{{ route('financeiro.pessoas.index') }}"
+       class="px-4 py-2 rounded-t text-sm font-semibold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition whitespace-nowrap">
+        <i class="fas fa-users mr-1"></i> Contatos
+    </a>
 </div>
 
 {{-- ===== CABEÇALHO + SELETOR DE MÊS ===== --}}

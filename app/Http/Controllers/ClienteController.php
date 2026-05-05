@@ -318,7 +318,8 @@ class ClienteController extends Controller
                                 'instagram', 
                                 'tiktok', 
                                 'whatsapp',
-                                'codigo_cliente'
+                                'codigo_cliente',
+                                'cpf'
                              ]);
 
             return response()->json([

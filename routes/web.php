@@ -83,10 +83,70 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// =====================================================================
+// ===== MÓDULO FINANCEIRO (Regime de Competência + Caixa) =============
+// =====================================================================
+use App\Http\Controllers\Financeiro\FinanceiroDashboardController;
 
+// Route para o dashboard financeiro acessível pelo link do menu principal
+Route::get('admin/financeiro', [FinanceiroDashboardController::class, 'index'])->name('admin.financeiro.index');
+use App\Http\Controllers\Financeiro\LancamentoController;
+use App\Http\Controllers\Financeiro\ContaBancariaController;
+use App\Http\Controllers\Financeiro\OrcamentoController;
+use App\Http\Controllers\Financeiro\ConciliacaoController;
+use App\Http\Controllers\Financeiro\PessoaController;
 
-// ===== ROTAS PROTEGIDAS =====
+Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
+    // Dashboard
+    Route::get('/', [FinanceiroDashboardController::class, 'index'])->name('dashboard');
 
+    // Contas Bancárias
+    Route::prefix('contas')->name('contas.')->group(function () {
+        Route::get('/',                          [ContaBancariaController::class, 'index'])->name('index');
+        Route::post('/',                         [ContaBancariaController::class, 'store'])->name('store');
+        Route::put('/{contaBancaria}',           [ContaBancariaController::class, 'update'])->name('update');
+        Route::delete('/{contaBancaria}',        [ContaBancariaController::class, 'destroy'])->name('destroy');
+        Route::get('/{contaBancaria}/extrato',   [ContaBancariaController::class, 'extrato'])->name('extrato');
+    });
+
+    // Lançamentos
+    Route::prefix('lancamentos')->name('lancamentos.')->group(function () {
+        Route::get('/',                          [LancamentoController::class, 'index'])->name('index');
+        Route::post('/',                         [LancamentoController::class, 'store'])->name('store');
+        Route::get('/{lancamento}',              [LancamentoController::class, 'show'])->name('show');
+        Route::put('/{lancamento}',              [LancamentoController::class, 'update'])->name('update');
+        Route::delete('/{lancamento}',           [LancamentoController::class, 'destroy'])->name('destroy');
+        Route::post('/{lancamento}/baixar',      [LancamentoController::class, 'baixar'])->name('baixar');
+        Route::post('/{lancamento}/cancelar',    [LancamentoController::class, 'cancelar'])->name('cancelar');
+    });
+
+    // AJAX Selects
+    Route::get('/search/pessoas',        [LancamentoController::class, 'searchPessoas'])->name('search.pessoas');
+    Route::get('/search/classificacoes', [LancamentoController::class, 'searchClassificacoes'])->name('search.classificacoes');
+
+    // Orçamento (Previsto x Realizado)
+    Route::prefix('orcamento')->name('orcamento.')->group(function () {
+        Route::get('/',    [OrcamentoController::class, 'index'])->name('index');
+        Route::post('/',   [OrcamentoController::class, 'upsert'])->name('upsert');
+    });
+
+    // Conciliação
+    Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
+        Route::get('/',          [ConciliacaoController::class, 'index'])->name('index');
+        Route::post('/vincular', [ConciliacaoController::class, 'vincular'])->name('vincular');
+    });
+
+    // Pessoas (Contatos)
+    Route::prefix('pessoas')->name('pessoas.')->group(function () {
+        Route::get('/',              [PessoaController::class, 'index'])->name('index');
+        Route::post('/',             [PessoaController::class, 'store'])->name('store');
+        Route::get('/{pessoa}',      [PessoaController::class, 'show'])->name('show');
+        Route::put('/{pessoa}',      [PessoaController::class, 'update'])->name('update');
+        Route::delete('/{pessoa}',   [PessoaController::class, 'destroy'])->name('destroy');
+    });
+});
+
+// ===== ROTAS PROTEGIDAS ORIGINAIS =====
 Route::middleware('auth')->group(function () {
     
     // Dashboard
@@ -151,6 +211,7 @@ Route::middleware('auth')->group(function () {
         ]);
 		
 		//ROTAS DE financeiro
+/*
 		Route::resource('financeiro', ContaCorrenteController::class)->names([
 			'index' => 'admin.financeiro.index',
 			'create' => 'admin.financeiro.create',
@@ -160,6 +221,7 @@ Route::middleware('auth')->group(function () {
 			'update' => 'admin.financeiro.update',
 			'destroy' => 'admin.financeiro.destroy',
 		]);	
+*/
 		
 		//classificacao financeira
 		Route::resource('classificacao_financeira', ClassificacaoFinanceiraController::class)->names([
@@ -308,7 +370,7 @@ Route::get('/api/sacolinhas/by-live/{liveId}', [SacolinhaController::class, 'get
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 // ===== ROTAS DE BUSCA (SEM AUTH - públicas) =====
 Route::prefix('api')->group(function () {
-    Route::get('/users/search', [ClienteController::class, 'search']);
+    Route::get('/users/search', [ClienteController::class, 'search'])->name('api.users.search');
     Route::get('/items/search', [ItemController::class, 'search']);
 });
 
@@ -579,54 +641,4 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('grupos/{grupo}/membros/{user}', [\App\Http\Controllers\Admin\GruposController::class, 'removeMembro'])->middleware('can:admin')->name('grupos.removeMembro');
 });
 
-// =====================================================================
-// ===== MÓDULO FINANCEIRO (Regime de Competência + Caixa) =============
-// =====================================================================
-use App\Http\Controllers\Financeiro\FinanceiroDashboardController;
-use App\Http\Controllers\Financeiro\LancamentoController;
-use App\Http\Controllers\Financeiro\ContaBancariaController;
-use App\Http\Controllers\Financeiro\OrcamentoController;
-use App\Http\Controllers\Financeiro\ConciliacaoController;
-
-Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
-
-    // Dashboard
-    Route::get('/', [FinanceiroDashboardController::class, 'index'])->name('dashboard');
-
-    // Contas Bancárias
-    Route::prefix('contas')->name('contas.')->group(function () {
-        Route::get('/',                          [ContaBancariaController::class, 'index'])->name('index');
-        Route::post('/',                         [ContaBancariaController::class, 'store'])->name('store');
-        Route::put('/{contaBancaria}',           [ContaBancariaController::class, 'update'])->name('update');
-        Route::delete('/{contaBancaria}',        [ContaBancariaController::class, 'destroy'])->name('destroy');
-        Route::get('/{contaBancaria}/extrato',   [ContaBancariaController::class, 'extrato'])->name('extrato');
-    });
-
-    // Lançamentos
-    Route::prefix('lancamentos')->name('lancamentos.')->group(function () {
-        Route::get('/',                          [LancamentoController::class, 'index'])->name('index');
-        Route::post('/',                         [LancamentoController::class, 'store'])->name('store');
-        Route::get('/{lancamento}',              [LancamentoController::class, 'show'])->name('show');
-        Route::put('/{lancamento}',              [LancamentoController::class, 'update'])->name('update');
-        Route::delete('/{lancamento}',           [LancamentoController::class, 'destroy'])->name('destroy');
-        Route::post('/{lancamento}/baixar',      [LancamentoController::class, 'baixar'])->name('baixar');
-        Route::post('/{lancamento}/cancelar',    [LancamentoController::class, 'cancelar'])->name('cancelar');
-    });
-
-    // AJAX Selects
-    Route::get('/search/pessoas',        [LancamentoController::class, 'searchPessoas'])->name('search.pessoas');
-    Route::get('/search/classificacoes', [LancamentoController::class, 'searchClassificacoes'])->name('search.classificacoes');
-
-    // Orçamento (Previsto x Realizado)
-    Route::prefix('orcamento')->name('orcamento.')->group(function () {
-        Route::get('/',    [OrcamentoController::class, 'index'])->name('index');
-        Route::post('/',   [OrcamentoController::class, 'upsert'])->name('upsert');
-    });
-
-    // Conciliação
-    Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
-        Route::get('/',          [ConciliacaoController::class, 'index'])->name('index');
-        Route::post('/vincular', [ConciliacaoController::class, 'vincular'])->name('vincular');
-    });
-});
 
