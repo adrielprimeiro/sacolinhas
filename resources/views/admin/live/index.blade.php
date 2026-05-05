@@ -1130,6 +1130,8 @@
                 criarNovaLive();
             }
         }
+        // Expor para o escopo global para o HTML onclick funcionar
+        window.handleToggleLiveClick = handleToggleLiveClick;
 
         // Função para criar nova live
         function criarNovaLive() {
@@ -1140,6 +1142,7 @@
 
             if (plataformas.length === 0) {
                 console.log("⚠️ Nenhuma plataforma selecionada!");
+                alert('Selecione pelo menos uma plataforma antes de criar a live!'); // Alert nativo
                 mostrarAlert('Selecione pelo menos uma plataforma!', 'warning');
                 return;
             }
