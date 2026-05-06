@@ -146,6 +146,19 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
     });
 });
 
+// Rota para o Módulo de Conta Corrente (Antigo Financeiro)
+Route::middleware(['auth'])->prefix('admin/financeiro')->resource('conta-corrente', \App\Http\Controllers\ContaCorrenteController::class)->names([
+    'index'   => 'admin.conta_corrente.index',
+    'create'  => 'admin.conta_corrente.create',
+    'store'   => 'admin.conta_corrente.store',
+    'show'    => 'admin.conta_corrente.show',
+    'edit'    => 'admin.conta_corrente.edit',
+    'update'  => 'admin.conta_corrente.update',
+    'destroy' => 'admin.conta_corrente.destroy',
+])->parameters([
+    'conta-corrente' => 'financeiro'
+]);
+
 // ===== ROTAS PROTEGIDAS ORIGINAIS =====
 Route::middleware('auth')->group(function () {
     

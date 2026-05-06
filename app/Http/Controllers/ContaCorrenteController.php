@@ -49,7 +49,9 @@ class ContaCorrenteController extends Controller
 			->orderByDesc('id')
 			->paginate(10);
 
-		return view('admin.financeiro.index', compact('movimentacoes'));
+		$users = \App\Models\User::orderBy('name')->get();
+
+		return view('admin.financeiro.bkp.index', compact('movimentacoes', 'users'));
 	}
 
 
@@ -64,7 +66,7 @@ class ContaCorrenteController extends Controller
         $tiposMovimentacao = ['debito', 'credito'];
         $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'];
 
-        return view('admin.financeiro.create', compact('classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
+        return view('admin.financeiro.bkp.create', compact('classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
     }
 
     /**
@@ -91,7 +93,7 @@ class ContaCorrenteController extends Controller
             RecalcularSaldosJob::dispatch($movimentacao->user_id, $movimentacao->data_movimentacao->toDateString());
         });
 
-        return redirect()->route('admin.financeiro.index')->with('success', 'Lançamento criado com sucesso!');
+        return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento criado com sucesso!');
     }
 
 
@@ -101,7 +103,7 @@ class ContaCorrenteController extends Controller
     public function show(ContaCorrente $financeiro) // Usando $financeiro para corresponder ao nome da rota 'financeiro'
     {
         $financeiro->load('classificacaoFinanceira', 'user');
-        return view('admin.financeiro.show', compact('financeiro'));
+        return view('admin.financeiro.bkp.show', compact('financeiro'));
     }
 
     /**
@@ -114,7 +116,7 @@ class ContaCorrenteController extends Controller
         $tiposMovimentacao = ['debito', 'credito'];
         $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'classificacao'];
 
-        return view('admin.financeiro.edit', compact('financeiro', 'classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
+        return view('admin.financeiro.bkp.edit', compact('financeiro', 'classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
     }
 
     /**
@@ -138,7 +140,7 @@ class ContaCorrenteController extends Controller
             RecalcularSaldosJob::dispatch($financeiro->user_id, $financeiro->data_movimentacao->toDateString());
         });
 
-        return redirect()->route('admin.financeiro.index')->with('success', 'Lançamento atualizado com sucesso!');
+        return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento atualizado com sucesso!');
     }
 
 
@@ -157,7 +159,7 @@ class ContaCorrenteController extends Controller
                 RecalcularSaldosJob::dispatch($userId, $dataMovimentacao);
             });
 
-            return redirect()->route('admin.financeiro.index')->with('success', 'Lançamento excluído com sucesso!');
+            return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento excluído com sucesso!');
         }
 
     /**

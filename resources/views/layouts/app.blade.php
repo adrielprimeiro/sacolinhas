@@ -131,6 +131,12 @@
 					<span>Financeiro</span>
 				</a>
 
+				<a href="{{ route('admin.conta_corrente.index') }}"
+				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-semibold' : '' }}">
+					<i class="fas fa-history text-gray-500 w-5"></i>
+					<span>Extrato (Antigo)</span>
+				</a>
+
 				<a href="{{ route('admin.pedido.index') }}"
 				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.pedido.*') ? 'bg-gray-100 font-semibold' : '' }}">
 					<i class="fas fa-receipt text-gray-500 w-5"></i>
