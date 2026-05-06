@@ -117,17 +117,57 @@
                         @enderror
                     </div>
 
-                    <div>
-                        <label for="classificacao_id" class="block text-sm font-semibold text-gray-700 mb-1">Classificação Financeira</label>
-                        <select class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('classificacao_id') border-red-500 @enderror" 
-                                id="classificacao_id" name="classificacao_id" required>
-                            <option value="">Selecione...</option>
-                            @foreach ($classificacoes as $classificacao)
-                                <option value="{{ $classificacao->id }}" {{ old('classificacao_id', $financeiro->classificacao_id) == $classificacao->id ? 'selected' : '' }}>
-                                    {{ $classificacao->nome }} ({{ $classificacao->codigo_contabil }})
-                                </option>
+                    <!-- Classificação Financeira (Searchable) -->
+                    <div x-data="{ 
+                        open: false, 
+                        search: '{{ $financeiro->classificacaoFinanceira->nome ?? '' }} ({{ $financeiro->classificacaoFinanceira->codigo_contabil ?? '' }})',
+                        selectedId: '{{ $financeiro->classificacao_id }}',
+                        items: [
+                            @foreach($classificacoes as $class)
+                                { id: '{{ $class->id }}', name: '{{ addslashes($class->nome) }} ({{ $class->codigo_contabil }})' },
                             @endforeach
-                        </select>
+                        ],
+                        get filteredItems() {
+                            if (this.search === '') return this.items;
+                            return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                        }
+                    }" class="relative">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="text" 
+                                   x-model="search"
+                                   @click="open = true"
+                                   @click.away="open = false"
+                                   @keydown.escape="open = false"
+                                   placeholder="Busque a classificação..."
+                                   class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('classificacao_id') border-red-500 @enderror">
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <i class="fas fa-list-ul text-sm"></i>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="classificacao_id" :value="selectedId" required>
+
+                        <!-- Dropdown de Sugestões -->
+                        <div x-show="open" 
+                             x-transition
+                             class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-xl max-h-60 overflow-y-auto"
+                             style="display: none;">
+                            <template x-for="item in filteredItems" :key="item.id">
+                                <div @click="selectedId = item.id; search = item.name; open = false;"
+                                     class="px-4 py-3 text-sm hover:bg-blue-50 cursor-pointer transition border-b border-gray-50 flex items-center justify-between"
+                                     :class="selectedId == item.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-tag text-gray-300"></i>
+                                        <span x-text="item.name"></span>
+                                    </div>
+                                    <span x-show="selectedId == item.id" class="text-blue-600"><i class="fas fa-check"></i></span>
+                                </div>
+                            </template>
+                            <div x-show="filteredItems.length === 0" class="px-4 py-4 text-center text-sm text-gray-400 italic">
+                                Nenhuma classificação encontrada
+                            </div>
+                        </div>
                         @error('classificacao_id')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
