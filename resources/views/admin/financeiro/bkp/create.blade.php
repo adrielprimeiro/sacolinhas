@@ -20,6 +20,62 @@
                 @csrf
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Usuário (Obrigatório) -->
+                    <div x-data="{ 
+                        open: false, 
+                        search: '{{ $users->find(old('user_id'))->name ?? '' }}',
+                        selectedId: '{{ old('user_id') }}',
+                        users: [
+                            @foreach($users as $user)
+                                { id: '{{ $user->id }}', name: '{{ addslashes($user->name) }}' },
+                            @endforeach
+                        ],
+                        get filteredUsers() {
+                            if (this.search === '') return this.users;
+                            return this.users.filter(u => u.name.toLowerCase().includes(this.search.toLowerCase()));
+                        }
+                    }" class="relative col-span-1 md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Usuário / Cliente <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="text" 
+                                   x-model="search"
+                                   @click="open = true"
+                                   @click.away="open = false"
+                                   @keydown.escape="open = false"
+                                   placeholder="Busque o nome do usuário..."
+                                   class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('user_id') border-red-500 @enderror">
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <i class="fas fa-search text-sm"></i>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="user_id" :value="selectedId" required>
+
+                        <!-- Dropdown de Sugestões -->
+                        <div x-show="open" 
+                             x-transition
+                             class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-xl max-h-60 overflow-y-auto"
+                             style="display: none;">
+                            <template x-for="user in filteredUsers" :key="user.id">
+                                <div @click="selectedId = user.id; search = user.name; open = false;"
+                                     class="px-4 py-3 text-sm hover:bg-blue-50 cursor-pointer transition border-b border-gray-50 flex items-center justify-between"
+                                     :class="selectedId == user.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-user text-gray-300"></i>
+                                        <span x-text="user.name"></span>
+                                    </div>
+                                    <span x-show="selectedId == user.id" class="text-blue-600"><i class="fas fa-check"></i></span>
+                                </div>
+                            </template>
+                            <div x-show="filteredUsers.length === 0" class="px-4 py-4 text-center text-sm text-gray-400 italic">
+                                Nenhum usuário encontrado
+                            </div>
+                        </div>
+                        @error('user_id')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div>
                         <label for="data_movimentacao" class="block text-sm font-semibold text-gray-700 mb-1">Data e Hora</label>
                         <input type="datetime-local" 
