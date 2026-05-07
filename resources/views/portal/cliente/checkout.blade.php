@@ -121,9 +121,25 @@
                         <span>Frete</span>
                         <span id="displayFrete">R$ 0,00</span>
                     </div>
+
+                    @php
+                        $saldoUsado = (float)($pedido->valor_saldo_utilizado ?? 0);
+                    @endphp
+
+                    @if($saldoUsado != 0)
+                    <div class="flex justify-between items-center py-2 border-t border-b border-gray-50">
+                        <span class="text-gray-600">Ajuste de Carteira</span>
+                        @if($saldoUsado > 0)
+                            <span class="text-green-600 font-bold">- R$ {{ number_format($saldoUsado, 2, ',', '.') }}</span>
+                        @else
+                            <span class="text-red-600 font-bold">+ R$ {{ number_format(abs($saldoUsado), 2, ',', '.') }}</span>
+                        @endif
+                    </div>
+                    @endif
+
                     <div class="border-t border-gray-100 pt-3 flex justify-between font-bold text-lg text-gray-900">
-                        <span>Total</span>
-                        <span id="displayTotal">R$ {{ number_format($itens->sum('preco_unitario'), 2, ',', '.') }}</span>
+                        <span>Total a Pagar</span>
+                        <span id="displayTotal">R$ {{ number_format(max(0, $itens->sum('preco_unitario') - $saldoUsado), 2, ',', '.') }}</span>
                     </div>
                 </div>
 
@@ -158,7 +174,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnCancelar = document.getElementById('btnCancelarCheckout');
     
     const subtotal = parseFloat({{ $itens->sum('preco_unitario') }});
+    const saldoUsado = parseFloat({{ (float)($pedido->valor_saldo_utilizado ?? 0) }});
     let selectedShipping = null;
+
+    function atualizarTotal(frete) {
+        displayFrete.textContent = 'R$ ' + frete.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        const total = Math.max(0, subtotal + frete - saldoUsado);
+        displayTotal.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+    }
 
     // Se já houver frete fixo definido
     const fixedShippingInput = document.getElementById('fixedShippingValue');
@@ -171,9 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         // Atualiza UI Inicial
-        displayFrete.textContent = 'R$ ' + price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        const total = subtotal + price;
-        displayTotal.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        atualizarTotal(price);
 
         // Habilita botão imediatamente
         btnConfirmar.disabled = false;
@@ -191,9 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             // Atualiza UI
-            displayFrete.textContent = 'R$ ' + price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            const total = subtotal + price;
-            displayTotal.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            atualizarTotal(price);
 
             // Habilita botão
             btnConfirmar.disabled = false;

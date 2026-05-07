@@ -211,11 +211,46 @@ class CheckoutController extends Controller
                 ->select(DB::raw('SUM(preco_unitario * quantidade) as total'))
                 ->first()->total ?? 0;
 
+            $totalBruto = $subtotal + $request->shipping_price;
+
+            // Integrar Saldo da Carteira
+            $userId = auth()->id();
+            $ultimaTransacao = \App\Models\ContaCorrente::where('user_id', $userId)
+                ->orderByDesc('data_movimentacao')
+                ->orderByDesc('id')
+                ->first();
+            $saldoAtual = $ultimaTransacao?->saldo_atual ?? 0;
+
+            $saldoUtilizado = 0;
+            if ($saldoAtual > 0) {
+                $saldoUtilizado = min($saldoAtual, $totalBruto);
+            } else {
+                $saldoUtilizado = $saldoAtual;
+            }
+
             $pedido->valor_frete = $request->shipping_price;
-            $pedido->valor_total = $subtotal + $request->shipping_price;
+            $pedido->valor_total = $totalBruto; // Mantemos o bruto no valor_total (conforme comportamento do banco)
+            $pedido->valor_saldo_utilizado = $saldoUtilizado;
             $pedido->status_pedido = 'pendente'; 
             
             $pedido->save();
+
+            // Se o saldo utilizado for diferente de zero, registrar na conta corrente
+            if ($saldoUtilizado != 0) {
+                \App\Models\ContaCorrente::create([
+                    'user_id' => $userId,
+                    'data_movimentacao' => now(),
+                    'descricao' => "Saldo aplicado no Checkout do Pedido {$pedido->numero_pedido}",
+                    'tipo_movimentacao' => $saldoUtilizado > 0 ? 'debito' : 'credito',
+                    'valor' => abs($saldoUtilizado),
+                    'classificacao_id' => 1,
+                    'referencia_tipo' => 'pedido',
+                    'referencia_id' => $pedido->id,
+                    'saldo_atual' => $saldoAtual - $saldoUtilizado,
+                ]);
+
+                \App\Jobs\RecalcularSaldosJob::dispatch($userId, now()->toDateString());
+            }
 
             return response()->json([
                 'success' => true,

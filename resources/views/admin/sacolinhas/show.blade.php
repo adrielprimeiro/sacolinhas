@@ -14,9 +14,23 @@
             <p class="text-gray-600 text-sm">
                 <span class="font-bold">{{ $itens->count() }}</span> {{ $itens->count() == 1 ? 'Item' : 'Itens' }}
             </p>
-            <div class="mt-2 flex items-baseline gap-2">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total:</p>
-                <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+            <div class="mt-2 space-y-1">
+                <div class="flex items-baseline gap-2">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Total Itens:</p>
+                    <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                        <i class="fas fa-wallet text-green-600 text-[10px]"></i>
+                        <span class="text-[10px] text-green-600 font-bold uppercase">Saldo Carteira:</span>
+                        <span class="text-sm font-bold text-green-700">R$ {{ number_format($valorPago ?? 0, 2, ',', '.') }}</span>
+                    </div>
+                    @if($valorPago != 0)
+                        <span class="text-[10px] text-gray-400 italic">
+                            ({{ $valorPago > 0 ? 'Será descontado' : 'Será somado' }} no fechamento)
+                        </span>
+                    @endif
+                </div>
             </div>
         </div>
         <div class="flex flex-col gap-2 min-w-[180px]">

@@ -5,6 +5,27 @@
 @section('brand_icon', 'fas fa-receipt')
 
 @section('content')
+    @php
+        $itens = DB::table('items_pedido as ip')
+            ->join('items as i', 'i.id', '=', 'ip.item_id')
+            ->where('ip.pedido_id', $pedido->id)
+            ->select([
+                'ip.id',
+                'ip.quantidade',
+                'ip.preco_unitario',
+                'ip.valor_total',
+                'ip.status_item',
+                'i.nome_do_produto',
+                'i.codigo',
+                'i.marca',
+                'i.estado',
+                'i.cor',
+                'i.tamanho',
+                'i.image',
+            ])
+            ->get();
+    @endphp
+
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-semibold text-gray-800">
@@ -29,10 +50,12 @@
                 <i class="fas fa-edit mr-2"></i> Editar
             </a>
 
+            @if(($pedido->status_pagamento ?? '') !== 'aprovado')
             <button onclick="copyPaymentLink('{{ $pedido->getPaymentUrl() }}')"
                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
                 <i class="fas fa-link mr-2"></i> Copiar Link
             </button>
+            @endif
 
             <form action="{{ route('admin.pedido.destroy', $pedido->id) }}" method="POST"
                   onsubmit="return confirm('Tem certeza que deseja excluir este pedido?');" class="inline">
@@ -73,21 +96,23 @@
                     <div class="flex justify-between gap-4 items-center">
                         <span class="text-gray-500">Status do pedido</span>
                         <span>
-                            @php $sp = $pedido->status_pedido; @endphp
-                            @if ($sp === 'entregue')
-                                <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Entregue</span>
-                            @elseif ($sp === 'enviado')
+                            @php $status = $pedido->status_pedido; @endphp
+                            @if ($status === 'entregue' || $status === 'pago')
+                                <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">
+                                    {{ $status === 'pago' ? 'Pago' : 'Entregue' }}
+                                </span>
+                            @elseif ($status === 'enviado')
                                 <span class="bg-blue-200 text-blue-800 py-1 px-3 rounded-full text-xs font-semibold">Enviado</span>
-                            @elseif ($sp === 'processando')
+                            @elseif ($status === 'processando')
                                 <span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs font-semibold">Processando</span>
-                            @elseif ($sp === 'confirmado')
+                            @elseif ($status === 'confirmado')
                                 <span class="bg-indigo-200 text-indigo-800 py-1 px-3 rounded-full text-xs font-semibold">Confirmado</span>
-                            @elseif ($sp === 'pendente')
+                            @elseif ($status === 'pendente')
                                 <span class="bg-gray-200 text-gray-800 py-1 px-3 rounded-full text-xs font-semibold">Pendente</span>
-                            @elseif ($sp === 'cancelado')
+                            @elseif ($status === 'cancelado')
                                 <span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Cancelado</span>
                             @else
-                                <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $sp ?? '—' }}</span>
+                                <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $status ?? '—' }}</span>
                             @endif
                         </span>
                     </div>
@@ -146,27 +171,45 @@
                     <div class="border-t border-gray-100 pt-3 mt-3">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Valores</p>
                         <div class="space-y-2">
+                            @php
+                                // Soma os itens do pedido diretamente para garantir o subtotal correto
+                                $subtotalItens = $itens->sum('valor_total');
+                                $frete = (float)$pedido->valor_frete;
+                                $desconto = (float)$pedido->valor_desconto;
+                                $saldoUsado = (float)($pedido->valor_saldo_utilizado ?? 0);
+                            @endphp
+                            
                             <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Subtotal</span>
-                                @php
-                                    $subtotal = (float)$pedido->valor_total - (float)$pedido->valor_frete + (float)$pedido->valor_desconto;
-                                @endphp
-                                <span class="text-gray-800 font-semibold">R$ {{ number_format($subtotal, 2, ',', '.') }}</span>
+                                <span class="text-gray-500">Subtotal Itens</span>
+                                <span class="text-gray-800 font-semibold">R$ {{ number_format($subtotalItens, 2, ',', '.') }}</span>
                             </div>
 
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Frete</span>
-                                <span class="text-gray-800 font-medium">R$ {{ number_format((float)$pedido->valor_frete, 2, ',', '.') }}</span>
+                                <span class="text-gray-800 font-medium">R$ {{ number_format($frete, 2, ',', '.') }}</span>
                             </div>
 
+                            @if($desconto > 0)
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Desconto</span>
-                                <span class="text-gray-800 font-medium text-red-600">- R$ {{ number_format((float)$pedido->valor_desconto, 2, ',', '.') }}</span>
+                                <span class="text-gray-800 font-medium text-red-600">- R$ {{ number_format($desconto, 2, ',', '.') }}</span>
                             </div>
+                            @endif
+
+                            @if($saldoUsado != 0)
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Ajuste de Carteira</span>
+                                @if($saldoUsado > 0)
+                                    <span class="text-green-600 font-medium">- R$ {{ number_format($saldoUsado, 2, ',', '.') }} (Crédito)</span>
+                                @else
+                                    <span class="text-red-600 font-medium">+ R$ {{ number_format(abs($saldoUsado), 2, ',', '.') }} (Débito)</span>
+                                @endif
+                            </div>
+                            @endif
 
                             <div class="border-t border-gray-200 pt-3 flex justify-between gap-4">
-                                <span class="text-gray-800 font-bold">Total</span>
-                                <span class="text-blue-700 font-black text-lg">R$ {{ number_format((float)$pedido->valor_total, 2, ',', '.') }}</span>
+                                <span class="text-gray-800 font-bold">Total a Pagar</span>
+                                <span class="text-blue-700 font-black text-lg">R$ {{ number_format((float)$pedido->valor_total - $saldoUsado, 2, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>
@@ -182,27 +225,6 @@
             {{-- Itens do Pedido --}}
             <div class="bg-white shadow-lg rounded-lg p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Itens do Pedido</h2>
-
-                @php
-                    $itens = DB::table('items_pedido as ip')
-                        ->join('items as i', 'i.id', '=', 'ip.item_id')
-                        ->where('ip.pedido_id', $pedido->id)
-                        ->select([
-                            'ip.id',
-                            'ip.quantidade',
-                            'ip.preco_unitario',
-                            'ip.valor_total',
-                            'ip.status_item',
-                            'i.nome_do_produto',
-                            'i.codigo',
-                            'i.marca',
-                            'i.estado',
-                            'i.cor',
-                            'i.tamanho',
-                            'i.image',
-                        ])
-                        ->get();
-                @endphp
 
                 @if($itens->count() > 0)
                     <div class="overflow-x-auto">

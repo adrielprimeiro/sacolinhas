@@ -21,6 +21,7 @@ class Pedido extends Model
         'valor_total',
         'valor_frete',
         'valor_desconto',
+        'valor_saldo_utilizado',
         'forma_pagamento',
         'status_pagamento',
         'endereco_entrega',
@@ -45,6 +46,7 @@ class Pedido extends Model
         'valor_total' => 'decimal:2',
         'valor_frete' => 'decimal:2',
         'valor_desconto' => 'decimal:2',
+        'valor_saldo_utilizado' => 'decimal:2',
     ];
 
     // Se você quiser padronizar ordenação em listagens

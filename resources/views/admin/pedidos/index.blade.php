@@ -154,8 +154,10 @@
                                     $status = $pedido->status_pedido ?? null;
                                 @endphp
 
-                                @if ($status === 'entregue')
-                                    <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Entregue</span>
+                                @if ($status === 'entregue' || $status === 'pago')
+                                    <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">
+                                        {{ $status === 'pago' ? 'Pago' : 'Entregue' }}
+                                    </span>
                                 @elseif ($status === 'enviado')
                                     <span class="bg-blue-200 text-blue-800 py-1 px-3 rounded-full text-xs font-semibold">Enviado</span>
                                 @elseif ($status === 'processando')
@@ -227,7 +229,7 @@
                             </td>
 
                             <td class="py-3 px-6 text-left font-semibold whitespace-nowrap">
-                                {{ 'R$ ' . number_format((float)$pedido->valor_total, 2, ',', '.') }}
+                                {{ 'R$ ' . number_format((float)$pedido->valor_total - (float)($pedido->valor_saldo_utilizado ?? 0), 2, ',', '.') }}
                             </td>
 
                             <td class="py-3 px-6 text-center">

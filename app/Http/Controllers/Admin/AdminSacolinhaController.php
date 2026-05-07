@@ -203,26 +203,7 @@ class AdminSacolinhaController extends Controller
                 $numero = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
                 $numeroPedido = 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
 
-                // 2. Criar o Pedido via Eloquent (para disparar Observers)
-                $pedido = Pedido::create([
-                    'numero_pedido'   => $numeroPedido,
-                    'user_id'         => $userId,
-                    'status_pedido'   => 'pendente',
-                    'data_pedido'     => now(),
-                    'valor_total'     => 0,
-                    'valor_frete'     => $valorFrete,
-                    'valor_desconto'  => 0,
-                    'status_pagamento'=> 'pendente',
-                    'origem_pedido'   => 'site', 
-                    
-                    // Auto-preencher dados de entrega do cliente
-                    'endereco_entrega' => trim(($user->endereco ?? '') . ' ' . ($user->numero_endereco ?? '') . ' ' . ($user->complemento ?? '') . ' ' . ($user->bairro ?? '')),
-                    'cep_entrega'      => $user->cep ?? null,
-                    'cidade_entrega'   => $user->cidade ?? null,
-                    'estado_entrega'   => $user->estado ?? null,
-                ]);
-
-                // 3. Mover itens da sacolinha para o pedido
+                // 2. Buscar dados da sacolinha para calcular valores ANTES de criar o pedido
                 $itensSacolinha = DB::table('sacolinhas')
                     ->whereIn('id', $request->itens)
                     ->where('user_id', $userId)
@@ -230,26 +211,97 @@ class AdminSacolinhaController extends Controller
 
                 $subtotal = 0;
                 foreach ($itensSacolinha as $sacola) {
+                    $subtotal += ($sacola->price * ($sacola->quantity ?? 1));
+                }
+
+                // 3. Buscar saldo atual
+                $ultimaTransacao = ContaCorrente::where('user_id', $userId)
+                    ->orderByDesc('data_movimentacao')
+                    ->orderByDesc('id')
+                    ->first();
+                $saldoAtual = $ultimaTransacao?->saldo_atual ?? 0;
+
+                // 4. Calcular desconto de saldo e total final
+                $totalItensFrete = $subtotal + $valorFrete;
+                $saldoUtilizadoNoPedido = 0;
+
+                if ($saldoAtual > 0) {
+                    $saldoUtilizadoNoPedido = min($saldoAtual, $totalItensFrete);
+                } else {
+                    $saldoUtilizadoNoPedido = $saldoAtual;
+                }
+
+                $totalFinal = $totalItensFrete - $saldoUtilizadoNoPedido;
+
+                // 5. Definir Status (Se zerou com saldo, já nasce aprovado)
+                $statusPedido = 'pendente';
+                $statusPagamento = 'pendente';
+                
+                if ($totalFinal <= 0) {
+                    $statusPedido = 'pago'; 
+                    $statusPagamento = 'aprovado';
+                }
+
+                // 6. Criar o Pedido
+                $pedido = Pedido::create([
+                    'numero_pedido'   => $numeroPedido,
+                    'user_id'         => $userId,
+                    'status_pedido'   => $statusPedido,
+                    'data_pedido'     => now(),
+                    'valor_total'     => $totalFinal,
+                    'valor_frete'     => $valorFrete,
+                    'valor_desconto'  => 0,
+                    'valor_saldo_utilizado' => $saldoUtilizadoNoPedido,
+                    'status_pagamento'=> $statusPagamento,
+                    'origem_pedido'   => 'site', 
+                    
+                    'endereco_entrega' => trim(($user->endereco ?? '') . ' ' . ($user->numero_endereco ?? '') . ' ' . ($user->complemento ?? '') . ' ' . ($user->bairro ?? '')),
+                    'cep_entrega'      => $user->cep ?? null,
+                    'cidade_entrega'   => $user->cidade ?? null,
+                    'estado_entrega'   => $user->estado ?? null,
+                ]);
+
+                // 7. Mover itens da sacolinha para o pedido e remover da sacola
+                $itemIds = [];
+                foreach ($itensSacolinha as $sacola) {
+                    $itemIds[] = $sacola->item_id;
                     DB::table('items_pedido')->insert([
                         'pedido_id' => $pedido->id,
                         'item_id' => $sacola->item_id,
-                        'quantidade' => 1,
+                        'quantidade' => $sacola->quantity ?? 1,
                         'preco_unitario' => $sacola->price,
                         'status_item' => 'ativo',
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
                     
-                    $subtotal += $sacola->price;
-                    
-                    // Remover da sacolinha
                     DB::table('sacolinhas')->where('id', $sacola->id)->delete();
                 }
 
-                // 4. Atualizar valor total do pedido (Subtotal + Frete) via Eloquent
-                $pedido->update([
-                    'valor_total' => $subtotal + $valorFrete
-                ]);
+                // 8. Se já nasceu aprovado, dar baixa no estoque
+                if ($statusPagamento === 'aprovado' && !empty($itemIds)) {
+                    DB::table('items')->whereIn('id', $itemIds)->update([
+                        'status' => 'vendido',
+                        'updated_at' => now()
+                    ]);
+                }
+
+                // 7. Ajustar a carteira do cliente
+                if ($saldoUtilizadoNoPedido != 0) {
+                    $movimentacao = ContaCorrente::create([
+                        'user_id' => $userId,
+                        'data_movimentacao' => now(),
+                        'descricao' => "Saldo integrado ao Pedido {$numeroPedido}",
+                        'tipo_movimentacao' => $saldoUtilizadoNoPedido > 0 ? 'debito' : 'credito',
+                        'valor' => abs($saldoUtilizadoNoPedido),
+                        'classificacao_id' => 1,
+                        'referencia_tipo' => 'pedido',
+                        'referencia_id' => $pedido->id,
+                        'saldo_atual' => $saldoAtual - $saldoUtilizadoNoPedido,
+                    ]);
+
+                    \App\Jobs\RecalcularSaldosJob::dispatch($userId, $movimentacao->data_movimentacao->toDateString());
+                }
 
                 return $pedido->id;
             });

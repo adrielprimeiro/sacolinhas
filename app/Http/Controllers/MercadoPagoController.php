@@ -23,6 +23,22 @@ class MercadoPagoController extends Controller
             return redirect()->route('portal.pedidos')->with('info', 'Este pedido já está pago.');
         }
 
+        // Se o valor a pagar for ZERO (saldo cobriu tudo), marca como pago e pula o checkout
+        $valorAPagar = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+        
+        if ($valorAPagar <= 0) {
+            $pedido->status_pagamento = 'aprovado';
+            $pedido->status_pedido = 'pago';
+            $pedido->save();
+
+            // Baixa de estoque
+            $this->darBaixaEstoque($pedido);
+
+            Log::info("Pedido #{$pedido->id} pago integralmente com saldo da carteira.");
+            
+            return redirect()->route('portal.pedidos')->with('success', 'Pedido finalizado com sucesso utilizando seu saldo!');
+        }
+
         $publicKey = config('services.mercadopago.public_key');
 
         if (empty($publicKey)) {
@@ -58,8 +74,8 @@ class MercadoPagoController extends Controller
             $data['payer']['entity_type'] = 'individual'; // Corrige aviso do console
         }
 
-        // O valor tem que ser exatamente o do pedido para segurança
-        $data['transaction_amount'] = (float) $pedido->valor_total;
+        // O valor tem que ser exatamente o do pedido para segurança (Bruto - Saldo Utilizado)
+        $data['transaction_amount'] = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
         $data['description'] = 'Pedido #' . $pedido->numero_pedido;
         $data['external_reference'] = (string) $pedido->id;
         
