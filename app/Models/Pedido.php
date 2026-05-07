@@ -13,6 +13,7 @@ class Pedido extends Model
 
     protected $fillable = [
         'numero_pedido',
+        'payment_token',
         'user_id',
         'live_id',
         'data_pedido',
@@ -60,4 +61,16 @@ class Pedido extends Model
     // {
     //     return $this->belongsTo(Live::class, 'live_id');
     // }
+    /**
+     * Gera ou retorna a URL de pagamento seguro (sem login).
+     */
+    public function getPaymentUrl()
+    {
+        if (empty($this->payment_token)) {
+            $this->payment_token = bin2hex(random_bytes(32));
+            $this->save();
+        }
+
+        return route('portal.checkout.pagamento', $this->payment_token);
+    }
 }

@@ -88,78 +88,92 @@
 				</button>
 			</div>
 
-			<nav class="p-4">
+			<nav class="p-4 space-y-4">
 				<a href="{{ route('dashboard') }}"
 				   class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
 					<i class="fas fa-home text-gray-500 w-5"></i>
 					<span>Dashboard</span>
 				</a>
 
-				<a href="{{ route('clientes.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('clientes.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-users text-gray-500 w-5"></i>
-					<span>Clientes</span>
-				</a>
+                {{-- Grupo: Cadastro --}}
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Cadastro</p>
+                    <a href="{{ route('clientes.index') }}"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('clientes.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-users text-gray-500 w-5"></i>
+                        <span>Clientes</span>
+                    </a>
+                    <a href="{{ route('items.index') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-box text-gray-500 w-5"></i>
+                        <span>Itens</span>
+                    </a>
+                    <a href="{{ route('admin.categorias.index') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-tags text-gray-500 w-5"></i>
+                        <span>Categorias</span>
+                    </a>
+                </div>
 
-				<a href="{{ route('items.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-box text-gray-500 w-5"></i>
-					<span>Itens</span>
-				</a>
+                {{-- Grupo: Financeiro --}}
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Financeiro</p>
+                    <a href="{{ route('financeiro.dashboard') }}"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-chart-line text-gray-500 w-5"></i>
+                        <span>Financeiro</span>
+                    </a>
+                    <a href="{{ route('classificacao_financeira.index') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('classificacao_financeira.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-list-ul text-gray-500 w-5"></i>
+                        <span>Plano de Contas</span>
+                    </a>
+                    <a href="{{ route('admin.conta_corrente.index') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-wallet text-gray-500 w-5"></i>
+                        <span>Carteira Cliente</span>
+                    </a>
+                </div>
 
-                <a href="{{ route('admin.categorias.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-tags text-gray-500 w-5"></i>
-					<span>Categorias</span>
-				</a>
+                {{-- Grupo: Comercial --}}
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Comercial</p>
+                    <a href="{{ route('bags.index') }}"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('bags.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-broadcast-tower text-gray-500 w-5"></i>
+                        <span>Live</span>
+                    </a>
+                    <a href="{{ route('admin.sacolinha.gestao') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.sacolinha.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
+                        <span>Sacolinhas</span>
+                    </a>
+                    <a href="{{ route('admin.pedido.index') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.pedido.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-receipt text-gray-500 w-5"></i>
+                        <span>Pedidos</span>
+                    </a>
+                </div>
 
-				<a href="{{ route('bags.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('bags.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-broadcast-tower text-gray-500 w-5"></i>
-					<span>Live</span>
-				</a>
-
-				<a href="{{ route('classificacao_financeira.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.sacolinhas.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-shopping-bag text-gray-500 w-5"></i>
-					<span>Plano de Contas</span>
-				</a>
-
-				<a href="{{ route('financeiro.dashboard') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-chart-line text-gray-500 w-5"></i>
-					<span>Financeiro</span>
-				</a>
-
-				<a href="{{ route('admin.conta_corrente.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-history text-gray-500 w-5"></i>
-					<span>Extrato (Antigo)</span>
-				</a>
-
-				<a href="{{ route('admin.pedido.index') }}"
-				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.pedido.*') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-receipt text-gray-500 w-5"></i>
-					<span>Pedidos</span>
-				</a>
-
-                <a href="{{ route('admin.clube.dashboard') }}"
-                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-crown text-gray-500 w-5"></i>
-                    <span>Painel do Clube</span>
-                </a>
-
-                <a href="{{ route('admin.clube.desafios.index') }}"
-                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.desafios.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-trophy text-gray-500 w-5"></i>
-                    <span>Desafios</span>
-                </a>
-
-                <a href="{{ route('admin.grupos.index') }}"
-                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.grupos.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-users text-gray-500 w-5"></i>
-                    <span>Grupos</span>
-                </a>
+                {{-- Grupo: Clube --}}
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Clube</p>
+                    <a href="{{ route('admin.clube.dashboard') }}"
+                        class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-crown text-gray-500 w-5"></i>
+                        <span>Painel do Clube</span>
+                    </a>
+                    <a href="{{ route('admin.clube.desafios.index') }}"
+                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.desafios.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-trophy text-gray-500 w-5"></i>
+                        <span>Desafios</span>
+                    </a>
+                    <a href="{{ route('admin.grupos.index') }}"
+                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.grupos.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-users text-gray-500 w-5"></i>
+                        <span>Grupos</span>
+                    </a>
+                </div>
 
 				<div class="my-4 border-t border-gray-200"></div>
 

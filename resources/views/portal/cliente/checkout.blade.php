@@ -58,7 +58,23 @@
                     </div>
                 </div>
                 <div class="p-4">
-                    @if(count($shippingOptions) > 0)
+                    @if($pedido->valor_frete > 0)
+                        <div class="p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                    <i class="fas fa-truck"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-blue-800">Frete Fixo / Definido</p>
+                                    <p class="text-xs text-blue-600 italic">Valor definido pela administração para este pedido.</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-lg font-black text-blue-800">R$ {{ number_format($pedido->valor_frete, 2, ',', '.') }}</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="fixedShippingValue" value="{{ $pedido->valor_frete }}">
+                    @elseif(count($shippingOptions) > 0)
                         <div class="space-y-3" id="shippingOptionsContainer">
                             @foreach($shippingOptions as $option)
                             <label class="relative flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200">
@@ -143,6 +159,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const subtotal = parseFloat({{ $itens->sum('preco_unitario') }});
     let selectedShipping = null;
+
+    // Se já houver frete fixo definido
+    const fixedShippingInput = document.getElementById('fixedShippingValue');
+    if (fixedShippingInput) {
+        const price = parseFloat(fixedShippingInput.value);
+        selectedShipping = {
+            id: 'fixed',
+            price: price,
+            name: 'Frete Fixo'
+        };
+
+        // Atualiza UI Inicial
+        displayFrete.textContent = 'R$ ' + price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        const total = subtotal + price;
+        displayTotal.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+        // Habilita botão imediatamente
+        btnConfirmar.disabled = false;
+        btnConfirmar.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+        btnConfirmar.classList.add('bg-green-600', 'hover:bg-green-700', 'text-white', 'cursor-pointer');
+    }
 
     radios.forEach(radio => {
         radio.addEventListener('change', function() {

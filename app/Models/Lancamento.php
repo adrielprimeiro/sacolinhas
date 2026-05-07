@@ -19,6 +19,8 @@ class Lancamento extends Model
         'data_vencimento',
         'valor_total',
         'descricao',
+        'referencia_tipo',
+        'referencia_id',
     ];
 
     protected $casts = [

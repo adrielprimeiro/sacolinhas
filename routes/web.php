@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\SacolinhaController;
+use App\Http\Controllers\Admin\AdminSacolinhaController;
 use App\Http\Controllers\LiveController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PedidoController;
@@ -82,6 +83,9 @@ Route::get('/password/reset', function () {
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Rota pública de pagamento direto (sem login via Token)
+Route::get('/checkout/pagamento/{token}', [App\Http\Controllers\Portal\CheckoutController::class, 'pagamentoToken'])->name('portal.checkout.pagamento');
 
 // =====================================================================
 // ===== MÓDULO FINANCEIRO (Regime de Competência + Caixa) =============
@@ -285,6 +289,8 @@ Route::middleware('auth')->group(function () {
 		Route::post('chat/api/assign', [ChatController::class, 'assignConversation'])
 		->name('admin.chat.api.assign');	 
     });
+
+    // ===== ADMIN SACOLINHAS (NOVO) =====
 
     // ===== SACOLINHAS (BAGS) =====
     // Página principal das sacolinhas
@@ -633,6 +639,16 @@ Route::post('/image-groups/orphans/delete-selected', [ImageGroupController::clas
     ->name('image-groups.orphans.delete-selected');
 	
 	
+// ===== ADMIN SACOLINHAS (NOVO) =====
+Route::middleware(['auth'])->prefix('admin/sacolinhas-admin')->group(function () {
+    Route::get('/', [AdminSacolinhaController::class, 'index'])->name('admin.sacolinha.gestao');
+    Route::get('/ver/{user}', [AdminSacolinhaController::class, 'show'])->name('admin.sacolinha.show');
+    Route::get('/search-item', [AdminSacolinhaController::class, 'searchItem'])->name('admin.sacolinha.searchItem');
+    Route::post('/add-item', [AdminSacolinhaController::class, 'addItem'])->name('admin.sacolinha.addItem');
+    Route::post('/fechar-sacolinha', [AdminSacolinhaController::class, 'fecharSacolinha'])->name('admin.sacolinha.fechar');
+    Route::delete('/remove-item/{id}', [AdminSacolinhaController::class, 'removeItem'])->name('admin.sacolinha.removeItem');
+});
+
 //Item->Sacolinha
 Route::prefix('admin/sacolinhas')->group(function () {
     // Página principal do scanner

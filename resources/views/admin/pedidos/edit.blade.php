@@ -33,6 +33,11 @@
 					<i class="fas fa-undo mr-2"></i> Devolução
 				</button>
 			</form>
+
+            <button type="button" onclick="copyPaymentLink('{{ $pedido->getPaymentUrl() }}')"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300 ml-2">
+                <i class="fas fa-link mr-2"></i> Copiar Link
+            </button>
         </div>
     </div>
 
@@ -53,7 +58,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-gray-500 mb-1">Número</label>
+                            <label class="block text-gray-500 mb-1 font-semibold">Número do Pedido</label>
                             <input type="text"
                                    name="numero_pedido"
                                    value="{{ old('numero_pedido', $pedido->numero_pedido) }}"
@@ -64,7 +69,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-gray-500 mb-1">Data do pedido</label>
+                            <label class="block text-gray-500 mb-1 font-semibold">Data do pedido</label>
                             <input type="datetime-local"
                                    name="data_pedido"
                                    value="{{ old('data_pedido', !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('Y-m-d\TH:i') : null) }}"
@@ -74,30 +79,8 @@
                             @enderror
                         </div>
 
-                        <div class="flex justify-between gap-4 items-center">
-                            <span class="text-gray-500">Status do pedido</span>
-                            <span>
-                                @php $spPreview = old('status_pedido', $pedido->status_pedido); @endphp
-                                @if ($spPreview === 'entregue')
-                                    <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Entregue</span>
-                                @elseif ($spPreview === 'enviado')
-                                    <span class="bg-blue-200 text-blue-800 py-1 px-3 rounded-full text-xs font-semibold">Enviado</span>
-                                @elseif ($spPreview === 'processando')
-                                    <span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs font-semibold">Processando</span>
-                                @elseif ($spPreview === 'confirmado')
-                                    <span class="bg-indigo-200 text-indigo-800 py-1 px-3 rounded-full text-xs font-semibold">Confirmado</span>
-                                @elseif ($spPreview === 'pendente')
-                                    <span class="bg-gray-200 text-gray-800 py-1 px-3 rounded-full text-xs font-semibold">Pendente</span>
-                                @elseif ($spPreview === 'cancelado')
-                                    <span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Cancelado</span>
-                                @else
-                                    <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $spPreview ?? '—' }}</span>
-                                @endif
-                            </span>
-                        </div>
-
                         <div>
-                            <label class="block text-gray-500 mb-1">Alterar status do pedido</label>
+                            <label class="block text-gray-500 mb-1 font-semibold">Status do pedido</label>
                             @php $sp = old('status_pedido', $pedido->status_pedido); @endphp
                             <select name="status_pedido"
                                     class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('status_pedido') border-red-500 @enderror">
@@ -113,93 +96,108 @@
                             @enderror
                         </div>
 
-						<div>
-							<label class="block text-gray-500 mb-1">Origem do pedido</label>
-							@php $op = old('origem_pedido', $pedido->origem_pedido); @endphp
-							<select name="origem_pedido"
-									class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('origem_pedido') border-red-500 @enderror">
-								<option value="site" {{ $op === 'site' ? 'selected' : '' }}>Site</option>
-								<option value="live" {{ $op === 'live' ? 'selected' : '' }}>Live</option>
-								<option value="whatsapp" {{ $op === 'whatsapp' ? 'selected' : '' }}>WhatsApp</option>
-								<option value="instagram" {{ $op === 'instagram' ? 'selected' : '' }}>Instagram</option>
-							</select>
-							@error('origem_pedido')
-							  <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-							@enderror
-						</div>
-
                         <div>
-                            <label class="block text-gray-500 mb-1">Live ID</label>
-                            <input type="number"
-                                   name="live_id"
-                                   value="{{ old('live_id', $pedido->live_id) }}"
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('live_id') border-red-500 @enderror">
-                            @error('live_id')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            <label class="block text-gray-500 mb-1 font-semibold">Origem do pedido</label>
+                            @php $op = old('origem_pedido', $pedido->origem_pedido); @endphp
+                            <select name="origem_pedido"
+                                    class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('origem_pedido') border-red-500 @enderror">
+                                <option value="site" {{ $op === 'site' ? 'selected' : '' }}>Site</option>
+                                <option value="live" {{ $op === 'live' ? 'selected' : '' }}>Live</option>
+                                <option value="whatsapp" {{ $op === 'whatsapp' ? 'selected' : '' }}>WhatsApp</option>
+                                <option value="instagram" {{ $op === 'instagram' ? 'selected' : '' }}>Instagram</option>
+                            </select>
+                            @error('origem_pedido')
+                              <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
+                        </div>
+
+                        <div class="border-t border-gray-100 pt-4 mt-4">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Vincular Cliente</p>
+                            <div>
+                                <label class="block text-gray-500 mb-1 font-semibold">User ID (ID do Cliente)</label>
+                                <input type="number"
+                                       name="user_id"
+                                       value="{{ old('user_id', $pedido->user_id) }}"
+                                       class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('user_id') border-red-500 @enderror">
+                                @error('user_id')
+                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                @enderror
+                                <p class="text-[10px] text-gray-400 mt-1 italic">Atual: {{ $pedido->user->name ?? 'N/A' }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- Valores (mesmo card do show, mas com inputs) --}}
                 <div class="bg-white shadow-lg rounded-lg p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Valores</h2>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Pagamento</h2>
 
                     <div class="space-y-4 text-sm">
-                        <div class="flex justify-between gap-4">
-                            <span class="text-gray-500">Subtotal</span>
-                            @php
-                                $subtotal = (float)$pedido->valor_total - (float)$pedido->valor_frete + (float)$pedido->valor_desconto;
-                            @endphp
-                            <span class="text-gray-800 font-medium">R$ {{ number_format($subtotal, 2, ',', '.') }}</span>
-                        </div>
-
                         <div>
-                            <label class="block text-gray-500 mb-1">Frete</label>
-                            <input type="number"
-                                   step="0.01"
-                                   name="valor_frete"
-                                   value="{{ old('valor_frete', $pedido->valor_frete) }}"
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_frete') border-red-500 @enderror">
-                            @error('valor_frete')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            <label class="block text-gray-500 mb-1 font-semibold">Forma de Pagamento</label>
+                            @php $fp = old('forma_pagamento', $pedido->forma_pagamento); @endphp
+                            <select name="forma_pagamento"
+                                    class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('forma_pagamento') border-red-500 @enderror">
+                                <option value="" {{ empty($fp) ? 'selected' : '' }}>— Selecione —</option>
+                                <option value="pix" {{ $fp === 'pix' ? 'selected' : '' }}>Pix</option>
+                                <option value="cartao_credito" {{ $fp === 'cartao_credito' ? 'selected' : '' }}>Cartão de crédito</option>
+                                <option value="cartao_debito" {{ $fp === 'cartao_debito' ? 'selected' : '' }}>Cartão de débito</option>
+                                <option value="boleto" {{ $fp === 'boleto' ? 'selected' : '' }}>Boleto</option>
+                                <option value="dinheiro" {{ $fp === 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
+                                <option value="transferencia" {{ $fp === 'transferencia' ? 'selected' : '' }}>Transferência</option>
+                            </select>
+                            @error('forma_pagamento')
+                              <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label class="block text-gray-500 mb-1">Desconto</label>
-                            <input type="number"
-                                   step="0.01"
-                                   name="valor_desconto"
-                                   value="{{ old('valor_desconto', $pedido->valor_desconto) }}"
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_desconto') border-red-500 @enderror">
-                            @error('valor_desconto')
+                            <label class="block text-gray-500 mb-1 font-semibold">Status do Pagamento</label>
+                            @php $pg = old('status_pagamento', $pedido->status_pagamento); @endphp
+                            <select name="status_pagamento"
+                                    class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('status_pagamento') border-red-500 @enderror">
+                                <option value="pendente" {{ $pg === 'pendente' ? 'selected' : '' }}>Pendente</option>
+                                <option value="aprovado" {{ $pg === 'aprovado' ? 'selected' : '' }}>Aprovado</option>
+                                <option value="rejeitado" {{ $pg === 'rejeitado' ? 'selected' : '' }}>Rejeitado</option>
+                                <option value="estornado" {{ $pg === 'estornado' ? 'selected' : '' }}>Estornado</option>
+                            </select>
+                            @error('status_pagamento')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        <div>
-                            <label class="block text-gray-500 mb-1">Total</label>
-                            <input type="number"
-                                   step="0.01"
-                                   name="valor_total"
-                                   value="{{ old('valor_total', $pedido->valor_total) }}"
-                                   readonly
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed sm:text-sm @error('valor_total') border-red-500 @enderror">
-                            @error('valor_total')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        <div class="border-t border-gray-100 pt-4 mt-4">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Valores</p>
+                            
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-gray-500 mb-1">Frete R$</label>
+                                    <input type="number" step="0.01" name="valor_frete"
+                                           value="{{ old('valor_frete', $pedido->valor_frete) }}"
+                                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
 
-                        <div>
-                            <label class="block text-gray-500 mb-1">Cupom</label>
-                            <input type="text"
-                                   name="cupom_desconto"
-                                   value="{{ old('cupom_desconto', $pedido->cupom_desconto) }}"
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('cupom_desconto') border-red-500 @enderror">
-                            @error('cupom_desconto')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
+                                <div>
+                                    <label class="block text-gray-500 mb-1">Desconto R$</label>
+                                    <input type="number" step="0.01" name="valor_desconto"
+                                           value="{{ old('valor_desconto', $pedido->valor_desconto) }}"
+                                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+
+                                <div>
+                                    <label class="block text-gray-500 mb-1">Valor Total (Calculado)</label>
+                                    <input type="number" step="0.01" name="valor_total"
+                                           value="{{ old('valor_total', $pedido->valor_total) }}"
+                                           readonly
+                                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 cursor-not-allowed font-bold text-blue-700">
+                                </div>
+
+                                <div>
+                                    <label class="block text-gray-500 mb-1">Cupom</label>
+                                    <input type="text" name="cupom_desconto"
+                                           value="{{ old('cupom_desconto', $pedido->cupom_desconto) }}"
+                                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -210,38 +208,7 @@
             {{-- Coluna 2-3: Detalhes (mesma estrutura do show: Cliente -> Itens -> Pagamento -> Entrega -> Observações) --}}
             <div class="lg:col-span-2 space-y-6">
                 {{-- Cliente --}}
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Cliente</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-500">Nome</div>
-                            <div class="text-gray-900 font-medium">{{ $pedido->user->name ?? 'N/A' }}</div>
-                        </div>
-
-                        <div>
-                            <div class="text-gray-500">E-mail</div>
-                            <div class="text-gray-900 font-medium">{{ $pedido->user->email ?? '—' }}</div>
-                        </div>
-
-                        <div>
-                            <div class="text-gray-500">User ID</div>
-                            <div class="text-gray-900 font-medium">{{ $pedido->user_id }}</div>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-500 mb-1">Alterar usuário (ID)</label>
-                            <input type="number"
-                                   name="user_id"
-                                   value="{{ old('user_id', $pedido->user_id) }}"
-                                   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('user_id') border-red-500 @enderror">
-                            @error('user_id')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
-                            <p class="text-xs text-gray-400 mt-1">Se preferir, mantenha o mesmo User ID.</p>
-                        </div>
-                    </div>
-                </div>
 
                 {{-- Itens do Pedido (idêntico ao show: mesma query, mesma tabela, mesma posição) --}}
                 <div class="bg-white shadow-lg rounded-lg p-6">
@@ -365,60 +332,7 @@
                 </div>
 
                 {{-- Pagamento (mesmo card do show, mas com inputs + badge preview) --}}
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Pagamento</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <label class="block text-gray-500 mb-1">Forma</label>
-								@php $fp = old('forma_pagamento', $pedido->forma_pagamento); @endphp
-								<select name="forma_pagamento"
-										class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('forma_pagamento') border-red-500 @enderror">
-									<option value="" {{ empty($fp) ? 'selected' : '' }}>—</option>
-									<option value="pix" {{ $fp === 'pix' ? 'selected' : '' }}>Pix</option>
-									<option value="cartao_credito" {{ $fp === 'cartao_credito' ? 'selected' : '' }}>Cartão de crédito</option>
-									<option value="cartao_debito" {{ $fp === 'cartao_debito' ? 'selected' : '' }}>Cartão de débito</option>
-									<option value="boleto" {{ $fp === 'boleto' ? 'selected' : '' }}>Boleto</option>
-									<option value="dinheiro" {{ $fp === 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
-									<option value="transferencia" {{ $fp === 'transferencia' ? 'selected' : '' }}>Transferência</option>
-								</select>
-								@error('forma_pagamento')
-								  <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-								@enderror
-                        </div>
-
-                        <div>
-                            <div class="text-gray-500">Status (preview)</div>
-                            <div class="mt-1">
-                                @php $pgPreview = old('status_pagamento', $pedido->status_pagamento); @endphp
-                                @if ($pgPreview === 'aprovado')
-                                    <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Aprovado</span>
-                                @elseif ($pgPreview === 'pendente')
-                                    <span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs font-semibold">Pendente</span>
-                                @elseif ($pgPreview === 'rejeitado')
-                                    <span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Rejeitado</span>
-                                @elseif ($pgPreview === 'estornado')
-                                    <span class="bg-gray-300 text-gray-800 py-1 px-3 rounded-full text-xs font-semibold">Estornado</span>
-                                @else
-                                    <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $pgPreview ?? '—' }}</span>
-                                @endif
-                            </div>
-
-                            <label class="block text-gray-500 mb-1 mt-3">Alterar status</label>
-                            @php $pg = old('status_pagamento', $pedido->status_pagamento); @endphp
-                            <select name="status_pagamento"
-                                    class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('status_pagamento') border-red-500 @enderror">
-                                <option value="pendente" {{ $pg === 'pendente' ? 'selected' : '' }}>Pendente</option>
-                                <option value="aprovado" {{ $pg === 'aprovado' ? 'selected' : '' }}>Aprovado</option>
-                                <option value="rejeitado" {{ $pg === 'rejeitado' ? 'selected' : '' }}>Rejeitado</option>
-                                <option value="estornado" {{ $pg === 'estornado' ? 'selected' : '' }}>Estornado</option>
-                            </select>
-                            @error('status_pagamento')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
 
                 {{-- Entrega (mesmo card do show, mas com inputs) --}}
                 <div class="bg-white shadow-lg rounded-lg p-6">
@@ -585,6 +499,20 @@
 
 	  refresh();
 	});
+
+    function copyPaymentLink(url) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Link de pagamento copiado para a área de transferência!');
+        }).catch(err => {
+            const textArea = document.createElement("textarea");
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert('Link de pagamento copiado!');
+        });
+    }
 	</script>	
 
 @endsection

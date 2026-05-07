@@ -29,6 +29,11 @@
                 <i class="fas fa-edit mr-2"></i> Editar
             </a>
 
+            <button onclick="copyPaymentLink('{{ $pedido->getPaymentUrl() }}')"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
+                <i class="fas fa-link mr-2"></i> Copiar Link
+            </button>
+
             <form action="{{ route('admin.pedido.destroy', $pedido->id) }}" method="POST"
                   onsubmit="return confirm('Tem certeza que deseja excluir este pedido?');" class="inline">
                 @csrf
@@ -92,43 +97,78 @@
                         <span class="text-gray-800 font-medium">{{ $pedido->origem_pedido ?? '—' }}</span>
                     </div>
 
-                    <div class="flex justify-between gap-4">
-                        <span class="text-gray-500">Live ID</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->live_id ?? '—' }}</span>
+                    <div class="border-t border-gray-100 pt-3 mt-3">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Cliente</p>
+                        <div class="space-y-2">
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Nome</span>
+                                <span class="text-gray-800 font-medium">{{ $pedido->user->name ?? 'N/A' }}</span>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">E-mail</span>
+                                <span class="text-gray-800 font-medium">{{ $pedido->user->email ?? '—' }}</span>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">WhatsApp</span>
+                                <span class="text-gray-800 font-medium">{{ $pedido->user->whatsapp ?? '—' }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white shadow-lg rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Valores</h2>
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Pagamento</h2>
 
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between gap-4">
-                        <span class="text-gray-500">Subtotal</span>
-                        @php
-                            $subtotal = (float)$pedido->valor_total - (float)$pedido->valor_frete + (float)$pedido->valor_desconto;
-                        @endphp
-                        <span class="text-gray-800 font-semibold">R$ {{ number_format($subtotal, 2, ',', '.') }}</span>
+                        <span class="text-gray-500">Forma</span>
+                        <span class="text-gray-800 font-medium">{{ $pedido->forma_pagamento ?? '—' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 items-center">
+                        <span class="text-gray-500">Status</span>
+                        <span>
+                            @php $pg = $pedido->status_pagamento; @endphp
+                            @if ($pg === 'aprovado')
+                                <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Aprovado</span>
+                            @elseif ($pg === 'pendente')
+                                <span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs font-semibold">Pendente</span>
+                            @elseif ($pg === 'rejeitado')
+                                <span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Rejeitado</span>
+                            @elseif ($pg === 'estornado')
+                                <span class="bg-gray-300 text-gray-800 py-1 px-3 rounded-full text-xs font-semibold">Estornado</span>
+                            @else
+                                <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $pg ?? '—' }}</span>
+                            @endif
+                        </span>
                     </div>
 
-                    <div class="flex justify-between gap-4">
-                        <span class="text-gray-500">Frete</span>
-                        <span class="text-gray-800 font-medium">R$ {{ number_format((float)$pedido->valor_frete, 2, ',', '.') }}</span>
-                    </div>
+                    <div class="border-t border-gray-100 pt-3 mt-3">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Valores</p>
+                        <div class="space-y-2">
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Subtotal</span>
+                                @php
+                                    $subtotal = (float)$pedido->valor_total - (float)$pedido->valor_frete + (float)$pedido->valor_desconto;
+                                @endphp
+                                <span class="text-gray-800 font-semibold">R$ {{ number_format($subtotal, 2, ',', '.') }}</span>
+                            </div>
 
-                    <div class="flex justify-between gap-4">
-                        <span class="text-gray-500">Desconto</span>
-                        <span class="text-gray-800 font-medium">R$ {{ number_format((float)$pedido->valor_desconto, 2, ',', '.') }}</span>
-                    </div>
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Frete</span>
+                                <span class="text-gray-800 font-medium">R$ {{ number_format((float)$pedido->valor_frete, 2, ',', '.') }}</span>
+                            </div>
 
-                    <div class="border-t border-gray-200 pt-3 flex justify-between gap-4">
-                        <span class="text-gray-800 font-semibold">Total</span>
-                        <span class="text-gray-900 font-bold">R$ {{ number_format((float)$pedido->valor_total, 2, ',', '.') }}</span>
-                    </div>
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Desconto</span>
+                                <span class="text-gray-800 font-medium text-red-600">- R$ {{ number_format((float)$pedido->valor_desconto, 2, ',', '.') }}</span>
+                            </div>
 
-                    <div class="flex justify-between gap-4 pt-2">
-                        <span class="text-gray-500">Cupom</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->cupom_desconto ?? '—' }}</span>
+                            <div class="border-t border-gray-200 pt-3 flex justify-between gap-4">
+                                <span class="text-gray-800 font-bold">Total</span>
+                                <span class="text-blue-700 font-black text-lg">R$ {{ number_format((float)$pedido->valor_total, 2, ',', '.') }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -136,24 +176,7 @@
 
         {{-- Coluna 2-3: Detalhes --}}
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white shadow-lg rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Cliente</h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <div class="text-gray-500">Nome</div>
-                        <div class="text-gray-900 font-medium">{{ $pedido->user->name ?? 'N/A' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">E-mail</div>
-                        <div class="text-gray-900 font-medium">{{ $pedido->user->email ?? '—' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">User ID</div>
-                        <div class="text-gray-900 font-medium">{{ $pedido->user_id }}</div>
-                    </div>
-                </div>
-            </div>		
+            {{-- Itens do Pedido --}}
 		
 		
             {{-- Itens do Pedido --}}
@@ -258,33 +281,7 @@
 
 
 
-            <div class="bg-white shadow-lg rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Pagamento</h2>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <div class="text-gray-500">Forma</div>
-                        <div class="text-gray-900 font-medium">{{ $pedido->forma_pagamento ?? '—' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">Status</div>
-                        <div class="mt-1">
-                            @php $pg = $pedido->status_pagamento; @endphp
-                            @if ($pg === 'aprovado')
-                                <span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs font-semibold">Aprovado</span>
-                            @elseif ($pg === 'pendente')
-                                <span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs font-semibold">Pendente</span>
-                            @elseif ($pg === 'rejeitado')
-                                <span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Rejeitado</span>
-                            @elseif ($pg === 'estornado')
-                                <span class="bg-gray-300 text-gray-800 py-1 px-3 rounded-full text-xs font-semibold">Estornado</span>
-                            @else
-                                <span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">{{ $pg ?? '—' }}</span>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div class="bg-white shadow-lg rounded-lg p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Entrega</h2>
@@ -341,4 +338,22 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function copyPaymentLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link de pagamento copiado para a área de transferência!');
+            }).catch(err => {
+                console.error('Erro ao copiar link: ', err);
+                // Fallback para navegadores antigos
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textArea);
+                alert('Link de pagamento copiado!');
+            });
+        }
+    </script>
 @endsection

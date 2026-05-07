@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Models\Pedido;
+use App\Observers\PedidoObserver;
 use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
 	   Gate::define('admin', function ($user) {
 		   return in_array($user->role, ['admin', 'admin_master']) || $user->is_admin;
 	   });
+
+       Pedido::observe(PedidoObserver::class);
     }
 	public const HOME = '/dashboard';
 }

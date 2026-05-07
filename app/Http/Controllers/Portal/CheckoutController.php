@@ -42,20 +42,26 @@ class CheckoutController extends Controller
                 $numero = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
                 $numeroPedido = 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
 
-                // 2. Criar o Pedido
-                $pedidoId = DB::table('pedidos')->insertGetId([
+                // 2. Criar o Pedido via Eloquent
+                $pedido = Pedido::create([
                     'numero_pedido'   => $numeroPedido,
                     'user_id'         => $user->id,
-                    'status_pedido'   => 'pendente', // Usando status existente no ENUM
+                    'status_pedido'   => 'pendente', 
                     'data_pedido'     => now(),
                     'valor_total'     => 0,
                     'valor_frete'     => 0,
                     'valor_desconto'  => 0,
                     'status_pagamento'=> 'pendente',
                     'origem_pedido'   => 'site',
-                    'created_at'      => now(),
-                    'updated_at'      => now()
+
+                    // Auto-preencher dados de entrega do cliente
+                    'endereco_entrega' => trim(($user->endereco ?? '') . ' ' . ($user->numero_endereco ?? '') . ' ' . ($user->complemento ?? '') . ' ' . ($user->bairro ?? '')),
+                    'cep_entrega'      => $user->cep ?? null,
+                    'cidade_entrega'   => $user->cidade ?? null,
+                    'estado_entrega'   => $user->estado ?? null,
                 ]);
+
+                $pedidoId = $pedido->id;
 
                 // 3. Mover itens da sacolinha para o pedido
                 $itensSacolinha = DB::table('sacolinhas')
@@ -222,5 +228,31 @@ class CheckoutController extends Controller
                 'message' => 'Erro ao processar frete: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Acesso ao checkout via Token (sem login manual).
+     */
+    public function pagamentoToken($token)
+    {
+        $pedido = Pedido::where('payment_token', $token)->first();
+
+        if (!$pedido) {
+            abort(404, 'Link de pagamento inválido ou expirado.');
+        }
+
+        // Login silencioso para permitir acesso às rotas protegidas do portal
+        \Illuminate\Support\Facades\Auth::login($pedido->user);
+
+        if ($pedido->status_pedido !== 'pendente') {
+            return redirect()->route('portal.pedidos')->with('info', 'Este pedido já foi finalizado ou cancelado.');
+        }
+
+        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
+        if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
+            return redirect()->route('portal.mercadopago.checkout', $pedido->id);
+        }
+
+        return redirect()->route('portal.checkout.show', $pedido->id);
     }
 }
