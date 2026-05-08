@@ -10,7 +10,7 @@ class LiveWhatsAppController extends Controller
 {
     public function send(Request $request, int $liveId, LiveWhatsAppService $service)
     {
-        $token = env('TWILIO_WEBHOOK_TOKEN');
+        $token = config('services.twilio.webhook_token');
         if ($token && $request->header('X-Webhook-Token') !== $token) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }

@@ -12,10 +12,10 @@ class LiveWhatsAppService
 	{
 		Log::info('Iniciando envio WhatsApp para live via jobs', ['live_id' => $liveId]);
 
-		$accountSid = env('TWILIO_ACCOUNT_SID');
-		$authToken  = env('TWILIO_AUTH_TOKEN');
-		$from       = env('TWILIO_WHATSAPP_FROM');
-		$contentSid = env('TWILIO_WHATSAPP_ORDER_TEMPLATE_SID');
+		$accountSid = config('services.twilio.account_sid');
+		$authToken  = config('services.twilio.auth_token');
+		$from       = config('services.twilio.whatsapp_from');
+		$contentSid = config('services.twilio.order_template');
 
 		if (!$accountSid || !$authToken || !$from || !$contentSid) {
 			return [

@@ -32,9 +32,9 @@ class TwilioOutController extends Controller
             ], 422);
         }
 
-        $accountSid = env('TWILIO_ACCOUNT_SID');
-        $authToken  = env('TWILIO_AUTH_TOKEN');
-        $from       = env('TWILIO_WHATSAPP_FROM'); // Ex: whatsapp:+14155238886
+        $accountSid = config('services.twilio.account_sid');
+        $authToken  = config('services.twilio.auth_token');
+        $from       = config('services.twilio.whatsapp_from'); // Ex: whatsapp:+14155238886
 
         if (!$accountSid || !$authToken || !$from) {
             return response()->json([
@@ -68,6 +68,7 @@ class TwilioOutController extends Controller
         try {
             $resp = Http::withBasicAuth($accountSid, $authToken)
                 ->asForm()
+                ->withoutVerifying()
                 ->post($url, $payload);
 
             if ($resp->successful()) {

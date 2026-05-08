@@ -36,9 +36,12 @@ return [
     ],
 	
 	'twilio' => [
-		'account_sid'   => env('TWILIO_ACCOUNT_SID'),
-		'auth_token'    => env('TWILIO_AUTH_TOKEN'),
-		'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+		'account_sid'    => env('TWILIO_ACCOUNT_SID'),
+		'auth_token'     => env('TWILIO_AUTH_TOKEN'),
+		'whatsapp_from'  => env('TWILIO_WHATSAPP_FROM'),
+		'webhook_token'  => env('TWILIO_WEBHOOK_TOKEN'),
+		'order_template' => env('TWILIO_WHATSAPP_ORDER_TEMPLATE_SID'),
+		'initial_template' => env('TWILIO_WHATSAPP_TEMPLATE_INICIAL_SID'),
 	],	
 	
 	'gemini' => [

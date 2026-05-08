@@ -73,7 +73,7 @@ class SendWhatsAppMessage implements ShouldQueue
         if ($from !== '' && !str_starts_with($from, 'whatsapp:')) {
             $from = 'whatsapp:' . $from;
         }
-        $contentSid = (string) env('TWILIO_WHATSAPP_TEMPLATE_INICIAL_SID', 'HX378937c73b703db60f41b0acfbd497e3');
+        $contentSid = (string) config('services.twilio.initial_template', 'HX378937c73b703db60f41b0acfbd497e3');
 
         // 3) Variável {{1}} = primeiro nome
         $nome = (string) (DB::table('users')->where('id', $this->userId)->value('name') ?? '');
@@ -146,6 +146,7 @@ class SendWhatsAppMessage implements ShouldQueue
 
         $resp = Http::withBasicAuth($accountSid, $authToken)
             ->asForm()
+            ->withoutVerifying()
             ->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages.json", $payload);
 
         $respJson = $resp->json();

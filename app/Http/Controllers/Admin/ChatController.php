@@ -263,6 +263,7 @@ class ChatController extends Controller
 
 		$resp = Http::withBasicAuth($accountSid, $authToken)
 			->asForm()
+			->withoutVerifying()
 			->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages.json", $payload);
 
 		$respJson = $resp->json();
@@ -371,6 +372,7 @@ class ChatController extends Controller
 
 		$response = Http::timeout(30)
 			->withBasicAuth($sid, $token)
+			->withoutVerifying()
 			->get($mediaUrl);
 
 		if (!$response->successful()) {
@@ -735,7 +737,9 @@ class ChatController extends Controller
 			$from = 'whatsapp:' . $from;
 		}
 
-		$resp = Http::withBasicAuth($accountSid, $authToken)->asForm()
+		$resp = Http::withBasicAuth($accountSid, $authToken)
+			->asForm()
+			->withoutVerifying()
 			->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages.json", [
 				'From' => $from,
 				'To' => $to,
