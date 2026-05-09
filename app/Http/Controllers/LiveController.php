@@ -524,7 +524,7 @@ class LiveController extends Controller
      */
     public function showLiveBagsOverview()
     {
-        return view('admin.sacolinhas.index');
+        return view('admin.sacolinhas.live');
     }
 
     /**

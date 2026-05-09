@@ -363,9 +363,7 @@ Route::post('/loja/adicionar-item', [LojaController::class, 'adicionarItemSacola
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
 
-Route::get('admin/sacolinhas', function () {
-    return view('admin.sacolinhas.index');
-})->name('admin.sacolinhas.index');
+Route::get('admin/sacolinhas', [LiveController::class, 'showLiveBagsOverview'])->name('admin.sacolinhas.index');
 
 
 Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
