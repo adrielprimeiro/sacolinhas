@@ -430,18 +430,20 @@
                     <div class="card-body p-0">
                         <table class="table table-sm mb-0">
                             <thead class="table-light">
-                                <tr><th>Item</th><th>Status</th><th>Preço</th><th width="150">Ações</th></tr>
+                                <tr><th>Código</th><th>Item</th><th>Detalhes</th><th>Status</th><th>Preço</th><th width="150">Ações</th></tr>
                             </thead>
                             <tbody>
                                 ${bag.items.map(item => `
                                     <tr>
+                                        <td class="text-muted small">${item.item_sku || '---'}</td>
                                         <td>${item.item_name}</td>
-                                        <td><span class="item-status status-${(item.status || 'pendente').toLowerCase()}">${(item.status || 'pendente').toUpperCase()}</span></td>
+                                        <td class="small text-secondary">${item.item_brand || ''} - ${item.item_color || ''} - ${item.item_size || ''}</td>
+                                        <td><span class="item-status status-${(item.item_status || 'pendente').toLowerCase()}">${(item.item_status || 'pendente').toUpperCase()}</span></td>
                                         <td class="fw-bold text-success">${item.formatted_total_price}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-status-reservado ${item.status === 'reservado' ? 'btn-status-active' : ''}" onclick="alterarStatus(${item.item_id}, 'reservado', this)" ${item.status === 'reservado' ? 'disabled' : ''}>R</button>
-                                                <button class="btn btn-status-sacolinha ${item.status === 'sacolinha' ? 'btn-status-active' : ''}" onclick="alterarStatus(${item.item_id}, 'sacolinha', this)" ${item.status === 'sacolinha' ? 'disabled' : ''}>S</button>
+                                                <button class="btn btn-status-reservado ${item.item_status === 'reservado' ? 'btn-status-active' : ''}" onclick="alterarStatus(${item.item_id}, 'reservado', this)" ${item.item_status === 'reservado' ? 'disabled' : ''}>R</button>
+                                                <button class="btn btn-status-sacolinha ${item.item_status === 'sacolinha' ? 'btn-status-active' : ''}" onclick="alterarStatus(${item.item_id}, 'sacolinha', this)" ${item.item_status === 'sacolinha' ? 'disabled' : ''}>S</button>
                                                 <button class="btn btn-outline-danger" onclick="abrirModalRemocao(${item.item_id}, ${bag.client.id}, '${item.item_name}', '${item.formatted_total_price}')"><i class="fas fa-trash"></i></button>
                                             </div>
                                         </td>

@@ -454,6 +454,7 @@ class SacolinhaController extends Controller
 					],
 					'total_items' => $userItems->count(),
 					'total_value' => $userItems->sum('final_price'),
+					'formatted_total' => 'R$ ' . number_format($userItems->sum('final_price'), 2, ',', '.'),
 					'items' => $userItems->map(function ($item) {
 						return [
 							'sacolinha_id' => $item->sacolinha_id,
@@ -464,6 +465,7 @@ class SacolinhaController extends Controller
 							'item_color' => $item->item_color,
 							'item_size' => $item->item_size,
 							'item_price' => (float) $item->final_price,
+							'formatted_total_price' => 'R$ ' . number_format($item->final_price, 2, ',', '.'),
 							'item_status' => $item->item_status,
 							'sacolinha_status' => $item->sacolinha_status,
 							'item_image' => $item->item_image,
