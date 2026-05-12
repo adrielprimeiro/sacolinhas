@@ -79,10 +79,102 @@ class MercadoPagoController extends Controller
         $data['description'] = 'Pedido #' . $pedido->numero_pedido;
         $data['external_reference'] = (string) $pedido->id;
         
-        // Assegura que o e-mail do pagador seja o do usuário logado (opcional, caso queira forçar)
+        // Assegura que o e-mail do pagador seja o do usuário logado
         if (!isset($data['payer']['email'])) {
             $data['payer']['email'] = auth()->user()->email;
         }
+        
+        $user = auth()->user();
+
+        // Quebra o nome em First Name e Last Name
+        $nameParts = explode(' ', trim($user->name));
+        $firstName = array_shift($nameParts);
+        $lastName = count($nameParts) > 0 ? implode(' ', $nameParts) : 'N/A';
+
+        if (!isset($data['payer']['first_name'])) {
+            $data['payer']['first_name'] = $firstName;
+        }
+        if (!isset($data['payer']['last_name'])) {
+            $data['payer']['last_name'] = $lastName;
+        }
+
+        // Identificação (CPF/CNPJ)
+        if (!isset($data['payer']['identification']) && !empty($user->cpf)) {
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $user->cpf);
+            $data['payer']['identification'] = [
+                'type' => strlen($cpfLimpo) > 11 ? 'CNPJ' : 'CPF',
+                'number' => $cpfLimpo
+            ];
+        }
+
+        // Telefone
+        if (!isset($data['payer']['phone']) && (!empty($user->phone) || !empty($user->whatsapp))) {
+            $telefoneLimpo = preg_replace('/[^0-9]/', '', $user->phone ?? $user->whatsapp);
+            if (strlen($telefoneLimpo) >= 10) {
+                $data['payer']['phone'] = [
+                    'area_code' => substr($telefoneLimpo, 0, 2),
+                    'number' => substr($telefoneLimpo, 2)
+                ];
+            }
+        }
+
+        // Endereço do pagador (usando endereço de entrega do pedido)
+        if (!isset($data['payer']['address'])) {
+            $data['payer']['address'] = [
+                'zip_code' => preg_replace('/[^0-9]/', '', $pedido->cep_entrega ?? ''),
+                'street_name' => $pedido->endereco_entrega ?? 'N/A',
+                'street_number' => 'S/N'
+            ];
+        }
+
+        // Montando a lista de items para additional_info
+        $itensPedido = DB::table('items_pedido')
+            ->join('items', 'items.id', '=', 'items_pedido.item_id')
+            ->where('items_pedido.pedido_id', $pedido->id)
+            ->get(['items.id', 'items.nome_do_produto', 'items.codigo', 'items.codigo_da_categoria', 'items_pedido.preco_unitario', 'items_pedido.quantidade']);
+
+        $additionalItems = [];
+        foreach ($itensPedido as $item) {
+            $additionalItems[] = [
+                'id' => (string) $item->id,
+                'title' => mb_substr($item->nome_do_produto, 0, 250),
+                'description' => $item->codigo ? "SKU: " . $item->codigo : "Item ID " . $item->id,
+                'quantity' => (int) $item->quantidade,
+                'unit_price' => (float) $item->preco_unitario,
+                'category_id' => $item->codigo_da_categoria ? (string) $item->codigo_da_categoria : 'others'
+            ];
+        }
+
+        // Adiciona frete como item se houver
+        if ((float) $pedido->valor_frete > 0) {
+            $additionalItems[] = [
+                'id' => 'frete',
+                'title' => 'Custo de Frete',
+                'description' => 'Serviço de Entrega',
+                'quantity' => 1,
+                'unit_price' => (float) $pedido->valor_frete,
+                'category_id' => 'shipping'
+            ];
+        }
+
+        // Se o saldo for utilizado, lançar um item de desconto para equilibrar o transaction_amount com a soma dos items
+        $saldoUtilizado = (float) ($pedido->valor_saldo_utilizado ?? 0);
+        if ($saldoUtilizado > 0) {
+            $additionalItems[] = [
+                'id' => 'desconto_saldo',
+                'title' => 'Desconto Saldo Carteira',
+                'description' => 'Saldo utilizado da carteira',
+                'quantity' => 1,
+                'unit_price' => -$saldoUtilizado,
+                'category_id' => 'discount'
+            ];
+        }
+
+        // Incluindo additional_info no request do Mercado Pago
+        $data['additional_info'] = [
+            'items' => $additionalItems,
+            'payer' => $data['payer']
+        ];
 
         // Gera uma chave de idempotência para evitar cobranças duplicadas
         // IMPORTANTE: Se time() for usado, retentativas legítimas falham.
