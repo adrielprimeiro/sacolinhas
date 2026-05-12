@@ -91,14 +91,7 @@ class MercadoPagoController extends Controller
         $firstName = array_shift($nameParts);
         $lastName = count($nameParts) > 0 ? implode(' ', $nameParts) : 'N/A';
 
-        if (!isset($data['payer']['first_name'])) {
-            $data['payer']['first_name'] = $firstName;
-        }
-        if (!isset($data['payer']['last_name'])) {
-            $data['payer']['last_name'] = $lastName;
-        }
-
-        // Identificação (CPF/CNPJ)
+        // Identificação (CPF/CNPJ) no payer raiz (o Brick geralmente já envia, mas garantimos)
         if (!isset($data['payer']['identification']) && !empty($user->cpf)) {
             $cpfLimpo = preg_replace('/[^0-9]/', '', $user->cpf);
             $data['payer']['identification'] = [
@@ -107,13 +100,19 @@ class MercadoPagoController extends Controller
             ];
         }
 
-        // Telefone
-        if (!isset($data['payer']['phone']) && (!empty($user->phone) || !empty($user->whatsapp))) {
+        // Objeto específico para additional_info.payer (não deve conter email, identification, entity_type)
+        $additionalPayer = [
+            'first_name' => mb_substr($firstName, 0, 250),
+            'last_name' => mb_substr($lastName, 0, 250)
+        ];
+
+        // Telefone para additional_info
+        if (!empty($user->phone) || !empty($user->whatsapp)) {
             $telefoneLimpo = preg_replace('/[^0-9]/', '', $user->phone ?? $user->whatsapp);
             if (strlen($telefoneLimpo) >= 10) {
-                $data['payer']['phone'] = [
+                $additionalPayer['phone'] = [
                     'area_code' => substr($telefoneLimpo, 0, 2),
-                    'number' => substr($telefoneLimpo, 2)
+                    'number' => substr($telefoneLimpo, 2, 9) // Limit to 9 chars max to prevent errors
                 ];
             }
         }
@@ -129,10 +128,10 @@ class MercadoPagoController extends Controller
             $additionalItems[] = [
                 'id' => (string) $item->id,
                 'title' => mb_substr($item->nome_do_produto, 0, 250),
-                'description' => $item->codigo ? "SKU: " . $item->codigo : "Item ID " . $item->id,
+                'description' => $item->codigo ? "SKU: " . mb_substr($item->codigo, 0, 250) : "Item ID " . $item->id,
                 'quantity' => (int) $item->quantidade,
                 'unit_price' => (float) $item->preco_unitario,
-                'category_id' => $item->codigo_da_categoria ? (string) $item->codigo_da_categoria : 'others'
+                'category_id' => $item->codigo_da_categoria ? mb_substr((string) $item->codigo_da_categoria, 0, 250) : 'others'
             ];
         }
 
@@ -149,9 +148,10 @@ class MercadoPagoController extends Controller
         }
 
         // Incluindo additional_info no request do Mercado Pago
+        // Importante: additional_info tem um schema estrito, por isso usamos additionalPayer limpo
         $data['additional_info'] = [
             'items' => $additionalItems,
-            'payer' => $data['payer']
+            'payer' => $additionalPayer
         ];
 
         // Gera uma chave de idempotência para evitar cobranças duplicadas
