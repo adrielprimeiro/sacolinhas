@@ -118,15 +118,6 @@ class MercadoPagoController extends Controller
             }
         }
 
-        // Endereço do pagador (usando endereço de entrega do pedido)
-        if (!isset($data['payer']['address'])) {
-            $data['payer']['address'] = [
-                'zip_code' => preg_replace('/[^0-9]/', '', $pedido->cep_entrega ?? ''),
-                'street_name' => $pedido->endereco_entrega ?? 'N/A',
-                'street_number' => 'S/N'
-            ];
-        }
-
         // Montando a lista de items para additional_info
         $itensPedido = DB::table('items_pedido')
             ->join('items', 'items.id', '=', 'items_pedido.item_id')
@@ -154,19 +145,6 @@ class MercadoPagoController extends Controller
                 'quantity' => 1,
                 'unit_price' => (float) $pedido->valor_frete,
                 'category_id' => 'shipping'
-            ];
-        }
-
-        // Se o saldo for utilizado, lançar um item de desconto para equilibrar o transaction_amount com a soma dos items
-        $saldoUtilizado = (float) ($pedido->valor_saldo_utilizado ?? 0);
-        if ($saldoUtilizado > 0) {
-            $additionalItems[] = [
-                'id' => 'desconto_saldo',
-                'title' => 'Desconto Saldo Carteira',
-                'description' => 'Saldo utilizado da carteira',
-                'quantity' => 1,
-                'unit_price' => -$saldoUtilizado,
-                'category_id' => 'discount'
             ];
         }
 
