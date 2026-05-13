@@ -37,4 +37,12 @@ class Movimentacao extends Model
     {
         return $this->belongsTo(ContaBancaria::class);
     }
+
+    /**
+     * A transação do extrato vinculada a esta movimentação.
+     */
+    public function transacaoExtrato()
+    {
+        return $this->hasOne(TransacaoExtrato::class, 'movimentacao_id');
+    }
 }

@@ -136,8 +136,12 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
 
     // Conciliação
     Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
-        Route::get('/',          [ConciliacaoController::class, 'index'])->name('index');
-        Route::post('/vincular', [ConciliacaoController::class, 'vincular'])->name('vincular');
+        Route::get('/',                [ConciliacaoController::class, 'index'])->name('index');
+        Route::post('/vincular',       [ConciliacaoController::class, 'vincular'])->name('vincular');
+        Route::post('/sincronizar-mp', [ConciliacaoController::class, 'sincronizarMp'])->name('sincronizar-mp');
+        Route::post('/importar',       [ConciliacaoController::class, 'importarOfx'])->name('importar');
+        Route::post('/criar-rapido',   [ConciliacaoController::class, 'criarRapido'])->name('criar-rapido');
+        Route::post('/{transacao}/ignorar', [ConciliacaoController::class, 'ignorar'])->name('ignorar');
     });
 
     // Pessoas (Contatos)

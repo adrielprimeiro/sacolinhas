@@ -3,77 +3,108 @@
 namespace App\Http\Controllers\Financeiro;
 
 use App\Http\Controllers\Controller;
-use App\Models\ContaBancaria;
 use App\Models\Lancamento;
+use App\Models\TransacaoExtrato;
+use App\Models\ClassificacaoFinanceira;
+use App\Models\Pessoa;
+use App\Services\ConciliacaoService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ConciliacaoController extends Controller
 {
-    /**
-     * Tela de conciliação: extrato de uma conta vs. lançamentos pendentes.
-     */
-    public function index(Request $request)
+    protected $service;
+
+    public function __construct(ConciliacaoService $service)
     {
-        $contaId = $request->get('conta_bancaria_id');
-
-        $contas = ContaBancaria::orderBy('nome')->get();
-
-        $movimentacoes = collect();
-        $lancamentosPendentes = collect();
-        $contaSelecionada = null;
-
-        if ($contaId) {
-            $contaSelecionada = ContaBancaria::findOrFail($contaId);
-
-            // Extrato: movimentações mais recentes da conta selecionada
-            $movimentacoes = $contaSelecionada->movimentacoes()
-                ->with('lancamento.pessoa')
-                ->orderBy('data_pagamento', 'desc')
-                ->limit(50)
-                ->get();
-
-            // Lançamentos pendentes (sem movimentação ou parciais) para vincular
-            $tipo = $request->get('tipo_lancamento'); // receita ou despesa
-
-            $query = Lancamento::with(['pessoa', 'classificacaoFinanceira'])
-                ->whereIn('status', ['pendente', 'pago_parcial'])
-                ->orderBy('data_vencimento');
-
-            if ($tipo) {
-                $query->where('tipo', $tipo);
-            }
-
-            $lancamentosPendentes = $query->limit(50)->get();
-        }
-
-        return view('admin.financeiro.conciliacao.index', compact(
-            'contas',
-            'contaSelecionada',
-            'movimentacoes',
-            'lancamentosPendentes'
-        ));
+        $this->service = $service;
     }
 
-    /**
-     * Vincula uma movimentação existente a um lançamento (conciliação manual).
-     */
-    public function vincular(Request $request)
+    public function index()
     {
-        $data = $request->validate([
-            'movimentacao_id' => ['required', 'exists:movimentacoes,id'],
-            'lancamento_id'   => ['required', 'exists:lancamentos,id'],
+        $extrato = TransacaoExtrato::where('status', 'pendente')
+            ->orderBy('data', 'desc')
+            ->get();
+
+        $lancamentos = Lancamento::with('pessoa')
+            ->where(function ($q) {
+                $q->where('status', 'pendente')
+                    ->orWhere(function ($q2) {
+                        // Também mostra os pagos que ainda não foram vinculados a nenhuma transação do extrato
+                        $q2->where('status', 'pago')
+                            ->whereDoesntHave('movimentacoes', function ($q3) {
+                                $q3->whereHas('transacaoExtrato');
+                            });
+                    });
+            })
+            ->orderBy('data_vencimento', 'asc')
+            ->get();
+
+        $classificacoes = ClassificacaoFinanceira::all();
+        $pessoas = Pessoa::all(['id', 'nome']);
+
+        return view('admin.financeiro.conciliacao', compact('extrato', 'lancamentos', 'classificacoes', 'pessoas'));
+    }
+
+    public function sincronizarMp(Request $request)
+    {
+        try {
+            $count = $this->service->sincronizarMercadoPago($request->start_date, $request->end_date);
+            return back()->with('success', "{$count} transações sincronizadas do Mercado Pago.");
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function importarOfx(Request $request)
+    {
+        $request->validate(['arquivo_ofx' => 'required|file']);
+        
+        try {
+            $count = $this->service->importarOfx($request->file('arquivo_ofx'), $request->conta_bancaria_id);
+            return back()->with('success', "{$count} transações importadas do arquivo OFX.");
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function conciliar(Request $request)
+    {
+        $request->validate([
+            'transacao_id' => 'required|exists:transacoes_extrato,id',
+            'lancamento_id' => 'required|exists:lancamentos,id',
         ]);
 
-        $movimentacao = \App\Models\Movimentacao::findOrFail($data['movimentacao_id']);
-        $movimentacao->update(['lancamento_id' => $data['lancamento_id']]);
+        try {
+            $this->service->vincular($request->transacao_id, $request->lancamento_id);
+            return back()->with('success', 'Conciliação realizada com sucesso!');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
 
-        // Recalcular status do lançamento vinculado
-        $lancamento = \App\Models\Lancamento::with('movimentacoes')->findOrFail($data['lancamento_id']);
-        $totalPago  = $lancamento->movimentacoes->sum('valor_pago');
+    public function criarRapido(Request $request)
+    {
+        $request->validate([
+            'transacao_id' => 'required|exists:transacoes_extrato,id',
+            'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
+        ]);
 
-        $novoStatus = $totalPago >= ($lancamento->valor_total - 0.01) ? 'pago' : 'pago_parcial';
-        $lancamento->update(['status' => $novoStatus]);
+        try {
+            $this->service->vincularNovoLancamento(
+                $request->transacao_id,
+                $request->classificacao_financeira_id,
+                $request->pessoa_id
+            );
+            return back()->with('success', 'Lançamento criado e conciliado!');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
 
-        return response()->json(['success' => true, 'novo_status' => $novoStatus]);
+    public function ignorar(TransacaoExtrato $transacao)
+    {
+        $transacao->update(['status' => 'ignorado']);
+        return back()->with('success', 'Transação ignorada.');
     }
 }

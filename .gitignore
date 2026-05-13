@@ -54,9 +54,8 @@ copy
 dir
 ls
 php
-{docker/nginx/certs/
+docker/nginx/certs/
 /etc/letsencrypt/
-docker/nginx/certs/ /etc/letsencrypt/
 
 *.sql
 *.tar.gz
