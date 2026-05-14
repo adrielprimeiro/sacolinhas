@@ -9,6 +9,22 @@
 @php
 $currentRoute = Route::currentRouteName();
 @endphp
+<div x-data="{ 
+    showModalTransfer: false, 
+    showModalEdit: false,
+    editData: { id: '', conta_id: '', data: '', valor: '', forma: '', descricao: '' },
+    openEdit(mov) {
+        this.editData = {
+            id: mov.id,
+            conta_id: mov.conta_bancaria_id,
+            data: mov.data_pagamento.split('T')[0],
+            valor: mov.valor_pago,
+            forma: mov.forma_pagamento,
+            descricao: mov.lancamento ? mov.lancamento.descricao : 'Transferência'
+        };
+        this.showModalEdit = true;
+    }
+}" class="container mx-auto">
 <div class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 pb-3">
     <a href="{{ route('financeiro.dashboard') }}"
        class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ str_contains($currentRoute, 'dashboard') ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
@@ -77,7 +93,7 @@ $currentRoute = Route::currentRouteName();
         <form method="GET" class="flex flex-wrap gap-4 items-end">
             <div class="min-w-[180px]">
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conta</label>
-                <select name="conta_bancaria_id" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
+                <select name="conta_bancaria_id" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
                     <option value="">Todas as Contas</option>
                     @foreach($contas as $conta)
                         <option value="{{ $conta->id }}" {{ request('conta_bancaria_id') == $conta->id ? 'selected' : '' }}>
@@ -88,15 +104,15 @@ $currentRoute = Route::currentRouteName();
             </div>
             <div>
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Data Início</label>
-                <input type="date" name="data_inicio" value="{{ request('data_inicio') }}" class="border border-gray-200 rounded-xl p-2 text-sm">
+                <input type="date" name="data_inicio" value="{{ request('data_inicio') }}" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm">
             </div>
             <div>
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Data Fim</label>
-                <input type="date" name="data_fim" value="{{ request('data_fim') }}" class="border border-gray-200 rounded-xl p-2 text-sm">
+                <input type="date" name="data_fim" value="{{ request('data_fim') }}" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm">
             </div>
             <div>
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Forma</label>
-                <select name="forma_pagamento" class="border border-gray-200 rounded-xl p-2 text-sm bg-white">
+                <select name="forma_pagamento" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white">
                     <option value="">Todas</option>
                     <option value="pix" {{ request('forma_pagamento') == 'pix' ? 'selected' : '' }}>PIX</option>
                     <option value="transferencia" {{ request('forma_pagamento') == 'transferencia' ? 'selected' : '' }}>Transferência</option>
@@ -105,8 +121,11 @@ $currentRoute = Route::currentRouteName();
                     <option value="cartao" {{ request('forma_pagamento') == 'cartao' ? 'selected' : '' }}>Cartão</option>
                 </select>
             </div>
-            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700">
+            <button type="submit" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-200">
                 <i class="fas fa-filter mr-1"></i> Filtrar
+            </button>
+            <button type="button" @click="showModalTransfer = true" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700">
+                <i class="fas fa-exchange-alt mr-1"></i> Nova Transferência
             </button>
             <a href="{{ route('financeiro.movimentacoes.index') }}" class="text-gray-500 text-sm hover:text-gray-700 px-2">
                 Limpar
@@ -121,10 +140,11 @@ $currentRoute = Route::currentRouteName();
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Lançamento</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Pessoa</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Forma</th>
-                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Conta</th>
-                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase text-right">Valor</th>
+                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Conta</th>
+                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Valor</th>
+                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Ações</th>
             </tr>
-        </thead>
+</thead>
         <tbody class="divide-y divide-gray-50">
             @forelse($movimentacoes as $m)
                 <tr class="hover:bg-gray-50">
@@ -141,9 +161,22 @@ $currentRoute = Route::currentRouteName();
                     </td>
                     <td class="px-5 py-4 text-sm text-gray-500">{{ $m->contaBancaria->nome ?? '---' }}</td>
                     <td class="px-5 py-4 text-right">
-                        <span class="text-sm font-black {{ $m->lancamento->tipo === 'receita' ? 'text-green-600' : 'text-red-600' }}">
-                            {{ $m->lancamento->tipo === 'receita' ? '+' : '-' }} R$ {{ number_format($m->valor_pago, 2, ',', '.') }}
+                        <span class="text-sm font-black {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'text-green-600' : 'text-red-600' }}">
+                            {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? '+' : '-' }} R$ {{ number_format($m->valor_pago, 2, ',', '.') }}
                         </span>
+                    </td>
+                    <td class="px-5 py-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button @click="openEdit({{ json_encode($m) }})" class="text-indigo-600 hover:text-indigo-900 transition p-1">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="{{ route('financeiro.movimentacoes.destroy', $m->id) }}" method="POST" onsubmit="return confirm('Excluir esta movimentação permanentemente?')" class="inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-red-400 hover:text-red-600 transition p-1">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
             @empty
@@ -161,4 +194,107 @@ $currentRoute = Route::currentRouteName();
     </div>
 </div>
 
+    <!-- Modal Transferência -->
+    <div x-show="showModalTransfer" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <form action="{{ route('financeiro.movimentacoes.transferir') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+            @csrf
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800 uppercase tracking-widest text-sm">Transferência entre Contas</h3>
+                <button type="button" @click="showModalTransfer = false" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conta de Origem (Saída)</label>
+                        <select name="conta_origem_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                            <option value="">Selecione a conta de origem...</option>
+                            @foreach($contas as $conta)
+                                <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conta de Destino (Entrada)</label>
+                        <select name="conta_destino_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                            <option value="">Selecione a conta de destino...</option>
+                            @foreach($contas as $conta)
+                                <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3.5 text-xs font-black text-gray-400">R$</span>
+                            <input type="number" name="valor" step="0.01" min="0.01" class="w-full text-sm border border-gray-200 rounded-xl p-3 pl-9 font-black" placeholder="0,00" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Data</label>
+                        <input type="date" name="data_pagamento" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-bold" value="{{ date('Y-m-d') }}" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Descrição / Observação</label>
+                    <input type="text" name="descricao" class="w-full text-sm border border-gray-200 rounded-xl p-3" placeholder="Ex: Ajuste de saldo, Transferência mensal...">
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                <button type="button" @click="showModalTransfer = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="bg-indigo-600 text-white px-8 py-2 rounded-xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all uppercase tracking-wider">
+                    Executar Transferência
+                </button>
+            </div>
+        </form>
+    </div>
+    <!-- Modal Editar Movimentação -->
+    <div x-show="showModalEdit" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <form :action="'{{ url('admin/financeiro/movimentacoes') }}/' + editData.id" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+            @csrf @method('PUT')
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800 uppercase tracking-widest text-sm">Editar Movimentação</h3>
+                <button type="button" @click="showModalEdit = false" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-gray-500 mb-2">Lançamento: <span class="font-bold text-gray-700" x-text="editData.descricao"></span></p>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária</label>
+                    <select name="conta_bancaria_id" x-model="editData.conta_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                        @foreach($contas as $conta)
+                            <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Data do Pagamento</label>
+                        <input type="date" name="data_pagamento" x-model="editData.data" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-bold" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Pago</label>
+                        <input type="number" name="valor_pago" x-model="editData.valor" step="0.01" min="0" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-black" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Forma de Pagamento</label>
+                    <select name="forma_pagamento" x-model="editData.forma" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                        <option value="pix">PIX</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="cartao_credito">Cartão de Crédito</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                <button type="button" @click="showModalEdit = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="bg-indigo-600 text-white px-8 py-2 rounded-xl text-sm font-black hover:bg-indigo-700 shadow-lg transition-all uppercase tracking-wider">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection

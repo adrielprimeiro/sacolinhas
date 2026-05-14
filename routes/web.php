@@ -130,6 +130,9 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
     Route::get('/search/classificacoes', [LancamentoController::class, 'searchClassificacoes'])->name('search.classificacoes');
 
     Route::get('/movimentacoes', [MovimentacaoController::class, 'index'])->name('movimentacoes.index');
+    Route::post('/movimentacoes/transferir', [MovimentacaoController::class, 'transferir'])->name('movimentacoes.transferir');
+    Route::put('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'update'])->name('movimentacoes.update');
+    Route::delete('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'destroy'])->name('movimentacoes.destroy');
 
     Route::prefix('orcamento')->name('orcamento.')->group(function () {
         Route::get('/',    [OrcamentoController::class, 'index'])->name('index');

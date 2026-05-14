@@ -102,7 +102,7 @@ $currentRoute = Route::currentRouteName();
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                                        <button @click.stop="openQuickCreate({{ $t->id }}, '{{ $t->descricao }}', {{ $t->valor }}, '{{ $t->tipo }}')" 
+                                        <button @click.stop="openQuickCreate({{ $t->id }}, '{{ addslashes($t->descricao) }}', {{ $t->valor }}, '{{ $t->tipo }}', '{{ $t->origem }}')" 
                                                 class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Lançamento Rápido">
                                             <i class="fas fa-plus"></i>
                                         </button>
@@ -302,10 +302,10 @@ $currentRoute = Route::currentRouteName();
                 </div>
                 <div>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária <span class="text-red-500">*</span></label>
-                    <select name="conta_bancaria_id" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold" required>
+                    <select name="conta_bancaria_id" x-model="quickData.conta_id" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold" required>
                         <option value="">Selecione a conta de destino...</option>
                         @foreach($contas as $conta)
-                            <option value="{{ $conta->id }}" {{ $conta->id == 1 ? 'selected' : '' }}>{{ $conta->nome }}</option>
+                            <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -386,7 +386,7 @@ $currentRoute = Route::currentRouteName();
             valorSistema: 0,
             tipoExtrato: '',
             tipoSistema: '',
-            quickData: { id: '', descricao: '', valor: '', tipo: '' },
+            quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
             showModalOfx: false,
             showModalMp: false,
             showModalQuick: false,
@@ -428,16 +428,13 @@ $currentRoute = Route::currentRouteName();
                 return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
 
-            showModalQuick: false,
-            searchSistema: '',
-            suggestion: null,
-
-            openQuickCreate(id, desc, valor, tipo) {
+            openQuickCreate(id, desc, valor, tipo, origem) {
                 this.quickData = { 
                     id, 
                     descricao: desc, 
                     valor: this.formatMoney(valor), 
-                    tipo: tipo === 'entrada' ? 'RECEITA' : 'DESPESA' 
+                    tipo: tipo === 'entrada' ? 'RECEITA' : 'DESPESA',
+                    conta_id: origem === 'mercadopago' ? 2 : 1
                 };
                 this.suggestion = null;
                 this.showModalQuick = true;
