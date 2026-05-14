@@ -275,7 +275,7 @@ $currentRoute = Route::currentRouteName();
 
     <!-- Modal Quick Create -->
     <div x-show="showModalQuick" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
+        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl">
             @csrf
             <input type="hidden" name="transacao_id" x-model="quickData.id">
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -301,22 +301,69 @@ $currentRoute = Route::currentRouteName();
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Classificação Financeira</label>
-                    <select name="classificacao_financeira_id" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold" required>
-                        <option value="">Selecione uma categoria...</option>
-                        @foreach($classificacoes as $c)
-                            <option value="{{ $c->id }}">{{ $c->nome }}</option>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária <span class="text-red-500">*</span></label>
+                    <select name="conta_bancaria_id" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold" required>
+                        <option value="">Selecione a conta de destino...</option>
+                        @foreach($contas as $conta)
+                            <option value="{{ $conta->id }}" {{ $conta->id == 1 ? 'selected' : '' }}>{{ $conta->nome }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div x-data="classificacaoSearch()">
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" x-model="search" @input.debounce.300ms="buscar()" @focus="buscar()"
+                               placeholder="Buscar categoria (Ex: Venda, Aluguel...)"
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold transition-all"
+                               :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''" 
+                               :readonly="selected"
+                               required>
+                        <input type="hidden" name="classificacao_financeira_id" :value="selectedId" required>
+                        
+                        <div x-show="loading" class="absolute right-9 top-3"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>
+                        
+                        <div x-show="results.length > 0" 
+                             class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                            <template x-for="item in results" :key="item.id">
+                                <div @click="selecionar(item)" class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0">
+                                    <div class="font-bold text-sm text-gray-800" x-text="item.text"></div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="selected" @click="limpar()" class="absolute right-3 top-3 cursor-pointer text-gray-400 hover:text-red-500">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                <div x-data="pessoaSearch()">
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Pessoa (Opcional)</label>
-                    <select name="pessoa_id" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold">
-                        <option value="">Não identificar (Avulso)</option>
-                        @foreach($pessoas as $p)
-                            <option value="{{ $p->id }}">{{ $p->nome }}</option>
-                        @endforeach
-                    </select>
+                    <div class="relative">
+                        <input type="text" 
+                               x-model="search" 
+                               @input.debounce.300ms="buscar()"
+                               @focus="buscar()"
+                               placeholder="Buscar por nome, CPF ou email..."
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold transition-all"
+                               :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
+                               :readonly="selected">
+                        <input type="hidden" name="pessoa_id" :value="selectedId">
+                        <div x-show="loading" class="absolute right-9 top-3">
+                            <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                        </div>
+                        <div x-show="results.length > 0" 
+                             class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                            <template x-for="pessoa in results" :key="pessoa.id">
+                                <div @click="selecionar(pessoa)" 
+                                     class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0">
+                                    <div class="font-bold text-sm text-gray-800" x-text="pessoa.nome"></div>
+                                    <div class="text-xs text-gray-500" x-text="pessoa.info || ''"></div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="selected" @click="limpar()" class="absolute right-3 top-3 cursor-pointer text-gray-400 hover:text-red-500">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
@@ -381,6 +428,10 @@ $currentRoute = Route::currentRouteName();
                 return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
 
+            showModalQuick: false,
+            searchSistema: '',
+            suggestion: null,
+
             openQuickCreate(id, desc, valor, tipo) {
                 this.quickData = { 
                     id, 
@@ -388,7 +439,19 @@ $currentRoute = Route::currentRouteName();
                     valor: this.formatMoney(valor), 
                     tipo: tipo === 'entrada' ? 'RECEITA' : 'DESPESA' 
                 };
+                this.suggestion = null;
                 this.showModalQuick = true;
+
+                // Buscar sugestão de pessoa (se existir pedido vinculado)
+                fetch(`{{ url('admin/financeiro/conciliacao/get-sugestao-pessoa') }}/${id}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.suggestion = data.pessoa;
+                            // Disparar evento para o componente de busca de pessoa
+                            window.dispatchEvent(new CustomEvent('pessoa-sugestionada', { detail: data.pessoa }));
+                        }
+                    });
             },
 
             shouldShowSistema(descricao, refId) {
@@ -401,6 +464,109 @@ $currentRoute = Route::currentRouteName();
             formatMoney(v) {
                 if (!v) return '0,00';
                 return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }
+    }
+
+    function pessoaSearch() {
+        return {
+            search: '',
+            results: [],
+            selected: null,
+            selectedId: '',
+            selectedNome: '',
+            loading: false,
+            timeout: null,
+            init() {
+                window.addEventListener('pessoa-sugestionada', (e) => {
+                    this.selecionar(e.detail);
+                });
+            },
+            buscar() {
+                // Se o que está no campo é exatamente o que foi selecionado, não busca
+                if (this.selected && this.search === this.selectedNome) {
+                    this.results = [];
+                    return;
+                }
+
+                if (this.search.length < 2) {
+                    this.results = [];
+                    return;
+                }
+                
+                this.loading = true;
+                clearTimeout(this.timeout);
+                this.timeout = setTimeout(() => {
+                    fetch('{{ route("financeiro.conciliacao.buscar-pessoas") }}?q=' + encodeURIComponent(this.search))
+                        .then(r => r.json())
+                        .then(data => {
+                            this.results = data.map(p => ({
+                                id: p.id,
+                                nome: p.nome,
+                                info: p.documento || p.cpf || ''
+                            }));
+                            this.loading = false;
+                        });
+                }, 300);
+            },
+            selecionar(pessoa) {
+                this.selected = pessoa;
+                this.selectedId = pessoa.id;
+                this.selectedNome = pessoa.nome || pessoa.text;
+                this.search = this.selectedNome; // Define o texto no input
+                this.results = [];
+            },
+            limpar() {
+                this.selected = null;
+                this.selectedId = '';
+                this.selectedNome = '';
+                this.search = '';
+                this.results = [];
+            }
+        }
+    }
+
+    function classificacaoSearch() {
+        return {
+            search: '',
+            results: [],
+            selected: null,
+            selectedId: '',
+            selectedNome: '',
+            loading: false,
+            buscar() {
+                // Se o que está no campo é exatamente o que foi selecionado, não busca
+                if (this.selected && this.search === this.selectedNome) {
+                    this.results = [];
+                    return;
+                }
+
+                if (this.search.length < 2) {
+                    this.results = [];
+                    return;
+                }
+                
+                this.loading = true;
+                fetch('{{ route("financeiro.search.classificacoes") }}?q=' + encodeURIComponent(this.search))
+                    .then(r => r.json())
+                    .then(data => {
+                        this.results = data;
+                        this.loading = false;
+                    });
+            },
+            selecionar(item) {
+                this.selected = item;
+                this.selectedId = item.id;
+                this.selectedNome = item.text;
+                this.search = this.selectedNome; // Define o texto no input
+                this.results = [];
+            },
+            limpar() {
+                this.selected = null;
+                this.selectedId = '';
+                this.selectedNome = '';
+                this.search = '';
+                this.results = [];
             }
         }
     }

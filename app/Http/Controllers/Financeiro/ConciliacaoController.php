@@ -42,8 +42,9 @@ class ConciliacaoController extends Controller
 
         $classificacoes = ClassificacaoFinanceira::all();
         $pessoas = Pessoa::all(['id', 'nome']);
+        $contas = \App\Models\ContaBancaria::all(['id', 'nome']);
 
-        return view('admin.financeiro.conciliacao', compact('extrato', 'lancamentos', 'classificacoes', 'pessoas'));
+        return view('admin.financeiro.conciliacao', compact('extrato', 'lancamentos', 'classificacoes', 'pessoas', 'contas'));
     }
 
     public function sincronizarMp(Request $request)
@@ -99,7 +100,8 @@ class ConciliacaoController extends Controller
             $this->service->vincularNovoLancamento(
                 $request->transacao_id,
                 $request->classificacao_financeira_id,
-                $request->pessoa_id
+                $request->pessoa_id,
+                $request->conta_bancaria_id
             );
             return back()->with('success', 'Lançamento criado e conciliado!');
         } catch (\Exception $e) {
@@ -111,5 +113,56 @@ class ConciliacaoController extends Controller
     {
         $transacao->update(['status' => 'ignorado']);
         return back()->with('success', 'Transação ignorada.');
+    }
+
+    public function getSugestaoPessoa(TransacaoExtrato $transacao)
+    {
+        $pedidoId = $transacao->getPedidoId();
+        if (!$pedidoId) {
+            return response()->json(['success' => false, 'message' => 'Sem referência de pedido']);
+        }
+
+        $pedido = \App\Models\Pedido::with('user.perfilFinanceiro')->find($pedidoId);
+        if (!$pedido || !$pedido->user) {
+            return response()->json(['success' => false, 'message' => 'Pedido ou usuário não encontrado']);
+        }
+
+        $user = $pedido->user;
+        $pessoa = $user->perfilFinanceiro;
+
+        if (!$pessoa) {
+            // Criar perfil financeiro automaticamente se não existir
+            $pessoa = \App\Models\Pessoa::create([
+                'user_id' => $user->id,
+                'nome' => $user->name,
+                'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
+                'tipo' => 'cliente_circular',
+            ]);
+            Log::info("Perfil financeiro criado automaticamente para User #{$user->id}");
+        }
+
+        return response()->json([
+            'success' => true,
+            'pessoa' => [
+                'id' => $pessoa->id,
+                'text' => "[#{$pessoa->id}] {$pessoa->nome}" . ($pessoa->documento ? " - {$pessoa->documento}" : '')
+            ]
+        ]);
+    }
+
+    public function buscarPessoas(Request $request)
+    {
+        $search = $request->get('q', '');
+        
+        $pessoas = \App\Models\Pessoa::when($search, function($q) use ($search) {
+                $q->where('nome', 'like', "%{$search}%")
+                  ->orWhere('documento', 'like', "%{$search}%")
+                  ->orWhere('id', $search);
+            })
+            ->orderBy('nome')
+            ->limit(30)
+            ->get(['id', 'nome', 'documento']);
+            
+        return response()->json($pessoas);
     }
 }

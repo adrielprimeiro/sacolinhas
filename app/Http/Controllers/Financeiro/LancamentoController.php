@@ -187,14 +187,17 @@ class LancamentoController extends Controller
     {
         $term = $request->get('q', '');
 
-        $pessoas = Pessoa::where('nome', 'like', "%{$term}%")
-            ->orWhere('documento', 'like', "%{$term}%")
-            ->limit(20)
+        $pessoas = Pessoa::where(function($q) use ($term) {
+                $q->where('nome', 'like', "%{$term}%")
+                  ->orWhere('documento', 'like', "%{$term}%")
+                  ->orWhere('id', $term);
+            })
+            ->limit(30)
             ->get(['id', 'nome', 'tipo', 'documento']);
 
         return response()->json($pessoas->map(fn ($p) => [
             'id'   => $p->id,
-            'text' => "{$p->nome}" . ($p->documento ? " - {$p->documento}" : ''),
+            'text' => "[#{$p->id}] {$p->nome}" . ($p->documento ? " - {$p->documento}" : ''),
             'tipo' => $p->tipo,
         ]));
     }
@@ -208,7 +211,7 @@ class LancamentoController extends Controller
 
         $classificacoes = ClassificacaoFinanceira::where('nome', 'like', "%{$term}%")
             ->orWhere('codigo_contabil', 'like', "%{$term}%")
-            ->limit(30)
+            ->limit(50)
             ->get(['id', 'nome', 'codigo_contabil', 'tipo_natureza']);
 
         return response()->json($classificacoes->map(fn ($c) => [

@@ -210,16 +210,36 @@ class ConciliacaoService
     /**
      * Criar um lançamento rápido e já vincular à transação
      */
-    public function vincularNovoLancamento(int $transacaoId, int $classificacaoId, ?int $pessoaId = null)
+    public function vincularNovoLancamento(int $transacaoId, int $classificacaoId, ?int $pessoaId = null, ?int $contaBancariaId = null)
     {
-        return \DB::transaction(function () use ($transacaoId, $classificacaoId, $pessoaId) {
+        return \DB::transaction(function () use ($transacaoId, $classificacaoId, $pessoaId, $contaBancariaId) {
             $transacao = TransacaoExtrato::findOrFail($transacaoId);
+
+            // Atualizar conta bancária se fornecida
+            if ($contaBancariaId) {
+                $transacao->update(['conta_bancaria_id' => $contaBancariaId]);
+            }
+
+            // Buscar cliente do pedido se existir
+            $pessoaIdFinal = $pessoaId;
+            if (!$pessoaIdFinal && $transacao->origem === 'mercadopago') {
+                $pedidoId = $transacao->getPedidoId();
+                if ($pedidoId) {
+                    $pedido = \App\Models\Pedido::find($pedidoId);
+                    if ($pedido && $pedido->cliente_id) {
+                        $pessoaIdFinal = $pedido->cliente_id;
+                        // Atualizar descrição com info do pedido
+                        $transacao->descricao = 'Pedido #' . $pedido->id . ' - ' . ($pedido->cliente?->nome ?? $transacao->descricao);
+                        $transacao->save();
+                    }
+                }
+            }
 
             // Criar o Lançamento
             $lancamento = Lancamento::create([
                 'tipo' => $transacao->tipo === 'entrada' ? 'receita' : 'despesa',
                 'status' => 'pendente',
-                'pessoa_id' => $pessoaId ?? 1, // TODO: Definir pessoa padrão se nulo
+                'pessoa_id' => $pessoaIdFinal ?? 1,
                 'classificacao_financeira_id' => $classificacaoId,
                 'data_emissao' => $transacao->data,
                 'data_vencimento' => $transacao->data,
