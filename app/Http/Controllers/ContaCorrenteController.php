@@ -172,7 +172,7 @@ class ContaCorrenteController extends Controller
             'tipo_movimentacao' => ['required', Rule::in(['debito', 'credito'])],
             'valor' => ['required', 'numeric', 'min:0.01'],
             'classificacao_id' => ['required', 'exists:classificacao_financeira,id'], // <--- NOVO: classif. é obrigatória
-            'referencia_tipo' => ['nullable', Rule::in(['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'])], // <--- AJUSTADO: nullable
+            'referencia_tipo' => ['nullable', Rule::in(['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'movimentacao'])], // <--- AJUSTADO: nullable
             'referencia_id' => ['nullable', 'numeric'], // <--- AJUSTADO: nullable
             'data_movimentacao' => ['required', 'date'],
             'observacoes' => ['nullable', 'string'],
