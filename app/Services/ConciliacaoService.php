@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TransacaoExtrato;
+use App\Models\Lancamento;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\UploadedFile;

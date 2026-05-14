@@ -99,6 +99,7 @@ use App\Http\Controllers\Financeiro\ContaBancariaController;
 use App\Http\Controllers\Financeiro\OrcamentoController;
 use App\Http\Controllers\Financeiro\ConciliacaoController;
 use App\Http\Controllers\Financeiro\PessoaController;
+use App\Http\Controllers\Financeiro\MovimentacaoController;
 
 Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
     // Dashboard
@@ -128,7 +129,8 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
     Route::get('/search/pessoas',        [LancamentoController::class, 'searchPessoas'])->name('search.pessoas');
     Route::get('/search/classificacoes', [LancamentoController::class, 'searchClassificacoes'])->name('search.classificacoes');
 
-    // Orçamento (Previsto x Realizado)
+    Route::get('/movimentacoes', [MovimentacaoController::class, 'index'])->name('movimentacoes.index');
+
     Route::prefix('orcamento')->name('orcamento.')->group(function () {
         Route::get('/',    [OrcamentoController::class, 'index'])->name('index');
         Route::post('/',   [OrcamentoController::class, 'upsert'])->name('upsert');

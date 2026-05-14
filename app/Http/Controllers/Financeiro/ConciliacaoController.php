@@ -83,6 +83,11 @@ class ConciliacaoController extends Controller
         }
     }
 
+    public function vincular(Request $request)
+    {
+        return $this->conciliar($request);
+    }
+
     public function criarRapido(Request $request)
     {
         $request->validate([
