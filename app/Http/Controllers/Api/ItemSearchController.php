@@ -33,6 +33,8 @@ class ItemSearchController extends Controller
                 return [
                     'id' => $item->id,
                     'name' => $item->nome_do_produto,
+                    'nome_do_produto' => $item->nome_do_produto,
+                    'codigo' => $item->codigo ?? '',
                     'description' => $item->descricao ?? '',
                     'sku' => $item->codigo ?? '',
                     'price' => (float) $item->preco,
@@ -42,7 +44,7 @@ class ItemSearchController extends Controller
                     'color' => $item->cor ?? '',
                     'size' => $item->tamanho ?? '',
                     'condition' => $item->estado ?? 'novo',
-                    'stock' => 1, // Como não tem campo de estoque, assumir 1
+                    'stock' => 1,
                     'display_name' => $item->nome_do_produto . ($item->codigo ? ' (Cód: ' . $item->codigo . ')' : ''),
                     'image_url' => $item->image ?? "https://ui-avatars.com/api/?name=" . urlencode($item->nome_do_produto) . "&background=28a745&color=fff&size=128",
                     'created_at' => $item->created_at

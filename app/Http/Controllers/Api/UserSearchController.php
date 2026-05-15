@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\ContaCorrente;
 use Illuminate\Http\Request;
 
 class UserSearchController extends Controller
@@ -50,6 +51,7 @@ class UserSearchController extends Controller
                           ->get();
 
             $formattedUsers = $users->map(function($user) {
+                $saldo = $this->getUserSaldo($user->id);
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -58,6 +60,16 @@ class UserSearchController extends Controller
                     'formatted_phone' => $this->formatPhone($user->phone),
                     'address' => $user->address ?? null,
                     'short_address' => $this->getShortAddress($user->address),
+                    'endereco' => $user->endereco ?? null,
+                    'numero_endereco' => $user->numero_endereco ?? null,
+                    'complemento' => $user->complemento ?? null,
+                    'bairro' => $user->bairro ?? null,
+                    'cidade' => $user->cidade ?? null,
+                    'estado' => $user->estado ?? null,
+                    'cep' => $user->cep ?? null,
+                    'cep_formatado' => $user->cep ? $this->formatCep($user->cep) : null,
+                    'saldo_bruto' => $saldo,
+                    'saldo_formatado' => 'R$ ' . number_format($saldo, 2, ',', '.'),
                     'birth_date' => $user->birth_date ? $user->birth_date->format('d/m/Y') : null,
                     'age' => $this->getAge($user->birth_date),
                     'role' => $user->role,
@@ -89,6 +101,7 @@ class UserSearchController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            $saldo = $this->getUserSaldo($user->id);
 
             return response()->json([
                 'success' => true,
@@ -100,6 +113,16 @@ class UserSearchController extends Controller
                     'formatted_phone' => $this->formatPhone($user->phone),
                     'address' => $user->address ?? null,
                     'short_address' => $this->getShortAddress($user->address),
+                    'endereco' => $user->endereco ?? null,
+                    'numero_endereco' => $user->numero_endereco ?? null,
+                    'complemento' => $user->complemento ?? null,
+                    'bairro' => $user->bairro ?? null,
+                    'cidade' => $user->cidade ?? null,
+                    'estado' => $user->estado ?? null,
+                    'cep' => $user->cep ?? null,
+                    'cep_formatado' => $user->cep ? $this->formatCep($user->cep) : null,
+                    'saldo_bruto' => $saldo,
+                    'saldo_formatado' => 'R$ ' . number_format($saldo, 2, ',', '.'),
                     'birth_date' => $user->birth_date ? $user->birth_date->format('d/m/Y') : null,
                     'age' => $this->getAge($user->birth_date),
                     'role' => $user->role,
@@ -116,6 +139,16 @@ class UserSearchController extends Controller
                 'message' => 'Usuário não encontrado'
             ], 404);
         }
+    }
+
+    private function getUserSaldo($userId)
+    {
+        $ultimo = ContaCorrente::where('user_id', $userId)
+            ->orderByDesc('data_movimentacao')
+            ->orderByDesc('id')
+            ->first();
+
+        return $ultimo ? (float) $ultimo->saldo_atual : 0.0;
     }
 
     private function formatPhone($phone)
@@ -135,6 +168,16 @@ class UserSearchController extends Controller
         }
         
         return $phone;
+    }
+
+    private function formatCep($cep)
+    {
+        if (!$cep) return null;
+        $cep = preg_replace('/[^0-9]/', '', $cep);
+        if (strlen($cep) === 8) {
+            return substr($cep, 0, 5) . '-' . substr($cep, 5);
+        }
+        return $cep;
     }
 
     private function getShortAddress($address)

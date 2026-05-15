@@ -96,9 +96,23 @@ $currentRoute = Route::currentRouteName();
                                     <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{{ $t->origem }}</div>
                                 </td>
                                 <td class="px-5 py-4 text-right">
-                                    <span class="text-sm font-black {{ $t->tipo === 'entrada' ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ $t->tipo === 'entrada' ? '+' : '-' }} R$ {{ number_format($t->valor, 2, ',', '.') }}
-                                    </span>
+                                    @if($t->valor_taxa > 0)
+                                        <div class="flex flex-col items-end">
+                                            <span class="text-xs text-gray-500 line-through" title="Valor Bruto">
+                                                R$ {{ number_format($t->valor_bruto ?? $t->valor, 2, ',', '.') }}
+                                            </span>
+                                            <span class="text-[10px] text-red-500 font-bold" title="Taxa Mercado Pago">
+                                                - R$ {{ number_format($t->valor_taxa, 2, ',', '.') }}
+                                            </span>
+                                            <span class="text-sm font-black {{ $t->tipo === 'entrada' ? 'text-green-600' : 'text-red-600' }}" title="Valor Líquido">
+                                                {{ $t->tipo === 'entrada' ? '+' : '-' }} R$ {{ number_format($t->valor_liquido ?? $t->valor, 2, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    @else
+                                        <span class="text-sm font-black {{ $t->tipo === 'entrada' ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ $t->tipo === 'entrada' ? '+' : '-' }} R$ {{ number_format($t->valor, 2, ',', '.') }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">

@@ -12,7 +12,7 @@
         </div>
         <div class="text-right">
             <p class="text-xs text-gray-500">Valor a Pagar</p>
-            <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($pedido->valor_total - ($pedido->valor_saldo_utilizado ?? 0), 2, ',', '.') }}</p>
+            <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($pedido->valor_total, 2, ',', '.') }}</p>
         </div>
     </div>
 
@@ -84,7 +84,7 @@
     const renderPaymentBrick = async (bricksBuilder) => {
         const settings = {
             initialization: {
-                amount: {{ max(0.01, (float)$pedido->valor_total - (float)($pedido->valor_saldo_utilizado ?? 0)) }},
+                amount: {{ max(0.01, (float)$pedido->valor_total) }},
                 payer: {
                     email: "{{ auth()->user()->email }}"
                 }

@@ -46,6 +46,11 @@ class Movimentacao extends Model
      */
     public function sincronizarCarteira()
     {
+        // Se a forma de pagamento for o próprio saldo da carteira, não espelha para evitar duplicidade de crédito
+        if ($this->forma_pagamento === 'saldo_carteira') {
+            return;
+        }
+
         $lancamento = $this->lancamento;
         if (!$lancamento || !$lancamento->pessoa_id) return;
 

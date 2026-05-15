@@ -146,13 +146,11 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-center">
-                                    <form action="{{ route('admin.sacolinha.removeItem', $item->sacolinha_id) }}" method="POST" onsubmit="return confirm('Remover item da sacolinha?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 transition">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" 
+                                            @click="confirmarRemocao({{ $item->item_id }}, {{ $user->id }}, {{ $item->live_id }}, '{{ addslashes($item->nome_do_produto) }}', 'R$ {{ number_format($item->price ?? 0, 2, ',', '.') }}')"
+                                            class="text-red-500 hover:text-red-700 transition">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                 </td>
 
                                 <td class="px-4 py-3 text-center">
@@ -325,6 +323,48 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmação de Remoção com Pontuação -->
+    <div x-show="modalRemocao" 
+         class="fixed inset-0 z-[60] overflow-y-auto" 
+         style="display: none;"
+         x-transition>
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="modalRemocao = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                <div class="bg-red-600 p-4 text-white flex justify-between items-center">
+                    <h5 class="font-bold flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle"></i> Remover Item
+                    </h5>
+                    <button @click="modalRemocao = false" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="p-6 text-center">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Você está removendo:</p>
+                    <h4 class="text-lg font-bold text-gray-800 mb-2" x-text="itemRemocao.nome"></h4>
+                    <div class="bg-gray-50 p-3 rounded-xl mb-4 border border-gray-100">
+                        <p class="text-sm text-gray-600">Valor do item: <strong class="text-red-600" x-text="itemRemocao.preco"></strong></p>
+                    </div>
+                    <p class="text-sm text-gray-600">Como deseja prosseguir com a pontuação do cliente?</p>
+                </div>
+                <div class="p-4 bg-gray-50 flex flex-col gap-2">
+                    <button type="button" @click="executarRemocao(true)" 
+                            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fas fa-minus-circle"></i> Retirar descontando pontos
+                    </button>
+                    <button type="button" @click="executarRemocao(false)" 
+                            class="w-full border-2 border-gray-300 hover:bg-gray-100 text-gray-700 font-bold py-2 rounded-xl transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fas fa-check"></i> Retirar SEM desconto nos pontos
+                    </button>
+                    <button type="button" @click="modalRemocao = false" class="text-xs text-gray-400 font-bold mt-2 hover:text-gray-600">
+                        CANCELAR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -346,6 +386,48 @@ function sacolinhaAdmin() {
         freteResults: null,
         loadingFrete: false,
         cepError: '',
+        modalRemocao: false,
+        itemRemocao: {
+            id: null,
+            user_id: null,
+            live_id: null,
+            nome: '',
+            preco: ''
+        },
+
+        confirmarRemocao(itemId, userId, liveId, nome, preco) {
+            this.itemRemocao = { id: itemId, user_id: userId, live_id: liveId, nome, preco };
+            this.modalRemocao = true;
+        },
+
+        async executarRemocao(descontar) {
+            try {
+                const response = await fetch('/api/sacolinhas/remove', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        item_id: this.itemRemocao.id,
+                        user_id: this.itemRemocao.user_id,
+                        live_id: this.itemRemocao.live_id,
+                        descontar_pontos: descontar
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Erro ao remover item');
+                }
+            } catch (e) {
+                alert('Erro na comunicação com o servidor');
+            } finally {
+                this.modalRemocao = false;
+            }
+        },
 
         openModalAddItem() {
             this.modalAddItem = true;

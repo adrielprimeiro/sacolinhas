@@ -262,8 +262,10 @@ Route::middleware('auth')->group(function () {
 			'destroy' => 'classificacao_financeira.destroy',
 		]);	
 		
-        // ===== ADMIN PEDIDOS (CRUD) =====
-		Route::resource('pedido', AdminPedidoController::class)->names([
+        // Busca de item para modal (sem filtro de status) — deve vir ANTES do resource para não conflitar com {pedido}
+        Route::get('pedido/buscar-item', [AdminPedidoController::class, 'buscarItem'])->name('admin.pedido.buscarItem');
+
+        Route::resource('pedido', AdminPedidoController::class)->names([
 			'index' => 'admin.pedido.index',
 			'create' => 'admin.pedido.create',
 			'store' => 'admin.pedido.store',
@@ -271,8 +273,13 @@ Route::middleware('auth')->group(function () {
 			'edit' => 'admin.pedido.edit',
 			'update' => 'admin.pedido.update',
 			'destroy' => 'admin.pedido.destroy',
-		]);		
-		
+		]);
+
+        // Itens do pedido (adicionar / remover)
+        Route::post('pedido/{pedido}/adicionar-item', [AdminPedidoController::class, 'adicionarItem'])->name('admin.pedido.adicionarItem');
+        Route::delete('pedido/{pedido}/remover-item/{itemId}', [AdminPedidoController::class, 'removerItem'])->name('admin.pedido.removerItem');
+        Route::post('pedido/{pedido}/devolucao', [AdminPedidoController::class, 'devolucao'])->name('admin.pedido.devolucao');
+
         // ===== ADMIN CATEGORIAS =====
         Route::resource('categorias', \App\Http\Controllers\CategoriaController::class)->names([
             'index' => 'admin.categorias.index',
@@ -399,6 +406,7 @@ Route::get('/api/sacolinhas/by-live/{liveId}', [SacolinhaController::class, 'get
 // ===== ROTAS DE BUSCA (SEM AUTH - públicas) =====
 Route::prefix('api')->group(function () {
     Route::get('/users/search', [ClienteController::class, 'search'])->name('api.users.search');
+    Route::get('/users/{id}', [\App\Http\Controllers\Api\UserSearchController::class, 'getUser']);
     Route::get('/items/search', [ItemController::class, 'search']);
 });
 
@@ -591,6 +599,14 @@ Route::get('/dashboard-pontuacoes', [PontuacoesController::class, 'dashboard'])-
 //Devolução pedido
 Route::post('/admin/pedido/{pedido}/devolucao', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'devolucao'])
     ->name('admin.pedido.devolucao');
+
+//Adicionar item ao pedido
+Route::post('/admin/pedido/{pedido}/adicionar-item', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'adicionarItem'])
+    ->name('admin.pedido.adicionarItem');
+
+//Remover item do pedido
+Route::delete('/admin/pedido/{pedido}/remover-item/{itemId}', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'removerItem'])
+    ->name('admin.pedido.removerItem');
 	
 // rota para deletar uma mídia específica
 Route::delete('/items/{item}/medias/{medias}', [App\Http\Controllers\ItemController::class, 'destroyMedia'])

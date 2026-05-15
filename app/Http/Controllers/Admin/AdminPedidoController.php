@@ -63,12 +63,28 @@ class AdminPedidoController extends Controller
             ->limit(200)
             ->get();
 
-        return view('admin.pedidos.create', compact('users'));
+        $proximoNumero = Pedido::max('id') + 1;
+        $numeroPedido = 'PED-' . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
+
+        return view('admin.pedidos.create', compact('users', 'numeroPedido'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate($this->rules());
+
+        if (empty($validated['numero_pedido'])) {
+            $proximoNumero = Pedido::max('id') + 1;
+            $validated['numero_pedido'] = 'PED-' . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
+        }
+
+        if (empty($validated['origem_pedido'])) {
+            $validated['origem_pedido'] = 'admin';
+        }
+
+        $validated['valor_frete'] = $validated['valor_frete'] ?? 0;
+        $validated['valor_desconto'] = $validated['valor_desconto'] ?? 0;
+        $validated['valor_saldo_utilizado'] = $validated['valor_saldo_utilizado'] ?? 0;
 
         DB::transaction(function () use ($validated) {
             Pedido::create($validated);
@@ -93,7 +109,18 @@ class AdminPedidoController extends Controller
             ->limit(200)
             ->get();
 
-        return view('admin.pedidos.edit', compact('pedido', 'users'));
+        // Subtotal: soma dos itens do pedido
+        $subtotal = DB::table('items_pedido')
+            ->where('pedido_id', $pedido->id)
+            ->sum('valor_total');
+
+        // Saldo disponível na carteira do cliente
+        $saldoCarteira = DB::table('conta_corrente')
+            ->where('user_id', $pedido->user_id)
+            ->orderByDesc('id')
+            ->value('saldo_atual') ?? 0;
+
+        return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira'));
     }
 
     public function update(Request $request, Pedido $pedido)
@@ -120,6 +147,71 @@ class AdminPedidoController extends Controller
             ->with('success', 'Pedido excluído com sucesso.');
     }
 
+    public function adicionarItem(Request $request, Pedido $pedido)
+    {
+        $validated = $request->validate([
+            'item_id' => 'required|exists:items,id',
+            'preco_unitario' => 'required|numeric|min:0',
+            'quantidade' => 'nullable|integer|min:1',
+        ]);
+
+        $quantidade = $validated['quantidade'] ?? 1;
+        $valorTotal = $validated['preco_unitario'] * $quantidade;
+
+        DB::table('items_pedido')->insert([
+            'pedido_id'      => $pedido->id,
+            'item_id'        => $validated['item_id'],
+            'quantidade'     => $quantidade,
+            'preco_unitario' => $validated['preco_unitario'],
+            'status_item'    => 'ativo',
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Item adicionado com sucesso.']);
+    }
+
+    public function removerItem(Request $request, Pedido $pedido, $itemId)
+    {
+        DB::table('items_pedido')
+            ->where('id', $itemId)
+            ->where('pedido_id', $pedido->id)
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Item removido com sucesso.']);
+    }
+
+    public function buscarItem(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        if (strlen($q) < 2) {
+            return response()->json(['success' => false, 'data' => []]);
+        }
+
+        $items = \App\Models\Item::where(function ($query) use ($q) {
+                $query->where('codigo', 'like', "%{$q}%")
+                      ->orWhere('nome_do_produto', 'like', "%{$q}%");
+            })
+            ->limit(10)
+            ->get(['id', 'codigo', 'nome_do_produto', 'marca', 'estado', 'cor', 'tamanho', 'preco', 'image', 'status']);
+
+        $data = $items->map(fn($i) => [
+            'id'            => $i->id,
+            'codigo'        => $i->codigo,
+            'nome_do_produto' => $i->nome_do_produto,
+            'marca'         => $i->marca,
+            'estado'        => $i->estado,
+            'cor'           => $i->cor,
+            'tamanho'       => $i->tamanho,
+            'preco'         => $i->preco,
+            'status'        => $i->status,
+            'image_url'     => $i->image ? asset('storage/' . $i->image) : asset('images/no-image.png'),
+        ]);
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     private function rules(?int $id = null): array
     {
         return [
@@ -141,12 +233,13 @@ class AdminPedidoController extends Controller
             ],
 
             'valor_total' => ['required', 'numeric', 'min:0'],
-            'valor_frete' => ['required', 'numeric', 'min:0'],
-            'valor_desconto' => ['required', 'numeric', 'min:0'],
+            'valor_saldo_utilizado' => ['nullable', 'numeric', 'min:0'],
+            'valor_frete' => ['nullable', 'numeric', 'min:0'],
+            'valor_desconto' => ['nullable', 'numeric', 'min:0'],
 
             'forma_pagamento' => [
                 'nullable',
-                Rule::in(['pix', 'cartao_credito', 'cartao_debito', 'boleto', 'dinheiro', 'transferencia']),
+                Rule::in(['pix', 'cartao_credito', 'cartao_debito', 'boleto', 'dinheiro', 'transferencia', 'saldo_carteira']),
             ],
 
             'status_pagamento' => [
@@ -170,7 +263,7 @@ class AdminPedidoController extends Controller
 
             'origem_pedido' => [
                 'required',
-                Rule::in(['live', 'site', 'whatsapp', 'instagram']),
+                Rule::in(['live', 'site', 'whatsapp', 'instagram', 'admin']),
             ],
         ];
     }

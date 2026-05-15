@@ -56,7 +56,31 @@ class PedidoObserver
                 // Só atualiza se o valor ou status mudou para evitar recursão infinita se houver outros observers
                 $lancamento->update($dadosLancamento);
             } else {
-                Lancamento::create($dadosLancamento);
+                $lancamento = Lancamento::create($dadosLancamento);
+            }
+
+            // Sincronizar Débito da Compra na Conta Corrente (Ledger)
+            if ($pessoa->user_id) {
+                \App\Models\ContaCorrente::updateOrCreate(
+                    [
+                        'referencia_tipo' => 'pedido',
+                        'referencia_id' => $pedido->id,
+                    ],
+                    [
+                        'user_id' => $pessoa->user_id,
+                        'tipo_movimentacao' => 'debito',
+                        'valor' => $pedido->valor_total,
+                        'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
+                        'classificacao_id' => 1,
+                        'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                    ]
+                );
+
+                // Disparar recálculo de saldo
+                if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
+                    $dataParaRecalculo = $pedido->data_pedido ? \Carbon\Carbon::parse($pedido->data_pedido) : $pedido->created_at;
+                    \App\Jobs\RecalcularSaldosJob::dispatch($pessoa->user_id, $dataParaRecalculo->toDateString());
+                }
             }
 
         } catch (\Throwable $e) {

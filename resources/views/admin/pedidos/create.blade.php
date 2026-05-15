@@ -12,7 +12,7 @@
     <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6">
         <h1 class="text-3xl font-semibold text-gray-800 mb-6">Novo Pedido</h1>
 
-        <form action="{{ route('admin.pedido.store') }}" method="POST">
+        <form action="{{ route('admin.pedido.store') }}" method="POST" id="pedido-form">
             @csrf
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -46,6 +46,8 @@
                          style="max-height: 260px; z-index: 9999;">
                     </div>
 
+                    <div id="cliente_saldo_display" class="mt-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md p-2" style="display: none;"></div>
+
                     @error('user_id')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -54,9 +56,9 @@
                 {{-- Número do Pedido --}}
                 <div>
                     <label for="numero_pedido" class="block text-sm font-medium text-gray-700 mb-1">Número do Pedido</label>
-                    <input type="text" name="numero_pedido" id="numero_pedido" value="{{ old('numero_pedido') }}"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('numero_pedido') border-red-500 @enderror"
-                           placeholder="Ex: PED-000123">
+                    <input type="text" name="numero_pedido" id="numero_pedido" value="{{ old('numero_pedido', $numeroPedido) }}"
+                           class="mt-1 block w-full border border-gray-200 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-500 sm:text-sm cursor-not-allowed"
+                           readonly tabindex="-1" placeholder="Ex: PED-000123">
                     @error('numero_pedido')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -109,7 +111,8 @@
                     <label for="origem_pedido" class="block text-sm font-medium text-gray-700 mb-1">Origem do Pedido</label>
                     <select name="origem_pedido" id="origem_pedido"
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('origem_pedido') border-red-500 @enderror">
-                        @php $op = old('origem_pedido', 'live'); @endphp
+                        @php $op = old('origem_pedido', 'admin'); @endphp
+                        <option value="admin" {{ $op === 'admin' ? 'selected' : '' }}>Admin</option>
                         <option value="live" {{ $op === 'live' ? 'selected' : '' }}>Live</option>
                         <option value="site" {{ $op === 'site' ? 'selected' : '' }}>Site</option>
                         <option value="whatsapp" {{ $op === 'whatsapp' ? 'selected' : '' }}>WhatsApp</option>
@@ -133,6 +136,7 @@
                         <option value="boleto" {{ $fp === 'boleto' ? 'selected' : '' }}>Boleto</option>
                         <option value="dinheiro" {{ $fp === 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
                         <option value="transferencia" {{ $fp === 'transferencia' ? 'selected' : '' }}>Transferência</option>
+                        <option value="saldo_carteira" {{ $fp === 'saldo_carteira' ? 'selected' : '' }}>Saldo em Carteira</option>
                     </select>
                     @error('forma_pagamento')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -156,33 +160,51 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                {{-- Valores --}}
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
                 <div>
-                    <label for="valor_total" class="block text-sm font-medium text-gray-700 mb-1">Valor Total</label>
-                    <input type="number" step="0.01" name="valor_total" id="valor_total" value="{{ old('valor_total', 0) }}"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_total') border-red-500 @enderror">
+                    <label for="valor_total" class="block text-sm font-medium text-gray-700 mb-1">Valor dos Itens (R$)</label>
+                    <input type="number" step="0.01" name="valor_total" id="valor_total" value="{{ old('valor_total', '0.00') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-500 sm:text-sm cursor-not-allowed"
+                           readonly placeholder="0.00">
                     @error('valor_total')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
-                    <label for="valor_frete" class="block text-sm font-medium text-gray-700 mb-1">Valor Frete</label>
-                    <input type="number" step="0.01" name="valor_frete" id="valor_frete" value="{{ old('valor_frete', 0) }}"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_frete') border-red-500 @enderror">
+                    <label for="valor_frete" class="block text-sm font-medium text-gray-700 mb-1">Frete (R$)</label>
+                    <input type="number" step="0.01" name="valor_frete" id="valor_frete" value="{{ old('valor_frete', '0.00') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_frete') border-red-500 @enderror"
+                           placeholder="0.00">
                     @error('valor_frete')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
-                    <label for="valor_desconto" class="block text-sm font-medium text-gray-700 mb-1">Valor Desconto</label>
-                    <input type="number" step="0.01" name="valor_desconto" id="valor_desconto" value="{{ old('valor_desconto', 0) }}"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_desconto') border-red-500 @enderror">
+                    <label for="valor_desconto" class="block text-sm font-medium text-gray-700 mb-1">Desconto (R$)</label>
+                    <input type="number" step="0.01" name="valor_desconto" id="valor_desconto" value="{{ old('valor_desconto', '0.00') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_desconto') border-red-500 @enderror"
+                           placeholder="0.00">
                     @error('valor_desconto')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
+                </div>
+
+                <div>
+                    <label for="valor_saldo_utilizado" class="block text-sm font-medium text-gray-700 mb-1">Saldo Cliente (R$)</label>
+                    <input type="number" step="0.01" name="valor_saldo_utilizado" id="valor_saldo_utilizado" value="{{ old('valor_saldo_utilizado', '0.00') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('valor_saldo_utilizado') border-red-500 @enderror"
+                           placeholder="0.00">
+                    <small class="text-gray-500">Crédito do cliente</small>
+                    @error('valor_saldo_utilizado')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-3 flex flex-col justify-center items-center">
+                    <span class="text-xs font-medium text-blue-800">Total a Pagar:</span>
+                    <span class="text-xl font-bold text-blue-900">R$ <span id="valor_a_pagar">0,00</span></span>
                 </div>
             </div>
 
@@ -215,7 +237,7 @@
                     <label for="cep_entrega" class="block text-sm font-medium text-gray-700 mb-1">CEP (Opcional)</label>
                     <input type="text" name="cep_entrega" id="cep_entrega" value="{{ old('cep_entrega') }}"
                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('cep_entrega') border-red-500 @enderror"
-                           placeholder="00000-000">
+                           placeholder="00000-000" data-addr-fill="cep">
                     @error('cep_entrega')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -224,7 +246,7 @@
                 <div>
                     <label for="cidade_entrega" class="block text-sm font-medium text-gray-700 mb-1">Cidade (Opcional)</label>
                     <input type="text" name="cidade_entrega" id="cidade_entrega" value="{{ old('cidade_entrega') }}"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('cidade_entrega') border-red-500 @enderror">
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('cidade_entrega') border-red-500 @enderror" data-addr-fill="cidade">
                     @error('cidade_entrega')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -234,7 +256,7 @@
                     <label for="estado_entrega" class="block text-sm font-medium text-gray-700 mb-1">UF (Opcional)</label>
                     <input type="text" name="estado_entrega" id="estado_entrega" value="{{ old('estado_entrega') }}"
                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('estado_entrega') border-red-500 @enderror"
-                           placeholder="SP">
+                           placeholder="SP" data-addr-fill="estado">
                     @error('estado_entrega')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
@@ -389,7 +411,57 @@
         input.value = name;
         hidden.value = user && user.id ?user.id : '';
         hideList();
-      }
+
+        if (user && user.id) {
+            fetchUserAddress(user.id);
+        }
+
+        document.getElementById('data_pedido').focus();
+    }
+
+    function fetchUserAddress(userId) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/users/' + userId, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success && data.data) {
+                        var u = data.data;
+                        var endFull = [u.endereco, u.numero_endereco, u.complemento, u.bairro].filter(Boolean).join(', ');
+                        var endEl = document.getElementById('endereco_entrega');
+                        if (endEl) endEl.value = endFull;
+
+                        var cepEl = document.getElementById('cep_entrega');
+                        if (cepEl) cepEl.value = u.cep_formatado || u.cep || '';
+
+                        var cidadeEl = document.getElementById('cidade_entrega');
+                        if (cidadeEl) cidadeEl.value = u.cidade || '';
+
+                        var estadoEl = document.getElementById('estado_entrega');
+                        if (estadoEl) estadoEl.value = u.estado || '';
+
+                        var saldoEl = document.getElementById('cliente_saldo_display');
+                        if (saldoEl && u.saldo_formatado) {
+                            saldoEl.textContent = 'Saldo Disponível: ' + u.saldo_formatado;
+                            saldoEl.style.display = 'block';
+                        }
+
+                        var saldoInput = document.getElementById('valor_saldo_utilizado');
+                        if (saldoInput && u.saldo_bruto !== undefined) {
+                            var maxSaldo = Math.min(u.saldo_bruto, parseFloat(document.getElementById('valor_total').value) || 0);
+                            saldoInput.value = maxSaldo > 0 ? maxSaldo.toFixed(2) : '0.00';
+                            calcularValorTotal();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Erro ao processar dados de endereço:', e);
+                }
+            }
+        };
+        xhr.send();
+    }
 
       function normalizeResponse(data) {
         if (Array.isArray(data)) return data;
@@ -489,6 +561,14 @@
       });
 
       input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeIndex >= 0 && currentItems[activeIndex]) {
+            selectUser(currentItems[activeIndex]);
+          }
+          return;
+        }
+
         if (list.classList.contains('hidden')) return;
 
         if (e.key === 'ArrowDown') {
@@ -497,11 +577,6 @@
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
           setActive(activeIndex - 1);
-        } else if (e.key === 'Enter') {
-          if (activeIndex >= 0 && currentItems[activeIndex]) {
-            e.preventDefault();
-            selectUser(currentItems[activeIndex]);
-          }
         } else if (e.key === 'Escape') {
           e.preventDefault();
           hideList();
@@ -522,6 +597,113 @@
       });
 
       hideList();
+    });
+
+    function calcularValorTotal() {
+        var itens = parseFloat(document.getElementById('valor_total').value) || 0;
+        var frete = parseFloat(document.getElementById('valor_frete').value) || 0;
+        var desconto = parseFloat(document.getElementById('valor_desconto').value) || 0;
+        var saldo = parseFloat(document.getElementById('valor_saldo_utilizado').value) || 0;
+
+        var subtotal = itens + frete - desconto;
+        var aPagar = subtotal - saldo;
+        if (aPagar < 0) aPagar = 0;
+
+        document.getElementById('valor_a_pagar').textContent = aPagar.toFixed(2).replace('.', ',');
+    }
+
+    document.querySelectorAll('#valor_total, #valor_frete, #valor_desconto, #valor_saldo_utilizado').forEach(function(input) {
+        input.addEventListener('input', calcularValorTotal);
+    });
+
+    document.getElementById('forma_pagamento').addEventListener('change', function() {
+        if (this.value === 'saldo_carteira') {
+            var saldoClienteEl = document.getElementById('cliente_saldo_display');
+            var saldoInput = document.getElementById('valor_saldo_utilizado');
+            var totalInput = document.getElementById('valor_total');
+
+            if (saldoClienteEl && saldoInput && totalInput) {
+                var saldoTexto = saldoClienteEl.textContent || '';
+                var match = saldoTexto.match(/R\$\s*([\d.,]+)/);
+                if (match) {
+                    var saldoValor = parseFloat(match[1].replace('.', '').replace(',', '.')) || 0;
+                    saldoInput.value = saldoValor.toFixed(2);
+                    saldoInput.max = saldoValor.toFixed(2);
+                    calcularValorTotal();
+                }
+            }
+        }
+    });
+
+    document.getElementById('valor_saldo_utilizado').addEventListener('input', function() {
+        var saldoClienteEl = document.getElementById('cliente_saldo_display');
+        if (saldoClienteEl) {
+            var saldoTexto = saldoClienteEl.textContent || '';
+            var match = saldoTexto.match(/R\$\s*([\d.,]+)/);
+            if (match) {
+                var saldoValor = parseFloat(match[1].replace('.', '').replace(',', '.')) || 0;
+                var valorDigitado = parseFloat(this.value) || 0;
+                if (valorDigitado > saldoValor) {
+                    this.value = saldoValor.toFixed(2);
+                    calcularValorTotal();
+                }
+            }
+        }
+        calcularValorTotal();
+    });
+
+    function formatarCampoMonetario(campo) {
+        if (campo.value === '' || campo.value === null || isNaN(parseFloat(campo.value))) {
+            campo.value = '0.00';
+        }
+    }
+
+    ['valor_total', 'valor_frete', 'valor_desconto', 'valor_saldo_utilizado'].forEach(function(id) {
+        var campo = document.getElementById(id);
+        if (campo) {
+            campo.addEventListener('blur', function() {
+                formatarCampoMonetario(this);
+            });
+            campo.addEventListener('input', function() {
+                if (this.value === '') {
+                    this.value = '0.00';
+                }
+            });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        calcularValorTotal();
+        ['valor_total', 'valor_frete', 'valor_desconto', 'valor_saldo_utilizado'].forEach(function(id) {
+            var campo = document.getElementById(id);
+            if (campo && (campo.value === '' || campo.value === null)) {
+                campo.value = '0.00';
+            }
+            if (campo) {
+                campo.addEventListener('input', calcularValorTotal);
+                campo.addEventListener('change', calcularValorTotal);
+            }
+        });
+
+        var form = document.getElementById('pedido-form');
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            if (!form.submitted) {
+                form.submitted = true;
+            }
+        });
+
+        var allControls = form.querySelectorAll('input, select, textarea, button');
+        allControls.forEach(function(control) {
+            control.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        });
     });
     </script>
 @endsection

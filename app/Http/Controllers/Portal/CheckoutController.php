@@ -52,7 +52,7 @@ class CheckoutController extends Controller
                     'valor_frete'     => 0,
                     'valor_desconto'  => 0,
                     'status_pagamento'=> 'pendente',
-                    'origem_pedido'   => 'site',
+                    'origem_pedido'   => 'portal',
 
                     // Auto-preencher dados de entrega do cliente
                     'endereco_entrega' => trim(($user->endereco ?? '') . ' ' . ($user->numero_endereco ?? '') . ' ' . ($user->complemento ?? '') . ' ' . ($user->bairro ?? '')),
@@ -235,21 +235,30 @@ class CheckoutController extends Controller
             
             $pedido->save();
 
-            // Se o saldo utilizado for diferente de zero, registrar na conta corrente
-            if ($saldoUtilizado != 0) {
-                \App\Models\ContaCorrente::create([
-                    'user_id' => $userId,
-                    'data_movimentacao' => now(),
-                    'descricao' => "Saldo aplicado no Checkout do Pedido {$pedido->numero_pedido}",
-                    'tipo_movimentacao' => $saldoUtilizado > 0 ? 'debito' : 'credito',
-                    'valor' => abs($saldoUtilizado),
-                    'classificacao_id' => 1,
-                    'referencia_tipo' => 'pedido',
-                    'referencia_id' => $pedido->id,
-                    'saldo_atual' => $saldoAtual - $saldoUtilizado,
-                ]);
+            // Se o saldo utilizado for diferente de zero, registrar o pagamento (Baixa) via carteira
+            if ($saldoUtilizado > 0) {
+                // Recupera o Lançamento recém-criado pelo Observer
+                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                    ->where('referencia_id', $pedido->id)
+                    ->first();
 
-                \App\Jobs\RecalcularSaldosJob::dispatch($userId, now()->toDateString());
+                if ($lancamento) {
+                    \App\Models\Movimentacao::create([
+                        'lancamento_id' => $lancamento->id,
+                        'conta_bancaria_id' => 1, // Pode usar a principal ou uma conta "Carteira Virtual" se existir
+                        'data_pagamento' => now(),
+                        'valor_pago' => $saldoUtilizado,
+                        'forma_pagamento' => 'saldo_carteira',
+                    ]);
+
+                    // Atualizar status do Lançamento
+                    $valorPagoTotal = $lancamento->movimentacoes()->sum('valor_pago') + $saldoUtilizado; // +saldoUtilizado pq acabou de criar
+                    if ($valorPagoTotal >= $lancamento->valor_total) {
+                        $lancamento->update(['status' => 'pago']);
+                    } else {
+                        $lancamento->update(['status' => 'pago_parcial']);
+                    }
+                }
             }
 
             return response()->json([

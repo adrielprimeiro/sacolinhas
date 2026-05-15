@@ -79,6 +79,7 @@ class AdminSacolinhaController extends Controller
             ->select([
                 's.id as sacolinha_id',
                 's.item_id',
+                's.live_id',
                 's.price',
                 's.add_at',
                 's.status as sacolinha_status',
@@ -253,7 +254,7 @@ class AdminSacolinhaController extends Controller
                     'valor_desconto'  => 0,
                     'valor_saldo_utilizado' => $saldoUtilizadoNoPedido,
                     'status_pagamento'=> $statusPagamento,
-                    'origem_pedido'   => 'site', 
+                    'origem_pedido'   => 'admin', 
                     
                     'endereco_entrega' => trim(($user->endereco ?? '') . ' ' . ($user->numero_endereco ?? '') . ' ' . ($user->complemento ?? '') . ' ' . ($user->bairro ?? '')),
                     'cep_entrega'      => $user->cep ?? null,
@@ -286,21 +287,30 @@ class AdminSacolinhaController extends Controller
                     ]);
                 }
 
-                // 7. Ajustar a carteira do cliente
-                if ($saldoUtilizadoNoPedido != 0) {
-                    $movimentacao = ContaCorrente::create([
-                        'user_id' => $userId,
-                        'data_movimentacao' => now(),
-                        'descricao' => "Saldo integrado ao Pedido {$numeroPedido}",
-                        'tipo_movimentacao' => $saldoUtilizadoNoPedido > 0 ? 'debito' : 'credito',
-                        'valor' => abs($saldoUtilizadoNoPedido),
-                        'classificacao_id' => 1,
-                        'referencia_tipo' => 'pedido',
-                        'referencia_id' => $pedido->id,
-                        'saldo_atual' => $saldoAtual - $saldoUtilizadoNoPedido,
-                    ]);
+                // 7. Ajustar a carteira do cliente (pagamento com saldo)
+                if ($saldoUtilizadoNoPedido > 0) {
+                    // O Lançamento já foi criado pelo PedidoObserver
+                    $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                        ->where('referencia_id', $pedido->id)
+                        ->first();
 
-                    \App\Jobs\RecalcularSaldosJob::dispatch($userId, $movimentacao->data_movimentacao->toDateString());
+                    if ($lancamento) {
+                        \App\Models\Movimentacao::create([
+                            'lancamento_id' => $lancamento->id,
+                            'conta_bancaria_id' => 1,
+                            'data_pagamento' => now(),
+                            'valor_pago' => $saldoUtilizadoNoPedido,
+                            'forma_pagamento' => 'saldo_carteira',
+                        ]);
+
+                        // Atualizar status do Lançamento
+                        $valorPagoTotal = $lancamento->movimentacoes()->sum('valor_pago') + $saldoUtilizadoNoPedido; 
+                        if ($valorPagoTotal >= $lancamento->valor_total) {
+                            $lancamento->update(['status' => 'pago']);
+                        } else {
+                            $lancamento->update(['status' => 'pago_parcial']);
+                        }
+                    }
                 }
 
                 return $pedido->id;

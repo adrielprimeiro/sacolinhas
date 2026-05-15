@@ -42,8 +42,10 @@
 					<option value="pendente" {{ $sp === 'pendente' ? 'selected' : '' }}>Pendente</option>
 					<option value="confirmado" {{ $sp === 'confirmado' ? 'selected' : '' }}>Confirmado</option>
 					<option value="processando" {{ $sp === 'processando' ? 'selected' : '' }}>Processando</option>
+					<option value="pago" {{ $sp === 'pago' ? 'selected' : '' }}>Pago</option>
 					<option value="enviado" {{ $sp === 'enviado' ? 'selected' : '' }}>Enviado</option>
 					<option value="entregue" {{ $sp === 'entregue' ? 'selected' : '' }}>Entregue</option>
+					<option value="concluido" {{ $sp === 'concluido' ? 'selected' : '' }}>Concluído</option>
 					<option value="cancelado" {{ $sp === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
 				</select>
 			</div>
@@ -58,6 +60,8 @@
 					<option value="site" {{ $op === 'site' ? 'selected' : '' }}>Site</option>
 					<option value="whatsapp" {{ $op === 'whatsapp' ? 'selected' : '' }}>WhatsApp</option>
 					<option value="instagram" {{ $op === 'instagram' ? 'selected' : '' }}>Instagram</option>
+					<option value="admin" {{ $op === 'admin' ? 'selected' : '' }}>Admin</option>
+					<option value="portal" {{ $op === 'portal' ? 'selected' : '' }}>Portal</option>
 				</select>
 			</div>
 
@@ -229,7 +233,7 @@
                             </td>
 
                             <td class="py-3 px-6 text-left font-semibold whitespace-nowrap">
-                                {{ 'R$ ' . number_format((float)$pedido->valor_total - (float)($pedido->valor_saldo_utilizado ?? 0), 2, ',', '.') }}
+                                R$ {{ number_format(max(0, (float)$pedido->valor_total), 2, ',', '.') }}
                             </td>
 
                             <td class="py-3 px-6 text-center">

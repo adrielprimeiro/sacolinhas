@@ -100,12 +100,27 @@ class ConciliacaoService
             $statusValidos = ['approved', 'accredited'];
             if (!in_array($payment['status'], $statusValidos)) continue;
 
+            // Extrair e calcular taxas
+            $valorBruto = (float) $payment['transaction_amount'];
+            $valorTaxa = 0;
+            
+            if (isset($payment['fee_details']) && is_array($payment['fee_details'])) {
+                foreach ($payment['fee_details'] as $fee) {
+                    $valorTaxa += (float) ($fee['amount'] ?? 0);
+                }
+            }
+            
+            $valorLiquido = $valorBruto - $valorTaxa;
+
             $transacao = TransacaoExtrato::updateOrCreate(
                 ['fitid' => (string) $payment['id']],
                 [
                     'data' => Carbon::parse($payment['date_created'])->toDateString(),
                     'descricao' => $payment['description'] ?? 'Pagamento Mercado Pago',
-                    'valor' => (float) $payment['transaction_amount'],
+                    'valor' => $valorBruto, // Mantemos o bruto no campo principal para compatibilidade com a conciliação do pedido
+                    'valor_bruto' => $valorBruto,
+                    'valor_taxa' => $valorTaxa,
+                    'valor_liquido' => $valorLiquido,
                     'tipo' => 'entrada', // Pagamento recebido
                     'origem' => 'mercadopago',
                     'payload_original' => $payment
@@ -143,7 +158,7 @@ class ConciliacaoService
 
             // 2. Verificar se já existe uma movimentação para este lançamento com este valor
             $movimentacao = $lancamento->movimentacoes()
-                ->where('valor_pago', $transacao->valor)
+                ->where('valor_pago', $transacao->valor_bruto ?? $transacao->valor)
                 ->whereDoesntHave('transacaoExtrato') // Que ainda não esteja vinculada
                 ->first();
 
@@ -153,7 +168,7 @@ class ConciliacaoService
                     'lancamento_id' => $lancamento->id,
                     'conta_bancaria_id' => 1, // Default para Mercado Pago
                     'data_pagamento' => $transacao->data,
-                    'valor_pago' => $transacao->valor,
+                    'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
                     'forma_pagamento' => 'pix', // Assumindo pix para MP moderno
                 ]);
             }
@@ -163,6 +178,11 @@ class ConciliacaoService
                 'status' => 'conciliado',
                 'movimentacao_id' => $movimentacao->id
             ]);
+
+            // 4. Registrar a Despesa da Taxa (se houver)
+            if ($transacao->valor_taxa > 0) {
+                $this->registrarTaxaMercadoPago($transacao);
+            }
 
             Log::info("Auto-conciliação realizada: Pedido #{$pedido->id} -> Transação {$transacao->fitid}");
 
@@ -180,12 +200,12 @@ class ConciliacaoService
             $transacao = TransacaoExtrato::findOrFail($transacaoId);
             $lancamento = Lancamento::findOrFail($lancamentoId);
 
-            // 1. Criar a Movimentação (Baixa)
+            // 1. Criar a Movimentação (Baixa) para o valor bruto (Total do Pedido/Lançamento)
             $movimentacao = \App\Models\Movimentacao::create([
                 'lancamento_id' => $lancamento->id,
                 'conta_bancaria_id' => $transacao->conta_bancaria_id ?? 1, // Default para 1 se nulo
                 'data_pagamento' => $transacao->data,
-                'valor_pago' => $transacao->valor,
+                'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
                 'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
             ]);
 
@@ -203,8 +223,55 @@ class ConciliacaoService
                 'movimentacao_id' => $movimentacao->id
             ]);
 
+            // 4. Registrar a Despesa da Taxa (se houver)
+            if ($transacao->valor_taxa > 0) {
+                $this->registrarTaxaMercadoPago($transacao);
+            }
+
             return $movimentacao;
         });
+    }
+
+    /**
+     * Registra automaticamente uma despesa referente à taxa do Mercado Pago
+     */
+    private function registrarTaxaMercadoPago(TransacaoExtrato $transacao)
+    {
+        // Tenta encontrar uma classificação financeira para taxas
+        $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'like', '%Taxa%')
+            ->orWhere('nome', 'like', '%Tarifa%')
+            ->where('tipo_natureza', 'despesa')
+            ->first();
+
+        // Se não encontrar, cria uma padrão
+        if (!$classificacao) {
+            $classificacao = \App\Models\ClassificacaoFinanceira::create([
+                'nome' => 'Taxas e Tarifas Bancárias',
+                'tipo_natureza' => 'despesa',
+                'descricao' => 'Taxas cobradas por processadores de pagamento como Mercado Pago'
+            ]);
+        }
+
+        // Criar o Lançamento de Despesa para a Taxa
+        $lancamentoTaxa = \App\Models\Lancamento::create([
+            'tipo' => 'despesa',
+            'status' => 'pago',
+            'pessoa_id' => 1, // Pode ser o Mercado Pago se houver um cadastro específico
+            'classificacao_financeira_id' => $classificacao->id,
+            'data_emissao' => $transacao->data,
+            'data_vencimento' => $transacao->data,
+            'valor_total' => $transacao->valor_taxa,
+            'descricao' => 'Taxa Mercado Pago - Ref. Transação ' . $transacao->fitid,
+        ]);
+
+        // Criar a Movimentação (Baixa) da Taxa
+        \App\Models\Movimentacao::create([
+            'lancamento_id' => $lancamentoTaxa->id,
+            'conta_bancaria_id' => $transacao->conta_bancaria_id ?? 1,
+            'data_pagamento' => $transacao->data,
+            'valor_pago' => $transacao->valor_taxa,
+            'forma_pagamento' => 'pix',
+        ]);
     }
 
     /**
