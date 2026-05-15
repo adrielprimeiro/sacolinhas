@@ -98,8 +98,14 @@ class AdminPedidoController extends Controller
     public function show(Pedido $pedido)
     {
         $pedido->load('user');
-
         return view('admin.pedidos.show', compact('pedido'));
+    }
+
+    public function pdf($id)
+    {
+        $pedido = Pedido::findOrFail($id);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pedidos.pdf', compact('pedido'));
+        return $pdf->stream("pedido-{$pedido->numero_pedido}.pdf");
     }
 
     public function edit(Pedido $pedido)

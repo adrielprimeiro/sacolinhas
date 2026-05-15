@@ -57,6 +57,10 @@
                class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
                 <i class="fas fa-arrow-left mr-2"></i> Voltar
             </a>
+            <a href="{{ route('admin.pedido.pdf', $pedido->id) }}" target="_blank"
+               class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
+                <i class="fas fa-file-pdf mr-2"></i> Gerar PDF
+            </a>
             <a href="{{ route('admin.pedido.edit', $pedido->id) }}"
                class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
                 <i class="fas fa-edit mr-2"></i> Editar

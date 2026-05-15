@@ -210,6 +210,8 @@ Route::middleware('auth')->group(function () {
         Route::post("items/update-status", [ItemController::class, "updateStatusApi"])
              ->name("admin.items.update-status.api");
 
+        // Rotas customizadas de Pedido
+        Route::get('pedido/{pedido}/pdf', [AdminPedidoController::class, 'pdf'])->name('admin.pedido.pdf');
         // Rota customizada para etiqueta de sacolinha (ID=0) - inserir aqui**
         Route::get('items/etiqueta', [ItemController::class, 'etiqueta'])
             ->name('admin.items.etiqueta');		
