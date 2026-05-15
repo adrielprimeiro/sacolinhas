@@ -126,7 +126,10 @@ class AdminPedidoController extends Controller
             ->orderByDesc('id')
             ->value('saldo_atual') ?? 0;
 
-        return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira'));
+        // O limite de saldo que pode ser usado neste pedido é o saldo positivo atual + o que já estava alocado neste pedido
+        $saldoMaximoPermitido = max(0, $saldoCarteira) + ($pedido->valor_saldo_utilizado ?? 0);
+
+        return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira', 'saldoMaximoPermitido'));
     }
 
     public function update(Request $request, Pedido $pedido)

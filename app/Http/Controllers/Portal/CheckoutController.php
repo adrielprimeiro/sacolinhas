@@ -225,7 +225,7 @@ class CheckoutController extends Controller
             if ($saldoAtual > 0) {
                 $saldoUtilizado = min($saldoAtual, $totalBruto);
             } else {
-                $saldoUtilizado = $saldoAtual;
+                $saldoUtilizado = 0;
             }
 
             $pedido->valor_frete = $request->shipping_price;

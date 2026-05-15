@@ -148,19 +148,15 @@
                             <span>R$ {{ number_format($totalBruto, 2, ',', '.') }}</span>
                         </div>
 
-                        {{-- Carteira --}}
+                        {{-- Saldo Utilizado --}}
+                        @if($saldoUsado > 0)
                         <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
                             <div class="flex justify-between items-center text-blue-700 text-xs font-bold uppercase tracking-wide">
-                                <span><i class="fas fa-wallet mr-1"></i> Carteira</span>
-                                <span class="text-blue-600 font-bold">R$ {{ number_format($saldoCarteira, 2, ',', '.') }}</span>
+                                <span><i class="fas fa-wallet mr-1"></i> Saldo Utilizado</span>
+                                <span class="text-blue-600 font-bold">− R$ {{ number_format($saldoUsado, 2, ',', '.') }}</span>
                             </div>
-                            @if($saldoUsado > 0)
-                            <div class="flex justify-between items-center text-blue-600 text-xs font-semibold">
-                                <span>Saldo utilizado</span>
-                                <span>− R$ {{ number_format($saldoUsado, 2, ',', '.') }}</span>
-                            </div>
-                            @endif
                         </div>
+                        @endif
 
                         {{-- VALOR A PAGAR --}}
                         <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 flex justify-between items-center">

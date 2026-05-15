@@ -229,7 +229,7 @@ class AdminSacolinhaController extends Controller
                 if ($saldoAtual > 0) {
                     $saldoUtilizadoNoPedido = min($saldoAtual, $totalItensFrete);
                 } else {
-                    $saldoUtilizadoNoPedido = $saldoAtual;
+                    $saldoUtilizadoNoPedido = 0;
                 }
 
                 $totalFinal = $totalItensFrete - $saldoUtilizadoNoPedido;

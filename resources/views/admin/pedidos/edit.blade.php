@@ -147,15 +147,15 @@
                                         <span class="text-blue-400 text-xs">- R$</span>
                                         <input type="number" step="0.01" name="valor_saldo_utilizado" id="inp_saldo"
                                                value="{{ old('valor_saldo_utilizado', $pedido->valor_saldo_utilizado ?? 0) }}"
-                                               max="{{ $saldoCarteira }}"
+                                               max="{{ $saldoMaximoPermitido }}"
                                                oninput="recalcular()"
                                                class="w-24 border border-blue-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-blue-400 focus:border-blue-400 bg-white">
                                     </div>
                                 </div>
-                                @if($saldoCarteira > 0)
+                                @if($saldoMaximoPermitido > 0)
                                     <button type="button" onclick="usarTodoSaldo()"
                                             class="w-full text-xs text-blue-600 hover:text-blue-800 underline text-left transition">
-                                        Usar todo o saldo
+                                        Usar todo o saldo disponível (R$ {{ number_format($saldoMaximoPermitido, 2, ',', '.') }})
                                     </button>
                                 @endif
                             </div>
@@ -368,7 +368,7 @@
 
     <script>
     const SUBTOTAL_BASE = {{ (float) $subtotal }};
-    const SALDO_MAX     = {{ (float) $saldoCarteira }};
+    const SALDO_MAX     = {{ (float) $saldoMaximoPermitido }};
 
     function fmt(v) {
         return 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
