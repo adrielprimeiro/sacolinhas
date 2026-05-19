@@ -31,6 +31,13 @@
                         </span>
                     @endif
                 </div>
+                <div class="flex items-center gap-2 mt-2" x-show="selectedIds.length > 0" style="display: none;">
+                    <div class="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                        <i class="fas fa-check-double text-blue-600 text-[10px]"></i>
+                        <span class="text-[10px] text-blue-600 font-bold uppercase">Selecionados (<span x-text="selectedIds.length"></span>):</span>
+                        <span class="text-sm font-bold text-blue-700">R$ <span x-text="parseFloat(selectedTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span></span>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="flex flex-col gap-2 min-w-[180px]">
@@ -54,6 +61,10 @@
                     class="w-full border-2 text-xs font-bold py-1.5 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
                 <i class="fas fa-truck"></i> Simular Frete
             </button>
+            <a href="{{ route('admin.sacolinha.pdf', $user->id) }}" target="_blank"
+               class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center">
+                <i class="fas fa-file-pdf"></i> Imprimir Sacolinha
+            </a>
         </div>
     </div>
 
@@ -89,7 +100,16 @@
                             <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Adicionado em</th>
                             <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Valor</th>
                             <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ação</th>
-                            <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">Sel.</th>
+                            <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                <div class="flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <span>Sel.</span>
+                                    <input type="checkbox" 
+                                           @change="toggleSelectAll($event)"
+                                           :checked="isAllSelected()"
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                                           title="Selecionar Todos">
+                                </div>
+                            </th>
                         </tr>
                     </thead>
 
@@ -146,11 +166,20 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-center">
-                                    <button type="button" 
-                                            @click="confirmarRemocao({{ $item->item_id }}, {{ $user->id }}, {{ $item->live_id }}, '{{ addslashes($item->nome_do_produto) }}', 'R$ {{ number_format($item->price ?? 0, 2, ',', '.') }}')"
-                                            class="text-red-500 hover:text-red-700 transition">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button type="button" 
+                                                @click="openModalEditPrice({{ $item->sacolinha_id }}, '{{ addslashes($item->nome_do_produto) }}', '{{ $item->codigo }}', {{ $item->price ?? 0 }}, '{{ $imgUrl }}')"
+                                                class="text-blue-500 hover:text-blue-700 transition"
+                                                title="Editar Preço">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" 
+                                                @click="confirmarRemocao({{ $item->item_id }}, {{ $user->id }}, {{ $item->live_id }}, '{{ addslashes($item->nome_do_produto) }}', 'R$ {{ number_format($item->price ?? 0, 2, ',', '.') }}')"
+                                                class="text-red-500 hover:text-red-700 transition"
+                                                title="Remover Item">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-3 text-center">
@@ -159,6 +188,7 @@
                                            data-item-id="{{ $item->item_id }}"
                                            data-price="{{ $item->price }}"
                                            @change="updateSelection($event)"
+                                           :checked="selectedIds.includes({{ $item->sacolinha_id }})"
                                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-5 w-5 cursor-pointer">
                                 </td>
                             </tr>
@@ -167,10 +197,16 @@
                 </table>
             </div>
 
-            <div class="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                <p class="text-sm text-gray-600">
-                    Valor Total: <span class="font-bold text-gray-900 text-lg">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</span>
-                </p>
+            <div class="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50 flex-wrap gap-4">
+                <div class="flex items-center gap-6 flex-wrap">
+                    <p class="text-sm text-gray-600">
+                        Valor Total: <span class="font-bold text-gray-900 text-lg">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</span>
+                    </p>
+                    <p class="text-sm text-blue-600 font-semibold" x-show="selectedIds.length > 0">
+                        Selecionados (<span x-text="selectedIds.length"></span>): 
+                        <span class="font-bold text-blue-800 text-lg">R$ <span x-text="parseFloat(selectedTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span></span>
+                    </p>
+                </div>
                 <a href="{{ route('admin.sacolinha.gestao') }}" class="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-2">
                     <i class="fas fa-arrow-left"></i> Voltar para Lista
                 </a>
@@ -365,6 +401,63 @@
         </div>
     </div>
 
+    <!-- Modal Editar Preço do Item -->
+    <div x-show="modalEditPrice" 
+         class="fixed inset-0 z-50 overflow-y-auto" 
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="modalEditPrice = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 overflow-hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">Editar Preço do Item</h3>
+                    <button @click="modalEditPrice = false" class="text-gray-400 hover:text-gray-600 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex gap-3">
+                        <div class="w-12 h-12 bg-white rounded-lg overflow-hidden border border-gray-100 flex-shrink-0">
+                            <img :src="editItemData.imageUrl" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-gray-800" x-text="editItemData.nome"></p>
+                            <p class="text-xs text-gray-500" x-text="'Código: ' + editItemData.codigo"></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Novo Preço</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R$</span>
+                            <input type="number" step="0.01" x-model="editItemData.price"
+                                   class="w-full pl-10 rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition font-bold text-lg text-gray-800">
+                        </div>
+                    </div>
+
+                    <button @click="confirmEditPrice()" 
+                            class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2"
+                            :disabled="savingPrice">
+                        <template x-if="savingPrice">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </template>
+                        <template x-if="!savingPrice">
+                            <i class="fas fa-save"></i>
+                        </template>
+                        Salvar Preço
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -382,11 +475,26 @@ function sacolinhaAdmin() {
         addObs: '',
         selectedIds: [],
         selectedItemIds: [],
+        selectedTotal: 0,
+        allItems: [
+            @foreach($itens as $item)
+                { id: {{ $item->sacolinha_id }}, itemId: {{ $item->item_id }}, price: {{ $item->price ?? 0 }} },
+            @endforeach
+        ],
         cepInput: '{{ $user->cep ?? '' }}',
         freteResults: null,
         loadingFrete: false,
         cepError: '',
         modalRemocao: false,
+        modalEditPrice: false,
+        savingPrice: false,
+        editItemData: {
+            sacolinhaId: null,
+            nome: '',
+            codigo: '',
+            price: 0,
+            imageUrl: ''
+        },
         itemRemocao: {
             id: null,
             user_id: null,
@@ -487,15 +595,73 @@ function sacolinhaAdmin() {
             }
         },
 
+        openModalEditPrice(sacolinhaId, nome, codigo, price, imageUrl) {
+            this.editItemData = { sacolinhaId, nome, codigo, price, imageUrl };
+            this.modalEditPrice = true;
+        },
+
+        async confirmEditPrice() {
+            this.savingPrice = true;
+            try {
+                const res = await fetch(`{{ route('admin.sacolinha.updatePrice') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        sacolinha_id: this.editItemData.sacolinhaId,
+                        price: this.editItemData.price
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) {
+                alert('Erro ao atualizar preço.');
+            } finally {
+                this.savingPrice = false;
+            }
+        },
+
+        isAllSelected() {
+            return this.allItems.length > 0 && this.selectedIds.length === this.allItems.length;
+        },
+
+        toggleSelectAll(e) {
+            const checked = e.target.checked;
+            if (checked) {
+                this.selectedIds = this.allItems.map(item => parseInt(item.id));
+                this.selectedItemIds = this.allItems.map(item => parseInt(item.itemId));
+                this.selectedTotal = this.allItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
+            } else {
+                this.selectedIds = [];
+                this.selectedItemIds = [];
+                this.selectedTotal = 0;
+            }
+            this.selectedTotal = Math.max(0, parseFloat(this.selectedTotal.toFixed(2)));
+        },
+
         updateSelection(e) {
             const cb = e.target;
+            const price = parseFloat(cb.dataset.price) || 0;
+            const val = parseInt(cb.value);
+            const itemId = parseInt(cb.dataset.itemId);
             if (cb.checked) {
-                this.selectedIds.push(cb.value);
-                this.selectedItemIds.push(cb.dataset.itemId);
+                if (!this.selectedIds.includes(val)) {
+                    this.selectedIds.push(val);
+                    this.selectedItemIds.push(itemId);
+                    this.selectedTotal += price;
+                }
             } else {
-                this.selectedIds = this.selectedIds.filter(id => id != cb.value);
-                this.selectedItemIds = this.selectedItemIds.filter(id => id != cb.dataset.itemId);
+                this.selectedIds = this.selectedIds.filter(id => id != val);
+                this.selectedItemIds = this.selectedItemIds.filter(id => id != itemId);
+                this.selectedTotal -= price;
             }
+            this.selectedTotal = Math.max(0, parseFloat(this.selectedTotal.toFixed(2)));
         },
 
         async fecharSacolinha() {

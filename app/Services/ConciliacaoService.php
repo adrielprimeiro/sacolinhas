@@ -156,17 +156,20 @@ class ConciliacaoService
 
             if (!$lancamento) return;
 
-            // 2. Verificar se já existe uma movimentação para este lançamento com este valor
             $movimentacao = $lancamento->movimentacoes()
                 ->where('valor_pago', $transacao->valor_bruto ?? $transacao->valor)
                 ->whereDoesntHave('transacaoExtrato') // Que ainda não esteja vinculada
                 ->first();
 
             if (!$movimentacao) {
+                // Buscar dinamicamente a conta Mercado Pago
+                $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+                $contaBancariaId = $contaMp ? $contaMp->id : 2;
+
                 // Se não existe a movimentação (baixa), criamos uma agora
                 $movimentacao = \App\Models\Movimentacao::create([
                     'lancamento_id' => $lancamento->id,
-                    'conta_bancaria_id' => 1, // Default para Mercado Pago
+                    'conta_bancaria_id' => $contaBancariaId, 
                     'data_pagamento' => $transacao->data,
                     'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
                     'forma_pagamento' => 'pix', // Assumindo pix para MP moderno
@@ -200,10 +203,16 @@ class ConciliacaoService
             $transacao = TransacaoExtrato::findOrFail($transacaoId);
             $lancamento = Lancamento::findOrFail($lancamentoId);
 
+            $defaultContaId = 1;
+            if ($transacao->origem === 'mercadopago') {
+                $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+                $defaultContaId = $contaMp ? $contaMp->id : 2;
+            }
+
             // 1. Criar a Movimentação (Baixa) para o valor bruto (Total do Pedido/Lançamento)
             $movimentacao = \App\Models\Movimentacao::create([
                 'lancamento_id' => $lancamento->id,
-                'conta_bancaria_id' => $transacao->conta_bancaria_id ?? 1, // Default para 1 se nulo
+                'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId, 
                 'data_pagamento' => $transacao->data,
                 'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
                 'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
@@ -264,10 +273,16 @@ class ConciliacaoService
             'descricao' => 'Taxa Mercado Pago - Ref. Transação ' . $transacao->fitid,
         ]);
 
+        $defaultContaId = 1;
+        if ($transacao->origem === 'mercadopago') {
+            $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+            $defaultContaId = $contaMp ? $contaMp->id : 2;
+        }
+
         // Criar a Movimentação (Baixa) da Taxa
         \App\Models\Movimentacao::create([
             'lancamento_id' => $lancamentoTaxa->id,
-            'conta_bancaria_id' => $transacao->conta_bancaria_id ?? 1,
+            'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId,
             'data_pagamento' => $transacao->data,
             'valor_pago' => $transacao->valor_taxa,
             'forma_pagamento' => 'pix',

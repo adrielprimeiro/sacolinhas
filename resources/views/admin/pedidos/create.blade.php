@@ -160,6 +160,47 @@
                 </div>
             </div>
 
+            {{-- Itens do Pedido --}}
+            <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-boxes text-blue-500"></i> Itens do Pedido
+                        </h2>
+                        @error('items')
+                            <p class="text-red-500 text-xs mt-1 font-semibold">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <button type="button" onclick="abrirModalAdicionarItem()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow transition duration-200">
+                        <i class="fas fa-plus mr-1"></i> Adicionar Item
+                    </button>
+                </div>
+
+                {{-- Tabela de itens adicionados --}}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm hidden" id="tabela-itens">
+                        <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Produto</th>
+                                <th class="px-4 py-3 text-center">Qtde</th>
+                                <th class="px-4 py-3 text-right">Unit.</th>
+                                <th class="px-4 py-3 text-right">Total</th>
+                                <th class="px-4 py-3 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="corpo-tabela-itens">
+                        </tbody>
+                    </table>
+                    <div id="sem-itens-alerta" class="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        <p class="text-sm text-gray-500">Nenhum item adicionado a este pedido.</p>
+                    </div>
+                </div>
+                
+                {{-- Inputs ocultos dos itens --}}
+                <div id="inputs-itens-container"></div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
                 <div>
                     <label for="valor_total" class="block text-sm font-medium text-gray-700 mb-1">Valor dos Itens (R$)</label>
@@ -334,6 +375,86 @@
                 </button>
             </div>
         </form>
+    </div>
+
+    {{-- MODAL: Adicionar Item ao Pedido --}}
+    <div id="modalAdicionarItem"
+         class="fixed inset-0 z-50 flex items-center justify-center"
+         style="display:none !important;"
+         role="dialog" aria-modal="true">
+
+        {{-- Overlay --}}
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="fecharModalAdicionarItem()"></div>
+
+        {{-- Panel --}}
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden z-10">
+
+            {{-- Header --}}
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-box-open text-blue-600"></i> Adicionar Item ao Pedido
+                </h3>
+                <button type="button" onclick="fecharModalAdicionarItem()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div class="p-6 space-y-4">
+
+                {{-- Campo de busca --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar por código ou nome</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="inputBuscarItem"
+                               placeholder="Ex: 12345 ou Camiseta..."
+                               class="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                               onkeydown="if(event.key==='Enter'){ buscarItem(); }">
+                        <button type="button" onclick="buscarItem()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 text-sm">
+                            <i id="iconBuscar" class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                    <p id="erroBusca" class="text-red-500 text-xs mt-1 hidden"></p>
+                </div>
+
+                {{-- Resultado da busca --}}
+                <div id="resultadoBusca" class="hidden">
+
+                    {{-- Preview do item encontrado --}}
+                    <div id="previewItem" class="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex gap-4 items-start">
+                        <img id="itemImagem" src="" alt="" class="w-16 h-16 rounded-xl object-cover border border-gray-200 bg-white flex-shrink-0">
+                        <div class="flex-1">
+                            <p id="itemNome" class="font-bold text-gray-800 text-sm"></p>
+                            <p id="itemDetalhes" class="text-xs text-gray-500 mt-0.5"></p>
+                        </div>
+                    </div>
+
+                    {{-- Preço e quantidade --}}
+                    <div class="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Preço Unit. (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">R$</span>
+                                <input type="number" step="0.01" id="itemPreco"
+                                       class="w-full pl-9 border border-gray-300 rounded-xl py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Quantidade</label>
+                            <input type="number" id="itemQtde" value="1" min="1"
+                                   class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+                        </div>
+                    </div>
+
+                    {{-- Botão confirmar --}}
+                    <button type="button" id="btnConfirmarAdicionar" onclick="confirmarAdicionarItem()"
+                            class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-plus-circle"></i> Adicionar ao Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Autocomplete Usuário (Vanilla) - idêntico ao Financeiro/create --}}
@@ -705,5 +826,177 @@
             });
         });
     });
+    // === Lógica de Adição e Busca de Itens (Novo Pedido) ===
+    let itensAdicionados = [];
+    const BUSCA_URL_ITEM = '{{ route("admin.pedido.buscarItem") }}';
+    let itemSelecionado = null;
+
+    function abrirModalAdicionarItem() {
+        itemSelecionado = null;
+        document.getElementById('inputBuscarItem').value = '';
+        document.getElementById('erroBusca').classList.add('hidden');
+        document.getElementById('resultadoBusca').classList.add('hidden');
+        mostrar('modalAdicionarItem');
+        setTimeout(() => document.getElementById('inputBuscarItem').focus(), 100);
+    }
+
+    function fecharModalAdicionarItem() {
+        esconder('modalAdicionarItem');
+    }
+
+    function mostrar(id) {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('style', 'display: flex !important;');
+    }
+
+    function esconder(id) {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('style', 'display: none !important;');
+    }
+
+    async function buscarItem() {
+        const q = document.getElementById('inputBuscarItem').value.trim();
+        const erro = document.getElementById('erroBusca');
+        erro.classList.add('hidden');
+
+        if (q.length < 2) {
+            erro.textContent = 'Digite pelo menos 2 caracteres.';
+            erro.classList.remove('hidden');
+            return;
+        }
+
+        const icon = document.getElementById('iconBuscar');
+        icon.className = 'fas fa-spinner fa-spin';
+
+        try {
+            const res  = await fetch(`${BUSCA_URL_ITEM}?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                erro.textContent = 'Nenhum item encontrado.';
+                erro.classList.remove('hidden');
+                document.getElementById('resultadoBusca').classList.add('hidden');
+                return;
+            }
+
+            itemSelecionado = data.data[0];
+            document.getElementById('itemNome').textContent = itemSelecionado.nome_do_produto;
+            document.getElementById('itemDetalhes').textContent = `${itemSelecionado.marca} • Tam: ${itemSelecionado.tamanho}`;
+            document.getElementById('itemPreco').value = itemSelecionado.preco || itemSelecionado.preco_venda || 0;
+            
+            const img = document.getElementById('itemImagem');
+            if (itemSelecionado.image_url) {
+                img.src = itemSelecionado.image_url;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
+
+            document.getElementById('resultadoBusca').classList.remove('hidden');
+
+        } catch (e) {
+            erro.textContent = 'Erro ao buscar item.';
+            erro.classList.remove('hidden');
+        } finally {
+            icon.className = 'fas fa-search';
+        }
+    }
+
+    function confirmarAdicionarItem() {
+        if (!itemSelecionado) return;
+
+        const preco = parseFloat(document.getElementById('itemPreco').value) || 0;
+        const qtde  = parseInt(document.getElementById('itemQtde').value) || 1;
+
+        const existing = itensAdicionados.find(x => x.id === itemSelecionado.id);
+        if (existing) {
+            existing.quantidade += qtde;
+        } else {
+            itensAdicionados.push({
+                id: itemSelecionado.id,
+                nome: itemSelecionado.nome_do_produto,
+                codigo: itemSelecionado.codigo,
+                marca: itemSelecionado.marca,
+                tamanho: itemSelecionado.tamanho,
+                image_url: itemSelecionado.image_url || '/images/no-image.png',
+                preco: preco,
+                quantidade: qtde
+            });
+        }
+
+        fecharModalAdicionarItem();
+        atualizarTabelaItens();
+    }
+
+    function atualizarTabelaItens() {
+        const tabela = document.getElementById('tabela-itens');
+        const corpo = document.getElementById('corpo-tabela-itens');
+        const alerta = document.getElementById('sem-itens-alerta');
+        const containerInputs = document.getElementById('inputs-itens-container');
+
+        corpo.innerHTML = '';
+        containerInputs.innerHTML = '';
+
+        if (itensAdicionados.length === 0) {
+            tabela.classList.add('hidden');
+            alerta.classList.remove('hidden');
+            document.getElementById('valor_total').value = '0.00';
+            calcularValorTotal();
+            return;
+        }
+
+        tabela.classList.remove('hidden');
+        alerta.classList.add('hidden');
+
+        let totalGeral = 0;
+
+        itensAdicionados.forEach((item, index) => {
+            const totalItem = item.preco * item.quantidade;
+            totalGeral += totalItem;
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+            tr.innerHTML = `
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                            <img src="${item.image_url}" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 leading-tight">${escapeHtml(item.nome)}</div>
+                            <div class="text-[10px] text-gray-500">${escapeHtml(item.marca)} • Tam: ${escapeHtml(item.tamanho)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-center">${item.quantidade}</td>
+                <td class="px-4 py-3 text-right">R$ ${item.preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                <td class="px-4 py-3 text-right font-bold">R$ ${totalItem.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" onclick="removerItemLocal(${index})" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            `;
+            corpo.appendChild(tr);
+
+            containerInputs.innerHTML += `
+                <input type="hidden" name="items[${index}][item_id]" value="${item.id}">
+                <input type="hidden" name="items[${index}][preco_unitario]" value="${item.preco}">
+                <input type="hidden" name="items[${index}][quantidade]" value="${item.quantidade}">
+            `;
+        });
+
+        document.getElementById('valor_total').value = totalGeral.toFixed(2);
+        calcularValorTotal();
+    }
+
+    function removerItemLocal(index) {
+        itensAdicionados.splice(index, 1);
+        atualizarTabelaItens();
+    }
+
+    function escapeHtml(s) {
+        return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
     </script>
 @endsection

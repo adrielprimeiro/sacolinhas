@@ -220,18 +220,23 @@ class AdminSacolinhaController extends Controller
                     ->orderByDesc('data_movimentacao')
                     ->orderByDesc('id')
                     ->first();
-                $saldoAtual = $ultimaTransacao?->saldo_atual ?? 0;
+                $saldoAtual = (float) ($ultimaTransacao?->saldo_atual ?? 0);
 
-                // 4. Calcular desconto de saldo e total final
+                // 4. Calcular desconto/acréscimo de saldo e total final
                 $totalItensFrete = $subtotal + $valorFrete;
                 $saldoUtilizadoNoPedido = 0;
 
                 if ($saldoAtual > 0) {
+                    // Saldo positivo: desconta do pedido (até o limite do total)
                     $saldoUtilizadoNoPedido = min($saldoAtual, $totalItensFrete);
-                } else {
-                    $saldoUtilizadoNoPedido = 0;
+                } elseif ($saldoAtual < 0) {
+                    // Saldo negativo (dívida anterior): soma ao pedido para ser quitada agora
+                    // valor_saldo_utilizado fica negativo para sinalizar que há dívida embutida
+                    $saldoUtilizadoNoPedido = $saldoAtual; // negativo, ex: -34.41
                 }
 
+                // totalFinal = itens + frete - saldo_usado
+                // Se saldo_usado < 0 (dívida), totalFinal aumenta: 50 - (-34.41) = 84.41
                 $totalFinal = $totalItensFrete - $saldoUtilizadoNoPedido;
 
                 // 5. Definir Status (Se zerou com saldo, já nasce aprovado)
@@ -253,6 +258,7 @@ class AdminSacolinhaController extends Controller
                     'valor_frete'     => $valorFrete,
                     'valor_desconto'  => 0,
                     'valor_saldo_utilizado' => $saldoUtilizadoNoPedido,
+                    'forma_pagamento' => ($totalFinal <= 0 && $saldoUtilizadoNoPedido > 0) ? 'saldo_carteira' : null,
                     'status_pagamento'=> $statusPagamento,
                     'origem_pedido'   => 'admin', 
                     
@@ -287,30 +293,10 @@ class AdminSacolinhaController extends Controller
                     ]);
                 }
 
-                // 7. Ajustar a carteira do cliente (pagamento com saldo)
-                if ($saldoUtilizadoNoPedido > 0) {
-                    // O Lançamento já foi criado pelo PedidoObserver
-                    $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                        ->where('referencia_id', $pedido->id)
-                        ->first();
-
-                    if ($lancamento) {
-                        \App\Models\Movimentacao::create([
-                            'lancamento_id' => $lancamento->id,
-                            'conta_bancaria_id' => 1,
-                            'data_pagamento' => now(),
-                            'valor_pago' => $saldoUtilizadoNoPedido,
-                            'forma_pagamento' => 'saldo_carteira',
-                        ]);
-
-                        // Atualizar status do Lançamento
-                        $valorPagoTotal = $lancamento->movimentacoes()->sum('valor_pago') + $saldoUtilizadoNoPedido; 
-                        if ($valorPagoTotal >= $lancamento->valor_total) {
-                            $lancamento->update(['status' => 'pago']);
-                        } else {
-                            $lancamento->update(['status' => 'pago_parcial']);
-                        }
-                    }
+                // Recarregar o pedido do banco para obter o valor_total atualizado pelo trigger e disparar o PedidoObserver com os dados finais corretos
+                $pedidoAtualizado = Pedido::find($pedido->id);
+                if ($pedidoAtualizado) {
+                    $pedidoAtualizado->touch();
                 }
 
                 return $pedido->id;
@@ -329,5 +315,49 @@ class AdminSacolinhaController extends Controller
                 'message' => 'Erro ao processar o fechamento: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function pdf(User $user)
+    {
+        $itens = DB::table('sacolinhas as s')
+            ->join('items as i', 'i.id', '=', 's.item_id')
+            ->where('s.user_id', $user->id)
+            ->orderBy('s.add_at', 'asc')
+            ->select([
+                's.price',
+                's.add_at',
+                's.status as sacolinha_status',
+                'i.codigo',
+                'i.nome_do_produto',
+                'i.tamanho',
+                'i.marca',
+            ])
+            ->get();
+
+        $total = (float) $itens->sum('price');
+
+        // Buscar saldo
+        $ultima = ContaCorrente::where('user_id', $user->id)
+            ->orderByDesc('data_movimentacao')
+            ->orderByDesc('id')
+            ->first();
+        $saldo = $ultima?->saldo_atual ?? 0;
+        $valorPago = (float) $saldo;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago'));
+        return $pdf->stream("sacolinha-{$user->name}.pdf");
+    }
+
+    public function updateItemPrice(Request $request)
+    {
+        $validated = $request->validate([
+            'sacolinha_id' => 'required|exists:sacolinhas,id',
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        $sacolinha = Sacolinhas::findOrFail($validated['sacolinha_id']);
+        $sacolinha->update(['price' => $validated['price']]);
+
+        return response()->json(['success' => true, 'message' => 'Preço atualizado com sucesso!']);
     }
 }

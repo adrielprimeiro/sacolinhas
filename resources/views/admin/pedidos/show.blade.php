@@ -148,13 +148,21 @@
                             <span>R$ {{ number_format($totalBruto, 2, ',', '.') }}</span>
                         </div>
 
-                        {{-- Saldo Utilizado --}}
+                        {{-- Saldo Utilizado (positivo = desconto; negativo = dívida embutida) --}}
                         @if($saldoUsado > 0)
                         <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
                             <div class="flex justify-between items-center text-blue-700 text-xs font-bold uppercase tracking-wide">
                                 <span><i class="fas fa-wallet mr-1"></i> Saldo Utilizado</span>
                                 <span class="text-blue-600 font-bold">− R$ {{ number_format($saldoUsado, 2, ',', '.') }}</span>
                             </div>
+                        </div>
+                        @elseif($saldoUsado < 0)
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+                            <div class="flex justify-between items-center text-red-700 text-xs font-bold uppercase tracking-wide">
+                                <span><i class="fas fa-exclamation-circle mr-1"></i> Dívida Anterior Embutida</span>
+                                <span class="text-red-600 font-bold">+ R$ {{ number_format(abs($saldoUsado), 2, ',', '.') }}</span>
+                            </div>
+                            <p class="text-[10px] text-red-400">A cliente possuía saldo negativo que foi incluído neste pedido.</p>
                         </div>
                         @endif
 

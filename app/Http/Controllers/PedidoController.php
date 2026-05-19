@@ -306,6 +306,12 @@ class PedidoController extends Controller
 
 			DB::commit();
 
+			// Recarregar o pedido do banco para obter o valor_total atualizado pelo trigger e disparar o PedidoObserver com os dados finais corretos
+			$pedidoAtualizado = \App\Models\Pedido::find($pedidoId);
+			if ($pedidoAtualizado) {
+				$pedidoAtualizado->touch();
+			}
+
 			return response()->json([
 				'success' => true,
 				'message' => 'Item movido para o pedido com sucesso'
@@ -395,6 +401,12 @@ class PedidoController extends Controller
 
             DB::commit();
             Log::info('✅ Transação de devolução para sacolinha concluída com sucesso');
+
+            // Recarregar o pedido do banco para obter o valor_total atualizado pelo trigger e disparar o PedidoObserver com os dados finais corretos
+            $pedidoAtualizado = \App\Models\Pedido::find($pedido->id);
+            if ($pedidoAtualizado) {
+                $pedidoAtualizado->touch();
+            }
 
             return response()->json([
                 'success' => true,

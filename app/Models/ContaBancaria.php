@@ -28,11 +28,32 @@ class ContaBancaria extends Model
     }
 
     /**
-     * Calcula o saldo atual da conta: saldo inicial + entradas - saídas das movimentações.
-     * Leva em conta o tipo do lançamento vinculado.
+     * Calcula o saldo atual da conta.
+     * Para a conta virtual "Carteira Cliente", o saldo atual é a soma em tempo real do saldo de todos os clientes.
+     * Para as demais contas, calcula: saldo inicial + entradas - saídas das movimentações.
      */
     public function getSaldoAtualAttribute(): float
     {
+        if (str_contains(strtolower($this->nome), 'carteira')) {
+            $subQueryMaxDate = \DB::table('conta_corrente')
+                ->select('user_id', \DB::raw('MAX(data_movimentacao) as max_date'))
+                ->groupBy('user_id');
+
+            $subQueryMaxId = \DB::table('conta_corrente as cc')
+                ->joinSub($subQueryMaxDate, 'tm', function($join) {
+                    $join->on('cc.user_id', '=', 'tm.user_id')
+                         ->on('cc.data_movimentacao', '=', 'tm.max_date');
+                })
+                ->select('cc.user_id', \DB::raw('MAX(cc.id) as max_id'))
+                ->groupBy('cc.user_id');
+
+            return (float) \DB::table('conta_corrente as cc')
+                ->joinSub($subQueryMaxId, 'mi', function($join) {
+                    $join->on('cc.id', '=', 'mi.max_id');
+                })
+                ->sum('cc.saldo_atual');
+        }
+
         $entradas = $this->movimentacoes()
             ->whereHas('lancamento', fn ($q) => $q->where('tipo', 'receita'))
             ->sum('valor_pago');

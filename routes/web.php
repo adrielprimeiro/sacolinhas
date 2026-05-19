@@ -670,10 +670,12 @@ Route::post('/image-groups/orphans/delete-selected', [ImageGroupController::clas
 Route::middleware(['auth'])->prefix('admin/sacolinhas-admin')->group(function () {
     Route::get('/', [AdminSacolinhaController::class, 'index'])->name('admin.sacolinha.gestao');
     Route::get('/ver/{user}', [AdminSacolinhaController::class, 'show'])->name('admin.sacolinha.show');
+    Route::get('/ver/{user}/pdf', [AdminSacolinhaController::class, 'pdf'])->name('admin.sacolinha.pdf');
     Route::get('/search-item', [AdminSacolinhaController::class, 'searchItem'])->name('admin.sacolinha.searchItem');
     Route::post('/add-item', [AdminSacolinhaController::class, 'addItem'])->name('admin.sacolinha.addItem');
     Route::post('/fechar-sacolinha', [AdminSacolinhaController::class, 'fecharSacolinha'])->name('admin.sacolinha.fechar');
     Route::delete('/remove-item/{id}', [AdminSacolinhaController::class, 'removeItem'])->name('admin.sacolinha.removeItem');
+    Route::post('/update-item-price', [AdminSacolinhaController::class, 'updateItemPrice'])->name('admin.sacolinha.updatePrice');
 });
 
 //Item->Sacolinha

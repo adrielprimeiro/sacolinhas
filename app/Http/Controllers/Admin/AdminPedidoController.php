@@ -71,7 +71,13 @@ class AdminPedidoController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate($this->rules());
+        $rules = $this->rules();
+        $rules['items'] = ['required', 'array', 'min:1'];
+        $rules['items.*.item_id'] = ['required', 'exists:items,id'];
+        $rules['items.*.preco_unitario'] = ['required', 'numeric', 'min:0'];
+        $rules['items.*.quantidade'] = ['required', 'integer', 'min:1'];
+
+        $validated = $request->validate($rules);
 
         if (empty($validated['numero_pedido'])) {
             $proximoNumero = Pedido::max('id') + 1;
@@ -86,8 +92,25 @@ class AdminPedidoController extends Controller
         $validated['valor_desconto'] = $validated['valor_desconto'] ?? 0;
         $validated['valor_saldo_utilizado'] = $validated['valor_saldo_utilizado'] ?? 0;
 
-        DB::transaction(function () use ($validated) {
-            Pedido::create($validated);
+        $pedidoData = collect($validated)->except('items')->toArray();
+
+        DB::transaction(function () use ($pedidoData, $request) {
+            $pedido = Pedido::create($pedidoData);
+            
+            foreach ($request->input('items', []) as $itemData) {
+                DB::table('items_pedido')->insert([
+                    'pedido_id'      => $pedido->id,
+                    'item_id'        => $itemData['item_id'],
+                    'quantidade'     => $itemData['quantidade'],
+                    'preco_unitario' => $itemData['preco_unitario'],
+                    'status_item'    => 'ativo',
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+            }
+
+            $pedido->refresh();
+            $pedido->touch();
         });
 
         return redirect()
@@ -120,16 +143,24 @@ class AdminPedidoController extends Controller
             ->where('pedido_id', $pedido->id)
             ->sum('valor_total');
 
-        // Saldo disponível na carteira do cliente
-        $saldoCarteira = DB::table('conta_corrente')
+        // Saldo atual da carteira do cliente (ordem cronológica correta)
+        $saldoCarteira = (float) (DB::table('conta_corrente')
             ->where('user_id', $pedido->user_id)
+            ->orderByDesc('data_movimentacao')
             ->orderByDesc('id')
-            ->value('saldo_atual') ?? 0;
+            ->value('saldo_atual') ?? 0);
 
-        // O limite de saldo que pode ser usado neste pedido é o saldo positivo atual + o que já estava alocado neste pedido
-        $saldoMaximoPermitido = max(0, $saldoCarteira) + ($pedido->valor_saldo_utilizado ?? 0);
+        // Saldo já alocado neste pedido (pode ser negativo = dívida embutida)
+        $saldoJaAlocado = (float) ($pedido->valor_saldo_utilizado ?? 0);
 
-        return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira', 'saldoMaximoPermitido'));
+        // Saldo disponível SEM considerar o que já está alocado neste pedido
+        // (adicionamos de volta o saldoJaAlocado pois ele já foi debitado da carteira)
+        $saldoDisponivel = $saldoCarteira + $saldoJaAlocado;
+
+        // Manter compatibilidade com qualquer referência antiga
+        $saldoMaximoPermitido = max(0, $saldoDisponivel);
+
+        return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira', 'saldoDisponivel', 'saldoJaAlocado', 'saldoMaximoPermitido'));
     }
 
     public function update(Request $request, Pedido $pedido)
@@ -177,6 +208,9 @@ class AdminPedidoController extends Controller
             'updated_at'     => now(),
         ]);
 
+        $pedido->refresh();
+        $pedido->touch();
+
         return response()->json(['success' => true, 'message' => 'Item adicionado com sucesso.']);
     }
 
@@ -186,6 +220,9 @@ class AdminPedidoController extends Controller
             ->where('id', $itemId)
             ->where('pedido_id', $pedido->id)
             ->delete();
+
+        $pedido->refresh();
+        $pedido->touch();
 
         return response()->json(['success' => true, 'message' => 'Item removido com sucesso.']);
     }

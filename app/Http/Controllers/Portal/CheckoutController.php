@@ -84,6 +84,12 @@ class CheckoutController extends Controller
                     DB::table('sacolinhas')->where('id', $sacola->id)->delete();
                 }
 
+                // Recarregar o pedido do banco para obter o valor_total atualizado pelo trigger e disparar o PedidoObserver com os dados finais corretos
+                $pedidoAtualizado = Pedido::find($pedidoId);
+                if ($pedidoAtualizado) {
+                    $pedidoAtualizado->touch();
+                }
+
                 return response()->json([
                     'success' => true,
                     'redirect' => route('portal.checkout.show', $pedidoId)
@@ -213,53 +219,15 @@ class CheckoutController extends Controller
 
             $totalBruto = $subtotal + $request->shipping_price;
 
-            // Integrar Saldo da Carteira
-            $userId = auth()->id();
-            $ultimaTransacao = \App\Models\ContaCorrente::where('user_id', $userId)
-                ->orderByDesc('data_movimentacao')
-                ->orderByDesc('id')
-                ->first();
-            $saldoAtual = $ultimaTransacao?->saldo_atual ?? 0;
-
+            // Integrar Saldo da Carteira (Desativado no Portal por padrão - cliente paga valor bruto)
             $saldoUtilizado = 0;
-            if ($saldoAtual > 0) {
-                $saldoUtilizado = min($saldoAtual, $totalBruto);
-            } else {
-                $saldoUtilizado = 0;
-            }
 
             $pedido->valor_frete = $request->shipping_price;
             $pedido->valor_total = $totalBruto; // Mantemos o bruto no valor_total (conforme comportamento do banco)
-            $pedido->valor_saldo_utilizado = $saldoUtilizado;
+            $pedido->valor_saldo_utilizado = 0;
             $pedido->status_pedido = 'pendente'; 
             
             $pedido->save();
-
-            // Se o saldo utilizado for diferente de zero, registrar o pagamento (Baixa) via carteira
-            if ($saldoUtilizado > 0) {
-                // Recupera o Lançamento recém-criado pelo Observer
-                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                    ->where('referencia_id', $pedido->id)
-                    ->first();
-
-                if ($lancamento) {
-                    \App\Models\Movimentacao::create([
-                        'lancamento_id' => $lancamento->id,
-                        'conta_bancaria_id' => 1, // Pode usar a principal ou uma conta "Carteira Virtual" se existir
-                        'data_pagamento' => now(),
-                        'valor_pago' => $saldoUtilizado,
-                        'forma_pagamento' => 'saldo_carteira',
-                    ]);
-
-                    // Atualizar status do Lançamento
-                    $valorPagoTotal = $lancamento->movimentacoes()->sum('valor_pago') + $saldoUtilizado; // +saldoUtilizado pq acabou de criar
-                    if ($valorPagoTotal >= $lancamento->valor_total) {
-                        $lancamento->update(['status' => 'pago']);
-                    } else {
-                        $lancamento->update(['status' => 'pago_parcial']);
-                    }
-                }
-            }
 
             return response()->json([
                 'success' => true,
