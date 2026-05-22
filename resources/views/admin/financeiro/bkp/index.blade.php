@@ -33,21 +33,36 @@
                 <!-- Filtro por Usuário (Searchable) -->
                 <div x-data="{ 
                     open: false, 
-                    search: '{{ $users->find(request('user_id'))->name ?? '' }}',
+                    search: '{{ addslashes($selectedUser->name ?? '') }}',
                     selectedId: '{{ request('user_id') }}',
-                    users: [
-                        @foreach($users as $user)
-                            { id: '{{ $user->id }}', name: '{{ addslashes($user->name) }}' },
-                        @endforeach
-                    ],
-                    get filteredUsers() {
-                        if (this.search === '') return this.users;
-                        return this.users.filter(u => u.name.toLowerCase().includes(this.search.toLowerCase()));
+                    users: [],
+                    loading: false,
+                    fetchUsers() {
+                        if (this.search.length < 2) {
+                            this.users = [];
+                            return;
+                        }
+                        this.loading = true;
+                        fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+                            .then(res => res.json())
+                            .then(res => {
+                                if (res.success) {
+                                    this.users = res.data.map(u => ({ id: String(u.id), name: u.name }));
+                                } else {
+                                    this.users = [];
+                                }
+                                this.loading = false;
+                            })
+                            .catch(() => {
+                                this.users = [];
+                                this.loading = false;
+                            });
                     }
                 }" class="relative">
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Usuário</label>
                     <input type="text" 
                            x-model="search"
+                           @input.debounce.300ms="fetchUsers()"
                            @click="open = true"
                            @click.away="open = false"
                            @keydown.escape="open = false"
@@ -61,7 +76,7 @@
                          x-transition
                          class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-xl rounded-xl max-h-60 overflow-y-auto"
                          style="display: none;">
-                        <template x-for="user in filteredUsers" :key="user.id">
+                        <template x-for="user in users" :key="user.id">
                             <div @click="selectedId = user.id; search = user.name; open = false;"
                                  class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer transition flex items-center gap-2"
                                  :class="selectedId == user.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
@@ -69,11 +84,17 @@
                                 <span x-text="user.name"></span>
                             </div>
                         </template>
-                        <div x-show="filteredUsers.length === 0" class="px-4 py-2 text-sm text-gray-400 italic">
+                        <div x-show="loading" class="px-4 py-2 text-sm text-gray-400 italic">
+                            Carregando...
+                        </div>
+                        <div x-show="!loading && users.length === 0 && search.length >= 2" class="px-4 py-2 text-sm text-gray-400 italic">
                             Nenhum usuário encontrado
                         </div>
+                        <div x-show="search.length < 2" class="px-4 py-2 text-xs text-gray-400 italic">
+                            Digite pelo menos 2 caracteres...
+                        </div>
                         <!-- Opção para limpar -->
-                        <div @click="selectedId = ''; search = ''; open = false;"
+                        <div @click="selectedId = ''; search = ''; open = false; users = [];"
                              class="px-4 py-2 text-xs text-red-500 hover:bg-red-50 cursor-pointer border-t border-gray-50 font-bold uppercase">
                             Limpar Seleção
                         </div>

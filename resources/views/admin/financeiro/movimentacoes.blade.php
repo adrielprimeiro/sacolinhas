@@ -167,7 +167,7 @@ $currentRoute = Route::currentRouteName();
                     </td>
                     <td class="px-5 py-4 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <button @click="openEdit({{ json_encode($m) }})" class="text-indigo-600 hover:text-indigo-900 transition p-1">
+                            <button @click='openEdit(@json($m))' class="text-indigo-600 hover:text-indigo-900 transition p-1">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <form action="{{ route('financeiro.movimentacoes.destroy', $m->id) }}" method="POST" onsubmit="return confirm('Excluir esta movimentação permanentemente?')" class="inline">

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Diagnóstico v2</title>
+    <script defer src="/js/alpine.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: monospace; padding: 20px; background: #0f172a; color: #e2e8f0; }
+        .card { background: #1e293b; border-radius: 8px; padding: 16px; margin: 12px 0; border-left: 4px solid #334155; }
+        .ok   { color: #4ade80; font-weight: bold; }
+        .err  { color: #f87171; font-weight: bold; }
+        .wait { color: #fbbf24; font-weight: bold; }
+        h2    { color: #818cf8; margin-bottom: 4px; font-size: 14px; }
+        .result { margin-top: 8px; padding: 8px; background: #0f172a; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<h1 style="color:#a78bfa;margin-bottom:20px">🔬 Diagnóstico v2</h1>
+
+<!-- TESTE A: x-show básico sem x-cloak -->
+<div class="card">
+    <h2>A) x-show simples (SEM x-cloak)</h2>
+    <div x-data="{ ok: false }" x-init="$nextTick(() => { ok = true; })">
+        <div x-show="!ok" class="err">❌ ERRADO: este texto NÃO deveria aparecer</div>
+        <div x-show="ok"  class="ok" style="display:none">✅ CORRETO: x-show funciona</div>
+    </div>
+</div>
+
+<!-- TESTE B: x-show com x-cloak (simulando os modais) -->
+<div class="card">
+    <h2>B) Modal com x-cloak + x-show (como Conciliação)</h2>
+    <div x-data="{ aberto: false }">
+        <p class="wait" id="b-antes">⏳ Aguardando Alpine...</p>
+        <div x-cloak x-show="aberto" class="err" id="modal-b">
+            ❌ MODAL ABERTO SEM CLICAR (bug)
+        </div>
+        <div x-cloak x-show="!aberto" class="ok">
+            ✅ Modal está FECHADO (correto)
+        </div>
+        <button x-on:click="aberto = true"  style="padding:4px 10px;margin-top:8px;cursor:pointer">Abrir modal</button>
+        <button x-on:click="aberto = false" style="padding:4px 10px;cursor:pointer">Fechar modal</button>
+    </div>
+</div>
+
+<!-- TESTE C: Busca automática na API -->
+<div class="card">
+    <h2>C) API /api/users/search (busca automática ao carregar)</h2>
+    <div id="api-result" class="result wait">⏳ Testando API automaticamente...</div>
+</div>
+
+<!-- TESTE D: Console errors -->
+<div class="card">
+    <h2>D) Erros de JavaScript na página</h2>
+    <div id="js-errors" class="result ok">✅ Nenhum erro detectado ainda</div>
+</div>
+
+<!-- TESTE E: Versão do Alpine -->
+<div class="card">
+    <h2>E) Versão do Alpine.js e ambiente</h2>
+    <div id="alpine-version" class="result wait">⏳ Aguardando Alpine...</div>
+</div>
+
+<script>
+    // Captura erros de JS
+    var erros = [];
+    window.onerror = function(msg, src, line, col, err) {
+        erros.push('ERRO: ' + msg + ' (linha ' + line + ')');
+        document.getElementById('js-errors').innerHTML = erros.map(e => '<span class="err">' + e + '</span>').join('<br>');
+        document.getElementById('js-errors').className = 'result err';
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+        erros.push('PROMISE REJEITADA: ' + (e.reason || ''));
+        document.getElementById('js-errors').innerHTML = erros.map(e => '<span class="err">' + e + '</span>').join('<br>');
+    });
+
+    // Teste da API (automático ao carregar)
+    fetch('/api/users/search?q=Ana')
+        .then(function(r) {
+            var status = r.status;
+            var url = r.url;
+            return r.json().then(function(data) {
+                var el = document.getElementById('api-result');
+                if (data.success && data.data.length > 0) {
+                    el.className = 'result ok';
+                    el.innerHTML = '✅ API OK (HTTP ' + status + ') — ' + data.data.length + ' resultados<br>'
+                        + 'URL: ' + url + '<br>'
+                        + 'Primeiro: ' + data.data[0].name;
+                } else {
+                    el.className = 'result err';
+                    el.innerHTML = '❌ API retornou vazio ou erro. HTTP: ' + status + '<br>' + JSON.stringify(data).substring(0,200);
+                }
+            });
+        })
+        .catch(function(err) {
+            var el = document.getElementById('api-result');
+            el.className = 'result err';
+            el.innerHTML = '❌ ERRO DE REDE: ' + err.message + '<br>URL tentada: /api/users/search?q=Ana<br>'
+                + 'Porta atual: ' + window.location.port;
+        });
+
+    // Esconde o "antes" quando Alpine inicializar
+    document.addEventListener('alpine:init', function() {
+        var el = document.getElementById('b-antes');
+        if (el) el.style.display = 'none';
+
+        // Mostra versão
+        setTimeout(function() {
+            var v = (window.Alpine && window.Alpine.version) ? window.Alpine.version : 'desconhecida';
+            document.getElementById('alpine-version').innerHTML =
+                '✅ Alpine.js versão: <strong>' + v + '</strong><br>'
+                + 'URL: ' + window.location.href + '<br>'
+                + 'Porta: ' + (window.location.port || '80 (padrão)') + '<br>'
+                + 'Browser: ' + navigator.userAgent.split(')')[0].split('(')[1];
+            document.getElementById('alpine-version').className = 'result ok';
+        }, 100);
+    });
+
+    // Timeout se Alpine não carregar
+    setTimeout(function() {
+        if (document.getElementById('alpine-version').className.includes('wait')) {
+            document.getElementById('alpine-version').innerHTML = '❌ Alpine NÃO carregou em 4 segundos! Verificar CDN.';
+            document.getElementById('alpine-version').className = 'result err';
+        }
+    }, 4000);
+</script>
+</body>
+</html>

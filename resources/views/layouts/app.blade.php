@@ -13,8 +13,8 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine.js v3.14.8 (local) -->
+    <script defer src="{{ asset('js/alpine.min.js') }}"></script>
 
     <style>
         /* Estilos personalizados ou overrides do Tailwind podem vir aqui */
@@ -22,6 +22,8 @@
             opacity: 0;
             transition: opacity 0.5s ease-out;
         }
+        /* Oculta elementos Alpine.js antes da inicialização (evita flash de modais) */
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">

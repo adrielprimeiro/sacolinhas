@@ -302,7 +302,7 @@
                                                     </div>
                                                     <div>
                                                         <div class="font-bold text-gray-900 leading-tight">{{ $item->nome_do_produto }}</div>
-                                                        <div class="text-[10px] text-gray-500">{{ $item->marca }} • Tam: {{ $item->tamanho }}</div>
+                                                        <div class="text-[10px] text-gray-500">Cód: {{ $item->codigo }} • {{ $item->marca }} • Tam: {{ $item->tamanho }}</div>
                                                     </div>
                                                 </div>
                                             </td>

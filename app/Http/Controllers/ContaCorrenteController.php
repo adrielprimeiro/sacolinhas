@@ -49,9 +49,12 @@ class ContaCorrenteController extends Controller
 			->orderByDesc('id')
 			->paginate(10);
 
-		$users = \App\Models\User::orderBy('name')->get();
+		// Carrega apenas o usuário selecionado no filtro (se houver), para exibir o nome pré-preenchido
+		$selectedUser = $request->filled('user_id')
+			? \App\Models\User::find((int) $request->input('user_id'))
+			: null;
 
-		return view('admin.financeiro.bkp.index', compact('movimentacoes', 'users'));
+		return view('admin.financeiro.bkp.index', compact('movimentacoes', 'selectedUser'));
 	}
 
 
@@ -61,12 +64,14 @@ class ContaCorrenteController extends Controller
      */
     public function create()
     {
-        $classificacoes = ClassificacaoFinanceira::all(); // <--- AJUSTE: Todas as classificações (se não forem por user_id)
-        $users = User::all(); // <--- NOVO: Obter todos os usuários
+        $classificacoes = ClassificacaoFinanceira::all();
         $tiposMovimentacao = ['debito', 'credito'];
         $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'];
 
-        return view('admin.financeiro.bkp.create', compact('classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
+        // Carrega apenas o usuário do old() input se houver (para re-preencher após erro de validação)
+        $selectedUser = old('user_id') ? User::find((int) old('user_id')) : null;
+
+        return view('admin.financeiro.bkp.create', compact('classificacoes', 'tiposMovimentacao', 'referenciaTipos', 'selectedUser'));
     }
 
     /**
@@ -112,11 +117,10 @@ class ContaCorrenteController extends Controller
     public function edit(ContaCorrente $financeiro) // Usando $financeiro para corresponder ao nome da rota 'financeiro'
     {
         $classificacoes = ClassificacaoFinanceira::all();
-		$users = User::all(); 
         $tiposMovimentacao = ['debito', 'credito'];
         $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'classificacao'];
 
-        return view('admin.financeiro.bkp.edit', compact('financeiro', 'classificacoes', 'users', 'tiposMovimentacao', 'referenciaTipos'));
+        return view('admin.financeiro.bkp.edit', compact('financeiro', 'classificacoes', 'tiposMovimentacao', 'referenciaTipos'));
     }
 
     /**

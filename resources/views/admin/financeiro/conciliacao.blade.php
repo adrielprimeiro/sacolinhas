@@ -89,7 +89,7 @@ $currentRoute = Route::currentRouteName();
                         @foreach($extrato as $t)
                             <tr class="cursor-pointer transition hover:bg-indigo-50 group" 
                                 :class="selectedExtrato === {{ $t->id }} ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'"
-                                @click="selectExtrato({{ $t->id }}, {{ $t->valor }}, '{{ $t->tipo }}', '{{ $t->getPedidoId() }}')">
+                                @click='selectExtrato({{ $t->id }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->getPedidoId() }}")'>
                                 <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{{ $t->data->format('d/m/Y') }}</td>
                                 <td class="px-5 py-4">
                                     <div class="text-sm font-bold text-gray-800">{{ $t->descricao }}</div>
@@ -116,7 +116,7 @@ $currentRoute = Route::currentRouteName();
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                                        <button @click.stop="openQuickCreate({{ $t->id }}, '{{ addslashes($t->descricao) }}', {{ $t->valor }}, '{{ $t->tipo }}', '{{ $t->origem }}')" 
+                                        <button @click.stop='openQuickCreate({{ $t->id }}, {{ json_encode($t->descricao) }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->origem }}")' 
                                                 class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Lançamento Rápido">
                                             <i class="fas fa-plus"></i>
                                         </button>
@@ -162,10 +162,10 @@ $currentRoute = Route::currentRouteName();
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach($lancamentos as $l)
-                            <tr x-show="shouldShowSistema('{{ str_replace("'", "", $l->descricao) }}', '{{ $l->referencia_id }}')"
+                            <tr x-show='shouldShowSistema({{ json_encode($l->descricao) }}, "{{ $l->referencia_id }}")'
                                 class="cursor-pointer transition hover:bg-indigo-50" 
                                 :class="selectedSistema === {{ $l->id }} ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'"
-                                @click="selectSistema({{ $l->id }}, {{ $l->valor_total }}, '{{ $l->tipo === 'receita' ? 'entrada' : 'saida' }}')">
+                                @click='selectSistema({{ $l->id }}, {{ $l->valor_total }}, "{{ $l->tipo === 'receita' ? 'entrada' : 'saida' }}")'>
                                 <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{{ $l->data_vencimento->format('d/m/Y') }}</td>
                                 <td class="px-5 py-4">
                                     <div class="text-sm font-bold text-gray-800">{{ $l->descricao }}</div>

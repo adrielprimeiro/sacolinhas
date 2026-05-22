@@ -24,22 +24,37 @@
                     <!-- Usuário (Obrigatório) -->
                     <div x-data="{ 
                         open: false, 
-                        search: '{{ $financeiro->user->name ?? '' }}',
+                        search: '{{ addslashes($financeiro->user->name ?? '') }}',
                         selectedId: '{{ $financeiro->user_id }}',
-                        users: [
-                            @foreach($users as $user)
-                                { id: '{{ $user->id }}', name: '{{ addslashes($user->name) }}' },
-                            @endforeach
-                        ],
-                        get filteredUsers() {
-                            if (this.search === '') return this.users;
-                            return this.users.filter(u => u.name.toLowerCase().includes(this.search.toLowerCase()));
+                        users: [],
+                        loading: false,
+                        fetchUsers() {
+                            if (this.search.length < 2) {
+                                this.users = [];
+                                return;
+                            }
+                            this.loading = true;
+                            fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+                                .then(res => res.json())
+                                .then(res => {
+                                    if (res.success) {
+                                        this.users = res.data.map(u => ({ id: String(u.id), name: u.name }));
+                                    } else {
+                                        this.users = [];
+                                    }
+                                    this.loading = false;
+                                })
+                                .catch(() => {
+                                    this.users = [];
+                                    this.loading = false;
+                                });
                         }
                     }" class="relative col-span-1 md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Usuário / Cliente <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="text" 
                                    x-model="search"
+                                   @input.debounce.300ms="fetchUsers()"
                                    @click="open = true"
                                    @click.away="open = false"
                                    @keydown.escape="open = false"
@@ -57,7 +72,7 @@
                              x-transition
                              class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-xl max-h-60 overflow-y-auto"
                              style="display: none;">
-                            <template x-for="user in filteredUsers" :key="user.id">
+                            <template x-for="user in users" :key="user.id">
                                 <div @click="selectedId = user.id; search = user.name; open = false;"
                                      class="px-4 py-3 text-sm hover:bg-blue-50 cursor-pointer transition border-b border-gray-50 flex items-center justify-between"
                                      :class="selectedId == user.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
@@ -68,8 +83,14 @@
                                     <span x-show="selectedId == user.id" class="text-blue-600"><i class="fas fa-check"></i></span>
                                 </div>
                             </template>
-                            <div x-show="filteredUsers.length === 0" class="px-4 py-4 text-center text-sm text-gray-400 italic">
+                            <div x-show="loading" class="px-4 py-3 text-center text-sm text-gray-400 italic">
+                                Carregando...
+                            </div>
+                            <div x-show="!loading && users.length === 0 && search.length >= 2" class="px-4 py-3 text-center text-sm text-gray-400 italic">
                                 Nenhum usuário encontrado
+                            </div>
+                            <div x-show="search.length < 2" class="px-4 py-3 text-center text-xs text-gray-400 italic">
+                                Digite pelo menos 2 caracteres...
                             </div>
                         </div>
                         @error('user_id')

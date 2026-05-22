@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="csrf-token" content="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A">
+    <title>Movimentações de Conta Corrente</title>
+	<link rel="icon" href="http://localhost/favicon.ico">
+	<link rel="icon" type="image/png" sizes="32x32" href="http://localhost/favicon-32x32.png">
+	<link rel="apple-touch-icon" href="http://localhost/apple-touch-icon.png">
+	
+    <!-- Tailwind CSS CDN (para demonstração, em produção compile via npm) -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        /* Estilos personalizados ou overrides do Tailwind podem vir aqui */
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+        /* Oculta elementos Alpine.js antes da inicialização (evita flash de modais) */
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased">
+	<nav class="bg-white shadow-md">
+		<div class="container mx-auto flex justify-between items-center p-4">
+			<div class="flex items-center gap-3">
+				
+				<button id="adminMenuBtn"
+						type="button"
+						class="inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						aria-label="Abrir menu">
+					<i class="fas fa-bars text-gray-700"></i>
+				</button>
+
+				
+				<a href="http://localhost/dashboard"
+				   class="text-2xl font-bold text-gray-800 hover:text-blue-600 transition duration-300">
+					<i class="fas fa-layer-group mr-1"></i>Movimentações de Conta Corrente				</a>
+			</div>
+
+			<div class="flex items-center space-x-4">
+									<a href="http://localhost/dashboard" class="text-gray-600 hover:text-blue-600 transition duration-300">
+						<i class="fas fa-home"></i> Dashboard
+					</a>
+					<form action="http://localhost/logout" method="POST" class="inline">
+						<input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">						<button type="submit" class="text-gray-600 hover:text-blue-600 transition duration-300 focus:outline-none">
+							<i class="fas fa-sign-out-alt mr-1"></i> Sair
+						</button>
+					</form>
+							</div>
+		</div>
+
+		
+		<div id="adminOverlay" class="fixed inset-0 bg-black/40 hidden" style="z-index: 9998;"></div>
+
+		
+		<aside id="adminDrawer"
+			   class="fixed top-0 left-0 h-full w-72 bg-white shadow-xl hidden"
+			   style="z-index: 9999;">
+			<div class="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+				<div class="font-semibold text-gray-800">
+					Menu Admin
+				</div>
+				<button id="adminMenuCloseBtn"
+						type="button"
+						class="inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						aria-label="Fechar menu">
+					<i class="fas fa-times text-gray-700"></i>
+				</button>
+			</div>
+
+			<nav class="p-4 space-y-4">
+				<a href="http://localhost/dashboard"
+				   class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+					<i class="fas fa-home text-gray-500 w-5"></i>
+					<span>Dashboard</span>
+				</a>
+
+                
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Cadastro</p>
+                    <a href="http://localhost/clientes"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-users text-gray-500 w-5"></i>
+                        <span>Clientes</span>
+                    </a>
+                    <a href="http://localhost/items"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-box text-gray-500 w-5"></i>
+                        <span>Itens</span>
+                    </a>
+                    <a href="http://localhost/admin/categorias"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-tags text-gray-500 w-5"></i>
+                        <span>Categorias</span>
+                    </a>
+                </div>
+
+                
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Financeiro</p>
+                    <a href="http://localhost/admin/financeiro"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-chart-line text-gray-500 w-5"></i>
+                        <span>Financeiro</span>
+                    </a>
+                    <a href="http://localhost/admin/classificacao_financeira"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-list-ul text-gray-500 w-5"></i>
+                        <span>Plano de Contas</span>
+                    </a>
+                    <a href="http://localhost/conta-corrente"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 bg-gray-100 font-semibold">
+                        <i class="fas fa-wallet text-gray-500 w-5"></i>
+                        <span>Carteira Cliente</span>
+                    </a>
+                </div>
+
+                
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Comercial</p>
+                    <a href="http://localhost/bags"
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-broadcast-tower text-gray-500 w-5"></i>
+                        <span>Live</span>
+                    </a>
+                    <a href="http://localhost/admin/sacolinhas-admin"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
+                        <span>Sacolinhas</span>
+                    </a>
+                    <a href="http://localhost/admin/pedido"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-receipt text-gray-500 w-5"></i>
+                        <span>Pedidos</span>
+                    </a>
+                </div>
+
+                
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Clube</p>
+                    <a href="http://localhost/admin/clube"
+                        class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-crown text-gray-500 w-5"></i>
+                        <span>Painel do Clube</span>
+                    </a>
+                    <a href="http://localhost/admin/clube/desafios"
+                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-trophy text-gray-500 w-5"></i>
+                        <span>Desafios</span>
+                    </a>
+                    <a href="http://localhost/admin/grupos"
+                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                        <i class="fas fa-users text-gray-500 w-5"></i>
+                        <span>Grupos</span>
+                    </a>
+                </div>
+
+				<div class="my-4 border-t border-gray-200"></div>
+
+									<form method="POST" action="http://localhost/logout">
+						<input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">						<button type="submit"
+								class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 text-left">
+							<i class="fas fa-sign-out-alt text-gray-500 w-5"></i>
+							<span>Sair</span>
+						</button>
+					</form>
+							</nav>
+		</aside>
+	</nav>
+
+    <main class="container mx-auto mt-8 p-4">
+        <!-- Flash Messages -->
+        
+        
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Card de Filtros -->
+    <div class="bg-white shadow-xl rounded-2xl border border-gray-100 mb-6">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
+            <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-filter text-blue-500"></i> Filtros de Busca
+            </h3>
+        </div>
+        <div class="p-6">
+            <form action="http://localhost/conta-corrente" method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <!-- Busca por Descrição -->
+                <div class="md:col-span-1">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descrição</label>
+                    <input type="text" name="q" value="" placeholder="Buscar descrição..." 
+                           class="w-full rounded-xl border-gray-200 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                </div>
+
+                <!-- Filtro por Tipo -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo</label>
+                    <select name="tipo" class="w-full rounded-xl border-gray-200 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                        <option value="">Todos</option>
+                        <option value="credito" >Crédito</option>
+                        <option value="debito" >Débito</option>
+                    </select>
+                </div>
+
+                <!-- Filtro por Usuário (Searchable) -->
+                <div x-data="{ 
+                    open: false, 
+                    search: '',
+                    selectedId: '',
+                    users: [],
+                    loading: false,
+                    fetchUsers() {
+                        if (this.search.length < 2) {
+                            this.users = [];
+                            return;
+                        }
+                        this.loading = true;
+                        fetch('http://localhost/api/users/search?q=' + encodeURIComponent(this.search))
+                            .then(res => res.json())
+                            .then(res => {
+                                if (res.success) {
+                                    this.users = res.data.map(u => ({ id: String(u.id), name: u.name }));
+                                } else {
+                                    this.users = [];
+                                }
+                                this.loading = false;
+                            })
+                            .catch(() => {
+                                this.users = [];
+                                this.loading = false;
+                            });
+                    }
+                }" class="relative">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Usuário</label>
+                    <input type="text" 
+                           x-model="search"
+                           @input.debounce.300ms="fetchUsers()"
+                           @click="open = true"
+                           @click.away="open = false"
+                           @keydown.escape="open = false"
+                           placeholder="Digite para buscar..."
+                           class="w-full rounded-xl border-gray-200 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                    
+                    <input type="hidden" name="user_id" :value="selectedId">
+
+                    <!-- Dropdown de Sugestões -->
+                    <div x-show="open" 
+                         x-transition
+                         class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-xl rounded-xl max-h-60 overflow-y-auto"
+                         style="display: none;">
+                        <template x-for="user in users" :key="user.id">
+                            <div @click="selectedId = user.id; search = user.name; open = false;"
+                                 class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer transition flex items-center gap-2"
+                                 :class="selectedId == user.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
+                                <i class="fas fa-user text-gray-300 text-xs"></i>
+                                <span x-text="user.name"></span>
+                            </div>
+                        </template>
+                        <div x-show="loading" class="px-4 py-2 text-sm text-gray-400 italic">
+                            Carregando...
+                        </div>
+                        <div x-show="!loading && users.length === 0 && search.length >= 2" class="px-4 py-2 text-sm text-gray-400 italic">
+                            Nenhum usuário encontrado
+                        </div>
+                        <div x-show="search.length < 2" class="px-4 py-2 text-xs text-gray-400 italic">
+                            Digite pelo menos 2 caracteres...
+                        </div>
+                        <!-- Opção para limpar -->
+                        <div @click="selectedId = ''; search = ''; open = false; users = [];"
+                             class="px-4 py-2 text-xs text-red-500 hover:bg-red-50 cursor-pointer border-t border-gray-50 font-bold uppercase">
+                            Limpar Seleção
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Período: De -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">De</label>
+                    <input type="date" name="de" value="" 
+                           class="w-full rounded-xl border-gray-200 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                </div>
+
+                <!-- Período: Até -->
+                <div class="flex items-end gap-2">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Até</label>
+                        <input type="date" name="ate" value="" 
+                               class="w-full rounded-xl border-gray-200 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200 transition">
+                    </div>
+                    <button type="submit" class="bg-blue-100 hover:bg-blue-200 text-blue-800 p-2.5 rounded-xl transition border border-blue-200 font-bold" title="Pesquisar">
+                        <i class="fas fa-search"></i>
+                    </button>
+                                    </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+        <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-history text-blue-600"></i>
+                Movimentações de Conta Corrente
+            </h2>
+            <a href="http://localhost/conta-corrente/create" 
+               class="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-blue-200">
+                <i class="fas fa-plus"></i> Novo Lançamento
+            </a>
+        </div>
+
+        <div class="p-6">
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Saldo Ant.</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Saldo Atual</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Classificação</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2850</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">11:47</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">teste</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                        Credito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                    R$ 100,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ -199,01
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -99,01
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2850" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2850/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2850" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2849</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">11:45</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Venda de produto X na sacolinha</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                        Credito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                    R$ 100,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ -299,01
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -199,01
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2849" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2849/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2849" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2848</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">11:45</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Venda de produto X na sacolinha</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                        Credito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                    R$ 100,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ -399,01
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -299,01
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2848" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2848/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2848" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2847</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">11:39</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000426</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 25,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -25,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2847" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2847/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2847" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2842</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">11:28</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000425</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 110,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -110,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2842" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2842/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2842" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2841</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">09:17</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000424</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 65,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -65,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2841" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2841/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2841" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2839</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">09:15</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000423</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 10,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 10,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2839" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2839/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2839" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2838</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">09:08</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000422</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 50,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ -34,41
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ -84,41
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2838" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2838/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2838" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2836</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">08:57</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000421</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 425,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 425,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2836" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2836/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2836" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                                    <tr class="hover:bg-gray-50/50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#2835</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    19/05/2026
+                                    <span class="text-xs text-gray-400 block">08:55</span>
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-800 font-medium">Compra: Pedido PED-000420</td>
+                                <td class="px-4 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                        Debito
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">
+                                    R$ 140,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                    R$ 140,00
+                                </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                    R$ 0,00
+                                </td>
+                                <td class="px-4 py-4 text-sm text-gray-600">
+                                                                            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                                            Venda
+                                        </span>
+                                                                    </td>
+                                <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="http://localhost/conta-corrente/2835" 
+                                           class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="http://localhost/conta-corrente/2835/edit" 
+                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="http://localhost/conta-corrente/2835" 
+                                              method="POST" 
+                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                            <input type="hidden" name="_token" value="qTTB60JjncaxN4pxXomf4VLGSkeDPBUMYurws35A" autocomplete="off">                                            <input type="hidden" name="_method" value="DELETE">                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                                            </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6">
+                <nav role="navigation" aria-label="Pagination Navigation" class="flex items-center justify-between">
+        <div class="flex justify-between flex-1 sm:hidden">
+                            <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 cursor-default leading-5 rounded-md dark:text-gray-600 dark:bg-gray-800 dark:border-gray-600">
+                    &laquo; Previous
+                </span>
+            
+                            <a href="http://localhost/conta-corrente?page=2" class="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 rounded-md hover:text-gray-500 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:focus:border-blue-700 dark:active:bg-gray-700 dark:active:text-gray-300">
+                    Next &raquo;
+                </a>
+                    </div>
+
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700 leading-5 dark:text-gray-400">
+                    Showing
+                                            <span class="font-medium">1</span>
+                        to
+                        <span class="font-medium">10</span>
+                                        of
+                    <span class="font-medium">1278</span>
+                    results
+                </p>
+            </div>
+
+            <div>
+                <span class="relative z-0 inline-flex rtl:flex-row-reverse shadow-sm rounded-md">
+                    
+                                            <span aria-disabled="true" aria-label="&amp;laquo; Previous">
+                            <span class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 cursor-default rounded-l-md leading-5 dark:bg-gray-800 dark:border-gray-600" aria-hidden="true">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                        </span>
+                    
+                    
+                                            
+                        
+                        
+                                                                                                                        <span aria-current="page">
+                                        <span class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-500 bg-white border border-gray-300 cursor-default leading-5 dark:bg-gray-800 dark:border-gray-600">1</span>
+                                    </span>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=2" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 2">
+                                        2
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=3" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 3">
+                                        3
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=4" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 4">
+                                        4
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=5" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 5">
+                                        5
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=6" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 6">
+                                        6
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=7" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 7">
+                                        7
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=8" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 8">
+                                        8
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=9" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 9">
+                                        9
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=10" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 10">
+                                        10
+                                    </a>
+                                                                                                                                
+                                                    <span aria-disabled="true">
+                                <span class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 cursor-default leading-5 dark:bg-gray-800 dark:border-gray-600">...</span>
+                            </span>
+                        
+                        
+                                                                    
+                        
+                        
+                                                                                                                        <a href="http://localhost/conta-corrente?page=127" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 127">
+                                        127
+                                    </a>
+                                                                                                                                <a href="http://localhost/conta-corrente?page=128" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-500 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Go to page 128">
+                                        128
+                                    </a>
+                                                                                                        
+                    
+                                            <a href="http://localhost/conta-corrente?page=2" rel="next" class="relative inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md leading-5 hover:text-gray-400 focus:z-10 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-500 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:active:bg-gray-700 dark:focus:border-blue-800" aria-label="Next &amp;raquo;">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                                    </span>
+            </div>
+        </div>
+    </nav>
+
+            </div>
+        </div>
+    </div>
+</div>
+    </main>
+
+    <script>
+        // Script para fechar as mensagens de alerta e fazê-las desaparecer
+        document.addEventListener('DOMContentLoaded', function() {
+            const successAlert = document.getElementById('success-alert');
+            const errorAlert = document.getElementById('error-alert');
+
+            if (successAlert) {
+                setTimeout(() => {
+                    successAlert.classList.add('fade-out');
+                    successAlert.addEventListener('transitionend', () => successAlert.remove());
+                }, 5000); // Remove após 5 segundos
+                successAlert.querySelector('svg').addEventListener('click', () => successAlert.remove());
+            }
+
+            if (errorAlert) {
+                setTimeout(() => {
+                    errorAlert.classList.add('fade-out');
+                    errorAlert.addEventListener('transitionend', () => errorAlert.remove());
+                }, 5000); // Remove após 5 segundos
+                errorAlert.querySelector('svg').addEventListener('click', () => errorAlert.remove());
+            }
+        });
+		// Script para menu
+		document.addEventListener('DOMContentLoaded', function () {
+			var btn = document.getElementById('adminMenuBtn');
+			var closeBtn = document.getElementById('adminMenuCloseBtn');
+			var drawer = document.getElementById('adminDrawer');
+			var overlay = document.getElementById('adminOverlay');
+
+			function openDrawer() {
+				if (!drawer || !overlay) return;
+				drawer.classList.remove('hidden');
+				overlay.classList.remove('hidden');
+			}
+
+			function closeDrawer() {
+				if (!drawer || !overlay) return;
+				drawer.classList.add('hidden');
+				overlay.classList.add('hidden');
+			}
+
+			if (btn) btn.addEventListener('click', openDrawer);
+			if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+			if (overlay) overlay.addEventListener('click', closeDrawer);
+
+			document.addEventListener('keydown', function (e) {
+				if (e.key === 'Escape') closeDrawer();
+			});
+		});
+	</script>
+	
+		
+</body>
+</html>
