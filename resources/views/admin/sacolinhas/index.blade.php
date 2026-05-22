@@ -196,8 +196,23 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-6 px-6 text-center text-gray-500">
-                                Nenhuma sacolinha aberta no momento.
+                            <td colspan="5" class="py-12 px-6 text-center text-gray-500">
+                                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-shopping-bag text-gray-400 text-2xl"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-800">Nenhuma sacolinha aberta no momento.</p>
+                                
+                                <div class="mt-4">
+                                    @if(request('user_id') && isset($selectedUser))
+                                        <a href="{{ route('admin.sacolinha.show', request('user_id')) }}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm">
+                                            <i class="fas fa-plus"></i> Abrir Sacolinha para {{ $selectedUser->name }}
+                                        </a>
+                                    @else
+                                        <button type="button" onclick="document.querySelector('input[name=cliente]').focus()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm">
+                                            <i class="fas fa-search"></i> Buscar cliente para abrir sacolinha
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse
