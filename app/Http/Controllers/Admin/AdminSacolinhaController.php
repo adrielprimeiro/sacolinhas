@@ -26,7 +26,9 @@ class AdminSacolinhaController extends Controller
                 DB::raw('COUNT(s.item_id) as total_itens')
             ]);
 
-        if ($request->filled('cliente')) {
+        if ($request->filled('user_id')) {
+            $query->where('u.id', $request->user_id);
+        } elseif ($request->filled('cliente')) {
             $query->where('u.name', 'like', '%' . $request->cliente . '%');
         }
 

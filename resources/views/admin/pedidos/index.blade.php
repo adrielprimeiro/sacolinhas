@@ -19,24 +19,137 @@
 	{{-- Filtros --}}
 	<div class="bg-white shadow-lg rounded-lg p-4 mb-6">
 		<form method="GET" action="{{ route('admin.pedido.index') }}" class="grid grid-cols-1 md:grid-cols-10 gap-4">
-			<div class="md:col-span-2">
+			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Nº Pedido</label>
 				<input type="text" name="numero_pedido" value="{{ request('numero_pedido') }}"
-					   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+					   class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200"
 					   placeholder="Ex: PED-000123">
 			</div>
 
-			<div class="md:col-span-3">
+			<div class="md:col-span-4">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Buscar (nome/e-mail do cliente)</label>
-				<input type="text" name="cliente" value="{{ request('cliente') }}"
-					   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-					   placeholder="Digite nome ou e-mail...">
+				@php $selectedUser = request('user_id') ? \App\Models\User::find(request('user_id')) : null; @endphp
+				<div x-data="{ 
+					open: false, 
+					search: '{{ addslashes($selectedUser->name ?? request('cliente') ?? '') }}',
+					selectedId: '{{ request('user_id') }}',
+					users: [],
+					loading: false,
+					focusedIndex: -1,
+					timeout: null,
+					handleInput() {
+						this.selectedId = '';
+						this.focusedIndex = -1;
+						this.open = true;
+						if (this.search.length < 2) {
+							this.users = [];
+							return;
+						}
+						this.loading = true;
+						clearTimeout(this.timeout);
+						this.timeout = setTimeout(() => {
+							this.fetchUsers();
+						}, 300);
+					},
+					fetchUsers() {
+						fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+							.then(res => res.json())
+							.then(res => {
+								if (res.success) {
+									this.users = res.data.map(u => {
+										let extraInfo = [u.email, u.instagram, u.tiktok, u.apelido].filter(Boolean).join(' • ');
+										return { id: String(u.id), name: u.name, info: extraInfo };
+									});
+									this.focusedIndex = this.users.length > 0 ? 0 : -1;
+								} else {
+									this.users = [];
+									this.focusedIndex = -1;
+								}
+								this.loading = false;
+							})
+							.catch(() => {
+								this.users = [];
+								this.focusedIndex = -1;
+								this.loading = false;
+							});
+					},
+					selectUser(user) {
+						this.selectedId = user.id; 
+						this.search = user.name; 
+						this.open = false;
+						document.getElementById('btn-search').focus();
+					},
+					onKeyDown(e) {
+						if (e.key === 'Enter') {
+							if (this.open && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+								e.preventDefault();
+								this.selectUser(this.users[this.focusedIndex]);
+							}
+							return;
+						}
+						
+						if (!this.open || this.users.length === 0) return;
+						
+						if (e.key === 'ArrowDown') {
+							e.preventDefault();
+							this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+						} else if (e.key === 'ArrowUp') {
+							e.preventDefault();
+							this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+						}
+					}
+				}" class="relative">
+					<input type="text" 
+						   name="cliente"
+						   x-model="search"
+						   @input="handleInput()"
+						   @click="open = true"
+						   @click.away="open = false"
+						   @keydown.escape="open = false"
+						   @keydown="onKeyDown($event)"
+						   class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200"
+						   placeholder="Digite nome ou e-mail...">
+					
+					<input type="hidden" name="user_id" :value="selectedId">
+
+					<!-- Dropdown de Sugestões -->
+					<div x-show="open" 
+						 x-transition
+						 class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-xl rounded-xl max-h-60 overflow-y-auto"
+						 style="display: none;">
+						<template x-for="(user, index) in users" :key="user.id">
+							<div @click="selectUser(user)"
+								 class="p-3 cursor-pointer border-b border-gray-100 last:border-0 transition"
+								 :class="[
+									selectedId == user.id ? 'border-l-4 border-indigo-600' : 'border-l-4 border-transparent',
+									focusedIndex === index ? 'bg-indigo-50' : 'hover:bg-indigo-50'
+								 ]">
+								<div class="font-bold text-sm text-gray-800" x-text="user.name"></div>
+								<div class="text-[10px] text-gray-500" x-show="user.info" x-text="user.info"></div>
+							</div>
+						</template>
+						<div x-show="loading" class="px-4 py-2 text-sm text-gray-400 italic">
+							Carregando...
+						</div>
+						<div x-show="!loading && users.length === 0 && search.length >= 2" class="px-4 py-2 text-sm text-gray-400 italic">
+							Nenhum usuário encontrado
+						</div>
+						<div x-show="search.length < 2" class="px-4 py-2 text-xs text-gray-400 italic">
+							Digite pelo menos 2 caracteres...
+						</div>
+						<!-- Opção para limpar -->
+						<div @click="selectedId = ''; search = ''; open = false; users = [];"
+							 class="px-4 py-2 text-xs text-red-500 hover:bg-red-50 cursor-pointer border-t border-gray-50 font-bold uppercase">
+							Limpar Seleção
+						</div>
+					</div>
+				</div>
 			</div>
 
-			<div class="md:col-span-2">
+			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Status do pedido</label>
 				<select name="status_pedido"
-						class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+						class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
 					<option value="">Todos</option>
 					@php $sp = request('status_pedido'); @endphp
 					<option value="pendente" {{ $sp === 'pendente' ? 'selected' : '' }}>Pendente</option>
@@ -53,7 +166,7 @@
 			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Origem</label>
 				<select name="origem_pedido"
-						class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+						class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
 					<option value="">Todas</option>
 					@php $op = request('origem_pedido'); @endphp
 					<option value="live" {{ $op === 'live' ? 'selected' : '' }}>Live</option>
@@ -68,7 +181,7 @@
 			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Pagamento</label>
 				<select name="status_pagamento"
-						class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+						class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
 					<option value="">Todos</option>
 					@php $pg = request('status_pagamento'); @endphp
 					<option value="pendente" {{ $pg === 'pendente' ? 'selected' : '' }}>Pendente</option>
@@ -81,13 +194,13 @@
 			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">De</label>
 				<input type="date" name="de" value="{{ request('de') }}"
-					   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+					   class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
 			</div>
 
 			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Até</label>
 				<input type="date" name="ate" value="{{ request('ate') }}"
-					   class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+					   class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
 			</div>
 
 			<div class="md:col-span-10 flex items-center justify-end gap-2 pt-2">
@@ -96,7 +209,7 @@
 					Limpar
 				</a>
 
-				<button type="submit"
+				<button type="submit" id="btn-search"
 						class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300">
 					<i class="fas fa-filter mr-2"></i> Filtrar
 				</button>

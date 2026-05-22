@@ -149,11 +149,14 @@ class Cliente extends Model
         return $query->where(function($q) use ($termo) {
             $q->where('name', 'like', "%{$termo}%")
               ->orWhere('nome_cliente', 'like', "%{$termo}%")
+              ->orWhere('apelido', 'like', "%{$termo}%")
               ->orWhere('email', 'like', "%{$termo}%")
               ->orWhere('cpf', 'like', "%{$termo}%")
               ->orWhere('codigo_cliente', 'like', "%{$termo}%")
               ->orWhere('telefone_principal', 'like', "%{$termo}%")
-              ->orWhere('whatsapp', 'like', "%{$termo}%");
+              ->orWhere('whatsapp', 'like', "%{$termo}%")
+              ->orWhere('instagram', 'like', "%{$termo}%")
+              ->orWhere('tiktok', 'like', "%{$termo}%");
         });
     }
 

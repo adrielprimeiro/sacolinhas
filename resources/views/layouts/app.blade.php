@@ -51,8 +51,8 @@
 
 			<div class="flex items-center space-x-4">
 				@auth
-					<a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-blue-600 transition duration-300">
-						<i class="fas fa-home"></i> Dashboard
+					<a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-blue-600 transition duration-300" title="Dashboard">
+						<i class="fas fa-home text-lg"></i>
 					</a>
 					<form action="{{ route('logout') }}" method="POST" class="inline">
 						@csrf

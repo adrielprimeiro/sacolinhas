@@ -19,14 +19,18 @@ class AdminPedidoController extends Controller
 			$q->where('numero_pedido', 'like', '%' . $request->input('numero_pedido') . '%');
 		});
 
-		$query->when($request->filled('cliente'), function ($q) use ($request) {
-			$term = $request->input('cliente');
+		if ($request->filled('user_id')) {
+			$query->where('user_id', $request->input('user_id'));
+		} else {
+			$query->when($request->filled('cliente'), function ($q) use ($request) {
+				$term = $request->input('cliente');
 
-			$q->whereHas('user', function ($uq) use ($term) {
-				$uq->where('name', 'like', '%' . $term . '%')
-				   ->orWhere('email', 'like', '%' . $term . '%');
+				$q->whereHas('user', function ($uq) use ($term) {
+					$uq->where('name', 'like', '%' . $term . '%')
+					   ->orWhere('email', 'like', '%' . $term . '%');
+				});
 			});
-		});
+		}
 
 		$query->when($request->filled('status_pedido'), function ($q) use ($request) {
 			$q->where('status_pedido', $request->input('status_pedido'));
