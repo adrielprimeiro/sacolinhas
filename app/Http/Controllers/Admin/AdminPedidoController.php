@@ -280,12 +280,13 @@ class AdminPedidoController extends Controller
 
             'status_pedido' => [
                 'required',
-                Rule::in(['pendente', 'confirmado', 'processando', 'enviado', 'entregue', 'cancelado']),
+                Rule::in(['pendente', 'confirmado', 'processando', 'embalado', 'enviado', 'entregue', 'pago', 'concluido', 'cancelado']),
             ],
 
             'valor_total' => ['required', 'numeric', 'min:0'],
             'valor_saldo_utilizado' => ['nullable', 'numeric', 'min:0'],
             'valor_frete' => ['nullable', 'numeric', 'min:0'],
+            'valor_frete_real' => ['nullable', 'numeric', 'min:0'],
             'valor_desconto' => ['nullable', 'numeric', 'min:0'],
 
             'forma_pagamento' => [
@@ -467,10 +468,14 @@ class AdminPedidoController extends Controller
             return response()->json($printResult);
         }
 
+        // 5. Get Tracking Code
+        $trackingCode = $service->getTrackingCode($cartOrderId);
+
         // Save tracking/url
         $pedido->update([
+            'status_pedido' => 'embalado',
             'observacoes' => trim($pedido->observacoes . "\n\nEtiqueta Melhor Envio: " . $printResult['url']),
-            // 'codigo_rastreamento' => $tracking ?? null // Melhor Envio API requires another call to get tracking, or we just save URL for now.
+            'codigo_rastreamento' => $trackingCode,
         ]);
 
         return response()->json([

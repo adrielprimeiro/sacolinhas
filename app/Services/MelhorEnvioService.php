@@ -15,7 +15,7 @@ class MelhorEnvioService
     {
         // Define se usa Sandbox ou Produção baseado no .env
         $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://sandbox.melhorenvio.com.br');
-        $this->token = env('MELHOR_ENVIO_TOKEN', '');
+        $this->token = \App\Models\Configuracao::get('melhor_envio_access_token', '');
         
         // CEP de origem do lojista (usado para o remetente)
         $this->cepOrigem = env('MELHOR_ENVIO_CEP_ORIGEM', '01001000'); // CEP padrão de exemplo (Sé, SP)
@@ -30,9 +30,9 @@ class MelhorEnvioService
      */
     public function calculateShipping($cepDestino, array $packageData)
     {
-        if (empty($this->token)) {
-            Log::error('Melhor Envio Token não configurado.');
-            return ['error' => 'Configuração de frete ausente.'];
+        if (!$this->refreshTokenIfNeeded()) {
+            Log::error('Melhor Envio: Token de acesso inválido ou expirado.');
+            return ['success' => false, 'message' => 'Configuração de frete inválida ou ausente. Por favor, conecte ao Melhor Envio.'];
         }
 
         $cepDestino = preg_replace('/[^0-9]/', '', $cepDestino);
@@ -105,6 +105,8 @@ class MelhorEnvioService
     }
     private function getClient()
     {
+        $this->refreshTokenIfNeeded();
+
         $request = Http::withHeaders([
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
@@ -121,7 +123,9 @@ class MelhorEnvioService
 
     public function createCart($pedido, $user, array $packageData, $serviceId)
     {
-        if (empty($this->token)) return ['success' => false, 'message' => 'Token não configurado.'];
+        if (!$this->refreshTokenIfNeeded()) {
+            return ['success' => false, 'message' => 'Melhor Envio não conectado ou token expirado. Por favor, conecte ao Melhor Envio.'];
+        }
 
         $cepDestino = preg_replace('/[^0-9]/', '', $user->cep ?? '');
         $cepOrigem = preg_replace('/[^0-9]/', '', $this->cepOrigem);
@@ -281,6 +285,118 @@ class MelhorEnvioService
         } catch (\Exception $e) {
             Log::error('Exceção Balance: ' . $e->getMessage());
             return ['success' => false, 'message' => 'Erro interno ao consultar saldo.'];
+        }
+    }
+
+    /**
+     * Renova o token se estiver expirado ou perto de expirar (nos próximos 5 minutos).
+     * Retorna true se o token estiver válido ou foi renovado com sucesso.
+     */
+    public function refreshTokenIfNeeded()
+    {
+        $accessToken = \App\Models\Configuracao::get('melhor_envio_access_token');
+        $refreshToken = \App\Models\Configuracao::get('melhor_envio_refresh_token');
+        $expiresAt = \App\Models\Configuracao::get('melhor_envio_expires_at');
+
+        if (!$accessToken || !$refreshToken) {
+            Log::warning('Melhor Envio: Token de acesso ou de atualização ausente no banco de dados.');
+            return false;
+        }
+
+        if (!$expiresAt || \Carbon\Carbon::parse($expiresAt)->lte(now()->addMinutes(5))) {
+            Log::info('Melhor Envio: Token expirando ou expirado. Iniciando renovação...');
+
+            $clientId = env('MELHOR_ENVIO_CLIENT_ID');
+            $clientSecret = env('MELHOR_ENVIO_CLIENT_SECRET');
+
+            if (empty($clientId) || empty($clientSecret)) {
+                Log::error('Melhor Envio: CLIENT_ID ou CLIENT_SECRET ausente no arquivo .env.');
+                return false;
+            }
+
+            try {
+                $payload = [
+                    'grant_type' => 'refresh_token',
+                    'client_id' => $clientId,
+                    'client_secret' => $clientSecret,
+                    'refresh_token' => $refreshToken,
+                ];
+
+                $httpClient = Http::asJson()->timeout(15);
+                if (env('APP_ENV') === 'local') {
+                    $httpClient = $httpClient->withoutVerifying();
+                }
+
+                $response = $httpClient->post($this->baseUrl . '/oauth/token', $payload);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    
+                    $newAccessToken = $data['access_token'] ?? null;
+                    $newRefreshToken = $data['refresh_token'] ?? null;
+                    $expiresIn = $data['expires_in'] ?? 2592000;
+
+                    if ($newAccessToken && $newRefreshToken) {
+                        \App\Models\Configuracao::set('melhor_envio_access_token', $newAccessToken);
+                        \App\Models\Configuracao::set('melhor_envio_refresh_token', $newRefreshToken);
+                        \App\Models\Configuracao::set('melhor_envio_expires_at', now()->addSeconds($expiresIn)->toDateTimeString());
+
+                        $this->token = $newAccessToken;
+                        Log::info('Melhor Envio: Token renovado com sucesso!');
+                        return true;
+                    }
+                }
+
+                Log::error('Melhor Envio: Falha ao renovar token. Resposta: ' . $response->body());
+                return false;
+
+            } catch (\Exception $e) {
+                Log::error('Melhor Envio: Exceção ao renovar token: ' . $e->getMessage());
+                return false;
+            }
+        }
+
+        $this->token = $accessToken;
+        return true;
+    }
+
+    /**
+     * Obtém o código de rastreamento de uma etiqueta pelo ID do Melhor Envio.
+     *
+     * @param string $cartOrderId
+     * @return string|null
+     */
+    public function getTrackingCode($cartOrderId)
+    {
+        try {
+            $payload = [
+                'orders' => [$cartOrderId]
+            ];
+            
+            $response = $this->getClient()->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (isset($data[$cartOrderId]['tracking'])) {
+                    return $data[$cartOrderId]['tracking'];
+                }
+                
+                foreach ($data as $key => $val) {
+                    if (is_array($val) && isset($val['id']) && $val['id'] === $cartOrderId && isset($val['tracking'])) {
+                        return $val['tracking'];
+                    }
+                    if (is_array($val) && isset($val['tracking'])) {
+                        return $val['tracking'];
+                    }
+                }
+            }
+            
+            Log::error('Erro Melhor Envio Tracking Code Fetch: ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao buscar código de rastreamento: ' . $e->getMessage());
+            return null;
         }
     }
 }

@@ -274,6 +274,10 @@ Route::middleware('auth')->group(function () {
         // Melhor Envio (Saldo) - deve vir ANTES do resource para não conflitar com {pedido}
         Route::get('pedido/melhorenvio-saldo', [AdminPedidoController::class, 'saldoMelhorEnvio'])->name('admin.pedido.saldoMelhorEnvio');
 
+        // Melhor Envio OAuth2
+        Route::get('melhor-envio/auth', [\App\Http\Controllers\Admin\MelhorEnvioAuthController::class, 'redirect'])->name('admin.melhor-envio.auth');
+        Route::get('melhor-envio/callback', [\App\Http\Controllers\Admin\MelhorEnvioAuthController::class, 'callback'])->name('admin.melhor-envio.callback');
+
         Route::resource('pedido', AdminPedidoController::class)->names([
 			'index' => 'admin.pedido.index',
 			'create' => 'admin.pedido.create',

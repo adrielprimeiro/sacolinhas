@@ -115,6 +115,17 @@
                                 </div>
                             </div>
 
+                            {{-- Custo Real do Frete --}}
+                            <div class="flex justify-between items-center text-gray-600">
+                                <span>Custo Real <span class="text-[10px] text-gray-400 block">(Interno)</span></span>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-gray-400 text-xs">R$</span>
+                                    <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real"
+                                           value="{{ old('valor_frete_real', $pedido->valor_frete_real ?? 0) }}"
+                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-yellow-400 focus:border-yellow-400">
+                                </div>
+                            </div>
+
                             {{-- Desconto --}}
                             <div class="flex justify-between items-center text-gray-600">
                                 <span class="text-red-400">Desconto</span>
@@ -225,6 +236,7 @@
                                     <option value="pendente" {{ $sp === 'pendente' ? 'selected' : '' }}>Pendente</option>
                                     <option value="confirmado" {{ $sp === 'confirmado' ? 'selected' : '' }}>Confirmado</option>
                                     <option value="processando" {{ $sp === 'processando' ? 'selected' : '' }}>Processando</option>
+                                    <option value="embalado" {{ $sp === 'embalado' ? 'selected' : '' }}>Embalado</option>
                                     <option value="pago" {{ $sp === 'pago' ? 'selected' : '' }}>Pago</option>
                                     <option value="enviado" {{ $sp === 'enviado' ? 'selected' : '' }}>Enviado</option>
                                     <option value="entregue" {{ $sp === 'entregue' ? 'selected' : '' }}>Entregue</option>
@@ -339,31 +351,31 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">CEP</label>
-                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Cidade</label>
-                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">UF</label>
-                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div class="md:col-span-3">
                             <label class="block text-gray-500 mb-1 font-semibold">Endereço Completo</label>
-                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Rastreio</label>
-                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Data Envio</label>
-                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Entregue em</label>
-                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                     </div>
                 </div>

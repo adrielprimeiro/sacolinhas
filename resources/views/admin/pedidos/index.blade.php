@@ -16,6 +16,30 @@
         @endif
     </div>
 
+    @if (!\App\Models\Configuracao::get('melhor_envio_access_token') || (\App\Models\Configuracao::get('melhor_envio_expires_at') && \Carbon\Carbon::parse(\App\Models\Configuracao::get('melhor_envio_expires_at'))->lte(now())))
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center">
+                <div class="flex-shrink-0 mt-0.5 sm:mt-0">
+                    <i class="fas fa-exclamation-triangle text-amber-500 text-lg mr-3"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-amber-800 font-semibold">
+                        Integração do Melhor Envio Desconectada
+                    </p>
+                    <p class="text-xs text-amber-700 mt-0.5">
+                        Conecte sua conta do Melhor Envio para calcular fretes e gerar etiquetas automaticamente.
+                    </p>
+                </div>
+            </div>
+            <div>
+                <a href="{{ route('admin.melhor-envio.auth') }}" 
+                   class="bg-gray-200 hover:bg-gray-300 text-black font-semibold text-xs py-2 px-4 rounded-md shadow-sm transition duration-300 inline-flex items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-plug text-xs"></i> Conectar ao Melhor Envio
+                </a>
+            </div>
+        </div>
+    @endif
+
 	{{-- Filtros --}}
 	<div class="bg-white shadow-lg rounded-lg p-4 mb-6">
 		<form method="GET" action="{{ route('admin.pedido.index') }}" class="grid grid-cols-1 md:grid-cols-10 gap-4">

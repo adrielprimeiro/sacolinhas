@@ -354,6 +354,70 @@
                     </div>
                 </div>
 
+                {{-- Timeline de Rastreamento --}}
+                <div class="border-t border-gray-200 mt-6 pt-6">
+                    <h4 class="text-sm font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-route text-blue-500 mr-2"></i> Linha do Tempo de Rastreamento
+                    </h4>
+                    
+                    @php
+                        $rastreamentos = DB::table('pedido_rastreamentos')
+                            ->where('pedido_id', $pedido->id)
+                            ->orderBy('data_hora', 'desc')
+                            ->get();
+                    @endphp
+
+                    @if($rastreamentos->count() > 0)
+                        <div class="relative pl-4 border-l-2 border-gray-200 space-y-6">
+                            @foreach($rastreamentos as $index => $rastreio)
+                                @php
+                                    $isUltimo = ($index === 0);
+                                    $icon = 'fas fa-check';
+                                    $color = 'text-gray-400';
+                                    $bgClass = 'bg-gray-100';
+                                    
+                                    if ($rastreio->status === 'Entregue') {
+                                        $icon = 'fas fa-box-open';
+                                        $color = 'text-green-500';
+                                        $bgClass = 'bg-green-100';
+                                    } elseif ($rastreio->status === 'Saiu para entrega') {
+                                        $icon = 'fas fa-truck-fast';
+                                        $color = 'text-blue-500';
+                                        $bgClass = 'bg-blue-100';
+                                    } elseif ($rastreio->status === 'Em trânsito') {
+                                        $icon = 'fas fa-truck';
+                                        $color = 'text-blue-500';
+                                        $bgClass = 'bg-blue-100';
+                                    } elseif ($rastreio->status === 'Postado') {
+                                        $icon = 'fas fa-box';
+                                        $color = 'text-orange-500';
+                                        $bgClass = 'bg-orange-100';
+                                    }
+                                @endphp
+                                <div class="relative">
+                                    <div class="absolute -left-[25px] mt-1 h-6 w-6 rounded-full {{ $bgClass }} flex items-center justify-center border-2 border-white shadow-sm">
+                                        <i class="{{ $icon }} text-[10px] {{ $color }}"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold {{ $isUltimo ? 'text-gray-900' : 'text-gray-600' }}">{{ $rastreio->status }}</p>
+                                        @if($rastreio->descricao)
+                                            <p class="text-xs text-gray-500 mt-0.5">{{ $rastreio->descricao }}</p>
+                                        @endif
+                                        <p class="text-[10px] text-gray-400 mt-1 font-medium">
+                                            {{ \Carbon\Carbon::parse($rastreio->data_hora)->format('d/m/Y \à\s H:i') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="bg-gray-50 rounded p-4 text-center border border-gray-100">
+                            <i class="fas fa-truck-loading text-gray-400 text-lg mb-2 block"></i>
+                            <p class="text-xs text-gray-500">Nenhuma atualização de rastreamento disponível ainda.</p>
+                        </div>
+                    @endif
+                </div>
+
                 {{-- Modal Melhor Envio --}}
                 <div x-show="openModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
                     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -391,7 +455,7 @@
                                 <div class="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Peso (kg)</label>
-                                        <input type="number" x-model="weight" step="0.1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <input type="number" x-model="weight" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Largura (cm)</label>

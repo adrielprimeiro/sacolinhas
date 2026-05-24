@@ -20,6 +20,7 @@ class Pedido extends Model
         'status_pedido',
         'valor_total',
         'valor_frete',
+        'valor_frete_real',
         'valor_desconto',
         'valor_saldo_utilizado',
         'forma_pagamento',
@@ -45,6 +46,7 @@ class Pedido extends Model
 
         'valor_total' => 'decimal:2',
         'valor_frete' => 'decimal:2',
+        'valor_frete_real' => 'decimal:2',
         'valor_desconto' => 'decimal:2',
         'valor_saldo_utilizado' => 'decimal:2',
     ];
