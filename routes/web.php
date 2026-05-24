@@ -266,6 +266,9 @@ Route::middleware('auth')->group(function () {
 		
         // Busca de item para modal (sem filtro de status) — deve vir ANTES do resource para não conflitar com {pedido}
         Route::get('pedido/buscar-item', [AdminPedidoController::class, 'buscarItem'])->name('admin.pedido.buscarItem');
+        
+        // Melhor Envio (Saldo) - deve vir ANTES do resource para não conflitar com {pedido}
+        Route::get('pedido/melhorenvio-saldo', [AdminPedidoController::class, 'saldoMelhorEnvio'])->name('admin.pedido.saldoMelhorEnvio');
 
         Route::resource('pedido', AdminPedidoController::class)->names([
 			'index' => 'admin.pedido.index',
@@ -278,7 +281,6 @@ Route::middleware('auth')->group(function () {
 		]);
 
         // Melhor Envio
-        Route::get('pedido/melhorenvio-saldo', [AdminPedidoController::class, 'saldoMelhorEnvio'])->name('admin.pedido.saldoMelhorEnvio');
         Route::post('pedido/{pedido}/frete-opcoes', [AdminPedidoController::class, 'freteOpcoes'])->name('admin.pedido.freteOpcoes');
         Route::post('pedido/{pedido}/gerar-etiqueta', [AdminPedidoController::class, 'gerarEtiqueta'])->name('admin.pedido.gerarEtiqueta');
 
