@@ -35,8 +35,12 @@ use App\Http\Controllers\ItemMediaController;
 use App\Http\Controllers\PontuacoesController;
 use App\Http\Controllers\Admin\GruposController;  
 
-// Webhook Mercado Pago (Público)
+// Webhook MercadoPago
 Route::post('/mercadopago/webhook', [\App\Http\Controllers\MercadoPagoController::class, 'webhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
+// Webhook Melhor Envio (URL /api/webhooks/melhorenvio configurada pelo usuário)
+Route::post('/api/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 
