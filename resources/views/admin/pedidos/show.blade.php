@@ -308,9 +308,14 @@
             </div>
 
             {{-- Entrega --}}
-            <div class="bg-white shadow-lg rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
+            <div class="bg-white shadow-lg rounded-lg p-6" x-data="melhorEnvio()">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
+                    </span>
+                    <button @click="openModal = true" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition duration-200">
+                        <i class="fas fa-truck-loading mr-1"></i> Gerar Etiqueta
+                    </button>
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
                     <div class="space-y-3">
@@ -348,6 +353,92 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Modal Melhor Envio --}}
+                <div x-show="openModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+                    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div x-show="openModal" class="fixed inset-0 transition-opacity" aria-hidden="true" @click="openModal = false">
+                            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+                        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                        <div x-show="openModal" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 relative">
+                                <button type="button" @click="openModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-500">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 flex justify-between items-center" id="modal-title">
+                                    <span><i class="fas fa-box text-blue-500 mr-2"></i> Cálculo e Etiqueta</span>
+                                    <span class="text-sm font-semibold bg-gray-100 text-gray-800 px-3 py-1 rounded-full shadow-inner" x-show="balance !== null">
+                                        <i class="fas fa-wallet text-green-500 mr-1"></i> 
+                                        R$ <span x-text="balance.toFixed(2).replace('.', ',')"></span>
+                                    </span>
+                                </h3>
+
+                                <div x-show="error" class="mb-4 bg-red-50 text-red-600 p-3 rounded text-sm border border-red-200">
+                                    <i class="fas fa-exclamation-circle mr-1"></i> <span x-text="error"></span>
+                                </div>
+                                
+                                <div x-show="successMsg" class="mb-4 bg-green-50 text-green-600 p-3 rounded text-sm border border-green-200">
+                                    <i class="fas fa-check-circle mr-1"></i> <span x-text="successMsg"></span>
+                                </div>
+                                
+                                <div x-show="labelUrl" class="mb-4 text-center">
+                                    <a :href="labelUrl" target="_blank" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow inline-flex items-center">
+                                        <i class="fas fa-print mr-2"></i> Imprimir Etiqueta
+                                    </a>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Peso (kg)</label>
+                                        <input type="number" x-model="weight" step="0.1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Largura (cm)</label>
+                                        <input type="number" x-model="width" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Altura (cm)</label>
+                                        <input type="number" x-model="height" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Compr. (cm)</label>
+                                        <input type="number" x-model="length" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    </div>
+                                </div>
+
+                                <div class="text-right">
+                                    <button @click="calculate" :disabled="calculating" class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium py-2 px-4 rounded shadow-sm disabled:opacity-50">
+                                        <i class="fas fa-calculator mr-1"></i> <span x-text="calculating ? 'Calculando...' : 'Calcular Opções'"></span>
+                                    </button>
+                                </div>
+
+                                <div x-show="options.length > 0" class="mt-6 border-t pt-4">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Opções Disponíveis:</h4>
+                                    <div class="space-y-3 max-h-60 overflow-y-auto">
+                                        <template x-for="opt in options" :key="opt.id">
+                                            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                                                <div class="flex items-center gap-3">
+                                                    <img x-show="opt.company && opt.company.picture" :src="opt.company.picture" class="h-8 w-8 object-contain">
+                                                    <div>
+                                                        <p class="text-sm font-medium text-gray-800" x-text="opt.name"></p>
+                                                        <p class="text-xs text-gray-500" x-text="'Prazo: ' + opt.delivery_time + ' dias úteis'"></p>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right flex flex-col items-end gap-2">
+                                                    <span class="text-sm font-bold text-gray-900" x-text="'R$ ' + parseFloat(opt.price).toFixed(2).replace('.', ',')"></span>
+                                                    <button @click="buyLabel(opt.id)" :disabled="loading" class="bg-green-600 hover:bg-green-700 text-white text-[10px] uppercase font-bold py-1 px-2 rounded disabled:opacity-50">
+                                                        Comprar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {{-- Observações --}}
@@ -369,6 +460,118 @@
             }).catch(err => {
                 console.error('Erro ao copiar link: ', err);
             });
+        }
+
+        function melhorEnvio() {
+            return {
+                openModal: false,
+                loading: false,
+                calculating: false,
+                weight: '',
+                width: '',
+                height: '',
+                length: '',
+                options: [],
+                error: null,
+                successMsg: null,
+                labelUrl: null,
+                balance: null,
+
+                init() {
+                    this.$watch('openModal', value => {
+                        if (value && this.balance === null) {
+                            this.fetchBalance();
+                        }
+                    });
+                },
+
+                async fetchBalance() {
+                    try {
+                        const res = await fetch(`{{ route('admin.pedido.saldoMelhorEnvio') }}`);
+                        const data = await res.json();
+                        if (res.ok && data.saldo !== undefined) {
+                            this.balance = parseFloat(data.saldo);
+                        }
+                    } catch (err) {
+                        console.error('Erro ao buscar saldo', err);
+                    }
+                },
+
+                async calculate() {
+                    if (!this.weight || !this.width || !this.height || !this.length) {
+                        this.error = 'Preencha todas as medidas e o peso.';
+                        return;
+                    }
+                    this.calculating = true;
+                    this.error = null;
+                    this.options = [];
+                    
+                    try {
+                        const res = await fetch(`{{ route('admin.pedido.freteOpcoes', $pedido->id) }}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                weight: this.weight,
+                                width: this.width,
+                                height: this.height,
+                                length: this.length
+                            })
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Erro ao calcular frete');
+                        
+                        this.options = data;
+                    } catch (err) {
+                        this.error = err.message;
+                    } finally {
+                        this.calculating = false;
+                    }
+                },
+
+                async buyLabel(serviceId) {
+                    if (!confirm('Deseja realmente gerar a etiqueta? Isso irá usar o saldo da carteira.')) return;
+                    
+                    this.loading = true;
+                    this.error = null;
+
+                    try {
+                        const res = await fetch(`{{ route('admin.pedido.gerarEtiqueta', $pedido->id) }}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                service_id: serviceId,
+                                weight: this.weight,
+                                width: this.width,
+                                height: this.height,
+                                length: this.length
+                            })
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok || !data.success) throw new Error(data.message || 'Erro ao gerar etiqueta');
+                        
+                        this.successMsg = data.message;
+                        this.labelUrl = data.url;
+                        this.options = [];
+                        
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                        
+                    } catch (err) {
+                        this.error = err.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
         }
     </script>
 @endsection

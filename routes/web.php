@@ -277,6 +277,11 @@ Route::middleware('auth')->group(function () {
 			'destroy' => 'admin.pedido.destroy',
 		]);
 
+        // Melhor Envio
+        Route::get('pedido/melhorenvio-saldo', [AdminPedidoController::class, 'saldoMelhorEnvio'])->name('admin.pedido.saldoMelhorEnvio');
+        Route::post('pedido/{pedido}/frete-opcoes', [AdminPedidoController::class, 'freteOpcoes'])->name('admin.pedido.freteOpcoes');
+        Route::post('pedido/{pedido}/gerar-etiqueta', [AdminPedidoController::class, 'gerarEtiqueta'])->name('admin.pedido.gerarEtiqueta');
+
         // Itens do pedido (adicionar / remover)
         Route::post('pedido/{pedido}/adicionar-item', [AdminPedidoController::class, 'adicionarItem'])->name('admin.pedido.adicionarItem');
         Route::delete('pedido/{pedido}/remover-item/{itemId}', [AdminPedidoController::class, 'removerItem'])->name('admin.pedido.removerItem');

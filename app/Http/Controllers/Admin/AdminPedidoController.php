@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Services\MelhorEnvioService;
 
 class AdminPedidoController extends Controller
 {
@@ -397,4 +398,97 @@ class AdminPedidoController extends Controller
 			->route('admin.pedido.edit', $pedido->id)
 			->with('success', 'Devolução registrada e crédito lançado com sucesso.');
 	}
+
+    public function freteOpcoes(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'weight' => 'required|numeric|min:0.1',
+            'width' => 'required|numeric|min:1',
+            'height' => 'required|numeric|min:1',
+            'length' => 'required|numeric|min:1',
+        ]);
+
+        $pedido->load('user');
+        $cepDestino = $pedido->cep_entrega ?? $pedido->user->cep ?? null;
+
+        if (!$cepDestino) {
+            return response()->json(['error' => 'CEP de destino não encontrado no pedido ou cliente.'], 400);
+        }
+
+        $service = new MelhorEnvioService();
+        $result = $service->calculateShipping($cepDestino, $request->all());
+
+        if (!$result['success'] ?? false) {
+            return response()->json(['error' => $result['message'] ?? 'Erro ao calcular frete'], 400);
+        }
+
+        return response()->json($result['options']);
+    }
+
+    public function gerarEtiqueta(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'service_id' => 'required',
+            'weight' => 'required|numeric',
+            'width' => 'required|numeric',
+            'height' => 'required|numeric',
+            'length' => 'required|numeric',
+        ]);
+
+        $pedido->load('user');
+        if (!$pedido->user) {
+            return response()->json(['success' => false, 'message' => 'Pedido sem cliente associado.']);
+        }
+
+        $service = new MelhorEnvioService();
+        
+        // 1. Add to cart
+        $cartResult = $service->createCart($pedido, $pedido->user, $request->only(['weight', 'width', 'height', 'length']), $request->service_id);
+        if (!$cartResult['success']) {
+            return response()->json($cartResult);
+        }
+        $cartOrderId = $cartResult['order_id'];
+
+        // 2. Checkout
+        $checkoutResult = $service->checkout($cartOrderId);
+        if (!$checkoutResult['success']) {
+            return response()->json($checkoutResult);
+        }
+
+        // 3. Generate
+        $generateResult = $service->generateLabel($cartOrderId);
+        if (!$generateResult['success']) {
+            return response()->json($generateResult);
+        }
+
+        // 4. Print
+        $printResult = $service->printLabel($cartOrderId);
+        if (!$printResult['success']) {
+            return response()->json($printResult);
+        }
+
+        // Save tracking/url
+        $pedido->update([
+            'observacoes' => trim($pedido->observacoes . "\n\nEtiqueta Melhor Envio: " . $printResult['url']),
+            // 'codigo_rastreamento' => $tracking ?? null // Melhor Envio API requires another call to get tracking, or we just save URL for now.
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'url' => $printResult['url'],
+            'message' => 'Etiqueta gerada com sucesso!'
+        ]);
+    }
+
+    public function saldoMelhorEnvio()
+    {
+        $service = new MelhorEnvioService();
+        $result = $service->getBalance();
+
+        if ($result['success']) {
+            return response()->json(['saldo' => $result['balance']]);
+        }
+
+        return response()->json(['error' => 'Não foi possível carregar o saldo.'], 400);
+    }
 }
