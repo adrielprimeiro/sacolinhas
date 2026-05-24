@@ -153,7 +153,7 @@ class MelhorEnvioService
                 'name' => $user->name,
                 'phone' => preg_replace('/[^0-9]/', '', $user->phone ?? $user->whatsapp ?? '48999999999'),
                 'email' => $user->email,
-                'document' => preg_replace('/[^0-9]/', '', $user->cpf) ?: '18560052321',
+                'document' => preg_replace('/[^0-9]/', '', $user->cpf) ?: '73323864082', // CPF diferente do remetente
                 'address' => $rua,
                 'number' => $numero,
                 'complement' => $user->complemento ?? '',
