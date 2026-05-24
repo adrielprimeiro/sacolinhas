@@ -75,4 +75,9 @@ class Pedido extends Model
 
         return route('portal.checkout.pagamento', $this->payment_token);
     }
+
+    public function rastreamentos()
+    {
+        return $this->hasMany(\App\Models\PedidoRastreamento::class, 'pedido_id')->orderBy('data_hora', 'desc');
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\Pedido;
+use App\Models\PedidoRastreamento;
 
 class MelhorEnvioWebhookController extends Controller
 {
@@ -58,6 +59,49 @@ class MelhorEnvioWebhookController extends Controller
         }
 
         $pedido->save();
+
+        // Mapeamento e Inserção do Histórico
+        $traducaoStatus = [
+            'pending' => 'Pendente',
+            'released' => 'Liberado para envio',
+            'posted' => 'Postado',
+            'in transit' => 'Em trânsito',
+            'out for delivery' => 'Saiu para entrega',
+            'delivered' => 'Entregue',
+            'undelivered' => 'Não entregue',
+            'canceled' => 'Cancelado'
+        ];
+
+        $descricaoMap = [
+            'pending' => 'Aguardando pagamento ou liberação da etiqueta.',
+            'released' => 'A etiqueta foi liberada e está pronta para postagem.',
+            'posted' => 'O pacote foi entregue na agência ou transportadora.',
+            'in transit' => 'Seu pacote está viajando para a próxima unidade de distribuição.',
+            'out for delivery' => 'O entregador já saiu com seu pacote. Prepare-se para receber!',
+            'delivered' => 'O pacote foi entregue no destino.',
+            'undelivered' => 'Houve um problema na entrega. O pacote pode retornar ao remetente.',
+            'canceled' => 'O envio foi cancelado.'
+        ];
+
+        $statusTraduzido = $traducaoStatus[$statusStr] ?? ucfirst($statusStr);
+        $descricao = $descricaoMap[$statusStr] ?? 'Atualização de rastreamento recebida.';
+        
+        $dataHoraEvento = isset($event['date']) ? \Carbon\Carbon::parse($event['date']) : now();
+
+        // Evitar duplicidade do exato mesmo status no mesmo pedido
+        $exists = PedidoRastreamento::where('pedido_id', $pedido->id)
+            ->where('status', $statusTraduzido)
+            ->exists();
+
+        if (!$exists) {
+            PedidoRastreamento::create([
+                'pedido_id' => $pedido->id,
+                'status' => $statusTraduzido,
+                'descricao' => $descricao,
+                'data_hora' => $dataHoraEvento
+            ]);
+        }
+
         Log::info("Melhor Envio Webhook: Pedido {$pedido->id} atualizado (Rastreio: {$tracking}, Status: {$statusStr})");
     }
 }
