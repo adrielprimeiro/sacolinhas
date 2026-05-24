@@ -561,10 +561,6 @@
                         this.labelUrl = data.url;
                         this.options = [];
                         
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 3000);
-                        
                     } catch (err) {
                         this.error = err.message;
                     } finally {
