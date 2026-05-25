@@ -246,17 +246,49 @@ class ConciliacaoService
      */
     private function registrarTaxaMercadoPago(TransacaoExtrato $transacao)
     {
-        // Tenta encontrar uma classificação financeira para taxas
-        $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'like', '%Taxa%')
-            ->orWhere('nome', 'like', '%Tarifa%')
+        // Tenta encontrar uma classificação financeira para taxas (Despesas Financeiras analítica)
+        $classificacao = \App\Models\ClassificacaoFinanceira::where(function ($query) {
+                $query->where('nome', 'like', '%Taxa%')
+                      ->orWhere('nome', 'like', '%Tarifa%')
+                      ->orWhere('nome', 'like', '%Despesas Financeiras%');
+            })
             ->where('tipo_natureza', 'despesa')
+            ->where('nivel', 'analitico')
             ->first();
 
-        // Se não encontrar, cria uma padrão
+        // Se não encontrar, cria uma padrão com todos os campos obrigatórios
         if (!$classificacao) {
+            $userId = \Illuminate\Support\Facades\Auth::id() ?? 2;
+            
+            // Tenta encontrar a despesa financeira sintética para ser o pai
+            $pai = \App\Models\ClassificacaoFinanceira::where('nome', 'like', '%Despesas Financeiras%')
+                ->where('nivel', 'sintetico')
+                ->first();
+                
+            $idPai = $pai ? $pai->id : 12; // fallback para 12
+            $codigoPai = $pai ? $pai->codigo_contabil : '2.06';
+            
+            // Acha o maior código filho atual
+            $ultimoFilho = \App\Models\ClassificacaoFinanceira::where('id_pai', $idPai)
+                ->orderBy('codigo_contabil', 'desc')
+                ->first();
+                
+            if ($ultimoFilho) {
+                $partes = explode('.', $ultimoFilho->codigo_contabil);
+                $ultimaParte = (int) end($partes);
+                $novaParte = str_pad($ultimaParte + 1, 2, '0', STR_PAD_LEFT);
+                $novoCodigo = $codigoPai . '.' . $novaParte;
+            } else {
+                $novoCodigo = $codigoPai . '.01';
+            }
+
             $classificacao = \App\Models\ClassificacaoFinanceira::create([
+                'user_id' => $userId,
                 'nome' => 'Taxas e Tarifas Bancárias',
+                'codigo_contabil' => $novoCodigo,
                 'tipo_natureza' => 'despesa',
+                'nivel' => 'analitico',
+                'id_pai' => $idPai,
                 'descricao' => 'Taxas cobradas por processadores de pagamento como Mercado Pago'
             ]);
         }

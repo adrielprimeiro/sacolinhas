@@ -224,7 +224,14 @@ class ContaCorrenteController extends Controller
                     'saldo_atual' => 0,    // Será recalculado pelo Job
                 ];
 
-                $movimentacao = ContaCorrente::create($data);
+                $movimentacao = ContaCorrente::updateOrCreate(
+                    [
+                        'referencia_tipo' => 'pedido',
+                        'referencia_id' => $request->input('pedido_id'),
+                        'tipo_movimentacao' => 'debito',
+                    ],
+                    $data
+                );
 
                 // Despacha o Job para recalcular os saldos a partir da data da nova movimentação
                 RecalcularSaldosJob::dispatch($movimentacao->user_id, $movimentacao->data_movimentacao->toDateString());
