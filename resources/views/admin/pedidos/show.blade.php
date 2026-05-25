@@ -38,6 +38,11 @@
             ->where('user_id', $pedido->user_id)
             ->orderByDesc('id')
             ->value('saldo_atual') ?? 0);
+
+        // Calcular quanto já foi pago de fato para este pedido
+        $lancamento = DB::table('lancamentos')->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->first();
+        $jaPago = $lancamento ? (float)DB::table('movimentacoes')->where('lancamento_id', $lancamento->id)->sum('valor_pago') : 0;
+        $valorRestante = max(0, $valorPagar - $jaPago);
     @endphp
 
     {{-- Cabeçalho --}}
@@ -65,10 +70,10 @@
                class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
                 <i class="fas fa-edit mr-2"></i> Editar
             </a>
-            @if(($pedido->status_pagamento ?? '') !== 'aprovado')
-            <button onclick="copyPaymentLink('{{ $pedido->getPaymentUrl() }}')"
+            @if(($pedido->status_pagamento ?? '') !== 'aprovado' && $valorRestante > 0)
+            <button onclick="openPaymentLinkModal()"
                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-link mr-2"></i> Copiar Link
+                <i class="fas fa-link mr-2"></i> Link Pagamento
             </button>
             @endif
             <form action="{{ route('admin.pedido.destroy', $pedido->id) }}" method="POST"
@@ -650,5 +655,93 @@
                 }
             }
         }
+
+        // Custom Payment Link functions
+        const BASE_PAYMENT_URL = '{{ $pedido->getPaymentUrl() }}';
+
+        function openPaymentLinkModal() {
+            document.getElementById('paymentLinkModal').classList.remove('hidden');
+        }
+
+        function closePaymentLinkModal() {
+            document.getElementById('paymentLinkModal').classList.add('hidden');
+        }
+
+        function generateAndCopyLink() {
+            const amountInput = document.getElementById('modal_payment_amount');
+            const amount = parseFloat(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                alert('Por favor, insira um valor de pagamento válido.');
+                return;
+            }
+
+            // Gerar URL com parâmetro ?valor=X
+            const url = BASE_PAYMENT_URL + '?valor=' + amount.toFixed(2);
+
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link de pagamento copiado com sucesso para o valor de R$ ' + amount.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '!');
+                closePaymentLinkModal();
+            }).catch(err => {
+                console.error('Erro ao copiar link: ', err);
+                alert('Erro ao copiar o link. Por favor, tente copiar manualmente.');
+            });
+        }
     </script>
+
+    <!-- Modal de Link de Pagamento Customizado -->
+    <div id="paymentLinkModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Overlay background -->
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closePaymentLinkModal()"></div>
+
+            <!-- Position modal in center -->
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <i class="fas fa-link text-green-600"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                Gerar Link de Pagamento
+                            </h3>
+                            <div class="mt-2 space-y-4">
+                                <p class="text-sm text-gray-500">
+                                    Defina o valor que deseja cobrar neste link. O valor padrão é o total restante a pagar.
+                                </p>
+                                
+                                <div class="bg-gray-50 p-3 rounded-lg text-xs text-gray-600 space-y-1">
+                                    <p>Total Líquido do Pedido: <span class="font-bold">R$ {{ number_format($valorPagar, 2, ',', '.') }}</span></p>
+                                    @if($jaPago > 0)
+                                        <p>Total já Pago/Conciliado: <span class="font-bold text-green-600">R$ {{ number_format($jaPago, 2, ',', '.') }}</span></p>
+                                    @endif
+                                    <p>Restante a Pagar: <span class="font-bold text-blue-600">R$ {{ number_format($valorRestante, 2, ',', '.') }}</span></p>
+                                </div>
+
+                                <div>
+                                    <label for="modal_payment_amount" class="block text-sm font-medium text-gray-700">Valor a Ser Cobrado (R$)</label>
+                                    <input type="number" step="0.01" min="0.01" max="{{ $valorRestante > 0 ? $valorRestante : '' }}" id="modal_payment_amount" 
+                                           value="{{ number_format($valorRestante, 2, '.', '') }}" 
+                                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                    <button type="button" onclick="generateAndCopyLink()" 
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Copiar Link
+                    </button>
+                    <button type="button" onclick="closePaymentLinkModal()" 
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection

@@ -229,7 +229,14 @@ document.addEventListener('DOMContentLoaded', function() {
         btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
 
         try {
-            const response = await fetch("{{ route('portal.checkout.confirmar', $pedido->id) }}", {
+            const urlParams = new URLSearchParams(window.location.search);
+            const customValue = urlParams.get('valor');
+            let confirmUrl = "{{ route('portal.checkout.confirmar', $pedido->id) }}";
+            if (customValue) {
+                confirmUrl += "?valor=" + encodeURIComponent(customValue);
+            }
+
+            const response = await fetch(confirmUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

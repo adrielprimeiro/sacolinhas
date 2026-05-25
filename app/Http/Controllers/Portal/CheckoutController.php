@@ -243,9 +243,14 @@ class CheckoutController extends Controller
             
             $pedido->save();
 
+            $redirectUrl = route('portal.mercadopago.checkout', $pedido->id);
+            if ($request->filled('valor')) {
+                $redirectUrl .= '?valor=' . urlencode($request->query('valor'));
+            }
+
             return response()->json([
                 'success' => true,
-                'redirect' => route('portal.mercadopago.checkout', $pedido->id)
+                'redirect' => $redirectUrl
             ]);
         } catch (\Exception $e) {
             Log::error('Erro ao finalizar revisão de checkout: ' . $e->getMessage());
@@ -274,11 +279,16 @@ class CheckoutController extends Controller
             return redirect()->route('portal.pedidos')->with('info', 'Este pedido já foi finalizado ou cancelado.');
         }
 
-        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
-        if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
-            return redirect()->route('portal.mercadopago.checkout', $pedido->id);
+        $params = [];
+        if (request()->has('valor')) {
+            $params['valor'] = request()->query('valor');
         }
 
-        return redirect()->route('portal.checkout.show', $pedido->id);
+        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
+        if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
+            return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
+        }
+
+        return redirect()->route('portal.checkout.show', array_merge(['pedido' => $pedido->id], $params));
     }
 }

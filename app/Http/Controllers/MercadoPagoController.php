@@ -23,11 +23,18 @@ class MercadoPagoController extends Controller
             return redirect()->route('portal.pedidos')->with('info', 'Este pedido já está pago.');
         }
 
-        // Se o valor a pagar for ZERO (saldo cobriu tudo), marca como pago e pula o checkout
-        // O valor a pagar é o total bruto do pedido menos o saldo da carteira utilizado (se houver)
-        $valorAPagar = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+        // O valor a pagar padrão original
+        $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
         
-        if ($valorAPagar <= 0) {
+        // Calcular quanto já foi pago de fato para este pedido
+        $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+            ->where('referencia_id', $pedido->id)
+            ->first();
+        $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+        
+        $valorRestante = max(0, $valorAPagarOriginal - $jaPago);
+
+        if ($valorRestante <= 0) {
             $pedido->status_pagamento = 'aprovado';
             $pedido->status_pedido = 'pago';
             $pedido->save();
@@ -35,9 +42,17 @@ class MercadoPagoController extends Controller
             // Baixa de estoque
             $this->darBaixaEstoque($pedido);
 
-            Log::info("Pedido #{$pedido->id} pago integralmente com saldo da carteira.");
+            Log::info("Pedido #{$pedido->id} pago integralmente.");
             
-            return redirect()->route('portal.pedidos')->with('success', 'Pedido finalizado com sucesso utilizando seu saldo!');
+            return redirect()->route('portal.pedidos')->with('success', 'Pedido finalizado com sucesso!');
+        }
+
+        // Se foi enviado um valor customizado na URL (por exemplo, via query parameter ?valor=X)
+        $valorCustomizado = request()->query('valor');
+        if ($valorCustomizado !== null && is_numeric($valorCustomizado) && (float)$valorCustomizado > 0) {
+            $valorCobrar = min($valorRestante, (float)$valorCustomizado);
+        } else {
+            $valorCobrar = $valorRestante;
         }
 
         $publicKey = config('services.mercadopago.public_key');
@@ -46,7 +61,7 @@ class MercadoPagoController extends Controller
             return redirect()->route('portal.pedidos')->with('error', 'Chave pública do Mercado Pago não configurada.');
         }
 
-        return view('portal.cliente.checkout-mp', compact('pedido', 'publicKey'));
+        return view('portal.cliente.checkout-mp', compact('pedido', 'publicKey', 'valorCobrar'));
     }
 
     /**
@@ -75,8 +90,25 @@ class MercadoPagoController extends Controller
             $data['payer']['entity_type'] = 'individual'; // Corrige aviso do console
         }
 
-        // O valor a pagar é o total bruto do pedido menos o saldo da carteira utilizado (se houver)
-        $data['transaction_amount'] = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+        // O valor a pagar padrão original
+        $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+        
+        // Calcular quanto já foi pago de fato para este pedido
+        $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+            ->where('referencia_id', $pedido->id)
+            ->first();
+        $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+        
+        $valorRestante = max(0, $valorAPagarOriginal - $jaPago);
+
+        // Se foi enviado um valor customizado na URL (por exemplo, via query parameter ?valor=X)
+        $valorCustomizado = $request->query('valor');
+        if ($valorCustomizado !== null && is_numeric($valorCustomizado) && (float)$valorCustomizado > 0) {
+            $data['transaction_amount'] = min($valorRestante, (float)$valorCustomizado);
+        } else {
+            $data['transaction_amount'] = $valorRestante;
+        }
+
         $data['description'] = 'Pedido #' . $pedido->numero_pedido;
         $data['external_reference'] = (string) $pedido->id;
         
@@ -172,11 +204,17 @@ class MercadoPagoController extends Controller
 
                 // Se for PIX, o status inicial será 'pending' e os dados do QR code estarão em point_of_interaction
                 if ($status === 'approved') {
-                    $pedido->status_pagamento = 'aprovado';
-                    $pedido->status_pedido = 'pago';
-                    
-                    // Baixa automática de estoque
-                    $this->darBaixaEstoque($pedido);
+                    // Verificamos se o total pago até agora (incluindo esta transação) quita o pedido
+                    $totalPagoAteAgora = $jaPago + $data['transaction_amount'];
+                    if ($totalPagoAteAgora >= ($valorAPagarOriginal - 0.01)) {
+                        $pedido->status_pagamento = 'aprovado';
+                        $pedido->status_pedido = 'pago';
+                        // Baixa automática de estoque
+                        $this->darBaixaEstoque($pedido);
+                    } else {
+                        // Pagamento parcial: mantém pendente
+                        $pedido->status_pagamento = 'pendente';
+                    }
 
                 } elseif ($status === 'rejected' || $status === 'cancelled') {
                     $pedido->status_pagamento = 'rejeitado';
@@ -309,18 +347,36 @@ class MercadoPagoController extends Controller
                         Log::info("Pedido #{$pedido->id} localizado. Status atual: {$pedido->status_pagamento}. Novo status: {$status}");
                         
                         if ($status === 'approved') {
-                            $pedido->status_pagamento = 'aprovado';
-                            $pedido->status_pedido = 'pago';
+                            $transactionAmount = (float)($paymentInfo['transaction_amount'] ?? 0);
+                            $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+
+                            // Somar os pagamentos já conciliados mais este pagamento
+                            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                                ->where('referencia_id', $pedido->id)
+                                ->first();
+                            $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
                             
-                            // Baixa automática de estoque via Webhook
-                            $this->darBaixaEstoque($pedido);
+                            $totalPagoAteAgora = $jaPago + $transactionAmount;
+
+                            if ($totalPagoAteAgora >= ($valorAPagarOriginal - 0.01)) {
+                                $pedido->status_pagamento = 'aprovado';
+                                $pedido->status_pedido = 'pago';
+                                // Baixa automática de estoque via Webhook
+                                $this->darBaixaEstoque($pedido);
+                            } else {
+                                if ($pedido->status_pagamento !== 'aprovado') {
+                                    $pedido->status_pagamento = 'pendente';
+                                }
+                            }
 
                         } elseif ($status === 'rejected' || $status === 'cancelled') {
                             $pedido->status_pagamento = 'rejeitado';
                             $pedido->status_pedido = 'cancelado';
                         } elseif ($status === 'pending' || $status === 'in_process') {
-                            $pedido->status_pagamento = 'pendente';
-                            $pedido->status_pedido = 'pendente';
+                            if ($pedido->status_pagamento !== 'aprovado') {
+                                $pedido->status_pagamento = 'pendente';
+                                $pedido->status_pedido = 'pendente';
+                            }
                         }
                         
                         $pedido->save();

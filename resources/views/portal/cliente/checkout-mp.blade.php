@@ -12,7 +12,7 @@
         </div>
         <div class="text-right">
             <p class="text-xs text-gray-500">Valor a Pagar</p>
-            <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($pedido->valor_total, 2, ',', '.') }}</p>
+            <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</p>
         </div>
     </div>
 
@@ -84,7 +84,7 @@
     const renderPaymentBrick = async (bricksBuilder) => {
         const settings = {
             initialization: {
-                amount: {{ max(0.01, (float)$pedido->valor_total) }},
+                amount: {{ max(0.01, (float)$valorCobrar) }},
                 payer: {
                     email: "{{ auth()->user()->email }}"
                 }
@@ -109,7 +109,7 @@
                 onSubmit: ({ selectedPaymentMethod, formData }) => {
                     // Aqui processamos o envio no nosso backend
                     return new Promise((resolve, reject) => {
-                        fetch("{{ route('portal.mercadopago.process', $pedido->id) }}", {
+                        fetch("{{ route('portal.mercadopago.process', $pedido->id) }}?valor=" + encodeURIComponent({{ $valorCobrar }}), {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
