@@ -150,35 +150,18 @@ class MercadoPagoController extends Controller
             }
         }
 
-        // Montando a lista de items para additional_info
-        $itensPedido = DB::table('items_pedido')
-            ->join('items', 'items.id', '=', 'items_pedido.item_id')
-            ->where('items_pedido.pedido_id', $pedido->id)
-            ->get(['items.id', 'items.nome_do_produto', 'items.codigo', 'items.codigo_da_categoria', 'items_pedido.preco_unitario', 'items_pedido.quantidade']);
-
-        $additionalItems = [];
-        foreach ($itensPedido as $item) {
-            $additionalItems[] = [
-                'id' => (string) $item->id,
-                'title' => mb_substr($item->nome_do_produto, 0, 250),
-                'description' => $item->codigo ? "SKU: " . mb_substr($item->codigo, 0, 250) : "Item ID " . $item->id,
-                'quantity' => (int) $item->quantidade,
-                'unit_price' => (float) $item->preco_unitario,
-                'category_id' => $item->codigo_da_categoria ? mb_substr((string) $item->codigo_da_categoria, 0, 250) : 'others'
-            ];
-        }
-
-        // Adiciona frete como item se houver
-        if ((float) $pedido->valor_frete > 0) {
-            $additionalItems[] = [
-                'id' => 'frete',
-                'title' => 'Custo de Frete',
-                'description' => 'Serviço de Entrega',
+        // Para evitar erros de HTTP 400 devido a divergência entre a soma dos itens (que não inclui descontos/saldo da carteira)
+        // e o valor cobrado final (transaction_amount), simplificamos para um único item representando o pagamento do pedido.
+        $additionalItems = [
+            [
+                'id' => (string) $pedido->id,
+                'title' => 'Pedido #' . $pedido->numero_pedido,
+                'description' => 'Pagamento de Pedido na loja ' . config('app.name'),
                 'quantity' => 1,
-                'unit_price' => (float) $pedido->valor_frete,
-                'category_id' => 'shipping'
-            ];
-        }
+                'unit_price' => (float) $data['transaction_amount'],
+                'category_id' => 'others'
+            ]
+        ];
 
         // Incluindo additional_info no request do Mercado Pago
         // Importante: additional_info tem um schema estrito, por isso usamos additionalPayer limpo
