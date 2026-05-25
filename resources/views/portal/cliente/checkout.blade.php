@@ -58,7 +58,7 @@
                     </div>
                 </div>
                 <div class="p-4">
-                    @if($pedido->valor_frete > 0)
+                    @if($pedido->valor_frete > 0 || $pedido->origem_pedido === 'admin')
                         <div class="p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">

@@ -127,13 +127,26 @@ class CheckoutController extends Controller
 
         // Calcular frete inicial se o usuário tiver CEP
         $shippingOptions = [];
+        
+        // Adicionar opção "Retirar na Loja" (sem custo) por padrão
+        $shippingOptions[] = [
+            'id' => 'retirada',
+            'name' => 'Retirar na Loja',
+            'price' => 0.0,
+            'delivery_time' => 0,
+            'company' => [
+                'name' => 'Retirada local',
+                'picture' => null
+            ]
+        ];
+
         $packageData = $this->shippingCalculator->calculateForItems($itens->pluck('id')->toArray());
         
         $cep = auth()->user()->cep ?? null; // Assume que o user tem campo 'cep'
         if ($cep) {
             $result = $this->melhorEnvio->calculateShipping($cep, $packageData);
             if ($result['success']) {
-                $shippingOptions = $result['options'];
+                $shippingOptions = array_merge($shippingOptions, $result['options']);
             }
         }
 
@@ -219,12 +232,13 @@ class CheckoutController extends Controller
 
             $totalBruto = $subtotal + $request->shipping_price;
 
-            // Integrar Saldo da Carteira (Desativado no Portal por padrão - cliente paga valor bruto)
-            $saldoUtilizado = 0;
+            // Preservar o saldo da carteira já utilizado no pedido (se houver)
+            $saldoUtilizado = (float) ($pedido->valor_saldo_utilizado ?? 0);
 
             $pedido->valor_frete = $request->shipping_price;
             $pedido->valor_total = $totalBruto; // Mantemos o bruto no valor_total (conforme comportamento do banco)
-            $pedido->valor_saldo_utilizado = 0;
+            // Não zerar o saldo_utilizado para não perder o desconto/dívida configurado pelo admin
+            $pedido->valor_saldo_utilizado = $saldoUtilizado;
             $pedido->status_pedido = 'pendente'; 
             
             $pedido->save();

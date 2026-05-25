@@ -24,8 +24,8 @@ class MercadoPagoController extends Controller
         }
 
         // Se o valor a pagar for ZERO (saldo cobriu tudo), marca como pago e pula o checkout
-        // valor_total já é o valor final a pagar (com saldo descontado), NÃO subtrair de novo
-        $valorAPagar = (float) $pedido->valor_total;
+        // O valor a pagar é o total bruto do pedido menos o saldo da carteira utilizado (se houver)
+        $valorAPagar = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
         
         if ($valorAPagar <= 0) {
             $pedido->status_pagamento = 'aprovado';
@@ -75,9 +75,8 @@ class MercadoPagoController extends Controller
             $data['payer']['entity_type'] = 'individual'; // Corrige aviso do console
         }
 
-        // valor_total já é o valor final a pagar (subtotal + frete − desconto − saldo_carteira)
-        // NÃO subtrair saldo_utilizado novamente aqui, pois já foi descontado ao salvar o pedido
-        $data['transaction_amount'] = (float) $pedido->valor_total;
+        // O valor a pagar é o total bruto do pedido menos o saldo da carteira utilizado (se houver)
+        $data['transaction_amount'] = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
         $data['description'] = 'Pedido #' . $pedido->numero_pedido;
         $data['external_reference'] = (string) $pedido->id;
         
