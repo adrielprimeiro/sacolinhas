@@ -65,11 +65,19 @@ class MelhorEnvioAuthController extends Controller
      */
     public function callback(Request $request)
     {
+        Log::info('Melhor Envio OAuth Callback params:', $request->all());
+
         $code = $request->query('code');
+        $error = $request->query('error');
+        $errorDescription = $request->query('error_description');
 
         if (!$code) {
+            $msg = 'Autorização negada ou código de acesso ausente.';
+            if ($error) {
+                $msg .= ' Erro: ' . $error . ($errorDescription ? ' - ' . $errorDescription : '');
+            }
             return redirect()->route('admin.pedido.index')
-                ->with('error', 'Autorização negada ou código de acesso ausente.');
+                ->with('error', $msg);
         }
 
         try {
