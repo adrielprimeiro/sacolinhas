@@ -20,8 +20,8 @@ class FixContaCorrenteHistory extends Command
         $this->info("Iniciando migração de dados da Carteira...");
 
         DB::transaction(function () {
-            // 1. Deletar todos os lançamentos manuais antigos de 'pedido' na ContaCorrente
-            ContaCorrente::where('referencia_tipo', 'pedido')->delete();
+            // 1. Deletar todos os lançamentos manuais antigos de 'pedido' e 'desconto' na ContaCorrente
+            ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])->delete();
 
             // 1.5 Deletar créditos indevidos gerados por Movimentações de 'saldo_carteira' (bug anterior)
             $movimentacoesCarteira = Movimentacao::where('forma_pagamento', 'saldo_carteira')->pluck('id');
@@ -42,21 +42,48 @@ class FixContaCorrenteHistory extends Command
                 if (!$pedido->user_id) continue;
                 $userIds[$pedido->user_id] = true;
 
-                // 2. Garantir que o Débito Integral do Pedido exista
+                $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
+                $valorNetDebito = max(0.00, (float) $pedido->valor_total - $saldoUtilizado);
+
+                // 2. Garantir que o Débito Líquido do Pedido exista (sem incluir o saldo utilizado)
                 ContaCorrente::updateOrCreate(
                     [
                         'referencia_tipo' => 'pedido',
                         'referencia_id' => $pedido->id,
+                        'tipo_movimentacao' => 'debito',
                     ],
                     [
                         'user_id' => $pedido->user_id,
-                        'tipo_movimentacao' => 'debito',
-                        'valor' => $pedido->valor_total,
+                        'valor' => $valorNetDebito,
                         'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
                         'classificacao_id' => 1,
                         'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                     ]
                 );
+
+                // 2.5. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
+                if ($saldoUtilizado != 0) {
+                    $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
+                    $valorMovSaldo = abs($saldoUtilizado);
+                    $descMovSaldo = $saldoUtilizado > 0 
+                        ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
+                        : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
+
+                    ContaCorrente::updateOrCreate(
+                        [
+                            'referencia_tipo' => 'desconto',
+                            'referencia_id' => $pedido->id,
+                        ],
+                        [
+                            'user_id' => $pedido->user_id,
+                            'tipo_movimentacao' => $tipoMovSaldo,
+                            'valor' => $valorMovSaldo,
+                            'descricao' => $descMovSaldo,
+                            'classificacao_id' => 1,
+                            'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                        ]
+                    );
+                }
 
                 // 3. Se o pedido usou saldo da carteira, converter isso em uma Movimentacao (se já não existir)
                 if ($pedido->valor_saldo_utilizado > 0) {

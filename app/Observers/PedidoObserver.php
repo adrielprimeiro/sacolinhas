@@ -87,7 +87,9 @@ class PedidoObserver
 
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {
-                // Débito da compra pelo valor bruto dos itens+frete (sem incluir dívida anterior)
+                $valorNetDebito = max(0.00, $valorBruto - $saldoUtilizado);
+
+                // 1. Débito da compra pelo valor LÍQUIDO do pedido (sem incluir o saldo utilizado)
                 \App\Models\ContaCorrente::updateOrCreate(
                     [
                         'referencia_tipo' => 'pedido',
@@ -96,12 +98,40 @@ class PedidoObserver
                     ],
                     [
                         'user_id' => $pessoa->user_id,
-                        'valor' => $valorDebitoCarteira,
+                        'valor' => $valorNetDebito,
                         'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
                         'classificacao_id' => 1,
                         'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                     ]
                 );
+
+                // 2. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
+                if ($saldoUtilizado != 0) {
+                    $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
+                    $valorMovSaldo = abs($saldoUtilizado);
+                    $descMovSaldo = $saldoUtilizado > 0 
+                        ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
+                        : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
+
+                    \App\Models\ContaCorrente::updateOrCreate(
+                        [
+                            'referencia_tipo' => 'desconto',
+                            'referencia_id' => $pedido->id,
+                        ],
+                        [
+                            'user_id' => $pessoa->user_id,
+                            'tipo_movimentacao' => $tipoMovSaldo,
+                            'valor' => $valorMovSaldo,
+                            'descricao' => $descMovSaldo,
+                            'classificacao_id' => 1,
+                            'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                        ]
+                    );
+                } else {
+                    \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+                        ->where('referencia_id', $pedido->id)
+                        ->delete();
+                }
 
                 // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente
                 \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
@@ -131,9 +161,14 @@ class PedidoObserver
                 ->where('referencia_id', $pedido->id)
                 ->delete();
 
-            \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
+            \App\Models\ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])
                 ->where('referencia_id', $pedido->id)
                 ->delete();
+
+            if ($pedido->user_id && class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
+                $dataParaRecalculo = $pedido->data_pedido ? \Carbon\Carbon::parse($pedido->data_pedido) : $pedido->created_at;
+                \App\Jobs\RecalcularSaldosJob::dispatch($pedido->user_id, $dataParaRecalculo->toDateString());
+            }
         } catch (\Throwable $e) {
             Log::error("Erro no PedidoObserver ao deletar registros: " . $e->getMessage());
         }
