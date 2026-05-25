@@ -377,7 +377,7 @@
                             <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Custo Real do Frete (Interno)</label>
+                            <label class="block text-gray-500 mb-1 font-semibold">Frete Pago</label>
                             <div class="flex shadow-sm rounded-md">
                                 <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">R$</span>
                                 <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real" 

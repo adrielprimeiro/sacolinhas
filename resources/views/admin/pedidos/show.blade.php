@@ -313,9 +313,19 @@
                     <span class="flex items-center gap-2">
                         <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
                     </span>
-                    <button @click="openModal = true" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition duration-200">
-                        <i class="fas fa-truck-loading mr-1"></i> Gerar Etiqueta
-                    </button>
+                    <div class="flex items-center gap-2">
+                        @if($pedido->codigo_rastreamento)
+                        <form action="{{ route('admin.pedido.sincronizarMelhorEnvio', $pedido->id) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition duration-200">
+                                <i class="fas fa-sync-alt mr-1"></i> Sincronizar
+                            </button>
+                        </form>
+                        @endif
+                        <button @click="openModal = true" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition duration-200">
+                            <i class="fas fa-truck-loading mr-1"></i> Gerar Etiqueta
+                        </button>
+                    </div>
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
                     <div class="space-y-3">
@@ -330,6 +340,10 @@
                         <div>
                             <span class="text-gray-400 font-bold uppercase text-[10px] tracking-widest block mb-1">Endereço</span>
                             <span class="text-gray-800 font-medium">{{ $pedido->endereco_entrega ?? '—' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400 font-bold uppercase text-[10px] tracking-widest block mb-1">Frete Pago</span>
+                            <span class="text-green-600 font-bold">{{ $pedido->valor_frete_real ? 'R$ ' . number_format($pedido->valor_frete_real, 2, ',', '.') : '—' }}</span>
                         </div>
                     </div>
                     <div class="space-y-3">

@@ -291,6 +291,7 @@ Route::middleware('auth')->group(function () {
         // Melhor Envio
         Route::post('pedido/{pedido}/frete-opcoes', [AdminPedidoController::class, 'freteOpcoes'])->name('admin.pedido.freteOpcoes');
         Route::post('pedido/{pedido}/gerar-etiqueta', [AdminPedidoController::class, 'gerarEtiqueta'])->name('admin.pedido.gerarEtiqueta');
+        Route::post('pedido/{pedido}/sincronizar-melhorenvio', [AdminPedidoController::class, 'sincronizarMelhorEnvio'])->name('admin.pedido.sincronizarMelhorEnvio');
 
         // Itens do pedido (adicionar / remover)
         Route::post('pedido/{pedido}/adicionar-item', [AdminPedidoController::class, 'adicionarItem'])->name('admin.pedido.adicionarItem');

@@ -195,7 +195,12 @@ class MelhorEnvioService
             $response = $this->getClient()->post($this->baseUrl . '/api/v2/me/cart', $payload);
             
             if ($response->successful()) {
-                return ['success' => true, 'order_id' => $response->json()['id']];
+                $data = $response->json();
+                return [
+                    'success' => true, 
+                    'order_id' => $data['id'],
+                    'price' => $data['price'] ?? 0
+                ];
             }
             
             Log::error('Erro Melhor Envio Add Cart: ' . $response->body());
@@ -396,6 +401,73 @@ class MelhorEnvioService
             return null;
         } catch (\Exception $e) {
             Log::error('Exceção ao buscar código de rastreamento: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Busca um pedido no Melhor Envio pelo termo (código de rastreio, ID do envio, etc).
+     *
+     * @param string $term
+     * @return array|null
+     */
+    public function searchOrder($term)
+    {
+        try {
+            $response = $this->getClient()->get($this->baseUrl . '/api/v2/me/orders/search', [
+                'q' => $term
+            ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Erro Melhor Envio Search Order: ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao buscar pedido no Melhor Envio: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtém os detalhes completos de rastreamento pelo ID da etiqueta do Melhor Envio.
+     *
+     * @param string $cartOrderId
+     * @return array|null
+     */
+    public function getTrackingDetails($cartOrderId)
+    {
+        try {
+            $payload = [
+                'orders' => [$cartOrderId]
+            ];
+            
+            $response = $this->getClient()->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (isset($data[$cartOrderId])) {
+                    return $data[$cartOrderId];
+                }
+                
+                foreach ($data as $key => $val) {
+                    if (is_array($val) && isset($val['id']) && $val['id'] === $cartOrderId) {
+                        return $val;
+                    }
+                }
+                
+                // Retorna o primeiro elemento se não achar chave direta
+                if (is_array($data) && count($data) > 0) {
+                    return reset($data);
+                }
+            }
+            
+            Log::error('Erro Melhor Envio Tracking Details Fetch: ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao buscar detalhes de rastreamento: ' . $e->getMessage());
             return null;
         }
     }

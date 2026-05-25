@@ -168,6 +168,90 @@ class AdminPedidoController extends Controller
         return view('admin.pedidos.edit', compact('pedido', 'users', 'subtotal', 'saldoCarteira', 'saldoDisponivel', 'saldoJaAlocado', 'saldoMaximoPermitido'));
     }
 
+    public function updateStatus(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'status_pedido' => 'required|in:aberto,pago,embalado,enviado,entregue,cancelado'
+        ]);
+
+        $pedido->update([
+            'status_pedido' => $request->status_pedido
+        ]);
+
+        return redirect()->route('admin.pedidos.show', $pedido)->with('success', 'Status atualizado com sucesso!');
+    }
+
+    public function sincronizarMelhorEnvio(Pedido $pedido)
+    {
+        if (!$pedido->codigo_rastreamento) {
+            return back()->with('error', 'Pedido não possui código de rastreamento do Melhor Envio para sincronizar.');
+        }
+
+        $service = new MelhorEnvioService();
+        $trackingData = $service->searchOrder($pedido->codigo_rastreamento);
+
+        if (!$trackingData || empty($trackingData['data'])) {
+            return back()->with('error', 'Não foi possível encontrar este envio no Melhor Envio.');
+        }
+
+        $orderData = $trackingData['data'][0];
+        $cartOrderId = $orderData['id'];
+
+        $details = $service->getTrackingDetails($cartOrderId);
+
+        if (!$details) {
+            return back()->with('error', 'Não foi possível obter os detalhes do rastreamento.');
+        }
+
+        $updates = [];
+
+        // Verifica data de postagem (envio)
+        if (isset($details['posted_at'])) {
+            $updates['data_envio'] = Carbon::parse($details['posted_at'])->tz('America/Sao_Paulo');
+        }
+        
+        if (isset($orderData['price'])) {
+            $updates['valor_frete_real'] = $orderData['price'];
+        }
+
+        // Vamos checar os eventos para `data_entrega_realizada` e `data_envio` e `data_entrega_prevista`
+        if (isset($details['tracking']['events']) && is_array($details['tracking']['events'])) {
+            foreach ($details['tracking']['events'] as $event) {
+                // Registrar rastreamento se não existir
+                \App\Models\PedidoRastreamento::firstOrCreate([
+                    'pedido_id' => $pedido->id,
+                    'status' => $event['status'],
+                    'data_hora' => Carbon::parse($event['date_time'])->tz('America/Sao_Paulo'),
+                ], [
+                    'local' => $event['location'] ?? null,
+                    'detalhes' => $event['message'] ?? null,
+                ]);
+
+                // Atualizar datas com base no evento
+                $eventStatus = strtolower($event['status']);
+                if ($eventStatus === 'postado' && !isset($updates['data_envio'])) {
+                    $updates['data_envio'] = Carbon::parse($event['date_time'])->tz('America/Sao_Paulo');
+                }
+                if ($eventStatus === 'entregue') {
+                    $updates['data_entrega_realizada'] = Carbon::parse($event['date_time'])->tz('America/Sao_Paulo');
+                    $updates['status_pedido'] = 'entregue';
+                }
+            }
+        }
+        
+        if (isset($orderData['estimated_delivery'])) {
+            $updates['data_entrega_prevista'] = Carbon::parse($orderData['estimated_delivery'])->tz('America/Sao_Paulo');
+        } elseif (isset($details['estimated_date'])) {
+            $updates['data_entrega_prevista'] = Carbon::parse($details['estimated_date'])->tz('America/Sao_Paulo');
+        }
+
+        if (!empty($updates)) {
+            $pedido->update($updates);
+        }
+
+        return back()->with('success', 'Informações de rastreio sincronizadas com sucesso!');
+    }
+
     public function update(Request $request, Pedido $pedido)
     {
         $validated = $request->validate($this->rules($pedido->id));
@@ -471,11 +555,12 @@ class AdminPedidoController extends Controller
         // 5. Get Tracking Code
         $trackingCode = $service->getTrackingCode($cartOrderId);
 
-        // Save tracking/url
+        // Save tracking/url and real freight cost
         $pedido->update([
             'status_pedido' => 'embalado',
             'observacoes' => trim($pedido->observacoes . "\n\nEtiqueta Melhor Envio: " . $printResult['url']),
             'codigo_rastreamento' => $trackingCode,
+            'valor_frete_real' => isset($cartResult['price']) ? (float)$cartResult['price'] : null,
         ]);
 
         return response()->json([
