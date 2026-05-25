@@ -22,6 +22,23 @@
         <!-- Coluna Esquerda: Itens e Frete -->
         <div class="md:col-span-2 space-y-6">
             
+            @if(!empty($valorCobrar))
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                            <i class="fas fa-hand-holding-usd text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-blue-800">Pagamento Parcial Autorizado</p>
+                            <p class="text-xs text-blue-600">Você está efetuando o pagamento de uma parcela acordada deste pedido.</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-black text-blue-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
+                    </div>
+                </div>
+            @endif
+
             <!-- Lista de Itens -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div class="p-4 border-b border-gray-200 bg-gray-50">
@@ -138,9 +155,16 @@
                     @endif
 
                     <div class="border-t border-gray-100 pt-3 flex justify-between font-bold text-lg text-gray-900">
-                        <span>Total a Pagar</span>
+                        <span>Total do Pedido</span>
                         <span id="displayTotal">R$ {{ number_format(max(0, $itens->sum('preco_unitario') - $saldoUsado), 2, ',', '.') }}</span>
                     </div>
+
+                    @if(!empty($valorCobrar))
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2 flex justify-between items-center text-blue-800 font-bold text-sm">
+                        <span>A Pagar Neste Link</span>
+                        <span>R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
+                    </div>
+                    @endif
                 </div>
 
                 <div class="mt-8 space-y-3">

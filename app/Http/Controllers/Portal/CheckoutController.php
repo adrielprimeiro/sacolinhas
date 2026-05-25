@@ -119,6 +119,19 @@ class CheckoutController extends Controller
             return redirect()->route('sacolinhas.index')->with('error', 'Pedido não encontrado ou já finalizado.');
         }
 
+        $valorCobrar = null;
+        if (request()->filled('valor') && is_numeric(request()->query('valor')) && (float)request()->query('valor') > 0) {
+            $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+            $jaPago = DB::table('movimentacoes')
+                ->join('lancamentos', 'movimentacoes.lancamento_id', '=', 'lancamentos.id')
+                ->where('lancamentos.referencia_tipo', 'pedido')
+                ->where('lancamentos.referencia_id', $pedido->id)
+                ->sum('movimentacoes.valor_pago') ?? 0;
+            $valorRestante = max(0, $valorAPagarOriginal - $jaPago);
+            
+            $valorCobrar = min($valorRestante, (float)request()->query('valor'));
+        }
+
         $itens = DB::table('items_pedido')
             ->join('items', 'items_pedido.item_id', '=', 'items.id')
             ->where('items_pedido.pedido_id', $pedidoId)
@@ -150,7 +163,7 @@ class CheckoutController extends Controller
             }
         }
 
-        return view('portal.cliente.checkout', compact('pedido', 'itens', 'shippingOptions', 'packageData'));
+        return view('portal.cliente.checkout', compact('pedido', 'itens', 'shippingOptions', 'packageData', 'valorCobrar'));
     }
 
     /**
