@@ -38,6 +38,35 @@
                 </a>
             </div>
         </div>
+    @else
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center">
+                <div class="flex-shrink-0 mt-0.5 sm:mt-0">
+                    <i class="fas fa-check-circle text-emerald-500 text-lg mr-3"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-emerald-800 font-semibold">
+                        Integração do Melhor Envio Ativa
+                    </p>
+                    <p class="text-xs text-emerald-700 mt-0.5">
+                        Sua conta está conectada e pronta para uso. Expira em: {{ \Carbon\Carbon::parse(\App\Models\Configuracao::get('melhor_envio_expires_at'))->format('d/m/Y H:i') }}.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('admin.melhor-envio.auth') }}" 
+                   class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2 px-4 rounded-md shadow-sm transition duration-300 inline-flex items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-sync-alt text-xs"></i> Reautorizar
+                </a>
+                <form action="{{ route('admin.melhor-envio.disconnect') }}" method="POST" class="inline" onsubmit="return confirm('Deseja realmente desconectar a integração com o Melhor Envio?')">
+                    @csrf
+                    <button type="submit" 
+                            class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 px-4 rounded-md shadow-sm transition duration-300 inline-flex items-center gap-2 whitespace-nowrap">
+                        <i class="fas fa-sign-out-alt text-xs"></i> Desconectar
+                    </button>
+                </form>
+            </div>
+        </div>
     @endif
 
 	{{-- Filtros --}}

@@ -118,4 +118,17 @@ class MelhorEnvioAuthController extends Controller
                 ->with('error', 'Exceção ao conectar com Melhor Envio: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Disconnect the Melhor Envio account by clearing the tokens.
+     */
+    public function disconnect()
+    {
+        Configuracao::set('melhor_envio_access_token', null);
+        Configuracao::set('melhor_envio_refresh_token', null);
+        Configuracao::set('melhor_envio_expires_at', null);
+
+        return redirect()->route('admin.pedido.index')
+            ->with('success', 'Integração do Melhor Envio desconectada com sucesso.');
+    }
 }

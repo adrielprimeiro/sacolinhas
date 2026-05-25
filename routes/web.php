@@ -277,6 +277,7 @@ Route::middleware('auth')->group(function () {
         // Melhor Envio OAuth2
         Route::get('melhor-envio/auth', [\App\Http\Controllers\Admin\MelhorEnvioAuthController::class, 'redirect'])->name('admin.melhor-envio.auth');
         Route::get('melhor-envio/callback', [\App\Http\Controllers\Admin\MelhorEnvioAuthController::class, 'callback'])->name('admin.melhor-envio.callback');
+        Route::post('melhor-envio/disconnect', [\App\Http\Controllers\Admin\MelhorEnvioAuthController::class, 'disconnect'])->name('admin.melhor-envio.disconnect');
 
         Route::resource('pedido', AdminPedidoController::class)->names([
 			'index' => 'admin.pedido.index',
