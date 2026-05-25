@@ -17,7 +17,7 @@ class MelhorEnvioAuthController extends Controller
 
     public function __construct()
     {
-        $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://sandbox.melhorenvio.com.br');
+        $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://melhorenvio.com.br');
         $this->clientId = env('MELHOR_ENVIO_CLIENT_ID');
         $this->clientSecret = env('MELHOR_ENVIO_CLIENT_SECRET');
         $this->redirectUri = env('MELHOR_ENVIO_REDIRECT_URI', url('/admin/melhor-envio/callback'));

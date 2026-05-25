@@ -14,7 +14,7 @@ class MelhorEnvioService
     public function __construct()
     {
         // Define se usa Sandbox ou Produção baseado no .env
-        $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://sandbox.melhorenvio.com.br');
+        $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://melhorenvio.com.br');
         $this->token = \App\Models\Configuracao::get('melhor_envio_access_token', '');
         
         // CEP de origem do lojista (usado para o remetente)

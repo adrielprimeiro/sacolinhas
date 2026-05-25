@@ -88,8 +88,16 @@ class ConciliacaoService
         ]);
         
         $count = $this->processarPayments($results);
+
+        // Sincronizar relatórios de extrato completo (incluindo saídas/tarifas)
+        $countReports = $this->sincronizarRelatoriosMercadoPago($startDate, $endDate);
+
+        Log::info('Mercado Pago full sync completed', [
+            'payments' => $count,
+            'reports' => $countReports
+        ]);
         
-        return $count;
+        return $count + $countReports;
     }
     
     private function processarPayments(array $payments): int
@@ -407,5 +415,291 @@ class ConciliacaoService
             'valor' => (float) ($data['TRNAMT'] ?? 0),
             'raw' => $data
         ];
+    }
+
+    /**
+     * Sincronizar relatórios de extrato completo (incluindo saídas/tarifas) do Mercado Pago
+     */
+    public function sincronizarRelatoriosMercadoPago(string $startDate, string $endDate): int
+    {
+        $accessToken = config('services.mercadopago.access_token');
+        if (empty($accessToken)) {
+            Log::warning('Token do Mercado Pago não configurado. Sincronização de relatórios ignorada.');
+            return 0;
+        }
+
+        $count = 0;
+
+        try {
+            // 1. Listar relatórios existentes
+            $listUrl = "https://api.mercadopago.com/v1/account/settlement_report/list";
+            $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
+
+            // Auto-configurar caso não exista a configuração de relatórios
+            if ($response->status() === 404 && str_contains($response->body(), 'config_not_found_for_user')) {
+                Log::info('Configuração de relatórios não encontrada no Mercado Pago. Criando configuração padrão...');
+                $this->criarConfiguracaoRelatorioMP($accessToken);
+                $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
+            }
+
+            if ($response->successful()) {
+                $reports = $response->json();
+                
+                // Filtrar relatórios processados e ordenar do mais recente para o mais antigo
+                $processedReports = array_filter($reports, function ($report) {
+                    return isset($report['status']) && $report['status'] === 'processed' && isset($report['file_name']);
+                });
+
+                usort($processedReports, function ($a, $b) {
+                    return strcmp($b['generation_date'] ?? '', $a['generation_date'] ?? '');
+                });
+
+                // Processar no máximo os 3 relatórios de liberação mais recentes
+                $processedReports = array_slice($processedReports, 0, 3);
+
+                foreach ($processedReports as $report) {
+                    $fileName = $report['file_name'];
+                    Log::info("Processando relatório de extrato MP: {$fileName}");
+                    
+                    $downloadUrl = "https://api.mercadopago.com/v1/account/settlement_report/{$fileName}";
+                    $downloadResponse = Http::withoutVerifying()->withToken($accessToken)->get($downloadUrl);
+                    
+                    if ($downloadResponse->successful()) {
+                        $csvContent = $downloadResponse->body();
+                        $count += $this->processarCsvRelatorio($csvContent);
+                    } else {
+                        Log::error("Erro ao baixar relatório MP: {$fileName}", [
+                            'status' => $downloadResponse->status()
+                        ]);
+                    }
+                }
+            } else {
+                Log::error('Erro ao listar relatórios do Mercado Pago', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+
+            // 2. Solicitar a geração de um novo relatório de extrato para o período (processamento assíncrono)
+            $beginDate = Carbon::parse($startDate)->startOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+            $endDate = Carbon::parse($endDate)->endOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+
+            $generateUrl = "https://api.mercadopago.com/v1/account/settlement_report";
+            $generateResponse = Http::withoutVerifying()
+                ->withToken($accessToken)
+                ->post($generateUrl, [
+                    'begin_date' => $beginDate,
+                    'end_date' => $endDate
+                ]);
+
+            if ($generateResponse->successful()) {
+                Log::info("Novo relatório de extrato solicitado com sucesso ao MP para o período {$startDate} a {$endDate}.");
+            } else {
+                Log::info("Aviso ao solicitar novo relatório MP (pode já existir uma solicitação em andamento): " . $generateResponse->body());
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao processar relatórios do Mercado Pago: " . $e->getMessage());
+        }
+
+        return $count;
+    }
+
+    /**
+     * Processa o conteúdo CSV de um relatório de liberação do Mercado Pago
+     */
+    private function processarCsvRelatorio(string $csvContent): int
+    {
+        $lines = explode("\n", str_replace("\r", "", $csvContent));
+        if (count($lines) < 2) {
+            return 0;
+        }
+
+        // Auto-detectar delimitador (, ou ;)
+        $firstLine = $lines[0];
+        $delimiter = ',';
+        if (strpos($firstLine, ';') !== false && strpos($firstLine, ',') === false) {
+            $delimiter = ';';
+        } else if (strpos($firstLine, ';') !== false && strpos($firstLine, ',') !== false) {
+            $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+        }
+
+        // Parse do cabeçalho
+        $headers = str_getcsv($firstLine, $delimiter);
+        $headers = array_map(function ($h) {
+            return trim(strtolower(str_replace(['"', "'"], '', $h)));
+        }, $headers);
+
+        // Mapeamento de colunas importantes
+        $colIndex = [
+            'date' => $this->findHeaderIndex($headers, ['date', 'generation_date', 'data', 'fecha_liberacion', 'date_released']),
+            'source_id' => $this->findHeaderIndex($headers, ['source_id', 'id', 'operation_id', 'transaction_id', 'operacion_id']),
+            'description' => $this->findHeaderIndex($headers, ['description', 'descricao', 'concept', 'concepto', 'detail', 'record_type']),
+            'net_credit' => $this->findHeaderIndex($headers, ['net_credit_amount', 'net_credit', 'credit', 'credito', 'amount_credited']),
+            'net_debit' => $this->findHeaderIndex($headers, ['net_debit_amount', 'net_debit', 'debit', 'debito', 'amount_debited']),
+            'external_reference' => $this->findHeaderIndex($headers, ['external_reference', 'id_externo', 'referencia_externa']),
+        ];
+
+        // Se colunas fundamentais não forem encontradas, abortar processamento deste arquivo
+        if ($colIndex['source_id'] === -1 || $colIndex['date'] === -1) {
+            Log::error('Cabeçalho do CSV do Mercado Pago inválido. Colunas cruciais não encontradas.', [
+                'headers' => $headers
+            ]);
+            return 0;
+        }
+
+        $count = 0;
+
+        for ($i = 1; $i < count($lines); $i++) {
+            $line = trim($lines[$i]);
+            if (empty($line)) continue;
+
+            $row = str_getcsv($line, $delimiter);
+            if (count($row) < count($headers)) {
+                continue;
+            }
+
+            $sourceId = trim($row[$colIndex['source_id']] ?? '');
+            if (empty($sourceId) || !is_numeric($sourceId)) {
+                continue;
+            }
+
+            $dateStr = trim($row[$colIndex['date']] ?? '');
+            $description = trim($row[$colIndex['description']] ?? 'Operação Mercado Pago');
+            $externalReference = $colIndex['external_reference'] !== -1 ? trim($row[$colIndex['external_reference']] ?? '') : null;
+
+            try {
+                $date = Carbon::parse($dateStr)->toDateString();
+            } catch (\Exception $e) {
+                $date = now()->toDateString();
+            }
+
+            $netCredit = $colIndex['net_credit'] !== -1 ? $this->parseMoneyValue($row[$colIndex['net_credit']] ?? '0') : 0.0;
+            $netDebit = $colIndex['net_debit'] !== -1 ? $this->parseMoneyValue($row[$colIndex['net_debit']] ?? '0') : 0.0;
+
+            if ($netDebit > 0) {
+                $tipo = 'saida';
+                $valor = $netDebit;
+            } else if ($netCredit > 0) {
+                $tipo = 'entrada';
+                $valor = $netCredit;
+            } else {
+                continue;
+            }
+
+            $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+            $contaBancariaId = $contaMp ? $contaMp->id : 2;
+
+            $payloadOriginal = [];
+            foreach ($colIndex as $key => $index) {
+                if ($index !== -1) {
+                    $payloadOriginal[$key] = $row[$index] ?? null;
+                }
+            }
+            if (!empty($externalReference)) {
+                $payloadOriginal['external_reference'] = $externalReference;
+            }
+
+            $transacao = TransacaoExtrato::updateOrCreate(
+                ['fitid' => (string) $sourceId],
+                [
+                    'data' => $date,
+                    'descricao' => $description,
+                    'valor' => $valor,
+                    'valor_bruto' => $valor,
+                    'valor_taxa' => 0,
+                    'valor_liquido' => $valor,
+                    'tipo' => $tipo,
+                    'origem' => 'mercadopago',
+                    'conta_bancaria_id' => $contaBancariaId,
+                    'payload_original' => $payloadOriginal
+                ]
+            );
+
+            if ($tipo === 'entrada' && $externalReference && is_numeric($externalReference)) {
+                $pedido = \App\Models\Pedido::find($externalReference);
+                if ($pedido && $pedido->status_pagamento === 'aprovado' && $transacao->status === 'pendente') {
+                    $this->autoConciliarPedido($transacao, $pedido);
+                }
+            }
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Auxiliar para buscar índice correspondente de cabeçalhos candidatos
+     */
+    private function findHeaderIndex(array $headers, array $candidates): int
+    {
+        foreach ($candidates as $candidate) {
+            $index = array_search(strtolower($candidate), $headers);
+            if ($index !== false) {
+                return (int) $index;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Auxiliar para converter valores monetários do CSV em float
+     */
+    private function parseMoneyValue(string $val): float
+    {
+        $clean = preg_replace('/[^0-9\.,-]/', '', $val);
+        if (empty($clean)) return 0.0;
+
+        if (strpos($clean, ',') !== false) {
+            if (strpos($clean, '.') !== false) {
+                $clean = str_replace('.', '', $clean);
+            }
+            $clean = str_replace(',', '.', $clean);
+        }
+
+        return abs((float) $clean);
+    }
+
+    /**
+     * Cria a configuração padrão para geração de relatórios de liquidação no Mercado Pago
+     */
+    private function criarConfiguracaoRelatorioMP(string $accessToken): bool
+    {
+        try {
+            $configUrl = "https://api.mercadopago.com/v1/account/settlement_report/config";
+            $response = Http::withoutVerifying()
+                ->withToken($accessToken)
+                ->post($configUrl, [
+                    'file_name_prefix' => 'conciliacao-mp',
+                    'include_withdraw' => true,
+                    'frequency' => [
+                        'type' => 'manual'
+                    ],
+                    'columns' => [
+                        ['key' => 'DATE'],
+                        ['key' => 'SOURCE_ID'],
+                        ['key' => 'EXTERNAL_REFERENCE'],
+                        ['key' => 'RECORD_TYPE'],
+                        ['key' => 'DESCRIPTION'],
+                        ['key' => 'NET_CREDIT_AMOUNT'],
+                        ['key' => 'NET_DEBIT_AMOUNT']
+                    ]
+                ]);
+
+            if ($response->successful()) {
+                Log::info('Configuração de relatórios criada com sucesso no Mercado Pago.');
+                return true;
+            }
+
+            Log::error('Erro ao criar configuração de relatórios no Mercado Pago', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Exceção ao criar configuração de relatórios no Mercado Pago: ' . $e->getMessage());
+        }
+
+        return false;
     }
 }
