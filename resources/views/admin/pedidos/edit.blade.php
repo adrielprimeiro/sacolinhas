@@ -118,12 +118,7 @@
                             {{-- Custo Real do Frete --}}
                             <div class="flex justify-between items-center text-gray-600">
                                 <span>Custo Real <span class="text-[10px] text-gray-400 block">(Interno)</span></span>
-                                <div class="flex items-center gap-1">
-                                    <span class="text-gray-400 text-xs">R$</span>
-                                    <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real"
-                                           value="{{ old('valor_frete_real', $pedido->valor_frete_real ?? 0) }}"
-                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-yellow-400 focus:border-yellow-400">
-                                </div>
+                                <span id="exib_frete_real" class="font-medium">R$ {{ number_format($pedido->valor_frete_real ?? 0, 2, ',', '.') }}</span>
                             </div>
 
                             {{-- Desconto --}}
@@ -221,18 +216,18 @@
                             <div>
                                 <label class="block text-gray-500 mb-1 font-semibold">Número do Pedido</label>
                                 <input type="text" name="numero_pedido" value="{{ old('numero_pedido', $pedido->numero_pedido) }}"
-                                       class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                       class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             </div>
                             <div>
                                 <label class="block text-gray-500 mb-1 font-semibold">Data do Pedido</label>
                                 <input type="datetime-local" name="data_pedido" 
                                        value="{{ old('data_pedido', !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('Y-m-d\TH:i') : null) }}"
-                                       class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                       class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             </div>
                             <div>
                                 <label class="block text-gray-500 mb-1 font-semibold">Status do Pedido</label>
                                 @php $sp = old('status_pedido', $pedido->status_pedido); @endphp
-                                <select name="status_pedido" class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <select name="status_pedido" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     <option value="pendente" {{ $sp === 'pendente' ? 'selected' : '' }}>Pendente</option>
                                     <option value="confirmado" {{ $sp === 'confirmado' ? 'selected' : '' }}>Confirmado</option>
                                     <option value="processando" {{ $sp === 'processando' ? 'selected' : '' }}>Processando</option>
@@ -249,13 +244,13 @@
                             <div>
                                 <label class="block text-gray-500 mb-1 font-semibold">ID do Cliente</label>
                                 <input type="number" name="user_id" value="{{ old('user_id', $pedido->user_id) }}"
-                                       class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                       class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <p class="text-[10px] text-gray-400 mt-1">Atual: {{ $pedido->user->name ?? 'N/A' }}</p>
                             </div>
                             <div>
                                 <label class="block text-gray-500 mb-1 font-semibold">Origem do Pedido</label>
                                 @php $op = old('origem_pedido', $pedido->origem_pedido); @endphp
-                                <select name="origem_pedido" class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <select name="origem_pedido" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                     <option value="site" {{ $op === 'site' ? 'selected' : '' }}>Site</option>
                                     <option value="live" {{ $op === 'live' ? 'selected' : '' }}>Live</option>
                                     <option value="whatsapp" {{ $op === 'whatsapp' ? 'selected' : '' }}>WhatsApp</option>
@@ -351,31 +346,45 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">CEP</label>
-                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Cidade</label>
-                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">UF</label>
-                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div class="md:col-span-3">
                             <label class="block text-gray-500 mb-1 font-semibold">Endereço Completo</label>
-                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Rastreio</label>
-                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Data Envio</label>
-                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Prev. Entrega</label>
+                            <input type="date" name="data_entrega_prevista" value="{{ old('data_entrega_prevista', !empty($pedido->data_entrega_prevista) ? \Carbon\Carbon::parse($pedido->data_entrega_prevista)->format('Y-m-d') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label class="block text-gray-500 mb-1 font-semibold">Entregue em</label>
-                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Custo Real do Frete (Interno)</label>
+                            <div class="flex shadow-sm rounded-md">
+                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">R$</span>
+                                <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real" 
+                                       value="{{ old('valor_frete_real', $pedido->valor_frete_real ?? 0) }}" 
+                                       oninput="recalcular()"
+                                       class="w-full border border-gray-300 rounded-r-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -385,7 +394,7 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
                         <i class="fas fa-comment-alt text-blue-500"></i> Observações
                     </h2>
-                    <textarea name="observacoes" rows="3" class="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">{{ old('observacoes', $pedido->observacoes) }}</textarea>
+                    <textarea name="observacoes" rows="3" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ old('observacoes', $pedido->observacoes) }}</textarea>
                 </div>
 
                 {{-- Botões de Ação --}}
@@ -411,6 +420,7 @@
     function recalcular() {
         const frete    = parseFloat(document.getElementById('inp_frete')?.value)    || 0;
         const desconto = parseFloat(document.getElementById('inp_desconto')?.value) || 0;
+        const freteReal = parseFloat(document.getElementById('inp_frete_real')?.value) || 0;
 
         // Saldo é fixo (somente leitura): positivo reduz, negativo aumenta
         const totalBruto  = Math.max(0, SUBTOTAL_BASE + frete - desconto);
@@ -418,10 +428,12 @@
 
         const elBruto = document.getElementById('exib_total_bruto');
         const elPagar = document.getElementById('exib_valor_pagar');
+        const elFreteReal = document.getElementById('exib_frete_real');
         const inpTotal = document.getElementById('inp_valor_total');
 
         if (elBruto)  elBruto.textContent  = fmt(totalBruto);
         if (elPagar)  elPagar.textContent  = fmt(valorPagar);
+        if (elFreteReal) elFreteReal.textContent = fmt(freteReal);
         if (inpTotal) inpTotal.value       = valorPagar.toFixed(2);
     }
 

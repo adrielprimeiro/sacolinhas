@@ -315,7 +315,7 @@ class AdminPedidoController extends Controller
 
             'origem_pedido' => [
                 'required',
-                Rule::in(['live', 'site', 'whatsapp', 'instagram', 'admin']),
+                Rule::in(['live', 'site', 'whatsapp', 'instagram', 'admin', 'portal']),
             ],
         ];
     }

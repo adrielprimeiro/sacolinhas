@@ -455,7 +455,7 @@
                                 <div class="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Peso (kg)</label>
-                                        <input type="number" x-model="weight" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                        <input type="text" x-model="weight" placeholder="0,00" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Largura (cm)</label>
@@ -531,7 +531,7 @@
                 openModal: false,
                 loading: false,
                 calculating: false,
-                weight: '',
+                weight: '0,00',
                 width: '',
                 height: '',
                 length: '',
@@ -562,7 +562,8 @@
                 },
 
                 async calculate() {
-                    if (!this.weight || !this.width || !this.height || !this.length) {
+                    const normalizedWeight = String(this.weight).replace(',', '.');
+                    if (!normalizedWeight || !this.weight || !this.width || !this.height || !this.length) {
                         this.error = 'Preencha todas as medidas e o peso.';
                         return;
                     }
@@ -578,7 +579,7 @@
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
                             body: JSON.stringify({
-                                weight: this.weight,
+                                weight: normalizedWeight,
                                 width: this.width,
                                 height: this.height,
                                 length: this.length
@@ -602,6 +603,8 @@
                     this.loading = true;
                     this.error = null;
 
+                    const normalizedWeight = String(this.weight).replace(',', '.');
+
                     try {
                         const res = await fetch(`{{ route('admin.pedido.gerarEtiqueta', $pedido->id) }}`, {
                             method: 'POST',
@@ -611,7 +614,7 @@
                             },
                             body: JSON.stringify({
                                 service_id: serviceId,
-                                weight: this.weight,
+                                weight: normalizedWeight,
                                 width: this.width,
                                 height: this.height,
                                 length: this.length
