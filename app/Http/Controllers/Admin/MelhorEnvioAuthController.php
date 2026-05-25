@@ -35,17 +35,12 @@ class MelhorEnvioAuthController extends Controller
 
         $scopes = [
             'shipping-calculate',
-            'shipping-cancel',
+            'cart-write',
             'shipping-checkout',
-            'shipping-companies',
             'shipping-generate',
-            'shipping-info',
-            'shipping-label',
-            'shipping-list',
             'shipping-print',
-            'shipping-publish',
-            'shipping-tracking',
-            'users-read'
+            'users-read',
+            'shipping-tracking'
         ];
 
         $query = http_build_query([
