@@ -46,7 +46,7 @@ $currentRoute = Route::currentRouteName();
         <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
         <div class="flex gap-2">
             <button @click="showModalOfx = true" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition shadow-sm">
-                <i class="fas fa-file-upload mr-2"></i>Upload OFX
+                <i class="fas fa-file-upload mr-2"></i>Importar Extrato (OFX/CSV)
             </button>
             <button @click="showModalMp = true" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-md">
                 <i class="fab fa-amazon-pay mr-2"></i>Sincronizar Mercado Pago
@@ -232,13 +232,13 @@ $currentRoute = Route::currentRouteName();
         <form action="{{ route('financeiro.conciliacao.importar') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
             @csrf
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 class="font-black text-gray-800">Importar Arquivo OFX</h3>
+                <h3 class="font-black text-gray-800">Importar Extrato Bancário</h3>
                 <button type="button" @click="showModalOfx = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Arquivo (.ofx)</label>
-                    <input type="file" name="arquivo_ofx" class="w-full text-sm border border-gray-200 rounded-xl p-2" accept=".ofx" required>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Arquivo (.ofx ou .csv do Mercado Pago)</label>
+                    <input type="file" name="arquivo_ofx" class="w-full text-sm border border-gray-200 rounded-xl p-2" accept=".ofx,.csv" required>
                 </div>
                 <div>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária Destino</label>

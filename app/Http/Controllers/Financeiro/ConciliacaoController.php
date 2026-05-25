@@ -62,7 +62,15 @@ class ConciliacaoController extends Controller
         $request->validate(['arquivo_ofx' => 'required|file']);
         
         try {
-            $count = $this->service->importarOfx($request->file('arquivo_ofx'), $request->conta_bancaria_id);
+            $file = $request->file('arquivo_ofx');
+            $extension = strtolower($file->getClientOriginalExtension());
+            
+            if ($extension === 'csv') {
+                $count = $this->service->importarCsvMercadoPago($file);
+                return back()->with('success', "{$count} transações importadas do arquivo CSV do Mercado Pago.");
+            }
+            
+            $count = $this->service->importarOfx($file, $request->conta_bancaria_id);
             return back()->with('success', "{$count} transações importadas do arquivo OFX.");
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());

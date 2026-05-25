@@ -46,6 +46,15 @@ class ConciliacaoService
     }
 
     /**
+     * Importar transações de um arquivo CSV do Mercado Pago enviado manualmente
+     */
+    public function importarCsvMercadoPago(UploadedFile $file): int
+    {
+        $content = file_get_contents($file->getRealPath());
+        return $this->processarCsvRelatorio($content);
+    }
+
+    /**
      * Sincronizar transações do Mercado Pago via API
      */
     public function sincronizarMercadoPago(string $startDate, string $endDate)
@@ -510,47 +519,136 @@ class ConciliacaoService
      */
     private function processarCsvRelatorio(string $csvContent): int
     {
+        // Converter codificação para UTF-8 se necessário
+        $encoding = mb_detect_encoding($csvContent, ['UTF-8', 'ISO-8859-1', 'Windows-1252', 'ASCII'], true);
+        if ($encoding && $encoding !== 'UTF-8') {
+            $csvContent = mb_convert_encoding($csvContent, 'UTF-8', $encoding);
+        }
+
         $lines = explode("\n", str_replace("\r", "", $csvContent));
         if (count($lines) < 2) {
             return 0;
         }
 
-        // Auto-detectar delimitador (, ou ;)
-        $firstLine = $lines[0];
+        // 1. Procurar a linha de cabeçalho varrendo as primeiras 30 linhas
+        $headerLineIndex = -1;
+        $headers = [];
         $delimiter = ',';
-        if (strpos($firstLine, ';') !== false && strpos($firstLine, ',') === false) {
-            $delimiter = ';';
-        } else if (strpos($firstLine, ';') !== false && strpos($firstLine, ',') !== false) {
-            $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+        
+        $maxHeaderScan = min(count($lines), 30);
+        for ($i = 0; $i < $maxHeaderScan; $i++) {
+            $line = trim($lines[$i]);
+            if (empty($line)) continue;
+            
+            // Auto-detectar delimitador (, ou ;)
+            $delim = ',';
+            if (strpos($line, ';') !== false && strpos($line, ',') === false) {
+                $delim = ';';
+            } else if (strpos($line, ';') !== false && strpos($line, ',') !== false) {
+                $delim = substr_count($line, ';') > substr_count($line, ',') ? ';' : ',';
+            }
+            
+            $cols = str_getcsv($line, $delim);
+            $colsLower = array_map(function ($h) {
+                return trim(mb_strtolower(str_replace(['"', "'"], '', $h), 'UTF-8'));
+            }, $cols);
+            
+            // Candidatos a cabeçalho da transação: deve conter alguma coluna identificadora de ID
+            $hasId = false;
+            $idCandidates = [
+                'source_id', 'id', 'operation_id', 'transaction_id', 'operacion_id', 
+                'id_transacao', 'id_transação', 'id da transacao', 'id da transação', 
+                'payment_id', 'payment', 'transacao_id', 'transação_id', 'reference_id',
+                'reference', 'referencia', 'referência'
+            ];
+            foreach ($idCandidates as $cand) {
+                if (in_array($cand, $colsLower)) {
+                    $hasId = true;
+                    break;
+                }
+            }
+            
+            // E deve conter alguma coluna de data ou valor
+            $hasDateOrVal = false;
+            $dateValCandidates = [
+                'date', 'generation_date', 'data', 'fecha_liberacion', 'date_released', 
+                'date_created', 'date_approved', 'fecha', 'data_liberacao', 'data_liberação',
+                'release_date', 'net_credit_amount', 'net_debit_amount', 'amount', 'valor',
+                'valor_liquido', 'net_received_amount', 'valor_liquido_recebido', 'valor_recebido',
+                'transaction_net_amount', 'net_amount', 'settlement_net_amount'
+            ];
+            foreach ($dateValCandidates as $cand) {
+                if (in_array($cand, $colsLower)) {
+                    $hasDateOrVal = true;
+                    break;
+                }
+            }
+            
+            if ($hasId && $hasDateOrVal) {
+                $headerLineIndex = $i;
+                $headers = $colsLower;
+                $delimiter = $delim;
+                break;
+            }
         }
 
-        // Parse do cabeçalho
-        $headers = str_getcsv($firstLine, $delimiter);
-        $headers = array_map(function ($h) {
-            return trim(strtolower(str_replace(['"', "'"], '', $h)));
-        }, $headers);
+        // Se colunas fundamentais não forem encontradas, abortar processamento
+        if ($headerLineIndex === -1) {
+            $preview = array_slice($lines, 0, 10);
+            Log::error('Cabeçalho do CSV do Mercado Pago inválido. Colunas cruciais não encontradas.', [
+                'first_lines_preview' => $preview
+            ]);
+            return 0;
+        }
 
-        // Mapeamento de colunas importantes
+        // Mapeamento de colunas importantes baseado no cabeçalho encontrado
         $colIndex = [
-            'date' => $this->findHeaderIndex($headers, ['date', 'generation_date', 'data', 'fecha_liberacion', 'date_released']),
-            'source_id' => $this->findHeaderIndex($headers, ['source_id', 'id', 'operation_id', 'transaction_id', 'operacion_id']),
-            'description' => $this->findHeaderIndex($headers, ['description', 'descricao', 'concept', 'concepto', 'detail', 'record_type']),
-            'net_credit' => $this->findHeaderIndex($headers, ['net_credit_amount', 'net_credit', 'credit', 'credito', 'amount_credited']),
-            'net_debit' => $this->findHeaderIndex($headers, ['net_debit_amount', 'net_debit', 'debit', 'debito', 'amount_debited']),
-            'external_reference' => $this->findHeaderIndex($headers, ['external_reference', 'id_externo', 'referencia_externa']),
+            'date' => $this->findHeaderIndex($headers, [
+                'date', 'generation_date', 'data', 'fecha_liberacion', 'date_released', 
+                'date_created', 'date_approved', 'fecha', 'data_liberacao', 'data_liberação',
+                'release_date'
+            ]),
+            'source_id' => $this->findHeaderIndex($headers, [
+                'source_id', 'id', 'operation_id', 'transaction_id', 'operacion_id', 
+                'id_transacao', 'id_transação', 'id da transacao', 'id da transação', 
+                'payment_id', 'payment', 'transacao_id', 'transação_id', 'reference_id',
+                'reference', 'referencia', 'referência'
+            ]),
+            'description' => $this->findHeaderIndex($headers, [
+                'description', 'descricao', 'descrição', 'concept', 'concepto', 'detail', 
+                'record_type', 'concept_desc', 'motivo', 'tipo_movimentacao', 'tipo_movimentação',
+                'transaction_type', 'tipo_transacao', 'tipo_transação'
+            ]),
+            'net_credit' => $this->findHeaderIndex($headers, [
+                'net_credit_amount', 'net_credit', 'credit', 'credito', 'crédito', 
+                'amount_credited', 'valor_bruto', 'transaction_amount'
+            ]),
+            'net_debit' => $this->findHeaderIndex($headers, [
+                'net_debit_amount', 'net_debit', 'debit', 'debito', 'débito', 'amount_debited'
+            ]),
+            'value_signed' => $this->findHeaderIndex($headers, [
+                'net_received_amount', 'valor_liquido', 'valor_liquido_recebido', 'valor_líquido', 
+                'valor_líquido_recebido', 'valor', 'amount', 'net_amount', 'settlement_net_amount', 
+                'valor_recebido', 'transaction_net_amount'
+            ]),
+            'external_reference' => $this->findHeaderIndex($headers, [
+                'external_reference', 'id_externo', 'referencia_externa', 'referência_externa', 'purchase_order'
+            ]),
         ];
 
-        // Se colunas fundamentais não forem encontradas, abortar processamento deste arquivo
+        // Se por acaso as colunas principais mapeadas de data ou id forem -1, abortar
         if ($colIndex['source_id'] === -1 || $colIndex['date'] === -1) {
-            Log::error('Cabeçalho do CSV do Mercado Pago inválido. Colunas cruciais não encontradas.', [
-                'headers' => $headers
+            Log::error('Erro ao mapear colunas essenciais após encontrar linha de cabeçalho.', [
+                'headers' => $headers,
+                'colIndex' => $colIndex
             ]);
             return 0;
         }
 
         $count = 0;
 
-        for ($i = 1; $i < count($lines); $i++) {
+        // Processar registros reais a partir de $headerLineIndex + 1
+        for ($i = $headerLineIndex + 1; $i < count($lines); $i++) {
             $line = trim($lines[$i]);
             if (empty($line)) continue;
 
@@ -569,7 +667,12 @@ class ConciliacaoService
             $externalReference = $colIndex['external_reference'] !== -1 ? trim($row[$colIndex['external_reference']] ?? '') : null;
 
             try {
-                $date = Carbon::parse($dateStr)->toDateString();
+                // Tratar data no formato brasileiro DD-MM-YYYY ou DD/MM/YYYY
+                if (preg_match('/^(\d{2})[\/-](\d{2})[\/-](\d{4})(.*)$/', $dateStr, $matches)) {
+                    $date = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
+                } else {
+                    $date = Carbon::parse($dateStr)->toDateString();
+                }
             } catch (\Exception $e) {
                 $date = now()->toDateString();
             }
@@ -577,12 +680,21 @@ class ConciliacaoService
             $netCredit = $colIndex['net_credit'] !== -1 ? $this->parseMoneyValue($row[$colIndex['net_credit']] ?? '0') : 0.0;
             $netDebit = $colIndex['net_debit'] !== -1 ? $this->parseMoneyValue($row[$colIndex['net_debit']] ?? '0') : 0.0;
 
+            $tipo = 'entrada';
+            $valor = 0.0;
+
             if ($netDebit > 0) {
                 $tipo = 'saida';
                 $valor = $netDebit;
             } else if ($netCredit > 0) {
                 $tipo = 'entrada';
                 $valor = $netCredit;
+            } else if ($colIndex['value_signed'] !== -1) {
+                // Caso use coluna única de valor com sinal positivo/negativo
+                $rawVal = $row[$colIndex['value_signed']] ?? '0';
+                $floatVal = $this->parseMoneyValueRaw($rawVal);
+                $valor = abs($floatVal);
+                $tipo = $floatVal >= 0 ? 'entrada' : 'saida';
             } else {
                 continue;
             }
@@ -644,7 +756,7 @@ class ConciliacaoService
     }
 
     /**
-     * Auxiliar para converter valores monetários do CSV em float
+     * Auxiliar para converter valores monetários do CSV em float (preservando valor absoluto)
      */
     private function parseMoneyValue(string $val): float
     {
@@ -659,6 +771,24 @@ class ConciliacaoService
         }
 
         return abs((float) $clean);
+    }
+
+    /**
+     * Auxiliar para converter valores monetários preservando o sinal negativo
+     */
+    private function parseMoneyValueRaw(string $val): float
+    {
+        $clean = preg_replace('/[^0-9\.,-]/', '', $val);
+        if (empty($clean)) return 0.0;
+
+        if (strpos($clean, ',') !== false) {
+            if (strpos($clean, '.') !== false) {
+                $clean = str_replace('.', '', $clean);
+            }
+            $clean = str_replace(',', '.', $clean);
+        }
+
+        return (float) $clean;
     }
 
     /**
