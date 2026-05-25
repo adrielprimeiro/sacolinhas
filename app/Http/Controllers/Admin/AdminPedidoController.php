@@ -368,7 +368,7 @@ class AdminPedidoController extends Controller
             ],
 
             'valor_total' => ['required', 'numeric', 'min:0'],
-            'valor_saldo_utilizado' => ['nullable', 'numeric', 'min:0'],
+            'valor_saldo_utilizado' => ['nullable', 'numeric'],
             'valor_frete' => ['nullable', 'numeric', 'min:0'],
             'valor_frete_real' => ['nullable', 'numeric', 'min:0'],
             'valor_desconto' => ['nullable', 'numeric', 'min:0'],
