@@ -79,6 +79,9 @@ class MercadoPagoController extends Controller
         // Pega os dados enviados pelo Brick
         $data = $request->all();
 
+        // Remove parâmetros customizados de URL/Request que não fazem parte do schema oficial do Mercado Pago
+        unset($data['valor']);
+
         // Limpeza de campos vazios que causam erro 500 no MP
         if (empty($data['issuer_id'])) {
             unset($data['issuer_id']);
