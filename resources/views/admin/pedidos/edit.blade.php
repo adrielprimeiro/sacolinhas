@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Editar Pedido #' . ($pedido->numero_pedido ?? $pedido->id))
+@section('title', 'Editar #' . $pedido->id)
 @section('brand_route', 'admin.pedido.index')
 @section('brand_icon', 'fas fa-receipt')
 
@@ -8,29 +8,15 @@
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-semibold text-gray-800">
-                Editar Pedido #{{ $pedido->numero_pedido ?? $pedido->id }}
+                Editar #{{ $pedido->numero_pedido ?? $pedido->id }}
             </h1>
-            <p class="text-sm text-gray-600 mt-1">
-                Criado em: {{ !empty($pedido->created_at) ? $pedido->created_at->format('d/m/Y H:i') : '—' }}
-                • Atualizado em: {{ !empty($pedido->updated_at) ? $pedido->updated_at->format('d/m/Y H:i') : '—' }}
-            </p>
         </div>
 
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.pedido.index') }}"
-               class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-arrow-left mr-2"></i> Voltar
+               class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                <i class="fas fa-arrow-left mr-1.5"></i> Voltar
             </a>
-
-            <form id="devolucaoForm" action="{{ route('admin.pedido.devolucao', $pedido->id) }}" method="POST">
-                @csrf
-                <button id="btnDevolucao"
-                        type="submit"
-                        disabled
-                        class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300 opacity-50 cursor-not-allowed">
-                    <i class="fas fa-undo mr-2"></i> Devolução
-                </button>
-            </form>
         </div>
     </div>
 
@@ -180,6 +166,57 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Entrega --}}
+                <div class="bg-white shadow-lg rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">CEP</label>
+                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Cidade</label>
+                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">UF</label>
+                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-gray-500 mb-1 font-semibold">Endereço Completo</label>
+                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Rastreio</label>
+                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Data Envio</label>
+                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Prev. Entrega</label>
+                            <input type="date" name="data_entrega_prevista" value="{{ old('data_entrega_prevista', !empty($pedido->data_entrega_prevista) ? \Carbon\Carbon::parse($pedido->data_entrega_prevista)->format('Y-m-d') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Entregue em</label>
+                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1 font-semibold">Frete Pago</label>
+                            <div class="flex shadow-sm rounded-md">
+                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">R$</span>
+                                <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real" 
+                                       value="{{ old('valor_frete_real', $pedido->valor_frete_real ?? 0) }}" 
+                                       oninput="recalcular()"
+                                       class="w-full border border-gray-300 rounded-r-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {{-- Coluna Direita: Resumo + Itens --}}
@@ -188,7 +225,7 @@
                 {{-- Card Resumo (ID, Cliente, etc.) --}}
                 <div class="bg-white shadow-lg rounded-lg p-6">
                     <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-info-circle text-blue-500"></i> Resumo do Pedido
+                        <i class="fas fa-info-circle text-blue-500"></i> Pedido
                     </h2>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -244,15 +281,26 @@
                 </div>
 
                 {{-- Itens do Pedido --}}
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="bg-white shadow-lg rounded-lg pt-6 pb-4 px-4 sm:px-6">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
                         <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                            <i class="fas fa-boxes text-blue-500"></i> Itens do Pedido
+                            <i class="fas fa-boxes text-blue-500"></i> Itens
                         </h2>
-                        <button type="button" onclick="abrirModalAdicionarItem()"
-                                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow transition duration-200">
-                            <i class="fas fa-plus mr-1"></i> Adicionar Item
-                        </button>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <form id="devolucaoForm" action="{{ route('admin.pedido.devolucao', $pedido->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button id="btnDevolucao"
+                                        type="submit"
+                                        disabled
+                                        class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition duration-300 opacity-50 cursor-not-allowed">
+                                    <i class="fas fa-undo mr-1"></i> Devolução
+                                </button>
+                            </form>
+                            <button type="button" onclick="abrirModalAdicionarItem()"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 rounded-lg shadow transition duration-200">
+                                <i class="fas fa-plus mr-1"></i> + Item
+                            </button>
+                        </div>
                     </div>
 
                     @php
@@ -264,48 +312,44 @@
                     @endphp
 
                     @if($itens->count() > 0)
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto -mx-4 sm:-mx-6">
                             <table class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
                                     <tr>
-                                        <th class="px-4 py-3 text-left">Produto</th>
-                                        <th class="px-4 py-3 text-center">Qtde</th>
-                                        <th class="px-4 py-3 text-right">Unit.</th>
-                                        <th class="px-4 py-3 text-right">Total</th>
-                                        <th class="px-4 py-3 text-center">Status</th>
-                                        <th class="px-4 py-3 text-center">Devolver</th>
-                                        <th class="px-4 py-3 text-center">Ações</th>
+                                        <th class="px-2 sm:px-4 py-3 text-left">Produto</th>
+                                        <th class="px-2 sm:px-4 py-3 text-right">Total</th>
+                                        <th class="px-2 sm:px-4 py-3 text-center">Status</th>
+                                        <th class="px-2 sm:px-4 py-3 text-center">Devolver</th>
+                                        <th class="px-2 sm:px-4 py-3 text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach($itens as $item)
                                         <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3">
+                                            <td class="px-2 sm:px-4 py-3">
                                                 <div class="flex items-center gap-2">
-                                                    <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                                    <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
                                                         @if($item->image)
                                                             <img src="{{ asset('storage/' . ltrim($item->image, '/')) }}" class="w-full h-full object-cover">
                                                         @endif
                                                     </div>
-                                                    <div>
-                                                        <div class="font-bold text-gray-900 leading-tight">{{ $item->nome_do_produto }}</div>
-                                                        <div class="text-[10px] text-gray-500">Cód: {{ $item->codigo }} • {{ $item->marca }} • Tam: {{ $item->tamanho }}</div>
+                                                    <div class="max-w-[80px] sm:max-w-xs overflow-hidden">
+                                                        <div class="font-bold text-gray-900 leading-tight truncate">{{ $item->nome_do_produto }}</div>
+                                                        <div class="text-[10px] text-gray-500 truncate">Cód: {{ $item->codigo }} • {{ $item->marca }} • Tam: {{ $item->tamanho }}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-3 text-center">{{ $item->quantidade }}</td>
-                                            <td class="px-4 py-3 text-right">R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}</td>
-                                            <td class="px-4 py-3 text-right font-bold">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</td>
-                                            <td class="px-4 py-3 text-center">
+                                            <td class="px-2 sm:px-4 py-3 text-right font-bold">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</td>
+                                            <td class="px-2 sm:px-4 py-3 text-center">
                                                 <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase
                                                     {{ $item->status_item === 'ativo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">
                                                     {{ $item->status_item }}
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-3 text-center">
+                                            <td class="px-2 sm:px-4 py-3 text-center">
                                                 <input type="checkbox" name="itens_devolver[]" value="{{ $item->id }}" form="devolucaoForm" class="chkDevolver h-4 w-4 text-indigo-600">
                                             </td>
-                                            <td class="px-4 py-3 text-center">
+                                            <td class="px-2 sm:px-4 py-3 text-center">
                                                 <button type="button" onclick="confirmarRemocao({{ $item->id }}, '{{ addslashes($item->nome_do_produto) }}')" class="text-red-500 hover:text-red-700">
                                                     <i class="fas fa-trash-alt"></i>
                                                 </button>
@@ -316,57 +360,6 @@
                             </table>
                         </div>
                     @endif
-                </div>
-
-                {{-- Entrega --}}
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">CEP</label>
-                            <input type="text" name="cep_entrega" value="{{ old('cep_entrega', $pedido->cep_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Cidade</label>
-                            <input type="text" name="cidade_entrega" value="{{ old('cidade_entrega', $pedido->cidade_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">UF</label>
-                            <input type="text" name="estado_entrega" value="{{ old('estado_entrega', $pedido->estado_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div class="md:col-span-3">
-                            <label class="block text-gray-500 mb-1 font-semibold">Endereço Completo</label>
-                            <input type="text" name="endereco_entrega" value="{{ old('endereco_entrega', $pedido->endereco_entrega) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Rastreio</label>
-                            <input type="text" name="codigo_rastreamento" value="{{ old('codigo_rastreamento', $pedido->codigo_rastreamento) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Data Envio</label>
-                            <input type="datetime-local" name="data_envio" value="{{ old('data_envio', !empty($pedido->data_envio) ? \Carbon\Carbon::parse($pedido->data_envio)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Prev. Entrega</label>
-                            <input type="date" name="data_entrega_prevista" value="{{ old('data_entrega_prevista', !empty($pedido->data_entrega_prevista) ? \Carbon\Carbon::parse($pedido->data_entrega_prevista)->format('Y-m-d') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Entregue em</label>
-                            <input type="datetime-local" name="data_entrega_realizada" value="{{ old('data_entrega_realizada', !empty($pedido->data_entrega_realizada) ? \Carbon\Carbon::parse($pedido->data_entrega_realizada)->format('Y-m-d\TH:i') : null) }}" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1 font-semibold">Frete Pago</label>
-                            <div class="flex shadow-sm rounded-md">
-                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">R$</span>
-                                <input type="number" step="0.01" name="valor_frete_real" id="inp_frete_real" 
-                                       value="{{ old('valor_frete_real', $pedido->valor_frete_real ?? 0) }}" 
-                                       oninput="recalcular()"
-                                       class="w-full border border-gray-300 rounded-r-md py-2 px-3 sm:text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {{-- Observações --}}
@@ -429,8 +422,8 @@
             const anyChecked = !!document.querySelector('.chkDevolver:checked');
             btn.disabled = !anyChecked;
             btn.className = anyChecked 
-                ? 'bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition' 
-                : 'bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition opacity-50 cursor-not-allowed';
+                ? 'bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition' 
+                : 'bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition opacity-50 cursor-not-allowed';
         }
         document.addEventListener('change', e => { if (e.target.classList.contains('chkDevolver')) refresh(); });
     });
