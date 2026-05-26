@@ -454,9 +454,9 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50 text-gray-600 text-xs uppercase font-bold tracking-wider">
                                 <tr>
-                                    <th class="px-3 sm:px-4 py-3 text-left">Produto</th>
-                                    <th class="px-3 sm:px-4 py-3 text-left">Detalhes</th>
-                                    <th class="px-3 sm:px-4 py-3 text-right font-bold">Total</th>
+                                    <th class="px-2 sm:px-4 py-3 text-left">Produto</th>
+                                    <th class="px-2 sm:px-4 py-3 text-left">Detalhes</th>
+                                    <th class="px-2 sm:px-4 py-3 text-right font-bold">Total</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200 text-sm">
@@ -466,7 +466,7 @@
                                         $imgUrl = $img ? asset('storage/' . ltrim($img, '/')) : null;
                                     @endphp
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-3 sm:px-4 py-4">
+                                        <td class="px-2 sm:px-4 py-4">
                                             <div class="flex items-center">
                                                 @if($imgUrl)
                                                     <img class="h-8 w-8 rounded-md object-cover mr-2 sm:mr-3 border border-gray-100 shadow-sm" src="{{ $imgUrl }}" alt="">
@@ -475,16 +475,16 @@
                                                         <i class="fas fa-image"></i>
                                                     </div>
                                                 @endif
-                                                <div class="max-w-[120px] sm:max-w-xs overflow-hidden">
+                                                <div class="max-w-[80px] sm:max-w-xs overflow-hidden">
                                                     <div class="text-sm font-semibold text-gray-900 truncate">{{ $item->nome_do_produto }}</div>
-                                                    <div class="text-xs text-gray-500">{{ $item->codigo ?? 'N/A' }}</div>
+                                                    <div class="text-xs text-gray-500 truncate">{{ $item->codigo ?? 'N/A' }}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="px-3 sm:px-4 py-4 text-xs text-gray-600">
+                                        <td class="px-2 sm:px-4 py-4 text-xs text-gray-600">
                                             {{ $item->marca }} • {{ $item->estado }} • {{ $item->cor }} • Tam: {{ $item->tamanho }}
                                         </td>
-                                        <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold">
+                                        <td class="px-2 sm:px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold">
                                             R$ {{ number_format($item->valor_total, 2, ',', '.') }}
                                         </td>
                                     </tr>
@@ -492,8 +492,8 @@
                             </tbody>
                             <tfoot class="bg-gray-50">
                                 <tr>
-                                    <td colspan="2" class="px-3 sm:px-4 py-3 text-right text-sm font-semibold text-gray-600">Subtotal dos Itens:</td>
-                                    <td class="px-3 sm:px-4 py-3 text-right text-sm font-extrabold text-gray-900">R$ {{ number_format($subtotal, 2, ',', '.') }}</td>
+                                    <td colspan="2" class="px-2 sm:px-4 py-3 text-right text-sm font-semibold text-gray-600">Subtotal dos Itens:</td>
+                                    <td class="px-2 sm:px-4 py-3 text-right text-sm font-extrabold text-gray-900">R$ {{ number_format($subtotal, 2, ',', '.') }}</td>
                                 </tr>
                             </tfoot>
                         </table>
