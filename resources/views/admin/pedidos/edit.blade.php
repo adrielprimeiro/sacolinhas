@@ -143,7 +143,6 @@
                                 </div>
                                 <div class="text-[10px] text-gray-500 space-y-1">
                                     <p>Saldo da Carteira Atual: <span class="font-bold text-gray-700">R$ {{ number_format($saldoCarteira, 2, ',', '.') }}</span></p>
-                                    <p>Saldo Disponível (incluindo o alocado neste pedido): <span class="font-bold text-green-600">R$ {{ number_format($saldoDisponivel, 2, ',', '.') }}</span></p>
                                     <p class="text-[9px] text-gray-400 italic mt-1 leading-normal">
                                         * Use valor positivo para desconto (debitando da carteira). Use valor negativo para embutir uma dívida anterior da cliente no pedido.
                                     </p>
@@ -298,7 +297,7 @@
                             </form>
                             <button type="button" onclick="abrirModalAdicionarItem()"
                                     class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 rounded-lg shadow transition duration-200">
-                                <i class="fas fa-plus mr-1"></i> + Item
+                                <i class="fas fa-plus mr-1"></i> Item
                             </button>
                         </div>
                     </div>
