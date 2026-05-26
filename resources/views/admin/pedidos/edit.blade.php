@@ -286,15 +286,13 @@
                             <i class="fas fa-boxes text-blue-500"></i> Itens
                         </h2>
                         <div class="flex items-center gap-2 flex-wrap">
-                            <form id="devolucaoForm" action="{{ route('admin.pedido.devolucao', $pedido->id) }}" method="POST" class="inline">
-                                @csrf
-                                <button id="btnDevolucao"
-                                        type="submit"
-                                        disabled
-                                        class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition duration-300 opacity-50 cursor-not-allowed">
-                                    <i class="fas fa-undo mr-1"></i> Devolução
-                                </button>
-                            </form>
+                            <button id="btnDevolucao"
+                                    type="submit"
+                                    form="devolucaoForm"
+                                    disabled
+                                    class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition duration-300 opacity-50 cursor-not-allowed">
+                                <i class="fas fa-undo mr-1"></i> Devolução
+                            </button>
                             <button type="button" onclick="abrirModalAdicionarItem()"
                                     class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 rounded-lg shadow transition duration-200">
                                 <i class="fas fa-plus mr-1"></i> Item
@@ -376,6 +374,10 @@
                 </div>
             </div>
         </div>
+    </form>
+
+    <form id="devolucaoForm" action="{{ route('admin.pedido.devolucao', $pedido->id) }}" method="POST" class="hidden">
+        @csrf
     </form>
 
     {{-- Modais e Scripts (Mantidos) --}}
