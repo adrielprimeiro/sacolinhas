@@ -49,31 +49,27 @@
     <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
             <h1 class="text-3xl font-semibold text-gray-800">
-                Pedido #{{ $pedido->numero_pedido ?? $pedido->id }}
+                {{ $pedido->numero_pedido ?? $pedido->id }}
             </h1>
-            <p class="text-sm text-gray-600 mt-1">
-                Criado em: {{ !empty($pedido->created_at) ? $pedido->created_at->format('d/m/Y H:i') : '—' }}
-                • Atualizado em: {{ !empty($pedido->updated_at) ? $pedido->updated_at->format('d/m/Y H:i') : '—' }}
-            </p>
         </div>
 
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-1.5 flex-wrap">
             <a href="{{ route('admin.pedido.index') }}"
-               class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-arrow-left mr-2"></i> Voltar
+               class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                <i class="fas fa-arrow-left mr-1.5"></i> Voltar
             </a>
             <a href="{{ route('admin.pedido.pdf', $pedido->id) }}" target="_blank"
-               class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-file-pdf mr-2"></i> Gerar PDF
+               class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                <i class="fas fa-file-pdf mr-1.5"></i> PDF
             </a>
             <a href="{{ route('admin.pedido.edit', $pedido->id) }}"
-               class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-edit mr-2"></i> Editar
+               class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                <i class="fas fa-edit mr-1.5"></i> Editar
             </a>
             @if(($pedido->status_pagamento ?? '') !== 'aprovado' && $valorRestante > 0)
             <button onclick="openPaymentLinkModal()"
-                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                <i class="fas fa-link mr-2"></i> Link Pagamento
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                <i class="fas fa-link mr-1.5"></i> Link Pagamento
             </button>
             @endif
             <form action="{{ route('admin.pedido.destroy', $pedido->id) }}" method="POST"
@@ -81,8 +77,8 @@
                 @csrf
                 @method('DELETE')
                 <button type="submit"
-                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
-                    <i class="fas fa-trash-alt mr-2"></i> Excluir
+                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                    <i class="fas fa-trash-alt mr-1.5"></i> Excluir
                 </button>
             </form>
         </div>
@@ -178,138 +174,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        {{-- Coluna Direita: Resumo + Itens --}}
-        <div class="lg:col-span-2 space-y-6">
-            
-            {{-- Card Resumo (Movido para cima dos itens) --}}
-            <div class="bg-white shadow-lg rounded-lg p-6 border-l-4 border-blue-500">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-info-circle text-blue-500"></i> Resumo do Pedido
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm">
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">ID</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->id }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">Número</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->numero_pedido }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">Data</span>
-                        <span class="text-gray-800 font-medium">{{ !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('d/m/Y H:i') : '—' }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">Status Pedido</span>
-                        @php $st = $pedido->status_pedido; @endphp
-                        <span class="bg-gray-100 text-gray-700 py-0.5 px-2 rounded text-xs font-semibold capitalize">{{ $st }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2 md:col-span-1">
-                        <span class="text-gray-500">Cliente</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->user->name ?? 'N/A' }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">WhatsApp</span>
-                        <span class="text-gray-800 font-medium">{{ $pedido->user->whatsapp ?? '—' }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">E-mail</span>
-                        <span class="text-gray-600 text-xs">{{ $pedido->user->email ?? '—' }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">Origem</span>
-                        <span class="text-gray-800 font-medium capitalize">{{ $pedido->origem_pedido ?? 'Site' }}</span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Itens do Pedido --}}
-            <div class="bg-white shadow-lg rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fas fa-boxes text-blue-500"></i> Itens do Pedido
-                </h2>
-
-                @if($itens->count() > 0)
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 text-gray-600 text-xs uppercase font-bold tracking-wider">
-                                <tr>
-                                    <th class="px-4 py-3 text-left">Produto</th>
-                                    <th class="px-4 py-3 text-left">Detalhes</th>
-                                    <th class="px-4 py-3 text-center">Qtde</th>
-                                    <th class="px-4 py-3 text-right">Preço Unit.</th>
-                                    <th class="px-4 py-3 text-right font-bold">Total</th>
-                                    <th class="px-4 py-3 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200 text-sm">
-                                @foreach($itens as $item)
-                                    @php
-                                        $img    = $item->image ?? null;
-                                        $imgUrl = $img ? asset('storage/' . ltrim($img, '/')) : null;
-                                        $si     = $item->status_item;
-                                    @endphp
-                                    <tr>
-                                        <td class="px-4 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                @if($imgUrl)
-                                                    <img class="h-10 w-10 rounded-md object-cover mr-3 border border-gray-100 shadow-sm" src="{{ $imgUrl }}" alt="">
-                                                @else
-                                                    <div class="h-10 w-10 rounded-md bg-gray-100 flex items-center justify-center mr-3 text-gray-400">
-                                                        <i class="fas fa-image"></i>
-                                                    </div>
-                                                @endif
-                                                <div class="max-w-xs overflow-hidden">
-                                                    <div class="text-sm font-semibold text-gray-900 truncate">{{ $item->nome_do_produto }}</div>
-                                                    <div class="text-xs text-gray-500">{{ $item->codigo ?? 'N/A' }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-4 text-xs text-gray-600">
-                                            {{ $item->marca }} • {{ $item->estado }} • {{ $item->cor }} • Tam: {{ $item->tamanho }}
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-center text-gray-700">
-                                            {{ $item->quantidade }}
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-right text-gray-700">
-                                            R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold">
-                                            R$ {{ number_format($item->valor_total, 2, ',', '.') }}
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-center">
-                                            @if($si === 'ativo')
-                                                <span class="bg-green-100 text-green-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase">Ativo</span>
-                                            @elseif($si === 'cancelado')
-                                                <span class="bg-red-100 text-red-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase">Cancelado</span>
-                                            @elseif($si === 'devolvido')
-                                                <span class="bg-orange-100 text-orange-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase">Devolvido</span>
-                                            @else
-                                                <span class="bg-gray-100 text-gray-700 py-0.5 px-2 rounded-full text-[10px] font-bold uppercase">{{ $si }}</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                            <tfoot class="bg-gray-50">
-                                <tr>
-                                    <td colspan="4" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Subtotal dos Itens:</td>
-                                    <td class="px-4 py-3 text-right text-sm font-extrabold text-gray-900">R$ {{ number_format($subtotal, 2, ',', '.') }}</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                @else
-                    <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                        <i class="fas fa-box-open text-gray-300 text-4xl mb-3"></i>
-                        <p class="text-gray-500 italic">Nenhum item vinculado a este pedido.</p>
-                    </div>
-                @endif
             </div>
 
             {{-- Entrega --}}
@@ -522,6 +386,124 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        {{-- Coluna Direita: Resumo + Itens --}}
+        <div class="lg:col-span-2 space-y-6">
+            
+            {{-- Card Resumo (Movido para cima dos itens) --}}
+            <div class="bg-white shadow-lg rounded-lg p-6 border-l-4 border-blue-500">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-info-circle text-blue-500"></i> Pedido
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm">
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">ID</span>
+                        <span class="text-gray-800 font-medium">{{ $pedido->id }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Número</span>
+                        <span class="text-gray-800 font-medium">{{ $pedido->numero_pedido }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Data</span>
+                        <span class="text-gray-800 font-medium">{{ !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('d/m/Y H:i') : '—' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Status Pedido</span>
+                        @php $st = $pedido->status_pedido; @endphp
+                        <span class="bg-gray-100 text-gray-700 py-0.5 px-2 rounded text-xs font-semibold capitalize">{{ $st }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2 md:col-span-1">
+                        <span class="text-gray-500">Cliente</span>
+                        <span class="text-gray-800 font-medium">{{ $pedido->user->name ?? 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">WhatsApp</span>
+                        <span class="text-gray-800 font-medium">{{ $pedido->user->whatsapp ?? '—' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">E-mail</span>
+                        <span class="text-gray-600 text-xs">{{ $pedido->user->email ?? '—' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Origem</span>
+                        <span class="text-gray-800 font-medium capitalize">{{ $pedido->origem_pedido ?? 'Site' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Criado em</span>
+                        <span class="text-gray-800 font-medium">{{ !empty($pedido->created_at) ? $pedido->created_at->format('d/m/Y H:i') : '—' }}</span>
+                    </div>
+                    <div class="flex justify-between gap-4 border-b border-gray-50 pb-2">
+                        <span class="text-gray-500">Atualizado em</span>
+                        <span class="text-gray-800 font-medium">{{ !empty($pedido->updated_at) ? $pedido->updated_at->format('d/m/Y H:i') : '—' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Itens do Pedido --}}
+            <div class="bg-white shadow-lg rounded-lg pt-6 pb-4 px-4 sm:px-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-boxes text-blue-500"></i> Itens do Pedido
+                </h2>
+
+                @if($itens->count() > 0)
+                    <div class="overflow-x-auto -mx-4 sm:-mx-6">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 text-gray-600 text-xs uppercase font-bold tracking-wider">
+                                <tr>
+                                    <th class="px-3 sm:px-4 py-3 text-left">Produto</th>
+                                    <th class="px-3 sm:px-4 py-3 text-left">Detalhes</th>
+                                    <th class="px-3 sm:px-4 py-3 text-right font-bold">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200 text-sm">
+                                @foreach($itens as $item)
+                                    @php
+                                        $img    = $item->image ?? null;
+                                        $imgUrl = $img ? asset('storage/' . ltrim($img, '/')) : null;
+                                    @endphp
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 sm:px-4 py-4">
+                                            <div class="flex items-center">
+                                                @if($imgUrl)
+                                                    <img class="h-8 w-8 rounded-md object-cover mr-2 sm:mr-3 border border-gray-100 shadow-sm" src="{{ $imgUrl }}" alt="">
+                                                @else
+                                                    <div class="h-8 w-8 rounded-md bg-gray-100 flex items-center justify-center mr-2 sm:mr-3 text-gray-400">
+                                                        <i class="fas fa-image"></i>
+                                                    </div>
+                                                @endif
+                                                <div class="max-w-[120px] sm:max-w-xs overflow-hidden">
+                                                    <div class="text-sm font-semibold text-gray-900 truncate">{{ $item->nome_do_produto }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $item->codigo ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 sm:px-4 py-4 text-xs text-gray-600">
+                                            {{ $item->marca }} • {{ $item->estado }} • {{ $item->cor }} • Tam: {{ $item->tamanho }}
+                                        </td>
+                                        <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold">
+                                            R$ {{ number_format($item->valor_total, 2, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="2" class="px-3 sm:px-4 py-3 text-right text-sm font-semibold text-gray-600">Subtotal dos Itens:</td>
+                                    <td class="px-3 sm:px-4 py-3 text-right text-sm font-extrabold text-gray-900">R$ {{ number_format($subtotal, 2, ',', '.') }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <i class="fas fa-box-open text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500 italic">Nenhum item vinculado a este pedido.</p>
+                    </div>
+                @endif
             </div>
 
             {{-- Observações --}}
