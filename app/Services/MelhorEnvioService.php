@@ -141,7 +141,7 @@ class MelhorEnvioService
             'service' => $serviceId,
             'agency' => null, // Opcional, a não ser que seja Jadlog e não tenha coleta
             'from' => [
-                'name' => env('APP_NAME', 'Loja'),
+                'name' => config('app.name', 'Minha Mania'),
                 'phone' => env('STORE_PHONE', '48999999999'),
                 'email' => env('MAIL_FROM_ADDRESS', 'contato@loja.com'),
                 'document' => env('STORE_DOCUMENT', '18560052321'), // CPF/CNPJ válido matemático de fallback

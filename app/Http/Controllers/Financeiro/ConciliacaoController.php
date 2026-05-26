@@ -51,7 +51,7 @@ class ConciliacaoController extends Controller
     {
         try {
             $count = $this->service->sincronizarMercadoPago($request->start_date, $request->end_date);
-            return back()->with('success', "{$count} transações sincronizadas do Mercado Pago.");
+            return back()->with('success', "{$count} transações sincronizadas do Mercado Pago. Nota: Recebimentos são importados na hora, mas saídas (Pix enviados, retiradas e tarifas) dependem de relatórios que o Mercado Pago gera de forma assíncrona. Se tiver saídas no período, clique em Sincronizar novamente em alguns minutos para importá-las.");
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }

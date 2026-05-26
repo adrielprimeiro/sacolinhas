@@ -273,11 +273,18 @@ $currentRoute = Route::currentRouteName();
                         <input type="date" name="end_date" class="w-full text-sm border border-gray-200 rounded-xl p-2" value="{{ date('Y-m-d') }}" required>
                     </div>
                 </div>
-                <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl flex gap-3">
-                    <i class="fas fa-info-circle text-blue-500 mt-1"></i>
-                    <p class="text-[11px] text-blue-700 font-medium leading-relaxed">
-                        Isso buscará todas as transações aprovadas na conta do Mercado Pago para o período selecionado.
-                    </p>
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-2">
+                    <div class="flex gap-2">
+                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                        <p class="text-[11px] text-blue-700 font-bold leading-normal">
+                            Como funciona a sincronização?
+                        </p>
+                    </div>
+                    <ul class="list-disc pl-5 text-[10px] text-blue-600 space-y-1 leading-relaxed">
+                        <li><strong>Recebimentos (Entradas):</strong> São buscados e importados instantaneamente via API.</li>
+                        <li><strong>Pagamentos (Saídas/Pix/Tarifas):</strong> O Mercado Pago gera relatórios de extrato de forma assíncrona. A primeira sincronização solicita a geração do arquivo; você deve clicar em <strong>Sincronizar</strong> novamente em alguns minutos para baixar e importar as saídas processadas.</li>
+                        <li><strong>Histórico antigo:</strong> Transações de saídas anteriores a 25/05/2026 vêm sem dados devido a limitações de retroatividade do Mercado Pago. Para trazê-las, exporte o CSV do extrato no painel do MP e use o botão <strong>Importar Extrato (OFX/CSV)</strong>.</li>
+                    </ul>
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
