@@ -848,7 +848,11 @@
                 return;
             }
             if (confirm(`Deseja realmente remover o item "${itemName}" da sacolinha?`)) {
-                itemParaRemover = { itemId, userId, liveId: liveAtiva.id };
+                itemParaRemover = { 
+                    item_id: itemId, 
+                    user_id: userId, 
+                    live_id: liveAtiva.id 
+                };
                 executarRemocao(false); // Sempre sem desconto de pontos
             }
         }
