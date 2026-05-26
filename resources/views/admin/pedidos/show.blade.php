@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Pedido #' . ($pedido->numero_pedido ?? $pedido->id))
+@section('title', $pedido->numero_pedido ?? $pedido->id)
 @section('brand_route', 'admin.pedido.index')
 @section('brand_icon', 'fas fa-receipt')
 
@@ -49,7 +49,7 @@
     <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
             <h1 class="text-3xl font-semibold text-gray-800">
-                {{ $pedido->numero_pedido ?? $pedido->id }}
+                Pedido #{{ $pedido->numero_pedido ?? $pedido->id }}
             </h1>
         </div>
 
