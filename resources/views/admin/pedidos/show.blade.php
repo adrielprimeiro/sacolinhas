@@ -25,8 +25,8 @@
             ])
             ->get();
 
-        // Subtotal real: soma dos itens
-        $subtotal      = (float) $itens->sum('valor_total');
+        // Subtotal real: soma dos itens ativos
+        $subtotal      = (float) $itens->where('status_item', 'ativo')->sum('valor_total');
         $frete         = (float) ($pedido->valor_frete ?? 0);
         $desconto      = (float) ($pedido->valor_desconto ?? 0);
         $saldoUsado    = (float) ($pedido->valor_saldo_utilizado ?? 0);
@@ -465,26 +465,31 @@
                                         $img    = $item->image ?? null;
                                         $imgUrl = $img ? asset('storage/' . ltrim($img, '/')) : null;
                                     @endphp
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-50 {{ $item->status_item === 'devolvido' ? 'bg-gray-50/50 text-gray-400' : '' }}">
                                         <td class="px-2 sm:px-4 py-4">
                                             <div class="flex items-center">
                                                 @if($imgUrl)
-                                                    <img class="h-8 w-8 rounded-md object-cover mr-2 sm:mr-3 border border-gray-100 shadow-sm" src="{{ $imgUrl }}" alt="">
+                                                    <img class="h-8 w-8 rounded-md object-cover mr-2 sm:mr-3 border border-gray-100 shadow-sm {{ $item->status_item === 'devolvido' ? 'opacity-50' : '' }}" src="{{ $imgUrl }}" alt="">
                                                 @else
                                                     <div class="h-8 w-8 rounded-md bg-gray-100 flex items-center justify-center mr-2 sm:mr-3 text-gray-400">
                                                         <i class="fas fa-image"></i>
                                                     </div>
                                                 @endif
                                                 <div class="max-w-[80px] sm:max-w-xs overflow-hidden">
-                                                    <div class="text-sm font-semibold text-gray-900 truncate">{{ $item->nome_do_produto }}</div>
-                                                    <div class="text-xs text-gray-500 truncate">{{ $item->codigo ?? 'N/A' }}</div>
+                                                    <div class="text-sm font-semibold text-gray-900 truncate {{ $item->status_item === 'devolvido' ? 'line-through text-gray-400' : '' }}">{{ $item->nome_do_produto }}</div>
+                                                    <div class="text-xs text-gray-500 truncate">
+                                                        Cód: {{ $item->codigo ?? 'N/A' }}
+                                                        @if($item->status_item === 'devolvido')
+                                                            <span class="text-red-500 font-bold ml-1">(Devolvido)</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="px-2 sm:px-4 py-4 text-xs text-gray-600">
+                                        <td class="px-2 sm:px-4 py-4 text-xs text-gray-500 {{ $item->status_item === 'devolvido' ? 'line-through' : '' }}">
                                             {{ $item->marca }} • {{ $item->estado }} • {{ $item->cor }} • Tam: {{ $item->tamanho }}
                                         </td>
-                                        <td class="px-2 sm:px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold">
+                                        <td class="px-2 sm:px-4 py-4 whitespace-nowrap text-right text-gray-900 font-bold {{ $item->status_item === 'devolvido' ? 'line-through text-gray-400 font-normal' : '' }}">
                                             R$ {{ number_format($item->valor_total, 2, ',', '.') }}
                                         </td>
                                     </tr>

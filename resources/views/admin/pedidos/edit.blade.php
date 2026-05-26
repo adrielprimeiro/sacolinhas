@@ -21,7 +21,7 @@
     </div>
 
     @php
-        $subtotal      = (float) DB::table('items_pedido')->where('pedido_id', $pedido->id)->sum('valor_total');
+        $subtotal      = (float) DB::table('items_pedido')->where('pedido_id', $pedido->id)->where('status_item', 'ativo')->sum('valor_total');
         $saldoCarteira = (float) (DB::table('conta_corrente')->where('user_id', $pedido->user_id)->orderByDesc('id')->value('saldo_atual') ?? 0);
     @endphp
 
@@ -322,21 +322,21 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach($itens as $item)
-                                        <tr class="hover:bg-gray-50">
+                                        <tr class="hover:bg-gray-50 {{ $item->status_item === 'devolvido' ? 'bg-gray-50/50 text-gray-400' : '' }}">
                                             <td class="px-2 sm:px-4 py-3">
                                                 <div class="flex items-center gap-2">
-                                                    <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
+                                                    <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm {{ $item->status_item === 'devolvido' ? 'opacity-50' : '' }}">
                                                         @if($item->image)
                                                             <img src="{{ asset('storage/' . ltrim($item->image, '/')) }}" class="w-full h-full object-cover">
                                                         @endif
                                                     </div>
                                                     <div class="max-w-[80px] sm:max-w-xs overflow-hidden">
-                                                        <div class="font-bold text-gray-900 leading-tight truncate">{{ $item->nome_do_produto }}</div>
+                                                        <div class="font-bold text-gray-900 leading-tight truncate {{ $item->status_item === 'devolvido' ? 'line-through text-gray-400' : '' }}">{{ $item->nome_do_produto }}</div>
                                                         <div class="text-[10px] text-gray-500 truncate">Cód: {{ $item->codigo }} • {{ $item->marca }} • Tam: {{ $item->tamanho }}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-2 sm:px-4 py-3 text-right font-bold">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</td>
+                                            <td class="px-2 sm:px-4 py-3 text-right font-bold {{ $item->status_item === 'devolvido' ? 'line-through text-gray-400 font-normal' : '' }}">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</td>
                                             <td class="px-2 sm:px-4 py-3 text-center">
                                                 <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase
                                                     {{ $item->status_item === 'ativo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">
