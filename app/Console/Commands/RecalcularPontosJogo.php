@@ -29,82 +29,97 @@ class RecalcularPontosJogo extends Command
      */
     public function handle()
     {
-        $this->info("Iniciando recalculo de pontos do jogo...");
+        $this->info("Iniciando recálculo de pontos do jogo...");
 
-        DB::transaction(function () {
-            // 1. Zerar a coluna pontos_itens de todas as pontuações de clientes e grupos
-            $this->info("Zerando pontos de itens existentes...");
-            DB::table('pontuacoes_clientes')->update(['pontos_itens' => 0]);
-            DB::table('pontuacoes_grupos')->update(['pontos_itens' => 0]);
+        // 1. Zerar a coluna pontos_itens de todas as pontuações de clientes e grupos
+        $this->info("Zerando pontos de itens existentes...");
+        DB::table('pontuacoes_clientes')->update(['pontos_itens' => 0]);
+        DB::table('pontuacoes_grupos')->update(['pontos_itens' => 0]);
 
-            // 2. Marcar todos os pedidos sem pagamento aprovado como pontos_creditados = false
-            DB::table('pedidos')
-                ->where('status_pagamento', '!=', 'aprovado')
-                ->update(['pontos_creditados' => false]);
+        // 2. Marcar todos os pedidos sem pagamento aprovado como pontos_creditados = false
+        DB::table('pedidos')
+            ->where('status_pagamento', '!=', 'aprovado')
+            ->update(['pontos_creditados' => false]);
 
-            // 3. Buscar todos os pedidos com pagamento aprovado
-            $pedidos = DB::table('pedidos')
-                ->where('status_pagamento', 'aprovado')
-                ->get();
+        // 3. Buscar todos os pedidos com pagamento aprovado
+        $pedidos = DB::table('pedidos')
+            ->where('status_pagamento', 'aprovado')
+            ->get();
 
-            $this->info("Processando " . $pedidos->count() . " pedidos com pagamento aprovado...");
+        $totalPedidos = $pedidos->count();
+        $this->info("Processando {$totalPedidos} pedidos com pagamento aprovado...");
 
-            $processedCount = 0;
+        $processedCount = 0;
 
-            foreach ($pedidos as $pedido) {
-                // Calcular pontos do pedido
-                $valorItens = DB::table('items_pedido')
-                    ->where('pedido_id', $pedido->id)
-                    ->where('status_item', 'ativo')
-                    ->sum(DB::raw('preco_unitario * quantidade'));
+        foreach ($pedidos as $index => $pedido) {
+            if (($index + 1) % 50 === 0 || ($index + 1) === $totalPedidos) {
+                $this->info("Processando pedido " . ($index + 1) . " de {$totalPedidos}...");
+            }
 
-                $pontos = ceil($valorItens / 10);
+            // Calcular pontos do pedido
+            $valorItens = DB::table('items_pedido')
+                ->where('pedido_id', $pedido->id)
+                ->where('status_item', 'ativo')
+                ->sum(DB::raw('preco_unitario * quantidade'));
 
-                if ($pontos > 0) {
-                    $mesAno = Carbon::parse($pedido->data_pedido ?? $pedido->created_at)->format('Y-m');
+            $pontos = ceil($valorItens / 10);
 
-                    // Incrementar pontos do cliente
-                    DB::table('pontuacoes_clientes')->updateOrInsert(
-                        ['user_id' => $pedido->user_id, 'mes_ano' => $mesAno],
+            if ($pontos > 0) {
+                $mesAno = Carbon::parse($pedido->data_pedido ?? $pedido->created_at)->format('Y-m');
+
+                // Incrementar pontos do cliente
+                DB::table('pontuacoes_clientes')->updateOrInsert(
+                    ['user_id' => $pedido->user_id, 'mes_ano' => $mesAno],
+                    ['pontos_itens' => DB::raw("COALESCE(pontos_itens, 0) + $pontos")]
+                );
+
+                // Incrementar pontos do grupo se o membro pertencer a um
+                $grupoId = DB::table('grupo_membros')
+                    ->where('user_id', $pedido->user_id)
+                    ->value('grupo_id');
+
+                if ($grupoId) {
+                    DB::table('pontuacoes_grupos')->updateOrInsert(
+                        ['grupo_id' => $grupoId, 'mes_ano' => $mesAno],
                         ['pontos_itens' => DB::raw("COALESCE(pontos_itens, 0) + $pontos")]
                     );
-
-                    // Incrementar pontos do grupo se o membro pertencer a um
-                    $grupoId = DB::table('grupo_membros')
-                        ->where('user_id', $pedido->user_id)
-                        ->value('grupo_id');
-
-                    if ($grupoId) {
-                        DB::table('pontuacoes_grupos')->updateOrInsert(
-                            ['grupo_id' => $grupoId, 'mes_ano' => $mesAno],
-                            ['pontos_itens' => DB::raw("COALESCE(pontos_itens, 0) + $pontos")]
-                        );
-                    }
-
-                    // Marcar pedido como creditado
-                    DB::table('pedidos')
-                        ->where('id', $pedido->id)
-                        ->update(['pontos_creditados' => true]);
-
-                    $processedCount++;
                 }
+
+                // Marcar pedido como creditado
+                DB::table('pedidos')
+                    ->where('id', $pedido->id)
+                    ->update(['pontos_creditados' => true]);
+
+                $processedCount++;
             }
+        }
 
-            $this->info("Recalculando totais de usuarios e grupos...");
+        // 4. Rodar as procedures de atualização para todos os registros afetados
+        $this->info("Buscando pontuações de clientes para recalcular totais...");
+        $pontuacoes = DB::table('pontuacoes_clientes')->get();
+        $totalClientes = $pontuacoes->count();
+        $this->info("Recalculando totais para {$totalClientes} registros de clientes...");
 
-            // 4. Rodar as procedures de atualização para todos os registros afetados
-            $pontuacoes = DB::table('pontuacoes_clientes')->get();
-            foreach ($pontuacoes as $p) {
-                DB::unprepared("CALL atualizar_pontuacoes_user({$p->user_id}, '{$p->mes_ano}')");
+        foreach ($pontuacoes as $i => $p) {
+            if (($i + 1) % 50 === 0 || ($i + 1) === $totalClientes) {
+                $this->info("Recalculando cliente " . ($i + 1) . " de {$totalClientes}...");
             }
+            DB::unprepared("CALL atualizar_pontuacoes_user({$p->user_id}, '{$p->mes_ano}')");
+        }
 
-            $pontuacoesGrupos = DB::table('pontuacoes_grupos')->get();
-            foreach ($pontuacoesGrupos as $pg) {
-                DB::unprepared("CALL atualizar_pontuacoes_grupo({$pg->grupo_id}, '{$pg->mes_ano}')");
+        $this->info("Buscando pontuações de grupos para recalcular totais...");
+        $pontuacoesGrupos = DB::table('pontuacoes_grupos')->get();
+        $totalGrupos = $pontuacoesGrupos->count();
+        $this->info("Recalculando totais para {$totalGrupos} registros de grupos...");
+
+        foreach ($pontuacoesGrupos as $j => $pg) {
+            if (($j + 1) % 20 === 0 || ($j + 1) === $totalGrupos) {
+                $this->info("Recalculando grupo " . ($j + 1) . " de {$totalGrupos}...");
             }
+            DB::unprepared("CALL atualizar_pontuacoes_grupo({$pg->grupo_id}, '{$pg->mes_ano}')");
+        }
 
-            $this->info("Sucesso! {$processedCount} pedidos processados e pontuacoes recalibradas.");
-        });
+        $this->info("Sucesso! {$processedCount} pedidos processados e pontuações recalibradas.");
 
         return Command::SUCCESS;
     }
