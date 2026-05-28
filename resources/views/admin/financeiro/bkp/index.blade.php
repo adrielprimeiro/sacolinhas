@@ -179,10 +179,237 @@
                 <i class="fas fa-history text-blue-600"></i>
                 Movimentações de Conta Corrente
             </h2>
-            <a href="{{ route('admin.conta_corrente.create') }}" 
-               class="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-blue-200">
-                <i class="fas fa-plus"></i> Novo Lançamento
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.conta_corrente.create') }}" 
+                   class="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-blue-200">
+                    <i class="fas fa-plus"></i> Novo Lançamento
+                </a>
+
+                <div x-data="{
+                    openRechargeModal: false,
+                    userId: '',
+                    search: '',
+                    amount: '',
+                    generatedLink: '',
+                    loading: false,
+                    users: [],
+                    openSearch: false,
+                    focusedIndex: -1,
+                    timeout: null,
+                    
+                    handleInput() {
+                        this.userId = '';
+                        this.focusedIndex = -1;
+                        this.openSearch = true;
+                        if (this.search.length < 2) {
+                            this.users = [];
+                            return;
+                        }
+                        clearTimeout(this.timeout);
+                        this.timeout = setTimeout(() => {
+                            this.fetchUsers();
+                        }, 300);
+                    },
+                    fetchUsers() {
+                        fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+                            .then(res => res.json())
+                            .then(res => {
+                                if (res.success) {
+                                    this.users = res.data;
+                                    this.focusedIndex = this.users.length > 0 ? 0 : -1;
+                                } else {
+                                    this.users = [];
+                                    this.focusedIndex = -1;
+                                }
+                            })
+                            .catch(() => {
+                                this.users = [];
+                                this.focusedIndex = -1;
+                            });
+                    },
+                    selectUser(user) {
+                        this.userId = user.id;
+                        this.search = user.name;
+                        this.openSearch = false;
+                    },
+                    onKeyDown(e) {
+                        if (e.key === 'Enter') {
+                            if (this.openSearch && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+                                e.preventDefault();
+                                this.selectUser(this.users[this.focusedIndex]);
+                            }
+                            return;
+                        }
+                        if (!this.openSearch || this.users.length === 0) return;
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+                        }
+                    },
+                    generateLink() {
+                        if (!this.userId) {
+                            alert('Por favor, selecione um cliente.');
+                            return;
+                        }
+                        if (!this.amount || parseFloat(this.amount) <= 0) {
+                            alert('Por favor, digite um valor válido.');
+                            return;
+                        }
+                        this.loading = true;
+                        fetch('{{ route('admin.conta_corrente.gerar_recarga') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                user_id: this.userId,
+                                valor: this.amount
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            this.loading = false;
+                            if (data.success) {
+                                this.generatedLink = data.link;
+                            } else {
+                                alert('Erro: ' + (data.message || 'Falha ao gerar link.'));
+                            }
+                        })
+                        .catch(err => {
+                            this.loading = false;
+                            console.error(err);
+                            alert('Erro de rede ao gerar o link.');
+                        });
+                    },
+                    copyLink() {
+                        navigator.clipboard.writeText(this.generatedLink);
+                        alert('Link copiado com sucesso!');
+                        this.closeModal();
+                    },
+                    closeModal() {
+                        this.openRechargeModal = false;
+                        this.userId = '';
+                        this.search = '';
+                        this.amount = '';
+                        this.generatedLink = '';
+                        this.users = [];
+                        this.openSearch = false;
+                    }
+                }">
+                    <!-- Botão para abrir o modal -->
+                    <button @click="openRechargeModal = true"
+                            class="inline-flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-green-200">
+                        <i class="fas fa-link"></i> Gerar Link de Recarga
+                    </button>
+
+                    <!-- Modal -->
+                    <div x-show="openRechargeModal"
+                         class="fixed inset-0 z-50 overflow-y-auto"
+                         aria-labelledby="modal-title"
+                         role="dialog"
+                         aria-modal="true"
+                         style="display: none;">
+                         
+                         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                                  aria-hidden="true" 
+                                  @click="closeModal()"></div>
+                                  
+                             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                             
+                             <div class="inline-block align-middle bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                     <div class="sm:flex sm:items-start">
+                                         <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                             <i class="fas fa-link text-green-600"></i>
+                                         </div>
+                                         <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                             <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                                 Gerar Link de Recarga (Carteira)
+                                             </h3>
+                                             <div class="mt-2 space-y-4">
+                                                 <p class="text-sm text-gray-500">
+                                                     Gere um link de pagamento direto para adicionar créditos à carteira virtual da cliente.
+                                                 </p>
+                                                 
+                                                 <div class="relative text-left">
+                                                     <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+                                                     <input type="text"
+                                                            x-model="search"
+                                                            @input="handleInput()"
+                                                            @click="openSearch = true"
+                                                            @click.away="openSearch = false"
+                                                            @keydown.escape="openSearch = false"
+                                                            @keydown="onKeyDown($event)"
+                                                            placeholder="Buscar cliente pelo nome..."
+                                                            class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                                                            
+                                                     <div x-show="openSearch && users.length > 0"
+                                                          class="absolute z-50 mt-1 w-full bg-white border border-gray-300 shadow-xl rounded-xl max-h-48 overflow-y-auto">
+                                                          <template x-for="(user, index) in users" :key="user.id">
+                                                              <div @click="selectUser(user)"
+                                                                   class="p-2 cursor-pointer border-b border-gray-100 last:border-0 hover:bg-indigo-50 transition"
+                                                                   :class="focusedIndex === index ? 'bg-indigo-50' : ''">
+                                                                   <div class="font-bold text-xs text-gray-800" x-text="user.name"></div>
+                                                                   <div class="text-[10px] text-gray-500" x-text="[user.email, user.whatsapp].filter(Boolean).join(' • ')"></div>
+                                                              </div>
+                                                          </template>
+                                                     </div>
+                                                 </div>
+                                                 
+                                                 <div class="text-left">
+                                                     <label class="block text-sm font-medium text-gray-700 mb-1">Valor da Recarga (R$)</label>
+                                                     <input type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            x-model="amount"
+                                                            placeholder="Digite o valor..."
+                                                            class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                                                 </div>
+                                                 
+                                                 <div x-show="generatedLink" class="bg-green-50 border border-green-200 p-3 rounded-lg text-xs space-y-2 text-left">
+                                                     <p class="font-bold text-green-800">Link Gerado com Sucesso!</p>
+                                                     <input type="text" 
+                                                            readonly 
+                                                            :value="generatedLink" 
+                                                            class="w-full border border-green-300 rounded p-1 text-gray-700 bg-white select-all">
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                                     <template x-if="generatedLink">
+                                         <button type="button" 
+                                                 @click="copyLink()"
+                                                 class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                             Copiar Link
+                                         </button>
+                                     </template>
+                                     <template x-if="!generatedLink">
+                                         <button type="button" 
+                                                 @click="generateLink()"
+                                                 :disabled="loading"
+                                                 class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                             <span x-show="!loading">Gerar Link</span>
+                                             <span x-show="loading">Gerando...</span>
+                                         </button>
+                                     </template>
+                                     <button type="button" 
+                                             @click="closeModal()"
+                                             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                                         Cancelar
+                                     </button>
+                                 </div>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="p-6">

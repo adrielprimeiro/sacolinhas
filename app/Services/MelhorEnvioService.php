@@ -15,7 +15,7 @@ class MelhorEnvioService
     {
         // Define se usa Sandbox ou Produção baseado no .env
         $this->baseUrl = env('MELHOR_ENVIO_URL', 'https://melhorenvio.com.br');
-        $this->token = \App\Models\Configuracao::get('melhor_envio_access_token', '');
+        $this->token = \App\Models\Configuracao::get('melhor_envio_access_token') ?: env('MELHOR_ENVIO_TOKEN', '');
         
         // CEP de origem do lojista (usado para o remetente)
         $this->cepOrigem = env('MELHOR_ENVIO_CEP_ORIGEM', '01001000'); // CEP padrão de exemplo (Sé, SP)
@@ -145,11 +145,11 @@ class MelhorEnvioService
                 'phone' => env('STORE_PHONE', '48999999999'),
                 'email' => env('MAIL_FROM_ADDRESS', 'contato@loja.com'),
                 'document' => env('STORE_DOCUMENT', '18560052321'), // CPF/CNPJ válido matemático de fallback
-                'address' => 'Rua do Remetente', 
-                'number' => '123',
-                'district' => 'Centro',
-                'city' => 'Biguaçu',
-                'state_abbr' => 'SC',
+                'address' => env('STORE_ADDRESS', 'Rua Hermogenes Prazeres'), 
+                'number' => env('STORE_NUMBER', '184'),
+                'district' => env('STORE_DISTRICT', 'Centro'),
+                'city' => env('STORE_CITY', 'Biguaçu'),
+                'state_abbr' => env('STORE_STATE', 'SC'),
                 'country_id' => 'BR',
                 'postal_code' => $cepOrigem,
             ],
@@ -304,7 +304,12 @@ class MelhorEnvioService
         $expiresAt = \App\Models\Configuracao::get('melhor_envio_expires_at');
 
         if (!$accessToken || !$refreshToken) {
-            Log::warning('Melhor Envio: Token de acesso ou de atualização ausente no banco de dados.');
+            $envToken = env('MELHOR_ENVIO_TOKEN');
+            if ($envToken) {
+                $this->token = $envToken;
+                return true;
+            }
+            Log::warning('Melhor Envio: Token de acesso ou de atualização ausente no banco de dados e no arquivo .env.');
             return false;
         }
 
@@ -315,6 +320,12 @@ class MelhorEnvioService
             $clientSecret = env('MELHOR_ENVIO_CLIENT_SECRET');
 
             if (empty($clientId) || empty($clientSecret)) {
+                $envToken = env('MELHOR_ENVIO_TOKEN');
+                if ($envToken) {
+                    Log::info('Melhor Envio: CLIENT_ID ou CLIENT_SECRET ausente no arquivo .env, caindo de volta para o token do .env.');
+                    $this->token = $envToken;
+                    return true;
+                }
                 Log::error('Melhor Envio: CLIENT_ID ou CLIENT_SECRET ausente no arquivo .env.');
                 return false;
             }
@@ -353,10 +364,26 @@ class MelhorEnvioService
                 }
 
                 Log::error('Melhor Envio: Falha ao renovar token. Resposta: ' . $response->body());
+                
+                // Fallback to env token if token refresh fails
+                $envToken = env('MELHOR_ENVIO_TOKEN');
+                if ($envToken) {
+                    Log::info('Melhor Envio: Usando token estático do .env como fallback após falha de renovação.');
+                    $this->token = $envToken;
+                    return true;
+                }
                 return false;
 
             } catch (\Exception $e) {
                 Log::error('Melhor Envio: Exceção ao renovar token: ' . $e->getMessage());
+                
+                // Fallback to env token if exception occurs
+                $envToken = env('MELHOR_ENVIO_TOKEN');
+                if ($envToken) {
+                    Log::info('Melhor Envio: Usando token estático do .env como fallback após exceção de renovação.');
+                    $this->token = $envToken;
+                    return true;
+                }
                 return false;
             }
         }

@@ -87,62 +87,64 @@ class PedidoObserver
 
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {
-                $valorNetDebito = max(0.00, $valorBruto - $saldoUtilizado);
+                if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
+                    $valorNetDebito = max(0.00, $valorBruto - $saldoUtilizado);
 
-                // 1. Débito da compra pelo valor LÍQUIDO do pedido (sem incluir o saldo utilizado)
-                \App\Models\ContaCorrente::updateOrCreate(
-                    [
-                        'referencia_tipo' => 'pedido',
-                        'referencia_id' => $pedido->id,
-                        'tipo_movimentacao' => 'debito',
-                    ],
-                    [
-                        'user_id' => $pessoa->user_id,
-                        'valor' => $valorNetDebito,
-                        'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
-                        'classificacao_id' => 1,
-                        'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
-                    ]
-                );
-
-                // 2. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
-                if ($saldoUtilizado != 0) {
-                    $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
-                    $valorMovSaldo = abs($saldoUtilizado);
-                    $descMovSaldo = $saldoUtilizado > 0 
-                        ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
-                        : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
-
+                    // 1. Débito da compra pelo valor LÍQUIDO do pedido (sem incluir o saldo utilizado)
                     \App\Models\ContaCorrente::updateOrCreate(
                         [
-                            'referencia_tipo' => 'desconto',
+                            'referencia_tipo' => 'pedido',
                             'referencia_id' => $pedido->id,
+                            'tipo_movimentacao' => 'debito',
                         ],
                         [
                             'user_id' => $pessoa->user_id,
-                            'tipo_movimentacao' => $tipoMovSaldo,
-                            'valor' => $valorMovSaldo,
-                            'descricao' => $descMovSaldo,
+                            'valor' => $valorNetDebito,
+                            'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
                             'classificacao_id' => 1,
                             'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                         ]
                     );
-                } else {
-                    \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+
+                    // 2. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
+                    if ($saldoUtilizado != 0) {
+                        $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
+                        $valorMovSaldo = abs($saldoUtilizado);
+                        $descMovSaldo = $saldoUtilizado > 0 
+                            ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
+                            : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
+
+                        \App\Models\ContaCorrente::updateOrCreate(
+                            [
+                                'referencia_tipo' => 'desconto',
+                                'referencia_id' => $pedido->id,
+                            ],
+                            [
+                                'user_id' => $pessoa->user_id,
+                                'tipo_movimentacao' => $tipoMovSaldo,
+                                'valor' => $valorMovSaldo,
+                                'descricao' => $descMovSaldo,
+                                'classificacao_id' => 1,
+                                'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                            ]
+                        );
+                    } else {
+                        \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+                            ->where('referencia_id', $pedido->id)
+                            ->delete();
+                    }
+
+                    // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente
+                    \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
                         ->where('referencia_id', $pedido->id)
+                        ->where('tipo_movimentacao', 'credito')
                         ->delete();
-                }
 
-                // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente
-                \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
-                    ->where('referencia_id', $pedido->id)
-                    ->where('tipo_movimentacao', 'credito')
-                    ->delete();
-
-                // Disparar recálculo de saldo da carteira da cliente
-                if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
-                    $dataParaRecalculo = $pedido->data_pedido ? \Carbon\Carbon::parse($pedido->data_pedido) : $pedido->created_at;
-                    \App\Jobs\RecalcularSaldosJob::dispatch($pessoa->user_id, $dataParaRecalculo->toDateString());
+                    // Disparar recálculo de saldo da carteira da cliente
+                    if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
+                        $dataParaRecalculo = $pedido->data_pedido ? \Carbon\Carbon::parse($pedido->data_pedido) : $pedido->created_at;
+                        \App\Jobs\RecalcularSaldosJob::dispatch($pessoa->user_id, $dataParaRecalculo->toDateString());
+                    }
                 }
             }
 

@@ -297,6 +297,10 @@ class CheckoutController extends Controller
             $params['valor'] = request()->query('valor');
         }
 
+        if (str_starts_with($pedido->numero_pedido, 'REC-')) {
+            return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
+        }
+
         // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
         if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
             return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));

@@ -166,6 +166,11 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
 });
 
 // Rota para o Módulo de Conta Corrente (Antigo Financeiro)
+Route::middleware(['auth'])->prefix('admin/financeiro')->group(function () {
+    Route::post('conta-corrente/gerar-recarga', [\App\Http\Controllers\ContaCorrenteController::class, 'gerarRecarga'])
+        ->name('admin.conta_corrente.gerar_recarga');
+});
+
 Route::middleware(['auth'])->prefix('admin/financeiro')->resource('conta-corrente', \App\Http\Controllers\ContaCorrenteController::class)->names([
     'index'   => 'admin.conta_corrente.index',
     'create'  => 'admin.conta_corrente.create',

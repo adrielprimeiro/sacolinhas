@@ -112,7 +112,15 @@ class MercadoPagoController extends Controller
             $data['transaction_amount'] = $valorRestante;
         }
 
-        $data['description'] = 'Pedido #' . $pedido->numero_pedido;
+        if (str_starts_with($pedido->numero_pedido, 'REC-')) {
+            $data['description'] = 'Recarga de Carteira #' . $pedido->numero_pedido;
+            $title = 'Recarga de Carteira #' . $pedido->numero_pedido;
+            $description = 'Adicionar saldo à carteira do cliente na loja ' . config('app.name');
+        } else {
+            $data['description'] = 'Pedido #' . $pedido->numero_pedido;
+            $title = 'Pedido #' . $pedido->numero_pedido;
+            $description = 'Pagamento de Pedido na loja ' . config('app.name');
+        }
         $data['external_reference'] = (string) $pedido->id;
         
         // Assegura que o e-mail do pagador seja o do usuário logado
@@ -158,8 +166,8 @@ class MercadoPagoController extends Controller
         $additionalItems = [
             [
                 'id' => (string) $pedido->id,
-                'title' => 'Pedido #' . $pedido->numero_pedido,
-                'description' => 'Pagamento de Pedido na loja ' . config('app.name'),
+                'title' => $title,
+                'description' => $description,
                 'quantity' => 1,
                 'unit_price' => (float) $data['transaction_amount'],
                 'category_id' => 'others'
@@ -387,6 +395,10 @@ class MercadoPagoController extends Controller
      */
     private function darBaixaEstoque(Pedido $pedido)
     {
+        if (str_starts_with($pedido->numero_pedido, 'REC-')) {
+            return;
+        }
+
         // Busca os IDs dos itens através da tabela items_pedido
         $itemIds = DB::table('items_pedido')
             ->where('pedido_id', $pedido->id)

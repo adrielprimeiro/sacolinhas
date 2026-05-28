@@ -7,11 +7,16 @@
     
     <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
         <div>
-            <h1 class="text-xl font-bold text-gray-800">Finalizar Pagamento</h1>
-            <p class="text-gray-600 text-sm">Pedido #{{ $pedido->numero_pedido }}</p>
+            @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                <h1 class="text-xl font-bold text-gray-800">Adicionar Saldo à Carteira</h1>
+                <p class="text-gray-600 text-sm">Recarga #{{ $pedido->numero_pedido }}</p>
+            @else
+                <h1 class="text-xl font-bold text-gray-800">Finalizar Pagamento</h1>
+                <p class="text-gray-600 text-sm">Pedido #{{ $pedido->numero_pedido }}</p>
+            @endif
         </div>
         <div class="text-right">
-            <p class="text-xs text-gray-500">Valor a Pagar</p>
+            <p class="text-xs text-gray-500">@if(str_starts_with($pedido->numero_pedido, 'REC-')) Valor da Recarga @else Valor a Pagar @endif</p>
             <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</p>
         </div>
     </div>
@@ -22,16 +27,28 @@
             <div class="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <i class="fas fa-check text-2xl text-green-600"></i>
             </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento Aprovado!</h2>
-            <p class="text-gray-600 mb-6">Seu pagamento foi processado com sucesso e o pedido já está atualizado.</p>
-            <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
-                Voltar aos Meus Pedidos
-            </a>
+            @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Recarga Aprovada!</h2>
+                <p class="text-gray-600 mb-6">Seu pagamento foi processado com sucesso. O saldo já está disponível na sua carteira.</p>
+                <a href="{{ route('portal.movimentacao') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                    Visualizar Minha Carteira
+                </a>
+            @else
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento Aprovado!</h2>
+                <p class="text-gray-600 mb-6">Seu pagamento foi processado com sucesso e o pedido já está atualizado.</p>
+                <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                    Voltar aos Meus Pedidos
+                </a>
+            @endif
         </div>
 
         <div id="result-pix" class="hidden">
             <h2 class="text-xl font-bold text-gray-800 mb-2">Pague com PIX</h2>
-            <p class="text-gray-600 mb-6">Escaneie o QR Code abaixo ou copie o código PIX para finalizar seu pagamento. O status do pedido será atualizado automaticamente assim que você pagar.</p>
+            @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                <p class="text-gray-600 mb-6">Escaneie o QR Code abaixo ou copie o código PIX para finalizar sua recarga. O saldo será adicionado à sua carteira assim que você pagar.</p>
+            @else
+                <p class="text-gray-600 mb-6">Escaneie o QR Code abaixo ou copie o código PIX para finalizar seu pagamento. O status do pedido será atualizado automaticamente assim que você pagar.</p>
+            @endif
             
             <div class="flex justify-center mb-4">
                 <img id="pix-qrcode-img" src="" alt="QR Code PIX" class="w-48 h-48 border rounded-md p-2">
@@ -48,20 +65,33 @@
             </div>
 
             <div class="mt-8">
-                <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline">Voltar aos Meus Pedidos</a>
+                @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                    <a href="{{ route('portal.movimentacao') }}" class="text-blue-600 hover:underline">Voltar à Minha Carteira</a>
+                @else
+                    <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline">Voltar aos Meus Pedidos</a>
+                @endif
             </div>
         </div>
 
         <div id="result-ticket" class="hidden">
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Boleto Gerado</h2>
-            <p class="text-gray-600 mb-6">Seu boleto foi gerado com sucesso. Clique no botão abaixo para visualizar ou imprimir.</p>
+            @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Boleto de Recarga Gerado</h2>
+                <p class="text-gray-600 mb-6">Seu boleto de recarga foi gerado com sucesso. Clique no botão abaixo para visualizar ou imprimir.</p>
+            @else
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Boleto Gerado</h2>
+                <p class="text-gray-600 mb-6">Seu boleto foi gerado com sucesso. Clique no botão abaixo para visualizar ou imprimir.</p>
+            @endif
             
             <a id="ticket-url" href="#" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold inline-block mb-6">
                 Visualizar Boleto
             </a>
 
             <div>
-                <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline">Voltar aos Meus Pedidos</a>
+                @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                    <a href="{{ route('portal.movimentacao') }}" class="text-blue-600 hover:underline">Voltar à Minha Carteira</a>
+                @else
+                    <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline">Voltar aos Meus Pedidos</a>
+                @endif
             </div>
         </div>
     </div>
@@ -206,7 +236,11 @@
                     Tentar Novamente
                 </button>
                 <div class="mt-4">
-                    <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline text-sm">Voltar aos Meus Pedidos</a>
+                    @if(str_starts_with($pedido->numero_pedido, 'REC-'))
+                        <a href="{{ route('portal.movimentacao') }}" class="text-blue-600 hover:underline text-sm">Voltar à Minha Carteira</a>
+                    @else
+                        <a href="{{ route('portal.pedidos') }}" class="text-blue-600 hover:underline text-sm">Voltar aos Meus Pedidos</a>
+                    @endif
                 </div>
             `;
 
@@ -224,16 +258,29 @@
         } else if (data.status === 'in_process' || data.status === 'pending') {
             // Pagamento em análise (ex: antifraude do banco)
             document.getElementById('result-success').classList.remove('hidden');
-            document.getElementById('result-success').innerHTML = `
-                <div class="mx-auto w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
-                    <i class="fas fa-clock text-2xl text-yellow-600"></i>
-                </div>
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento em Análise</h2>
-                <p class="text-gray-600 mb-6">Seu pagamento está sendo revisado pelo banco. Você receberá uma confirmação em breve e o status do pedido será atualizado automaticamente.</p>
-                <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
-                    Voltar aos Meus Pedidos
-                </a>
-            `;
+            if ({{ str_starts_with($pedido->numero_pedido, 'REC-') ? 'true' : 'false' }}) {
+                document.getElementById('result-success').innerHTML = `
+                    <div class="mx-auto w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
+                        <i class="fas fa-clock text-2xl text-yellow-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">Recarga em Análise</h2>
+                    <p class="text-gray-600 mb-6">Seu pagamento está sendo revisado pelo banco. Assim que aprovado, o saldo será creditado automaticamente na sua carteira.</p>
+                    <a href="{{ route('portal.movimentacao') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                        Ir para Minha Carteira
+                    </a>
+                `;
+            } else {
+                document.getElementById('result-success').innerHTML = `
+                    <div class="mx-auto w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
+                        <i class="fas fa-clock text-2xl text-yellow-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">Pagamento em Análise</h2>
+                    <p class="text-gray-600 mb-6">Seu pagamento está sendo revisado pelo banco. Você receberá uma confirmação em breve e o status do pedido será atualizado automaticamente.</p>
+                    <a href="{{ route('portal.pedidos') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md font-semibold">
+                        Voltar aos Meus Pedidos
+                    </a>
+                `;
+            }
         } else {
             // Fallback genérico
             resultContainer.innerHTML = `

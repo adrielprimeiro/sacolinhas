@@ -249,4 +249,53 @@ class ContaCorrenteController extends Controller
             return response()->json(['success' => false, 'message' => 'Erro interno ao registrar débito.'], 500);
         }
     }	
+
+    /**
+     * Gera um link de recarga (pedido REC-) com valor customizado para um cliente.
+     */
+    public function gerarRecarga(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'valor' => 'required|numeric|min:0.01',
+        ]);
+
+        try {
+            return DB::transaction(function () use ($request) {
+                $userId = $request->input('user_id');
+                $valor = $request->input('valor');
+
+                // 1. Encontrar o ID para gerar o numero_pedido sequencial
+                $ultimoPedido = DB::table('pedidos')->latest('id')->first();
+                $numero = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
+                $numeroPedido = 'REC-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+
+                // 2. Criar o Pedido
+                $pedido = \App\Models\Pedido::create([
+                    'numero_pedido' => $numeroPedido,
+                    'user_id' => $userId,
+                    'status_pedido' => 'pendente',
+                    'data_pedido' => now(),
+                    'valor_total' => $valor,
+                    'valor_frete' => 0,
+                    'valor_desconto' => 0,
+                    'valor_saldo_utilizado' => 0,
+                    'status_pagamento' => 'pendente',
+                    'origem_pedido' => 'admin',
+                    'payment_token' => bin2hex(random_bytes(32)),
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'link' => $pedido->getPaymentUrl(),
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Log::error('Erro ao gerar link de recarga: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro interno ao processar recarga.'
+            ], 500);
+        }
+    }
 }
