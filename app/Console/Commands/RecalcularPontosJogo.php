@@ -20,7 +20,7 @@ class RecalcularPontosJogo extends Command
      *
      * @var string
      */
-    protected $description = 'Recalcula retroativamente os pontos do jogo para todos os clientes com base nos pedidos concluidos ou entregues';
+    protected $description = 'Recalcula retroativamente os pontos do jogo para todos os clientes com base nos pedidos com pagamento aprovado';
 
     /**
      * Execute the console command.
@@ -37,17 +37,17 @@ class RecalcularPontosJogo extends Command
             DB::table('pontuacoes_clientes')->update(['pontos_itens' => 0]);
             DB::table('pontuacoes_grupos')->update(['pontos_itens' => 0]);
 
-            // 2. Marcar todos os pedidos não concluídos/entregues como pontos_creditados = false
+            // 2. Marcar todos os pedidos sem pagamento aprovado como pontos_creditados = false
             DB::table('pedidos')
-                ->whereNotIn('status_pedido', ['concluido', 'entregue'])
+                ->where('status_pagamento', '!=', 'aprovado')
                 ->update(['pontos_creditados' => false]);
 
-            // 3. Buscar todos os pedidos concluidos ou entregues
+            // 3. Buscar todos os pedidos com pagamento aprovado
             $pedidos = DB::table('pedidos')
-                ->whereIn('status_pedido', ['concluido', 'entregue'])
+                ->where('status_pagamento', 'aprovado')
                 ->get();
 
-            $this->info("Processando " . $pedidos->count() . " pedidos concluidos/entregues...");
+            $this->info("Processando " . $pedidos->count() . " pedidos com pagamento aprovado...");
 
             $processedCount = 0;
 

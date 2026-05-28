@@ -149,10 +149,10 @@ class PedidoObserver
             }
 
             // 3. Sincronizar pontos do jogo de Melissa (1 ponto a cada R$10,00 nos itens do pedido)
-            // Os pontos são creditados quando o status é concluído ou entregue.
-            $isConcluidoOuEntregue = in_array($pedido->status_pedido, ['concluido', 'entregue']);
+            // Os pontos são creditados quando o pagamento do pedido estiver aprovado.
+            $isPagamentoAprovado = $pedido->status_pagamento === 'aprovado';
 
-            if ($isConcluidoOuEntregue && !$pedido->pontos_creditados) {
+            if ($isPagamentoAprovado && !$pedido->pontos_creditados) {
                 // Calcular pontos a ganhar
                 $valorItens = \DB::table('items_pedido')
                     ->where('pedido_id', $pedido->id)
@@ -170,8 +170,8 @@ class PedidoObserver
 
                     Log::info("✅ Pontos do jogo creditados para o usuário {$pedido->user_id}: {$pontosGanhar} pontos para o Pedido #{$pedido->id} (R$ {$valorItens} em itens)");
                 }
-            } elseif (!$isConcluidoOuEntregue && $pedido->pontos_creditados) {
-                // Se foi cancelado ou voltou de concluído/entregue para outro status, removemos os pontos
+            } elseif (!$isPagamentoAprovado && $pedido->pontos_creditados) {
+                // Se o pagamento deixou de ser aprovado, removemos os pontos
                 $valorItens = \DB::table('items_pedido')
                     ->where('pedido_id', $pedido->id)
                     ->where('status_item', 'ativo')
@@ -185,7 +185,7 @@ class PedidoObserver
                     \DB::table('pedidos')->where('id', $pedido->id)->update(['pontos_creditados' => false]);
                     $pedido->setAttribute('pontos_creditados', false);
 
-                    Log::info("⚠️ Pontos do jogo removidos para o usuário {$pedido->user_id}: -{$pontosDeduzir} pontos pois o Pedido #{$pedido->id} mudou de status para '{$pedido->status_pedido}'");
+                    Log::info("⚠️ Pontos do jogo removidos para o usuário {$pedido->user_id}: -{$pontosDeduzir} pontos pois o Pedido #{$pedido->id} mudou o status de pagamento para '{$pedido->status_pagamento}'");
                 }
             }
 
