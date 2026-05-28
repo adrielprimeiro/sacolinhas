@@ -148,8 +148,74 @@ class PedidoObserver
                 }
             }
 
+            // 3. Sincronizar pontos do jogo de Melissa (1 ponto a cada R$10,00 nos itens do pedido)
+            // Os pontos são creditados quando o status é concluído ou entregue.
+            $isConcluidoOuEntregue = in_array($pedido->status_pedido, ['concluido', 'entregue']);
+
+            if ($isConcluidoOuEntregue && !$pedido->pontos_creditados) {
+                // Calcular pontos a ganhar
+                $valorItens = \DB::table('items_pedido')
+                    ->where('pedido_id', $pedido->id)
+                    ->where('status_item', 'ativo')
+                    ->sum(\DB::raw('preco_unitario * quantidade'));
+
+                $pontosGanhar = ceil($valorItens / 10);
+
+                if ($pontosGanhar > 0) {
+                    \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, $pontosGanhar);
+                    
+                    // Atualiza a coluna diretamente no banco de dados para evitar re-gatilho do observer
+                    \DB::table('pedidos')->where('id', $pedido->id)->update(['pontos_creditados' => true]);
+                    $pedido->setAttribute('pontos_creditados', true);
+
+                    Log::info("✅ Pontos do jogo creditados para o usuário {$pedido->user_id}: {$pontosGanhar} pontos para o Pedido #{$pedido->id} (R$ {$valorItens} em itens)");
+                }
+            } elseif (!$isConcluidoOuEntregue && $pedido->pontos_creditados) {
+                // Se foi cancelado ou voltou de concluído/entregue para outro status, removemos os pontos
+                $valorItens = \DB::table('items_pedido')
+                    ->where('pedido_id', $pedido->id)
+                    ->where('status_item', 'ativo')
+                    ->sum(\DB::raw('preco_unitario * quantidade'));
+
+                $pontosDeduzir = ceil($valorItens / 10);
+
+                if ($pontosDeduzir > 0) {
+                    \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, -$pontosDeduzir);
+                    
+                    \DB::table('pedidos')->where('id', $pedido->id)->update(['pontos_creditados' => false]);
+                    $pedido->setAttribute('pontos_creditados', false);
+
+                    Log::info("⚠️ Pontos do jogo removidos para o usuário {$pedido->user_id}: -{$pontosDeduzir} pontos pois o Pedido #{$pedido->id} mudou de status para '{$pedido->status_pedido}'");
+                }
+            }
+
         } catch (\Throwable $e) {
-            Log::error("Erro no PedidoObserver ao processar lançamento/carteira: " . $e->getMessage());
+            Log::error("Erro no PedidoObserver ao processar lançamento/carteira/pontos: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle the Pedido "deleting" event.
+     */
+    public function deleting(Pedido $pedido): void
+    {
+        try {
+            // Remover pontos do jogo se o pedido deletado tinha pontos creditados
+            if ($pedido->pontos_creditados) {
+                $valorItens = \DB::table('items_pedido')
+                    ->where('pedido_id', $pedido->id)
+                    ->where('status_item', 'ativo')
+                    ->sum(\DB::raw('preco_unitario * quantidade'));
+
+                $pontosDeduzir = ceil($valorItens / 10);
+
+                if ($pontosDeduzir > 0) {
+                    \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, -$pontosDeduzir);
+                    Log::info("⚠️ Pontos do jogo removidos para o usuário {$pedido->user_id}: -{$pontosDeduzir} pontos porque o Pedido #{$pedido->id} está sendo excluído");
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error("Erro no PedidoObserver ao processar deleting: " . $e->getMessage());
         }
     }
 

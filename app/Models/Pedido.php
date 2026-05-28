@@ -36,6 +36,7 @@ class Pedido extends Model
         'observacoes',
         'cupom_desconto',
         'origem_pedido',
+        'pontos_creditados',
     ];
 
     protected $casts = [
@@ -43,6 +44,7 @@ class Pedido extends Model
         'data_envio' => 'datetime',
         'data_entrega_prevista' => 'date',
         'data_entrega_realizada' => 'datetime',
+        'pontos_creditados' => 'boolean',
 
         'valor_total' => 'decimal:2',
         'valor_frete' => 'decimal:2',

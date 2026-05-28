@@ -794,9 +794,7 @@ class PedidoController extends Controller
             }
 
             // ✅ Buscar pedido
-            $pedido = DB::table('pedidos')
-                ->where('id', $pedidoId)
-                ->first();
+            $pedido = \App\Models\Pedido::find($pedidoId);
 
             if (!$pedido) {
                 DB::rollBack();
@@ -806,30 +804,12 @@ class PedidoController extends Controller
                 ], 404);
             }
 
+            $statusAnterior = $pedido->status_pedido;
+
             // ✅ Atualizar status do pedido
-            DB::table('pedidos')
-                ->update([
-                    'status_pedido' => $novoStatus,
-                    'updated_at' => now()
-                ]);
-
-            // 🎁 REGRA NOVA: 1 ponto a cada R$10,00 no pedido (apenas sobre o valor dos itens)
-            // A pontuação é creditada apenas na transição para o status 'concluido'
-            if ($novoStatus === 'concluido' && $pedido->status_pedido !== 'concluido') {
-                $valorItens = DB::table('items_pedido')
-                    ->where('pedido_id', $pedidoId)
-                    ->where('status_item', 'ativo')
-                    ->sum(DB::raw('preco_unitario * quantidade'));
-
-
-
-                $pontosGanhar = ceil($valorItens / 10);
-
-                if ($pontosGanhar > 0) {
-                    \App\Services\PontuacoesService::updateItemPoints($pedido->user_id, $pontosGanhar);
-                    Log::info("✅ Pontos creditados ao cliente {$pedido->user_id}: {$pontosGanhar} pontos por pedido de R$ {$valorItens}");
-                }
-            }
+            $pedido->update([
+                'status_pedido' => $novoStatus,
+            ]);
 
 
             // 🚀 NOVA LÓGICA: Atualizar status dos itens associados ao pedido através da tabela pivot 'items_pedido'
@@ -877,7 +857,7 @@ class PedidoController extends Controller
 
             Log::info('✅ Status do pedido e itens associados atualizados', [
                 'pedido_id' => $pedidoId,
-                'status_anterior_pedido' => $pedido->status_pedido,
+                'status_anterior_pedido' => $statusAnterior,
                 'status_novo_pedido' => $novoStatus
             ]);
 
