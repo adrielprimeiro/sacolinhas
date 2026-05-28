@@ -9,7 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule): void
     {
-        // Agendamentos aqui (opcional)
+        $schedule->command('mp:sync')->hourly();
     }
 
     protected function commands(): void
