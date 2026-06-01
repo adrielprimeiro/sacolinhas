@@ -440,13 +440,13 @@ class ConciliacaoService
         $count = 0;
 
         try {
-            // 1. Listar relatórios existentes
-            $listUrl = "https://api.mercadopago.com/v1/account/settlement_report/list";
+            // 1. Listar relatórios existentes (Relatórios de Liberação / Bank Report)
+            $listUrl = "https://api.mercadopago.com/v1/account/bank_report/list";
             $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
 
-            // Auto-configurar caso não exista a configuração de relatórios
+            // Auto-configurar caso não exista a configuração de relatórios de liberação
             if ($response->status() === 404 && str_contains($response->body(), 'config_not_found_for_user')) {
-                Log::info('Configuração de relatórios não encontrada no Mercado Pago. Criando configuração padrão...');
+                Log::info('Configuração de relatórios de liberação não encontrada no Mercado Pago. Criando...');
                 $this->criarConfiguracaoRelatorioMP($accessToken);
                 $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
             }
@@ -454,9 +454,9 @@ class ConciliacaoService
             if ($response->successful()) {
                 $reports = $response->json();
                 
-                // Filtrar relatórios processados e ordenar do mais recente para o mais antigo
+                // Filtrar relatórios habilitados (enabled) ou processados (processed)
                 $processedReports = array_filter($reports, function ($report) {
-                    return isset($report['status']) && $report['status'] === 'processed' && isset($report['file_name']);
+                    return isset($report['status']) && in_array($report['status'], ['processed', 'enabled']) && isset($report['file_name']);
                 });
 
                 usort($processedReports, function ($a, $b) {
@@ -470,7 +470,7 @@ class ConciliacaoService
                     $fileName = $report['file_name'];
                     Log::info("Processando relatório de extrato MP: {$fileName}");
                     
-                    $downloadUrl = "https://api.mercadopago.com/v1/account/settlement_report/{$fileName}";
+                    $downloadUrl = "https://api.mercadopago.com/v1/account/bank_report/{$fileName}";
                     $downloadResponse = Http::withoutVerifying()->withToken($accessToken)->get($downloadUrl);
                     
                     if ($downloadResponse->successful()) {
@@ -489,11 +489,11 @@ class ConciliacaoService
                 ]);
             }
 
-            // 2. Solicitar a geração de um novo relatório de extrato para o período (processamento assíncrono)
+            // 2. Solicitar a geração de um novo relatório de liberação para o período (processamento assíncrono)
             $beginDate = Carbon::parse($startDate)->startOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
             $endDate = Carbon::parse($endDate)->endOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
 
-            $generateUrl = "https://api.mercadopago.com/v1/account/settlement_report";
+            $generateUrl = "https://api.mercadopago.com/v1/account/release_report";
             $generateResponse = Http::withoutVerifying()
                 ->withToken($accessToken)
                 ->post($generateUrl, [
@@ -502,13 +502,13 @@ class ConciliacaoService
                 ]);
 
             if ($generateResponse->successful()) {
-                Log::info("Novo relatório de extrato solicitado com sucesso ao MP para o período {$startDate} a {$endDate}.");
+                Log::info("Novo relatório de liberação solicitado com sucesso ao MP para o período {$startDate} a {$endDate}.");
             } else {
-                Log::info("Aviso ao solicitar novo relatório MP (pode já existir uma solicitação em andamento): " . $generateResponse->body());
+                Log::info("Aviso ao solicitar novo relatório de liberação MP (pode já existir uma solicitação em andamento): " . $generateResponse->body());
             }
 
         } catch (\Exception $e) {
-            Log::error("Erro ao processar relatórios do Mercado Pago: " . $e->getMessage());
+            Log::error("Erro ao processar relatórios de liberação do Mercado Pago: " . $e->getMessage());
         }
 
         return $count;
@@ -797,14 +797,15 @@ class ConciliacaoService
     private function criarConfiguracaoRelatorioMP(string $accessToken): bool
     {
         try {
-            $configUrl = "https://api.mercadopago.com/v1/account/settlement_report/config";
+            $configUrl = "https://api.mercadopago.com/v1/account/release_report/config";
             $response = Http::withoutVerifying()
                 ->withToken($accessToken)
                 ->post($configUrl, [
-                    'file_name_prefix' => 'conciliacao-mp',
-                    'include_withdraw' => true,
+                    'file_name_prefix' => 'mp-liberacoes',
+                    'execute_after_withdrawal' => false,
                     'frequency' => [
-                        'type' => 'manual'
+                        'type' => 'daily',
+                        'hour' => 0
                     ],
                     'columns' => [
                         ['key' => 'DATE'],
@@ -818,11 +819,11 @@ class ConciliacaoService
                 ]);
 
             if ($response->successful()) {
-                Log::info('Configuração de relatórios criada com sucesso no Mercado Pago.');
+                Log::info('Configuração de relatórios de liberação criada com sucesso no Mercado Pago.');
                 return true;
             }
 
-            Log::error('Erro ao criar configuração de relatórios no Mercado Pago', [
+            Log::error('Erro ao criar configuração de relatórios de liberação no Mercado Pago', [
                 'status' => $response->status(),
                 'body' => $response->body()
             ]);
