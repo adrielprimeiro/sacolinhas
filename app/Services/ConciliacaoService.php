@@ -454,17 +454,33 @@ class ConciliacaoService
             if ($response->successful()) {
                 $reports = $response->json();
                 
-                // Filtrar relatórios habilitados (enabled) ou processados (processed)
-                $processedReports = array_filter($reports, function ($report) {
-                    return isset($report['status']) && in_array($report['status'], ['processed', 'enabled']) && isset($report['file_name']);
+                $reqStart = Carbon::parse($startDate)->startOfDay();
+                $reqEnd = Carbon::parse($endDate)->endOfDay();
+
+                // Filtrar relatórios habilitados (enabled) ou processados (processed) que sobreponham o período solicitado
+                $processedReports = array_filter($reports, function ($report) use ($reqStart, $reqEnd) {
+                    if (!isset($report['status']) || !in_array($report['status'], ['processed', 'enabled']) || !isset($report['file_name'])) {
+                        return false;
+                    }
+                    
+                    // Verificar se o período do relatório sobrepõe o período solicitado
+                    $repStart = isset($report['begin_date']) ? Carbon::parse($report['begin_date']) : null;
+                    $repEnd = isset($report['end_date']) ? Carbon::parse($report['end_date']) : null;
+                    
+                    if ($repStart && $repEnd) {
+                        return $repStart->lte($reqEnd) && $repEnd->gte($reqStart);
+                    }
+                    
+                    return true;
                 });
 
+                // Ordenar por data de criação decrescente (mais recentes primeiro)
                 usort($processedReports, function ($a, $b) {
-                    return strcmp($b['generation_date'] ?? '', $a['generation_date'] ?? '');
+                    return strcmp($b['date_created'] ?? '', $a['date_created'] ?? '');
                 });
 
-                // Processar no máximo os 3 relatórios de liberação mais recentes
-                $processedReports = array_slice($processedReports, 0, 3);
+                // Processar no máximo os 5 relatórios de liberação mais recentes que sobrepõem o período
+                $processedReports = array_slice($processedReports, 0, 5);
 
                 foreach ($processedReports as $report) {
                     $fileName = $report['file_name'];
