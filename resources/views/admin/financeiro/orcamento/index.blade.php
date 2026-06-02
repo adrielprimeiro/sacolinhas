@@ -118,7 +118,6 @@ $currentRoute = Route::currentRouteName();
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
                 <i class="fas {{ $tipo === 'receita' ? 'fa-arrow-down text-green-600' : 'fa-arrow-up text-red-600' }}"></i>
                 {{ $cfg['label'] }}
-                <span class="text-xs font-normal text-gray-400 ml-1">{{ $linhas->count() }} categorias raiz</span>
             </h2>
             <span class="text-sm font-black {{ $tipo === 'receita' ? 'text-green-700' : 'text-red-700' }}">
                 R$ {{ number_format($sumRealizado, 2, ',', '.') }}
@@ -187,12 +186,8 @@ $currentRoute = Route::currentRouteName();
                                      style="width: {{ $sumPctClamped }}%">
                                 </div>
                             </div>
-                            <div class="flex justify-between items-center text-[10px] text-gray-500 font-bold">
-                                <span>{{ $sumPct }}% do previsto</span>
-                                <span class="{{ $difClass }}">
-                                    Dif: R$ {{ number_format(abs($sumDif), 2, ',', '.') }}
-                                    <span class="text-[9px]">{{ $sumDif >= 0 ? '▼' : '▲' }}</span>
-                                </span>
+                            <div class="text-center text-[10px] text-gray-500 font-bold mt-0.5">
+                                {{ $sumPct }}%
                             </div>
                         </div>
                     </div>

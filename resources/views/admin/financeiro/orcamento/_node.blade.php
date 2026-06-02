@@ -122,13 +122,9 @@
                         </div>
                     </div>
                     
-                    {{-- Porcentagem e Diferença --}}
-                    <div class="flex justify-between items-center text-[10px] text-gray-400 font-bold">
-                        <span>{{ $pctDisplay }}% do previsto</span>
-                        <span class="{{ $difClass }}">
-                            Dif: R$ {{ number_format(abs($dif), 2, ',', '.') }}
-                            <span class="text-[9px]">{{ $dif >= 0 ? '▼' : '▲' }}</span>
-                        </span>
+                    {{-- Porcentagem discreta centralizada --}}
+                    <div class="text-center text-[10px] text-gray-400 font-bold mt-0.5">
+                        {{ $pctDisplay }}%
                     </div>
                 </div>
             </div>
