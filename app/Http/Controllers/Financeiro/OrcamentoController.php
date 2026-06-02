@@ -24,7 +24,7 @@ class OrcamentoController extends Controller
         $fimPeriodo    = $periodo->copy()->endOfMonth();
         $periodoDate   = $inicioPeriodo->format('Y-m-d');
 
-        // Busca todas as categorias com seus orçamentos e realizado do mês
+        // Busca todas as categorias com seus orçamentos e realizado do mês ordenados por código contábil
         $classificacoes = ClassificacaoFinanceira::select(
                 'classificacao_financeira.*',
                 DB::raw("(
@@ -40,7 +40,7 @@ class OrcamentoController extends Controller
                 $q->where('periodo', $periodoDate);
             }])
             ->orderBy('tipo_natureza')
-            ->orderBy('nome')
+            ->orderBy('codigo_contabil')
             ->get()
             ->map(function ($c) use ($periodoDate) {
                 $orcamento = $c->orcamentos->first();
@@ -60,22 +60,85 @@ class OrcamentoController extends Controller
                     'diferenca'                => $diferenca,
                     'percentual'               => $percentual,
                     'status_barra'             => $this->statusBarra($c->tipo_natureza, $percentual),
+                    'id_pai'                   => $c->id_pai,
                 ];
             });
 
-        $totalPrevistoDespesa  = $classificacoes->where('tipo_natureza', 'despesa')->sum('previsto');
-        $totalRealizadoDespesa = $classificacoes->where('tipo_natureza', 'despesa')->sum('realizado');
-        $totalPrevistaReceita  = $classificacoes->where('tipo_natureza', 'receita')->sum('previsto');
-        $totalRealizadaReceita = $classificacoes->where('tipo_natureza', 'receita')->sum('realizado');
+        // Agrupar e montar árvore para receitas e despesas
+        $itemsKeyed = $classificacoes->keyBy('id');
+        
+        $receitasRaw = $classificacoes->filter(fn($c) => $c['tipo_natureza'] === 'receita');
+        $despesasRaw = $classificacoes->filter(fn($c) => $c['tipo_natureza'] === 'despesa');
+
+        $treeReceitas = $this->buildTree($receitasRaw, $itemsKeyed);
+        $treeDespesas = $this->buildTree($despesasRaw, $itemsKeyed);
+
+        // Agregar totais recursivamente de baixo para cima
+        $treeReceitas = $treeReceitas->map(function ($node) {
+            $this->aggregateTotals($node);
+            return $node;
+        });
+
+        $treeDespesas = $treeDespesas->map(function ($node) {
+            $this->aggregateTotals($node);
+            return $node;
+        });
+
+        $totalPrevistoDespesa  = $treeDespesas->sum('previsto');
+        $totalRealizadoDespesa = $treeDespesas->sum('realizado');
+        $totalPrevistaReceita  = $treeReceitas->sum('previsto');
+        $totalRealizadaReceita = $treeReceitas->sum('realizado');
 
         return view('admin.financeiro.orcamento.index', compact(
-            'classificacoes',
+            'treeReceitas',
+            'treeDespesas',
             'periodo',
             'totalPrevistoDespesa',
             'totalRealizadoDespesa',
             'totalPrevistaReceita',
-            'totalRealizadaReceita'
+            'totalRealizadaReceita',
+            'classificacoes'
         ));
+    }
+
+    private function buildTree($items, $itemsKeyed, $parentId = null)
+    {
+        $branch = collect();
+
+        foreach ($items as $item) {
+            $isMatch = ($parentId === null)
+                ? ($item['id_pai'] === null || !$itemsKeyed->has($item['id_pai']))
+                : ($item['id_pai'] == $parentId);
+
+            if ($isMatch) {
+                $children = $this->buildTree($items, $itemsKeyed, $item['id']);
+                $item['children'] = $children;
+                $branch->push($item);
+            }
+        }
+
+        return $branch->sortBy('codigo_contabil');
+    }
+
+    private function aggregateTotals(&$node)
+    {
+        $totalPrevisto = $node['previsto'];
+        $totalRealizado = $node['realizado'];
+
+        if (!empty($node['children'])) {
+            $node['children'] = $node['children']->map(function ($child) use (&$totalPrevisto, &$totalRealizado) {
+                $this->aggregateTotals($child);
+                $totalPrevisto += $child['previsto'];
+                $totalRealizado += $child['realizado'];
+                return $child;
+            });
+        }
+
+        $node['previsto'] = $totalPrevisto;
+        $node['realizado'] = $totalRealizado;
+        $node['diferenca'] = $totalPrevisto - $totalRealizado;
+        $node['percentual'] = $totalPrevisto > 0 ? round(($totalRealizado / $totalPrevisto) * 100, 1) : 0;
+        $node['status_barra'] = $this->statusBarra($node['tipo_natureza'], $node['percentual']);
     }
 
     /**
