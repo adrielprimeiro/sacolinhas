@@ -28,36 +28,78 @@
                         selectedId: '{{ $financeiro->user_id }}',
                         users: [],
                         loading: false,
-                        fetchUsers() {
+                        focusedIndex: -1,
+                        timeout: null,
+                        handleInput() {
+                            this.selectedId = '';
+                            this.focusedIndex = -1;
+                            this.open = true;
                             if (this.search.length < 2) {
                                 this.users = [];
                                 return;
                             }
                             this.loading = true;
+                            clearTimeout(this.timeout);
+                            this.timeout = setTimeout(() => {
+                                this.fetchUsers();
+                            }, 300);
+                        },
+                        fetchUsers() {
                             fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
                                 .then(res => res.json())
                                 .then(res => {
                                     if (res.success) {
-                                        this.users = res.data.map(u => ({ id: String(u.id), name: u.name }));
+                                        this.users = res.data.map(u => {
+                                            let extraInfo = [u.email, u.instagram, u.tiktok, u.apelido].filter(Boolean).join(' • ');
+                                            return { id: String(u.id), name: u.name, info: extraInfo };
+                                        });
+                                        this.focusedIndex = this.users.length > 0 ? 0 : -1;
                                     } else {
                                         this.users = [];
+                                        this.focusedIndex = -1;
                                     }
                                     this.loading = false;
                                 })
                                 .catch(() => {
                                     this.users = [];
+                                    this.focusedIndex = -1;
                                     this.loading = false;
                                 });
+                        },
+                        selectUser(user) {
+                            this.selectedId = user.id; 
+                            this.search = user.name; 
+                            this.open = false;
+                        },
+                        onKeyDown(e) {
+                            if (e.key === 'Enter') {
+                                if (this.open && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+                                    e.preventDefault();
+                                    this.selectUser(this.users[this.focusedIndex]);
+                                }
+                                return;
+                            }
+                            
+                            if (!this.open || this.users.length === 0) return;
+                            
+                            if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+                            } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+                            }
                         }
                     }" class="relative col-span-12">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Usuário / Cliente <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="text" 
                                    x-model="search"
-                                   @input.debounce.300ms="fetchUsers()"
+                                   @input="handleInput()"
                                    @click="open = true"
                                    @click.away="open = false"
                                    @keydown.escape="open = false"
+                                   @keydown="onKeyDown($event)"
                                    placeholder="Busque o nome do usuário..."
                                    class="w-full pr-10 text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('user_id') border-red-500 @enderror">
                             <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -72,15 +114,15 @@
                              x-transition
                              class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-2xl rounded-xl max-h-60 overflow-y-auto"
                              style="display: none;">
-                            <template x-for="user in users" :key="user.id">
-                                <div @click="selectedId = user.id; search = user.name; open = false;"
-                                     class="px-4 py-3 text-sm hover:bg-blue-50 cursor-pointer transition border-b border-gray-50 flex items-center justify-between"
-                                     :class="selectedId == user.id ? 'bg-blue-50 font-bold text-blue-700' : 'text-gray-700'">
-                                    <div class="flex items-center gap-2">
-                                        <i class="fas fa-user text-gray-300"></i>
-                                        <span x-text="user.name"></span>
-                                    </div>
-                                    <span x-show="selectedId == user.id" class="text-blue-600"><i class="fas fa-check"></i></span>
+                            <template x-for="(user, index) in users" :key="user.id">
+                                <div @click="selectUser(user)"
+                                     class="p-3 cursor-pointer border-b border-gray-100 last:border-0 transition"
+                                     :class="[
+                                        selectedId == user.id ? 'border-l-4 border-indigo-600' : 'border-l-4 border-transparent',
+                                        focusedIndex === index ? 'bg-indigo-50' : 'hover:bg-indigo-50'
+                                     ]">
+                                    <div class="font-bold text-sm text-gray-800" x-text="user.name"></div>
+                                    <div class="text-[10px] text-gray-500" x-show="user.info" x-text="user.info"></div>
                                 </div>
                             </template>
                             <div x-show="loading" class="px-4 py-3 text-center text-sm text-gray-400 italic">

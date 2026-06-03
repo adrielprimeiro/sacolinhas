@@ -1,32 +1,43 @@
 @extends('layouts.app')
 
-@section('title', 'Movimentações de Conta Corrente')
+@section('title', 'Carteira Clientes')
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Card de Filtros -->
-    <div class="bg-white shadow-xl rounded-2xl border border-gray-100 mb-6">
-        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
+    <div class="bg-white shadow-xl rounded-2xl border border-gray-100 mb-6" x-data="{
+        activeFilter: '{{ request('tipo') ? 'tipo' : (request('user_id') ? 'user' : (request('de') || request('ate') ? 'periodo' : 'q')) }}'
+    }">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <i class="fas fa-filter text-blue-500"></i> Filtros de Busca
+                <i class="fas fa-filter text-indigo-500"></i> Filtrar por:
             </h3>
+            <div>
+                <select x-model="activeFilter" class="text-xs border border-gray-200 rounded-xl py-1.5 px-3 bg-white font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm transition-all">
+                    <option value="q">Descrição</option>
+                    <option value="tipo">Tipo (Crédito/Débito)</option>
+                    <option value="user">Cliente</option>
+                    <option value="periodo">Período (Datas)</option>
+                </select>
+            </div>
         </div>
         <div class="p-6">
-            <form action="{{ route('admin.conta_corrente.index') }}" method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <form action="{{ route('admin.conta_corrente.index') }}" method="GET" class="flex flex-col sm:flex-row items-end gap-4">
+                
                 <!-- Busca por Descrição -->
-                <div class="md:col-span-1">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descrição</label>
+                <div class="flex-1 w-full" x-show="activeFilter === 'q'" x-transition x-cloak>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</label>
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar descrição..." 
-                           class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                           class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                 </div>
 
                 <!-- Filtro por Tipo -->
-                <div class="md:col-span-1">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo</label>
-                    <select name="tipo" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                <div class="flex-1 w-full" x-show="activeFilter === 'tipo'" x-transition x-cloak>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
+                    <select name="tipo" class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                         <option value="">Todos</option>
-                        <option value="credito" {{ request('tipo') == 'credito' ? 'selected' : '' }}>Crédito</option>
-                        <option value="debito" {{ request('tipo') == 'debito' ? 'selected' : '' }}>Débito</option>
+                        <option value="credito" {{ request('tipo') == 'credito' ? 'selected' : '' }}>Crédito (Adicionar Saldo)</option>
+                        <option value="debito" {{ request('tipo') == 'debito' ? 'selected' : '' }}>Débito (Retirar Saldo)</option>
                     </select>
                 </div>
 
@@ -100,17 +111,22 @@
                             this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
                         }
                     }
-                }" class="relative md:col-span-2">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Usuário</label>
-                    <input type="text" 
-                           x-model="search"
-                           @input="handleInput()"
-                           @click="open = true"
-                           @click.away="open = false"
-                           @keydown.escape="open = false"
-                           @keydown="onKeyDown($event)"
-                           placeholder="Digite para buscar..."
-                           class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                }" class="relative flex-1 w-full" x-show="activeFilter === 'user'" x-transition x-cloak>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Cliente</label>
+                    <div class="relative">
+                        <input type="text" 
+                               x-model="search"
+                               @input="handleInput()"
+                               @click="open = true"
+                               @click.away="open = false"
+                               @keydown.escape="open = false"
+                               @keydown="onKeyDown($event)"
+                               placeholder="Digite para buscar..."
+                               class="w-full pr-10 text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm">
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-search text-sm"></i>
+                        </div>
+                    </div>
                     
                     <input type="hidden" name="user_id" :value="selectedId">
 
@@ -147,25 +163,30 @@
                     </div>
                 </div>
 
-                <!-- Período: De -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">De</label>
-                    <input type="date" name="de" value="{{ request('de') }}" 
-                           class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+                <!-- Período -->
+                <div class="flex-1 w-full flex flex-col sm:flex-row gap-4" x-show="activeFilter === 'periodo'" x-transition x-cloak>
+                    <div class="flex-1">
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">De</label>
+                        <input type="date" name="de" value="{{ request('de') }}" 
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Até</label>
+                        <input type="date" name="ate" value="{{ request('ate') }}" 
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                    </div>
                 </div>
 
-                <!-- Período: Até -->
-                <div class="flex items-end gap-2">
-                    <div class="flex-1">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Até</label>
-                        <input type="date" name="ate" value="{{ request('ate') }}" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    </div>
-                    <button type="submit" id="btn-search" class="bg-blue-100 hover:bg-blue-200 text-blue-800 p-2.5 rounded-lg transition border border-blue-200 font-bold" title="Pesquisar">
+                <!-- Ações -->
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <button type="submit" id="btn-search" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl transition shadow-md shadow-indigo-100 font-bold flex items-center justify-center gap-2" title="Pesquisar">
                         <i class="fas fa-search"></i>
+                        <span class="sm:hidden">Pesquisar</span>
                     </button>
                     @if(request()->anyFilled(['q', 'tipo', 'user_id', 'de', 'ate']))
-                        <a href="{{ route('admin.conta_corrente.index') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2.5 rounded-lg transition border border-gray-200" title="Limpar">
+                        <a href="{{ route('admin.conta_corrente.index') }}" class="w-full sm:w-auto text-center bg-gray-100 hover:bg-gray-200 text-gray-600 p-3 rounded-xl transition border border-gray-200 font-bold flex items-center justify-center gap-2" title="Limpar Filtros">
                             <i class="fas fa-times"></i>
+                            <span class="sm:hidden">Limpar</span>
                         </a>
                     @endif
                 </div>
@@ -177,7 +198,7 @@
         <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
             <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fas fa-history text-blue-600"></i>
-                Movimentações de Conta Corrente
+                Carteira Clientes
             </h2>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('admin.conta_corrente.create') }}" 
