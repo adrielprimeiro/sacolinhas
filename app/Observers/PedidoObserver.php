@@ -53,35 +53,50 @@ class PedidoObserver
                 ]);
             }
 
-            // 2. Buscar, criar ou deletar o lançamento vinculado a este pedido
-            if ($valorLiquido > 0) {
-                $lancamento = Lancamento::where('referencia_tipo', 'pedido')
-                    ->where('referencia_id', $pedido->id)
-                    ->first();
+            // 2. Buscar ou criar o lançamento de receita integral (Faturamento Bruto) vinculado a este pedido (Opção 2 de Contabilidade)
+            $lancamento = Lancamento::where('referencia_tipo', 'pedido')
+                ->where('referencia_id', $pedido->id)
+                ->first();
 
-                $dadosLancamento = [
-                    'tipo'                        => 'receita',
-                    'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
-                    'pessoa_id'                   => $pessoa->id,
-                    'classificacao_financeira_id' => 1, // Venda
-                    'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
-                    'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
-                    'valor_total'                 => $valorLiquido, // Apenas o valor financeiro líquido a receber em caixa
-                    'descricao'                   => "Pedido " . $pedido->numero_pedido,
-                    'referencia_tipo'             => 'pedido',
-                    'referencia_id'               => $pedido->id,
-                ];
+            $dadosLancamento = [
+                'tipo'                        => 'receita',
+                'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
+                'description'                 => "Pedido " . $pedido->numero_pedido,
+                'pessoa_id'                   => $pessoa->id,
+                'classificacao_financeira_id' => 1, // Venda
+                'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
+                'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
+                'valor_total'                 => $valorBruto, // Faturamento bruto total
+                'descricao'                   => "Pedido " . $pedido->numero_pedido,
+                'referencia_tipo'             => 'pedido',
+                'referencia_id'               => $pedido->id,
+            ];
 
-                if ($lancamento) {
-                    // Só atualiza se o valor ou status mudou para evitar recursão infinita se houver outros observers
-                    $lancamento->update($dadosLancamento);
-                } else {
-                    $lancamento = Lancamento::create($dadosLancamento);
-                }
+            if ($lancamento) {
+                $lancamento->update($dadosLancamento);
             } else {
-                // Se o pedido foi 100% pago com saldo da carteira (valor líquido = 0), não deve haver lançamento a receber no financeiro
-                Lancamento::where('referencia_tipo', 'pedido')
-                    ->where('referencia_id', $pedido->id)
+                $lancamento = Lancamento::create($dadosLancamento);
+            }
+
+            // Registrar ou atualizar a baixa virtual do saldo de carteira se o pedido estiver aprovado
+            if ($pedido->status_pagamento === 'aprovado' && $saldoUtilizado > 0) {
+                $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
+                $contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
+
+                \App\Models\Movimentacao::updateOrCreate(
+                    [
+                        'lancamento_id' => $lancamento->id,
+                        'forma_pagamento' => 'saldo_carteira',
+                    ],
+                    [
+                        'conta_bancaria_id' => $contaBancariaId,
+                        'data_pagamento' => $pedido->data_pedido ?? $pedido->created_at,
+                        'valor_pago' => $saldoUtilizado,
+                    ]
+                );
+            } else {
+                \App\Models\Movimentacao::where('lancamento_id', $lancamento->id)
+                    ->where('forma_pagamento', 'saldo_carteira')
                     ->delete();
             }
 
@@ -225,9 +240,13 @@ class PedidoObserver
     public function deleted(Pedido $pedido): void
     {
         try {
-            Lancamento::where('referencia_tipo', 'pedido')
+            $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
-                ->delete();
+                ->first();
+            if ($lancamento) {
+                $lancamento->movimentacoes()->delete();
+                $lancamento->delete();
+            }
 
             \App\Models\ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])
                 ->where('referencia_id', $pedido->id)
