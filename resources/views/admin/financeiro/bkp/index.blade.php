@@ -176,7 +176,7 @@
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Até</label>
-                        <input type="date" name="ate" value="{{ request('ate', now()->endOfMonth()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
+                        <input type="date" name="ate" value="{{ request('ate', now()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
                                @change="$el.form.submit()"
                                class="w-full text-xs border border-gray-200 rounded-xl py-1.5 px-2 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                     </div>

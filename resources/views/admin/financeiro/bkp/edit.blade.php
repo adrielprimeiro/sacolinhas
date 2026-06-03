@@ -293,7 +293,7 @@
                     </a>
                     <button type="submit" 
                             :disabled="isSubmitting"
-                            class="px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-black transition shadow-md shadow-amber-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black transition shadow-md shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                         <span x-show="!isSubmitting">Atualizar Lançamento</span>
                         <span x-show="isSubmitting" x-cloak><i class="fas fa-spinner fa-spin mr-2"></i>Salvando...</span>
                     </button>
