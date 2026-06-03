@@ -163,7 +163,7 @@ class ContaCorrenteController extends Controller
                 RecalcularSaldosJob::dispatch($userId, $dataMovimentacao);
             });
 
-            return redirect()->route('admin.conta_corrente.index', $request->query())->with('success', 'Lançamento excluído com sucesso!');
+            return redirect()->route('admin.conta_corrente.index', request()->query())->with('success', 'Lançamento excluído com sucesso!');
         }
 
     /**
