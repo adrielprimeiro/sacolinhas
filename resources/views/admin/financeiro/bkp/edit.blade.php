@@ -10,13 +10,13 @@
                 <i class="fas fa-edit text-amber-600"></i>
                 Editar Lançamento de Conta Corrente #{{ $financeiro->id }}
             </h2>
-            <a href="{{ route('admin.conta_corrente.index') }}" class="text-sm text-gray-500 hover:text-gray-700">
+            <a href="{{ route('admin.conta_corrente.index', request()->query()) }}" class="text-sm text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left mr-1"></i> Voltar
             </a>
         </div>
 
         <div class="p-8">
-            <form action="{{ route('admin.conta_corrente.update', $financeiro->id) }}" method="POST" class="space-y-6" x-data="{ isSubmitting: false }" @submit="if (isSubmitting) { $event.preventDefault(); } else { isSubmitting = true; }">
+            <form action="{{ route('admin.conta_corrente.update', array_merge([$financeiro->id], request()->query())) }}" method="POST" class="space-y-6" x-data="{ isSubmitting: false }" @submit="if (isSubmitting) { $event.preventDefault(); } else { isSubmitting = true; }">
                 @csrf
                 @method('PUT')
 
@@ -287,7 +287,7 @@
                 </div>
 
                 <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-100">
-                    <a href="{{ route('admin.conta_corrente.index') }}" 
+                    <a href="{{ route('admin.conta_corrente.index', request()->query()) }}" 
                        class="px-6 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition">
                         Cancelar
                     </a>

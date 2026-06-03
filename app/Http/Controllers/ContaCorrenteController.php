@@ -98,7 +98,7 @@ class ContaCorrenteController extends Controller
             RecalcularSaldosJob::dispatch($movimentacao->user_id, $movimentacao->data_movimentacao->toDateString());
         });
 
-        return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento criado com sucesso!');
+        return redirect()->route('admin.conta_corrente.index', $request->query())->with('success', 'Lançamento criado com sucesso!');
     }
 
 
@@ -144,7 +144,7 @@ class ContaCorrenteController extends Controller
             RecalcularSaldosJob::dispatch($financeiro->user_id, $financeiro->data_movimentacao->toDateString());
         });
 
-        return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento atualizado com sucesso!');
+        return redirect()->route('admin.conta_corrente.index', $request->query())->with('success', 'Lançamento atualizado com sucesso!');
     }
 
 
@@ -163,7 +163,7 @@ class ContaCorrenteController extends Controller
                 RecalcularSaldosJob::dispatch($userId, $dataMovimentacao);
             });
 
-            return redirect()->route('admin.conta_corrente.index')->with('success', 'Lançamento excluído com sucesso!');
+            return redirect()->route('admin.conta_corrente.index', $request->query())->with('success', 'Lançamento excluído com sucesso!');
         }
 
     /**

@@ -206,7 +206,7 @@
                 Carteira Clientes
             </h2>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin.conta_corrente.create') }}" 
+                <a href="{{ route('admin.conta_corrente.create', request()->query()) }}" 
                    class="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-blue-200">
                     <i class="fas fa-plus"></i> Novo Lançamento
                 </a>
@@ -494,15 +494,15 @@
                                 </td>
                                 <td class="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
                                     <div class="flex justify-center gap-2">
-                                        <a href="{{ route('admin.conta_corrente.show', $movimentacao->id) }}" 
+                                        <a href="{{ route('admin.conta_corrente.show', array_merge([$movimentacao->id], request()->query())) }}" 
                                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ route('admin.conta_corrente.edit', $movimentacao->id) }}" 
+                                        <a href="{{ route('admin.conta_corrente.edit', array_merge([$movimentacao->id], request()->query())) }}" 
                                            class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <form action="{{ route('admin.conta_corrente.destroy', $movimentacao->id) }}" 
+                                        <form action="{{ route('admin.conta_corrente.destroy', array_merge([$movimentacao->id], request()->query())) }}" 
                                               method="POST" 
                                               onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
                                             @csrf

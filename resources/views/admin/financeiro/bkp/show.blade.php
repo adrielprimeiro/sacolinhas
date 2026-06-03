@@ -11,11 +11,11 @@
                 Detalhes do Lançamento #{{ $financeiro->id }}
             </h2>
             <div class="flex gap-2">
-                <a href="{{ route('admin.conta_corrente.edit', $financeiro->id) }}" 
+                <a href="{{ route('admin.conta_corrente.edit', array_merge([$financeiro->id], request()->query())) }}" 
                    class="inline-flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-900 px-4 py-2 rounded-xl text-sm font-bold border border-amber-200 transition">
                     <i class="fas fa-edit"></i> Editar
                 </a>
-                <a href="{{ route('admin.conta_corrente.index') }}" 
+                <a href="{{ route('admin.conta_corrente.index', request()->query()) }}" 
                    class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-semibold transition">
                     <i class="fas fa-list"></i> Lista
                 </a>
