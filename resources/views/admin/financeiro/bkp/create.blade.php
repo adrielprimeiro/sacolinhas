@@ -19,7 +19,7 @@
             <form action="{{ route('admin.conta_corrente.store') }}" method="POST" class="space-y-6" x-data="{ isSubmitting: false }" @submit="if (isSubmitting) { $event.preventDefault(); } else { isSubmitting = true; }">
                 @csrf
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-12 gap-6">
                     <!-- Usuário (Obrigatório) -->
                     <div x-data="{ 
                         open: false, 
@@ -48,8 +48,8 @@
                                     this.loading = false;
                                 });
                         }
-                    }" class="relative col-span-1 md:col-span-2">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Usuário / Cliente <span class="text-red-500">*</span></label>
+                    }" class="relative col-span-12">
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Usuário / Cliente <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="text" 
                                    x-model="search"
@@ -58,7 +58,7 @@
                                    @click.away="open = false"
                                    @keydown.escape="open = false"
                                    placeholder="Busque o nome do usuário..."
-                                   class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('user_id') border-red-500 @enderror">
+                                   class="w-full pr-10 text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('user_id') border-red-500 @enderror">
                             <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                                 <i class="fas fa-search text-sm"></i>
                             </div>
@@ -97,10 +97,22 @@
                         @enderror
                     </div>
 
-                    <div>
-                        <label for="data_movimentacao" class="block text-sm font-semibold text-gray-700 mb-1">Data e Hora</label>
+                    <!-- Descrição -->
+                    <div class="col-span-12">
+                        <label for="descricao" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</label>
+                        <input type="text" 
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('descricao') border-red-500 @enderror" 
+                               id="descricao" name="descricao" value="{{ old('descricao') }}" placeholder="Ex: Ajuste de saldo, Crédito promocional..." required>
+                        @error('descricao')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Data e Hora -->
+                    <div class="col-span-12 md:col-span-6">
+                        <label for="data_movimentacao" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Data e Hora</label>
                         <input type="datetime-local" 
-                               class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('data_movimentacao') border-red-500 @enderror" 
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('data_movimentacao') border-red-500 @enderror" 
                                id="data_movimentacao" name="data_movimentacao" 
                                value="{{ old('data_movimentacao', now()->format('Y-m-d\TH:i')) }}" required>
                         @error('data_movimentacao')
@@ -108,14 +120,15 @@
                         @enderror
                     </div>
 
-                    <div>
-                        <label for="tipo_movimentacao" class="block text-sm font-semibold text-gray-700 mb-1">Tipo de Movimentação</label>
-                        <select class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('tipo_movimentacao') border-red-500 @enderror" 
+                    <!-- Tipo de Movimentação -->
+                    <div class="col-span-12 md:col-span-6">
+                        <label for="tipo_movimentacao" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo de Movimentação</label>
+                        <select class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm @error('tipo_movimentacao') border-red-500 @enderror" 
                                 id="tipo_movimentacao" name="tipo_movimentacao" required>
                             <option value="">Selecione...</option>
                             @foreach ($tiposMovimentacao as $tipo)
                                 <option value="{{ $tipo }}" {{ old('tipo_movimentacao') == $tipo ? 'selected' : '' }}>
-                                    {{ ucfirst($tipo) }}
+                                    {{ $tipo === 'credito' ? 'Crédito (Adicionar Saldo)' : 'Débito (Retirar Saldo)' }}
                                 </option>
                             @endforeach
                         </select>
@@ -124,13 +137,14 @@
                         @enderror
                     </div>
 
-                    <div>
-                        <label for="valor" class="block text-sm font-semibold text-gray-700 mb-1">Valor (R$)</label>
+                    <!-- Valor (R$) -->
+                    <div class="col-span-12 md:col-span-6">
+                        <label for="valor" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Valor (R$)</label>
                         <div class="relative">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">R$</span>
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">R$</span>
                             <input type="number" step="0.01" 
-                                   class="w-full pl-10 rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('valor') border-red-500 @enderror" 
-                                   id="valor" name="valor" value="{{ old('valor') }}" required>
+                                   class="w-full pl-10 text-sm border border-gray-200 rounded-xl p-2.5 font-black focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('valor') border-red-500 @enderror" 
+                                   id="valor" name="valor" value="{{ old('valor') }}" placeholder="0,00" required>
                         </div>
                         @error('valor')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -151,8 +165,8 @@
                             if (this.search === '') return this.items;
                             return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
                         }
-                    }" class="relative">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
+                    }" class="relative col-span-12 md:col-span-6">
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input type="text" 
                                    x-model="search"
@@ -160,7 +174,7 @@
                                    @click.away="open = false"
                                    @keydown.escape="open = false"
                                    placeholder="Busque a classificação..."
-                                   class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('classificacao_id') border-red-500 @enderror">
+                                   class="w-full pr-10 text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('classificacao_id') border-red-500 @enderror">
                             <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                                 <i class="fas fa-list-ul text-sm"></i>
                             </div>
@@ -192,22 +206,11 @@
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
-                </div>
 
-                <div>
-                    <label for="descricao" class="block text-sm font-semibold text-gray-700 mb-1">Descrição</label>
-                    <input type="text" 
-                           class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('descricao') border-red-500 @enderror" 
-                           id="descricao" name="descricao" value="{{ old('descricao') }}" required>
-                    @error('descricao')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="referencia_tipo" class="block text-sm font-semibold text-gray-700 mb-1">Tipo de Referência (Opcional)</label>
-                        <select class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition" 
+                    <!-- Tipo de Referência (Opcional) -->
+                    <div class="col-span-12 md:col-span-6">
+                        <label for="referencia_tipo" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo de Referência (Opcional)</label>
+                        <select class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm" 
                                 id="referencia_tipo" name="referencia_tipo">
                             <option value="">Nenhum</option>
                             @foreach (['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'] as $refTipo)
@@ -218,34 +221,36 @@
                         </select>
                     </div>
 
-                    <div id="referencia_id_group" style="{{ old('referencia_tipo') ? '' : 'display:none;' }}">
-                        <label for="referencia_id" class="block text-sm font-semibold text-gray-700 mb-1">ID da Referência</label>
+                    <!-- ID da Referência -->
+                    <div id="referencia_id_group" class="col-span-12 md:col-span-6" style="{{ old('referencia_tipo') ? '' : 'display:none;' }}">
+                        <label for="referencia_id" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">ID da Referência</label>
                         <input type="number" 
-                               class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('referencia_id') border-red-500 @enderror" 
-                               id="referencia_id" name="referencia_id" value="{{ old('referencia_id') }}">
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('referencia_id') border-red-500 @enderror" 
+                               id="referencia_id" name="referencia_id" value="{{ old('referencia_id') }}" placeholder="Ex: 1234">
                         @error('referencia_id')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Observações (Opcional) -->
+                    <div class="col-span-12">
+                        <label for="observacoes" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Observações (Opcional)</label>
+                        <textarea class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('observacoes') border-red-500 @enderror" 
+                                  id="observacoes" name="observacoes" rows="3" placeholder="Informações adicionais sobre este lançamento..."></textarea>
+                        @error('observacoes')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
 
-                <div>
-                    <label for="observacoes" class="block text-sm font-semibold text-gray-700 mb-1">Observações (Opcional)</label>
-                    <textarea class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition @error('observacoes') border-red-500 @enderror" 
-                              id="observacoes" name="observacoes" rows="3">{{ old('observacoes') }}</textarea>
-                    @error('observacoes')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="flex items-center justify-end gap-4 pt-4 border-t border-gray-100">
+                <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-100">
                     <a href="{{ route('admin.conta_corrente.index') }}" 
-                       class="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition">
+                       class="px-6 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition">
                         Cancelar
                     </a>
                     <button type="submit" 
                             :disabled="isSubmitting"
-                            class="px-8 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-900 border border-blue-200 rounded-xl text-sm font-bold shadow-sm transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black transition shadow-md shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                         <span x-show="!isSubmitting">Salvar Lançamento</span>
                         <span x-show="isSubmitting" x-cloak><i class="fas fa-spinner fa-spin mr-2"></i>Salvando...</span>
                     </button>
