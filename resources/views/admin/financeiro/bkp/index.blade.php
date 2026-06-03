@@ -6,7 +6,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Card de Filtros -->
     <div class="bg-white shadow-xl rounded-2xl border border-gray-100 mb-6" x-data="{
-        activeFilter: '{{ request('tipo') ? 'tipo' : (request('user_id') ? 'user' : (request('de') || request('ate') ? 'periodo' : 'q')) }}'
+        activeFilter: '{{ request('tipo') ? 'tipo' : (request('user_id') ? 'user' : (request('de') || request('ate') ? 'periodo' : (request('q') ? 'q' : 'user'))) }}'
     }">
         <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -14,9 +14,9 @@
             </h3>
             <div>
                 <select x-model="activeFilter" class="text-xs border border-gray-200 rounded-xl py-1.5 px-3 bg-white font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm transition-all">
+                    <option value="user">Cliente</option>
                     <option value="q">Descrição</option>
                     <option value="tipo">Tipo (Crédito/Débito)</option>
-                    <option value="user">Cliente</option>
                     <option value="periodo">Período (Datas)</option>
                 </select>
             </div>
@@ -27,14 +27,14 @@
                 <!-- Busca por Descrição -->
                 <div class="flex-1 w-full" x-show="activeFilter === 'q'" x-transition x-cloak>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</label>
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar descrição..." 
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar descrição..." :disabled="activeFilter !== 'q'"
                            class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                 </div>
 
                 <!-- Filtro por Tipo -->
                 <div class="flex-1 w-full" x-show="activeFilter === 'tipo'" x-transition x-cloak>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
-                    <select name="tipo" class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                    <select name="tipo" :disabled="activeFilter !== 'tipo'" class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                         <option value="">Todos</option>
                         <option value="credito" {{ request('tipo') == 'credito' ? 'selected' : '' }}>Crédito (Adicionar Saldo)</option>
                         <option value="debito" {{ request('tipo') == 'debito' ? 'selected' : '' }}>Débito (Retirar Saldo)</option>
@@ -128,7 +128,7 @@
                         </div>
                     </div>
                     
-                    <input type="hidden" name="user_id" :value="selectedId">
+                    <input type="hidden" name="user_id" :value="selectedId" :disabled="activeFilter !== 'user'">
 
                     <!-- Dropdown de Sugestões -->
                     <div x-show="open" 
@@ -167,12 +167,12 @@
                 <div class="flex-1 w-full flex flex-col sm:flex-row gap-4" x-show="activeFilter === 'periodo'" x-transition x-cloak>
                     <div class="flex-1">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">De</label>
-                        <input type="date" name="de" value="{{ request('de') }}" 
+                        <input type="date" name="de" value="{{ request('de', now()->startOfMonth()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
                                class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Até</label>
-                        <input type="date" name="ate" value="{{ request('ate') }}" 
+                        <input type="date" name="ate" value="{{ request('ate', now()->endOfMonth()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
                                class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                     </div>
                 </div>
