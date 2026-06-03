@@ -178,8 +178,8 @@ $currentRoute = Route::currentRouteName();
                         @endphp
                         <div class="flex flex-col w-full">
                             <div class="flex justify-between items-center text-xs font-black text-gray-700 mb-1">
-                                <span>Prev: R$ {{ number_format($sumPrevisto, 2, ',', '.') }}</span>
                                 <span>Real: R$ {{ number_format($sumRealizado, 2, ',', '.') }}</span>
+                                <span>Prev: R$ {{ number_format($sumPrevisto, 2, ',', '.') }}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-1">
                                 <div class="h-1.5 rounded-full transition-all duration-500 {{ $barBg }} {{ $overflow ? 'animate-pulse' : '' }}"

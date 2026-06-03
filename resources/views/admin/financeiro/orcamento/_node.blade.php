@@ -90,10 +90,10 @@
             {{-- Modo Visualização (Diferença e Progresso) --}}
             <div x-show="!isEditing" class="w-full" x-transition:enter>
                 <div class="flex flex-col w-full">
-                    {{-- Previsto e Realizado --}}
+                    {{-- Realizado e Previsto --}}
                     <div class="flex justify-between items-center text-xs font-bold text-gray-600 mb-1">
-                        <span>Prev: R$ {{ number_format($node['previsto'], 2, ',', '.') }}</span>
                         <span>Real: R$ {{ number_format($node['realizado'], 2, ',', '.') }}</span>
+                        <span>Prev: R$ {{ number_format($node['previsto'], 2, ',', '.') }}</span>
                     </div>
                     
                     {{-- Barra de Progresso --}}
