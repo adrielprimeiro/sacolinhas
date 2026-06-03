@@ -48,13 +48,13 @@
 >
     {{-- Linha principal --}}
     <div
-        class="grid grid-cols-12 gap-4 items-center px-5 py-3 hover:bg-gray-50/60 transition-all group"
+        class="grid grid-cols-12 gap-4 items-center pl-1 pr-3 py-3 hover:bg-gray-50/60 transition-all group"
     >
         {{-- Coluna 1: Categoria --}}
         <div 
             :class="isEditing ? 'col-span-8' : 'col-span-6'"
             class="flex items-center gap-2"
-            style="padding-left: {{ ($nivel * 1.5) }}rem"
+            style="padding-left: {{ ($nivel * 0.75) }}rem"
         >
             {{-- Botão expand/collapse se tiver filhos --}}
             <div class="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -130,24 +130,18 @@
             </div>
 
             {{-- Modo Edição (Input Previsto) --}}
-            <div x-show="isEditing" class="w-full relative" x-cloak x-transition:enter>
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-sm font-black text-gray-400">R$</span>
-                    <input type="number"
-                           x-model="valor"
-                           step="0.01" min="0"
-                           @change="salvar()"
-                           @keydown.enter="salvar(); $event.target.blur()"
-                           @keydown.escape="cancelar(); $event.target.blur()"
-                           class="w-full text-right text-sm border border-indigo-200 rounded-xl py-1.5 pl-9 pr-8 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-bold text-gray-800 transition-all shadow-sm">
-                    
-                    <div x-show="saving" class="absolute right-3 top-2.5" x-cloak>
-                        <i class="fas fa-spinner fa-spin text-indigo-500"></i>
-                    </div>
-                    <div x-show="saved" class="absolute right-3 top-2.5 text-green-500" x-cloak x-transition>
-                        <i class="fas fa-check text-xs"></i>
-                    </div>
+            <div x-show="isEditing" class="w-full flex items-center gap-1.5" x-cloak x-transition:enter>
+                <div class="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                    <span x-show="saving" x-cloak><i class="fas fa-spinner fa-spin text-indigo-500 text-[10px]"></i></span>
+                    <span x-show="saved" x-cloak x-transition class="text-green-500"><i class="fas fa-check text-[10px]"></i></span>
                 </div>
+                <input type="number"
+                       x-model="valor"
+                       step="0.01" min="0"
+                       @change="salvar()"
+                       @keydown.enter="salvar(); $event.target.blur()"
+                       @keydown.escape="cancelar(); $event.target.blur()"
+                       class="w-full text-right text-sm border border-indigo-200 rounded-xl py-1 px-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-bold text-gray-800 transition-all shadow-sm">
             </div>
         </div>
     </div>

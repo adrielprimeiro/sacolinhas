@@ -131,7 +131,7 @@ $currentRoute = Route::currentRouteName();
             </div>
         @else
             {{-- Cabeçalho da tabela --}}
-            <div class="grid grid-cols-12 gap-4 px-5 py-3 text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50">
+            <div class="grid grid-cols-12 gap-4 pl-1 pr-3 py-3 text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50">
                 <div :class="isEditing ? 'col-span-8' : 'col-span-6'">Categoria</div>
                 <div :class="isEditing ? 'col-span-4 text-right' : 'col-span-6'">
                     <span x-show="!isEditing">Diferença / Progresso</span>
@@ -147,7 +147,7 @@ $currentRoute = Route::currentRouteName();
             </div>
 
             {{-- Totalizador da seção --}}
-            <div class="grid grid-cols-12 gap-4 px-5 py-4 items-center border-t border-gray-100 font-bold text-gray-700
+            <div class="grid grid-cols-12 gap-4 pl-1 pr-3 py-4 items-center border-t border-gray-100 font-bold text-gray-700
                         {{ $tipo === 'receita' ? 'bg-green-50/30' : 'bg-red-50/30' }}">
                 <div :class="isEditing ? 'col-span-8' : 'col-span-6'" class="flex items-center gap-2">
                     <span class="w-5 h-5 flex-shrink-0"></span>
