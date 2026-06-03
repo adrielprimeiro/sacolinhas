@@ -28,13 +28,14 @@
                 <div class="flex-1 w-full" x-show="activeFilter === 'q'" x-transition x-cloak>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</label>
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar descrição..." :disabled="activeFilter !== 'q'"
+                           @change="$el.form.submit()"
                            class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                 </div>
 
                 <!-- Filtro por Tipo -->
                 <div class="flex-1 w-full" x-show="activeFilter === 'tipo'" x-transition x-cloak>
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
-                    <select name="tipo" :disabled="activeFilter !== 'tipo'" class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                    <select name="tipo" :disabled="activeFilter !== 'tipo'" @change="$el.form.submit()" class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                         <option value="">Todos</option>
                         <option value="credito" {{ request('tipo') == 'credito' ? 'selected' : '' }}>Crédito (Adicionar Saldo)</option>
                         <option value="debito" {{ request('tipo') == 'debito' ? 'selected' : '' }}>Débito (Retirar Saldo)</option>
@@ -90,7 +91,9 @@
                         this.selectedId = user.id; 
                         this.search = user.name; 
                         this.open = false;
-                        document.getElementById('btn-search').focus();
+                        this.$nextTick(() => {
+                            this.$el.closest('form').submit();
+                        });
                     },
                     onKeyDown(e) {
                         if (e.key === 'Enter') {
@@ -156,7 +159,7 @@
                             Digite pelo menos 2 caracteres...
                         </div>
                         <!-- Opção para limpar -->
-                        <div @click="selectedId = ''; search = ''; open = false; users = [];"
+                        <div @click="selectedId = ''; search = ''; open = false; users = []; $nextTick(() => { $el.closest('form').submit(); })"
                              class="px-4 py-2 text-xs text-red-500 hover:bg-red-50 cursor-pointer border-t border-gray-50 font-bold uppercase">
                             Limpar Seleção
                         </div>
@@ -164,16 +167,18 @@
                 </div>
 
                 <!-- Período -->
-                <div class="flex-1 w-full flex flex-col sm:flex-row gap-4" x-show="activeFilter === 'periodo'" x-transition x-cloak>
+                <div class="flex-1 w-full max-w-xs flex gap-2" x-show="activeFilter === 'periodo'" x-transition x-cloak>
                     <div class="flex-1">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">De</label>
                         <input type="date" name="de" value="{{ request('de', now()->startOfMonth()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
-                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                               @change="$el.form.submit()"
+                               class="w-full text-xs border border-gray-200 rounded-xl py-1.5 px-2 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Até</label>
                         <input type="date" name="ate" value="{{ request('ate', now()->endOfMonth()->format('Y-m-d')) }}" :disabled="activeFilter !== 'periodo'" 
-                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
+                               @change="$el.form.submit()"
+                               class="w-full text-xs border border-gray-200 rounded-xl py-1.5 px-2 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm">
                     </div>
                 </div>
 
