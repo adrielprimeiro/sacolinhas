@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Financeiro;
 use App\Http\Controllers\Controller;
 use App\Models\Movimentacao;
 use App\Models\ContaBancaria;
+use App\Models\ClassificacaoFinanceira;
+use App\Models\Pessoa;
 use Illuminate\Http\Request;
 
 class MovimentacaoController extends Controller
@@ -12,10 +14,13 @@ class MovimentacaoController extends Controller
     public function index(Request $request)
     {
         $contas = ContaBancaria::orderBy('nome')->get();
+        $classificacoes = ClassificacaoFinanceira::orderBy('nome')->get();
+        $pessoas = Pessoa::orderBy('nome')->get();
         
-        $query = Movimentacao::with(['lancamento.pessoa', 'contaBancaria'])
+        $query = Movimentacao::with(['lancamento.pessoa', 'lancamento.classificacaoFinanceira', 'contaBancaria'])
             ->orderBy('data_pagamento', 'desc');
 
+        // Aplicar filtros à query principal
         if ($request->filled('conta_bancaria_id')) {
             $query->where('conta_bancaria_id', $request->conta_bancaria_id);
         }
@@ -32,12 +37,54 @@ class MovimentacaoController extends Controller
             $query->where('forma_pagamento', $request->forma_pagamento);
         }
 
+        if ($request->filled('classificacao_financeira_id')) {
+            $query->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('classificacao_financeira_id', $request->classificacao_financeira_id);
+            });
+        }
+
+        if ($request->filled('tipo')) {
+            $query->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('tipo', $request->tipo);
+            });
+        }
+
+        if ($request->filled('pessoa_id')) {
+            $query->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('pessoa_id', $request->pessoa_id);
+            });
+        }
+
         $movimentacoes = $query->paginate(30);
 
-        // Totais filtrados pela conta selecionada
+        // Totais filtrados de acordo com todos os filtros
         $totaisQuery = Movimentacao::query();
         if ($request->filled('conta_bancaria_id')) {
             $totaisQuery->where('conta_bancaria_id', $request->conta_bancaria_id);
+        }
+        if ($request->filled('data_inicio')) {
+            $totaisQuery->whereDate('data_pagamento', '>=', $request->data_inicio);
+        }
+        if ($request->filled('data_fim')) {
+            $totaisQuery->whereDate('data_pagamento', '<=', $request->data_fim);
+        }
+        if ($request->filled('forma_pagamento')) {
+            $totaisQuery->where('forma_pagamento', $request->forma_pagamento);
+        }
+        if ($request->filled('classificacao_financeira_id')) {
+            $totaisQuery->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('classificacao_financeira_id', $request->classificacao_financeira_id);
+            });
+        }
+        if ($request->filled('tipo')) {
+            $totaisQuery->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('tipo', $request->tipo);
+            });
+        }
+        if ($request->filled('pessoa_id')) {
+            $totaisQuery->whereHas('lancamento', function ($q) use ($request) {
+                $q->where('pessoa_id', $request->pessoa_id);
+            });
         }
         
         $totalEntradas = (clone $totaisQuery)->whereHas('lancamento', function ($q) {
@@ -53,7 +100,7 @@ class MovimentacaoController extends Controller
             : null;
 
         return view('admin.financeiro.movimentacoes', 
-            compact('movimentacoes', 'totalEntradas', 'totalSaidas', 'contas', 'contaSelecionada'));
+            compact('movimentacoes', 'totalEntradas', 'totalSaidas', 'contas', 'contaSelecionada', 'classificacoes', 'pessoas'));
     }
 
     public function transferir(Request $request)

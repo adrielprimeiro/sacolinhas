@@ -121,6 +121,36 @@ $currentRoute = Route::currentRouteName();
                     <option value="cartao" {{ request('forma_pagamento') == 'cartao' ? 'selected' : '' }}>Cartão</option>
                 </select>
             </div>
+            <div>
+                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
+                <select name="tipo" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white">
+                    <option value="">Todos</option>
+                    <option value="receita" {{ request('tipo') == 'receita' ? 'selected' : '' }}>Receita</option>
+                    <option value="despesa" {{ request('tipo') == 'despesa' ? 'selected' : '' }}>Despesa</option>
+                </select>
+            </div>
+            <div class="min-w-[150px]">
+                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Categoria</label>
+                <select name="classificacao_financeira_id" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
+                    <option value="">Todas</option>
+                    @foreach($classificacoes as $class)
+                        <option value="{{ $class->id }}" {{ request('classificacao_financeira_id') == $class->id ? 'selected' : '' }}>
+                            {{ $class->nome }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="min-w-[180px]">
+                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Pessoa / Contato</label>
+                <select name="pessoa_id" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
+                    <option value="">Todas</option>
+                    @foreach($pessoas as $p)
+                        <option value="{{ $p->id }}" {{ request('pessoa_id') == $p->id ? 'selected' : '' }}>
+                            {{ $p->nome }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
             <button type="submit" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-200">
                 <i class="fas fa-filter mr-1"></i> Filtrar
             </button>
@@ -137,6 +167,8 @@ $currentRoute = Route::currentRouteName();
         <thead class="bg-gray-50 border-b border-gray-100">
             <tr>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Data</th>
+                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Tipo</th>
+                <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Categoria</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Lançamento</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Pessoa</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase">Forma</th>
@@ -144,14 +176,21 @@ $currentRoute = Route::currentRouteName();
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Valor</th>
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Ações</th>
             </tr>
-</thead>
+        </thead>
         <tbody class="divide-y divide-gray-50">
             @forelse($movimentacoes as $m)
                 <tr class="hover:bg-gray-50">
                     <td class="px-5 py-4 text-sm text-gray-500">{{ $m->data_pagamento->format('d/m/Y') }}</td>
+                    <td class="px-5 py-4 text-sm">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">
+                            {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'Receita' : 'Despesa' }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-4 text-sm text-gray-600">
+                        {{ $m->lancamento->classificacaoFinanceira->nome ?? '---' }}
+                    </td>
                     <td class="px-5 py-4">
                         <div class="text-sm font-bold text-gray-800">{{ $m->lancamento->descricao ?? '---' }}</div>
-                        <div class="text-[10px] text-gray-400">{{ $m->lancamento->tipo ?? '' }}</div>
                     </td>
                     <td class="px-5 py-4 text-sm text-gray-600">{{ $m->lancamento->pessoa->nome ?? '---' }}</td>
                     <td class="px-5 py-4">
@@ -181,7 +220,7 @@ $currentRoute = Route::currentRouteName();
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="px-5 py-8 text-center text-gray-500">
+                    <td colspan="9" class="px-5 py-8 text-center text-gray-500">
                         Nenhuma movimentação encontrada.
                     </td>
                 </tr>
