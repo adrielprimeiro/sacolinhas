@@ -176,20 +176,52 @@ document.getElementById('form-conta').addEventListener('submit', async function(
     const btn = this.querySelector('[type=submit]');
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
-        const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify(body) });
+        const res  = await fetch(url, { 
+            method, 
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            }, 
+            body: JSON.stringify(body) 
+        });
         const data = await res.json();
-        if (data.success) { fecharModalConta(); location.reload(); }
-        else alert(data.message || 'Erro ao salvar.');
-    } catch(e) { alert('Erro de comunicação.'); }
+        if (res.ok && data.success) { 
+            fecharModalConta(); 
+            location.reload(); 
+        } else {
+            let msg = data.message || 'Erro ao salvar.';
+            if (data.errors) {
+                msg = Object.values(data.errors).flat().join('\n');
+            }
+            alert(msg);
+        }
+    } catch(e) { 
+        alert('Erro de comunicação.'); 
+    }
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar';
 });
 
 async function excluirConta(id) {
     if (!confirm('Excluir esta conta? (Só é possível se não houver movimentações.)')) return;
-    const res  = await fetch(`/admin/financeiro/contas/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF } });
-    const data = await res.json();
-    if (data.success) location.reload(); else alert(data.message);
+    try {
+        const res  = await fetch(`/admin/financeiro/contas/${id}`, { 
+            method: 'DELETE', 
+            headers: { 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            } 
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            location.reload(); 
+        } else {
+            alert(data.message || 'Erro ao excluir conta.');
+        }
+    } catch(e) {
+        alert('Erro de comunicação.');
+    }
 }
 </script>
 @endpush

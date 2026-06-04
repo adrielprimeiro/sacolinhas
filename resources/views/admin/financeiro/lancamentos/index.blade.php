@@ -296,11 +296,29 @@ document.getElementById('form-lancamento').addEventListener('submit', async func
     btn.disabled = true; btn.textContent = 'Salvando...';
 
     try {
-        const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify(body) });
+        const res  = await fetch(url, { 
+            method, 
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            }, 
+            body: JSON.stringify(body) 
+        });
         const data = await res.json();
-        if (data.success) { fecharModalLancamento(); location.reload(); }
-        else { alert(data.message || 'Erro ao salvar.'); }
-    } catch(err) { alert('Erro de comunicação.'); }
+        if (res.ok && data.success) { 
+            fecharModalLancamento(); 
+            location.reload(); 
+        } else { 
+            let msg = data.message || 'Erro ao salvar.';
+            if (data.errors) {
+                msg = Object.values(data.errors).flat().join('\n');
+            }
+            alert(msg); 
+        }
+    } catch(err) { 
+        alert('Erro de comunicação.'); 
+    }
     btn.disabled = false; btn.textContent = 'Salvar';
 });
 
@@ -327,27 +345,73 @@ document.getElementById('form-baixa').addEventListener('submit', async function(
     const btn = this.querySelector('[type=submit]');
     btn.disabled = true; btn.textContent = 'Registrando...';
     try {
-        const res  = await fetch(`/admin/financeiro/lancamentos/${id}/baixar`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify(body) });
+        const res  = await fetch(`/admin/financeiro/lancamentos/${id}/baixar`, { 
+            method: 'POST', 
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            }, 
+            body: JSON.stringify(body) 
+        });
         const data = await res.json();
-        if (data.success) { fecharModalBaixa(); location.reload(); }
-        else { alert(data.message); }
-    } catch(err) { alert('Erro de comunicação.'); }
+        if (res.ok && data.success) { 
+            fecharModalBaixa(); 
+            location.reload(); 
+        } else { 
+            let msg = data.message || 'Erro ao registrar baixa.';
+            if (data.errors) {
+                msg = Object.values(data.errors).flat().join('\n');
+            }
+            alert(msg); 
+        }
+    } catch(err) { 
+        alert('Erro de comunicação.'); 
+    }
     btn.disabled = false; btn.textContent = 'Confirmar Baixa';
 });
 
 /* ===== AÇÕES DIRETAS ===== */
 async function cancelarLancamento(id) {
     if (!confirm('Cancelar este lançamento?')) return;
-    const res  = await fetch(`/admin/financeiro/lancamentos/${id}/cancelar`, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF } });
-    const data = await res.json();
-    if (data.success) location.reload(); else alert(data.message);
+    try {
+        const res  = await fetch(`/admin/financeiro/lancamentos/${id}/cancelar`, { 
+            method: 'POST', 
+            headers: { 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            } 
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            location.reload(); 
+        } else {
+            alert(data.message || 'Erro ao cancelar lançamento.');
+        }
+    } catch(err) {
+        alert('Erro de comunicação.');
+    }
 }
 
 async function excluirLancamento(id) {
     if (!confirm('Excluir permanentemente este lançamento?')) return;
-    const res  = await fetch(`/admin/financeiro/lancamentos/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF } });
-    const data = await res.json();
-    if (data.success) location.reload(); else alert(data.message);
+    try {
+        const res  = await fetch(`/admin/financeiro/lancamentos/${id}`, { 
+            method: 'DELETE', 
+            headers: { 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF 
+            } 
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            location.reload(); 
+        } else {
+            alert(data.message || 'Erro ao excluir lançamento.');
+        }
+    } catch(err) {
+        alert('Erro de comunicação.');
+    }
 }
 
 /* ===== SELECT2 ===== */

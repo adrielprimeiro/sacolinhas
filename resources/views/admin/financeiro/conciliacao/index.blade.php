@@ -276,6 +276,7 @@ function conciliacao() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
                     },
                     body: JSON.stringify({
@@ -284,12 +285,16 @@ function conciliacao() {
                     })
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (res.ok && data.success) {
                     // Feedback visual antes de recarregar
                     this.movSelecionada = null;
                     location.reload();
                 } else {
-                    alert(data.message || 'Erro ao vincular.');
+                    let msg = data.message || 'Erro ao vincular.';
+                    if (data.errors) {
+                        msg = Object.values(data.errors).flat().join('\n');
+                    }
+                    alert(msg);
                 }
             } catch(e) {
                 alert('Erro de comunicação.');
