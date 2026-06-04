@@ -28,7 +28,12 @@ class OrcamentoController extends Controller
         $classificacoes = ClassificacaoFinanceira::select(
                 'classificacao_financeira.*',
                 DB::raw("(
-                    SELECT COALESCE(SUM(m.valor_pago), 0)
+                    SELECT COALESCE(SUM(
+                        CASE 
+                            WHEN l.tipo = classificacao_financeira.tipo_natureza THEN m.valor_pago 
+                            ELSE -m.valor_pago 
+                        END
+                    ), 0)
                     FROM movimentacoes m
                     INNER JOIN lancamentos l ON l.id = m.lancamento_id
                     WHERE l.classificacao_financeira_id = classificacao_financeira.id
