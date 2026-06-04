@@ -30,7 +30,7 @@ class OrcamentoController extends Controller
                 DB::raw("(
                     SELECT COALESCE(SUM(
                         CASE 
-                            WHEN l.tipo = classificacao_financeira.tipo_natureza THEN m.valor_pago 
+                            WHEN l.tipo = classificacao_financeira.tipo_natureza COLLATE utf8mb4_unicode_ci THEN m.valor_pago 
                             ELSE -m.valor_pago 
                         END
                     ), 0)
