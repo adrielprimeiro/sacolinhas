@@ -12,7 +12,7 @@ $currentRoute = Route::currentRouteName();
 <div x-data="{ 
     showModalTransfer: false, 
     showModalEdit: false,
-    editData: { id: '', conta_id: '', data: '', valor: '', forma: '', descricao: '' },
+    editData: { id: '', conta_id: '', data: '', valor: '', forma: '', descricao: '', tipo: 'receita', classificacao_financeira_id: '', pessoa_id: '', has_lancamento: false },
     openEdit(mov) {
         this.editData = {
             id: mov.id,
@@ -20,7 +20,11 @@ $currentRoute = Route::currentRouteName();
             data: mov.data_pagamento.split('T')[0],
             valor: mov.valor_pago,
             forma: mov.forma_pagamento,
-            descricao: mov.lancamento ? mov.lancamento.descricao : 'Transferência'
+            descricao: mov.lancamento ? mov.lancamento.descricao : '',
+            tipo: mov.lancamento ? mov.lancamento.tipo : 'receita',
+            classificacao_financeira_id: mov.lancamento ? (mov.lancamento.classificacao_financeira_id || '') : '',
+            pessoa_id: mov.lancamento ? (mov.lancamento.pessoa_id || '') : '',
+            has_lancamento: mov.lancamento ? true : false
         };
         this.showModalEdit = true;
     }
@@ -290,22 +294,71 @@ $currentRoute = Route::currentRouteName();
     </div>
     <!-- Modal Editar Movimentação -->
     <div x-show="showModalEdit" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form :action="'{{ url('admin/financeiro/movimentacoes') }}/' + editData.id" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+        <form :action="'{{ url('admin/financeiro/movimentacoes') }}/' + editData.id" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
             @csrf @method('PUT')
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 class="font-black text-gray-800 uppercase tracking-widest text-sm">Editar Movimentação</h3>
                 <button type="button" @click="showModalEdit = false" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-6 space-y-4">
-                <p class="text-xs text-gray-500 mb-2">Lançamento: <span class="font-bold text-gray-700" x-text="editData.descricao"></span></p>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária</label>
-                    <select name="conta_bancaria_id" x-model="editData.conta_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
-                        @foreach($contas as $conta)
-                            <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
-                        @endforeach
-                    </select>
+            <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                <div x-show="editData.has_lancamento" class="space-y-4 border-b border-gray-100 pb-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipo</label>
+                            <select name="tipo" x-model="editData.tipo" :required="editData.has_lancamento" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                                <option value="receita">Receita</option>
+                                <option value="despesa">Despesa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Categoria</label>
+                            <select name="classificacao_financeira_id" x-model="editData.classificacao_financeira_id" :required="editData.has_lancamento" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                                <option value="">Selecione...</option>
+                                @foreach($classificacoes as $class)
+                                    <option value="{{ $class->id }}">{{ $class->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Descrição do Lançamento</label>
+                        <input type="text" name="descricao" x-model="editData.descricao" :required="editData.has_lancamento" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-bold" placeholder="Descrição do lançamento">
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Pessoa / Contato</label>
+                        <select name="pessoa_id" x-model="editData.pessoa_id" :required="editData.has_lancamento" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                            <option value="">Selecione...</option>
+                            @foreach($pessoas as $p)
+                                <option value="{{ $p->id }}">{{ $p->nome }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conta Bancária</label>
+                        <select name="conta_bancaria_id" x-model="editData.conta_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                            @foreach($contas as $conta)
+                                <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Forma de Pagamento</label>
+                        <select name="forma_pagamento" x-model="editData.forma" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
+                            <option value="pix">PIX</option>
+                            <option value="transferencia">Transferência</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="boleto">Boleto</option>
+                            <option value="cartao">Cartão</option>
+                            <option value="cartao_credito">Cartão de Crédito</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Data do Pagamento</label>
@@ -315,16 +368,6 @@ $currentRoute = Route::currentRouteName();
                         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Pago</label>
                         <input type="number" name="valor_pago" x-model="editData.valor" step="0.01" min="0" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-black" required>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Forma de Pagamento</label>
-                    <select name="forma_pagamento" x-model="editData.forma" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold" required>
-                        <option value="pix">PIX</option>
-                        <option value="transferencia">Transferência</option>
-                        <option value="dinheiro">Dinheiro</option>
-                        <option value="boleto">Boleto</option>
-                        <option value="cartao_credito">Cartão de Crédito</option>
-                    </select>
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">

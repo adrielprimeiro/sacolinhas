@@ -162,14 +162,44 @@ class MovimentacaoController extends Controller
 
     public function update(Request $request, Movimentacao $movimentacao)
     {
-        $request->validate([
+        $rules = [
             'conta_bancaria_id' => 'required|exists:contas_bancarias,id',
             'data_pagamento' => 'required|date',
             'valor_pago' => 'required|numeric|min:0',
             'forma_pagamento' => 'required|string',
-        ]);
+        ];
+
+        if ($movimentacao->lancamento) {
+            $rules['tipo'] = 'required|string|in:receita,despesa';
+            $rules['classificacao_financeira_id'] = 'required|exists:classificacao_financeira,id';
+            $rules['descricao'] = 'required|string';
+            $rules['pessoa_id'] = 'required|exists:pessoas,id';
+        }
+
+        $request->validate($rules);
 
         \DB::transaction(function() use ($request, $movimentacao) {
+            // 1. Atualizar lançamento pai primeiro se existir
+            if ($movimentacao->lancamento) {
+                $lancamento = $movimentacao->lancamento;
+                
+                $lancamentoData = $request->only([
+                    'tipo',
+                    'classificacao_financeira_id',
+                    'descricao',
+                    'pessoa_id'
+                ]);
+
+                // Se houver apenas 1 movimentacao vinculada a este lancamento,
+                // podemos atualizar o valor_total do lançamento para bater com o valor_pago.
+                if ($lancamento->movimentacoes()->count() === 1) {
+                    $lancamentoData['valor_total'] = $request->valor_pago;
+                }
+
+                $lancamento->update($lancamentoData);
+            }
+
+            // 2. Atualizar movimentação (dispara hook static::updated e sincronizarCarteira)
             $movimentacao->update($request->only([
                 'conta_bancaria_id',
                 'data_pagamento',
@@ -177,11 +207,10 @@ class MovimentacaoController extends Controller
                 'forma_pagamento'
             ]));
 
-            // Atualizar status do lançamento pai
+            // 3. Recalcular e atualizar status do lançamento, e forçar sincronização da carteira com dados atualizados
             if ($movimentacao->lancamento) {
                 $lancamento = $movimentacao->lancamento;
                 $pago = $lancamento->movimentacoes()->sum('valor_pago');
-                
                 if ($pago >= $lancamento->valor_total) {
                     $lancamento->update(['status' => 'pago']);
                 } elseif ($pago > 0) {
@@ -189,6 +218,9 @@ class MovimentacaoController extends Controller
                 } else {
                     $lancamento->update(['status' => 'pendente']);
                 }
+
+                $movimentacao->unsetRelation('lancamento');
+                $movimentacao->sincronizarCarteira();
             }
         });
 
