@@ -245,6 +245,9 @@ function abrirModalNovo(tipo) {
     document.getElementById('campo-id').value = '';
     document.getElementById('form-lancamento').reset();
     document.getElementById('campo-tipo').value = tipo;
+    // Resetar campos bloqueados
+    document.getElementById('campo-valor').disabled = false;
+    document.getElementById('campo-valor').classList.remove('bg-gray-100', 'cursor-not-allowed');
     // Limpar select2
     if (window.$) { $('#select-pessoa').val(null).trigger('change'); $('#select-classificacao').val(null).trigger('change'); }
 }
@@ -259,8 +262,21 @@ function abrirModalEditar(data) {
     document.getElementById('campo-emissao').value       = data.data_emissao;
     document.getElementById('campo-vencimento').value    = data.data_vencimento;
 
+    // Se estiver pago, bloqueia o valor total para edição
+    const isPago = data.status === 'pago';
+    document.getElementById('campo-valor').disabled = isPago;
+    if (isPago) {
+        document.getElementById('campo-valor').classList.add('bg-gray-100', 'cursor-not-allowed');
+    } else {
+        document.getElementById('campo-valor').classList.remove('bg-gray-100', 'cursor-not-allowed');
+    }
+
     // Select2: injeta opção selecionada
     if (window.$) {
+        // Limpa antes de injetar
+        $('#select-pessoa').val(null).trigger('change');
+        $('#select-classificacao').val(null).trigger('change');
+        
         if (data.pessoa_id) {
             const op1 = new Option(data.pessoa_nome, data.pessoa_id, true, true);
             $('#select-pessoa').append(op1).trigger('change');

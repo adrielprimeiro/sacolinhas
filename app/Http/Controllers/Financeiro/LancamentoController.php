@@ -102,19 +102,53 @@ class LancamentoController extends Controller
      */
     public function update(Request $request, Lancamento $lancamento)
     {
-        $this->abortSeJaPago($lancamento);
+        if ($lancamento->status === 'pago') {
+            // Para lançamentos já pagos, permitimos editar a categoria, descrição, pessoa e datas,
+            // mas mantemos o tipo e o valor inalterados por segurança.
+            $data = $request->validate([
+                'pessoa_id'                  => ['required', 'exists:pessoas,id'],
+                'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
+                'data_emissao'               => ['required', 'date'],
+                'data_vencimento'            => ['required', 'date'],
+                'descricao'                  => ['nullable', 'string', 'max:255'],
+            ]);
+            
+            $data['valor_total'] = $lancamento->valor_total;
+            $data['tipo'] = $lancamento->tipo;
+        } else {
+            $data = $request->validate([
+                'tipo'                       => ['required', Rule::in(['receita', 'despesa'])],
+                'pessoa_id'                  => ['required', 'exists:pessoas,id'],
+                'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
+                'data_emissao'               => ['required', 'date'],
+                'data_vencimento'            => ['required', 'date'],
+                'valor_total'                => ['required', 'numeric', 'min:0.01'],
+                'descricao'                  => ['nullable', 'string', 'max:255'],
+            ]);
+        }
 
-        $data = $request->validate([
-            'tipo'                       => ['required', Rule::in(['receita', 'despesa'])],
-            'pessoa_id'                  => ['required', 'exists:pessoas,id'],
-            'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
-            'data_emissao'               => ['required', 'date'],
-            'data_vencimento'            => ['required', 'date'],
-            'valor_total'                => ['required', 'numeric', 'min:0.01'],
-            'descricao'                  => ['nullable', 'string', 'max:255'],
-        ]);
+        \DB::transaction(function() use ($lancamento, $data) {
+            $lancamento->update($data);
 
-        $lancamento->update($data);
+            // Se for vinculado a um crédito de carteira (Conta Corrente), atualiza a classificação na carteira
+            if ($lancamento->referencia_tipo === 'carteira_credito') {
+                $cc = \App\Models\ContaCorrente::find($lancamento->referencia_id);
+                if ($cc) {
+                    \App\Models\ContaCorrente::withoutEvents(function() use ($cc, $lancamento) {
+                        $cc->update([
+                            'classificacao_id' => $lancamento->classificacao_financeira_id,
+                            'descricao'        => str_replace("Crédito Cliente: ", "", $lancamento->descricao)
+                        ]);
+                    });
+                }
+            }
+
+            // Sincronizar carteira para cada movimentação do lançamento
+            foreach ($lancamento->movimentacoes as $movimentacao) {
+                $movimentacao->unsetRelation('lancamento');
+                $movimentacao->sincronizarCarteira();
+            }
+        });
 
         return response()->json(['success' => true, 'message' => 'Lançamento atualizado com sucesso.']);
     }
