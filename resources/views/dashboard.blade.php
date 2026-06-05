@@ -24,14 +24,14 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         <!-- Card 1: Atenção - Vencimentos -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-rose-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-red-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-rose-500 uppercase tracking-wider">Prazos</p>
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Prazos</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Atenção - Vencimentos</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-rose-50 text-rose-500">
+                    <div class="p-3 rounded-lg bg-red-50 text-red-500">
                         <i class="fas fa-triangle-exclamation text-xl"></i>
                     </div>
                 </div>
@@ -39,19 +39,19 @@
                 <div class="mt-4 space-y-3">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Sacolas vencendo hoje</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-800">
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">
                             {{ $alertasVencimento['sacolas_vencem_hoje'] ?? 0 }}
                         </span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Itens vencendo hoje</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-800">
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">
                             {{ $alertasVencimento['itens_vencem_hoje'] ?? 0 }}
                         </span>
                     </div>
                     <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
                         <span class="text-gray-500">Valor total</span>
-                        <span class="font-bold text-rose-600">
+                        <span class="font-bold text-red-600">
                             R$ {{ number_format($alertasVencimento['valor_itens_vencem_hoje'] ?? 0, 2, ',', '.') }}
                         </span>
                     </div>
@@ -59,21 +59,21 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('admin.vencimentos') }}" class="block w-full text-center bg-rose-600 hover:bg-rose-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('admin.vencimentos') }}" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver sacolas
                 </a>
             </div>
         </div>
 
         <!-- Card 2: Estoque -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-cyan-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-blue-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-cyan-600 uppercase tracking-wider">Físico</p>
+                        <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider">Físico</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Estoque</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-cyan-50 text-cyan-600">
+                    <div class="p-3 rounded-lg bg-blue-50 text-blue-600">
                         <i class="fas fa-warehouse text-xl"></i>
                     </div>
                 </div>
@@ -81,7 +81,7 @@
                 <div class="mt-4 space-y-3">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Quantidade</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-cyan-100 text-cyan-800">
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
                             {{ $estoqueInfo['quantidade'] ?? 0 }} itens
                         </span>
                     </div>
@@ -101,7 +101,7 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('inventario') }}?status=estoque" class="block w-full text-center bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('inventario') }}?status=estoque" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Estoque
                 </a>
             </div>
@@ -129,7 +129,7 @@
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Itens em Sacolas</span>
-                        <span class="font-bold text-cyan-600">
+                        <span class="font-bold text-blue-600">
                             {{ $sacolasInfo['total_itens'] ?? 0 }} itens
                         </span>
                     </div>
@@ -150,14 +150,14 @@
         </div>
 
         <!-- Card 4: Clientes -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-blue-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-indigo-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-blue-500 uppercase tracking-wider">Base</p>
+                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Base</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Clientes</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-blue-50 text-blue-500">
+                    <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
                         <i class="fas fa-users text-xl"></i>
                     </div>
                 </div>
@@ -169,21 +169,21 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('clientes.index') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('clientes.index') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Todos
                 </a>
             </div>
         </div>
 
         <!-- Card 5: Disponíveis -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-emerald-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-green-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-emerald-500 uppercase tracking-wider">Produtos</p>
+                        <p class="text-xs font-semibold text-green-600 uppercase tracking-wider">Produtos</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Disponíveis</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-emerald-50 text-emerald-500">
+                    <div class="p-3 rounded-lg bg-green-50 text-green-500">
                         <i class="fas fa-check-circle text-xl"></i>
                     </div>
                 </div>
@@ -195,21 +195,21 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('inventario') }}?status=disponivel" class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('inventario') }}?status=disponivel" class="block w-full text-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Itens
                 </a>
             </div>
         </div>
 
         <!-- Card 6: Vendidos -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-rose-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-red-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-rose-500 uppercase tracking-wider">Histórico</p>
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Histórico</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Vendidos</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-rose-50 text-rose-500">
+                    <div class="p-3 rounded-lg bg-red-50 text-red-500">
                         <i class="fas fa-shopping-cart text-xl"></i>
                     </div>
                 </div>
@@ -221,21 +221,21 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('inventario') }}?status=vendido" class="block w-full text-center bg-rose-600 hover:bg-rose-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('inventario') }}?status=vendido" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Itens
                 </a>
             </div>
         </div>
 
         <!-- Card 7: Reservados -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-amber-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-md border-t-4 border-yellow-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Reserva</p>
+                        <p class="text-xs font-semibold text-yellow-600 uppercase tracking-wider">Reserva</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Reservados</h3>
                     </div>
-                    <div class="p-3 rounded-lg bg-amber-50 text-amber-500">
+                    <div class="p-3 rounded-lg bg-yellow-50 text-yellow-600">
                         <i class="fas fa-clock text-xl"></i>
                     </div>
                 </div>
@@ -247,7 +247,7 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('inventario') }}?status=reservado" class="block w-full text-center bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                <a href="{{ route('inventario') }}?status=reservado" class="block w-full text-center bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Itens
                 </a>
             </div>
