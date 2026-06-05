@@ -54,177 +54,172 @@ $currentRoute = Route::currentRouteName();
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-r shadow-sm" role="alert">
-            <p class="font-bold">Sucesso!</p>
-            <p>{{ session('success') }}</p>
-        </div>
-    @endif
+    <!-- Alertas globais gerenciados pelo layout -->
 
-    @if(session('error'))
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r shadow-sm" role="alert">
-            <p class="font-bold">Erro!</p>
-            <p>{{ session('error') }}</p>
-        </div>
-    @endif
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-24">
-        <!-- Coluna Esquerda: Extrato -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[600px]">
-            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                <h5 class="font-bold text-gray-700">Extrato (Banco/MP)</h5>
-                <span class="bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded-full">{{ count($extrato) }} pendentes</span>
-            </div>
-            <div class="overflow-y-auto flex-grow">
-                <table class="w-full text-left border-collapse">
-                    <thead class="sticky top-0 bg-white shadow-sm">
-                        <tr>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Data</th>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Descrição</th>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Valor</th>
-                            <th class="px-5 py-3 w-20"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($extrato as $t)
-                            <tr class="cursor-pointer transition hover:bg-indigo-50 group" 
-                                :class="selectedExtrato === {{ $t->id }} ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'"
-                                @click='selectExtrato({{ $t->id }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->getPedidoId() }}")'>
-                                <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{{ $t->data->format('d/m/Y') }}</td>
-                                <td class="px-5 py-4">
-                                    <div class="text-sm font-bold text-gray-800">{{ $t->descricao }}</div>
-                                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{{ $t->origem }}</div>
-                                </td>
-                                <td class="px-5 py-4 text-right">
-                                    @if($t->valor_taxa > 0)
-                                        <div class="flex flex-col items-end">
-                                            <span class="text-xs text-gray-500 line-through" title="Valor Bruto">
-                                                R$ {{ number_format($t->valor_bruto ?? $t->valor, 2, ',', '.') }}
-                                            </span>
-                                            <span class="text-[10px] text-red-500 font-bold" title="Taxa Mercado Pago">
-                                                - R$ {{ number_format($t->valor_taxa, 2, ',', '.') }}
-                                            </span>
-                                            <span class="text-sm font-black {{ $t->tipo === 'entrada' ? 'text-green-600' : 'text-red-600' }}" title="Valor Líquido">
-                                                {{ $t->tipo === 'entrada' ? '+' : '-' }} R$ {{ number_format($t->valor_liquido ?? $t->valor, 2, ',', '.') }}
-                                            </span>
-                                        </div>
-                                    @else
-                                        <span class="text-sm font-black {{ $t->tipo === 'entrada' ? 'text-green-600' : 'text-red-600' }}">
-                                            {{ $t->tipo === 'entrada' ? '+' : '-' }} R$ {{ number_format($t->valor, 2, ',', '.') }}
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="px-5 py-4 text-right">
-                                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                                        <button @click.stop='openQuickCreate({{ $t->id }}, {{ json_encode($t->descricao) }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->origem }}")' 
-                                                class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Lançamento Rápido">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                        <form action="{{ route('financeiro.conciliacao.ignorar', $t->id) }}" method="POST" onsubmit="return confirm('Ignorar esta transação?')">
-                                            @csrf
-                                            <button type="submit" class="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition" title="Ignorar">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Coluna Direita: Sistema -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[600px]">
-            <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
-                <div class="flex items-center justify-between mb-2">
-                    <h5 class="font-bold text-gray-700">Lançamentos no Sistema</h5>
-                    <span class="bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded-full">{{ count($lancamentos) }} registros</span>
-                </div>
-                <div class="relative">
-                    <input type="text" x-model="searchSistema" placeholder="Filtrar por pedido ou descrição..." 
-                           class="w-full text-xs border border-gray-200 rounded-lg pl-8 pr-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-[10px]"></i>
-                    <button x-show="searchSistema" @click="searchSistema = ''" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times-circle"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="overflow-y-auto flex-grow">
-                <table class="w-full text-left border-collapse">
-                    <thead class="sticky top-0 bg-white shadow-sm">
-                        <tr>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Vencimento</th>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Descrição / Pessoa</th>
-                            <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($lancamentos as $l)
-                            <tr x-show='shouldShowSistema({{ json_encode($l->descricao) }}, "{{ $l->referencia_id }}")'
-                                class="cursor-pointer transition hover:bg-indigo-50" 
-                                :class="selectedSistema === {{ $l->id }} ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'"
-                                @click='selectSistema({{ $l->id }}, {{ $l->valor_total }}, "{{ $l->tipo === 'receita' ? 'entrada' : 'saida' }}")'>
-                                <td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{{ $l->data_vencimento->format('d/m/Y') }}</td>
-                                <td class="px-5 py-4">
-                                    <div class="text-sm font-bold text-gray-800">{{ $l->descricao }}</div>
-                                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{{ $l->pessoa->nome ?? '---' }}</div>
-                                </td>
-                                <td class="px-5 py-4 text-right">
-                                    <span class="text-sm font-black text-gray-700">
-                                        R$ {{ number_format($l->valor_total, 2, ',', '.') }}
-                                    </span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Barra de Ações Fixa -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-2xl z-50">
-        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <template x-if="selectedExtrato">
-                    <span class="bg-indigo-100 text-indigo-700 text-xs font-black px-3 py-1.5 rounded-full border border-indigo-200 flex items-center gap-2">
-                        <i class="fas fa-file-invoice"></i> EXTRATO SELECIONADO
-                    </span>
-                </template>
-                <template x-if="selectedSistema">
-                    <span class="bg-purple-100 text-purple-700 text-xs font-black px-3 py-1.5 rounded-full border border-purple-200 flex items-center gap-2">
-                        <i class="fas fa-desktop"></i> SISTEMA SELECIONADO
-                    </span>
-                </template>
-                <template x-if="!selectedExtrato && !selectedSistema">
-                    <span class="text-sm font-medium text-gray-400">Selecione um item de cada lado para conciliar</span>
-                </template>
-            </div>
-
-            <div class="flex items-center gap-6">
-                <template x-if="selectedExtrato && selectedSistema">
-                    <div class="text-right">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Diferença</p>
-                        <p class="text-lg font-black" :class="valorExtrato === valorSistema ? 'text-green-600' : 'text-red-600'">
-                            R$ <span x-text="formatMoney(Math.abs(valorExtrato - valorSistema))"></span>
-                        </p>
+    <div class="space-y-6 mb-24">
+        @forelse($extratoComSugestoes as $item)
+            @php
+                $t = $item['transacao'];
+                $sugestoes = $item['sugestoes'];
+                $isEntrada = $t->tipo === 'entrada';
+            @endphp
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition duration-200">
+                {{-- Transaction Header Row --}}
+                <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/70 border-b border-gray-100">
+                    <div class="flex items-start gap-3.5">
+                        {{-- Icon Indicator --}}
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 {{ $isEntrada ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600' }}">
+                            <i class="fas {{ $isEntrada ? 'fa-arrow-down' : 'fa-arrow-up' }} text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-bold text-gray-400">{{ $t->data->format('d/m/Y') }}</span>
+                                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {{ $t->origem === 'mercadopago' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-700' }}">
+                                    {{ $t->origem }}
+                                </span>
+                            </div>
+                            <h4 class="text-base font-bold text-gray-800 mt-0.5 leading-snug">{{ $t->descricao }}</h4>
+                        </div>
                     </div>
-                </template>
 
-                <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="transacao_id" :value="selectedExtrato">
-                    <input type="hidden" name="lancamento_id" :value="selectedSistema">
-                    <button type="submit" 
-                            class="bg-green-600 text-white px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg flex items-center gap-2" 
-                            :disabled="!canConciliar()">
-                        <i class="fas fa-link"></i> Vincular (Match)
-                    </button>
-                </form>
+                    {{-- Right Area: Value and Action Buttons --}}
+                    <div class="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
+                        {{-- Transaction Value --}}
+                        <div class="text-left md:text-right">
+                            @if($t->valor_taxa > 0)
+                                <div class="flex flex-col items-start md:items-end">
+                                    <span class="text-[10px] text-gray-400 line-through" title="Valor Bruto">
+                                        R$ {{ number_format($t->valor_bruto ?? $t->valor, 2, ',', '.') }}
+                                    </span>
+                                    <span class="text-[9px] text-red-500 font-bold" title="Taxa Mercado Pago">
+                                        - R$ {{ number_format($t->valor_taxa, 2, ',', '.') }}
+                                    </span>
+                                    <span class="text-lg font-black {{ $isEntrada ? 'text-green-600' : 'text-red-600' }}">
+                                        {{ $isEntrada ? '+' : '-' }} R$ {{ number_format($t->valor_liquido ?? $t->valor, 2, ',', '.') }}
+                                    </span>
+                                </div>
+                            @else
+                                <span class="text-lg font-black {{ $isEntrada ? 'text-green-600' : 'text-red-600' }}">
+                                    {{ $isEntrada ? '+' : '-' }} R$ {{ number_format($t->valor, 2, ',', '.') }}
+                                </span>
+                            @endif
+                        </div>
+
+                        {{-- Action Buttons --}}
+                        <div class="flex items-center gap-1.5">
+                            <button @click='openQuickCreate({{ $t->id }}, {{ json_encode($t->descricao) }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->origem }}")' 
+                                    class="bg-white border border-gray-200 text-indigo-600 hover:bg-indigo-50 p-2.5 rounded-xl transition shadow-sm text-xs font-bold flex items-center gap-1.5"
+                                    title="Criar lançamento rápido e conciliar">
+                                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Criar Novo</span>
+                            </button>
+                            <form action="{{ route('financeiro.conciliacao.ignorar', $t->id) }}" method="POST" onsubmit="return confirm('Ignorar esta transação?')">
+                                @csrf
+                                <button type="submit" 
+                                        class="bg-white border border-gray-200 text-red-500 hover:bg-red-50 p-2.5 rounded-xl transition shadow-sm text-xs font-bold flex items-center gap-1.5"
+                                        title="Ignorar transação do extrato">
+                                    <i class="fas fa-times text-sm"></i> <span class="hidden sm:inline">Ignorar</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Suggestions Section --}}
+                <div class="p-5 space-y-4">
+                    <div>
+                        <h5 class="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mb-3">
+                            <i class="fas fa-magic text-indigo-500"></i> Sugestões do Sistema
+                        </h5>
+                        
+                        @if($sugestoes->isEmpty())
+                            <p class="text-xs text-gray-400 italic bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-200">
+                                Nenhuma sugestão automática encontrada. Utilize o seletor manual abaixo para vincular a um lançamento existente.
+                            </p>
+                        @else
+                            <div class="space-y-2.5">
+                                @foreach($sugestoes as $s)
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-indigo-50/30 rounded-xl border border-indigo-100/40 hover:bg-indigo-50/50 transition">
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="text-xs font-bold text-gray-800">{{ $s->descricao }}</span>
+                                                <span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-2 py-0.5 rounded-full">
+                                                    Match: {{ $s->score }} pts
+                                                </span>
+                                                @foreach($s->motivos_match as $motivo)
+                                                    @php
+                                                        $badgeColor = match($motivo) {
+                                                            'Valor exato', 'Valor líquido exato' => 'bg-green-100 text-green-800 border-green-200',
+                                                            'Pedido correspondente' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                                            'Vencimento hoje', 'Vencimento próximo (até 3 dias)', 'Vencimento próximo (até 7 dias)' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                                                            default => 'bg-purple-100 text-purple-800 border-purple-200'
+                                                        };
+                                                    @endphp
+                                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded border {{ $badgeColor }}">
+                                                        {{ $motivo }}
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                            <div class="text-[10px] text-gray-400 font-bold space-x-3">
+                                                <span><i class="far fa-user mr-1"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
+                                                <span><i class="far fa-folder mr-1"></i>{{ $s->classificacaoFinanceira->nome ?? 'Sem Categoria' }}</span>
+                                                <span><i class="far fa-calendar-alt mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-indigo-100/40">
+                                            <span class="text-sm font-black text-gray-700 sm:text-right">
+                                                R$ {{ number_format($s->valor_total, 2, ',', '.') }}
+                                            </span>
+                                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST">
+                                                @csrf
+                                                <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                <input type="hidden" name="lancamento_id" value="{{ $s->id }}">
+                                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                                                    <i class="fas fa-link"></i> Vincular
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Manual Selection Dropdown --}}
+                    <div class="pt-3 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="w-full md:max-w-2xl">
+                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                @csrf
+                                <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                <select name="lancamento_id" class="flex-grow text-xs border border-gray-200 rounded-xl p-2.5 bg-white font-bold text-gray-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                                    <option value="">-- Ou vincular manualmente a outro lançamento existente... --</option>
+                                    @php
+                                        $options = $isEntrada ? $lancamentosReceita : $lancamentosDespesa;
+                                    @endphp
+                                    @foreach($options as $lAlt)
+                                        <option value="{{ $lAlt->id }}">
+                                            Venc: {{ $lAlt->data_vencimento->format('d/m/Y') }} | R$ {{ number_format($lAlt->valor_total, 2, ',', '.') }} | {{ $lAlt->descricao }} ({{ $lAlt->pessoa->nome ?? 'Sem Contato' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="fas fa-link"></i> Vincular Selecionado
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        @empty
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center max-w-lg mx-auto">
+                <div class="w-16 h-16 rounded-2xl bg-green-50 text-green-500 flex items-center justify-center mx-auto mb-4 border border-green-100 shadow-sm">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-800">Tudo Conciliado!</h3>
+                <p class="text-sm text-gray-400 mt-1.5 leading-relaxed">Nenhuma transação de extrato pendente para conciliação. Excelente trabalho!</p>
+            </div>
+        @endforelse
     </div>
 
     <!-- Modal OFX -->
@@ -273,19 +268,7 @@ $currentRoute = Route::currentRouteName();
                         <input type="date" name="end_date" class="w-full text-sm border border-gray-200 rounded-xl p-2" value="{{ date('Y-m-d') }}" required>
                     </div>
                 </div>
-                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-2">
-                    <div class="flex gap-2">
-                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-                        <p class="text-[11px] text-blue-700 font-bold leading-normal">
-                            Como funciona a sincronização?
-                        </p>
-                    </div>
-                    <ul class="list-disc pl-5 text-[10px] text-blue-600 space-y-1 leading-relaxed">
-                        <li><strong>Recebimentos (Entradas):</strong> São buscados e importados instantaneamente via API.</li>
-                        <li><strong>Pagamentos (Saídas/Pix/Tarifas):</strong> O Mercado Pago gera relatórios de extrato de forma assíncrona. A primeira sincronização solicita a geração do arquivo; você deve clicar em <strong>Sincronizar</strong> novamente em alguns minutos para baixar e importar as saídas processadas.</li>
-                        <li><strong>Histórico antigo:</strong> Transações de saídas anteriores a 25/05/2026 vêm sem dados devido a limitações de retroatividade do Mercado Pago. Para trazê-las, exporte o CSV do extrato no painel do MP e use o botão <strong>Importar Extrato (OFX/CSV)</strong>.</li>
-                    </ul>
-                </div>
+
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
                 <button type="button" @click="showModalMp = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
@@ -401,53 +384,10 @@ $currentRoute = Route::currentRouteName();
 <script>
     function conciliacaoApp() {
         return {
-            selectedExtrato: null,
-            selectedSistema: null,
-            valorExtrato: 0,
-            valorSistema: 0,
-            tipoExtrato: '',
-            tipoSistema: '',
             quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
             showModalOfx: false,
             showModalMp: false,
             showModalQuick: false,
-            searchSistema: '',
-
-            selectExtrato(id, valor, tipo, suggestion) {
-                if (this.selectedExtrato === id) {
-                    this.selectedExtrato = null;
-                    this.valorExtrato = 0;
-                    this.tipoExtrato = '';
-                } else {
-                    this.selectedExtrato = id;
-                    this.valorExtrato = parseFloat(valor);
-                    this.tipoExtrato = tipo;
-                    // Se houver uma sugestão (ID do pedido), aplica o filtro automaticamente
-                    if (suggestion) {
-                        this.searchSistema = suggestion;
-                    }
-                }
-            },
-
-            selectSistema(id, valor, tipo) {
-                if (this.selectedSistema === id) {
-                    this.selectedSistema = null;
-                    this.valorSistema = 0;
-                    this.tipoSistema = '';
-                } else {
-                    this.selectedSistema = id;
-                    this.valorSistema = parseFloat(valor);
-                    this.tipoSistema = tipo;
-                }
-            },
-
-            canConciliar() {
-                return this.selectedExtrato && this.selectedSistema && (this.tipoExtrato === this.tipoSistema);
-            },
-
-            formatMoney(v) {
-                return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            },
 
             openQuickCreate(id, desc, valor, tipo, origem) {
                 this.quickData = { 
@@ -470,13 +410,6 @@ $currentRoute = Route::currentRouteName();
                             window.dispatchEvent(new CustomEvent('pessoa-sugestionada', { detail: data.pessoa }));
                         }
                     });
-            },
-
-            shouldShowSistema(descricao, refId) {
-                if (!this.searchSistema) return true;
-                const search = this.searchSistema.toLowerCase();
-                return descricao.toLowerCase().includes(search) || 
-                       (refId && refId.toString().includes(search));
             },
 
             formatMoney(v) {

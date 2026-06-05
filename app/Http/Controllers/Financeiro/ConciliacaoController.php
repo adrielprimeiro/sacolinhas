@@ -26,7 +26,7 @@ class ConciliacaoController extends Controller
             ->orderBy('data', 'desc')
             ->get();
 
-        $lancamentos = Lancamento::with('pessoa')
+        $lancamentos = Lancamento::with(['pessoa', 'classificacaoFinanceira'])
             ->where(function ($q) {
                 $q->where('status', 'pendente')
                     ->orWhere(function ($q2) {
@@ -40,11 +40,120 @@ class ConciliacaoController extends Controller
             ->orderBy('data_vencimento', 'asc')
             ->get();
 
+        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos) {
+            $pedidoIdRef = $t->getPedidoId();
+            
+            // Limpa e divide a descrição em termos de busca (palavras >= 3 letras)
+            $cleanDesc = preg_replace('/[^A-Za-z0-9\s]/', '', $t->descricao);
+            $descWords = array_filter(explode(' ', $cleanDesc), function ($w) {
+                return strlen($w) >= 3;
+            });
+
+            $sugestoes = $lancamentos->filter(function ($l) use ($t) {
+                // Filtra pelo tipo correspondente: entrada -> receita, saida -> despesa
+                $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
+                return $l->tipo === $tTipoMapped;
+            })->map(function ($l) use ($t, $pedidoIdRef, $descWords) {
+                $score = 0;
+                $motivos = [];
+
+                // 1. Coincidência de Valor (Bruto ou Líquido)
+                $valorMatches = false;
+                if (abs((float)$t->valor - (float)$l->valor_total) < 0.01) {
+                    $score += 15;
+                    $valorMatches = true;
+                    $motivos[] = 'Valor exato';
+                } elseif ($t->valor_liquido && abs((float)$t->valor_liquido - (float)$l->valor_total) < 0.01) {
+                    $score += 12;
+                    $valorMatches = true;
+                    $motivos[] = 'Valor líquido exato';
+                }
+
+                // 2. Coincidência de Referência/Pedido
+                $refMatches = false;
+                if ($pedidoIdRef && $l->referencia_tipo === 'pedido' && $l->referencia_id == $pedidoIdRef) {
+                    $score += 25;
+                    $refMatches = true;
+                    $motivos[] = 'Pedido correspondente';
+                }
+
+                // 3. Proximidade de Data de Vencimento
+                $diffInDays = abs($t->data->diffInDays($l->data_vencimento));
+                if ($diffInDays == 0) {
+                    $score += 6;
+                    $motivos[] = 'Vencimento hoje';
+                } elseif ($diffInDays <= 3) {
+                    $score += 4;
+                    $motivos[] = 'Vencimento próximo (até 3 dias)';
+                } elseif ($diffInDays <= 7) {
+                    $score += 2;
+                    $motivos[] = 'Vencimento próximo (até 7 dias)';
+                }
+
+                // 4. Coincidência Textual
+                $textMatches = false;
+                $lDesc = strtolower($l->descricao);
+                $lPessoaNome = $l->pessoa ? strtolower($l->pessoa->nome) : '';
+                
+                foreach ($descWords as $word) {
+                    $wordLower = strtolower($word);
+                    // Evitar termos genéricos como "PIX", "TED", "PAGAMENTO"
+                    if (in_array($wordLower, ['pix', 'ted', 'doc', 'pag', 'pagamento', 'recebido', 'enviado'])) {
+                        continue;
+                    }
+                    if (str_contains($lDesc, $wordLower)) {
+                        $score += 3;
+                        $textMatches = true;
+                        if (!in_array('Descrição semelhante', $motivos)) {
+                            $motivos[] = 'Descrição semelhante';
+                        }
+                    }
+                    if ($lPessoaNome && str_contains($lPessoaNome, $wordLower)) {
+                        $score += 5;
+                        $textMatches = true;
+                        if (!in_array('Nome semelhante', $motivos)) {
+                            $motivos[] = 'Nome semelhante';
+                        }
+                    }
+                }
+
+                $l->score = $score;
+                $l->motivos_match = $motivos;
+
+                // Para sugerir, o registro deve coincidir no valor, na referência ou no texto
+                // Evitamos sugerir registros que apenas calham de ter vencimento próximo
+                $l->is_valid_suggestion = $valorMatches || $refMatches || $textMatches;
+
+                return $l;
+            })
+            ->filter(function ($l) {
+                return $l->is_valid_suggestion && $l->score > 0;
+            })
+            ->sortByDesc('score')
+            ->take(5)
+            ->values();
+
+            return [
+                'transacao' => $t,
+                'sugestoes' => $sugestoes
+            ];
+        });
+
+        $lancamentosReceita = $lancamentos->where('tipo', 'receita')->values();
+        $lancamentosDespesa = $lancamentos->where('tipo', 'despesa')->values();
+
         $classificacoes = ClassificacaoFinanceira::all();
         $pessoas = Pessoa::all(['id', 'nome']);
         $contas = \App\Models\ContaBancaria::all(['id', 'nome']);
 
-        return view('admin.financeiro.conciliacao', compact('extrato', 'lancamentos', 'classificacoes', 'pessoas', 'contas'));
+        return view('admin.financeiro.conciliacao', compact(
+            'extratoComSugestoes',
+            'lancamentosReceita',
+            'lancamentosDespesa',
+            'classificacoes',
+            'pessoas',
+            'contas'
+        ));
     }
 
     public function sincronizarMp(Request $request)
