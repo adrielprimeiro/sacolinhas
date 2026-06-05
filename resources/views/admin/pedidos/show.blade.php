@@ -119,6 +119,44 @@
                         @endif
                     </div>
 
+                    {{-- Qtd. Pagamentos --}}
+                    <div class="flex justify-between gap-4 items-center">
+                        <span class="text-gray-500 font-semibold">Qtd. Pagamentos</span>
+                        <span class="text-gray-800 font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-xs border border-blue-100 flex items-center gap-1">
+                            <i class="fas fa-money-check-alt"></i> {{ $pedido->movimentacoes->count() }}
+                        </span>
+                    </div>
+
+                    {{-- Lista de Pagamentos --}}
+                    @if($pedido->movimentacoes->count() > 0)
+                    <div class="border-t border-gray-100 pt-3 mt-1 space-y-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2"><i class="fas fa-list-ul mr-1"></i> Lançamentos/Pagamentos</span>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                            @php
+                                $movs = $pedido->movimentacoes;
+                            @endphp
+                            @foreach($movs as $mov)
+                                <div class="flex justify-between items-center bg-gray-50 hover:bg-gray-100/70 p-2 rounded-xl border border-gray-100/50 transition">
+                                    <div>
+                                        <span class="text-xs font-bold text-gray-700 capitalize flex items-center gap-1">
+                                            @if($mov->forma_pagamento === 'saldo_carteira')
+                                                <i class="fas fa-wallet text-blue-500 text-[10px]"></i>
+                                            @elseif($mov->forma_pagamento === 'pix')
+                                                <i class="fab fa-pix text-green-500 text-[10px]"></i>
+                                            @else
+                                                <i class="fas fa-coins text-gray-400 text-[10px]"></i>
+                                            @endif
+                                            {{ str_replace('_', ' ', $mov->forma_pagamento) }}
+                                        </span>
+                                        <span class="text-[9px] text-gray-400 block mt-0.5">{{ $mov->data_pagamento instanceof \Carbon\Carbon ? $mov->data_pagamento->format('d/m/Y') : \Carbon\Carbon::parse($mov->data_pagamento)->format('d/m/Y') }}</span>
+                                    </div>
+                                    <span class="text-xs font-black text-green-600">R$ {{ number_format($mov->valor_pago, 2, ',', '.') }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- Resumo Financeiro --}}
                     <div class="border-t border-gray-100 pt-4 mt-2 space-y-3">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1">

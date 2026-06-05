@@ -84,4 +84,21 @@ class Pedido extends Model
     {
         return $this->hasMany(\App\Models\PedidoRastreamento::class, 'pedido_id')->orderBy('data_hora', 'desc');
     }
+
+    public function lancamento()
+    {
+        return $this->hasOne(\App\Models\Lancamento::class, 'referencia_id')->where('referencia_tipo', 'pedido');
+    }
+
+    public function movimentacoes()
+    {
+        return $this->hasManyThrough(
+            \App\Models\Movimentacao::class,
+            \App\Models\Lancamento::class,
+            'referencia_id', // Foreign key on Lancamento table
+            'lancamento_id', // Foreign key on Movimentacao table
+            'id',            // Local key on Pedido table
+            'id'             // Local key on Lancamento table
+        )->where('lancamentos.referencia_tipo', 'pedido');
+    }
 }

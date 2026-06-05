@@ -28,10 +28,12 @@ class Movimentacao extends Model
 
         static::created(function ($movimentacao) {
             $movimentacao->sincronizarCarteira();
+            $movimentacao->sincronizarPedidoStatus();
         });
 
         static::updated(function ($movimentacao) {
             $movimentacao->sincronizarCarteira();
+            $movimentacao->sincronizarPedidoStatus();
         });
 
         static::deleted(function ($movimentacao) {
@@ -84,6 +86,40 @@ class Movimentacao extends Model
         // Despachar Job para recalcular saldo se disponível
         if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
             \App\Jobs\RecalcularSaldosJob::dispatch($pessoa->user_id, $this->data_pagamento->toDateString());
+        }
+    }
+
+    /**
+     * Sincroniza o status de pagamento do Pedido associado a esta movimentação
+     */
+    public function sincronizarPedidoStatus()
+    {
+        $lancamento = $this->lancamento;
+        if (!$lancamento || $lancamento->referencia_tipo !== 'pedido') {
+            return;
+        }
+
+        $pedido = \App\Models\Pedido::find($lancamento->referencia_id);
+        if (!$pedido) {
+            return;
+        }
+
+        // Se o pedido já está aprovado, não há nada a fazer
+        if ($pedido->status_pagamento === 'aprovado') {
+            return;
+        }
+
+        // Calcula a soma de pagamentos em dinheiro/banco (excluindo a baixa virtual de carteira)
+        $totalPagoDinheiro = (float) $lancamento->movimentacoes()
+            ->where('forma_pagamento', '!=', 'saldo_carteira')
+            ->sum('valor_pago');
+
+        $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
+        $totalGeral = $totalPagoDinheiro + $saldoUtilizado;
+
+        // Se a soma de pagamentos reais + saldo de carteira cobrir o valor total (com tolerância de R$ 0.01)
+        if ($totalGeral >= ((float)$pedido->valor_total - 0.01)) {
+            $pedido->update(['status_pagamento' => 'aprovado']);
         }
     }
 
