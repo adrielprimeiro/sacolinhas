@@ -12,7 +12,7 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Cliente::clientes()->with([]); // ✅ USAR SCOPE
+        $query = Cliente::clientes()->with(['limite']); // ✅ USAR SCOPE E CARREGAR LIMITE
         
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -29,6 +29,28 @@ class ClienteController extends Controller
         
         if ($request->filled('cidade')) {
             $query->porCidade($request->cidade);
+        }
+
+        if ($request->filled('estado')) {
+            $query->porEstado($request->estado);
+        }
+
+        if ($request->filled('rede_social')) {
+            if ($request->rede_social === 'instagram') {
+                $query->comInstagram();
+            } elseif ($request->rede_social === 'whatsapp') {
+                $query->comWhatsApp();
+            } elseif ($request->rede_social === 'tiktok') {
+                $query->comTikTok();
+            }
+        }
+
+        if ($request->filled('pedidos')) {
+            if ($request->pedidos === 'com') {
+                $query->comPedidos();
+            } elseif ($request->pedidos === 'sem') {
+                $query->semPedidos();
+            }
         }
         
         $clientes = $query->orderBy('created_at', 'desc')->paginate(15);
@@ -47,10 +69,13 @@ class ClienteController extends Controller
 			'name' => 'nullable|string|max:255',
 			'instagram' => 'nullable|string|max:255',
 			'tiktok' => 'nullable|string|max:255',
+			'limite_credito' => 'nullable|numeric|min:0',
 		], [
 			'name.max' => 'O nome não pode ter mais de 255 caracteres.',
 			'instagram.max' => 'O Instagram não pode ter mais de 255 caracteres.',
 			'tiktok.max' => 'O TikTok não pode ter mais de 255 caracteres.',
+			'limite_credito.numeric' => 'O limite de crédito deve ser um número válido.',
+			'limite_credito.min' => 'O limite de crédito não pode ser negativo.',
 		]);
 
 		try {
@@ -80,7 +105,7 @@ class ClienteController extends Controller
 			$emailAutomatico = $nomeParaEmail . '@mania.com';
 			
 			// ✅ SALVAR COM CAMPOS CORRETOS
-			Cliente::create([
+			$cliente = Cliente::create([
 				'name' => $nomeCliente,              // Nome final
 				'email' => $emailAutomatico,         // Email automático
 				'password' => Hash::make('123456'),  // Senha padrão
@@ -90,6 +115,16 @@ class ClienteController extends Controller
 				'instagram' => $instagram,           // Campo correto
 				'tiktok' => $tiktok,                // Campo correto
 				'whatsapp' => null,                 // Pode ser preenchido depois
+			]);
+
+			// Criar limite de crédito
+			$limiteCredito = $request->filled('limite_credito') ? (float) $request->limite_credito : 300.00;
+			\App\Models\ClienteLimite::create([
+				'user_id' => $cliente->id,
+				'limite_credito' => $limiteCredito,
+				'limite_utilizado' => 0.00,
+				'limite_disponivel' => $limiteCredito,
+				'ativo' => true,
 			]);
 
 			DB::commit();
@@ -110,7 +145,7 @@ class ClienteController extends Controller
     public function show($id)
     {
         try {
-            $cliente = Cliente::clientes()->findOrFail($id);
+            $cliente = Cliente::clientes()->with('limite')->findOrFail($id);
             return view('admin.clientes.show', compact('cliente'));
         } catch (\Exception $e) {
             Log::error('Erro em ClienteController@show: ' . $e->getMessage());
@@ -122,7 +157,7 @@ class ClienteController extends Controller
     public function edit($id)
     {
         try {
-            $cliente = Cliente::clientes()->findOrFail($id);
+            $cliente = Cliente::clientes()->with('limite')->findOrFail($id);
             return view('admin.clientes.edit', compact('cliente'));
         } catch (\Exception $e) {
             Log::error('Erro em ClienteController@edit: ' . $e->getMessage());
@@ -176,6 +211,7 @@ class ClienteController extends Controller
 				'codigo_cliente' => 'nullable|integer',
 				'tipo_cliente' => 'nullable|string|max:100',
 				'observacao_cliente' => 'nullable|string',
+				'limite_credito' => 'nullable|numeric|min:0',
 				
 				// Segurança
 				'password' => 'nullable|string|min:6|confirmed',
@@ -202,6 +238,8 @@ class ClienteController extends Controller
 				'password.confirmed' => 'A confirmação da senha não confere.',
 				
 				'role.in' => 'Função deve ser Cliente ou Administrador.',
+				'limite_credito.numeric' => 'O limite de crédito deve ser um número válido.',
+				'limite_credito.min' => 'O limite de crédito não pode ser negativo.',
 			]);
 
 			DB::beginTransaction();
@@ -223,6 +261,27 @@ class ClienteController extends Controller
 
 			// ✅ Executar atualização
 			$cliente->update($updateData);
+
+			// Atualizar limite de crédito
+			$limiteCredito = $request->filled('limite_credito') ? (float) $request->limite_credito : 300.00;
+			$limite = \App\Models\ClienteLimite::where('user_id', $cliente->id)->first();
+			if ($limite) {
+				$diferenca = $limiteCredito - $limite->limite_credito;
+				$limite->update([
+					'limite_credito' => $limiteCredito,
+					'limite_disponivel' => $limite->limite_disponivel + $diferenca,
+					'data_ultimo_ajuste' => now(),
+					'motivo_ultimo_ajuste' => 'Ajuste de limite via painel',
+				]);
+			} else {
+				\App\Models\ClienteLimite::create([
+					'user_id' => $cliente->id,
+					'limite_credito' => $limiteCredito,
+					'limite_utilizado' => 0.00,
+					'limite_disponivel' => $limiteCredito,
+					'ativo' => true,
+				]);
+			}
 			
 			DB::commit();
 

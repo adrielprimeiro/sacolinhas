@@ -1,267 +1,236 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gerenciar Clientes - Sacolinhas</title>
-	<link rel="icon" href="{{ asset('favicon.ico') }}">
-	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
-	
+@extends('layouts.app')
+@section('title', 'Gerenciar Clientes')
+@section('brand_route', 'admin.clientes.index')
+@section('brand_icon', 'fas fa-users')
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+@section('content')
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-gray-800">Gerenciar Clientes</h1>
+        <p class="text-sm text-gray-400 mt-0.5">Cadastre e gerencie a carteira de clientes e seus limites de crédito</p>
+    </div>
+    <div>
+        <a href="{{ route('admin.clientes.create') }}" 
+           class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition">
+            <i class="fas fa-plus"></i> Novo Cliente
+        </a>
+    </div>
+</div>
 
-    <style>
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-        }
+{{-- Filtros Avançados --}}
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Filtros de Pesquisa</h2>
+    <form method="GET" action="{{ route('admin.clientes.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {{-- Busca Geral --}}
+        <div class="sm:col-span-2">
+            <label class="text-xs text-gray-400 font-medium block mb-1">Busca Geral</label>
+            <input type="text" name="search" value="{{ request('search') }}"
+                   placeholder="Nome, email, CPF ou rede social..."
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        </div>
 
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-        }
+        {{-- Status --}}
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Status</label>
+            <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                <option value="">Todos</option>
+                <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
+                <option value="bloqueado" {{ request('status') === 'bloqueado' ? 'selected' : '' }}>Bloqueado</option>
+            </select>
+        </div>
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
+        {{-- Cidade --}}
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Cidade</label>
+            <input type="text" name="cidade" value="{{ request('cidade') }}"
+                   placeholder="Filtrar por cidade"
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        </div>
 
-        .table-hover tbody tr:hover {
-            background-color: rgba(102, 126, 234, 0.05);
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <h4><i class="fas fa-shopping-cart me-2"></i>Admin</h4>
-                    <hr>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}">
-                                <i class="fas fa-broadcast-tower"></i> Live
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white active" href="{{ route('admin.clientes.index') }}">
-                                <i class="fas fa-users"></i> Clientes
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}">
-                                <i class="fas fa-shopping-bag"></i> Sacolas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+        {{-- Estado --}}
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Estado</label>
+            <select name="estado" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                <option value="">Todos</option>
+                @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $uf)
+                    <option value="{{ $uf }}" {{ request('estado') === $uf ? 'selected' : '' }}>{{ $uf }}</option>
+                @endforeach
+            </select>
+        </div>
 
-            <!-- Main Content -->
-            <div class="col-md-10 p-4">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>
-                        <i class="fas fa-users me-2"></i>Gerenciar Clientes
-                    </h2>
-                    <a href="{{ route('admin.clientes.create') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Novo Cliente
-                    </a>
-                </div>
+        {{-- Redes Sociais --}}
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Redes Sociais</label>
+            <select name="rede_social" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                <option value="">Todos</option>
+                <option value="instagram" {{ request('rede_social') === 'instagram' ? 'selected' : '' }}>Com Instagram</option>
+                <option value="whatsapp" {{ request('rede_social') === 'whatsapp' ? 'selected' : '' }}>Com WhatsApp</option>
+                <option value="tiktok" {{ request('rede_social') === 'tiktok' ? 'selected' : '' }}>Com TikTok</option>
+            </select>
+        </div>
 
-                <!-- Alerts -->
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
+        {{-- Pedidos --}}
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Pedidos</label>
+            <select name="pedidos" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                <option value="">Todos</option>
+                <option value="com" {{ request('pedidos') === 'com' ? 'selected' : '' }}>Com Pedidos</option>
+                <option value="sem" {{ request('pedidos') === 'sem' ? 'selected' : '' }}>Sem Pedidos</option>
+            </select>
+        </div>
 
-                <!-- Filtros -->
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <form method="GET" action="{{ route('admin.clientes.index') }}">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <input type="text"
-                                           class="form-control"
-                                           name="search"
-                                           placeholder="Nome, email ou CPF..."
-                                           value="{{ request('search') }}">
+        {{-- Botões de Ação --}}
+        <div class="lg:col-span-5 flex justify-end gap-2 mt-2">
+            <a href="{{ route('admin.clientes.index') }}" 
+               class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold px-4 py-2 rounded-lg transition">
+                <i class="fas fa-redo"></i> Limpar
+            </a>
+            <button type="submit" 
+                    class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-6 py-2 rounded-lg transition shadow-sm">
+                <i class="fas fa-search"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+{{-- Lista de Clientes --}}
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    @if($clientes->count() > 0)
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">Avatar</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cliente</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contato / CPF</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Limite de Crédito</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">L. Disponível</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Status</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center w-36">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @foreach($clientes as $cliente)
+                        <tr class="hover:bg-gray-50/50 transition">
+                            <td class="px-5 py-4">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg shadow-sm"
+                                     title="{{ $cliente->nome_completo }}">
+                                    {{ strtoupper(substr($cliente->nome_completo, 0, 1)) }}
                                 </div>
-                                <div class="col-md-3">
-                                    <select name="status" class="form-select">
-                                        <option value="">- Todos os Status -</option>
-                                        <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
-                                        <option value="bloqueado" {{ request('status') === 'bloqueado' ? 'selected' : '' }}>Bloqueado</option>
-                                    </select>
+                            </td>
+                            <td class="px-5 py-4">
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm sm:text-base">{{ $cliente->nome_completo }}</p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-xs text-gray-400">ID: #{{ $cliente->id }}</span>
+                                        @if($cliente->codigo_cliente)
+                                            <span class="bg-gray-100 text-gray-600 text-[10px] font-semibold px-1.5 py-0.5 rounded">Cód: {{ $cliente->codigo_cliente }}</span>
+                                        @endif
+                                        @if($cliente->tipo_cliente)
+                                            <span class="bg-indigo-50 text-indigo-600 text-[10px] font-semibold px-1.5 py-0.5 rounded">{{ $cliente->tipo_cliente }}</span>
+                                        @endif
+                                    </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-outline-primary w-100">
-                                        <i class="fas fa-search"></i> Filtrar
-                                    </button>
+                            </td>
+                            <td class="px-5 py-4">
+                                <div class="text-xs text-gray-500 space-y-0.5">
+                                    <p class="flex items-center gap-1.5"><i class="fas fa-envelope text-gray-400 w-3.5"></i> {{ $cliente->email }}</p>
+                                    @if($cliente->telefone_principal)
+                                        <p class="flex items-center gap-1.5"><i class="fas fa-phone text-gray-400 w-3.5"></i> {{ $cliente->telefone_principal_formatado }}</p>
+                                    @endif
+                                    @if($cliente->cpf)
+                                        <p class="flex items-center gap-1.5"><i class="fas fa-id-card text-gray-400 w-3.5"></i> {{ $cliente->cpf_formatado }}</p>
+                                    @endif
+                                    <div class="flex items-center gap-2 mt-1">
+                                        @if($cliente->instagram)
+                                            <a href="{{ $cliente->instagram_url }}" target="_blank" class="text-pink-500 hover:text-pink-600 transition" title="Instagram">
+                                                <i class="fab fa-instagram text-sm"></i>
+                                            </a>
+                                        @endif
+                                        @if($cliente->tiktok)
+                                            <a href="{{ $cliente->tiktok_url }}" target="_blank" class="text-gray-800 hover:text-black transition" title="TikTok">
+                                                <i class="fab fa-tiktok text-sm"></i>
+                                            </a>
+                                        @endif
+                                        @if($cliente->whatsapp)
+                                            <a href="{{ $cliente->whatsapp_url }}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="WhatsApp">
+                                                <i class="fab fa-whatsapp text-sm"></i>
+                                            </a>
+                                        @endif
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <a href="{{ route('admin.clientes.index') }}" class="btn btn-outline-secondary w-100">
-                                        <i class="fas fa-redo"></i> Limpar
+                            </td>
+                            <td class="px-5 py-4 text-right font-semibold text-gray-700 text-sm">
+                                R$ {{ number_format($cliente->limite?->limite_credito ?? 300.00, 2, ',', '.') }}
+                            </td>
+                            <td class="px-5 py-4 text-right font-semibold text-sm">
+                                @php
+                                    $disp = $cliente->limite?->limite_disponivel ?? 300.00;
+                                    $color = $disp < 0 ? 'text-red-600' : ($disp == 0 ? 'text-orange-500' : 'text-green-600');
+                                @endphp
+                                <span class="{{ $color }}">R$ {{ number_format($disp, 2, ',', '.') }}</span>
+                            </td>
+                            <td class="px-5 py-4 text-center">
+                                @if($cliente->bloqueado)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                        <i class="fas fa-lock text-[10px]"></i> Bloqueado
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                        <i class="fas fa-check-circle text-[10px]"></i> Ativo
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-4 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <a href="{{ route('admin.clientes.show', $cliente) }}"
+                                       class="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition flex items-center justify-center"
+                                       title="Visualizar">
+                                        <i class="fas fa-eye text-xs"></i>
                                     </a>
+                                    <a href="{{ route('admin.clientes.edit', $cliente) }}"
+                                       class="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 hover:text-amber-700 transition flex items-center justify-center"
+                                       title="Editar">
+                                        <i class="fas fa-edit text-xs"></i>
+                                    </a>
+                                    <form action="{{ route('admin.clientes.destroy', $cliente) }}"
+                                          method="POST"
+                                          class="inline"
+                                          onsubmit="return confirm('Tem certeza que deseja deletar este cliente permanentemente?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" 
+                                                class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition flex items-center justify-center"
+                                                title="Deletar">
+                                            <i class="fas fa-trash text-xs"></i>
+                                        </button>
+                                    </form>
                                 </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
 
-                <!-- Lista de Clientes -->
-                <div class="card">
-                    <div class="card-body">
-                        @if($clientes->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 50px;">Avatar</th>
-                                            <th>Nome</th>
-                                            <th>Email</th>
-                                            <th>Telefone</th>
-                                            <th>CPF</th>
-                                            <th>Status</th>
-                                            <th style="width: 120px;">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($clientes as $cliente)
-                                            <tr>
-                                                <td>
-                                                    <div class="avatar" title="{{ $cliente->nome_cliente ?? $cliente->name }}">
-                                                        {{ strtoupper(substr($cliente->nome_cliente ?? $cliente->name, 0, 1)) }}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <strong>{{ $cliente->nome_cliente ?? $cliente->name }}</strong><br>
-                                                    <small class="text-muted">ID: #{{ $cliente->id }}</small>
-                                                </td>
-                                                <td>
-                                                    <i class="fas fa-envelope text-muted me-1"></i>
-                                                    {{ $cliente->email }}
-                                                </td>
-                                                <td>
-                                                    @if($cliente->telefone)
-                                                        <i class="fas fa-phone text-muted me-1"></i>
-                                                        {{ $cliente->telefone }}
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    @if($cliente->cpf)
-                                                        <code>{{ $cliente->cpf }}</code>
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    @if($cliente->bloqueado ?? false)
-                                                        <span class="badge bg-danger status-badge">
-                                                            <i class="fas fa-lock"></i> Bloqueado
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-success status-badge">
-                                                            <i class="fas fa-check-circle"></i> Ativo
-                                                        </span>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{{ route('admin.clientes.show', $cliente) }}"
-                                                           class="btn btn-outline-info"
-                                                           title="Visualizar">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        <a href="{{ route('admin.clientes.edit', $cliente) }}"
-                                                           class="btn btn-outline-warning"
-                                                           title="Editar">
-                                                            <i class="fas fa-edit"></i>
-                                                        </a>
-                                                        <form action="{{ route('admin.clientes.destroy', $cliente) }}"
-                                                              method="POST"
-                                                              style="display: inline;"
-                                                              onsubmit="return confirm('Tem certeza que deseja deletar este cliente?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" 
-                                                                    class="btn btn-outline-danger"
-                                                                    title="Deletar">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Paginação -->
-                            <div class="d-flex justify-content-center mt-4">
-                                {{ $clientes->links() }}
-                            </div>
-                        @else
-                            <div class="text-center py-5">
-                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">Nenhum cliente encontrado</h5>
-                                <p class="text-muted">Comece criando seu primeiro cliente!</p>
-                                <a href="{{ route('admin.clientes.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus"></i> Criar Primeiro Cliente
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-                </div>
+        {{-- Paginação --}}
+        <div class="px-5 py-4 border-t border-gray-50">
+            {{ $clientes->appends(request()->query())->links() }}
+        </div>
+    @else
+        <div class="text-center py-12">
+            <div class="w-16 h-16 bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-users text-2xl"></i>
+            </div>
+            <h5 class="font-bold text-gray-700 text-base">Nenhum cliente encontrado</h5>
+            <p class="text-sm text-gray-400 mt-1 max-w-md mx-auto">Nenhum registro corresponde aos filtros selecionados. Comece criando seu primeiro cliente!</p>
+            <div class="mt-5">
+                <a href="{{ route('admin.clientes.create') }}" 
+                   class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition">
+                    <i class="fas fa-plus"></i> Criar Primeiro Cliente
+                </a>
             </div>
         </div>
-    </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    @endif
+</div>
+@endsection

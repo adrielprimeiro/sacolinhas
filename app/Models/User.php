@@ -79,6 +79,11 @@ class User extends Authenticatable
         ];
     }
 	
+	public function limite()
+	{
+		return $this->hasOne(ClienteLimite::class, 'user_id');
+	}
+
 	public function whatsappMessages()
 	{
 		return $this->hasMany(WhatsappMessage::class);

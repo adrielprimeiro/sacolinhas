@@ -92,6 +92,13 @@ class Cliente extends Model
         'pais' => 'Brasil',
     ];
 
+    // ===== RELATIONSHIPS =====
+
+    public function limite()
+    {
+        return $this->hasOne(ClienteLimite::class, 'user_id');
+    }
+
     // ===== SCOPES =====
     
     public function scopeAtivos($query)

@@ -1,249 +1,160 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <title>Novo Cliente - Sacolinhas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@extends('layouts.app')
+@section('title', 'Novo Cliente')
+@section('brand_route', 'admin.clientes.index')
+@section('brand_icon', 'fas fa-users')
 
-    <style>
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
+@section('content')
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-gray-800">Novo Cliente</h1>
+        <p class="text-sm text-gray-400 mt-0.5">Cadastre um cliente rapidamente com geração automática de e-mail e limite de crédito</p>
+    </div>
+    <div>
+        <a href="{{ route('admin.clientes.index') }}" 
+           class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+    </div>
+</div>
 
-        .preview-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <h4><i class="fas fa-shopping-cart me-2"></i>Admin</h4>
-                    <hr>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('bags.index') }}">
-                                <i class="fas fa-broadcast-tower"></i> Live
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white active" href="{{ route('admin.clientes.index') }}">
-                                <i class="fas fa-users"></i> Clientes
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.sacolinhas.index') }}">
-                                <i class="fas fa-shopping-bag"></i> Sacolas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('dashboard') }}">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
+{{-- Alertas de Validação --}}
+@if ($errors->any())
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6" role="alert">
+        <h6 class="font-bold flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i> Erros encontrados:</h6>
+        <ul class="list-disc pl-5 mt-1.5 text-xs font-semibold">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
+{{-- Card do Formulário --}}
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 max-w-2xl mx-auto">
+    <form action="{{ route('admin.clientes.store') }}" method="POST" id="form-novo-cliente">
+        @csrf
+        
+        <div class="space-y-4">
+            {{-- Nome --}}
+            <div>
+                <label for="name" class="block text-xs font-bold text-gray-500 uppercase mb-1">Nome Completo</label>
+                <input type="text" name="name" id="name" value="{{ old('name') }}"
+                       placeholder="Ex: João Silva"
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none @error('name') border-red-500 @enderror">
+                <p class="text-[10px] text-gray-400 mt-1">
+                    <i class="fas fa-info-circle"></i> Se deixado em branco, usaremos o usuário do Instagram ou TikTok como nome.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {{-- Instagram --}}
+                <div>
+                    <label for="instagram" class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        <i class="fab fa-instagram text-pink-500 mr-1"></i> Instagram
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">@</span>
+                        <input type="text" name="instagram" id="instagram" value="{{ old('instagram') }}"
+                               placeholder="usuario"
+                               class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Apenas o nome de usuário (ex: maria_silva)</p>
+                </div>
+
+                {{-- TikTok --}}
+                <div>
+                    <label for="tiktok" class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        <i class="fab fa-tiktok text-black mr-1"></i> TikTok
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">@</span>
+                        <input type="text" name="tiktok" id="tiktok" value="{{ old('tiktok') }}"
+                               placeholder="usuario"
+                               class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Apenas o nome de usuário (ex: maria_silva)</p>
                 </div>
             </div>
 
-            <!-- Main Content -->
-            <div class="col-md-10 p-4">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h2><i class="fas fa-user-plus me-2 text-primary"></i>Novo Cliente</h2>
-                        <p class="text-muted mb-0">Cadastro rápido de cliente</p>
-                    </div>
-                    <a href="{{ route('admin.clientes.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Voltar
-                    </a>
+            {{-- Limite de Crédito --}}
+            <div>
+                <label for="limite_credito" class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    <i class="fas fa-wallet text-indigo-500 mr-1"></i> Limite de Crédito (R$)
+                </label>
+                <div class="flex">
+                    <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">R$</span>
+                    <input type="number" step="0.01" min="0" name="limite_credito" id="limite_credito" 
+                           value="{{ old('limite_credito', '300.00') }}"
+                           placeholder="300,00"
+                           class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none @error('limite_credito') border-red-500 @enderror">
                 </div>
+                <p class="text-[10px] text-gray-400 mt-1">Limite inicial disponível para compras em sacolas ou lives (Padrão: R$ 300,00)</p>
+            </div>
 
-                <!-- Alerts -->
-                @if ($errors->any())
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <h6><i class="fas fa-exclamation-triangle me-2"></i><strong>Erros encontrados:</strong></h6>
-                        <hr class="my-2">
-                        <ul class="mb-0">
-                            @foreach ($errors->all() as $error)
-                                <li><strong>{{ $error }}</strong></li>
-                            @endforeach
-                        </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i><strong>{{ session('success') }}</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                @endif
-
-                <!-- Form Card -->
-                <div class="card">
-                    <div class="card-body">
-                        <form action="{{ route('admin.clientes.store') }}" method="POST">
-                            @csrf
-                            
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label for="name" class="form-label">Nome</label>
-                                    <!-- ✅ MUDANÇA: nome_cliente → name -->
-                                    <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                                           id="name" name="name" 
-                                           placeholder="Nome do cliente"
-                                           value="{{ old('name') }}">
-                                    @error('name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i>
-                                        Se vazio, usaremos seu Instagram ou TikTok como nome
-                                    </small>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <!-- Instagram -->
-                                <div class="col-md-6 mb-3">
-                                    <label for="instagram" class="form-label">
-                                        <i class="fab fa-instagram" style="color: #E4405F;"></i> Instagram
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">@</span>
-                                        <!-- ✅ MUDANÇA: ig_instagram → instagram -->
-                                        <input type="text" class="form-control @error('instagram') is-invalid @enderror" 
-                                               id="instagram" name="instagram" 
-                                               placeholder="seu_usuario"
-                                               value="{{ old('instagram') }}">
-                                    </div>
-                                    @error('instagram')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <small class="text-muted">Apenas o nome do usuário, sem @</small>
-                                </div>
-
-                                <!-- TikTok -->
-                                <div class="col-md-6 mb-3">
-                                    <label for="tiktok" class="form-label">
-                                        <i class="fab fa-tiktok" style="color: #000000;"></i> TikTok
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">@</span>
-                                        <!-- ✅ MUDANÇA: ig_tiktok → tiktok -->
-                                        <input type="text" class="form-control @error('tiktok') is-invalid @enderror" 
-                                               id="tiktok" name="tiktok" 
-                                               placeholder="seu_usuario"
-                                               value="{{ old('tiktok') }}">
-                                    </div>
-                                    @error('tiktok')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <small class="text-muted">Apenas o nome do usuário, sem @</small>
-                                </div>                        
-                            </div>
-
-                            <!-- Preview Box -->
-                            <div class="preview-box" id="preview-container" style="display: none;">
-                                <h6><i class="fas fa-eye me-2"></i>Preview do Cliente:</h6>
-                                <div id="nome-preview"></div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between mt-4">
-                                <a href="{{ route('admin.clientes.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-2"></i>Cancelar
-                                </a>
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-save me-2"></i>Salvar Cliente
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            {{-- Caixa de Preview em Tempo Real --}}
+            <div id="preview-box" class="bg-gray-50 border border-gray-150 rounded-xl p-4 hidden">
+                <h6 class="text-xs font-bold text-gray-500 flex items-center gap-1.5 mb-2"><i class="fas fa-eye"></i> Prévia do Cliente:</h6>
+                <div class="text-xs text-gray-600 space-y-1">
+                    <p><i class="fas fa-user text-gray-400 w-4"></i> <strong>Nome Usado:</strong> <span id="preview-nome">—</span></p>
+                    <p><i class="fas fa-envelope text-gray-400 w-4"></i> <strong>E-mail Gerado:</strong> <span id="preview-email">—</span></p>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        {{-- Botões --}}
+        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <a href="{{ route('admin.clientes.index') }}" 
+               class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-5 py-2.5 rounded-xl text-sm transition">
+                Cancelar
+            </a>
+            <button type="submit" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition shadow-sm">
+                <i class="fas fa-save mr-1.5"></i> Salvar Cliente
+            </button>
+        </div>
+    </form>
+</div>
 
-    <script>
-        $(document).ready(function() {
-            // Preview do nome que será usado
-            function atualizarPreview() {
-                // ✅ MUDANÇA: nome_cliente → name, ig_instagram → instagram, ig_tiktok → tiktok
-                const nome = $('#name').val().trim();
-                const instagram = $('#instagram').val().trim();
-                const tiktok = $('#tiktok').val().trim();
-                
-                let nomeUsado = '';
-                let emailUsado = '';
-                
-                // Mostrar preview apenas se algum campo foi preenchido
-                if (nome || instagram || tiktok) {
-                    $('#preview-container').show();
-                    
-                    if (nome) {
-                        nomeUsado = nome;
-                    } else if (instagram) {
-                        nomeUsado = instagram;
-                    } else if (tiktok) {
-                        nomeUsado = tiktok;
-                    }
-                    
-                    emailUsado = nomeUsado.toLowerCase().replace(/[^a-z0-9]/g, '') + '@mania.com';
-                    
-                    $('#nome-preview').html(
-                        '<i class="fas fa-user text-primary"></i> <strong>Nome:</strong> ' + nomeUsado + '<br>' +
-                        '<i class="fas fa-envelope text-secondary"></i> <strong>Email:</strong> ' + emailUsado
-                    );
-                } else {
-                    $('#preview-container').hide();
-                }
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputName = document.getElementById('name');
+        const inputInsta = document.getElementById('instagram');
+        const inputTiktok = document.getElementById('tiktok');
+        const previewBox = document.getElementById('preview-box');
+        const previewNome = document.getElementById('preview-nome');
+        const previewEmail = document.getElementById('preview-email');
+
+        function updatePreview() {
+            const nameVal = inputName.value.trim();
+            const instaVal = inputInsta.value.trim();
+            const tiktokVal = inputTiktok.value.trim();
+
+            let finalName = '';
+            
+            if (nameVal) {
+                finalName = nameVal;
+            } else if (instaVal) {
+                finalName = instaVal;
+            } else if (tiktokVal) {
+                finalName = tiktokVal;
             }
-            
-            // ✅ MUDANÇA: Atualizar seletores para novos IDs
-            $('#name, #instagram, #tiktok').on('input', atualizarPreview);
-            
-            // Preview inicial
-            atualizarPreview();
-            
-            console.log('✅ Sistema de nome automático ativo!');
+
+            if (finalName) {
+                const safeEmailName = finalName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                previewNome.textContent = finalName;
+                previewEmail.textContent = safeEmailName ? `${safeEmailName}@mania.com` : '—';
+                previewBox.classList.remove('hidden');
+            } else {
+                previewBox.classList.add('hidden');
+            }
+        }
+
+        [inputName, inputInsta, inputTiktok].forEach(el => {
+            el.addEventListener('input', updatePreview);
         });
-    </script>
-</body>
-</html>
+
+        // Executar prévia inicial caso haja valores preenchidos (ex: com old_input)
+        updatePreview();
+    });
+</script>
+@endsection
