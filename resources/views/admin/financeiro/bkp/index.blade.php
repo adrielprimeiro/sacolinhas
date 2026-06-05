@@ -455,8 +455,8 @@
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descrição</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Saldo Ant.</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Saldo Atual</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Saldo Ant.</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Saldo Atual</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Usuário/Cliente</th>
                             <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Ações</th>
                         </tr>
@@ -478,10 +478,10 @@
                                 <td class="px-4 py-4 whitespace-nowrap text-sm font-bold {{ $movimentacao->tipo_movimentacao === 'credito' ? 'text-green-600' : 'text-red-600' }}">
                                     R$ {{ number_format($movimentacao->valor, 2, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                                     R$ {{ number_format($movimentacao->saldo_anterior, 2, ',', '.') }}
                                 </td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hidden md:table-cell">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     R$ {{ number_format($movimentacao->saldo_atual, 2, ',', '.') }}
                                 </td>
                                 <td class="px-4 py-4 text-sm text-gray-600">
