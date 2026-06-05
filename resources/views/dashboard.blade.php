@@ -39,13 +39,13 @@
                 <div class="mt-4 space-y-3">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Sacolas vencendo hoje</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-850">
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-800">
                             {{ $alertasVencimento['sacolas_vencem_hoje'] ?? 0 }}
                         </span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Itens vencendo hoje</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-850">
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-rose-100 text-rose-800">
                             {{ $alertasVencimento['itens_vencem_hoje'] ?? 0 }}
                         </span>
                     </div>
@@ -112,7 +112,7 @@
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-purple-650 uppercase tracking-wider">Clientes</p>
+                        <p class="text-xs font-semibold text-purple-600 uppercase tracking-wider">Clientes</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Sacolas</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-purple-50 text-purple-600">

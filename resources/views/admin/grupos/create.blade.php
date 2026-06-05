@@ -72,7 +72,7 @@
                     <i class="fas fa-check mr-2"></i> Criar Grupo
                 </button>
                 <a href="{{ route('admin.grupos.index') }}" 
-                   class="flex-1 bg-gray-100 text-gray-500 px-6 py-3.5 rounded-2xl hover:bg-gray-200 font-black uppercase text-xs tracking-widest transition text-center">
+                   class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 px-6 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest transition text-center">
                     Cancelar
                 </a>
             </div>

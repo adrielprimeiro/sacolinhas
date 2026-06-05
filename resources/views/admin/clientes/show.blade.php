@@ -11,7 +11,7 @@
     </div>
     <div class="flex flex-wrap gap-2">
         <a href="{{ route('admin.clientes.index') }}" 
-           class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+           class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 text-sm font-bold px-4 py-2.5 rounded-xl transition">
             <i class="fas fa-arrow-left"></i> Voltar
         </a>
         <a href="{{ route('admin.clientes.edit', $cliente) }}" 

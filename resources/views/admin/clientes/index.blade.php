@@ -82,7 +82,7 @@
         {{-- Botões de Ação --}}
         <div class="lg:col-span-5 flex justify-end gap-2 mt-2">
             <a href="{{ route('admin.clientes.index') }}" 
-               class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold px-4 py-2 rounded-lg transition">
+               class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 text-sm font-bold px-4 py-2 rounded-lg transition">
                 <i class="fas fa-redo"></i> Limpar
             </a>
             <button type="submit" 

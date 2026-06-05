@@ -365,7 +365,7 @@
 
             <div class="flex gap-3">
                 <button type="button" onclick="closeModals()"
-                        class="flex-1 px-4 py-3.5 bg-gray-100 text-gray-600 font-black rounded-2xl uppercase text-xs tracking-widest">
+                        class="flex-1 px-4 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 font-black rounded-2xl uppercase text-xs tracking-widest transition">
                     Cancelar
                 </button>
                 <button type="submit"
@@ -413,7 +413,7 @@
             </p>
             <div class="flex gap-3">
                 <button type="button" onclick="closeModals()"
-                        class="flex-1 px-4 py-3.5 bg-gray-100 text-gray-600 font-black rounded-2xl uppercase text-xs tracking-widest">
+                        class="flex-1 px-4 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 font-black rounded-2xl uppercase text-xs tracking-widest transition">
                     Cancelar
                 </button>
                 <button type="submit"
@@ -455,7 +455,7 @@
             </div>
             <div class="flex gap-3">
                 <button type="button" onclick="closeModals()"
-                        class="flex-1 px-4 py-3.5 bg-gray-100 text-gray-600 font-black rounded-2xl uppercase text-xs tracking-widest">
+                        class="flex-1 px-4 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 font-black rounded-2xl uppercase text-xs tracking-widest transition">
                     Cancelar
                 </button>
                 <button type="submit"

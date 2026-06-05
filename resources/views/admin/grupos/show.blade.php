@@ -23,7 +23,7 @@
                    <i class="fas fa-edit mr-1"></i> Editar
                 </a>
                 <a href="{{ route('admin.grupos.index') }}" 
-                   class="flex-1 md:flex-none text-center px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition">
+                   class="flex-1 md:flex-none text-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 rounded-xl text-sm font-bold transition">
                    Voltar
                 </a>
             </div>

@@ -163,7 +163,7 @@ $currentRoute = Route::currentRouteName();
             </div>
 
             <div class="pt-4 flex gap-3">
-                <button type="button" onclick="fecharModalPessoa()" class="flex-1 px-6 py-3 rounded-2xl font-bold text-gray-400 hover:bg-gray-100 transition">
+                <button type="button" onclick="fecharModalPessoa()" class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 font-bold rounded-2xl transition">
                     Cancelar
                 </button>
                 <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
