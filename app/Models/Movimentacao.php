@@ -46,13 +46,19 @@ class Movimentacao extends Model
      */
     public function sincronizarCarteira()
     {
+        $lancamento = $this->lancamento;
+        if (!$lancamento || !$lancamento->pessoa_id) return;
+
+        // Se o lançamento for do tipo 'carteira_credito', ele foi gerado a partir de um crédito na carteira.
+        // Nunca devemos sincronizar de volta para a carteira para não gerar duplicidade ou débitos indevidos.
+        if ($lancamento->referencia_tipo === 'carteira_credito') {
+            return;
+        }
+
         // Se a forma de pagamento for o próprio saldo da carteira, não espelha para evitar duplicidade de crédito
         if ($this->forma_pagamento === 'saldo_carteira') {
             return;
         }
-
-        $lancamento = $this->lancamento;
-        if (!$lancamento || !$lancamento->pessoa_id) return;
 
         $pessoa = $lancamento->pessoa;
         if (!$pessoa->user_id) return;
