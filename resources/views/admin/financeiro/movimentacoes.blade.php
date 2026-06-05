@@ -181,33 +181,38 @@ $currentRoute = Route::currentRouteName();
                 <th class="px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Ações</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
-            @forelse($movimentacoes as $m)
-                <tr class="hover:bg-gray-50">
-                    <td class="px-5 py-4 text-sm text-gray-500">{{ $m->data_pagamento->format('d/m/Y') }}</td>
-                    <td class="px-5 py-4 text-sm">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">
-                            {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'Receita' : 'Despesa' }}
-                        </span>
-                    </td>
-                    <td class="px-5 py-4 text-sm text-gray-600">
-                        {{ $m->lancamento->classificacaoFinanceira->nome ?? '---' }}
-                    </td>
-                    <td class="px-5 py-4">
-                        <div class="text-sm font-bold text-gray-800">{{ $m->lancamento->descricao ?? '---' }}</div>
-                    </td>
-                    <td class="px-5 py-4 text-sm text-gray-600">{{ $m->lancamento->pessoa->nome ?? '---' }}</td>
-                    <td class="px-5 py-4">
-                        <span class="text-xs font-bold uppercase px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                            {{ $m->forma_pagamento }}
-                        </span>
-                    </td>
-                    <td class="px-5 py-4 text-sm text-gray-500">{{ $m->contaBancaria->nome ?? '---' }}</td>
-                    <td class="px-5 py-4 text-right">
-                        <span class="text-sm font-black {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? 'text-green-600' : 'text-red-600' }}">
-                            {{ ($m->lancamento->tipo ?? 'receita') === 'receita' ? '+' : '-' }} R$ {{ number_format($m->valor_pago, 2, ',', '.') }}
-                        </span>
-                    </td>
+         <tbody class="divide-y divide-gray-50">
+             @forelse($movimentacoes as $m)
+                 @php
+                     $isCarteira = $m->contaBancaria && str_contains(strtolower($m->contaBancaria->nome), 'carteira');
+                     $tipoLancamento = $m->lancamento->tipo ?? 'receita';
+                     $tipoExibicao = $isCarteira ? ($tipoLancamento === 'receita' ? 'despesa' : 'receita') : $tipoLancamento;
+                 @endphp
+                 <tr class="hover:bg-gray-50">
+                     <td class="px-5 py-4 text-sm text-gray-500">{{ $m->data_pagamento->format('d/m/Y') }}</td>
+                     <td class="px-5 py-4 text-sm">
+                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {{ $tipoExibicao === 'receita' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">
+                             {{ $tipoExibicao === 'receita' ? 'Receita' : 'Despesa' }}
+                         </span>
+                     </td>
+                     <td class="px-5 py-4 text-sm text-gray-600">
+                         {{ $m->lancamento->classificacaoFinanceira->nome ?? '---' }}
+                     </td>
+                     <td class="px-5 py-4">
+                         <div class="text-sm font-bold text-gray-800">{{ $m->lancamento->descricao ?? '---' }}</div>
+                     </td>
+                     <td class="px-5 py-4 text-sm text-gray-600">{{ $m->lancamento->pessoa->nome ?? '---' }}</td>
+                     <td class="px-5 py-4">
+                         <span class="text-xs font-bold uppercase px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                             {{ $m->forma_pagamento }}
+                         </span>
+                     </td>
+                     <td class="px-5 py-4 text-sm text-gray-500">{{ $m->contaBancaria->nome ?? '---' }}</td>
+                     <td class="px-5 py-4 text-right">
+                         <span class="text-sm font-black {{ $tipoExibicao === 'receita' ? 'text-green-600' : 'text-red-600' }}">
+                             {{ $tipoExibicao === 'receita' ? '+' : '-' }} R$ {{ number_format($m->valor_pago, 2, ',', '.') }}
+                         </span>
+                     </td>
                     <td class="px-5 py-4 text-center">
                         <div class="flex items-center justify-center gap-2">
                             <button @click='openEdit(@json($m))' class="text-indigo-600 hover:text-indigo-900 transition p-1">

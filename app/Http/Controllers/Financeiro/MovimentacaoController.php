@@ -87,17 +87,19 @@ class MovimentacaoController extends Controller
             });
         }
         
-        $totalEntradas = (clone $totaisQuery)->whereHas('lancamento', function ($q) {
-            $q->where('tipo', 'receita');
-        })->sum('valor_pago');
-
-        $totalSaidas = (clone $totaisQuery)->whereHas('lancamento', function ($q) {
-            $q->where('tipo', 'despesa');
-        })->sum('valor_pago');
-
         $contaSelecionada = $request->conta_bancaria_id 
             ? ContaBancaria::find($request->conta_bancaria_id) 
             : null;
+
+        $isCarteira = $contaSelecionada && str_contains(strtolower($contaSelecionada->nome), 'carteira');
+
+        $totalEntradas = (clone $totaisQuery)->whereHas('lancamento', function ($q) use ($isCarteira) {
+            $q->where('tipo', $isCarteira ? 'despesa' : 'receita');
+        })->sum('valor_pago');
+
+        $totalSaidas = (clone $totaisQuery)->whereHas('lancamento', function ($q) use ($isCarteira) {
+            $q->where('tipo', $isCarteira ? 'receita' : 'despesa');
+        })->sum('valor_pago');
 
         return view('admin.financeiro.movimentacoes', 
             compact('movimentacoes', 'totalEntradas', 'totalSaidas', 'contas', 'contaSelecionada', 'classificacoes', 'pessoas'));
