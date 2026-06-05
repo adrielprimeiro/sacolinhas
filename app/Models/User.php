@@ -57,6 +57,25 @@ class User extends Authenticatable
     ];
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted()
+    {
+        static::created(function ($user) {
+            if ($user->role === 'client') {
+                \App\Models\Pessoa::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nome'      => $user->name,
+                        'documento' => $user->cpf,
+                        'tipo'      => 'cliente_circular',
+                    ]
+                );
+            }
+        });
+    }
+
+    /**
      * Obtém a última movimentação de ContaCorrente para o usuário, representando seu saldo atual.
      */
     public function latestContaCorrente()

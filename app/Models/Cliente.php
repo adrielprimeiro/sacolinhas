@@ -403,6 +403,17 @@ class Cliente extends Model
             $cliente->role = 'client';
         });
 
+        static::created(function ($cliente) {
+            \App\Models\Pessoa::firstOrCreate(
+                ['user_id' => $cliente->id],
+                [
+                    'nome'      => $cliente->name,
+                    'documento' => $cliente->cpf,
+                    'tipo'      => 'cliente_circular',
+                ]
+            );
+        });
+
         static::updating(function ($cliente) {
             // Atualizar ultima_visita sempre que atualizar
             $cliente->ultima_visita = now();
