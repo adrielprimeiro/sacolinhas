@@ -169,9 +169,9 @@
                     </a>
                     
                     {{-- Sacolinhas Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*') ? 'true' : 'false' }} }">
+                    <div x-data="{ open: {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*') ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*') ? 'bg-gray-100 font-semibold' : '' }}">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
                                 <span>Sacolas</span>
@@ -182,7 +182,7 @@
                             <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinhas.index') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-broadcast-tower mr-1"></i> Da Live
                             </a>
-                            <a href="{{ route('sacolinhas.consultar') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('sacolinhas.consultar') ? 'font-semibold text-indigo-600' : '' }}">
+                            <a href="{{ route('admin.sacolinha.gestao') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinha.gestao', 'admin.sacolinha.show') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-user mr-1"></i> Por Cliente
                             </a>
                             <a href="{{ route('admin.sacolinhas.qrcode.scanner') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'font-semibold text-indigo-600' : '' }}">
