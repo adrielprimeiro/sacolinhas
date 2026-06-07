@@ -292,4 +292,41 @@ class ConciliacaoController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+
+    public function buscarLancamentos(Request $request)
+    {
+        $search = $request->get('q', '');
+        $tipo = $request->get('tipo', 'receita');
+
+        $lancamentos = \App\Models\Lancamento::with('pessoa')
+            ->where('tipo', $tipo)
+            ->whereIn('status', ['pendente', 'pago_parcial'])
+            ->when($search, function($q) use ($search) {
+                $q->where(function($sub) use ($search) {
+                    $sub->where('descricao', 'like', "%{$search}%")
+                        ->orWhere('id', $search)
+                        ->orWhere('valor_total', 'like', "%{$search}%")
+                        ->orWhereHas('pessoa', function($pQ) use ($search) {
+                            $pQ->where('nome', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->orderBy('data_vencimento', 'asc')
+            ->limit(30)
+            ->get();
+
+        $formatted = $lancamentos->map(function($l) {
+            $valorFormatado = number_format($l->valor_total, 2, ',', '.');
+            $dataVencFormatado = $l->data_vencimento ? $l->data_vencimento->format('d/m/Y') : '';
+            $contato = $l->pessoa?->nome ?? 'Sem Contato';
+            return [
+                'id' => $l->id,
+                'descricao' => $l->descricao,
+                'valor' => $l->valor_total,
+                'text' => "Venc: {$dataVencFormatado} | R$ {$valorFormatado} | {$l->descricao} ({$contato})"
+            ];
+        });
+
+        return response()->json($formatted);
+    }
 }

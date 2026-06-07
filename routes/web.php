@@ -152,6 +152,7 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
         Route::post('/importar',       [ConciliacaoController::class, 'importarOfx'])->name('importar');
         Route::post('/criar-rapido',   [ConciliacaoController::class, 'criarRapido'])->name('criar-rapido');
         Route::get('/buscar-pessoas',  [ConciliacaoController::class, 'buscarPessoas'])->name('buscar-pessoas');
+        Route::get('/buscar-lancamentos', [ConciliacaoController::class, 'buscarLancamentos'])->name('buscar-lancamentos');
         Route::get('/get-sugestao-pessoa/{transacao}', [ConciliacaoController::class, 'getSugestaoPessoa'])->name('get-sugestao-pessoa');
         Route::post('/{transacao}/ignorar', [ConciliacaoController::class, 'ignorar'])->name('ignorar');
     });

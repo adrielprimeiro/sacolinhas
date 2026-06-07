@@ -195,24 +195,45 @@ $currentRoute = Route::currentRouteName();
                         @endif
                     </div>
 
-                    {{-- Manual Selection Dropdown --}}
+                    {{-- Manual Selection Autocomplete Search --}}
                     <div class="pt-3 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="w-full md:max-w-2xl">
-                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <div class="w-full md:max-w-3xl" x-data="manualLancamentoSearch('{{ $isEntrada ? 'receita' : 'despesa' }}')">
+                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                                 @csrf
                                 <input type="hidden" name="transacao_id" value="{{ $t->id }}">
-                                <select name="lancamento_id" class="flex-grow text-xs border border-gray-200 rounded-xl p-2.5 bg-white font-bold text-gray-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
-                                    <option value="">-- Ou vincular manualmente a outro lançamento existente... --</option>
-                                    @php
-                                        $options = $isEntrada ? $lancamentosReceita : $lancamentosDespesa;
-                                    @endphp
-                                    @foreach($options as $lAlt)
-                                        <option value="{{ $lAlt->id }}">
-                                            Venc: {{ $lAlt->data_vencimento->format('d/m/Y') }} | R$ {{ number_format($lAlt->valor_total, 2, ',', '.') }} | {{ $lAlt->descricao }} ({{ $lAlt->pessoa->nome ?? 'Sem Contato' }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
+                                
+                                <div class="relative flex-grow">
+                                    <input type="text" 
+                                           x-model="search" 
+                                           @input.debounce.300ms="buscar()"
+                                           @focus="buscar()"
+                                           placeholder="Buscar por descrição, valor ou contato..."
+                                           class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-white font-bold text-gray-700 transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                           :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
+                                           :readonly="selected"
+                                           required>
+                                    <input type="hidden" name="lancamento_id" :value="selectedId" required>
+                                    
+                                    <div x-show="loading" class="absolute right-9 top-3">
+                                        <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                                    </div>
+                                    
+                                    <div x-show="results.length > 0" 
+                                         class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                                        <template x-for="item in results" :key="item.id">
+                                            <div @click="selecionar(item)" 
+                                                 class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0">
+                                                <div class="font-bold text-xs text-gray-800" x-text="item.text"></div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <div x-show="selected" @click="limpar()" class="absolute right-3 top-3 cursor-pointer text-gray-400 hover:text-red-500">
+                                        <i class="fas fa-times-circle"></i>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5" :disabled="!selectedId">
                                     <i class="fas fa-link"></i> Vincular Selecionado
                                 </button>
                             </form>
@@ -563,6 +584,52 @@ $currentRoute = Route::currentRouteName();
                 this.selected = null;
                 this.selectedId = '';
                 this.selectedNome = '';
+                this.search = '';
+                this.results = [];
+            }
+        }
+    }
+
+    function manualLancamentoSearch(tipo) {
+        return {
+            search: '',
+            results: [],
+            selected: null,
+            selectedId: '',
+            selectedText: '',
+            loading: false,
+            timeout: null,
+            buscar() {
+                if (this.selected && this.search === this.selectedText) {
+                    this.results = [];
+                    return;
+                }
+                
+                this.loading = true;
+                clearTimeout(this.timeout);
+                this.timeout = setTimeout(() => {
+                    fetch('{{ route("financeiro.conciliacao.buscar-lancamentos") }}?tipo=' + tipo + '&q=' + encodeURIComponent(this.search))
+                        .then(r => r.json())
+                        .then(data => {
+                            this.results = data;
+                            this.loading = false;
+                        })
+                        .catch(() => {
+                            this.loading = false;
+                        });
+                }, 300);
+            },
+            selecionar(item) {
+                this.selected = item;
+                this.selectedId = item.id;
+                this.selectedText = item.text;
+                this.search = item.text;
+                this.results = [];
+            },
+            limpar() {
+                this.selected = null;
+                this.selectedId = '';
+                this.selectedText = '';
                 this.search = '';
                 this.results = [];
             }
