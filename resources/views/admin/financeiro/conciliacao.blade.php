@@ -67,9 +67,9 @@ $currentRoute = Route::currentRouteName();
                 $isEntrada = $t->tipo === 'entrada';
             @endphp
             
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition duration-200">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition duration-200">
                 {{-- Transaction Header Row --}}
-                <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/70 border-b border-gray-100">
+                <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/70 border-b border-gray-100 rounded-t-2xl">
                     <div class="flex items-start gap-3.5">
                         {{-- Icon Indicator --}}
                         <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 {{ $isEntrada ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600' }}">
