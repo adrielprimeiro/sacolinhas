@@ -435,7 +435,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!window.$) return;
     $('#select-pessoa').select2({
         dropdownParent: $('#modal-lancamento'),
-        placeholder: 'Buscar pessoa...',
+        placeholder: 'Buscar pessoa (opcional)...',
+        allowClear: true,
         minimumInputLength: 1,
         ajax: {
             url: '{{ route('financeiro.search.pessoas') }}',

@@ -370,7 +370,7 @@ class ConciliacaoService
             $lancamento = Lancamento::create([
                 'tipo' => $transacao->tipo === 'entrada' ? 'receita' : 'despesa',
                 'status' => 'pendente',
-                'pessoa_id' => $pessoaIdFinal ?? 1,
+                'pessoa_id' => $pessoaIdFinal,
                 'classificacao_financeira_id' => $classificacaoId,
                 'data_emissao' => $transacao->data,
                 'data_vencimento' => $transacao->data,

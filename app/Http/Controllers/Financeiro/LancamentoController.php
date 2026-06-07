@@ -75,7 +75,7 @@ class LancamentoController extends Controller
     {
         $data = $request->validate([
             'tipo'                       => ['required', Rule::in(['receita', 'despesa'])],
-            'pessoa_id'                  => ['required', 'exists:pessoas,id'],
+            'pessoa_id'                  => ['nullable', 'exists:pessoas,id'],
             'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
             'data_emissao'               => ['required', 'date'],
             'data_vencimento'            => ['required', 'date'],
@@ -106,7 +106,7 @@ class LancamentoController extends Controller
             // Para lançamentos já pagos, permitimos editar a categoria, descrição, pessoa e datas,
             // mas mantemos o tipo e o valor inalterados por segurança.
             $data = $request->validate([
-                'pessoa_id'                  => ['required', 'exists:pessoas,id'],
+                'pessoa_id'                  => ['nullable', 'exists:pessoas,id'],
                 'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
                 'data_emissao'               => ['required', 'date'],
                 'data_vencimento'            => ['required', 'date'],
@@ -118,7 +118,7 @@ class LancamentoController extends Controller
         } else {
             $data = $request->validate([
                 'tipo'                       => ['required', Rule::in(['receita', 'despesa'])],
-                'pessoa_id'                  => ['required', 'exists:pessoas,id'],
+                'pessoa_id'                  => ['nullable', 'exists:pessoas,id'],
                 'classificacao_financeira_id' => ['required', 'exists:classificacao_financeira,id'],
                 'data_emissao'               => ['required', 'date'],
                 'data_vencimento'            => ['required', 'date'],

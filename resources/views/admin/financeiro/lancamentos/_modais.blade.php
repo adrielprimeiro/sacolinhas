@@ -28,7 +28,7 @@
             {{-- Pessoa --}}
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                    Pessoa <span class="text-red-400">*</span>
+                    Pessoa (Opcional)
                 </label>
                 <select id="select-pessoa" name="pessoa_id" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm" style="width:100%">
                 </select>
