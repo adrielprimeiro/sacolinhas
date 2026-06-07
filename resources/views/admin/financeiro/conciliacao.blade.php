@@ -51,6 +51,9 @@ $currentRoute = Route::currentRouteName();
             <button @click="showModalMp = true" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-md">
                 <i class="fab fa-amazon-pay mr-2"></i>Sincronizar Mercado Pago
             </button>
+            <button @click="showModalInter = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #FF6200;">
+                <i class="fas fa-university"></i>Sincronizar Banco Inter
+            </button>
         </div>
     </div>
 
@@ -75,9 +78,15 @@ $currentRoute = Route::currentRouteName();
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-xs font-bold text-gray-400">{{ $t->data->format('d/m/Y') }}</span>
-                                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {{ $t->origem === 'mercadopago' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-700' }}">
-                                    {{ $t->origem }}
-                                </span>
+                                @if($t->origem === 'bancointer')
+                                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full" style="background-color: #FFEADB; color: #D15200;">
+                                        banco inter
+                                    </span>
+                                @else
+                                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {{ $t->origem === 'mercadopago' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-700' }}">
+                                        {{ $t->origem }}
+                                    </span>
+                                @endif
                             </div>
                             <h4 class="text-base font-bold text-gray-800 mt-0.5 leading-snug">{{ $t->descricao }}</h4>
                         </div>
@@ -277,6 +286,33 @@ $currentRoute = Route::currentRouteName();
         </form>
     </div>
 
+    <!-- Modal Banco Inter -->
+    <div x-show="showModalInter" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <form action="{{ route('financeiro.conciliacao.sincronizar-inter') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+            @csrf
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800">Sincronizar Banco Inter</h3>
+                <button type="button" @click="showModalInter = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Início</label>
+                        <input type="date" name="start_date" class="w-full text-sm border border-gray-200 rounded-xl p-2" value="{{ date('Y-m-d', strtotime('-7 days')) }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Fim</label>
+                        <input type="date" name="end_date" class="w-full text-sm border border-gray-200 rounded-xl p-2" value="{{ date('Y-m-d') }}" required>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+                <button type="button" @click="showModalInter = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="text-white px-6 py-2 rounded-xl text-sm font-black shadow-md transition hover:opacity-90" style="background-color: #FF6200;">Sincronizar Agora</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Modal Quick Create -->
     <div x-show="showModalQuick" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
         <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl">
@@ -387,15 +423,26 @@ $currentRoute = Route::currentRouteName();
             quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
             showModalOfx: false,
             showModalMp: false,
+            showModalInter: false,
             showModalQuick: false,
 
             openQuickCreate(id, desc, valor, tipo, origem) {
+                let defaultConta = 1;
+                if (origem === 'mercadopago') {
+                    defaultConta = 2;
+                } else if (origem === 'bancointer') {
+                    @php
+                        $contaInterId = \App\Models\ContaBancaria::where('nome', 'like', '%Inter%')->first()?->id ?? 1;
+                    @endphp
+                    defaultConta = {{ $contaInterId }};
+                }
+
                 this.quickData = { 
                     id, 
                     descricao: desc, 
                     valor: this.formatMoney(valor), 
                     tipo: tipo === 'entrada' ? 'RECEITA' : 'DESPESA',
-                    conta_id: origem === 'mercadopago' ? 2 : 1
+                    conta_id: defaultConta
                 };
                 this.suggestion = null;
                 this.showModalQuick = true;

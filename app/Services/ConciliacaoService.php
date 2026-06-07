@@ -849,4 +849,198 @@ class ConciliacaoService
 
         return false;
     }
+
+    /**
+     * Sincroniza as transações do extrato do Banco Inter via API Banking v2
+     */
+    public function sincronizarBancoInter(string $startDate, string $endDate): int
+    {
+        $config = config('services.banco_inter');
+        if (empty($config['client_id']) || empty($config['client_secret'])) {
+            throw new \Exception("Credenciais do Banco Inter (Client ID / Client Secret) não configuradas no arquivo .env.");
+        }
+
+        $certPath = $config['cert_path'];
+        $keyPath = $config['key_path'];
+
+        // Resolve caminhos relativos ao diretório storage se não forem absolutos
+        if (!str_starts_with($certPath, '/') && !str_starts_with($certPath, '\\') && !preg_match('/^[a-zA-Z]:/', $certPath)) {
+            $certPath = storage_path($certPath);
+        }
+        if (!str_starts_with($keyPath, '/') && !str_starts_with($keyPath, '\\') && !preg_match('/^[a-zA-Z]:/', $keyPath)) {
+            $keyPath = storage_path($keyPath);
+        }
+
+        // Simulador de Sandbox para facilitar testes locais sem certificados reais configurados
+        if ($config['sandbox'] && (!file_exists($certPath) || !file_exists($keyPath))) {
+            Log::warning('Banco Inter em modo Sandbox sem certificados mTLS configurados. Simulando resposta para o período selecionado.');
+            return $this->simularResponseSandboxBancoInter($startDate, $endDate);
+        }
+
+        if (!file_exists($certPath) || !file_exists($keyPath)) {
+            throw new \Exception("Arquivos de certificado mTLS do Banco Inter não foram encontrados. Certificado esperado em: {$certPath}. Chave esperada em: {$keyPath}");
+        }
+
+        $baseUrl = $config['sandbox'] ? 'https://cdpj-sandbox.partners.uatinter.co' : 'https://cdpj.partners.bancointer.com.br';
+        $tokenUrl = $config['sandbox'] ? 'https://cdpj-sandbox.partners.uatinter.co/oauth/v2/token' : 'https://cdpj.partners.bancointer.com.br/oauth/v2/token';
+
+        Log::info('Solicitando token OAuth para Banco Inter...', ['url' => $tokenUrl]);
+
+        // 1. Obter Token OAuth com mTLS
+        $tokenResponse = Http::withoutVerifying()
+            ->withOptions([
+                'cert' => $certPath,
+                'ssl_key' => $keyPath,
+            ])
+            ->asForm()
+            ->post($tokenUrl, [
+                'grant_type' => 'client_credentials',
+                'client_id' => $config['client_id'],
+                'client_secret' => $config['client_secret'],
+                'scope' => 'extrato.read'
+            ]);
+
+        if (!$tokenResponse->successful()) {
+            Log::error('Erro na autenticação OAuth2 do Banco Inter', [
+                'status' => $tokenResponse->status(),
+                'body' => $tokenResponse->body()
+            ]);
+            throw new \Exception("Erro ao autenticar no Banco Inter (Status {$tokenResponse->status()}): " . $tokenResponse->body());
+        }
+
+        $accessToken = $tokenResponse->json()['access_token'] ?? null;
+        if (empty($accessToken)) {
+            throw new \Exception("Token de acesso não encontrado na resposta do Banco Inter.");
+        }
+
+        // 2. Chamar API de Extrato
+        $beginDate = Carbon::parse($startDate)->toDateString();
+        $endDate = Carbon::parse($endDate)->toDateString();
+        
+        $extratoUrl = "{$baseUrl}/banking/v2/extrato?dataInicio={$beginDate}&dataFim={$endDate}";
+        Log::info('Buscando extrato da conta Banco Inter...', ['url' => $extratoUrl]);
+
+        $response = Http::withoutVerifying()
+            ->withToken($accessToken)
+            ->withOptions([
+                'cert' => $certPath,
+                'ssl_key' => $keyPath,
+            ])
+            ->get($extratoUrl);
+
+        if (!$response->successful()) {
+            Log::error('Erro ao buscar extrato do Banco Inter', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+            throw new \Exception("Erro ao obter extrato do Banco Inter (Status {$response->status()}): " . $response->body());
+        }
+
+        $data = $response->json();
+        $transacoes = $data['transacoes'] ?? [];
+
+        Log::info("Processando " . count($transacoes) . " transações retornadas pelo Banco Inter.");
+
+        // Localiza a conta do Banco Inter pelo nome ou ID
+        $contaInter = \App\Models\ContaBancaria::where('nome', 'like', '%Inter%')->first();
+        $contaBancariaId = $contaInter ? $contaInter->id : 1;
+
+        $count = 0;
+        foreach ($transacoes as $item) {
+            $tipo = isset($item['tipoOperacao']) && strtolower($item['tipoOperacao']) === 'd' ? 'saida' : 'entrada';
+            $valor = abs((float) ($item['valor'] ?? 0));
+            if ($valor <= 0) continue;
+
+            $date = Carbon::parse($item['dataEntrada'] ?? now())->toDateString();
+            $descricao = $item['descricao'] ?? $item['titulo'] ?? 'Movimentação Banco Inter';
+
+            // Garante um FITID único. Se CPMF/NSU não forem retornados, criamos um hash determinístico.
+            $fitid = $item['cpmf'] ?? $item['nsu'] ?? 'inter_' . md5($date . $tipo . $valor . $descricao);
+
+            TransacaoExtrato::updateOrCreate(
+                ['fitid' => (string) $fitid],
+                [
+                    'data' => $date,
+                    'descricao' => $descricao,
+                    'valor' => $valor,
+                    'valor_bruto' => $valor,
+                    'valor_taxa' => 0,
+                    'valor_liquido' => $valor,
+                    'tipo' => $tipo,
+                    'origem' => 'bancointer',
+                    'conta_bancaria_id' => $contaBancariaId,
+                    'payload_original' => $item
+                ]
+            );
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Simula transações do Banco Inter para o ambiente de Sandbox sem certificados
+     */
+    private function simularResponseSandboxBancoInter(string $startDate, string $endDate): int
+    {
+        $contaInter = \App\Models\ContaBancaria::where('nome', 'like', '%Inter%')->first();
+        $contaBancariaId = $contaInter ? $contaInter->id : 1;
+
+        $mockTransacoes = [
+            [
+                'dataEntrada' => Carbon::parse($startDate)->toDateString(),
+                'tipoTransacao' => 'PIX RECEBIDO',
+                'tipoOperacao' => 'C',
+                'valor' => '120.50',
+                'titulo' => 'Pix Recebido',
+                'descricao' => 'Pix recebido de Maria Oliveira Silva'
+            ],
+            [
+                'dataEntrada' => Carbon::parse($startDate)->addDays(1)->toDateString(),
+                'tipoTransacao' => 'TARIFA',
+                'tipoOperacao' => 'D',
+                'valor' => '5.90',
+                'titulo' => 'Tarifa de Conta',
+                'descricao' => 'Tarifa Mensalidade Conta PJ Banco Inter'
+            ],
+            [
+                'dataEntrada' => Carbon::parse($endDate)->toDateString(),
+                'tipoTransacao' => 'PIX ENVIADO',
+                'tipoOperacao' => 'D',
+                'valor' => '45.00',
+                'titulo' => 'Pix Enviado',
+                'descricao' => 'Pix enviado para Distribuidora de Sacolas LTDA'
+            ]
+        ];
+
+        $count = 0;
+        foreach ($mockTransacoes as $item) {
+            $tipo = strtolower($item['tipoOperacao']) === 'd' ? 'saida' : 'entrada';
+            $valor = (float) $item['valor'];
+            $date = $item['dataEntrada'];
+            $descricao = $item['descricao'];
+            
+            $fitid = 'mock_inter_' . md5($date . $item['tipoOperacao'] . $item['valor'] . $descricao);
+
+            TransacaoExtrato::updateOrCreate(
+                ['fitid' => (string) $fitid],
+                [
+                    'data' => $date,
+                    'descricao' => $descricao,
+                    'valor' => $valor,
+                    'valor_bruto' => $valor,
+                    'valor_taxa' => 0,
+                    'valor_liquido' => $valor,
+                    'tipo' => $tipo,
+                    'origem' => 'bancointer',
+                    'conta_bancaria_id' => $contaBancariaId,
+                    'payload_original' => $item
+                ]
+            );
+            $count++;
+        }
+
+        return $count;
+    }
 }

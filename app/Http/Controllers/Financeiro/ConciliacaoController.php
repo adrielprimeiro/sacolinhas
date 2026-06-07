@@ -282,4 +282,14 @@ class ConciliacaoController extends Controller
             
         return response()->json($pessoas);
     }
+
+    public function sincronizarInter(Request $request)
+    {
+        try {
+            $count = $this->service->sincronizarBancoInter($request->start_date, $request->end_date);
+            return back()->with('success', "{$count} transações sincronizadas do Banco Inter.");
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
 }

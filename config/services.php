@@ -55,6 +55,14 @@ return [
         'public_key' => env('MERCADOPAGO_PUBLIC_KEY'),
     ],
 
+    'banco_inter' => [
+        'client_id'     => env('BANCO_INTER_CLIENT_ID'),
+        'client_secret' => env('BANCO_INTER_CLIENT_SECRET'),
+        'cert_path'     => env('BANCO_INTER_CERT_PATH', 'certs/inter.crt'),
+        'key_path'      => env('BANCO_INTER_KEY_PATH', 'certs/inter.key'),
+        'sandbox'       => env('BANCO_INTER_SANDBOX', false),
+    ],
+
 /*
 'gemini' => [
     'api_key' => env('GEMINI_API_KEY'),
