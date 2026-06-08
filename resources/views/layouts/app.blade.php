@@ -98,18 +98,36 @@
 				</a>
 
                 {{-- Grupo: Cadastro --}}
-                <div>
+                <div class="space-y-1">
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Cadastro</p>
-                    <a href="{{ route('clientes.index') }}"
-                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('clientes.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-users text-gray-500 w-5"></i>
-                        <span>Clientes</span>
-                    </a>
+                    
+                    {{-- Clientes Collapsible Submenu --}}
+                    <div x-data="{ open: {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard') ? 'true' : 'false' }} }">
+                        <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-users text-gray-500 w-5"></i>
+                                <span>Clientes</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
+                            <a href="{{ route('clientes.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('clientes.index') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-list mr-1"></i> Lista de Clientes
+                            </a>
+                            <a href="{{ route('admin.chat.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.chat.index') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-comments mr-1"></i> Chat
+                            </a>
+                            <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-chart-pie mr-1"></i> Chat Dashboard
+                            </a>
+                        </div>
+                    </div>
                     
                     {{-- Itens Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*') ? 'true' : 'false' }} }">
+                    <div x-data="{ open: {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*') ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-box text-gray-500 w-5"></i>
                                 <span>Itens</span>
@@ -119,6 +137,9 @@
                         <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
                             <a href="{{ route('items.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('items.index') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-list mr-1"></i> Lista de Itens
+                            </a>
+                            <a href="{{ route('admin.categorias.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.categorias.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-tags mr-1"></i> Categorias
                             </a>
                             <a href="{{ route('inventario') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-clipboard-list mr-1"></i> Inventário
@@ -131,12 +152,6 @@
                             </a>
                         </div>
                     </div>
-
-                    <a href="{{ route('admin.categorias.index') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-tags text-gray-500 w-5"></i>
-                        <span>Categorias</span>
-                    </a>
                 </div>
 
                 {{-- Grupo: Financeiro --}}
