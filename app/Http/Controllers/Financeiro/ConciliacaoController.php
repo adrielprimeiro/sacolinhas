@@ -206,6 +206,26 @@ class ConciliacaoController extends Controller
         return $this->conciliar($request);
     }
 
+    public function vincularMultiplos(Request $request)
+    {
+        $request->validate([
+            'transacao_id' => 'required|exists:transacoes_extrato,id',
+            'vinculos' => 'required|array|min:1',
+            'vinculos.*.lancamento_id' => 'required|exists:lancamentos,id',
+            'vinculos.*.valor_vinculo' => 'required|numeric|min:0.01',
+        ]);
+
+        try {
+            $this->service->vincularMultiplos(
+                $request->transacao_id,
+                $request->vinculos
+            );
+            return back()->with('success', 'Conciliação múltipla realizada com sucesso!');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
     public function criarRapido(Request $request)
     {
         $request->validate([
@@ -316,14 +336,19 @@ class ConciliacaoController extends Controller
             ->get();
 
         $formatted = $lancamentos->map(function($l) {
+            $totalPago = (float) $l->movimentacoes()->sum('valor_pago');
+            $saldoRestante = max(0.00, (float) $l->valor_total - $totalPago);
+
             $valorFormatado = number_format($l->valor_total, 2, ',', '.');
+            $restanteFormatado = number_format($saldoRestante, 2, ',', '.');
             $dataVencFormatado = $l->data_vencimento ? $l->data_vencimento->format('d/m/Y') : '';
             $contato = $l->pessoa?->nome ?? 'Sem Contato';
             return [
                 'id' => $l->id,
                 'descricao' => $l->descricao,
                 'valor' => $l->valor_total,
-                'text' => "Venc: {$dataVencFormatado} | R$ {$valorFormatado} | {$l->descricao} ({$contato})"
+                'saldo_restante' => $saldoRestante,
+                'text' => "Venc: {$dataVencFormatado} | R$ {$valorFormatado} (Restam: R$ {$restanteFormatado}) | {$l->descricao} ({$contato})"
             ];
         });
 

@@ -147,6 +147,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
     Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
         Route::get('/',                [ConciliacaoController::class, 'index'])->name('index');
         Route::post('/vincular',       [ConciliacaoController::class, 'vincular'])->name('vincular');
+        Route::post('/vincular-multiplos', [ConciliacaoController::class, 'vincularMultiplos'])->name('vincular-multiplos');
         Route::post('/sincronizar-mp', [ConciliacaoController::class, 'sincronizarMp'])->name('sincronizar-mp');
         Route::post('/sincronizar-inter', [ConciliacaoController::class, 'sincronizarInter'])->name('sincronizar-inter');
         Route::post('/importar',       [ConciliacaoController::class, 'importarOfx'])->name('importar');

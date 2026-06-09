@@ -233,6 +233,7 @@ class ConciliacaoService
                 'data_pagamento' => $transacao->data,
                 'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
                 'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
+                'transacao_extrato_id' => $transacao->id,
             ]);
 
             // 2. Atualizar Status do Lançamento
@@ -255,6 +256,72 @@ class ConciliacaoService
             }
 
             return $movimentacao;
+        });
+    }
+
+    /**
+     * Vincular uma transação do extrato a múltiplos lançamentos com valores específicos
+     */
+    public function vincularMultiplos(int $transacaoId, array $lancamentosDados, string $formaPagamento = 'transferencia')
+    {
+        return \DB::transaction(function () use ($transacaoId, $lancamentosDados, $formaPagamento) {
+            $transacao = TransacaoExtrato::findOrFail($transacaoId);
+
+            $defaultContaId = 1;
+            if ($transacao->origem === 'mercadopago') {
+                $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+                $defaultContaId = $contaMp ? $contaMp->id : 2;
+            }
+
+            $movimentacoesCriadas = [];
+            $totalVinculado = 0;
+
+            foreach ($lancamentosDados as $dado) {
+                $lancamentoId = $dado['lancamento_id'];
+                $valorVinculo = (float) $dado['valor_vinculo'];
+
+                if ($valorVinculo <= 0) {
+                    continue;
+                }
+
+                $lancamento = Lancamento::findOrFail($lancamentoId);
+
+                // 1. Criar a Movimentação (Baixa) com o valor específico do vínculo
+                $movimentacao = \App\Models\Movimentacao::create([
+                    'lancamento_id' => $lancamento->id,
+                    'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId, 
+                    'data_pagamento' => $transacao->data,
+                    'valor_pago' => $valorVinculo,
+                    'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
+                    'transacao_extrato_id' => $transacao->id,
+                ]);
+
+                // 2. Atualizar Status do Lançamento
+                $valorTotalPago = $lancamento->movimentacoes()->sum('valor_pago');
+                if ($valorTotalPago >= $lancamento->valor_total) {
+                    $lancamento->update(['status' => 'pago']);
+                } else {
+                    $lancamento->update(['status' => 'pago_parcial']);
+                }
+
+                $movimentacoesCriadas[] = $movimentacao;
+                $totalVinculado += $valorVinculo;
+            }
+
+            // 3. Atualizar Status da Transação do Extrato
+            // Nota: Para manter compatibilidade com o banco, salvamos o ID da primeira movimentação
+            $primeiraMovId = count($movimentacoesCriadas) > 0 ? $movimentacoesCriadas[0]->id : null;
+            $transacao->update([
+                'status' => 'conciliado',
+                'movimentacao_id' => $primeiraMovId
+            ]);
+
+            // 4. Registrar a Despesa da Taxa (se houver e origem for MP)
+            if ($transacao->valor_taxa > 0) {
+                $this->registrarTaxaMercadoPago($transacao);
+            }
+
+            return $movimentacoesCriadas;
         });
     }
 

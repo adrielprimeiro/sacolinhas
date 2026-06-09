@@ -196,26 +196,22 @@ $currentRoute = Route::currentRouteName();
                     </div>
 
                     {{-- Manual Selection Autocomplete Search --}}
-                    <div class="pt-3 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="w-full md:max-w-3xl" x-data="manualLancamentoSearch('{{ $isEntrada ? 'receita' : 'despesa' }}')">
-                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div class="pt-4 border-t border-gray-100 flex flex-col gap-4">
+                        <div class="w-full" x-data="manualLancamentoSearch('{{ $isEntrada ? 'receita' : 'despesa' }}', {{ $t->valor_bruto ?? $t->valor }})">
+                            <form action="{{ route('financeiro.conciliacao.vincular-multiplos') }}" method="POST" class="space-y-4">
                                 @csrf
                                 <input type="hidden" name="transacao_id" value="{{ $t->id }}">
                                 
-                                <div class="relative flex-grow">
+                                <div class="relative w-full md:max-w-2xl">
                                     <input type="text" 
                                            x-model="search" 
                                            @input.debounce.300ms="buscar()"
                                            @focus="buscar()"
-                                           placeholder="Buscar por descrição, valor ou contato..."
-                                           class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-white font-bold text-gray-700 transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-                                           :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
-                                           :readonly="selected"
-                                           required>
-                                    <input type="hidden" name="lancamento_id" :value="selectedId" required>
+                                           placeholder="Buscar lançamentos para vincular..."
+                                           class="w-full text-xs border border-gray-200 rounded-xl p-2.5 bg-white font-bold text-gray-700 transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none">
                                     
-                                    <div x-show="loading" class="absolute right-9 top-3">
-                                        <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                                    <div x-show="loading" class="absolute right-3 top-3">
+                                        <i class="fas fa-spinner fa-spin text-gray-400 text-xs"></i>
                                     </div>
                                     
                                     <div x-show="results.length > 0" 
@@ -227,15 +223,65 @@ $currentRoute = Route::currentRouteName();
                                             </div>
                                         </template>
                                     </div>
-                                    
-                                    <div x-show="selected" @click="limpar()" class="absolute right-3 top-3 cursor-pointer text-gray-400 hover:text-red-500">
-                                        <i class="fas fa-times-circle"></i>
-                                    </div>
                                 </div>
                                 
-                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5" :disabled="!selectedId">
-                                    <i class="fas fa-link"></i> Vincular Selecionado
-                                </button>
+                                {{-- Lista de Vínculos --}}
+                                <template x-if="vinculos.length > 0">
+                                    <div class="space-y-2 max-w-3xl">
+                                        <h6 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lançamentos Selecionados para Vínculo</h6>
+                                        <div class="bg-gray-50/50 border border-gray-100 rounded-2xl p-3 space-y-2">
+                                            <template x-for="(v, index) in vinculos" :key="v.id">
+                                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-gray-200/60 shadow-sm">
+                                                    <div class="flex-grow">
+                                                        <span class="text-xs font-bold text-gray-700" x-text="v.text"></span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                                        <div class="text-[10px] text-gray-400 font-bold mr-1">R$</div>
+                                                        <input type="number" 
+                                                               step="0.01" 
+                                                               x-model="v.valor_vinculo" 
+                                                               class="w-24 text-xs border border-gray-200 rounded-lg p-1.5 font-black text-right text-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                                                               required>
+                                                        
+                                                        {{-- Hidden Inputs para submissão do array no Form --}}
+                                                        <input type="hidden" :name="'vinculos['+index+'][lancamento_id]'" :value="v.id">
+                                                        <input type="hidden" :name="'vinculos['+index+'][valor_vinculo]'" :value="v.valor_vinculo">
+                                                        
+                                                        <button type="button" @click="remover(index)" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 transition flex items-center justify-center">
+                                                            <i class="fas fa-trash text-xs"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            
+                                            {{-- Resumo financeiro do vínculo --}}
+                                            <div class="pt-3 mt-2 border-t border-dashed border-gray-200/80 flex flex-wrap items-center justify-between gap-4 text-xs font-bold">
+                                                <div class="space-x-4">
+                                                    <span class="text-gray-500">Valor da Transação: <span class="text-gray-800" x-text="'R$ ' + valorTransacao.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span></span>
+                                                    <span class="text-gray-500">Total Vinculado: <span class="text-indigo-600" x-text="'R$ ' + totalVinculado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span></span>
+                                                </div>
+                                                <div>
+                                                    <span :class="valorRestante < -0.01 ? 'text-red-600' : (Math.abs(valorRestante) < 0.01 ? 'text-green-600' : 'text-gray-500')">
+                                                        <span x-text="valorRestante < -0.01 ? 'Valor Excedido por: R$ ' + Math.abs(valorRestante).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'Restante: R$ ' + Math.abs(valorRestante).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div class="flex items-center gap-2">
+                                    <button type="submit" 
+                                            class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-black px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5" 
+                                            :disabled="!podeVincular">
+                                        <i class="fas fa-link"></i> Reconciliar com Lançamentos Selecionados
+                                    </button>
+                                    <template x-if="vinculos.length > 0">
+                                        <button type="button" @click="limpar()" class="px-4 py-2.5 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 text-xs font-bold transition">
+                                            Limpar Seleção
+                                        </button>
+                                    </template>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -590,21 +636,32 @@ $currentRoute = Route::currentRouteName();
         }
     }
 
-    function manualLancamentoSearch(tipo) {
+    function manualLancamentoSearch(tipo, valorTransacao) {
         return {
             search: '',
             results: [],
-            selected: null,
-            selectedId: '',
-            selectedText: '',
+            vinculos: [],
             loading: false,
             timeout: null,
+            valorTransacao: parseFloat(valorTransacao),
+            
+            get totalVinculado() {
+                return this.vinculos.reduce((sum, v) => sum + (parseFloat(v.valor_vinculo) || 0), 0);
+            },
+            
+            get valorRestante() {
+                return this.valorTransacao - this.totalVinculado;
+            },
+            
+            get podeVincular() {
+                return this.vinculos.length > 0 && this.valorRestante >= -0.01;
+            },
+            
             buscar() {
-                if (this.selected && this.search === this.selectedText) {
+                if (!this.search || this.search.trim().length === 0) {
                     this.results = [];
                     return;
                 }
-                
                 this.loading = true;
                 clearTimeout(this.timeout);
                 this.timeout = setTimeout(() => {
@@ -619,17 +676,35 @@ $currentRoute = Route::currentRouteName();
                         });
                 }, 300);
             },
+            
             selecionar(item) {
-                this.selected = item;
-                this.selectedId = item.id;
-                this.selectedText = item.text;
-                this.search = item.text;
+                // Evita duplicados
+                if (this.vinculos.some(v => v.id === item.id)) {
+                    this.search = '';
+                    this.results = [];
+                    return;
+                }
+                
+                // Calcula o valor sugerido para o vínculo (mínimo entre o saldo restante do lançamento e o valor que falta alocar da transação)
+                const sugerido = Math.min(parseFloat(item.saldo_restante), Math.max(0, this.valorRestante));
+                
+                this.vinculos.push({
+                    id: item.id,
+                    text: item.text,
+                    saldo_restante: parseFloat(item.saldo_restante),
+                    valor_vinculo: sugerido.toFixed(2)
+                });
+                
+                this.search = '';
                 this.results = [];
             },
+            
+            remover(index) {
+                this.vinculos.splice(index, 1);
+            },
+            
             limpar() {
-                this.selected = null;
-                this.selectedId = '';
-                this.selectedText = '';
+                this.vinculos = [];
                 this.search = '';
                 this.results = [];
             }

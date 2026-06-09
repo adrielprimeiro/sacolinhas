@@ -41,6 +41,11 @@ class TransacaoExtrato extends Model
         return $this->belongsTo(Movimentacao::class);
     }
 
+    public function movimentacoes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Movimentacao::class, 'transacao_extrato_id');
+    }
+
     /**
      * Tenta extrair o ID do pedido do payload original
      */

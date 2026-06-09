@@ -15,6 +15,7 @@ class Movimentacao extends Model
         'data_pagamento',
         'valor_pago',
         'forma_pagamento',
+        'transacao_extrato_id',
     ];
 
     protected $casts = [
@@ -144,6 +145,6 @@ class Movimentacao extends Model
      */
     public function transacaoExtrato()
     {
-        return $this->hasOne(TransacaoExtrato::class, 'movimentacao_id');
+        return $this->belongsTo(TransacaoExtrato::class, 'transacao_extrato_id');
     }
 }
