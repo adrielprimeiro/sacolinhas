@@ -97,7 +97,7 @@ Route::get('/checkout/pagamento/{token}', [App\Http\Controllers\Portal\CheckoutC
 use App\Http\Controllers\Financeiro\FinanceiroDashboardController;
 
 // Route para o dashboard financeiro acessível pelo link do menu principal
-Route::get('admin/financeiro', [FinanceiroDashboardController::class, 'index'])->name('admin.financeiro.index');
+Route::get('admin/financeiro', [FinanceiroDashboardController::class, 'index'])->name('admin.financeiro.index')->middleware(['auth', 'check.admin']);
 use App\Http\Controllers\Financeiro\LancamentoController;
 use App\Http\Controllers\Financeiro\ContaBancariaController;
 use App\Http\Controllers\Financeiro\OrcamentoController;
@@ -105,7 +105,7 @@ use App\Http\Controllers\Financeiro\ConciliacaoController;
 use App\Http\Controllers\Financeiro\PessoaController;
 use App\Http\Controllers\Financeiro\MovimentacaoController;
 
-Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
+Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('financeiro.')->group(function () {
     // Dashboard
     Route::get('/', [FinanceiroDashboardController::class, 'index'])->name('dashboard');
 
@@ -168,12 +168,12 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->name('financeiro.')->gr
 });
 
 // Rota para o Módulo de Conta Corrente (Antigo Financeiro)
-Route::middleware(['auth'])->prefix('admin/financeiro')->group(function () {
+Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->group(function () {
     Route::post('conta-corrente/gerar-recarga', [\App\Http\Controllers\ContaCorrenteController::class, 'gerarRecarga'])
         ->name('admin.conta_corrente.gerar_recarga');
 });
 
-Route::middleware(['auth'])->prefix('admin/financeiro')->resource('conta-corrente', \App\Http\Controllers\ContaCorrenteController::class)->names([
+Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->resource('conta-corrente', \App\Http\Controllers\ContaCorrenteController::class)->names([
     'index'   => 'admin.conta_corrente.index',
     'create'  => 'admin.conta_corrente.create',
     'store'   => 'admin.conta_corrente.store',
@@ -188,8 +188,10 @@ Route::middleware(['auth'])->prefix('admin/financeiro')->resource('conta-corrent
 // ===== ROTAS PROTEGIDAS ORIGINAIS =====
 Route::middleware('auth')->group(function () {
     
-    // Dashboard
-	Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Todas as rotas administrativas originais agora exigem check.admin
+    Route::middleware('check.admin')->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/home', function () {
         return redirect('/dashboard');
@@ -392,8 +394,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/pedidos/imprimir-sacolinha', [PedidoController::class, 'imprimirSacolinha'])->name('pedidos.imprimir.sacolinha');
     Route::post('/pedidos/imprimir-pedido', [PedidoController::class, 'imprimirPedido'])->name('pedidos.imprimir.pedido');
 
-    // Rotas de busca Pedido cliente
-    Route::get('/pedidos/buscar-clientes', [PedidoController::class, 'buscarClientes']); 
+        // Rotas de busca Pedido cliente
+        Route::get('/pedidos/buscar-clientes', [PedidoController::class, 'buscarClientes']); 
+    });
 
     // ===== FLUXO DE CHECKOUT (FECHAR SACOLINHA) =====
     Route::post('/checkout/iniciar', [App\Http\Controllers\Portal\CheckoutController::class, 'iniciar'])->name('portal.checkout.iniciar');
@@ -407,14 +410,15 @@ Route::post('/loja/adicionar-item', [LojaController::class, 'adicionarItemSacola
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
 
-Route::get('admin/sacolinhas', [LiveController::class, 'showLiveBagsOverview'])->name('admin.sacolinhas.index');
+Route::get('admin/sacolinhas', [LiveController::class, 'showLiveBagsOverview'])->name('admin.sacolinhas.index')->middleware(['auth', 'check.admin']);
 
 
 Route::get('/users/search', [App\Http\Controllers\LiveController::class, 'search']);
 Route::post('/users/quick-create', [App\Http\Controllers\LiveController::class, 'quickCreate']);
 
 Route::post('admin/clientes/check-email', [ClienteController::class, 'checkEmail'])
-    ->name('admin.clientes.check-email');
+    ->name('admin.clientes.check-email')
+    ->middleware(['auth', 'check.admin']);
 	
 Route::get('/sacolinhas/live/{liveId}', [SacolinhaController::class, 'getSacolinhasByLive']);
 Route::put('/items/{itemId}/status', [SacolinhaController::class, 'updateItemStatus']);
@@ -467,7 +471,8 @@ Route::middleware('auth')->group(function () {
 });
 //Rota para procurar a sacolinha pelo codigo do item
 Route::get('/admin/sacolinhas/qrcode-scanner', [InventarioController::class, 'index'])
-    ->name('admin.sacolinhas.qrcode.scanner');  
+    ->name('admin.sacolinhas.qrcode.scanner')
+    ->middleware(['auth', 'check.admin']);  
 
 
 
@@ -503,7 +508,7 @@ Route::post('/lives/{liveId}/sacolas/{userId}/whatsapp/first', [LiveController::
 });
 */
 // (Opcional) Agrupa rotas do admin para proteger com senha depois
-Route::prefix('admin')->middleware(['auth'])->group(function () {
+Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     
     // Página principal do chat
     Route::get('/chat', [ChatController::class, 'index'])->name('admin.chat.index');
@@ -519,7 +524,7 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 })->withoutMiddleware([VerifyCsrfToken::class]);
 
 
-Route::prefix('admin')->middleware(['auth'])->group(function () {
+Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     // ✅ NOVAS ROTAS LIVE FINALIZE
     Route::post('/live/{liveId}/finalize', [LiveController::class, 'finalize'])->name('admin.live.finalize');
     Route::get('/live/{liveId}/status', [LiveController::class, 'status'])->name('admin.live.status');
@@ -527,15 +532,16 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 });
 
 
-Route::prefix('admin/whatsapp-dashboard')->group(function () {
+Route::prefix('admin/whatsapp-dashboard')->middleware(['auth', 'check.admin'])->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\ChatController::class, 'dashboard'])->name('admin.whatsapp.dashboard');
     Route::get('/api/stats', [\App\Http\Controllers\Admin\ChatController::class, 'getDashboardStats']);
 });
 
 Route::post('/admin/whatsapp-dashboard/api/conflicts/{id}/send-msg2', [ChatController::class, 'sendMsg2FromConflict'])
+    ->middleware(['auth', 'check.admin'])
     ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 	
-Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markMessagesAsRead']);
+Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markMessagesAsRead'])->middleware(['auth', 'check.admin']);
 
 
 // ============================================
@@ -573,20 +579,23 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
 
 //Sacolinhas Vencidas
 Route::get('/admin/vencimentos', [SacolinhaVencidaController::class, 'index'])
-    ->name('admin.vencimentos');
+    ->name('admin.vencimentos')
+    ->middleware(['auth', 'check.admin']);
 
 Route::get('/admin/vencimentos/cliente/{user}', [\App\Http\Controllers\Admin\RelatorioVencimentosController::class, 'show'])
-    ->name('admin.vencimentos.cliente');
+    ->name('admin.vencimentos.cliente')
+    ->middleware(['auth', 'check.admin']);
 	
 Route::post('/admin/vencimentos/cliente/{user}/whatsapp', [SacolinhaVencidaController::class, 'sendWhatsappVencidos'])
-    ->name('admin.vencimentos.whatsapp.send');
+    ->name('admin.vencimentos.whatsapp.send')
+    ->middleware(['auth', 'check.admin']);
 	
 
 use App\Http\Controllers\Admin\ClubeDashboardController;
 use App\Http\Controllers\Admin\DesafiosController;
 
 //Controle Clube
-Route::prefix('admin')->middleware(['auth'])->group(function () {
+Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     Route::prefix('clube')->name('admin.clube.')->group(function () {
         Route::get('/', [ClubeDashboardController::class, 'index'])->name('dashboard');
         Route::post('/desafio', [ClubeDashboardController::class, 'lancarDesafio'])->name('desafio.lancar');
@@ -624,23 +633,26 @@ Route::get('/dashboard-pontuacoes', [PontuacoesController::class, 'dashboard'])-
 
 //Devolução pedido
 Route::post('/admin/pedido/{pedido}/devolucao', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'devolucao'])
-    ->name('admin.pedido.devolucao');
+    ->name('admin.pedido.devolucao')
+    ->middleware(['auth', 'check.admin']);
 
 //Adicionar item ao pedido
 Route::post('/admin/pedido/{pedido}/adicionar-item', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'adicionarItem'])
-    ->name('admin.pedido.adicionarItem');
+    ->name('admin.pedido.adicionarItem')
+    ->middleware(['auth', 'check.admin']);
 
 //Remover item do pedido
 Route::delete('/admin/pedido/{pedido}/remover-item/{itemId}', [\App\Http\Controllers\Admin\AdminPedidoController::class, 'removerItem'])
-    ->name('admin.pedido.removerItem');
+    ->name('admin.pedido.removerItem')
+    ->middleware(['auth', 'check.admin']);
 	
 // rota para deletar uma mídia específica
 Route::delete('/items/{item}/medias/{medias}', [App\Http\Controllers\ItemController::class, 'destroyMedia'])
     ->name('items.medias.destroy')
-    ->middleware('auth');	
+    ->middleware(['auth', 'check.admin']);	
 Route::post('/items/{item}/media', [ItemController::class, 'uploadMedia'])
     ->name('items.media.upload')
-    ->middleware('auth');
+    ->middleware(['auth', 'check.admin']);
 	
 //rotas de Loja
 Route::get('/loja', [LojaController::class, 'index'])->name('loja.index');
@@ -649,49 +661,51 @@ Route::get('/loja/produtos/{item}', [LojaController::class, 'show'])->name('loja
 //Edição de imagem do intem
 Route::post('/items/{item}/media/ai-edit', [ItemController::class, 'aiEditMedia'])
   ->name('items.media.aiEdit')
-  ->middleware('auth');
+  ->middleware(['auth', 'check.admin']);
   
 //Edição de várias imagens 
 Route::get('upload-batch', function () {
     return view('upload-batch');
-})->middleware('auth')->name('upload.batch.form');
+})->middleware(['auth', 'check.admin'])->name('upload.batch.form');
 
 Route::post('upload-batch', [App\Http\Controllers\BatchUploadController::class, 'upload'])
-    ->middleware('auth')
+    ->middleware(['auth', 'check.admin'])
     ->name('upload.batch');  
 	
 //imagens sem Item_id	
-Route::get('/orphan-photos', [App\Http\Controllers\OrphanPhotoController::class, 'index'])->name('orphan.photos');
-Route::delete('/orphan-photos/{id}', [App\Http\Controllers\OrphanPhotoController::class, 'destroy']);
+Route::middleware(['auth', 'check.admin'])->group(function () {
+    Route::get('/orphan-photos', [App\Http\Controllers\OrphanPhotoController::class, 'index'])->name('orphan.photos');
+    Route::delete('/orphan-photos/{id}', [App\Http\Controllers\OrphanPhotoController::class, 'destroy']);
 
 
-//Agrupando imagens
-Route::get('/image-groups', [ImageGroupController::class, 'index'])->name('image-groups.index');
-Route::post('/image-groups/{id}/add-media', [ImageGroupController::class, 'addMedia']);
-Route::post('/image-groups/{id}/remove-media', [ImageGroupController::class, 'removeMedia']);
-Route::post('/image-groups/merge', [ImageGroupController::class, 'merge']);
+    //Agrupando imagens
+    Route::get('/image-groups', [ImageGroupController::class, 'index'])->name('image-groups.index');
+    Route::post('/image-groups/{id}/add-media', [ImageGroupController::class, 'addMedia']);
+    Route::post('/image-groups/{id}/remove-media', [ImageGroupController::class, 'removeMedia']);
+    Route::post('/image-groups/merge', [ImageGroupController::class, 'merge']);
 
-Route::post('/image-groups/group-orphans', [ImageGroupController::class, 'groupOrphans'])
-    ->name('image-groups.group-orphans');
-Route::post('/image-groups/{group}/edit', [App\Http\Controllers\ImageGroupController::class, 'editGroup'])
-    ->name('image-groups.edit');
+    Route::post('/image-groups/group-orphans', [ImageGroupController::class, 'groupOrphans'])
+        ->name('image-groups.group-orphans');
+    Route::post('/image-groups/{group}/edit', [App\Http\Controllers\ImageGroupController::class, 'editGroup'])
+        ->name('image-groups.edit');
 
-Route::post('/image-groups/{group}/transfer', [ImageGroupController::class, 'transferToItem'])
-    ->name('image-groups.transfer');	
-Route::post('/image-groups/orphans/delete', [ImageGroupController::class, 'deleteOrphans'])
-    ->name('image-groups.orphans.delete');
-Route::post('/image-groups/transfer-orphans', [ImageGroupController::class, 'transferSelectedOrphans'])
-    ->name('image-groups.transfer-orphans');
-	
-Route::post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
-    ->name('image-groups.buscar-codigo');
+    Route::post('/image-groups/{group}/transfer', [ImageGroupController::class, 'transferToItem'])
+        ->name('image-groups.transfer');	
+    Route::post('/image-groups/orphans/delete', [ImageGroupController::class, 'deleteOrphans'])
+        ->name('image-groups.orphans.delete');
+    Route::post('/image-groups/transfer-orphans', [ImageGroupController::class, 'transferSelectedOrphans'])
+        ->name('image-groups.transfer-orphans');
+        
+    Route::post('/image-groups/buscar-codigo', [App\Http\Controllers\ImageGroupController::class, 'buscarCodigo'])
+        ->name('image-groups.buscar-codigo');
 
-Route::post('/image-groups/orphans/delete-selected', [ImageGroupController::class, 'deleteSelectedOrphans'])
-    ->name('image-groups.orphans.delete-selected');
+    Route::post('/image-groups/orphans/delete-selected', [ImageGroupController::class, 'deleteSelectedOrphans'])
+        ->name('image-groups.orphans.delete-selected');
+});
 	
 	
 // ===== ADMIN SACOLINHAS (NOVO) =====
-Route::middleware(['auth'])->prefix('admin/sacolinhas-admin')->group(function () {
+Route::middleware(['auth', 'check.admin'])->prefix('admin/sacolinhas-admin')->group(function () {
     Route::get('/', [AdminSacolinhaController::class, 'index'])->name('admin.sacolinha.gestao');
     Route::get('/ver/{user}', [AdminSacolinhaController::class, 'show'])->name('admin.sacolinha.show');
     Route::get('/ver/{user}/pdf', [AdminSacolinhaController::class, 'pdf'])->name('admin.sacolinha.pdf');
@@ -703,7 +717,7 @@ Route::middleware(['auth'])->prefix('admin/sacolinhas-admin')->group(function ()
 });
 
 //Item->Sacolinha
-Route::prefix('admin/sacolinhas')->group(function () {
+Route::prefix('admin/sacolinhas')->middleware(['auth', 'check.admin'])->group(function () {
     // Página principal do scanner
     Route::get('/qrcode-scanner', [ItemController::class, 'scannerSacolinha'])
         ->name('admin.sacolinhas.qrcode.scanner');
@@ -717,10 +731,8 @@ Route::prefix('admin/sacolinhas')->group(function () {
         ->name('admin.sacolinhas.qrcode.atualizar-status');
 });
 
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('grupos', \App\Http\Controllers\Admin\GruposController::class)->middleware('can:admin');
     Route::post('grupos/{grupo}/membros', [\App\Http\Controllers\Admin\GruposController::class, 'addMembro'])->middleware('can:admin')->name('grupos.addMembro');
     Route::delete('grupos/{grupo}/membros/{user}', [\App\Http\Controllers\Admin\GruposController::class, 'removeMembro'])->middleware('can:admin')->name('grupos.removeMembro');
 });
-
-
