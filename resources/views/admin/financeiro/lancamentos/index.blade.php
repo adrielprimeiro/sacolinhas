@@ -57,8 +57,13 @@ $currentRoute = Route::currentRouteName();
 
 {{-- Filtros --}}
 <form method="GET" action="{{ route('financeiro.lancamentos.index') }}"
-      class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
     <input type="hidden" name="aba" value="{{ $aba }}">
+    <div class="col-span-2 md:col-span-1">
+        <label class="text-xs text-gray-400 font-medium block mb-1">Buscar</label>
+        <input type="text" name="pesquisa" value="{{ request('pesquisa') }}" placeholder="Descrição, pessoa, valor, cat..."
+               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+    </div>
     <div>
         <label class="text-xs text-gray-400 font-medium block mb-1">De</label>
         <input type="date" name="de" value="{{ request('de') }}"
@@ -79,7 +84,7 @@ $currentRoute = Route::currentRouteName();
             <option value="cancelado" {{ request('status') === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
         </select>
     </div>
-    <div class="flex items-end gap-2">
+    <div class="flex items-end gap-2 col-span-2 md:col-span-1">
         <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg transition">
             <i class="fas fa-search mr-1"></i> Filtrar
         </button>

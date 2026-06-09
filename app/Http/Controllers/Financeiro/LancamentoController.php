@@ -36,6 +36,29 @@ class LancamentoController extends Controller
         };
 
         // Filtros adicionais
+        if ($request->filled('pesquisa')) {
+            $search = $request->pesquisa;
+            $cleanSearch = $search;
+            if (preg_match('/^[0-9.,]+$/', $search)) {
+                if (str_contains($search, '.') && str_contains($search, ',')) {
+                    $cleanSearch = str_replace(['.', ','], ['', '.'], $search);
+                } elseif (str_contains($search, ',')) {
+                    $cleanSearch = str_replace(',', '.', $search);
+                }
+            }
+
+            $query->where(function ($q) use ($search, $cleanSearch) {
+                $q->where('descricao', 'like', "%{$search}%")
+                  ->orWhere('valor_total', 'like', "%{$cleanSearch}%")
+                  ->orWhereHas('pessoa', function ($qp) use ($search) {
+                      $qp->where('nome', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('classificacaoFinanceira', function ($qc) use ($search) {
+                      $qc->where('nome', 'like', "%{$search}%");
+                  });
+            });
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
