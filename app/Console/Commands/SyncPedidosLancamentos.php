@@ -44,11 +44,16 @@ class SyncPedidosLancamentos extends Command
                     ]);
                 }
 
+                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
+                    ->orWhere('nome', 'Venda Live')
+                    ->first();
+                $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
+
                 Lancamento::create([
                     'tipo'                        => 'receita',
                     'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
                     'pessoa_id'                   => $pessoa->id,
-                    'classificacao_financeira_id' => 1, // Venda
+                    'classificacao_financeira_id' => $classificacaoId,
                     'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
                     'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
                     'valor_total'                 => $pedido->valor_total,

@@ -53,6 +53,12 @@ class PedidoObserver
                 ]);
             }
 
+            // Buscar a classificação financeira por nome (Venda na Live / Venda Live)
+            $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
+                ->orWhere('nome', 'Venda Live')
+                ->first();
+            $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
+
             // 2. Buscar ou criar o lançamento de receita integral (Faturamento Bruto) vinculado a este pedido (Opção 2 de Contabilidade)
             $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
@@ -63,7 +69,7 @@ class PedidoObserver
                 'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
                 'description'                 => "Pedido " . $pedido->numero_pedido,
                 'pessoa_id'                   => $pessoa->id,
-                'classificacao_financeira_id' => 1, // Venda
+                'classificacao_financeira_id' => $classificacaoId,
                 'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
                 'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
                 'valor_total'                 => $valorBruto, // Faturamento bruto total
@@ -116,7 +122,7 @@ class PedidoObserver
                             'user_id' => $pessoa->user_id,
                             'valor' => $valorNetDebito,
                             'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
-                            'classificacao_id' => 1,
+                            'classificacao_id' => $classificacaoId,
                             'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                         ]
                     );
@@ -139,7 +145,7 @@ class PedidoObserver
                                 'tipo_movimentacao' => $tipoMovSaldo,
                                 'valor' => $valorMovSaldo,
                                 'descricao' => $descMovSaldo,
-                                'classificacao_id' => 1,
+                                'classificacao_id' => $classificacaoId,
                                 'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                             ]
                         );
