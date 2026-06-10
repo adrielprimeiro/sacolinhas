@@ -564,22 +564,44 @@ function renderMessages(messages, scrollToBottom = true) {
 			const attach = document.createElement('div');
 			attach.className = 'attachment-box';
 
-			const link = document.createElement('a');
-			link.className = 'attachment-link';
-			link.href = msg.download_url;
-			link.target = '_blank';
-			link.rel = 'noopener';
+			const isImage = (msg.media_content_type && msg.media_content_type.startsWith('image/')) ||
+			                (msg.media_url && /\.(jpg|jpeg|png|gif|webp)($|\?)/i.test(msg.media_url));
 
-			const icon = document.createElement('i');
-			icon.className = 'bi bi-paperclip';
+			if (isImage) {
+				const link = document.createElement('a');
+				link.href = msg.download_url;
+				link.target = '_blank';
+				link.rel = 'noopener';
 
-			const label = document.createElement('span');
-			label.textContent = 'Baixar anexo';
+				const img = document.createElement('img');
+				img.src = msg.download_url;
+				img.alt = 'Anexo';
+				img.className = 'img-thumbnail mt-2';
+				img.style.maxHeight = '150px';
+				img.style.maxWidth = '200px';
+				img.style.cursor = 'pointer';
+				img.style.objectFit = 'cover';
 
-			link.appendChild(icon);
-			link.appendChild(label);
+				link.appendChild(img);
+				attach.appendChild(link);
+			} else {
+				const link = document.createElement('a');
+				link.className = 'attachment-link';
+				link.href = msg.download_url;
+				link.target = '_blank';
+				link.rel = 'noopener';
 
-			attach.appendChild(link);
+				const icon = document.createElement('i');
+				icon.className = 'bi bi-paperclip';
+
+				const label = document.createElement('span');
+				label.textContent = 'Baixar anexo';
+
+				link.appendChild(icon);
+				link.appendChild(label);
+				attach.appendChild(link);
+			}
+
 			bubble.appendChild(attach);
 		}
 
