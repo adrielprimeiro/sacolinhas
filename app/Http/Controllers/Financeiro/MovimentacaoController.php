@@ -49,13 +49,33 @@ class MovimentacaoController extends Controller
             });
         }
 
-        if ($request->filled('pessoa_id')) {
-            $query->whereHas('lancamento', function ($q) use ($request) {
-                $q->where('pessoa_id', $request->pessoa_id);
+        if ($request->filled('pesquisa')) {
+            $search = $request->pesquisa;
+            $cleanSearch = $search;
+            if (preg_match('/^[0-9.,]+$/', $search)) {
+                if (str_contains($search, '.') && str_contains($search, ',')) {
+                    $cleanSearch = str_replace(['.', ','], ['', '.'], $search);
+                } elseif (str_contains($search, ',')) {
+                    $cleanSearch = str_replace(',', '.', $search);
+                }
+            }
+
+            $query->where(function ($q) use ($search, $cleanSearch) {
+                $q->where('valor_pago', 'like', "%{$cleanSearch}%")
+                  ->orWhereHas('lancamento', function ($ql) use ($search, $cleanSearch) {
+                      $ql->where('descricao', 'like', "%{$search}%")
+                        ->orWhere('valor_total', 'like', "%{$cleanSearch}%")
+                        ->orWhereHas('pessoa', function ($qp) use ($search) {
+                            $qp->where('nome', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('classificacaoFinanceira', function ($qc) use ($search) {
+                            $qc->where('nome', 'like', "%{$search}%");
+                        });
+                  });
             });
         }
 
-        $movimentacoes = $query->paginate(30);
+        $movimentacoes = $query->paginate(30)->withQueryString();
 
         // Totais filtrados de acordo com todos os filtros
         $totaisQuery = Movimentacao::query();
@@ -81,9 +101,29 @@ class MovimentacaoController extends Controller
                 $q->where('tipo', $request->tipo);
             });
         }
-        if ($request->filled('pessoa_id')) {
-            $totaisQuery->whereHas('lancamento', function ($q) use ($request) {
-                $q->where('pessoa_id', $request->pessoa_id);
+        if ($request->filled('pesquisa')) {
+            $search = $request->pesquisa;
+            $cleanSearch = $search;
+            if (preg_match('/^[0-9.,]+$/', $search)) {
+                if (str_contains($search, '.') && str_contains($search, ',')) {
+                    $cleanSearch = str_replace(['.', ','], ['', '.'], $search);
+                } elseif (str_contains($search, ',')) {
+                    $cleanSearch = str_replace(',', '.', $search);
+                }
+            }
+
+            $totaisQuery->where(function ($q) use ($search, $cleanSearch) {
+                $q->where('valor_pago', 'like', "%{$cleanSearch}%")
+                  ->orWhereHas('lancamento', function ($ql) use ($search, $cleanSearch) {
+                      $ql->where('descricao', 'like', "%{$search}%")
+                        ->orWhere('valor_total', 'like', "%{$cleanSearch}%")
+                        ->orWhereHas('pessoa', function ($qp) use ($search) {
+                            $qp->where('nome', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('classificacaoFinanceira', function ($qc) use ($search) {
+                            $qc->where('nome', 'like', "%{$search}%");
+                        });
+                  });
             });
         }
         

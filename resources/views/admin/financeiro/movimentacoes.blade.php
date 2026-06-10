@@ -144,16 +144,11 @@ $currentRoute = Route::currentRouteName();
                     @endforeach
                 </select>
             </div>
-            <div class="min-w-[180px]">
-                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Pessoa / Contato</label>
-                <select name="pessoa_id" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
-                    <option value="">Todas</option>
-                    @foreach($pessoas as $p)
-                        <option value="{{ $p->id }}" {{ request('pessoa_id') == $p->id ? 'selected' : '' }}>
-                            {{ $p->nome }}
-                        </option>
-                    @endforeach
-                </select>
+            <div class="min-w-[180px] flex-1">
+                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Buscar</label>
+                <input type="text" name="pesquisa" value="{{ request('pesquisa') }}" placeholder="Lançamento, pessoa, valor..."
+                       onchange="this.form.submit()"
+                       class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full focus:ring-2 focus:ring-indigo-300 focus:outline-none">
             </div>
             <button type="submit" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-200">
                 <i class="fas fa-filter mr-1"></i> Filtrar
