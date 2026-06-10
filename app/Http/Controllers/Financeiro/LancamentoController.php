@@ -21,12 +21,17 @@ class LancamentoController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Lancamento::with(['pessoa', 'classificacaoFinanceira', 'movimentacoes'])
-            ->orderBy('data_vencimento');
-
-        // Aba / filtro de tipo
         $aba = $request->get('aba', 'todos');
 
+        $query = Lancamento::with(['pessoa', 'classificacaoFinanceira', 'movimentacoes']);
+        
+        if ($aba === 'todos') {
+            $query->orderBy('id', 'desc');
+        } else {
+            $query->orderBy('data_vencimento', 'asc');
+        }
+
+        // Aba / filtro de tipo
         match ($aba) {
             'pagar'     => $query->where('tipo', 'despesa')->whereIn('status', ['pendente', 'pago_parcial']),
             'receber'   => $query->where('tipo', 'receita')->whereIn('status', ['pendente', 'pago_parcial']),
@@ -104,11 +109,52 @@ class LancamentoController extends Controller
             'data_vencimento'            => ['required', 'date'],
             'valor_total'                => ['required', 'numeric', 'min:0.01'],
             'descricao'                  => ['nullable', 'string', 'max:255'],
+            'parcelar'                   => ['nullable', 'boolean'],
+            'numero_parcelas'            => ['nullable', 'integer', 'min:2', 'max:24'],
+            'frequencia'                 => ['nullable', 'string', Rule::in(['mensal', 'semanal', 'quinzenal'])],
         ]);
 
-        Lancamento::create($data);
+        if ($request->boolean('parcelar')) {
+            $numParcelas = (int) $request->numero_parcelas;
+            $frequencia = $request->frequencia ?? 'mensal';
+            $valorTotal = (float) $request->valor_total;
+            $valorParcela = round($valorTotal / $numParcelas, 2);
+            $vencimentoOriginal = \Carbon\Carbon::parse($request->data_vencimento);
 
-        return response()->json(['success' => true, 'message' => 'Lançamento criado com sucesso.']);
+            // Ajusta a última parcela para evitar diferenças de arredondamento
+            $diferenca = round($valorTotal - ($valorParcela * $numParcelas), 2);
+
+            for ($i = 1; $i <= $numParcelas; $i++) {
+                $vencimento = clone $vencimentoOriginal;
+                if ($i > 1) {
+                    if ($frequencia === 'semanal') {
+                        $vencimento->addWeeks($i - 1);
+                    } elseif ($frequencia === 'quinzenal') {
+                        $vencimento->addDays(15 * ($i - 1));
+                    } else {
+                        $vencimento->addMonths($i - 1);
+                    }
+                }
+
+                $valorFinal = ($i === $numParcelas) ? ($valorParcela + $diferenca) : $valorParcela;
+                $descricaoFinal = ($request->descricao ?: 'Lançamento') . " ({$i}/{$numParcelas})";
+
+                Lancamento::create([
+                    'tipo'                       => $data['tipo'],
+                    'pessoa_id'                  => $data['pessoa_id'],
+                    'classificacao_financeira_id' => $data['classificacao_financeira_id'],
+                    'data_emissao'               => $data['data_emissao'],
+                    'data_vencimento'            => $vencimento->toDateString(),
+                    'valor_total'                => $valorFinal,
+                    'descricao'                  => $descricaoFinal,
+                ]);
+            }
+            return response()->json(['success' => true, 'message' => "{$numParcelas} parcelas geradas com sucesso."]);
+        } else {
+            unset($data['parcelar'], $data['numero_parcelas'], $data['frequencia']);
+            Lancamento::create($data);
+            return response()->json(['success' => true, 'message' => 'Lançamento criado com sucesso.']);
+        }
     }
 
     /**

@@ -63,6 +63,34 @@
                 </div>
             </div>
 
+            {{-- Opção de Parcelamento --}}
+            <div id="secao-parcelamento-toggle" class="border-t border-gray-100 pt-3">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="campo-parcelar" name="parcelar" value="1" class="sr-only peer" onchange="toggleSecaoParcelas()">
+                    <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span class="ms-3 text-xs font-semibold text-gray-500 uppercase tracking-wider select-none">Parcelar Lançamento</span>
+                </label>
+            </div>
+
+            <div id="secao-parcelas" class="hidden grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Parcelas</label>
+                    <select id="campo-numero-parcelas" name="numero_parcelas" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+                        @for ($i = 2; $i <= 24; $i++)
+                            <option value="{{ $i }}">{{ $i }}x</option>
+                        @endfor
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Frequência</label>
+                    <select id="campo-frequencia-parcelas" name="frequencia" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+                        <option value="mensal">Mensal</option>
+                        <option value="semanal">Semanal</option>
+                        <option value="quinzenal">Quinzenal</option>
+                    </select>
+                </div>
+            </div>
+
             {{-- Ações --}}
             <div class="flex gap-3 pt-2">
                 <button type="button" onclick="fecharModalLancamento()"
@@ -74,6 +102,18 @@
                     <i class="fas fa-save mr-1"></i> Salvar
                 </button>
             </div>
+
+            <script>
+            function toggleSecaoParcelas() {
+                const checkbox = document.getElementById('campo-parcelar');
+                const secao = document.getElementById('secao-parcelas');
+                if (checkbox.checked) {
+                    secao.classList.remove('hidden');
+                } else {
+                    secao.classList.add('hidden');
+                }
+            }
+            </script>
         </form>
     </div>
 </div>

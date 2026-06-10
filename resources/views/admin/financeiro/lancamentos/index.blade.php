@@ -56,27 +56,30 @@ $currentRoute = Route::currentRouteName();
 </div>
 
 {{-- Filtros --}}
-<form method="GET" action="{{ route('financeiro.lancamentos.index') }}"
+<form id="filtro-form" method="GET" action="{{ route('financeiro.lancamentos.index') }}"
       class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
     <input type="hidden" name="aba" value="{{ $aba }}">
     <div class="col-span-2 md:col-span-1">
         <label class="text-xs text-gray-400 font-medium block mb-1">Buscar</label>
         <input type="text" name="pesquisa" value="{{ request('pesquisa') }}" placeholder="Descrição, pessoa, valor, cat..."
+               onchange="this.form.submit()"
                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
     </div>
     <div>
         <label class="text-xs text-gray-400 font-medium block mb-1">De</label>
         <input type="date" name="de" value="{{ request('de') }}"
+               onchange="this.form.submit()"
                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
     </div>
     <div>
         <label class="text-xs text-gray-400 font-medium block mb-1">Até</label>
         <input type="date" name="ate" value="{{ request('ate') }}"
+               onchange="this.form.submit()"
                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
     </div>
     <div>
         <label class="text-xs text-gray-400 font-medium block mb-1">Status</label>
-        <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+        <select name="status" onchange="this.form.submit()" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
             <option value="">Todos</option>
             <option value="pendente" {{ request('status') === 'pendente' ? 'selected' : '' }}>Pendente</option>
             <option value="pago_parcial" {{ request('status') === 'pago_parcial' ? 'selected' : '' }}>Parcial</option>
@@ -101,6 +104,10 @@ $currentRoute = Route::currentRouteName();
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
+                    <th class="px-4 py-3 text-center w-10">
+                        <input type="checkbox" id="select-all-lancamentos" onchange="toggleSelectAll(this)"
+                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    </th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Descrição / Pessoa</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Categoria</th>
                     <th class="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Vencimento</th>
@@ -141,6 +148,10 @@ $currentRoute = Route::currentRouteName();
                         ];
                     @endphp
                     <tr id="lancamento-{{ $l->id }}" class="hover:bg-gray-50/80 transition {{ $rowBg }}">
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" class="lancamento-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                   data-valor="{{ $l->valor_total }}" onchange="updateSelectedSum()">
+                        </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $l->tipo === 'receita' ? 'bg-green-500' : 'bg-red-500' }}"></span>
@@ -202,6 +213,21 @@ $currentRoute = Route::currentRouteName();
                                         title="Editar">
                                     <i class="fas fa-pencil-alt text-xs"></i>
                                 </button>
+                                <button onclick='abrirModalDuplicar({{ json_encode([
+                                    "tipo"                        => $l->tipo,
+                                    "descricao"                   => $l->descricao,
+                                    "valor_total"                 => $l->valor_total,
+                                    "data_emissao"                => $l->data_emissao?->format("Y-m-d"),
+                                    "data_vencimento"             => $l->data_vencimento?->format("Y-m-d"),
+                                    "pessoa_id"                   => $l->pessoa_id,
+                                    "pessoa_nome"                 => $l->pessoa?->nome,
+                                    "classificacao_financeira_id" => $l->classificacao_financeira_id,
+                                    "classificacao_nome"          => $l->classificacaoFinanceira?->nome,
+                                ]) }})'
+                                        class="w-8 h-8 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition flex items-center justify-center"
+                                        title="Duplicar">
+                                    <i class="fas fa-copy text-xs"></i>
+                                </button>
                                 @if ($l->status !== 'cancelado')
                                     <button onclick="cancelarLancamento({{ $l->id }})"
                                             class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition flex items-center justify-center"
@@ -219,7 +245,7 @@ $currentRoute = Route::currentRouteName();
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="py-16 text-center text-gray-400">
+                        <td colspan="7" class="py-16 text-center text-gray-400">
                             <i class="fas fa-file-invoice-dollar text-4xl text-gray-200 mb-3 block"></i>
                             Nenhum lançamento encontrado.
                         </td>
@@ -236,12 +262,26 @@ $currentRoute = Route::currentRouteName();
 </div>
 
 @include('admin.financeiro.lancamentos._modais', ['contas' => $contas])
+
+{{-- Floating Sum Bar --}}
+<div id="floating-sum-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 z-40 transition-all duration-300 transform translate-y-24 opacity-0 border border-gray-800">
+    <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+        <span class="text-xs text-gray-300 font-bold uppercase tracking-wider"><span id="selected-count">0</span> Selecionados</span>
+    </div>
+    <div class="h-6 w-px bg-gray-800"></div>
+    <div class="space-y-0.5 font-bold">
+        <p class="text-[9px] text-gray-400 font-black uppercase tracking-wider">Soma Total</p>
+        <p class="text-lg font-black text-indigo-400">R$ <span id="selected-sum">0,00</span></p>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
+/* ===== MODAL NOVO/EDITAR ===== */
 /* ===== MODAL NOVO/EDITAR ===== */
 function abrirModalNovo(tipo) {
     document.getElementById('modal-lancamento').classList.remove('hidden');
@@ -253,8 +293,20 @@ function abrirModalNovo(tipo) {
     // Resetar campos bloqueados
     document.getElementById('campo-valor').disabled = false;
     document.getElementById('campo-valor').classList.remove('bg-gray-100', 'cursor-not-allowed');
+    
+    // Configurar datas defalt hoje local
+    const d = new Date();
+    const hoje = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.getElementById('campo-emissao').value = hoje;
+    document.getElementById('campo-vencimento').value = hoje;
+
     // Limpar select2
     if (window.$) { $('#select-pessoa').val(null).trigger('change'); $('#select-classificacao').val(null).trigger('change'); }
+
+    // Mostrar opção de parcelamento para novos
+    document.getElementById('secao-parcelamento-toggle').classList.remove('hidden');
+    document.getElementById('campo-parcelar').checked = false;
+    document.getElementById('secao-parcelas').classList.add('hidden');
 }
 
 function abrirModalEditar(data) {
@@ -291,6 +343,11 @@ function abrirModalEditar(data) {
             $('#select-classificacao').append(op2).trigger('change');
         }
     }
+
+    // Esconder opção de parcelamento para edição
+    document.getElementById('secao-parcelamento-toggle').classList.add('hidden');
+    document.getElementById('campo-parcelar').checked = false;
+    document.getElementById('secao-parcelas').classList.add('hidden');
 }
 
 function fecharModalLancamento() {
@@ -311,6 +368,9 @@ document.getElementById('form-lancamento').addEventListener('submit', async func
         data_vencimento:             document.getElementById('campo-vencimento').value,
         pessoa_id:                   document.getElementById('select-pessoa').value,
         classificacao_financeira_id: document.getElementById('select-classificacao').value,
+        parcelar:                    document.getElementById('campo-parcelar').checked ? 1 : 0,
+        numero_parcelas:             document.getElementById('campo-numero-parcelas').value,
+        frequencia:                  document.getElementById('campo-frequencia-parcelas').value,
     };
 
     const btn = this.querySelector('[type=submit]');
@@ -432,6 +492,71 @@ async function excluirLancamento(id) {
         }
     } catch(err) {
         alert('Erro de comunicação.');
+    }
+}
+
+function abrirModalDuplicar(data) {
+    document.getElementById('modal-lancamento').classList.remove('hidden');
+    document.getElementById('modal-lancamento-titulo').textContent = data.tipo === 'receita' ? 'Duplicar Receita' : 'Duplicar Despesa';
+    document.getElementById('campo-id').value            = ''; // Limpo para forçar inserção
+    document.getElementById('campo-tipo').value          = data.tipo;
+    document.getElementById('campo-descricao').value     = (data.descricao || '') + ' (Cópia)';
+    document.getElementById('campo-valor').value         = data.valor_total;
+    document.getElementById('campo-emissao').value       = data.data_emissao;
+    document.getElementById('campo-vencimento').value    = data.data_vencimento;
+
+    // Desbloqueia campo valor
+    document.getElementById('campo-valor').disabled = false;
+    document.getElementById('campo-valor').classList.remove('bg-gray-100', 'cursor-not-allowed');
+
+    // Select2: injeta opção selecionada
+    if (window.$) {
+        $('#select-pessoa').val(null).trigger('change');
+        $('#select-classificacao').val(null).trigger('change');
+        
+        if (data.pessoa_id) {
+            const op1 = new Option(data.pessoa_nome, data.pessoa_id, true, true);
+            $('#select-pessoa').append(op1).trigger('change');
+        }
+        if (data.classificacao_financeira_id) {
+            const op2 = new Option(data.classificacao_nome, data.classificacao_financeira_id, true, true);
+            $('#select-classificacao').append(op2).trigger('change');
+        }
+    }
+
+    // Mostrar opção de parcelamento para novos
+    document.getElementById('secao-parcelamento-toggle').classList.remove('hidden');
+    document.getElementById('campo-parcelar').checked = false;
+    document.getElementById('secao-parcelas').classList.add('hidden');
+}
+
+function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('.lancamento-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = master.checked;
+    });
+    updateSelectedSum();
+}
+
+function updateSelectedSum() {
+    const checkboxes = document.querySelectorAll('.lancamento-checkbox');
+    let total = 0;
+    let count = 0;
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            total += parseFloat(cb.getAttribute('data-valor')) || 0;
+            count++;
+        }
+    });
+
+    const bar = document.getElementById('floating-sum-bar');
+    if (count > 0) {
+        document.getElementById('selected-count').textContent = count;
+        document.getElementById('selected-sum').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        bar.classList.remove('translate-y-24', 'opacity-0');
+    } else {
+        bar.classList.add('translate-y-24', 'opacity-0');
+        document.getElementById('select-all-lancamentos').checked = false;
     }
 }
 
