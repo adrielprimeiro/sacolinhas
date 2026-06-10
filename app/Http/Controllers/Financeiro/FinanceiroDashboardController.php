@@ -15,7 +15,24 @@ class FinanceiroDashboardController extends Controller
         $hoje = Carbon::today();
 
         // Saldo de cada conta bancária (com movimentações já carregadas para o accessor)
-        $contas = ContaBancaria::with(['movimentacoes.lancamento'])->get();
+        $contasRaw = ContaBancaria::with(['movimentacoes.lancamento'])->get();
+
+        $orderMap = [
+            'inter'            => 1,
+            'mercado pago'     => 2,
+            'caixinha'         => 3,
+            'carteira cliente' => 4,
+        ];
+
+        $contas = $contasRaw->sortBy(function ($conta) use ($orderMap) {
+            $nomeLower = trim(mb_strtolower($conta->nome));
+            foreach ($orderMap as $nameKey => $priority) {
+                if (str_contains($nomeLower, $nameKey)) {
+                    return $priority;
+                }
+            }
+            return 99; // Qualquer outra conta vai para o final
+        })->values();
 
         // A Pagar Hoje: despesas pendentes/parciais com vencimento hoje
         $aPagarHoje = Lancamento::with(['pessoa', 'classificacaoFinanceira'])
