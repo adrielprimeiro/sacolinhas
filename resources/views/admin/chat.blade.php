@@ -834,13 +834,17 @@ function openMediaViewer(url, mimeType, filename) {
 		return;
 	}
 
+	modal.classList.remove('hidden');
 	modal.style.display = 'flex';
 }
 
 function closeMediaViewer() {
 	const modal = document.getElementById('mediaViewerModal');
 	const content = document.getElementById('mediaViewerContent');
-	if (modal) modal.style.display = 'none';
+	if (modal) {
+		modal.classList.add('hidden');
+		modal.style.display = 'none';
+	}
 	if (content) content.innerHTML = '';
 }
 
