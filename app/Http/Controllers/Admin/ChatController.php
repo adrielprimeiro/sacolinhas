@@ -385,7 +385,7 @@ class ChatController extends Controller
 
 		return response($response->body(), 200)
 			->header('Content-Type', $contentType ?: 'application/octet-stream')
-			->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+			->header('Content-Disposition', "inline; filename=\"{$filename}\"");
 	}
 
     private function guessExtension($mime)
