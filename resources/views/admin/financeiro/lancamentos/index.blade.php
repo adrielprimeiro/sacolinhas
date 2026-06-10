@@ -98,6 +98,42 @@ $currentRoute = Route::currentRouteName();
     </div>
 </form>
 
+{{-- Totais --}}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+    <div class="bg-green-50/50 border border-green-100 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+            <p class="text-[10px] font-black text-green-600 uppercase tracking-widest">Total Receitas</p>
+            <p class="text-xl font-black text-green-700 mt-1">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
+            <i class="fas fa-arrow-up text-sm"></i>
+        </div>
+    </div>
+    <div class="bg-red-50/50 border border-red-100 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+            <p class="text-[10px] font-black text-red-600 uppercase tracking-widest">Total Despesas</p>
+            <p class="text-xl font-black text-red-700 mt-1">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+            <i class="fas fa-arrow-down text-sm"></i>
+        </div>
+    </div>
+    @php
+        $saldo = $totalReceitas - $totalDespesas;
+    @endphp
+    <div class="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+            <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Saldo Previsto</p>
+            <p class="text-xl font-black {{ $saldo >= 0 ? 'text-green-700' : 'text-red-700' }} mt-1">
+                R$ {{ number_format($saldo, 2, ',', '.') }}
+            </p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+            <i class="fas fa-wallet text-sm"></i>
+        </div>
+    </div>
+</div>
+
 {{-- Tabela --}}
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="overflow-x-auto">

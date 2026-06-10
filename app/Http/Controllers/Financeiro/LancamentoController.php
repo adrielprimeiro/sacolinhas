@@ -88,12 +88,17 @@ class LancamentoController extends Controller
             $query->whereDate('data_vencimento', '<=', $request->ate);
         }
 
+        // Clona a query com todos os filtros aplicados para obter os totais
+        $totaisQuery = clone $query;
+        $totalReceitas = (clone $totaisQuery)->where('tipo', 'receita')->sum('valor_total');
+        $totalDespesas = (clone $totaisQuery)->where('tipo', 'despesa')->sum('valor_total');
+
         $lancamentos = $query->paginate(25)->withQueryString();
 
         // Dados para os selects do formulário
         $contas = ContaBancaria::orderBy('nome')->get();
 
-        return view('admin.financeiro.lancamentos.index', compact('lancamentos', 'aba', 'contas'));
+        return view('admin.financeiro.lancamentos.index', compact('lancamentos', 'aba', 'contas', 'totalReceitas', 'totalDespesas'));
     }
 
     /**
