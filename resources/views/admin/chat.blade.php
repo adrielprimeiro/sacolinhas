@@ -569,9 +569,11 @@ function renderMessages(messages, scrollToBottom = true) {
 
 			if (isImage) {
 				const link = document.createElement('a');
-				link.href = msg.download_url;
-				link.target = '_blank';
-				link.rel = 'noopener';
+				link.href = '#';
+				link.onclick = (e) => {
+					e.preventDefault();
+					openMediaViewer(msg.download_url, msg.media_content_type, 'anexo-' + msg.id);
+				};
 
 				const img = document.createElement('img');
 				img.src = msg.download_url;
@@ -587,9 +589,11 @@ function renderMessages(messages, scrollToBottom = true) {
 			} else {
 				const link = document.createElement('a');
 				link.className = 'attachment-link';
-				link.href = msg.download_url;
-				link.target = '_blank';
-				link.rel = 'noopener';
+				link.href = '#';
+				link.onclick = (e) => {
+					e.preventDefault();
+					openMediaViewer(msg.download_url, msg.media_content_type, 'anexo-' + msg.id);
+				};
 
 				const icon = document.createElement('i');
 				icon.className = 'bi bi-paperclip';
@@ -779,6 +783,101 @@ window.addEventListener('beforeunload', () => {
 	if (messagePollingInterval) clearInterval(messagePollingInterval);
 	if (timerInterval) clearInterval(timerInterval);
 });
+
+/* ===== MEDIA VIEWER LIGHTBOX ===== */
+function openMediaViewer(url, mimeType, filename) {
+	const modal = document.getElementById('mediaViewerModal');
+	const content = document.getElementById('mediaViewerContent');
+	const downloadBtn = document.getElementById('downloadMediaBtn');
+	if (!modal || !content) return;
+
+	content.innerHTML = ''; // Limpa anterior
+	
+	const type = String(mimeType || '').toLowerCase();
+	
+	if (downloadBtn) {
+		downloadBtn.href = url;
+		downloadBtn.setAttribute('download', filename || 'anexo');
+	}
+	
+	if (type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)($|\?)/i.test(url)) {
+		const img = document.createElement('img');
+		img.src = url;
+		img.className = 'img-fluid';
+		img.style.maxHeight = '85vh';
+		img.style.maxWidth = '90%';
+		img.style.objectFit = 'contain';
+		content.appendChild(img);
+	} else if (type === 'application/pdf' || /\.pdf($|\?)/i.test(url)) {
+		const iframe = document.createElement('iframe');
+		iframe.src = url;
+		iframe.style.width = '90%';
+		iframe.style.height = '85vh';
+		iframe.style.border = 'none';
+		iframe.style.borderRadius = '8px';
+		iframe.style.background = '#fff';
+		content.appendChild(iframe);
+	} else if (type.startsWith('video/') || /\.(mp4|webm|ogg)($|\?)/i.test(url)) {
+		const video = document.createElement('video');
+		video.src = url;
+		video.controls = true;
+		video.style.maxHeight = '85vh';
+		video.style.maxWidth = '90%';
+		content.appendChild(video);
+	} else if (type.startsWith('audio/') || /\.(mp3|wav|ogg)($|\?)/i.test(url)) {
+		const audio = document.createElement('audio');
+		audio.src = url;
+		audio.controls = true;
+		content.appendChild(audio);
+	} else {
+		window.open(url, '_blank');
+		return;
+	}
+
+	modal.style.display = 'flex';
+}
+
+function closeMediaViewer() {
+	const modal = document.getElementById('mediaViewerModal');
+	const content = document.getElementById('mediaViewerContent');
+	if (modal) modal.style.display = 'none';
+	if (content) content.innerHTML = '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+	const closeBtn = document.getElementById('closeMediaViewer');
+	const modal = document.getElementById('mediaViewerModal');
+	if (closeBtn) closeBtn.addEventListener('click', closeMediaViewer);
+	if (modal) {
+		modal.addEventListener('click', function(e) {
+			if (e.target === this) {
+				closeMediaViewer();
+			}
+		});
+	}
+	document.addEventListener('keydown', function(e){
+		if (e.key === 'Escape') {
+			closeMediaViewer();
+		}
+	});
+});
 </script>
+
+<!-- Lightbox Modal para Anexos -->
+<div id="mediaViewerModal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center p-4 bg-black/85" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;">
+	<div class="position-relative w-100 h-100 d-flex flex-column align-items-center justify-content-center">
+		<!-- Botão de Download -->
+		<a id="downloadMediaBtn" href="#" target="_blank" class="btn btn-dark rounded-circle position-absolute" style="top: 10px; right: 64px; z-index: 10001; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;" title="Baixar arquivo">
+			<i class="bi bi-download text-white"></i>
+		</a>
+		<!-- Botão de Fechar -->
+		<button id="closeMediaViewer" type="button" class="btn btn-dark rounded-circle position-absolute" style="top: 10px; right: 10px; z-index: 10001; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+			<i class="bi bi-x-lg text-white"></i>
+		</button>
+		<!-- Conteúdo dinâmico -->
+		<div id="mediaViewerContent" class="w-100 h-100 d-flex align-items-center justify-content-center" style="max-height: 90vh;"></div>
+	</div>
+</div>
+
 </body>
 </html>
