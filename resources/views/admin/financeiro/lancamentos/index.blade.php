@@ -98,44 +98,19 @@ $currentRoute = Route::currentRouteName();
     </div>
 </form>
 
-{{-- Totais --}}
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-    <div class="bg-green-50/50 border border-green-100 rounded-2xl p-4 flex items-center justify-between">
-        <div>
-            <p class="text-[10px] font-black text-green-600 uppercase tracking-widest">Total Receitas</p>
-            <p class="text-xl font-black text-green-700 mt-1">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
-            <i class="fas fa-arrow-up text-sm"></i>
-        </div>
-    </div>
-    <div class="bg-red-50/50 border border-red-100 rounded-2xl p-4 flex items-center justify-between">
-        <div>
-            <p class="text-[10px] font-black text-red-600 uppercase tracking-widest">Total Despesas</p>
-            <p class="text-xl font-black text-red-700 mt-1">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-            <i class="fas fa-arrow-down text-sm"></i>
-        </div>
-    </div>
-    @php
-        $saldo = $totalReceitas - $totalDespesas;
-    @endphp
-    <div class="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
-        <div>
-            <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Saldo Previsto</p>
-            <p class="text-xl font-black {{ $saldo >= 0 ? 'text-green-700' : 'text-red-700' }} mt-1">
-                R$ {{ number_format($saldo, 2, ',', '.') }}
-            </p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-            <i class="fas fa-wallet text-sm"></i>
-        </div>
-    </div>
-</div>
-
 {{-- Tabela --}}
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    {{-- Header de Seleção (Soma dos Selecionados) --}}
+    <div id="selection-summary-bar" class="hidden bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all">
+        <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span class="text-sm text-indigo-900 font-bold"><span id="selected-count">0</span> lançamentos selecionados</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Soma Selecionada:</span>
+            <span class="text-lg font-black text-indigo-700 font-bold">R$ <span id="selected-sum">0,00</span></span>
+        </div>
+    </div>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
@@ -298,19 +273,6 @@ $currentRoute = Route::currentRouteName();
 </div>
 
 @include('admin.financeiro.lancamentos._modais', ['contas' => $contas])
-
-{{-- Floating Sum Bar --}}
-<div id="floating-sum-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 z-40 transition-all duration-300 transform translate-y-24 opacity-0 border border-gray-800">
-    <div class="flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
-        <span class="text-xs text-gray-300 font-bold uppercase tracking-wider"><span id="selected-count">0</span> Selecionados</span>
-    </div>
-    <div class="h-6 w-px bg-gray-800"></div>
-    <div class="space-y-0.5 font-bold">
-        <p class="text-[9px] text-gray-400 font-black uppercase tracking-wider">Soma Total</p>
-        <p class="text-lg font-black text-indigo-400">R$ <span id="selected-sum">0,00</span></p>
-    </div>
-</div>
 @endsection
 
 @push('scripts')
@@ -585,13 +547,13 @@ function updateSelectedSum() {
         }
     });
 
-    const bar = document.getElementById('floating-sum-bar');
+    const selectionBar = document.getElementById('selection-summary-bar');
     if (count > 0) {
         document.getElementById('selected-count').textContent = count;
         document.getElementById('selected-sum').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        bar.classList.remove('translate-y-24', 'opacity-0');
+        selectionBar.classList.remove('hidden');
     } else {
-        bar.classList.add('translate-y-24', 'opacity-0');
+        selectionBar.classList.add('hidden');
         document.getElementById('select-all-lancamentos').checked = false;
     }
 }
