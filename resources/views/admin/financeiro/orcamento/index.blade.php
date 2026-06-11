@@ -9,6 +9,20 @@
 {{-- ===== SUB-NAV FINANCEIRO ===== --}}
 @php
 $currentRoute = Route::currentRouteName();
+
+$hoje = \Carbon\Carbon::today();
+$inicioMes = $periodo->copy()->startOfMonth();
+$fimMes = $periodo->copy()->endOfMonth();
+
+if ($hoje->gt($fimMes)) {
+    $pctMesPassou = 100;
+} elseif ($hoje->lt($inicioMes)) {
+    $pctMesPassou = 0;
+} else {
+    $totalDias = $inicioMes->daysInMonth;
+    $diasPassados = $hoje->day;
+    $pctMesPassou = round(($diasPassados / $totalDias) * 100);
+}
 @endphp
 <div class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 pb-3">
     <a href="{{ route('financeiro.dashboard') }}" class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ str_contains($currentRoute, 'dashboard') ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
@@ -152,7 +166,7 @@ $currentRoute = Route::currentRouteName();
             {{-- Linhas --}}
             <div class="divide-y divide-gray-50">
                 @foreach ($linhas as $linha)
-                    @include('admin.financeiro.orcamento._node', ['node' => $linha, 'nivel' => 0, 'periodo' => $periodo])
+                    @include('admin.financeiro.orcamento._node', ['node' => $linha, 'nivel' => 0, 'periodo' => $periodo, 'pctMesPassou' => $pctMesPassou])
                 @endforeach
             </div>
 
@@ -197,7 +211,7 @@ $currentRoute = Route::currentRouteName();
                                 </div>
                             </div>
                             <div class="text-center text-[10px] text-gray-500 font-bold mt-0.5">
-                                {{ $sumPct }}%
+                                {{ $sumPct }}% (valor alcançado) / {{ $pctMesPassou }}% (passado dos dias do mês)
                             </div>
                         </div>
                     </div>

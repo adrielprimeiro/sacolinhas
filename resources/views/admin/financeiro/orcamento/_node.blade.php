@@ -124,7 +124,7 @@
                     
                     {{-- Porcentagem discreta centralizada --}}
                     <div class="text-center text-[10px] text-gray-400 font-bold mt-0.5">
-                        {{ $pctDisplay }}%
+                        {{ $pctDisplay }}% (valor alcançado) / {{ $pctMesPassou }}% (passado dos dias do mês)
                     </div>
                 </div>
             </div>
@@ -151,7 +151,7 @@
         <div x-show="open" x-cloak>
             <div class="relative border-l border-gray-100 ml-5">
                 @foreach ($node['children'] as $filho)
-                    @include('admin.financeiro.orcamento._node', ['node' => $filho, 'nivel' => $nivel + 1, 'periodo' => $periodo])
+                    @include('admin.financeiro.orcamento._node', ['node' => $filho, 'nivel' => $nivel + 1, 'periodo' => $periodo, 'pctMesPassou' => $pctMesPassou])
                 @endforeach
             </div>
         </div>
