@@ -125,7 +125,7 @@
                     <!-- Barra de Dias Decorridos (Paralela) -->
                     <div class="w-full bg-gray-100 rounded-full overflow-hidden mb-1" style="height: 4px;">
                         <div class="h-full transition-all duration-500"
-                             style="width: {{ $pctMesPassou }}%; background-color: #818cf8;">
+                             style="width: {{ $pctMesPassou }}%; background-color: #94a3b8;">
                         </div>
                     </div>
                     
