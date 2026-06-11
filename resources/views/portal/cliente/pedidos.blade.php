@@ -550,5 +550,44 @@ function toggleDetalhes(pedidoId) {
     const detalhes = document.getElementById('detalhes-' + pedidoId);
     detalhes.classList.toggle('hidden');
 }
+
+// Exibe mensagem de sucesso se vier redirecionado após o pagamento Pix
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'pagamento_confirmado') {
+        // Limpa o parâmetro da URL para evitar reexibição no recarregamento
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+
+        // Cria e insere o banner de sucesso no topo
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-6 flex justify-between items-center shadow-md animate-bounce';
+        alertDiv.innerHTML = `
+            <div class="flex items-center gap-2">
+                <i class="fas fa-check-circle text-green-600 text-lg"></i>
+                <div>
+                    <strong class="font-bold">Pagamento Confirmado!</strong>
+                    <span class="block sm:inline text-sm">Seu pagamento via Pix foi recebido com sucesso e o pedido já está pago.</span>
+                </div>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-green-700 hover:text-green-900 focus:outline-none">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        const container = document.querySelector('.space-y-6');
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+
+        // Remove automaticamente após 7 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+                setTimeout(() => alertDiv.remove(), 500);
+            }
+        }, 7000);
+    }
+});
 </script>
 @endsection

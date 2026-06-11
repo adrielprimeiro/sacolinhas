@@ -19,14 +19,14 @@
             <p class="text-sm text-gray-500 mt-1">Sua compra está reservada. Pague agora para garantir seus itens.</p>
 
             <!-- Valor Destacado em Container Glassmorphism ou Sombreado -->
-            <div class="my-6 p-4 bg-gradient-to-br from-teal-50/50 to-emerald-50/30 border border-teal-100/50 rounded-xl inline-block px-8">
+            <div class="my-6 p-4 bg-teal-50 border border-teal-100 rounded-xl inline-block px-8" style="background-color: rgba(240, 253, 250, 0.5); border-color: rgba(204, 251, 241, 0.5);">
                 <span class="text-xs text-teal-800 font-bold uppercase tracking-wider block">Valor a pagar</span>
                 <span class="text-3xl font-black text-teal-900">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
             </div>
 
             <!-- QR Code com Animação Discreta e Moldura Elegante -->
             <div class="flex flex-col items-center justify-center my-6">
-                <div class="relative p-3 bg-white border-2 border-teal-500/30 rounded-2xl shadow-md group hover:border-teal-500 transition duration-300">
+                <div class="relative p-3 bg-white border-2 rounded-2xl shadow-md group hover:border-teal-500 transition duration-300" style="border-color: rgba(20, 184, 166, 0.3);">
                     <!-- Overlay Decorativo nas Bordas -->
                     <div class="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-teal-500"></div>
                     <div class="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-teal-500"></div>
@@ -83,7 +83,7 @@
 </div>
 
 <!-- Overlay de Sucesso com Efeito Glassmorphic (Inicialmente Oculto) -->
-<div id="sucesso-overlay" class="fixed inset-0 bg-gray-950/80 backdrop-blur-md flex items-center justify-center z-50 opacity-0 pointer-events-none transition-all duration-500">
+<div id="sucesso-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-80 backdrop-filter backdrop-blur-md flex items-center justify-center z-50 opacity-0 pointer-events-none transition-all duration-500">
     <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center mx-4 transform scale-90 transition-all duration-500" id="sucesso-card">
         <div class="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
             <i class="fas fa-check text-4xl text-green-600"></i>
