@@ -43,7 +43,7 @@ $currentRoute = Route::currentRouteName();
                 Previsto × Realizado — clique em "Editar" para ajustar os previstos.
             </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
             {{-- Botão de Edição --}}
             <button 
                 @click="isEditing = !isEditing" 
@@ -53,6 +53,16 @@ $currentRoute = Route::currentRouteName();
                 <i class="fas" :class="isEditing ? 'fa-eye' : 'fa-edit'"></i>
                 <span x-text="isEditing ? 'Visualizar' : 'Editar'"></span>
             </button>
+
+            {{-- Botão de Copiar / Transportar para Próximo Mês --}}
+            <form method="POST" action="{{ route('financeiro.orcamento.replicar') }}" class="inline" onsubmit="return confirm('Deseja copiar todos os valores previstos deste mês ({{ $periodo->translatedFormat('F/Y') }}) para o próximo mês ({{ $periodo->copy()->addMonth()->translatedFormat('F/Y') }})? Os valores existentes no próximo mês serão sobrescritos.')">
+                @csrf
+                <input type="hidden" name="periodo_origem" value="{{ $periodo->format('Y-m') }}">
+                <button type="submit" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm border border-indigo-100">
+                    <i class="fas fa-copy"></i>
+                    <span>Transportar p/ Próx. Mês</span>
+                </button>
+            </form>
 
             <form method="GET" action="{{ route('financeiro.orcamento.index') }}" class="flex items-center gap-2">
                 <label class="text-sm text-gray-500 font-medium">Mês:</label>

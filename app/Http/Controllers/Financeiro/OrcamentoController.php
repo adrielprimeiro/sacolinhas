@@ -171,6 +171,43 @@ class OrcamentoController extends Controller
         return response()->json(['success' => true, 'orcamento' => $orcamento]);
     }
 
+    /**
+     * Transporta/replica os valores previstos do mês selecionado para o próximo mês.
+     */
+    public function replicar(Request $request)
+    {
+        $request->validate([
+            'periodo_origem' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $periodoOrigem = Carbon::createFromFormat('Y-m', $request->periodo_origem)->startOfMonth();
+        $periodoDestino = $periodoOrigem->copy()->addMonth();
+
+        $orcamentosOrigem = Orcamento::where('periodo', $periodoOrigem->toDateString())->get();
+
+        if ($orcamentosOrigem->isEmpty()) {
+            return redirect()->back()->with('error', 'Nenhum orçamento definido no mês de origem para ser transportado.');
+        }
+
+        foreach ($orcamentosOrigem as $orcamento) {
+            Orcamento::updateOrCreate(
+                [
+                    'classificacao_financeira_id' => $orcamento->classificacao_financeira_id,
+                    'periodo'                     => $periodoDestino->toDateString(),
+                ],
+                [
+                    'valor_previsto' => $orcamento->valor_previsto,
+                ]
+            );
+        }
+
+        // Traduz o mês de destino (ex: "julho de 2026")
+        $mesDestinoNome = $periodoDestino->translatedFormat('F/Y');
+        
+        return redirect()->route('financeiro.orcamento.index', ['periodo' => $periodoDestino->format('Y-m')])
+            ->with('success', "Valores previstos transportados com sucesso para {$mesDestinoNome}!");
+    }
+
     // ---- Helpers ----
 
     private function statusBarra(string $tipoNatureza, float $percentual): string

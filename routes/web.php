@@ -141,6 +141,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
     Route::prefix('orcamento')->name('orcamento.')->group(function () {
         Route::get('/',    [OrcamentoController::class, 'index'])->name('index');
         Route::post('/',   [OrcamentoController::class, 'upsert'])->name('upsert');
+        Route::post('/replicar', [OrcamentoController::class, 'replicar'])->name('replicar');
     });
 
     // Conciliação

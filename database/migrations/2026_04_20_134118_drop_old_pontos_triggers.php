@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (\DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // 1. Remover triggers que atualizam pontos automaticamente via BD ao mexer em itens do pedido
         \DB::unprepared('DROP TRIGGER IF EXISTS trg_items_pedido_ai');
         \DB::unprepared('DROP TRIGGER IF EXISTS trg_items_pedido_au');

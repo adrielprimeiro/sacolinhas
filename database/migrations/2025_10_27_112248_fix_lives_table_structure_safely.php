@@ -55,10 +55,12 @@ return new class extends Migration
             });
         }
 
-        // Adicionar índices - verificar se já existe
-        $indexes = DB::select("SHOW INDEXES FROM lives WHERE Key_name = 'lives_tipo_live_index'");
-        if (empty($indexes)) {
-            DB::statement('ALTER TABLE lives ADD INDEX lives_tipo_live_index (tipo_live)');
+        // Adicionar índices - verificar se já existe (apenas para MySQL)
+        if (DB::getDriverName() !== 'sqlite') {
+            $indexes = DB::select("SHOW INDEXES FROM lives WHERE Key_name = 'lives_tipo_live_index'");
+            if (empty($indexes)) {
+                DB::statement('ALTER TABLE lives ADD INDEX lives_tipo_live_index (tipo_live)');
+            }
         }
     }
 
