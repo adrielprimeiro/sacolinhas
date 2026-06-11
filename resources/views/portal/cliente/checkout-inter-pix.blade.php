@@ -53,7 +53,7 @@
                     
                     <button onclick="copiarPixCodigo()" 
                             id="btn-copiar-pix"
-                            class="absolute right-1 top-1 bottom-1 px-4 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-sans font-bold rounded-lg transition duration-200 shadow-md flex items-center gap-1">
+                            class="absolute right-1 top-1 bottom-1 px-4 bg-orange-50 hover:bg-orange-100 active:scale-95 text-orange-600 hover:text-orange-700 text-xs font-sans font-bold rounded-lg transition duration-200 border border-orange-200 flex items-center gap-1">
                         <i class="far fa-copy"></i> <span>Copiar</span>
                     </button>
                 </div>
@@ -112,13 +112,13 @@
                 const originalText = btn.innerHTML;
                 
                 // Transição de feedback visual
-                btn.classList.remove("bg-teal-600", "hover:bg-teal-700");
-                btn.classList.add("bg-green-600");
+                btn.classList.remove("bg-orange-50", "hover:bg-orange-100", "text-orange-600", "hover:text-orange-700", "border-orange-200");
+                btn.classList.add("bg-green-50", "text-green-600", "border-green-200");
                 btn.innerHTML = '<i class="fas fa-check"></i> <span>Copiado!</span>';
                 
                 setTimeout(() => {
-                    btn.classList.remove("bg-green-600");
-                    btn.classList.add("bg-teal-600", "hover:bg-teal-700");
+                    btn.classList.remove("bg-green-50", "text-green-600", "border-green-200");
+                    btn.classList.add("bg-orange-50", "hover:bg-orange-100", "text-orange-600", "hover:text-orange-700", "border-orange-200");
                     btn.innerHTML = originalText;
                 }, 2000);
             })
