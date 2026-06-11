@@ -154,11 +154,10 @@ if ($hoje->gt($fimMes)) {
                 Nenhuma categoria de {{ $tipo }} cadastrada no plano de contas.
             </div>
         @else
-            {{-- Cabeçalho da tabela --}}
             <div class="grid grid-cols-12 gap-4 pl-1 pr-3 py-3 text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 bg-gray-50/50">
                 <div :class="isEditing ? 'col-span-8' : 'col-span-6'">Categoria</div>
                 <div :class="isEditing ? 'col-span-4 text-right' : 'col-span-6'">
-                    <span x-show="!isEditing">Diferença / Progresso</span>
+                    <span x-show="!isEditing">Diferença / Progresso / {{ $pctMesPassou }}%</span>
                     <span x-show="isEditing" x-cloak>Valor Previsto (Editar)</span>
                 </div>
             </div>
