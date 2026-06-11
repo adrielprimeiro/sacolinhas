@@ -387,6 +387,82 @@ class CheckoutController extends Controller
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
+        // Se já estiver aprovado localmente, retorna de imediato
+        if ($pedido->status_pagamento === 'aprovado') {
+            return response()->json([
+                'status_pagamento' => $pedido->status_pagamento,
+                'status_pedido' => $pedido->status_pedido
+            ]);
+        }
+
+        // Se ainda não estiver aprovado localmente, mas tiver inter_txid, consulta a API do Banco Inter
+        if ($pedido->inter_txid) {
+            try {
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                $consultResult = $pixService->consultarPixCob($pedido->inter_txid);
+
+                if (isset($consultResult['status']) && $consultResult['status'] === 'CONCLUIDA') {
+                    Log::info("Pagamento Pix confirmado via consulta de status no Banco Inter para Pedido #{$pedido->id}");
+
+                    DB::transaction(function () use ($pedido, $consultResult) {
+                        // 1. Atualiza status do pedido
+                        $pedido->status_pagamento = 'aprovado';
+                        $pedido->status_pedido = 'pago';
+                        $pedido->forma_pagamento = 'pix';
+                        $pedido->save(); // Dispara PedidoObserver
+
+                        // 2. Dar baixa no estoque
+                        if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
+                            $itemIds = DB::table('items_pedido')
+                                ->where('pedido_id', $pedido->id)
+                                ->pluck('item_id');
+
+                            if ($itemIds->count() > 0) {
+                                DB::table('items')
+                                    ->whereIn('id', $itemIds)
+                                    ->update([
+                                        'status' => 'vendido',
+                                        'updated_at' => now()
+                                    ]);
+                            }
+                        }
+
+                        // 3. Registrar movimentação de caixa
+                        $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                            ->where('referencia_id', $pedido->id)
+                            ->first();
+
+                        if ($lancamento) {
+                            $contaInter = \App\Models\ContaBancaria::where('nome', 'like', '%Inter%')->first();
+                            $contaBancariaId = $contaInter ? $contaInter->id : 1;
+
+                            // Tenta obter valor pago e horário da resposta da API
+                            $valorPago = (float)($pedido->valor_total);
+                            if (isset($consultResult['pix']) && is_array($consultResult['pix'])) {
+                                $lastPix = end($consultResult['pix']);
+                                if ($lastPix && isset($lastPix['valor'])) {
+                                    $valorPago = (float)$lastPix['valor'];
+                                }
+                            }
+
+                            \App\Models\Movimentacao::create([
+                                'lancamento_id'    => $lancamento->id,
+                                'conta_bancaria_id' => $contaBancariaId,
+                                'data_pagamento'   => now()->toDateString(),
+                                'valor_pago'       => $valorPago,
+                                'forma_pagamento'  => 'pix',
+                            ]);
+                        }
+                    });
+
+                    // Recarrega o status atualizado do pedido
+                    $pedido->refresh();
+                }
+            } catch (\Exception $e) {
+                Log::error("Erro ao consultar/processar status do Pix Banco Inter para Pedido #{$pedido->id}: " . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'status_pagamento' => $pedido->status_pagamento,
             'status_pedido' => $pedido->status_pedido

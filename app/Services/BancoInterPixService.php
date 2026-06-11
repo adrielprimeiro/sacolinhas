@@ -184,4 +184,41 @@ class BancoInterPixService
 
         return true;
     }
+
+    /**
+     * Consulta uma cobrança de Pix pelo txid no Banco Inter
+     */
+    public function consultarPixCob(string $txid): array
+    {
+        if ($this->isMockMode()) {
+            Log::info("Simulando consulta de Pix Banco Inter (TXID: {$txid})");
+            return [
+                'txid' => $txid,
+                'status' => 'CONCLUIDA', // Retorna concluída para testes locais fáceis
+            ];
+        }
+
+        $accessToken = $this->getAccessToken();
+        $url = "{$this->baseUrl}/pix/v2/cob/{$txid}";
+
+        Log::info("Consultando cobrança Pix no Banco Inter para TXID {$txid}...");
+
+        $response = Http::withoutVerifying()
+            ->withToken($accessToken)
+            ->withOptions([
+                'cert' => $this->certPath,
+                'ssl_key' => $this->keyPath,
+            ])
+            ->get($url);
+
+        if (!$response->successful()) {
+            Log::error('Erro ao consultar Pix no Banco Inter', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+            throw new \Exception("Erro ao consultar Pix no Banco Inter (Status {$response->status()})");
+        }
+
+        return $response->json();
+    }
 }
