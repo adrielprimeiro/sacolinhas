@@ -129,7 +129,6 @@
                     creditCard: "all",
                     debitCard: "all",
                     ticket: "all",
-                    bankTransfer: "all",
                 },
             },
             callbacks: {

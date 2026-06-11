@@ -61,6 +61,7 @@ return [
         'cert_path'     => env('BANCO_INTER_CERT_PATH', 'certs/inter.crt'),
         'key_path'      => env('BANCO_INTER_KEY_PATH', 'certs/inter.key'),
         'sandbox'       => env('BANCO_INTER_SANDBOX', false),
+        'chave_pix'     => env('BANCO_INTER_PIX_KEY', 'mania@maniademelissa.com'),
     ],
 
 /*

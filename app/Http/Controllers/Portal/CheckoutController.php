@@ -229,7 +229,8 @@ class CheckoutController extends Controller
         $request->validate([
             'shipping_id' => 'required|string',
             'shipping_price' => 'required|numeric',
-            'shipping_name' => 'required|string'
+            'shipping_name' => 'required|string',
+            'payment_method' => 'nullable|string'
         ]);
 
         try {
@@ -249,14 +250,55 @@ class CheckoutController extends Controller
             $saldoUtilizado = (float) ($pedido->valor_saldo_utilizado ?? 0);
 
             $pedido->valor_frete = $request->shipping_price;
-            $pedido->valor_total = $totalBruto; // Mantemos o bruto no valor_total (conforme comportamento do banco)
-            // Não zerar o saldo_utilizado para não perder o desconto/dívida configurado pelo admin
+            $pedido->valor_total = $totalBruto; // Mantemos o bruto no valor_total
             $pedido->valor_saldo_utilizado = $saldoUtilizado;
             $pedido->status_pedido = 'pendente'; 
             
+            // Define a forma de pagamento selecionada
+            $paymentMethod = $request->input('payment_method', 'pix');
+            $pedido->forma_pagamento = $paymentMethod === 'pix' ? 'pix' : 'cartao_credito';
+            
             $pedido->save();
 
-            $redirectUrl = route('portal.mercadopago.checkout', $pedido->id);
+            // Roteamento condicional
+            if ($paymentMethod === 'pix') {
+                // Calcular valor líquido restante a cobrar
+                $valorAPagarOriginal = $totalBruto - $saldoUtilizado;
+                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                    ->where('referencia_id', $pedido->id)
+                    ->first();
+                $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+                $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
+
+                $valorCobrar = $valorRestante;
+                if ($request->filled('valor') && is_numeric($request->query('valor')) && (float)$request->query('valor') > 0) {
+                    $valorCobrar = min($valorRestante, (float)$request->query('valor'));
+                }
+
+                // Invocar serviço do Banco Inter para criar cobrança Pix
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                $response = $pixService->criarPixCob(
+                    $pedido->numero_pedido,
+                    $valorCobrar,
+                    $pedido->user->name,
+                    $pedido->user->cpf
+                );
+
+                $pedido->inter_txid = $response['txid'];
+                $pedido->save();
+
+                // Salvar dados na sessão para a view de checkout Pix
+                session(["inter_pix_{$pedido->id}" => [
+                    'txid' => $response['txid'],
+                    'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
+                    'valor' => $valorCobrar
+                ]]);
+
+                $redirectUrl = route('portal.inter.checkout', $pedido->id);
+            } else {
+                $redirectUrl = route('portal.mercadopago.checkout', $pedido->id);
+            }
+
             if ($request->filled('valor')) {
                 $redirectUrl .= '?valor=' . urlencode($request->query('valor'));
             }
@@ -269,9 +311,86 @@ class CheckoutController extends Controller
             Log::error('Erro ao finalizar revisão de checkout: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao processar frete: ' . $e->getMessage()
+                'message' => 'Erro ao processar frete/pagamento: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Exibe a tela de pagamento do Banco Inter Pix.
+     */
+    public function checkoutInter(Pedido $pedido)
+    {
+        if ($pedido->user_id !== auth()->id()) {
+            abort(403, 'Acesso não autorizado.');
+        }
+
+        if ($pedido->status_pagamento === 'aprovado') {
+            return redirect()->route('portal.pedidos')->with('info', 'Este pedido já está pago.');
+        }
+
+        // Calcular valor restante
+        $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+        $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+            ->where('referencia_id', $pedido->id)
+            ->first();
+        $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+        $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
+
+        $valorCobrar = $valorRestante;
+        if (request()->filled('valor') && is_numeric(request()->query('valor')) && (float)request()->query('valor') > 0) {
+            $valorCobrar = min($valorRestante, (float)request()->query('valor'));
+        }
+
+        $pixData = session("inter_pix_{$pedido->id}");
+
+        // Se o txid no banco mudou ou a sessão expirou, gera uma nova cobrança para garantir
+        if (!$pixData || ($pedido->inter_txid && $pixData['txid'] !== $pedido->inter_txid)) {
+            try {
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                $response = $pixService->criarPixCob(
+                    $pedido->numero_pedido,
+                    $valorCobrar,
+                    $pedido->user->name,
+                    $pedido->user->cpf
+                );
+
+                $pedido->inter_txid = $response['txid'];
+                $pedido->forma_pagamento = 'pix';
+                $pedido->save();
+
+                $pixData = [
+                    'txid' => $response['txid'],
+                    'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
+                    'valor' => $valorCobrar
+                ];
+                session(["inter_pix_{$pedido->id}" => $pixData]);
+            } catch (\Exception $e) {
+                Log::error("Erro ao gerar Pix no Banco Inter para a view: " . $e->getMessage());
+                return redirect()->route('portal.pedidos')->with('error', 'Não foi possível gerar a cobrança Pix. Tente novamente mais tarde.');
+            }
+        }
+
+        return view('portal.cliente.checkout-inter-pix', [
+            'pedido' => $pedido,
+            'pixCopiaECola' => $pixData['pixCopiaECola'],
+            'valorCobrar' => $pixData['valor']
+        ]);
+    }
+
+    /**
+     * Endpoint de consulta para o polling de status de pagamento do Pix Inter.
+     */
+    public function checkInterStatus(Pedido $pedido)
+    {
+        if ($pedido->user_id !== auth()->id()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        return response()->json([
+            'status_pagamento' => $pedido->status_pagamento,
+            'status_pedido' => $pedido->status_pedido
+        ]);
     }
 
     /**
@@ -303,7 +422,11 @@ class CheckoutController extends Controller
 
         // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
         if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
-            return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
+            if ($pedido->forma_pagamento === 'pix') {
+                return redirect()->route('portal.inter.checkout', array_merge(['pedido' => $pedido->id], $params));
+            } else {
+                return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
+            }
         }
 
         return redirect()->route('portal.checkout.show', array_merge(['pedido' => $pedido->id], $params));

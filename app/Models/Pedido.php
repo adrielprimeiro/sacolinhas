@@ -36,6 +36,7 @@ class Pedido extends Model
         'observacoes',
         'cupom_desconto',
         'origem_pedido',
+        'inter_txid',
         'pontos_creditados',
     ];
 

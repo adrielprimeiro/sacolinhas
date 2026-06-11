@@ -43,6 +43,10 @@ Route::post('/mercadopago/webhook', [\App\Http\Controllers\MercadoPagoController
 Route::post('/api/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
+// Webhook Banco Inter Pix
+Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookController::class, 'handle'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 
 // Rota que vai disparar o envio das imagens
 //Route::get('/teste-enviar-gemini', [App\Http\Controllers\ImagemBatchController::class, 'enviarParaEdicao']);
@@ -575,6 +579,10 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
     // Mercado Pago Checkout Transparente
     Route::get('/mercadopago/{pedido}/checkout', [\App\Http\Controllers\MercadoPagoController::class, 'checkout'])->name('mercadopago.checkout');
     Route::post('/mercadopago/{pedido}/process', [\App\Http\Controllers\MercadoPagoController::class, 'processPayment'])->name('mercadopago.process')->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
+    // Banco Inter Pix Checkout
+    Route::get('/inter/{pedido}/checkout', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkoutInter'])->name('inter.checkout');
+    Route::get('/inter/{pedido}/status', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkInterStatus'])->name('inter.checkout.status');
 
 });
 

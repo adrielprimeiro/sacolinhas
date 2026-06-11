@@ -122,6 +122,54 @@
                 </div>
             </div>
 
+            <!-- Seleção de Forma de Pagamento -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-sm font-bold text-gray-800 uppercase">Meio de Pagamento</h2>
+                </div>
+                <div class="p-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        
+                        <!-- Opção Pix -->
+                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-blue-500 bg-blue-50/30" id="label-pay-pix">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                        <i class="fas fa-qrcode text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-800">Pix</span>
+                                        <span class="block text-[10px] text-green-600 font-bold uppercase">Aprovação Imediata</span>
+                                    </div>
+                                </div>
+                                <input type="radio" name="payment_method" value="pix" checked
+                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Pague via Banco Inter. QR Code e Copia e Cola gerados na próxima tela.</p>
+                        </label>
+
+                        <!-- Opção Cartão de Crédito -->
+                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" id="label-pay-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                                        <i class="far fa-credit-card text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-800">Cartão de Crédito</span>
+                                        <span class="block text-[10px] text-gray-500 uppercase">Mercado Pago</span>
+                                    </div>
+                                </div>
+                                <input type="radio" name="payment_method" value="cartao_credito"
+                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Pague via Mercado Pago. Parcele em até 12x no cartão de crédito.</p>
+                        </label>
+
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Coluna Direita: Resumo e Ação -->
@@ -197,6 +245,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnConfirmar = document.getElementById('btnConfirmarPedido');
     const btnCancelar = document.getElementById('btnCancelarCheckout');
     
+    const paymentRadios = document.querySelectorAll('.payment-radio');
+    const labelPix = document.getElementById('label-pay-pix');
+    const labelCard = document.getElementById('label-pay-card');
+
+    paymentRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'pix') {
+                labelPix.classList.add('border-blue-500', 'bg-blue-50/30');
+                labelPix.classList.remove('border-gray-200');
+                labelCard.classList.remove('border-blue-500', 'bg-blue-50/30');
+                labelCard.classList.add('border-gray-200');
+            } else {
+                labelCard.classList.add('border-blue-500', 'bg-blue-50/30');
+                labelCard.classList.remove('border-gray-200');
+                labelPix.classList.remove('border-blue-500', 'bg-blue-50/30');
+                labelPix.classList.add('border-gray-200');
+            }
+        });
+    });
+
     const subtotal = parseFloat({{ $itens->sum('preco_unitario') }});
     const saldoUsado = parseFloat({{ (float)($pedido->valor_saldo_utilizado ?? 0) }});
     let selectedShipping = null;
@@ -260,6 +328,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 confirmUrl += "?valor=" + encodeURIComponent(customValue);
             }
 
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
             const response = await fetch(confirmUrl, {
                 method: 'POST',
                 headers: {
@@ -270,7 +340,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     shipping_id: selectedShipping.id,
                     shipping_price: selectedShipping.price,
-                    shipping_name: selectedShipping.name
+                    shipping_name: selectedShipping.name,
+                    payment_method: selectedPaymentMethod
                 })
             });
 
