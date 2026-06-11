@@ -16,55 +16,128 @@ class SyncPedidosLancamentos extends Command
     public function handle()
     {
         $pedidos = Pedido::all();
-        $count = 0;
+        $newCount = 0;
+        $updatedCount = 0;
+
+        $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
+            ->orWhere('nome', 'Venda Live')
+            ->first();
+        $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
+
+        $this->info("Usando classificação ID {$classificacaoId} ('" . ($classificacao ? $classificacao->nome : 'Venda Live') . "') para os pedidos.");
 
         foreach ($pedidos as $pedido) {
             if ($pedido->valor_total <= 0) continue;
+
+            $user = $pedido->user;
+            if (!$user) {
+                $this->warn("Pedido #{$pedido->numero_pedido} não possui usuário vinculado.");
+                continue;
+            }
+
+            $pessoa = $user->perfilFinanceiro;
+            if (!$pessoa) {
+                $pessoa = Pessoa::create([
+                    'user_id'   => $user->id,
+                    'nome'      => $user->name,
+                    'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
+                    'tipo'      => 'cliente_circular',
+                ]);
+            }
 
             $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
                 ->first();
 
+            $dadosLancamento = [
+                'tipo'                        => 'receita',
+                'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
+                'description'                 => "Pedido " . $pedido->numero_pedido,
+                'pessoa_id'                   => $pessoa->id,
+                'classificacao_financeira_id' => $classificacaoId,
+                'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
+                'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
+                'valor_total'                 => $pedido->valor_total,
+                'descricao'                   => "Pedido " . $pedido->numero_pedido,
+                'referencia_tipo'             => 'pedido',
+                'referencia_id'               => $pedido->id,
+            ];
+
             if (!$lancamento) {
                 $this->info("Gerando lançamento para Pedido #{$pedido->numero_pedido}");
-                
-                $user = $pedido->user;
-                if (!$user) {
-                    $this->warn("Pedido #{$pedido->id} não possui usuário vinculado.");
-                    continue;
+                Lancamento::create($dadosLancamento);
+                $newCount++;
+            } else {
+                $oldClassificacaoId = $lancamento->classificacao_financeira_id;
+                $oldPessoaId = $lancamento->pessoa_id;
+
+                if ($oldClassificacaoId != $classificacaoId || $oldPessoaId != $pessoa->id) {
+                    $this->info("Atualizando classificação/contato do lançamento do Pedido #{$pedido->numero_pedido}");
+                    $lancamento->update($dadosLancamento);
+                    
+                    // Sincronizar cada movimentação para atualizar o livro razão (ContaCorrente)
+                    foreach ($lancamento->movimentacoes as $mov) {
+                        $mov->unsetRelation('lancamento');
+                        $mov->sincronizarCarteira();
+                    }
+                    
+                    $updatedCount++;
                 }
+            }
 
-                $pessoa = $user->perfilFinanceiro;
-                if (!$pessoa) {
-                    $pessoa = Pessoa::create([
-                        'user_id'   => $user->id,
-                        'nome'      => $user->name,
-                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
-                        'tipo'      => 'cliente_circular',
-                    ]);
+            // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
+            if ($pessoa->user_id) {
+                if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
+                    $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
+                    $valorNetDebito = max(0.00, (float)$pedido->valor_total - $saldoUtilizado);
+
+                    // Débito da compra pelo valor LÍQUIDO do pedido
+                    \App\Models\ContaCorrente::updateOrCreate(
+                        [
+                            'referencia_tipo' => 'pedido',
+                            'referencia_id' => $pedido->id,
+                            'tipo_movimentacao' => 'debito',
+                        ],
+                        [
+                            'user_id' => $pessoa->user_id,
+                            'valor' => $valorNetDebito,
+                            'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
+                            'classificacao_id' => $classificacaoId,
+                            'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                        ]
+                    );
+
+                    // Se houver saldo utilizado, cria/atualiza o lançamento correspondente
+                    if ($saldoUtilizado != 0) {
+                        $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
+                        $valorMovSaldo = abs($saldoUtilizado);
+                        $descMovSaldo = $saldoUtilizado > 0 
+                            ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
+                            : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
+
+                        \App\Models\ContaCorrente::updateOrCreate(
+                            [
+                                'referencia_tipo' => 'desconto',
+                                'referencia_id' => $pedido->id,
+                            ],
+                            [
+                                'user_id' => $pessoa->user_id,
+                                'tipo_movimentacao' => $tipoMovSaldo,
+                                'valor' => $valorMovSaldo,
+                                'descricao' => $descMovSaldo,
+                                'classificacao_id' => $classificacaoId,
+                                'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                            ]
+                        );
+                    } else {
+                        \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+                            ->where('referencia_id', $pedido->id)
+                            ->delete();
+                    }
                 }
-
-                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
-                    ->orWhere('nome', 'Venda Live')
-                    ->first();
-                $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
-
-                Lancamento::create([
-                    'tipo'                        => 'receita',
-                    'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
-                    'pessoa_id'                   => $pessoa->id,
-                    'classificacao_financeira_id' => $classificacaoId,
-                    'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
-                    'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
-                    'valor_total'                 => $pedido->valor_total,
-                    'descricao'                   => "Pedido " . $pedido->numero_pedido,
-                    'referencia_tipo'             => 'pedido',
-                    'referencia_id'               => $pedido->id,
-                ]);
-                $count++;
             }
         }
 
-        $this->info("Sincronização concluída. {$count} novos lançamentos gerados.");
+        $this->info("Sincronização concluída. {$newCount} novos lançamentos gerados, {$updatedCount} lançamentos existentes atualizados.");
     }
 }
