@@ -116,9 +116,16 @@
                             ? ($dif >= 0 ? 'text-green-600' : 'text-red-600')
                             : ($dif <= 0 ? 'text-green-600' : 'text-orange-600');
                     @endphp
-                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
+                    <!-- Barra de Valor Alcançado -->
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mb-0.5">
                         <div class="h-1.5 rounded-full transition-all duration-500 {{ $barBg }} {{ $overflow ? 'animate-pulse' : '' }}"
                              style="width: {{ $pct }}%">
+                        </div>
+                    </div>
+                    <!-- Barra de Dias Decorridos (Paralela) -->
+                    <div class="w-full bg-gray-100 rounded-full overflow-hidden mb-1" style="height: 4px;">
+                        <div class="h-full transition-all duration-500"
+                             style="width: {{ $pctMesPassou }}%; background-color: #818cf8;">
                         </div>
                     </div>
                     

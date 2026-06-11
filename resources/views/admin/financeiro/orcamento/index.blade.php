@@ -205,9 +205,16 @@ if ($hoje->gt($fimMes)) {
                                 <span>Real: R$ {{ number_format($sumRealizado, 2, ',', '.') }}</span>
                                 <span>Prev: R$ {{ number_format($sumPrevisto, 2, ',', '.') }}</span>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-1">
+                            <!-- Barra de Valor Alcançado -->
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden mb-0.5">
                                 <div class="h-1.5 rounded-full transition-all duration-500 {{ $barBg }} {{ $overflow ? 'animate-pulse' : '' }}"
                                      style="width: {{ $sumPctClamped }}%">
+                                </div>
+                            </div>
+                            <!-- Barra de Dias Decorridos (Paralela) -->
+                            <div class="w-full bg-gray-200 rounded-full overflow-hidden mb-1" style="height: 4px;">
+                                <div class="h-full transition-all duration-500"
+                                     style="width: {{ $pctMesPassou }}%; background-color: #818cf8;">
                                 </div>
                             </div>
                             <div class="text-center text-[10px] text-gray-500 font-bold mt-0.5">
@@ -232,6 +239,7 @@ if ($hoje->gt($fimMes)) {
         <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> Receita atingida ✓</span>
         <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span> Despesa em andamento</span>
         <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500 inline-block animate-pulse"></span> Despesa estourada ⚠</span>
+        <span class="flex items-center gap-1.5"><span class="w-3.5 h-1.5 rounded inline-block shadow-sm" style="background-color: #818cf8;"></span> Tempo decorrido do mês</span>
         <span class="flex items-center gap-1.5"><i class="fas fa-info-circle text-indigo-400"></i> Clique em "Editar" para alterar os valores previstos do orçamento</span>
     </div>
 </div>
