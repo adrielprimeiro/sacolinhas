@@ -116,15 +116,24 @@
                             ? ($dif >= 0 ? 'text-green-600' : 'text-red-600')
                             : ($dif <= 0 ? 'text-green-600' : 'text-orange-600');
                     @endphp
-                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
-                        <div class="h-1.5 rounded-full transition-all duration-500 {{ $barBg }} {{ $overflow ? 'animate-pulse' : '' }}"
-                             style="width: {{ $pct }}%">
+                    <div class="w-full flex flex-col h-[7px] bg-gray-100 rounded-full overflow-hidden mb-1">
+                        <!-- Barra superior: Valor Alcançado -->
+                        <div class="h-[4px] w-full relative">
+                            <div class="h-full transition-all duration-500 {{ $barBg }} {{ $overflow ? 'animate-pulse' : '' }}"
+                                 style="width: {{ $pct }}%">
+                            </div>
+                        </div>
+                        <!-- Barra inferior: Dias Decorridos -->
+                        <div class="h-[3px] w-full bg-gray-200/50 relative">
+                            <div class="h-full transition-all duration-500 bg-indigo-400"
+                                 style="width: {{ $pctMesPassou }}%">
+                            </div>
                         </div>
                     </div>
                     
                     {{-- Porcentagem discreta centralizada --}}
                     <div class="text-center text-[10px] text-gray-400 font-bold mt-0.5">
-                        {{ $pctDisplay }}% (valor alcançado) / {{ $pctMesPassou }}% (passado dos dias do mês)
+                        {{ $pctDisplay }}% alcançado / {{ $pctMesPassou }}% do mês
                     </div>
                 </div>
             </div>
