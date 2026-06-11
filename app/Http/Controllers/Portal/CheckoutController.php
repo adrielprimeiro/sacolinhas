@@ -155,7 +155,7 @@ class CheckoutController extends Controller
 
         $packageData = $this->shippingCalculator->calculateForItems($itens->pluck('id')->toArray());
         
-        $cep = auth()->user()->cep ?? null; // Assume que o user tem campo 'cep'
+        $cep = $pedido->cep_entrega ?? auth()->user()->cep ?? null;
         if ($cep) {
             $result = $this->melhorEnvio->calculateShipping($cep, $packageData);
             if ($result['success']) {

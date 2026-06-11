@@ -53,7 +53,7 @@
                     
                     <button onclick="copiarPixCodigo()" 
                             id="btn-copiar-pix"
-                            class="absolute right-1 top-1 bottom-1 px-4 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-bold rounded-lg transition duration-200 shadow-md flex items-center gap-1">
+                            class="absolute right-1 top-1 bottom-1 px-4 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-sans font-bold rounded-lg transition duration-200 shadow-md flex items-center gap-1">
                         <i class="far fa-copy"></i> <span>Copiar</span>
                     </button>
                 </div>

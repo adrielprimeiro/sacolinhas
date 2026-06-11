@@ -329,6 +329,13 @@
         @endif
     </div>
 
+    @php
+        $userCep = auth()->user()->cep ?? '';
+        if (strlen($userCep) === 8) {
+            $userCep = substr($userCep, 0, 5) . '-' . substr($userCep, 5);
+        }
+    @endphp
+
     <!-- Modal Simular Frete -->
     <div id="modalFrete" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
@@ -341,7 +348,7 @@
             <div class="mb-4">
                 <label for="cepInput" class="block text-sm font-medium text-gray-700 mb-1">Informe seu CEP</label>
                 <div class="flex gap-2">
-                    <input type="text" id="cepInput" class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="00000-000" maxlength="9">
+                    <input type="text" id="cepInput" class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="00000-000" maxlength="9" value="{{ $userCep }}">
                     <button id="btnCalcularFreteAPI" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
                         Calcular
                     </button>
@@ -547,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
             modalFrete.classList.remove('hidden');
             freteResults.classList.add('hidden');
             freteResults.innerHTML = '';
-            cepInput.value = '';
+            cepInput.value = "{{ $userCep }}";
             cepError.classList.add('hidden');
         });
     }
