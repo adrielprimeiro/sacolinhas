@@ -142,17 +142,25 @@
                     @elseif(count($shippingOptions) > 0)
                         <div class="space-y-3" id="shippingOptionsContainer">
                             @foreach($shippingOptions as $option)
-                            <label class="relative flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200">
+                            <label class="shipping-label relative flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" data-id="{{ $option['id'] }}">
                                 <input type="radio" name="shipping_option" value="{{ $option['id'] }}" 
                                        data-price="{{ $option['price'] }}"
-                                       data-name="{{ $option['name'] }} ({{ $option['company']['name'] }})"
+                                       data-name="{{ $option['name'] }} ({{ $option['company']['name'] ?? 'Retirada' }})"
                                        class="shipping-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
                                 <div class="ml-4 flex-1">
                                     <div class="flex items-center gap-2">
-                                        <img src="{{ $option['company']['picture'] }}" class="h-6 object-contain">
+                                        @if(!empty($option['company']['picture']))
+                                            <img src="{{ $option['company']['picture'] }}" class="h-6 object-contain">
+                                        @endif
                                         <span class="text-sm font-bold text-gray-800">{{ $option['name'] }}</span>
                                     </div>
-                                    <p class="text-xs text-gray-500">Até {{ $option['delivery_time'] }} dias úteis</p>
+                                    <p class="text-xs text-gray-500">
+                                        @if($option['id'] === 'retirada')
+                                            Retirar diretamente na loja física
+                                        @else
+                                            Até {{ $option['delivery_time'] }} dias úteis
+                                        @endif
+                                    </p>
                                 </div>
                                 <div class="text-right">
                                     <span class="text-sm font-bold text-gray-900">R$ {{ number_format($option['price'], 2, ',', '.') }}</span>
@@ -240,6 +248,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const radios = document.querySelectorAll('.shipping-radio');
+    const shippingLabels = document.querySelectorAll('.shipping-label');
     const displayFrete = document.getElementById('displayFrete');
     const displayTotal = document.getElementById('displayTotal');
     const btnConfirmar = document.getElementById('btnConfirmarPedido');
@@ -306,10 +315,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // Atualiza UI
             atualizarTotal(price);
 
+            // Destaca visualmente o card selecionado e reseta os outros
+            shippingLabels.forEach(label => {
+                if (label.dataset.id === this.value) {
+                    label.classList.add('border-blue-500', 'bg-blue-50/30');
+                    label.classList.remove('border-gray-200');
+                } else {
+                    label.classList.remove('border-blue-500', 'bg-blue-50/30');
+                    label.classList.add('border-gray-200');
+                }
+            });
+
             // Habilita botão
             btnConfirmar.disabled = false;
             btnConfirmar.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
             btnConfirmar.classList.add('bg-green-600', 'hover:bg-green-700', 'text-white', 'cursor-pointer');
+        });
+    });
+
+    // Permite selecionar clicando em qualquer parte do card do frete
+    shippingLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+            // Se clicou diretamente no input radio, deixa o fluxo padrão
+            if (e.target.tagName === 'INPUT') return;
+            
+            const radio = this.querySelector('.shipping-radio');
+            if (radio && !radio.checked) {
+                radio.checked = true;
+                // Dispara o evento change para executar a lógica de atualização
+                radio.dispatchEvent(new Event('change'));
+            }
         });
     });
 
