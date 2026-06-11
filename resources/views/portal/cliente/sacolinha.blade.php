@@ -135,11 +135,18 @@
     <!-- Lista -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-center justify-between flex-1">
-                <h2 class="text-sm font-semibold text-gray-800">Itens</h2>
-                <p class="text-[11px] md:text-xs text-gray-500 font-medium italic">
-                    Selecione os Itens que você quer incluir no seu PEDIDO ou simular FRETE
-                </p>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between flex-1 gap-4">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-800">Itens</h2>
+                    <p class="text-[11px] md:text-xs text-gray-500 font-medium italic">
+                        Selecione os Itens que você quer incluir no seu PEDIDO ou simular FRETE
+                    </p>
+                </div>
+                <!-- Checkbox Selecionar Todos -->
+                <label class="flex items-center gap-2 cursor-pointer bg-gray-50 hover:bg-gray-100 transition px-3 py-1.5 rounded-md border border-gray-200 select-none self-start sm:self-auto">
+                    <input type="checkbox" id="selectAllGlobal" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                    <span class="text-xs font-semibold text-gray-700">Selecionar Todos</span>
+                </label>
             </div>
             <div class="flex items-center gap-4">
                 <span id="totalSelecionado" class="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full hidden">
@@ -165,7 +172,9 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Detalhes</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Adicionado em</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Valor</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-12">
+                                <input type="checkbox" id="selectAllDesktop" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4" title="Selecionar Todos">
+                            </th>
                         </tr>
                     </thead>
 
@@ -383,6 +392,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnFecharSacolinha = document.getElementById('btnFecharSacolinha');
     const btnSimularFrete = document.getElementById('btnSimularFrete');
     
+    const selectAllGlobal = document.getElementById('selectAllGlobal');
+    const selectAllDesktop = document.getElementById('selectAllDesktop');
+    
     // Valor do excedente (vem do controller)
     const excedente = parseFloat({{ $excedente ?? 0 }});
     
@@ -463,12 +475,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function toggleAll(checked) {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checked;
+        });
+        
+        if (selectAllGlobal) selectAllGlobal.checked = checked;
+        if (selectAllDesktop) selectAllDesktop.checked = checked;
+        
+        updateTotais();
+    }
+
+    if (selectAllGlobal) {
+        selectAllGlobal.addEventListener('change', function() {
+            toggleAll(this.checked);
+        });
+    }
+
+    if (selectAllDesktop) {
+        selectAllDesktop.addEventListener('change', function() {
+            toggleAll(this.checked);
+        });
+    }
+
+    function updateSelectAllState() {
+        if (checkboxes.length === 0) return;
+        const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+        const noneChecked = Array.from(checkboxes).every(checkbox => !checkbox.checked);
+        
+        if (selectAllGlobal) {
+            selectAllGlobal.checked = allChecked;
+            selectAllGlobal.indeterminate = !allChecked && !noneChecked;
+        }
+        if (selectAllDesktop) {
+            selectAllDesktop.checked = allChecked;
+            selectAllDesktop.indeterminate = !allChecked && !noneChecked;
+        }
+    }
+
     checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateTotais);
+        checkbox.addEventListener('change', function() {
+            updateTotais();
+            updateSelectAllState();
+        });
     });
     
     // Inicializar
     updateTotais();
+    updateSelectAllState();
 
     // Lógica Fechar Sacolinha
     if (btnFecharSacolinha) {
