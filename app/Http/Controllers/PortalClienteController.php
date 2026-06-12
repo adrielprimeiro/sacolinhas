@@ -152,8 +152,13 @@ class PortalClienteController extends Controller
             if ($user->photo) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($user->photo);
             }
-            // Crop and resize to 300x300
-            $croppedTempFile = $this->cropAndResizeImage($request->file('photo'), 300, 300);
+            
+            $croppedTempFile = false;
+            // Verifica se a biblioteca GD está instalada no PHP do servidor
+            if (extension_loaded('gd') && function_exists('imagecreatefromjpeg')) {
+                // Crop and resize to 300x300
+                $croppedTempFile = $this->cropAndResizeImage($request->file('photo'), 300, 300);
+            }
 
             if ($croppedTempFile) {
                 $filename = 'profiles/' . uniqid() . '.' . $request->file('photo')->getClientOriginalExtension();
