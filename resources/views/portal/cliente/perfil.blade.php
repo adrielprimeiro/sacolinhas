@@ -58,17 +58,17 @@
             </button>
             <div id="section-identificacao" class="border-t border-gray-100 p-4 space-y-4 accordion-content">
                 <!-- Foto de Perfil -->
-                <div class="flex flex-col sm:flex-row items-center gap-4 pb-4 border-b border-gray-100">
-                    <div class="w-20 h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
+                <div class="flex items-center gap-4 pb-4 border-b border-gray-100">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
                         @if($user->photo)
                             <img src="{{ asset('storage/' . $user->photo) }}" alt="Foto do Perfil" class="w-full h-full object-cover">
                         @else
-                            <i class="fas fa-user text-gray-300 text-3xl"></i>
+                            <i class="fas fa-user text-gray-300 text-2xl sm:text-3xl"></i>
                         @endif
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Foto de Perfil</label>
-                        <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold py-2 px-4 rounded-md transition duration-150 inline-block border border-blue-100 shadow-sm select-none">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Foto de Perfil</label>
+                        <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold py-2 px-4 rounded-md transition duration-150 inline-block select-none">
                             <span id="photo-button-text">Alterar Foto</span>
                             <input type="file" name="photo" accept="image/*" class="hidden" onchange="document.getElementById('photo-button-text').innerText = 'Foto selecionada!'">
                         </label>
