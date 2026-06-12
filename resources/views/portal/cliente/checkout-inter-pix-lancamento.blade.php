@@ -1,6 +1,6 @@
 @extends('layouts.portal-cliente')
 
-@section('title', 'Recarga de Carteira - Pix Banco Inter')
+@section('title', 'Pagamento - Pix Banco Inter')
 
 @section('content')
 <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

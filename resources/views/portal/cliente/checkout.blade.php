@@ -41,13 +41,13 @@
                                     </div>
                                     <div>
                                         <span class="text-sm font-bold text-gray-800">Pix</span>
-                                        <span class="block text-[10px] text-green-600 font-bold uppercase">Aprovação Imediata</span>
+                                        <span class="block text-[10px] text-green-600 font-bold uppercase">IMEDIATO</span>
                                     </div>
                                 </div>
                                 <input type="radio" name="payment_method" value="pix" checked
                                        class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Pague via Banco Inter. QR Code e Copia e Cola gerados na próxima tela.</p>
+                            <p class="text-xs text-gray-500 mt-1">QR Code e Copia e Cola gerados na próxima tela.</p>
                         </label>
 
                         <!-- Opção Cartão de Crédito -->
@@ -65,7 +65,7 @@
                                 <input type="radio" name="payment_method" value="cartao_credito"
                                        class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Pague via Mercado Pago. Parcele em até 12x no cartão de crédito.</p>
+                            <p class="text-xs text-gray-500 mt-1">Parcele em até 12x no cartão de crédito.</p>
                         </label>
                     </div>
                 </div>
