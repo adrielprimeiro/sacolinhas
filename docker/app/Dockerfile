@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     zip \
@@ -21,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libheif-dev \
     libmagickwand-dev \
     pkg-config \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
