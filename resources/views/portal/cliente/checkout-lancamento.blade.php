@@ -3,10 +3,10 @@
 @section('title', 'Revisão do Pagamento')
 
 @section('content')
-<div class="space-y-6 max-w-4xl mx-auto">
+<div class="space-y-4 md:space-y-6 max-w-4xl mx-auto">
 
     <!-- Cabeçalho -->
-    <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
+    <div class="bg-white rounded-lg shadow-sm p-3 md:p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
             <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-12 w-auto object-contain">
             <div>
@@ -16,19 +16,19 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <!-- Coluna Esquerda: Forma de Pagamento -->
-        <div class="md:col-span-2 space-y-6">
+        <div class="md:col-span-2 space-y-4 md:space-y-6">
             
             <!-- Seleção de Forma de Pagamento -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
-                <div class="p-4 border-b border-gray-200 bg-gray-50">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-3 md:p-4 border-b border-gray-200 bg-gray-50">
                     <h2 class="text-sm font-bold text-gray-800 uppercase">Meio de Pagamento</h2>
                 </div>
-                <div class="p-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="p-3 md:p-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                         <!-- Opção Pix -->
-                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-blue-500 bg-blue-50/30" id="label-pay-pix">
+                        <label class="relative flex flex-col p-3 md:p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-blue-500 bg-blue-50/30" id="label-pay-pix">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
@@ -46,7 +46,7 @@
                         </label>
 
                         <!-- Opção Cartão de Crédito -->
-                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" id="label-pay-card">
+                        <label class="relative flex flex-col p-3 md:p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" id="label-pay-card">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
@@ -69,9 +69,9 @@
         </div>
 
         <!-- Coluna Direita: Resumo e Ação -->
-        <div class="space-y-6">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-6">
-                <h2 class="text-sm font-bold text-gray-800 uppercase mb-4">Resumo do Valor</h2>
+        <div class="space-y-4 md:space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 sticky top-6">
+                <h2 class="text-sm font-bold text-gray-800 uppercase mb-3 md:mb-4">Resumo do Valor</h2>
                 
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between text-gray-600">
@@ -84,9 +84,9 @@
                     </div>
                 </div>
 
-                <div class="mt-8">
+                <div class="mt-4 md:mt-8">
                     <button type="button" id="btnConfirmarRecarga"
-                            class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-md">
+                            class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-md">
                         IR PARA O PAGAMENTO <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
