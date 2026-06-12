@@ -371,6 +371,61 @@ class PortalClienteController extends Controller
             return false;
         }
 
+        // Corrigir orientação EXIF se for JPEG e a função exif_read_data estiver disponível
+        if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($file->getRealPath());
+            if ($exif && isset($exif['Orientation'])) {
+                $orientation = $exif['Orientation'];
+                $angle = 0;
+                $flip = false;
+
+                switch ($orientation) {
+                    case 2:
+                        $flip = 'horizontal';
+                        break;
+                    case 3:
+                        $angle = 180;
+                        break;
+                    case 4:
+                        $flip = 'vertical';
+                        break;
+                    case 5:
+                        $angle = 270;
+                        $flip = 'vertical';
+                        break;
+                    case 6:
+                        $angle = 270; // 90 graus CW (rotacionar 270 no PHP que rotaciona CCW)
+                        break;
+                    case 7:
+                        $angle = 90;
+                        $flip = 'vertical';
+                        break;
+                    case 8:
+                        $angle = 90; // 270 graus CW (rotacionar 90 no PHP que rotaciona CCW)
+                        break;
+                }
+
+                if ($angle !== 0) {
+                    $rotatedImage = imagerotate($sourceImage, $angle, 0);
+                    if ($rotatedImage !== false) {
+                        imagedestroy($sourceImage);
+                        $sourceImage = $rotatedImage;
+                        // Se rotacionado 90 ou 270 graus, a largura e altura da imagem de origem se invertem
+                        if ($angle === 90 || $angle === 270) {
+                            $temp = $width;
+                            $width = $height;
+                            $height = $temp;
+                        }
+                    }
+                }
+
+                if ($flip && function_exists('imageflip')) {
+                    $flipMode = ($flip === 'horizontal') ? IMG_FLIP_HORIZONTAL : IMG_FLIP_VERTICAL;
+                    imageflip($sourceImage, $flipMode);
+                }
+            }
+        }
+
         $destImage = imagecreatetruecolor($targetWidth, $targetHeight);
 
         if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_GIF) {
