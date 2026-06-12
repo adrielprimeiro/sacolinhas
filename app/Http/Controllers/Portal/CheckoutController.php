@@ -243,40 +243,46 @@ class CheckoutController extends Controller
             $pedido->valor_saldo_utilizado = $saldoUtilizado;
             $pedido->status_pedido = 'pendente'; 
             
-            // Define a forma de pagamento selecionada (Pix é o padrão obrigatório)
-            $pedido->forma_pagamento = 'pix';
+            // Define a forma de pagamento selecionada
+            $paymentMethod = $request->input('payment_method', 'pix');
+            $pedido->forma_pagamento = $paymentMethod === 'pix' ? 'pix' : 'cartao_credito';
             $pedido->save();
 
-            // Calcular valor líquido restante a cobrar
-            $valorAPagarOriginal = $totalBruto - $saldoUtilizado;
-            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                ->where('referencia_id', $pedido->id)
-                ->first();
-            $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
-            $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
+            // Roteamento condicional
+            if ($paymentMethod === 'pix') {
+                // Calcular valor líquido restante a cobrar
+                $valorAPagarOriginal = $totalBruto - $saldoUtilizado;
+                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                    ->where('referencia_id', $pedido->id)
+                    ->first();
+                $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+                $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
 
-            $valorCobrar = $valorRestante;
+                $valorCobrar = $valorRestante;
 
-            // Invocar serviço do Banco Inter para criar cobrança Pix
-            $pixService = resolve(\App\Services\BancoInterPixService::class);
-            $response = $pixService->criarPixCob(
-                $pedido->numero_pedido,
-                $valorCobrar,
-                $pedido->user->name,
-                $pedido->user->cpf
-            );
+                // Invocar serviço do Banco Inter para criar cobrança Pix
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                $response = $pixService->criarPixCob(
+                    $pedido->numero_pedido,
+                    $valorCobrar,
+                    $pedido->user->name,
+                    $pedido->user->cpf
+                );
 
-            $pedido->inter_txid = $response['txid'];
-            $pedido->save();
+                $pedido->inter_txid = $response['txid'];
+                $pedido->save();
 
-            // Salvar dados na sessão para a view de checkout Pix
-            session(["inter_pix_{$pedido->id}" => [
-                'txid' => $response['txid'],
-                'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
-                'valor' => $valorCobrar
-            ]]);
+                // Salvar dados na sessão para a view de checkout Pix
+                session(["inter_pix_{$pedido->id}" => [
+                    'txid' => $response['txid'],
+                    'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
+                    'valor' => $valorCobrar
+                ]]);
 
-            $redirectUrl = route('portal.inter.checkout', $pedido->id);
+                $redirectUrl = route('portal.inter.checkout', $pedido->id);
+            } else {
+                $redirectUrl = route('portal.mercadopago.checkout', $pedido->id);
+            }
 
             return response()->json([
                 'success' => true,
@@ -446,28 +452,165 @@ class CheckoutController extends Controller
      */
     public function pagamentoToken($token)
     {
+        // 1. Tentar encontrar nos pedidos
         $pedido = Pedido::where('payment_token', $token)->first();
 
-        if (!$pedido) {
-            abort(404, 'Link de pagamento inválido ou expirado.');
+        if ($pedido) {
+            // Login silencioso para permitir acesso às rotas protegidas do portal
+            \Illuminate\Support\Facades\Auth::login($pedido->user);
+
+            if ($pedido->status_pedido !== 'pendente') {
+                return redirect()->route('portal.pedidos')->with('info', 'Este pedido já foi finalizado ou cancelado.');
+            }
+
+            if (str_starts_with($pedido->numero_pedido, 'REC-')) {
+                return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
+            }
+
+            // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout correspondente
+            if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
+                if ($pedido->forma_pagamento === 'pix') {
+                    return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
+                } else {
+                    return redirect()->route('portal.mercadopago.checkout', ['pedido' => $pedido->id]);
+                }
+            }
+
+            return redirect()->route('portal.checkout.show', ['pedido' => $pedido->id]);
         }
 
-        // Login silencioso para permitir acesso às rotas protegidas do portal
-        \Illuminate\Support\Facades\Auth::login($pedido->user);
+        // 2. Tentar encontrar nos lançamentos (recargas)
+        $lancamento = \App\Models\Lancamento::where('payment_token', $token)->first();
+        if ($lancamento) {
+            $user = $lancamento->pessoa->user;
+            if (!$user) {
+                abort(404, 'Cliente associado não encontrado.');
+            }
+            \Illuminate\Support\Facades\Auth::login($user);
 
-        if ($pedido->status_pedido !== 'pendente') {
-            return redirect()->route('portal.pedidos')->with('info', 'Este pedido já foi finalizado ou cancelado.');
+            if ($lancamento->status === 'pago') {
+                return redirect()->route('portal.pedidos')->with('info', 'Esta recarga já foi paga.');
+            }
+
+            return redirect()->route('portal.inter.checkout_lancamento', ['lancamento' => $lancamento->id]);
         }
 
-        if (str_starts_with($pedido->numero_pedido, 'REC-')) {
-            return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
+        abort(404, 'Link de pagamento inválido ou expirado.');
+    }
+
+    /**
+     * Exibe a tela de pagamento do Banco Inter Pix para Lançamentos (Recargas).
+     */
+    public function checkoutInterLancamento(\App\Models\Lancamento $lancamento)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            abort(403, 'Acesso não autorizado.');
         }
 
-        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout Inter Pix
-        if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
-            return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
+        if ($lancamento->status === 'pago') {
+            return redirect()->route('portal.pedidos')->with('info', 'Esta recarga já está paga.');
         }
 
-        return redirect()->route('portal.checkout.show', ['pedido' => $pedido->id]);
+        $valorCobrar = (float) $lancamento->valor_total;
+
+        $pixData = session("inter_pix_lanc_{$lancamento->id}");
+
+        if (!$pixData || ($lancamento->inter_txid && $pixData['txid'] !== $lancamento->inter_txid)) {
+            try {
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                
+                // Vamos gerar um identificador amigável de cobrança para o Banco Inter
+                $refCob = 'REC-' . str_pad($lancamento->id, 6, '0', STR_PAD_LEFT);
+
+                $response = $pixService->criarPixCob(
+                    $refCob,
+                    $valorCobrar,
+                    $user->name,
+                    $user->cpf
+                );
+
+                $lancamento->inter_txid = $response['txid'];
+                $lancamento->save();
+
+                $pixData = [
+                    'txid' => $response['txid'],
+                    'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
+                    'valor' => $valorCobrar
+                ];
+                session(["inter_pix_lanc_{$lancamento->id}" => $pixData]);
+            } catch (\Exception $e) {
+                Log::error("Erro ao gerar Pix no Banco Inter para Lançamento: " . $e->getMessage());
+                return redirect()->route('portal.pedidos')->with('error', 'Não foi possível gerar a cobrança Pix. Tente novamente mais tarde.');
+            }
+        }
+
+        return view('portal.cliente.checkout-inter-pix-lancamento', [
+            'lancamento' => $lancamento,
+            'pixCopiaECola' => $pixData['pixCopiaECola'],
+            'valorCobrar' => $pixData['valor']
+        ]);
+    }
+
+    /**
+     * Endpoint de consulta para o polling de status de pagamento do Pix Inter (Lançamentos).
+     */
+    public function checkInterStatusLancamento(\App\Models\Lancamento $lancamento)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        if ($lancamento->status === 'pago') {
+            return response()->json([
+                'status' => $lancamento->status
+            ]);
+        }
+
+        if ($lancamento->inter_txid) {
+            try {
+                $pixService = resolve(\App\Services\BancoInterPixService::class);
+                $consultResult = $pixService->consultarPixCob($lancamento->inter_txid);
+
+                if (isset($consultResult['status']) && $consultResult['status'] === 'CONCLUIDA') {
+                    Log::info("Pagamento Pix confirmado para Lançamento #{$lancamento->id}");
+
+                    DB::transaction(function () use ($lancamento, $consultResult) {
+                        // 1. Atualizar status do Lançamento
+                        $lancamento->status = 'pago';
+                        $lancamento->save();
+
+                        // 2. Registrar a Movimentacao
+                        $contaInter = \App\Models\ContaBancaria::where('nome', 'like', '%Inter%')->first();
+                        $contaBancariaId = $contaInter ? $contaInter->id : 1;
+
+                        $valorPago = (float)($lancamento->valor_total);
+                        if (isset($consultResult['pix']) && is_array($consultResult['pix'])) {
+                            $lastPix = end($consultResult['pix']);
+                            if ($lastPix && isset($lastPix['valor'])) {
+                                $valorPago = (float)$lastPix['valor'];
+                            }
+                        }
+
+                        \App\Models\Movimentacao::create([
+                            'lancamento_id'    => $lancamento->id,
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento'   => now()->toDateString(),
+                            'valor_pago'       => $valorPago,
+                            'forma_pagamento'  => 'pix',
+                        ]);
+                    });
+
+                    $lancamento->refresh();
+                }
+            } catch (\Exception $e) {
+                Log::error("Erro ao consultar status do Pix Inter para Lançamento #{$lancamento->id}: " . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'status' => $lancamento->status
+        ]);
     }
 }

@@ -251,7 +251,7 @@ class ContaCorrenteController extends Controller
     }	
 
     /**
-     * Gera um link de recarga (pedido REC-) com valor customizado para um cliente.
+     * Gera um link de recarga com valor customizado para um cliente, gerando apenas um Lançamento.
      */
     public function gerarRecarga(Request $request)
     {
@@ -265,29 +265,44 @@ class ContaCorrenteController extends Controller
                 $userId = $request->input('user_id');
                 $valor = $request->input('valor');
 
-                // 1. Encontrar o ID para gerar o numero_pedido sequencial
-                $ultimoPedido = DB::table('pedidos')->latest('id')->first();
-                $numero = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
-                $numeroPedido = 'REC-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+                $user = \App\Models\User::findOrFail($userId);
+                
+                // 1. Garantir que o usuário tenha um perfil financeiro (Pessoa)
+                $pessoa = $user->perfilFinanceiro;
+                if (!$pessoa) {
+                    $pessoa = \App\Models\Pessoa::create([
+                        'user_id'   => $user->id,
+                        'nome'      => $user->name,
+                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
+                        'tipo'      => 'cliente_circular',
+                    ]);
+                }
 
-                // 2. Criar o Pedido
-                $pedido = \App\Models\Pedido::create([
-                    'numero_pedido' => $numeroPedido,
-                    'user_id' => $userId,
-                    'status_pedido' => 'pendente',
-                    'data_pedido' => now(),
-                    'valor_total' => $valor,
-                    'valor_frete' => 0,
-                    'valor_desconto' => 0,
-                    'valor_saldo_utilizado' => 0,
-                    'status_pagamento' => 'pendente',
-                    'origem_pedido' => 'admin',
-                    'payment_token' => bin2hex(random_bytes(32)),
+                // 2. Buscar classificação correspondente
+                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Recarga de Carteira')
+                    ->orWhere('nome', 'Aporte de Carteira')
+                    ->orWhere('nome', 'Receitas')
+                    ->first();
+                $classificacaoId = $classificacao ? $classificacao->id : 3;
+
+                // 3. Criar o Lançamento de receita pendente
+                $lancamento = \App\Models\Lancamento::create([
+                    'tipo'                        => 'receita',
+                    'status'                      => 'pendente',
+                    'pessoa_id'                   => $pessoa->id,
+                    'classificacao_financeira_id' => $classificacaoId,
+                    'data_emissao'                => now(),
+                    'data_vencimento'             => now(),
+                    'valor_total'                 => $valor,
+                    'descricao'                   => 'Recarga de Carteira',
+                    'referencia_tipo'             => 'recarga_carteira',
+                    'referencia_id'               => null,
+                    'payment_token'               => bin2hex(random_bytes(32)),
                 ]);
 
                 return response()->json([
                     'success' => true,
-                    'link' => $pedido->getPaymentUrl(),
+                    'link' => route('portal.checkout.pagamento', $lancamento->payment_token),
                 ]);
             });
         } catch (\Throwable $e) {

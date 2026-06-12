@@ -21,6 +21,8 @@ class Lancamento extends Model
         'descricao',
         'referencia_tipo',
         'referencia_id',
+        'payment_token',
+        'inter_txid',
     ];
 
     protected $casts = [

@@ -7,9 +7,12 @@
 
     <!-- Cabeçalho -->
     <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-bold text-gray-800">Revisão do Pedido</h1>
-            <p class="text-gray-600 text-sm">Resumo dos itens e escolha do frete</p>
+        <div class="flex items-center gap-4">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-12 w-auto object-contain">
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">Revisão do Pedido</h1>
+                <p class="text-gray-600 text-sm">Resumo dos itens e escolha do frete</p>
+            </div>
         </div>
         <div class="text-right">
             <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase">
@@ -28,9 +31,9 @@
                     <h2 class="text-sm font-bold text-gray-800 uppercase">Meio de Pagamento</h2>
                 </div>
                 <div class="p-4">
-                    <div class="grid grid-cols-1 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <!-- Opção Pix -->
-                        <div class="relative flex flex-col p-4 border rounded-lg border-blue-500 bg-blue-50/30">
+                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-blue-500 bg-blue-50/30" id="label-pay-pix">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
@@ -41,10 +44,29 @@
                                         <span class="block text-[10px] text-green-600 font-bold uppercase">Aprovação Imediata</span>
                                     </div>
                                 </div>
-                                <input type="radio" name="payment_method" value="pix" checked class="hidden">
+                                <input type="radio" name="payment_method" value="pix" checked
+                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
                             </div>
                             <p class="text-xs text-gray-500 mt-1">Pague via Banco Inter. QR Code e Copia e Cola gerados na próxima tela.</p>
-                        </div>
+                        </label>
+
+                        <!-- Opção Cartão de Crédito -->
+                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" id="label-pay-card">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                                        <i class="far fa-credit-card text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-800">Cartão de Crédito</span>
+                                        <span class="block text-[10px] text-gray-500 uppercase">Mercado Pago</span>
+                                    </div>
+                                </div>
+                                <input type="radio" name="payment_method" value="cartao_credito"
+                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Pague via Mercado Pago. Parcele em até 12x no cartão de crédito.</p>
+                        </label>
                     </div>
                 </div>
             </div>

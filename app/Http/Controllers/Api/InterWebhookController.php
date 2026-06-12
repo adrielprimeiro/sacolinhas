@@ -55,7 +55,43 @@ class InterWebhookController extends Controller
             $pedido = Pedido::where('inter_txid', $txid)->first();
 
             if (!$pedido) {
-                Log::warning("Pedido não encontrado para o inter_txid: {$txid}");
+                // Tenta buscar nos lançamentos (recargas diretas)
+                $lancamento = Lancamento::where('inter_txid', $txid)->first();
+                if ($lancamento) {
+                    if ($lancamento->status === 'pago') {
+                        Log::info("Lançamento #{$lancamento->id} já está pago. Ignorando webhook.");
+                        continue;
+                    }
+
+                    DB::beginTransaction();
+                    try {
+                        // 1. Atualizar o lançamento para pago
+                        $lancamento->status = 'pago';
+                        $lancamento->save();
+
+                        // 2. Localizar a conta do Banco Inter
+                        $contaInter = ContaBancaria::where('nome', 'like', '%Inter%')->first();
+                        $contaBancariaId = $contaInter ? $contaInter->id : 1;
+
+                        // 3. Criar a movimentação
+                        Movimentacao::create([
+                            'lancamento_id'    => $lancamento->id,
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento'   => $dataPagamento,
+                            'valor_pago'       => $valorPago,
+                            'forma_pagamento'  => 'pix',
+                        ]);
+
+                        DB::commit();
+                        Log::info("Lançamento #{$lancamento->id} processado com sucesso via webhook Banco Inter.");
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
+                        Log::error("Erro ao processar webhook Pix Banco Inter para Lançamento #{$lancamento->id}: " . $e->getMessage());
+                    }
+                    continue;
+                }
+
+                Log::warning("Pedido ou Lançamento não encontrado para o inter_txid: {$txid}");
                 continue;
             }
 

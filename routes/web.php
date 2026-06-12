@@ -583,6 +583,8 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
     // Banco Inter Pix Checkout
     Route::get('/inter/{pedido}/checkout', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkoutInter'])->name('inter.checkout');
     Route::get('/inter/{pedido}/status', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkInterStatus'])->name('inter.checkout.status');
+    Route::get('/inter/checkout-lancamento/{lancamento}', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkoutInterLancamento'])->name('inter.checkout_lancamento');
+    Route::get('/inter/checkout-lancamento/{lancamento}/status', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkInterStatusLancamento'])->name('inter.checkout_lancamento.status');
 
 });
 
