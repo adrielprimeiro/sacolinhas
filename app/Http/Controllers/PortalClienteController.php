@@ -122,6 +122,7 @@ class PortalClienteController extends Controller
             'bairro' => ['nullable', 'string', 'max:100'],
             'cidade' => ['nullable', 'string', 'max:100'],
             'estado' => ['nullable', 'string', 'max:2'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
 		];
 
         if ($request->filled('password')) {
@@ -146,10 +147,19 @@ class PortalClienteController extends Controller
 			$user->password = Hash::make($request->password);
 		}
 
+        // Upload de foto de perfil
+        if ($request->hasFile('photo')) {
+            if ($user->photo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->photo);
+            }
+            $path = $request->file('photo')->store('profiles', 'public');
+            $user->photo = $path;
+        }
+
 		$user->save();
 
 		return redirect($request->input('return_to', route('portal.dashboard')))
-			->with('success', 'Perfil atualizado com sucesso.');
+			->with('success', 'Perfil updated.');
 	}
 	
 	

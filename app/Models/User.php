@@ -32,7 +32,8 @@ class User extends Authenticatable
         'apelido',          // Apelido
         'remember_token',   // Instagram
         'bloqueado',
-        'needs_completion'
+        'needs_completion',
+        'photo'
     ];
 
     /**

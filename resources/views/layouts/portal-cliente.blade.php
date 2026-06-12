@@ -40,19 +40,30 @@
                 </button>
 
                 {{-- Brand --}}
+                @php
+                    $brandName = auth()->check() ? 'Mania de ' . explode(' ', auth()->user()->name)[0] : 'Portal do Cliente';
+                @endphp
                 <a href="{{ route('portal.dashboard') }}"
-                   class="text-2xl font-bold text-gray-800 hover:text-green-600 transition duration-300">
-                    <i class="fas fa-user-circle mr-1"></i>Portal do Cliente
+                   class="text-2xl font-bold text-gray-800 hover:text-green-600 transition duration-300 flex items-center gap-2">
+                    @auth
+                        @if(auth()->user()->photo)
+                            <img src="{{ asset('storage/' . auth()->user()->photo) }}" alt="Foto" class="w-8 h-8 rounded-full object-cover">
+                        @else
+                            <i class="fas fa-user-circle text-gray-600"></i>
+                        @endif
+                    @else
+                        <i class="fas fa-user-circle"></i>
+                    @endauth
+                    <span>{{ $brandName }}</span>
                 </a>
             </div>
 
             <div class="flex items-center space-x-4">
                 @auth
-                    <span class="text-gray-600">{{ auth()->user()->name }}</span>
                     <form action="{{ route('logout') }}" method="POST" class="inline">
                         @csrf
-                        <button type="submit" class="text-gray-600 hover:text-green-600 transition duration-300 focus:outline-none">
-                            <i class="fas fa-sign-out-alt mr-1"></i> Sair
+                        <button type="submit" class="text-gray-600 hover:text-green-600 transition duration-300 focus:outline-none flex items-center gap-1">
+                            <i class="fas fa-sign-out-alt"></i> Sair
                         </button>
                     </form>
                 @endauth

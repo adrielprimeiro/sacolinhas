@@ -37,13 +37,30 @@
             <h2 class="text-sm font-semibold text-gray-800">Dados do Perfil</h2>
         </div>
 
-        <form action="{{ route('portal.perfil.atualizar') }}" method="POST" class="p-4 space-y-4" autocomplete="off">
+        <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4" autocomplete="off">
             @csrf
             @method('PUT')
             
             @if($returnTo)
                 <input type="hidden" name="return_to" value="{{ $returnTo }}">
             @endif
+
+            <!-- Foto de Perfil -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 pb-4 border-b border-gray-100">
+                <div class="w-20 h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
+                    @if($user->photo)
+                        <img src="{{ asset('storage/' . $user->photo) }}" alt="Foto do Perfil" class="w-full h-full object-cover">
+                    @else
+                        <i class="fas fa-user text-gray-300 text-3xl"></i>
+                    @endif
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Foto de Perfil</label>
+                    <input type="file" name="photo" accept="image/*"
+                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF. Tamanho máx: 2MB.</p>
+                </div>
+            </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
