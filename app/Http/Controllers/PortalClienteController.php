@@ -122,7 +122,7 @@ class PortalClienteController extends Controller
             'bairro' => ['nullable', 'string', 'max:100'],
             'cidade' => ['nullable', 'string', 'max:100'],
             'estado' => ['nullable', 'string', 'max:2'],
-            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp'],
 		];
 
         if ($request->filled('password')) {

@@ -58,7 +58,7 @@
                     <label class="block text-sm font-bold text-gray-700 mb-1">Foto de Perfil</label>
                     <input type="file" name="photo" accept="image/*"
                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF. Tamanho máx: 2MB.</p>
+                    <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF, WEBP. Imagens grandes serão redimensionadas automaticamente.</p>
                 </div>
             </div>
 
