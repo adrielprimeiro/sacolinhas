@@ -120,17 +120,6 @@ class CheckoutController extends Controller
         }
 
         $valorCobrar = null;
-        if (request()->filled('valor') && is_numeric(request()->query('valor')) && (float)request()->query('valor') > 0) {
-            $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
-            $jaPago = DB::table('movimentacoes')
-                ->join('lancamentos', 'movimentacoes.lancamento_id', '=', 'lancamentos.id')
-                ->where('lancamentos.referencia_tipo', 'pedido')
-                ->where('lancamentos.referencia_id', $pedido->id)
-                ->sum('movimentacoes.valor_pago') ?? 0;
-            $valorRestante = max(0, $valorAPagarOriginal - $jaPago);
-            
-            $valorCobrar = min($valorRestante, (float)request()->query('valor'));
-        }
 
         $itens = DB::table('items_pedido')
             ->join('items', 'items_pedido.item_id', '=', 'items.id')
@@ -254,54 +243,40 @@ class CheckoutController extends Controller
             $pedido->valor_saldo_utilizado = $saldoUtilizado;
             $pedido->status_pedido = 'pendente'; 
             
-            // Define a forma de pagamento selecionada
-            $paymentMethod = $request->input('payment_method', 'pix');
-            $pedido->forma_pagamento = $paymentMethod === 'pix' ? 'pix' : 'cartao_credito';
-            
+            // Define a forma de pagamento selecionada (Pix é o padrão obrigatório)
+            $pedido->forma_pagamento = 'pix';
             $pedido->save();
 
-            // Roteamento condicional
-            if ($paymentMethod === 'pix') {
-                // Calcular valor líquido restante a cobrar
-                $valorAPagarOriginal = $totalBruto - $saldoUtilizado;
-                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                    ->where('referencia_id', $pedido->id)
-                    ->first();
-                $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
-                $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
+            // Calcular valor líquido restante a cobrar
+            $valorAPagarOriginal = $totalBruto - $saldoUtilizado;
+            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                ->where('referencia_id', $pedido->id)
+                ->first();
+            $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+            $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
 
-                $valorCobrar = $valorRestante;
-                if ($request->filled('valor') && is_numeric($request->query('valor')) && (float)$request->query('valor') > 0) {
-                    $valorCobrar = min($valorRestante, (float)$request->query('valor'));
-                }
+            $valorCobrar = $valorRestante;
 
-                // Invocar serviço do Banco Inter para criar cobrança Pix
-                $pixService = resolve(\App\Services\BancoInterPixService::class);
-                $response = $pixService->criarPixCob(
-                    $pedido->numero_pedido,
-                    $valorCobrar,
-                    $pedido->user->name,
-                    $pedido->user->cpf
-                );
+            // Invocar serviço do Banco Inter para criar cobrança Pix
+            $pixService = resolve(\App\Services\BancoInterPixService::class);
+            $response = $pixService->criarPixCob(
+                $pedido->numero_pedido,
+                $valorCobrar,
+                $pedido->user->name,
+                $pedido->user->cpf
+            );
 
-                $pedido->inter_txid = $response['txid'];
-                $pedido->save();
+            $pedido->inter_txid = $response['txid'];
+            $pedido->save();
 
-                // Salvar dados na sessão para a view de checkout Pix
-                session(["inter_pix_{$pedido->id}" => [
-                    'txid' => $response['txid'],
-                    'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
-                    'valor' => $valorCobrar
-                ]]);
+            // Salvar dados na sessão para a view de checkout Pix
+            session(["inter_pix_{$pedido->id}" => [
+                'txid' => $response['txid'],
+                'pixCopiaECola' => $response['pixCopiaECola'] ?? $response['pix_copia_e_cola'] ?? '',
+                'valor' => $valorCobrar
+            ]]);
 
-                $redirectUrl = route('portal.inter.checkout', $pedido->id);
-            } else {
-                $redirectUrl = route('portal.mercadopago.checkout', $pedido->id);
-            }
-
-            if ($request->filled('valor')) {
-                $redirectUrl .= '?valor=' . urlencode($request->query('valor'));
-            }
+            $redirectUrl = route('portal.inter.checkout', $pedido->id);
 
             return response()->json([
                 'success' => true,
@@ -338,9 +313,6 @@ class CheckoutController extends Controller
         $valorRestante = max(0.00, $valorAPagarOriginal - $jaPago);
 
         $valorCobrar = $valorRestante;
-        if (request()->filled('valor') && is_numeric(request()->query('valor')) && (float)request()->query('valor') > 0) {
-            $valorCobrar = min($valorRestante, (float)request()->query('valor'));
-        }
 
         $pixData = session("inter_pix_{$pedido->id}");
 
@@ -487,24 +459,15 @@ class CheckoutController extends Controller
             return redirect()->route('portal.pedidos')->with('info', 'Este pedido já foi finalizado ou cancelado.');
         }
 
-        $params = [];
-        if (request()->has('valor')) {
-            $params['valor'] = request()->query('valor');
-        }
-
         if (str_starts_with($pedido->numero_pedido, 'REC-')) {
-            return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
+            return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
         }
 
-        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout
+        // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout Inter Pix
         if (!empty($pedido->forma_pagamento) && (float)$pedido->valor_total > 0) {
-            if ($pedido->forma_pagamento === 'pix') {
-                return redirect()->route('portal.inter.checkout', array_merge(['pedido' => $pedido->id], $params));
-            } else {
-                return redirect()->route('portal.mercadopago.checkout', array_merge(['pedido' => $pedido->id], $params));
-            }
+            return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
         }
 
-        return redirect()->route('portal.checkout.show', array_merge(['pedido' => $pedido->id], $params));
+        return redirect()->route('portal.checkout.show', ['pedido' => $pedido->id]);
     }
 }

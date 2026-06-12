@@ -16,7 +16,7 @@
             </div>
             
             <h1 class="text-2xl font-black text-gray-800 tracking-tight">Pagamento via Pix</h1>
-            <p class="text-sm text-gray-500 mt-1">Sua compra está reservada. Pague agora para garantir seus itens.</p>
+            <p class="text-sm text-gray-500 mt-1">@if(str_starts_with($pedido->numero_pedido, 'REC-')) O saldo será adicionado à sua carteira assim que o pagamento for confirmado. @else Sua compra está reservada. Pague agora para garantir seus itens. @endif</p>
 
             <!-- Valor Destacado em Container Glassmorphism ou Sombreado -->
             <div class="my-6 p-4 bg-teal-50 border border-teal-100 rounded-xl inline-block px-8" style="background-color: rgba(240, 253, 250, 0.5); border-color: rgba(204, 251, 241, 0.5);">
@@ -89,7 +89,7 @@
             <i class="fas fa-check text-4xl text-green-600"></i>
         </div>
         <h2 class="text-2xl font-black text-gray-800">Pagamento Confirmado!</h2>
-        <p class="text-gray-600 text-sm mt-2">Obrigado! Seu pagamento Pix foi recebido e o pedido já está sendo preparado.</p>
+        <p class="text-gray-600 text-sm mt-2">@if(str_starts_with($pedido->numero_pedido, 'REC-')) Obrigado! Seu pagamento Pix foi recebido e o saldo foi adicionado à sua carteira. @else Obrigado! Seu pagamento Pix foi recebido e o pedido já está sendo preparado. @endif</p>
         <div class="h-1 bg-green-100 rounded-full w-full my-6 overflow-hidden">
             <div class="h-full bg-green-600 w-0 rounded-full" id="success-redirect-bar" style="width: 0%; transition: width 3s linear;"></div>
         </div>

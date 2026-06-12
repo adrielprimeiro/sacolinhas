@@ -22,33 +22,15 @@
         <!-- Coluna Esquerda: Itens e Frete -->
         <div class="md:col-span-2 space-y-6">
             
-            @if(!empty($valorCobrar))
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                            <i class="fas fa-hand-holding-usd text-lg"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-blue-800">Pagamento Parcial Autorizado</p>
-                            <p class="text-xs text-blue-600">Você está efetuando o pagamento de uma parcela acordada deste pedido.</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-lg font-black text-blue-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
-                    </div>
-                </div>
-            @endif
-
             <!-- Seleção de Forma de Pagamento -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
                 <div class="p-4 border-b border-gray-200 bg-gray-50">
                     <h2 class="text-sm font-bold text-gray-800 uppercase">Meio de Pagamento</h2>
                 </div>
                 <div class="p-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        
+                    <div class="grid grid-cols-1 gap-4">
                         <!-- Opção Pix -->
-                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-blue-500 bg-blue-50/30" id="label-pay-pix">
+                        <div class="relative flex flex-col p-4 border rounded-lg border-blue-500 bg-blue-50/30">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
@@ -59,30 +41,10 @@
                                         <span class="block text-[10px] text-green-600 font-bold uppercase">Aprovação Imediata</span>
                                     </div>
                                 </div>
-                                <input type="radio" name="payment_method" value="pix" checked
-                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <input type="radio" name="payment_method" value="pix" checked class="hidden">
                             </div>
                             <p class="text-xs text-gray-500 mt-1">Pague via Banco Inter. QR Code e Copia e Cola gerados na próxima tela.</p>
-                        </label>
-
-                        <!-- Opção Cartão de Crédito -->
-                        <label class="relative flex flex-col p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition border-gray-200" id="label-pay-card">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
-                                        <i class="far fa-credit-card text-lg"></i>
-                                    </div>
-                                    <div>
-                                        <span class="text-sm font-bold text-gray-800">Cartão de Crédito</span>
-                                        <span class="block text-[10px] text-gray-500 uppercase">Mercado Pago</span>
-                                    </div>
-                                </div>
-                                <input type="radio" name="payment_method" value="cartao_credito"
-                                       class="payment-radio h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">Pague via Mercado Pago. Parcele em até 12x no cartão de crédito.</p>
-                        </label>
-
+                        </div>
                     </div>
                 </div>
             </div>
@@ -214,13 +176,6 @@
                         <span>Total do Pedido</span>
                         <span id="displayTotal">R$ {{ number_format(max(0, $itens->sum('preco_unitario') - $saldoUsado), 2, ',', '.') }}</span>
                     </div>
-
-                    @if(!empty($valorCobrar))
-                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2 flex justify-between items-center text-blue-800 font-bold text-sm">
-                        <span>A Pagar Neste Link</span>
-                        <span>R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
-                    </div>
-                    @endif
                 </div>
 
                 <div class="mt-8 space-y-3">
