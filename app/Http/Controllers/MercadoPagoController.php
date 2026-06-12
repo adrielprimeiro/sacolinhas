@@ -335,48 +335,77 @@ class MercadoPagoController extends Controller
                 ]);
 
                 if ($pedidoId && $status) {
-                    $pedido = Pedido::find($pedidoId);
-                    
-                    if ($pedido) {
-                        Log::info("Pedido #{$pedido->id} localizado. Status atual: {$pedido->status_pagamento}. Novo status: {$status}");
-                        
-                        if ($status === 'approved') {
-                            $transactionAmount = (float)($paymentInfo['transaction_amount'] ?? 0);
-                            $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+                    if (str_starts_with($pedidoId, 'LANC-')) {
+                        $lancamentoId = (int) str_replace('LANC-', '', $pedidoId);
+                        $lancamento = \App\Models\Lancamento::find($lancamentoId);
+                        if ($lancamento) {
+                            Log::info("Lançamento de Recarga #{$lancamento->id} localizado via Webhook MP. Novo status: {$status}");
+                            if ($status === 'approved') {
+                                if ($lancamento->status !== 'pago') {
+                                    DB::transaction(function () use ($lancamento, $paymentInfo) {
+                                        $lancamento->status = 'pago';
+                                        $lancamento->save();
 
-                            // Somar os pagamentos já conciliados mais este pagamento
-                            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                                ->where('referencia_id', $pedido->id)
-                                ->first();
-                            $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
-                            
-                            $totalPagoAteAgora = $jaPago + $transactionAmount;
+                                        $contaMP = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado%')->orWhere('nome', 'like', '%MP%')->first();
+                                        $contaBancariaId = $contaMP ? $contaMP->id : 2;
 
-                            if ($totalPagoAteAgora >= ($valorAPagarOriginal - 0.01)) {
-                                $pedido->status_pagamento = 'aprovado';
-                                $pedido->status_pedido = 'pago';
-                                // Baixa automática de estoque via Webhook
-                                $this->darBaixaEstoque($pedido);
-                            } else {
-                                if ($pedido->status_pagamento !== 'aprovado') {
-                                    $pedido->status_pagamento = 'pendente';
+                                        \App\Models\Movimentacao::create([
+                                            'lancamento_id'    => $lancamento->id,
+                                            'conta_bancaria_id' => $contaBancariaId,
+                                            'data_pagamento'   => now()->toDateString(),
+                                            'valor_pago'       => (float)($paymentInfo['transaction_amount'] ?? $lancamento->valor_total),
+                                            'forma_pagamento'  => 'cartao_credito',
+                                        ]);
+                                    });
                                 }
                             }
-
-                        } elseif ($status === 'rejected' || $status === 'cancelled') {
-                            $pedido->status_pagamento = 'rejeitado';
-                            $pedido->status_pedido = 'cancelado';
-                        } elseif ($status === 'pending' || $status === 'in_process') {
-                            if ($pedido->status_pagamento !== 'aprovado') {
-                                $pedido->status_pagamento = 'pendente';
-                                $pedido->status_pedido = 'pendente';
-                            }
+                        } else {
+                            Log::warning("Lançamento ID {$lancamentoId} não encontrado no banco de dados.");
                         }
-                        
-                        $pedido->save();
-                        Log::info("Pedido #{$pedido->id} atualizado com sucesso para {$pedido->status_pagamento}");
                     } else {
-                        Log::warning("Pedido ID {$pedidoId} não encontrado no banco de dados.");
+                        $pedido = Pedido::find($pedidoId);
+                        
+                        if ($pedido) {
+                            Log::info("Pedido #{$pedido->id} localizado. Status atual: {$pedido->status_pagamento}. Novo status: {$status}");
+                            
+                            if ($status === 'approved') {
+                                $transactionAmount = (float)($paymentInfo['transaction_amount'] ?? 0);
+                                $valorAPagarOriginal = (float) $pedido->valor_total - (float) ($pedido->valor_saldo_utilizado ?? 0);
+
+                                // Somar os pagamentos já conciliados mais este pagamento
+                                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                                    ->where('referencia_id', $pedido->id)
+                                    ->first();
+                                $jaPago = $lancamento ? (float)$lancamento->movimentacoes()->sum('valor_pago') : 0;
+                                
+                                $totalPagoAteAgora = $jaPago + $transactionAmount;
+
+                                if ($totalPagoAteAgora >= ($valorAPagarOriginal - 0.01)) {
+                                    $pedido->status_pagamento = 'aprovado';
+                                    $pedido->status_pedido = 'pago';
+                                    // Baixa automática de estoque via Webhook
+                                    $this->darBaixaEstoque($pedido);
+                                } else {
+                                    if ($pedido->status_pagamento !== 'aprovado') {
+                                        $pedido->status_pagamento = 'pendente';
+                                    }
+                                }
+
+                            } elseif ($status === 'rejected' || $status === 'cancelled') {
+                                $pedido->status_pagamento = 'rejeitado';
+                                $pedido->status_pedido = 'cancelado';
+                            } elseif ($status === 'pending' || $status === 'in_process') {
+                                if ($pedido->status_pagamento !== 'aprovado') {
+                                    $pedido->status_pagamento = 'pendente';
+                                    $pedido->status_pedido = 'pendente';
+                                }
+                            }
+                            
+                            $pedido->save();
+                            Log::info("Pedido #{$pedido->id} atualizado com sucesso para {$pedido->status_pagamento}");
+                        } else {
+                            Log::warning("Pedido ID {$pedidoId} não encontrado no banco de dados.");
+                        }
                     }
                 }
             } else {
@@ -414,6 +443,152 @@ class MercadoPagoController extends Controller
                 ]);
 
             Log::info("Estoque baixado para o pedido #{$pedido->id}", ['items' => $itemIds]);
+        }
+    }
+
+    /**
+     * Exibe a página de checkout para Lançamento com o formulário transparente Mercado Pago
+     */
+    public function checkoutLancamento(\App\Models\Lancamento $lancamento)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            abort(403, 'Acesso não autorizado.');
+        }
+
+        if ($lancamento->status === 'pago') {
+            return redirect()->route('portal.pedidos')->with('info', 'Esta recarga já está paga.');
+        }
+
+        $valorCobrar = (float) $lancamento->valor_total;
+        $publicKey = config('services.mercadopago.public_key');
+
+        if (empty($publicKey)) {
+            return redirect()->route('portal.pedidos')->with('error', 'Chave pública do Mercado Pago não configurada.');
+        }
+
+        return view('portal.cliente.checkout-mp-lancamento', compact('lancamento', 'publicKey', 'valorCobrar'));
+    }
+
+    /**
+     * Processa o pagamento transparente via API Mercado Pago para Lançamento
+     */
+    public function processPaymentLancamento(Request $request, \App\Models\Lancamento $lancamento)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $accessToken = config('services.mercadopago.access_token');
+        $url = 'https://api.mercadopago.com/v1/payments';
+
+        $data = $request->all();
+        unset($data['valor']);
+
+        if (empty($data['issuer_id'])) {
+            unset($data['issuer_id']);
+        }
+        if (empty($data['payer']['entity_type'])) {
+            unset($data['payer']['entity_type']);
+        }
+        if (isset($data['payer']['entity_type']) && !in_array($data['payer']['entity_type'], ['individual', 'association'])) {
+            $data['payer']['entity_type'] = 'individual';
+        }
+
+        $data['transaction_amount'] = (float) $lancamento->valor_total;
+        $data['description'] = 'Recarga de Carteira #' . $lancamento->id;
+        $data['external_reference'] = 'LANC-' . $lancamento->id;
+
+        if (!isset($data['payer']['email'])) {
+            $data['payer']['email'] = $user->email;
+        }
+
+        $nameParts = explode(' ', trim($user->name));
+        $firstName = array_shift($nameParts);
+        $lastName = count($nameParts) > 0 ? implode(' ', $nameParts) : 'N/A';
+
+        if (!isset($data['payer']['identification']) && !empty($user->cpf)) {
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $user->cpf);
+            $data['payer']['identification'] = [
+                'type' => strlen($cpfLimpo) > 11 ? 'CNPJ' : 'CPF',
+                'number' => $cpfLimpo
+            ];
+        }
+
+        $additionalPayer = [
+            'first_name' => mb_substr($firstName, 0, 250),
+            'last_name' => mb_substr($lastName, 0, 250)
+        ];
+
+        if (!empty($user->phone) || !empty($user->whatsapp)) {
+            $telefoneLimpo = preg_replace('/[^0-9]/', '', $user->phone ?? $user->whatsapp);
+            if (strlen($telefoneLimpo) >= 10) {
+                $additionalPayer['phone'] = [
+                    'area_code' => substr($telefoneLimpo, 0, 2),
+                    'number' => substr($telefoneLimpo, 2, 9)
+                ];
+            }
+        }
+
+        $additionalItems = [
+            [
+                'id' => 'LANC-' . $lancamento->id,
+                'title' => 'Recarga de Carteira',
+                'description' => 'Recarga de saldo de carteira',
+                'quantity' => 1,
+                'unit_price' => $data['transaction_amount'],
+                'category_id' => 'others'
+            ]
+        ];
+
+        $data['additional_info'] = [
+            'items' => $additionalItems,
+            'payer' => $additionalPayer
+        ];
+
+        $idempotencyKey = 'LANC_' . $lancamento->id . '_' . uniqid();
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($accessToken)
+                ->withHeaders(['X-Idempotency-Key' => $idempotencyKey])
+                ->post($url, $data);
+
+            if ($response->successful()) {
+                $paymentInfo = $response->json();
+                $status = $paymentInfo['status'] ?? null;
+
+                if ($status === 'approved') {
+                    DB::transaction(function () use ($lancamento, $paymentInfo) {
+                        $lancamento->status = 'pago';
+                        $lancamento->save();
+
+                        $contaMP = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado%')->orWhere('nome', 'like', '%MP%')->first();
+                        $contaBancariaId = $contaMP ? $contaMP->id : 2;
+
+                        \App\Models\Movimentacao::create([
+                            'lancamento_id'    => $lancamento->id,
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento'   => now()->toDateString(),
+                            'valor_pago'       => (float)$paymentInfo['transaction_amount'],
+                            'forma_pagamento'  => 'cartao_credito',
+                        ]);
+                    });
+                }
+
+                return response()->json([
+                    'id' => $paymentInfo['id'] ?? null,
+                    'status' => $status,
+                    'status_detail' => $paymentInfo['status_detail'] ?? null,
+                ]);
+            } else {
+                Log::error('Erro Mercado Pago processPaymentLancamento', ['body' => $response->body()]);
+                return response()->json(['error' => 'Erro ao processar com Mercado Pago: ' . $response->body()], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro exceptions processPaymentLancamento: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }

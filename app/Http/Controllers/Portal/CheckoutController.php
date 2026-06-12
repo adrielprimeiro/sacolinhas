@@ -492,7 +492,7 @@ class CheckoutController extends Controller
                 return redirect()->route('portal.pedidos')->with('info', 'Esta recarga já foi paga.');
             }
 
-            return redirect()->route('portal.inter.checkout_lancamento', ['lancamento' => $lancamento->id]);
+            return redirect()->route('portal.checkout_lancamento.show', ['lancamento' => $lancamento->id]);
         }
 
         abort(404, 'Link de pagamento inválido ou expirado.');
@@ -611,6 +611,51 @@ class CheckoutController extends Controller
 
         return response()->json([
             'status' => $lancamento->status
+        ]);
+    }
+
+    /**
+     * Exibe a página de revisão de recarga (Lançamento).
+     */
+    public function showLancamento(\App\Models\Lancamento $lancamento)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            abort(403, 'Acesso não autorizado.');
+        }
+
+        if ($lancamento->status === 'pago') {
+            return redirect()->route('portal.pedidos')->with('info', 'Esta recarga já está paga.');
+        }
+
+        return view('portal.cliente.checkout-lancamento', compact('lancamento'));
+    }
+
+    /**
+     * Confirma a revisão da recarga e redireciona para a forma de pagamento apropriada.
+     */
+    public function confirmarLancamento(\App\Models\Lancamento $lancamento, Request $request)
+    {
+        $user = $lancamento->pessoa->user;
+        if (!$user || $user->id !== auth()->id()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $request->validate([
+            'payment_method' => 'required|in:pix,cartao_credito'
+        ]);
+
+        $paymentMethod = $request->input('payment_method');
+
+        if ($paymentMethod === 'pix') {
+            $redirectUrl = route('portal.inter.checkout_lancamento', $lancamento->id);
+        } else {
+            $redirectUrl = route('portal.mercadopago.checkout_lancamento', $lancamento->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'redirect' => $redirectUrl
         ]);
     }
 }

@@ -579,12 +579,18 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
     // Mercado Pago Checkout Transparente
     Route::get('/mercadopago/{pedido}/checkout', [\App\Http\Controllers\MercadoPagoController::class, 'checkout'])->name('mercadopago.checkout');
     Route::post('/mercadopago/{pedido}/process', [\App\Http\Controllers\MercadoPagoController::class, 'processPayment'])->name('mercadopago.process')->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+    Route::get('/mercadopago/checkout-lancamento/{lancamento}', [\App\Http\Controllers\MercadoPagoController::class, 'checkoutLancamento'])->name('mercadopago.checkout_lancamento');
+    Route::post('/mercadopago/checkout-lancamento/{lancamento}/process', [\App\Http\Controllers\MercadoPagoController::class, 'processPaymentLancamento'])->name('mercadopago.process_lancamento')->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
     // Banco Inter Pix Checkout
     Route::get('/inter/{pedido}/checkout', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkoutInter'])->name('inter.checkout');
     Route::get('/inter/{pedido}/status', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkInterStatus'])->name('inter.checkout.status');
     Route::get('/inter/checkout-lancamento/{lancamento}', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkoutInterLancamento'])->name('inter.checkout_lancamento');
     Route::get('/inter/checkout-lancamento/{lancamento}/status', [\App\Http\Controllers\Portal\CheckoutController::class, 'checkInterStatusLancamento'])->name('inter.checkout_lancamento.status');
+
+    // Checkout de Lançamento (Seleção)
+    Route::get('/checkout-lancamento/{lancamento}', [\App\Http\Controllers\Portal\CheckoutController::class, 'showLancamento'])->name('checkout_lancamento.show');
+    Route::post('/checkout-lancamento/{lancamento}/confirmar', [\App\Http\Controllers\Portal\CheckoutController::class, 'confirmarLancamento'])->name('checkout_lancamento.confirmar');
 
 });
 
