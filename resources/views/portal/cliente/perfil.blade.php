@@ -67,10 +67,11 @@
                         @endif
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Foto de Perfil</label>
-                        <input type="file" name="photo" accept="image/*"
-                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF, WEBP. Imagens grandes serão rotacionadas e redimensionadas automaticamente.</p>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Foto de Perfil</label>
+                        <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold py-2 px-4 rounded-md transition duration-150 inline-block border border-blue-100 shadow-sm select-none">
+                            <span id="photo-button-text">Alterar Foto</span>
+                            <input type="file" name="photo" accept="image/*" class="hidden" onchange="document.getElementById('photo-button-text').innerText = 'Foto selecionada!'">
+                        </label>
                     </div>
                 </div>
 
