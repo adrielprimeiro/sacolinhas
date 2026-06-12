@@ -32,59 +32,93 @@
     @endif
 
     <!-- Form -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="p-4 border-b border-gray-200">
-            <h2 class="text-sm font-semibold text-gray-800">Dados do Perfil</h2>
+    <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="space-y-4" autocomplete="off">
+        @csrf
+        @method('PUT')
+        
+        @if($returnTo)
+            <input type="hidden" name="return_to" value="{{ $returnTo }}">
+        @endif
+
+        <!-- Card 1: Identificação -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-md">
+            <button type="button" class="w-full flex items-center justify-between p-4 focus:outline-none hover:bg-gray-50/80 transition duration-150 accordion-toggle active" data-target="section-identificacao">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <i class="fas fa-user-circle text-xl"></i>
+                    </div>
+                    <div class="text-left">
+                        <h3 class="text-sm font-bold text-gray-800">Identificação</h3>
+                        <p class="text-xs text-gray-500">Sua foto, nome completo, apelido, e-mail e telefone</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-icon rotate-180"></i>
+                </div>
+            </button>
+            <div id="section-identificacao" class="border-t border-gray-100 p-4 space-y-4 accordion-content">
+                <!-- Foto de Perfil -->
+                <div class="flex flex-col sm:flex-row items-center gap-4 pb-4 border-b border-gray-100">
+                    <div class="w-20 h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
+                        @if($user->photo)
+                            <img src="{{ asset('storage/' . $user->photo) }}" alt="Foto do Perfil" class="w-full h-full object-cover">
+                        @else
+                            <i class="fas fa-user text-gray-300 text-3xl"></i>
+                        @endif
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Foto de Perfil</label>
+                        <input type="file" name="photo" accept="image/*"
+                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF, WEBP. Imagens grandes serão rotacionadas e redimensionadas automaticamente.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                        <input type="text" name="name" value="{{ old('name', $user->name) }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Como quer ser chamado? (Apelido)</label>
+                        <input type="text" name="apelido" value="{{ old('apelido', $user->apelido) }}" placeholder="Ex: Adriel"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                        <input type="email" name="email" value="{{ old('email', $user->email) }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                        <input type="text" name="phone" value="{{ old('phone', $user->phone ?? $user->telefone_principal) }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4" autocomplete="off">
-            @csrf
-            @method('PUT')
-            
-            @if($returnTo)
-                <input type="hidden" name="return_to" value="{{ $returnTo }}">
-            @endif
-
-            <!-- Foto de Perfil -->
-            <div class="flex flex-col sm:flex-row items-center gap-4 pb-4 border-b border-gray-100">
-                <div class="w-20 h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
-                    @if($user->photo)
-                        <img src="{{ asset('storage/' . $user->photo) }}" alt="Foto do Perfil" class="w-full h-full object-cover">
-                    @else
-                        <i class="fas fa-user text-gray-300 text-3xl"></i>
-                    @endif
+        <!-- Card 2: Endereço -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-md">
+            <button type="button" class="w-full flex items-center justify-between p-4 focus:outline-none hover:bg-gray-50/80 transition duration-150 accordion-toggle" data-target="section-endereco">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <i class="fas fa-map-marker-alt text-xl"></i>
+                    </div>
+                    <div class="text-left">
+                        <h3 class="text-sm font-bold text-gray-800">Endereço</h3>
+                        <p class="text-xs text-gray-500">Seu endereço de entrega e CEP</p>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Foto de Perfil</label>
-                    <input type="file" name="photo" accept="image/*"
-                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    <p class="text-xs text-gray-400 mt-1">Formatos aceitos: JPG, PNG, GIF, WEBP. Imagens grandes serão redimensionadas automaticamente.</p>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-icon"></i>
                 </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input type="text" name="name" value="{{ old('name', $user->name) }}"
-                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                    <input type="email" name="email" value="{{ old('email', $user->email) }}"
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                    <input type="text" name="phone" value="{{ old('phone', $user->phone ?? $user->telefone_principal) }}"
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-            </div>
-
-            <!-- Seção de Endereço -->
-            <div class="pt-4 border-t border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-800 mb-3">Endereço de Entrega</h3>
-                
+            </button>
+            <div id="section-endereco" class="border-t border-gray-100 p-4 space-y-4 accordion-content hidden">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
@@ -96,7 +130,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="md:col-span-3">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Logradouro (Rua/Av)</label>
                         <input type="text" name="endereco" id="endereco" value="{{ old('endereco', $user->endereco) }}"
@@ -109,7 +143,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
                         <input type="text" name="bairro" id="bairro" value="{{ old('bairro', $user->bairro) }}"
@@ -122,7 +156,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
                         <input type="text" name="cidade" id="cidade" value="{{ old('cidade', $user->cidade) }}"
@@ -139,10 +173,25 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="pt-2 border-t border-gray-200">
-                <p class="text-sm font-semibold text-gray-800 mb-2">Alterar senha (opcional)</p>
-
+        <!-- Card 3: Login -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-md">
+            <button type="button" class="w-full flex items-center justify-between p-4 focus:outline-none hover:bg-gray-50/80 transition duration-150 accordion-toggle" data-target="section-login">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <i class="fas fa-lock text-xl"></i>
+                    </div>
+                    <div class="text-left">
+                        <h3 class="text-sm font-bold text-gray-800">Login</h3>
+                        <p class="text-xs text-gray-500">Alterar sua senha de acesso ao portal</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-icon"></i>
+                </div>
+            </button>
+            <div id="section-login" class="border-t border-gray-100 p-4 space-y-4 accordion-content hidden">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
@@ -156,24 +205,45 @@
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
-
-                <p class="text-xs text-gray-500 mt-2">Deixe em branco para manter a senha atual.</p>
+                <p class="text-xs text-gray-500">Deixe em branco para manter a senha atual.</p>
             </div>
+        </div>
 
-            <div class="flex items-center justify-end pt-2">
-                <button type="submit"
-                        class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md transition duration-200">
-                    Salvar alterações
-                </button>
-            </div>
-        </form>
-    </div>
+        <!-- Botão de Salvar -->
+        <div class="flex items-center justify-end pt-2">
+            <button type="submit"
+                    class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-md shadow-sm transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Salvar alterações
+            </button>
+        </div>
+    </form>
 
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Accordion Logic
+    const toggles = document.querySelectorAll('.accordion-toggle');
+    toggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const content = document.getElementById(targetId);
+            const icon = this.querySelector('.accordion-icon');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                this.classList.add('active');
+                icon.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                this.classList.remove('active');
+                icon.classList.remove('rotate-180');
+            }
+        });
+    });
+
+    // CEP Logic
     const cepInput = document.getElementById('cep');
-    
     if (cepInput) {
         cepInput.addEventListener('blur', function() {
             let cep = this.value.replace(/\D/g, '');

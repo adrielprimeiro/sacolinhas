@@ -115,6 +115,8 @@ class PortalClienteController extends Controller
 				'max:255',
 				Rule::unique('users', 'email')->ignore($user->id),
 			],
+            'apelido' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
             'cep' => ['nullable', 'string', 'max:9'],
             'endereco' => ['nullable', 'string', 'max:255'],
             'numero_endereco' => ['nullable', 'string', 'max:20'],
@@ -133,6 +135,8 @@ class PortalClienteController extends Controller
 
 		$user->name = $request->name;
 		$user->email = $request->email;
+        $user->apelido = $request->apelido;
+        $user->phone = $request->phone;
 
         // Atualizar endereço
         $user->cep = $request->cep;
