@@ -52,13 +52,18 @@ class MelhorEnvioService
             'to' => [
                 'postal_code' => $cepDestino
             ],
-            'package' => [
+        ];
+
+        if (isset($packageData['volumes']) && is_array($packageData['volumes'])) {
+            $payload['volumes'] = $packageData['volumes'];
+        } else {
+            $payload['package'] = [
                 'weight' => $packageData['weight'] ?? 1.0,
                 'width'  => $packageData['width'] ?? 10.0,
                 'height' => $packageData['height'] ?? 10.0,
                 'length' => $packageData['length'] ?? 10.0,
-            ]
-        ];
+            ];
+        }
 
         try {
             $request = Http::withHeaders([
@@ -150,7 +155,16 @@ class MelhorEnvioService
             $basePrice = 19.90;
         }
 
-        $weightFactor = max(0.1, (float)($packageData['weight'] ?? 1.0)) * 2.50;
+        $weight = 0;
+        if (isset($packageData['volumes']) && is_array($packageData['volumes'])) {
+            foreach ($packageData['volumes'] as $vol) {
+                $weight += (float)($vol['weight'] ?? 0);
+            }
+        } else {
+            $weight = (float)($packageData['weight'] ?? 1.0);
+        }
+
+        $weightFactor = max(0.1, $weight) * 2.50;
         $pricePAC = round($basePrice + $weightFactor, 2);
         $priceSedex = round(($basePrice + $weightFactor) * 1.6, 2);
         
@@ -258,7 +272,7 @@ class MelhorEnvioService
                     'unitary_value' => (float)($pedido->valor_total ?? 10.00),
                 ]
             ],
-            'volumes' => [
+            'volumes' => isset($packageData['volumes']) && is_array($packageData['volumes']) ? $packageData['volumes'] : [
                 [
                     'height' => $packageData['height'],
                     'width' => $packageData['width'],

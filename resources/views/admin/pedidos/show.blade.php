@@ -373,22 +373,41 @@
                                     </a>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">Peso (kg)</label>
-                                        <input type="text" x-model="weight" placeholder="0,00" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                <div class="space-y-4 mb-4">
+                                    <div class="flex justify-between items-center border-b pb-2">
+                                        <span class="text-sm font-semibold text-gray-700">Volumes do Envio</span>
+                                        <button type="button" @click="addVolume()" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1">
+                                            <i class="fas fa-plus text-[10px]"></i> Adicionar Volume
+                                        </button>
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">Largura (cm)</label>
-                                        <input type="number" x-model="width" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">Altura (cm)</label>
-                                        <input type="number" x-model="height" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 mb-1">Compr. (cm)</label>
-                                        <input type="number" x-model="length" step="1" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    
+                                    <div class="space-y-4 max-h-60 overflow-y-auto pr-1">
+                                        <template x-for="(vol, idx) in volumes" :key="idx">
+                                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
+                                                <button type="button" @click="removeVolume(idx)" x-show="volumes.length > 1" class="absolute top-2 right-2 text-red-500 hover:text-red-700 text-xs">
+                                                    <i class="fas fa-trash-alt text-xs"></i>
+                                                </button>
+                                                <p class="text-xs font-bold text-gray-500 mb-2" x-text="'Volume ' + (idx + 1)"></p>
+                                                <div class="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-[10px] font-semibold text-gray-600 mb-1">Peso (kg)</label>
+                                                        <input type="text" x-model="vol.weight" placeholder="0,00" class="w-full border-gray-300 rounded-md shadow-sm text-xs py-1 px-2 focus:border-blue-500 focus:ring-blue-500">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-[10px] font-semibold text-gray-600 mb-1">Largura (cm)</label>
+                                                        <input type="number" x-model="vol.width" placeholder="cm" class="w-full border-gray-300 rounded-md shadow-sm text-xs py-1 px-2 focus:border-blue-500 focus:ring-blue-500">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-[10px] font-semibold text-gray-600 mb-1">Altura (cm)</label>
+                                                        <input type="number" x-model="vol.height" placeholder="cm" class="w-full border-gray-300 rounded-md shadow-sm text-xs py-1 px-2 focus:border-blue-500 focus:ring-blue-500">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-[10px] font-semibold text-gray-600 mb-1">Compr. (cm)</label>
+                                                        <input type="number" x-model="vol.length" placeholder="cm" class="w-full border-gray-300 rounded-md shadow-sm text-xs py-1 px-2 focus:border-blue-500 focus:ring-blue-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
 
@@ -575,10 +594,9 @@
                 openModal: false,
                 loading: false,
                 calculating: false,
-                weight: '0,00',
-                width: '',
-                height: '',
-                length: '',
+                volumes: [
+                    { weight: '0,50', width: '', height: '', length: '' }
+                ],
                 options: [],
                 error: null,
                 successMsg: null,
@@ -591,6 +609,16 @@
                             this.fetchBalance();
                         }
                     });
+                },
+
+                addVolume() {
+                    this.volumes.push({ weight: '', width: '', height: '', length: '' });
+                },
+
+                removeVolume(index) {
+                    if (this.volumes.length > 1) {
+                        this.volumes.splice(index, 1);
+                    }
                 },
 
                 async fetchBalance() {
@@ -606,14 +634,26 @@
                 },
 
                 async calculate() {
-                    const normalizedWeight = String(this.weight).replace(',', '.');
-                    if (!normalizedWeight || !this.weight || !this.width || !this.height || !this.length) {
-                        this.error = 'Preencha todas as medidas e o peso.';
-                        return;
+                    // Validar todos os volumes
+                    for (let i = 0; i < this.volumes.length; i++) {
+                        const vol = this.volumes[i];
+                        const normalizedWeight = String(vol.weight).replace(',', '.');
+                        if (!normalizedWeight || !vol.weight || !vol.width || !vol.height || !vol.length) {
+                            this.error = 'Preencha todas as medidas e o peso para todos os volumes.';
+                            return;
+                        }
                     }
+
                     this.calculating = true;
                     this.error = null;
                     this.options = [];
+
+                    const formattedVolumes = this.volumes.map(vol => ({
+                        weight: parseFloat(String(vol.weight).replace(',', '.')),
+                        width: parseInt(vol.width),
+                        height: parseInt(vol.height),
+                        length: parseInt(vol.length)
+                    }));
                     
                     try {
                         const res = await fetch(`{{ route('admin.pedido.freteOpcoes', $pedido->id) }}`, {
@@ -623,10 +663,7 @@
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
                             body: JSON.stringify({
-                                weight: normalizedWeight,
-                                width: this.width,
-                                height: this.height,
-                                length: this.length
+                                volumes: formattedVolumes
                             })
                         });
 
@@ -647,7 +684,12 @@
                     this.loading = true;
                     this.error = null;
 
-                    const normalizedWeight = String(this.weight).replace(',', '.');
+                    const formattedVolumes = this.volumes.map(vol => ({
+                        weight: parseFloat(String(vol.weight).replace(',', '.')),
+                        width: parseInt(vol.width),
+                        height: parseInt(vol.height),
+                        length: parseInt(vol.length)
+                    }));
 
                     try {
                         const res = await fetch(`{{ route('admin.pedido.gerarEtiqueta', $pedido->id) }}`, {
@@ -658,10 +700,7 @@
                             },
                             body: JSON.stringify({
                                 service_id: serviceId,
-                                weight: normalizedWeight,
-                                width: this.width,
-                                height: this.height,
-                                length: this.length
+                                volumes: formattedVolumes
                             })
                         });
 

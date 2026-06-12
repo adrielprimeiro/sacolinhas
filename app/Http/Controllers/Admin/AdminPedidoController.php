@@ -595,13 +595,24 @@ class AdminPedidoController extends Controller
 
     public function gerarEtiqueta(Request $request, Pedido $pedido)
     {
-        $request->validate([
+        $rules = [
             'service_id' => 'required',
-            'weight' => 'required|numeric',
-            'width' => 'required|numeric',
-            'height' => 'required|numeric',
-            'length' => 'required|numeric',
-        ]);
+        ];
+
+        if ($request->has('volumes')) {
+            $rules['volumes'] = 'required|array|min:1';
+            $rules['volumes.*.weight'] = 'required|numeric';
+            $rules['volumes.*.width'] = 'required|numeric';
+            $rules['volumes.*.height'] = 'required|numeric';
+            $rules['volumes.*.length'] = 'required|numeric';
+        } else {
+            $rules['weight'] = 'required|numeric';
+            $rules['width'] = 'required|numeric';
+            $rules['height'] = 'required|numeric';
+            $rules['length'] = 'required|numeric';
+        }
+
+        $request->validate($rules);
 
         $pedido->load('user');
         if (!$pedido->user) {
@@ -611,7 +622,11 @@ class AdminPedidoController extends Controller
         $service = new MelhorEnvioService();
         
         // 1. Add to cart
-        $cartResult = $service->createCart($pedido, $pedido->user, $request->only(['weight', 'width', 'height', 'length']), $request->service_id);
+        $packageData = $request->has('volumes') 
+            ? ['volumes' => $request->volumes] 
+            : $request->only(['weight', 'width', 'height', 'length']);
+
+        $cartResult = $service->createCart($pedido, $pedido->user, $packageData, $request->service_id);
         if (!$cartResult['success']) {
             return response()->json($cartResult);
         }
