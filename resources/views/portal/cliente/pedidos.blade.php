@@ -112,7 +112,7 @@
                                             <i class="fas fa-money-bill-wave mr-1"></i> Pagar
                                         </a>
                                     @endif
-                                    <button onclick="toggleDetalhes({{ $pedido->id }})"
+                                    <button onclick="toggleDetalhes({{ $pedido->id }}, 'desktop')"
                                             class="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
                                         Detalhes
                                     </button>
@@ -120,7 +120,7 @@
                             </tr>
 
                             <!-- Linha expansível com itens do pedido -->
-                            <tr id="detalhes-{{ $pedido->id }}" class="hidden bg-gray-50">
+                            <tr id="detalhes-desktop-{{ $pedido->id }}" class="hidden bg-gray-50">
                                 <td colspan="7" class="px-4 py-4">
                                     <div class="space-y-3">
                                         <h4 class="text-sm font-semibold text-gray-800">Itens do Pedido</h4>
@@ -357,14 +357,14 @@
                                     <i class="fas fa-money-bill-wave mr-2"></i> Pagar
                                 </a>
                             @endif
-                            <button onclick="toggleDetalhes({{ $pedido->id }})"
+                            <button onclick="toggleDetalhes({{ $pedido->id }}, 'mobile')"
                                     class="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 rounded-md transition duration-200">
                                 Ver Detalhes
                             </button>
                         </div>
 
                         <!-- Detalhes expansíveis (mobile) -->
-                        <div id="detalhes-{{ $pedido->id }}" class="hidden mt-4 space-y-3">
+                        <div id="detalhes-mobile-{{ $pedido->id }}" class="hidden mt-4 space-y-3">
                             <h4 class="text-sm font-semibold text-gray-800">Itens do Pedido</h4>
                             
                             @php
@@ -546,9 +546,11 @@
 </div>
 
 <script>
-function toggleDetalhes(pedidoId) {
-    const detalhes = document.getElementById('detalhes-' + pedidoId);
-    detalhes.classList.toggle('hidden');
+function toggleDetalhes(pedidoId, type) {
+    const detalhes = document.getElementById('detalhes-' + type + '-' + pedidoId);
+    if (detalhes) {
+        detalhes.classList.toggle('hidden');
+    }
 }
 
 // Exibe mensagem de sucesso se vier redirecionado após o pagamento Pix

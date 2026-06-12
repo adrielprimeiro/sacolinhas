@@ -157,26 +157,15 @@ class PortalClienteController extends Controller
 	{
 		$user = Auth::user();
 
-		$pedidos = DB::table('pedidos')
-			->where('user_id', $user->id)
+		$pedidos = \App\Models\Pedido::where('user_id', $user->id)
 			->orderBy('data_pedido', 'desc')
-			->select([
-				'id',
-				'numero_pedido',
-				'data_pedido',
-				'status_pedido',
-				'valor_total',
-				'valor_frete',
-				'valor_desconto',
-				'forma_pagamento',
-				'status_pagamento',
-				'origem_pedido',
-				'codigo_rastreamento',
-				'data_envio',
-				'data_entrega_prevista',
-				'data_entrega_realizada',
-			])
 			->get();
+
+		foreach ($pedidos as $pedido) {
+			if ($pedido->codigo_rastreamento && !in_array(strtolower($pedido->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
+				$pedido->checkAndSyncTracking();
+			}
+		}
 
 		return view('portal.cliente.pedidos', compact('user', 'pedidos'));
 	}	

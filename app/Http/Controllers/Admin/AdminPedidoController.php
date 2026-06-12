@@ -126,6 +126,7 @@ class AdminPedidoController extends Controller
     public function show(Pedido $pedido)
     {
         $pedido->load('user');
+        $pedido->checkAndSyncTracking();
         return view('admin.pedidos.show', compact('pedido'));
     }
 
