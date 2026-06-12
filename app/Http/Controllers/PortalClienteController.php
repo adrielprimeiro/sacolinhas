@@ -152,8 +152,18 @@ class PortalClienteController extends Controller
             if ($user->photo) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($user->photo);
             }
-            $path = $request->file('photo')->store('profiles', 'public');
-            $user->photo = $path;
+            // Crop and resize to 300x300
+            $croppedTempFile = $this->cropAndResizeImage($request->file('photo'), 300, 300);
+
+            if ($croppedTempFile) {
+                $filename = 'profiles/' . uniqid() . '.' . $request->file('photo')->getClientOriginalExtension();
+                \Illuminate\Support\Facades\Storage::disk('public')->put($filename, file_get_contents($croppedTempFile));
+                @unlink($croppedTempFile);
+                $user->photo = $filename;
+            } else {
+                $path = $request->file('photo')->store('profiles', 'public');
+                $user->photo = $path;
+            }
         }
 
 		$user->save();
@@ -315,5 +325,105 @@ class PortalClienteController extends Controller
         $totalDesafios = $historico->sum('pontos');
 
         return view('portal.cliente.desafios', compact('user', 'desafios', 'historico', 'totalDesafios'));
+    }
+
+    /**
+     * Crop image to center square and resize it using native GD library.
+     */
+    private function cropAndResizeImage($file, $targetWidth = 300, $targetHeight = 300)
+    {
+        $info = getimagesize($file->getRealPath());
+        if (!$info) {
+            return false;
+        }
+
+        $width = $info[0];
+        $height = $info[1];
+        $type = $info[2];
+
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                $sourceImage = imagecreatefromjpeg($file->getRealPath());
+                break;
+            case IMAGETYPE_PNG:
+                $sourceImage = imagecreatefrompng($file->getRealPath());
+                break;
+            case IMAGETYPE_GIF:
+                $sourceImage = imagecreatefromgif($file->getRealPath());
+                break;
+            case IMAGETYPE_WEBP:
+                if (function_exists('imagecreatefromwebp')) {
+                    $sourceImage = imagecreatefromwebp($file->getRealPath());
+                } else {
+                    return false;
+                }
+                break;
+            default:
+                return false;
+        }
+
+        if (!$sourceImage) {
+            return false;
+        }
+
+        $destImage = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_GIF) {
+            imagealphablending($destImage, false);
+            imagesavealpha($destImage, true);
+            $transparent = imagecolorallocatealpha($destImage, 255, 255, 255, 127);
+            imagefilledrectangle($destImage, 0, 0, $targetWidth, $targetHeight, $transparent);
+        }
+
+        $srcX = 0;
+        $srcY = 0;
+        $srcW = $width;
+        $srcH = $height;
+
+        if ($width > $height) {
+            $srcW = $height;
+            $srcX = (int)(($width - $height) / 2);
+        } else {
+            $srcH = $width;
+            $srcY = (int)(($height - $width) / 2);
+        }
+
+        imagecopyresampled(
+            $destImage,
+            $sourceImage,
+            0,
+            0,
+            $srcX,
+            $srcY,
+            $targetWidth,
+            $targetHeight,
+            $srcW,
+            $srcH
+        );
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'profile_');
+        
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                imagejpeg($destImage, $tempPath, 90);
+                break;
+            case IMAGETYPE_PNG:
+                imagepng($destImage, $tempPath);
+                break;
+            case IMAGETYPE_GIF:
+                imagegif($destImage, $tempPath);
+                break;
+            case IMAGETYPE_WEBP:
+                imagewebp($destImage, $tempPath, 90);
+                break;
+            default:
+                imagejpeg($destImage, $tempPath, 90);
+                break;
+        }
+
+        imagedestroy($sourceImage);
+        imagedestroy($destImage);
+
+        return $tempPath;
     }
 }
