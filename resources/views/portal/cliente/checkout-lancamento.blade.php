@@ -75,7 +75,7 @@
                 
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between text-gray-600">
-                        <span>Valor da Recarga</span>
+                        <span>Valor</span>
                         <span>R$ {{ number_format($lancamento->valor_total, 2, ',', '.') }}</span>
                     </div>
                     <div class="border-t border-gray-100 pt-3 flex justify-between font-bold text-base text-gray-900">

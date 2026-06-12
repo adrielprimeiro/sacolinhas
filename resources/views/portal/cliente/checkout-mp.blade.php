@@ -16,7 +16,7 @@
             @endif
         </div>
         <div class="text-right">
-            <p class="text-xs text-gray-500">@if(str_starts_with($pedido->numero_pedido, 'REC-')) Valor da Recarga @else Valor a Pagar @endif</p>
+            <p class="text-xs text-gray-500">@if(str_starts_with($pedido->numero_pedido, 'REC-')) Valor @else Valor a Pagar @endif</p>
             <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</p>
         </div>
     </div>

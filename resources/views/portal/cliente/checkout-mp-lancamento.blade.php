@@ -14,7 +14,7 @@
             </div>
         </div>
         <div class="text-right">
-            <p class="text-xs text-gray-500">Valor da Recarga</p>
+            <p class="text-xs text-gray-500">Valor</p>
             <p class="text-lg font-semibold text-gray-800">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</p>
         </div>
     </div>

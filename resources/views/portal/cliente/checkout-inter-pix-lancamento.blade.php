@@ -25,7 +25,7 @@
 
             <!-- Valor Destacado -->
             <div class="my-6 p-4 bg-teal-50 border border-teal-100 rounded-xl inline-block px-8" style="background-color: rgba(240, 253, 250, 0.5); border-color: rgba(204, 251, 241, 0.5);">
-                <span class="text-xs text-teal-800 font-bold uppercase tracking-wider block">Valor da Recarga</span>
+                <span class="text-xs text-teal-800 font-bold uppercase tracking-wider block">Valor</span>
                 <span class="text-3xl font-black text-teal-900">R$ {{ number_format($valorCobrar, 2, ',', '.') }}</span>
             </div>
 
