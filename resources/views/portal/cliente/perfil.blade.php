@@ -94,8 +94,8 @@
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                        <input type="text" name="phone" value="{{ old('phone', $user->phone ?? $user->telefone_principal) }}"
+                        <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+                        <input type="text" name="whatsapp" value="{{ old('whatsapp', $user->whatsapp) }}"
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
