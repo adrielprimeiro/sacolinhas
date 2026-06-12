@@ -33,7 +33,7 @@
     @endif
 
     <!-- Form -->
-    <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="space-y-4" autocomplete="off" onsubmit="event.preventDefault();">
+    <form id="profile-form" action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="space-y-4" autocomplete="off" onsubmit="event.preventDefault();">
         @csrf
         @method('PUT')
         
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Autosave Logic
-    const form = document.querySelector('form');
+    const form = document.getElementById('profile-form');
     
     // Status indicator DOM element
     const indicator = document.createElement('div');
