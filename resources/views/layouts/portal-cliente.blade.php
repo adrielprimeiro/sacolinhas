@@ -41,7 +41,11 @@
 
                 {{-- Brand --}}
                 @php
-                    $brandName = auth()->check() ? 'Mania de ' . explode(' ', auth()->user()->name)[0] : 'Portal do Cliente';
+                    $brandName = 'Portal do Cliente';
+                    if (auth()->check()) {
+                        $nameToUse = auth()->user()->apelido ?: explode(' ', auth()->user()->name)[0];
+                        $brandName = 'Mania de ' . $nameToUse;
+                    }
                 @endphp
                 <a href="{{ route('portal.dashboard') }}"
                    class="text-2xl font-bold text-gray-800 hover:text-green-600 transition duration-300 flex items-center gap-2">
