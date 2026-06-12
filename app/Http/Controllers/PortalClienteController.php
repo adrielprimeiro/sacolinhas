@@ -177,6 +177,15 @@ class PortalClienteController extends Controller
 
 		$user->save();
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Perfil atualizado com sucesso.',
+                'photo_url' => $user->photo ? asset('storage/' . $user->photo) : null,
+                'brand_name' => 'Mania de ' . ($user->apelido ?: explode(' ', $user->name)[0])
+            ]);
+        }
+
 		return redirect($request->input('return_to', route('portal.dashboard')))
 			->with('success', 'Perfil updated.');
 	}

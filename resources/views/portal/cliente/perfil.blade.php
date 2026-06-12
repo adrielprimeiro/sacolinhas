@@ -13,7 +13,8 @@
         </div>
     </div>
 
-    <!-- Mensagens -->
+    <!-- Mensagens (para fallbacks) -->
+    <div id="messages-container" class="hidden"></div>
     @if(session('success'))
         <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">
             {{ session('success') }}
@@ -32,7 +33,7 @@
     @endif
 
     <!-- Form -->
-    <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="space-y-4" autocomplete="off">
+    <form action="{{ route('portal.perfil.atualizar') }}" method="POST" enctype="multipart/form-data" class="space-y-4" autocomplete="off" onsubmit="event.preventDefault();">
         @csrf
         @method('PUT')
         
@@ -42,21 +43,21 @@
 
         <!-- Card 1: Identificação -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-md">
-            <button type="button" class="w-full flex items-center justify-between p-4 focus:outline-none hover:bg-gray-50/80 transition duration-150 accordion-toggle active" data-target="section-identificacao">
+            <button type="button" class="w-full flex items-center justify-between p-4 focus:outline-none hover:bg-gray-50/80 transition duration-150 accordion-toggle" data-target="section-identificacao">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                         <i class="fas fa-user-circle text-xl"></i>
                     </div>
                     <div class="text-left">
                         <h3 class="text-sm font-bold text-gray-800">Identificação</h3>
-                        <p class="text-xs text-gray-500">Sua foto, nome completo, apelido, e-mail e telefone</p>
+                        <p class="text-xs text-gray-500">Sua foto, nome completo, apelido, e-mail e WhatsApp</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-icon rotate-180"></i>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-icon"></i>
                 </div>
             </button>
-            <div id="section-identificacao" class="border-t border-gray-100 p-4 space-y-4 accordion-content">
+            <div id="section-identificacao" class="border-t border-gray-100 p-4 space-y-4 accordion-content hidden">
                 <!-- Foto de Perfil -->
                 <div class="flex items-center gap-4 pb-4 border-b border-gray-100">
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 border overflow-hidden flex items-center justify-center flex-shrink-0 relative">
@@ -70,7 +71,7 @@
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Foto de Perfil</label>
                         <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold py-2 px-4 rounded-md transition duration-150 inline-block select-none">
                             <span id="photo-button-text">Alterar Foto</span>
-                            <input type="file" name="photo" accept="image/*" class="hidden" onchange="document.getElementById('photo-button-text').innerText = 'Foto selecionada!'">
+                            <input type="file" name="photo" id="photo-input" accept="image/*" class="hidden">
                         </label>
                     </div>
                 </div>
@@ -139,7 +140,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Número</label>
-                        <input type="text" name="numero_endereco" value="{{ old('numero_endereco', $user->numero_endereco) }}"
+                        <input type="text" name="numero_endereco" id="numero_endereco" value="{{ old('numero_endereco', $user->numero_endereco) }}"
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
@@ -152,7 +153,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
-                        <input type="text" name="complemento" value="{{ old('complemento', $user->complemento) }}"
+                        <input type="text" name="complemento" id="complemento" value="{{ old('complemento', $user->complemento) }}"
                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
@@ -209,14 +210,6 @@
                 <p class="text-xs text-gray-500">Deixe em branco para manter a senha atual.</p>
             </div>
         </div>
-
-        <!-- Botão de Salvar -->
-        <div class="flex items-center justify-end pt-2">
-            <button type="submit"
-                    class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-6 py-2.5 rounded-md shadow-sm transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                Salvar alterações
-            </button>
-        </div>
     </form>
 
 </div>
@@ -243,6 +236,121 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Autosave Logic
+    const form = document.querySelector('form');
+    
+    // Status indicator DOM element
+    const indicator = document.createElement('div');
+    indicator.className = 'fixed bottom-4 right-4 bg-gray-900/95 text-white px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 text-xs font-semibold z-50 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-2';
+    indicator.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-400"></i><span id="indicator-text">Salvando...</span>';
+    document.body.appendChild(indicator);
+    
+    let hideTimeout;
+    
+    function showStatus(text, iconHtml, duration = null) {
+        clearTimeout(hideTimeout);
+        indicator.querySelector('#indicator-text').innerHTML = text;
+        
+        const currentIcon = indicator.querySelector('i');
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = iconHtml;
+        const newIcon = tempDiv.firstChild;
+        indicator.replaceChild(newIcon, currentIcon);
+        
+        indicator.classList.remove('opacity-0', 'translate-y-2');
+        indicator.classList.add('opacity-100', 'translate-y-0');
+        
+        if (duration) {
+            hideTimeout = setTimeout(() => {
+                indicator.classList.remove('opacity-100', 'translate-y-0');
+                indicator.classList.add('opacity-0', 'translate-y-2');
+            }, duration);
+        }
+    }
+    
+    function saveForm() {
+        showStatus('Salvando...', '<i class="fas fa-spinner fa-spin text-blue-400"></i>');
+        
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw data;
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            showStatus('Salvo com sucesso!', '<i class="fas fa-check-circle text-green-400"></i>', 2500);
+            
+            // Update avatars if photo changed
+            if (data.photo_url) {
+                const avatars = document.querySelectorAll('img[alt="Foto"], img[alt="Foto do Perfil"]');
+                avatars.forEach(img => {
+                    img.src = data.photo_url;
+                });
+            }
+            
+            // Update brand name
+            const brandSpan = document.querySelector('.brand-text-span');
+            if (brandSpan && data.brand_name) {
+                brandSpan.innerText = data.brand_name;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            let errMsg = 'Erro ao salvar alterações';
+            if (err && err.errors) {
+                errMsg = Object.values(err.errors).flat().join(', ');
+            } else if (err && err.message) {
+                errMsg = err.message;
+            }
+            showStatus(errMsg, '<i class="fas fa-exclamation-circle text-red-400"></i>', 5000);
+        });
+    }
+
+    // Attach listeners to all inputs and selects
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // Check password validation triggers
+            const password = form.querySelector('input[name="password"]');
+            const confirmation = form.querySelector('input[name="password_confirmation"]');
+            
+            if (this.type === 'password') {
+                if (password.value && !confirmation.value) {
+                    // Wait until confirmation is filled
+                    return;
+                }
+                if (password.value !== confirmation.value) {
+                    showStatus('As senhas não coincidem', '<i class="fas fa-exclamation-circle text-yellow-400"></i>', 3000);
+                    return;
+                }
+            }
+            
+            saveForm();
+        });
+    });
+
+    // Special event listener for file photo input change
+    const photoInput = document.getElementById('photo-input');
+    if (photoInput) {
+        photoInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                document.getElementById('photo-button-text').innerText = 'Foto selecionada!';
+                saveForm();
+            }
+        });
+    }
+
     // CEP Logic
     const cepInput = document.getElementById('cep');
     if (cepInput) {
@@ -257,6 +365,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             document.getElementById('bairro').value = data.bairro;
                             document.getElementById('cidade').value = data.localidade;
                             document.getElementById('estado').value = data.uf;
+                            
+                            // Save form since address details changed automatically
+                            saveForm();
                         }
                     })
                     .catch(error => console.error('Erro ao buscar CEP:', error));

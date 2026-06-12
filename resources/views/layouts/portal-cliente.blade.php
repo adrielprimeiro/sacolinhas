@@ -58,7 +58,7 @@
                     @else
                         <i class="fas fa-user-circle"></i>
                     @endauth
-                    <span>{{ $brandName }}</span>
+                    <span class="brand-text-span">{{ $brandName }}</span>
                 </a>
             </div>
 
