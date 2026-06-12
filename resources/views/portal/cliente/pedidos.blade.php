@@ -108,7 +108,7 @@
 
                                 <td class="px-4 py-3 text-center space-x-1">
                                     @if(in_array(strtolower($pedido->status_pagamento ?? ''), ['pendente', 'rejeitado', 'estornado', '']))
-                                        <a href="{{ route('portal.inter.checkout', $pedido->id) }}" class="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
+                                        <a href="{{ route('portal.checkout.show', $pedido->id) }}" class="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
                                             <i class="fas fa-money-bill-wave mr-1"></i> Pagar
                                         </a>
                                     @endif
@@ -353,7 +353,7 @@
 
                         <div class="mt-3 space-y-2">
                             @if(in_array(strtolower($pedido->status_pagamento ?? ''), ['pendente', 'rejeitado', 'estornado', '']))
-                                <a href="{{ route('portal.inter.checkout', $pedido->id) }}" class="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 rounded-md transition duration-200 flex justify-center items-center">
+                                <a href="{{ route('portal.checkout.show', $pedido->id) }}" class="w-full bg-green-500 hover:bg-green-600 text-white text-sm py-2 rounded-md transition duration-200 flex justify-center items-center">
                                     <i class="fas fa-money-bill-wave mr-2"></i> Pagar
                                 </a>
                             @endif

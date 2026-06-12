@@ -119,6 +119,47 @@ class CheckoutController extends Controller
             return redirect()->route('sacolinhas.index')->with('error', 'Pedido não encontrado ou já finalizado.');
         }
 
+        // Se for um pedido de recarga legado (inicia com REC-)
+        if (str_starts_with($pedido->numero_pedido, 'REC-')) {
+            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                ->where('referencia_id', $pedido->id)
+                ->first();
+
+            if (!$lancamento) {
+                $user = auth()->user();
+                $pessoa = $user->perfilFinanceiro;
+                if (!$pessoa) {
+                    $pessoa = \App\Models\Pessoa::create([
+                        'user_id'   => $user->id,
+                        'nome'      => $user->name,
+                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
+                        'tipo'      => 'cliente_circular',
+                    ]);
+                }
+                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Recarga de Carteira')
+                    ->orWhere('nome', 'Aporte de Carteira')
+                    ->orWhere('nome', 'Receitas')
+                    ->first();
+                $classificacaoId = $classificacao ? $classificacao->id : 3;
+
+                $lancamento = \App\Models\Lancamento::create([
+                    'tipo'                        => 'receita',
+                    'status'                      => 'pendente',
+                    'pessoa_id'                   => $pessoa->id,
+                    'classificacao_financeira_id' => $classificacaoId,
+                    'data_emissao'                => $pedido->data_pedido ?? now(),
+                    'data_vencimento'             => $pedido->data_pedido ?? now(),
+                    'valor_total'                 => $pedido->valor_total,
+                    'descricao'                   => 'Recarga de Carteira',
+                    'referencia_tipo'             => 'pedido',
+                    'referencia_id'               => $pedido->id,
+                    'payment_token'               => bin2hex(random_bytes(32)),
+                ]);
+            }
+
+            return redirect()->route('portal.checkout_lancamento.show', $lancamento->id);
+        }
+
         $valorCobrar = null;
 
         $itens = DB::table('items_pedido')
@@ -464,7 +505,7 @@ class CheckoutController extends Controller
             }
 
             if (str_starts_with($pedido->numero_pedido, 'REC-')) {
-                return redirect()->route('portal.inter.checkout', ['pedido' => $pedido->id]);
+                return redirect()->route('portal.checkout.show', ['pedido' => $pedido->id]);
             }
 
             // Se já tiver forma de pagamento e frete definidos, pula a escolha e vai pro checkout correspondente
