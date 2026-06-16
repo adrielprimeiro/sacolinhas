@@ -569,12 +569,21 @@ class AdminPedidoController extends Controller
 
     public function freteOpcoes(Request $request, Pedido $pedido)
     {
-        $request->validate([
-            'weight' => 'required|numeric|min:0.1',
-            'width' => 'required|numeric|min:1',
-            'height' => 'required|numeric|min:1',
-            'length' => 'required|numeric|min:1',
-        ]);
+        $rules = [];
+        if ($request->has('volumes')) {
+            $rules['volumes'] = 'required|array|min:1';
+            $rules['volumes.*.weight'] = 'required|numeric|min:0.1';
+            $rules['volumes.*.width'] = 'required|numeric|min:1';
+            $rules['volumes.*.height'] = 'required|numeric|min:1';
+            $rules['volumes.*.length'] = 'required|numeric|min:1';
+        } else {
+            $rules['weight'] = 'required|numeric|min:0.1';
+            $rules['width'] = 'required|numeric|min:1';
+            $rules['height'] = 'required|numeric|min:1';
+            $rules['length'] = 'required|numeric|min:1';
+        }
+
+        $request->validate($rules);
 
         $pedido->load('user');
         $cepDestino = $pedido->cep_entrega ?? $pedido->user->cep ?? null;

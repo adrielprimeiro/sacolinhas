@@ -653,6 +653,7 @@
                         const res = await fetch(`{{ route('admin.pedido.freteOpcoes', $pedido->id) }}`, {
                             method: 'POST',
                             headers: {
+                                'Accept': 'application/json',
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
@@ -689,6 +690,7 @@
                         const res = await fetch(`{{ route('admin.pedido.gerarEtiqueta', $pedido->id) }}`, {
                             method: 'POST',
                             headers: {
+                                'Accept': 'application/json',
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
                             },
