@@ -74,16 +74,17 @@ class BancoInterPixTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Criar a conta bancária do Banco Inter caso não exista
-        $contaInter = ContaBancaria::firstOrCreate(
-            ['nome' => 'Banco Inter'],
-            [
+        // Buscar ou criar a conta bancária do Banco Inter
+        $contaInter = ContaBancaria::where('nome', 'like', '%Inter%')->first();
+        if (!$contaInter) {
+            $contaInter = ContaBancaria::create([
+                'nome' => 'Banco Inter',
                 'agencia' => '0001',
                 'numero_conta' => '123456-7',
                 'status' => 'ativo',
                 'saldo_inicial' => 0.00
-            ]
-        );
+            ]);
+        }
 
         // Criar um item disponível no estoque
         $item = Item::create([

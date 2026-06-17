@@ -192,7 +192,8 @@ class AdminSacolinhaController extends Controller
             'user_id' => 'required|exists:users,id',
             'valor_frete' => 'nullable|numeric|min:0',
             'itens' => 'required|array',
-            'itens.*' => 'integer|exists:sacolinhas,id'
+            'itens.*' => 'integer|exists:sacolinhas,id',
+            'autorizar_fechamento' => 'nullable|boolean'
         ]);
 
         try {
@@ -224,22 +225,28 @@ class AdminSacolinhaController extends Controller
                     ->first();
                 $saldoAtual = (float) ($ultimaTransacao?->saldo_atual ?? 0);
 
-                // 4. Calcular desconto/acréscimo de saldo e total final
+                // 4. Calcular total do pedido e aplicar trava de segurança rígida
                 $totalItensFrete = $subtotal + $valorFrete;
-                $saldoUtilizadoNoPedido = 0;
+                $isToleranceAuthorized = false;
+                $valorFaltante = 0.00;
+                $adminName = null;
+                $toleranceObs = null;
 
-                if ($saldoAtual > 0) {
-                    // Saldo positivo: desconta do pedido (até o limite do total)
-                    $saldoUtilizadoNoPedido = min($saldoAtual, $totalItensFrete);
-                } elseif ($saldoAtual < 0) {
-                    // Saldo negativo (dívida anterior): soma ao pedido para ser quitada agora
-                    // valor_saldo_utilizado fica negativo para sinalizar que há dívida embutida
-                    $saldoUtilizadoNoPedido = $saldoAtual; // negativo, ex: -34.41
+                if ($saldoAtual < $totalItensFrete) {
+                    if (!empty($user->sacolinha_autorizada_por)) {
+                        $valorFaltante = $totalItensFrete - $saldoAtual;
+                        $isToleranceAuthorized = true;
+                        $adminName = $user->sacolinha_autorizada_por;
+                        $toleranceObs = $user->sacolinha_autorizada_obs;
+                        $saldoUtilizadoNoPedido = $totalItensFrete;
+                        $totalFinal = 0.00;
+                    } else {
+                        throw new \Exception("Saldo insuficiente na carteira para realizar a operação. O pedido totaliza R$ " . number_format($totalItensFrete, 2, ',', '.') . ", mas o cliente possui apenas R$ " . number_format($saldoAtual, 2, ',', '.') . ". É necessária a autorização do fechamento.");
+                    }
+                } else {
+                    $saldoUtilizadoNoPedido = $totalItensFrete;
+                    $totalFinal = 0.00; // Pedido nasce 100% quitado usando o saldo da carteira
                 }
-
-                // totalFinal = itens + frete - saldo_usado
-                // Se saldo_usado < 0 (dívida), totalFinal aumenta: 50 - (-34.41) = 84.41
-                $totalFinal = $totalItensFrete - $saldoUtilizadoNoPedido;
 
                 // 5. Definir Status (Se zerou com saldo, já nasce aprovado)
                 $statusPedido = 'pendente';
@@ -269,6 +276,37 @@ class AdminSacolinhaController extends Controller
                     'cidade_entrega'   => $user->cidade ?? null,
                     'estado_entrega'   => $user->estado ?? null,
                 ]);
+
+                // Create tolerance records after the Pedido is created, so we can link them
+                if ($isToleranceAuthorized && $valorFaltante > 0) {
+                    $authName = $adminName ?: 'Administrador';
+
+                    // 1. Criar Crédito de Tolerância na carteira
+                    ContaCorrente::create([
+                        'user_id' => $userId,
+                        'tipo_movimentacao' => 'credito',
+                        'valor' => $valorFaltante,
+                        'descricao' => "Crédito de Tolerância Autorizado Gerência: Pedido {$numeroPedido}",
+                        'classificacao_id' => 14, // Outras Despesas / Ajustes
+                        'data_movimentacao' => now(),
+                        'observacoes' => "Autorizado por: {$authName}" . ($toleranceObs ? " - Motivo: {$toleranceObs}" : ""),
+                        'referencia_tipo' => 'tolerancia',
+                        'referencia_id' => $pedido->id,
+                    ]);
+
+                    // 2. Criar Débito de Tolerância (Saldo não pago) na carteira
+                    ContaCorrente::create([
+                        'user_id' => $userId,
+                        'tipo_movimentacao' => 'debito',
+                        'valor' => $valorFaltante,
+                        'descricao' => "Débito de Tolerância (Saldo não pago): Pedido {$numeroPedido}",
+                        'classificacao_id' => 14, // Outras Despesas / Ajustes
+                        'data_movimentacao' => now(),
+                        'observacoes' => "Autorizado por: {$authName}" . ($toleranceObs ? " - Motivo: {$toleranceObs}" : ""),
+                        'referencia_tipo' => 'tolerancia',
+                        'referencia_id' => $pedido->id,
+                    ]);
+                }
 
                 // 7. Mover itens da sacolinha para o pedido e remover da sacola
                 $itemIds = [];
@@ -301,6 +339,12 @@ class AdminSacolinhaController extends Controller
                     $pedidoAtualizado->touch();
                 }
 
+                // 9. Consumir/limpar a autorização do usuário
+                $user->update([
+                    'sacolinha_autorizada_por' => null,
+                    'sacolinha_autorizada_obs' => null,
+                ]);
+
                 return $pedido->id;
             });
 
@@ -317,6 +361,37 @@ class AdminSacolinhaController extends Controller
                 'message' => 'Erro ao processar o fechamento: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function autorizarFechamento(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'autorizado_por' => 'required|string|max:255',
+            'observacoes' => 'required|string',
+        ]);
+
+        $user->update([
+            'sacolinha_autorizada_por' => $validated['autorizado_por'],
+            'sacolinha_autorizada_obs' => $validated['observacoes'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fechamento autorizado com sucesso!'
+        ]);
+    }
+
+    public function revogarAutorizacao(User $user)
+    {
+        $user->update([
+            'sacolinha_autorizada_por' => null,
+            'sacolinha_autorizada_obs' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Autorização removida com sucesso!'
+        ]);
     }
 
     public function pdf(User $user)

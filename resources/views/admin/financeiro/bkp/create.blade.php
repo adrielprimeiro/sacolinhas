@@ -144,7 +144,7 @@
                         <label for="descricao" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Descrição</label>
                         <input type="text" 
                                class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white transition-all shadow-sm @error('descricao') border-red-500 @enderror" 
-                               id="descricao" name="descricao" value="{{ old('descricao') }}" placeholder="Ex: Ajuste de saldo, Crédito promocional..." required>
+                               id="descricao" name="descricao" value="{{ old('descricao', request('tipo') === 'avaliacao' ? 'Crédito de Avaliação' : '') }}" placeholder="Ex: Ajuste de saldo, Crédito promocional..." required>
                         @error('descricao')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -169,7 +169,7 @@
                                 id="tipo_movimentacao" name="tipo_movimentacao" required>
                             <option value="">Selecione...</option>
                             @foreach ($tiposMovimentacao as $tipo)
-                                <option value="{{ $tipo }}" {{ old('tipo_movimentacao') == $tipo ? 'selected' : '' }}>
+                                <option value="{{ $tipo }}" {{ old('tipo_movimentacao', request('tipo') === 'avaliacao' ? 'credito' : '') == $tipo ? 'selected' : '' }}>
                                     {{ $tipo === 'credito' ? 'Crédito (Adicionar Saldo)' : 'Débito (Retirar Saldo)' }}
                                 </option>
                             @endforeach
@@ -194,10 +194,15 @@
                     </div>
 
                     <!-- Classificação Financeira (Searchable) -->
+                    @php
+                        $defaultClass = $classificacoes->where('nome', 'like', '%Fornecedor%')->first() ?? $classificacoes->find(19);
+                        $defaultClassId = $defaultClass ? $defaultClass->id : '';
+                        $defaultClassName = $defaultClass ? addslashes($defaultClass->nome) . ' (' . $defaultClass->codigo_contabil . ')' : '';
+                    @endphp
                     <div x-data="{ 
                         open: false, 
-                        search: '{{ $classificacoes->find(old('classificacao_id'))->nome ?? '' }}',
-                        selectedId: '{{ old('classificacao_id') }}',
+                        selectedId: '{{ old('classificacao_id', request('tipo') === 'avaliacao' ? $defaultClassId : '') }}',
+                        search: '{{ old('classificacao_id') ? ($classificacoes->find(old('classificacao_id'))->nome . ' (' . $classificacoes->find(old('classificacao_id'))->codigo_contabil . ')') : (request('tipo') === 'avaliacao' ? $defaultClassName : '') }}',
                         items: [
                             @foreach($classificacoes as $class)
                                 { id: '{{ $class->id }}', name: '{{ addslashes($class->nome) }} ({{ $class->codigo_contabil }})' },
@@ -255,9 +260,9 @@
                         <select class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm" 
                                 id="referencia_tipo" name="referencia_tipo">
                             <option value="">Nenhum</option>
-                            @foreach (['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'] as $refTipo)
-                                <option value="{{ $refTipo }}" {{ old('referencia_tipo') == $refTipo ? 'selected' : '' }}>
-                                    {{ ucfirst($refTipo) }}
+                            @foreach (['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'avaliacao'] as $refTipo)
+                                <option value="{{ $refTipo }}" {{ old('referencia_tipo', request('tipo') === 'avaliacao' ? 'avaliacao' : '') == $refTipo ? 'selected' : '' }}>
+                                    {{ $refTipo === 'avaliacao' ? 'Avaliação' : ucfirst($refTipo) }}
                                 </option>
                             @endforeach
                         </select>

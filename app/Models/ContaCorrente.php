@@ -68,12 +68,20 @@ class ContaCorrente extends Model
                 $lancamento->movimentacoes()->delete();
                 $lancamento->delete();
             }
+
+            // Deleção bidirecional se for vinculado a uma movimentação de conciliação
+            if ($movimentacao->referencia_tipo === 'movimentacao' && $movimentacao->referencia_id) {
+                $mov = \App\Models\Movimentacao::find($movimentacao->referencia_id);
+                if ($mov) {
+                    $mov->delete();
+                }
+            }
         });
     }
 
     public function sincronizarFinanceiro()
     {
-        if ($this->tipo_movimentacao === 'credito' && !in_array($this->referencia_tipo, ['movimentacao', 'pedido', 'desconto'])) {
+        if (!in_array($this->referencia_tipo, ['movimentacao', 'pedido', 'desconto', 'tolerancia'])) {
             $user = $this->user;
             if ($user) {
                 $pessoa = $user->perfilFinanceiro;
@@ -86,20 +94,25 @@ class ContaCorrente extends Model
                     ]);
                 }
 
+                $tipoLancamento = $this->tipo_movimentacao === 'credito' ? 'despesa' : 'receita';
+                $descricaoLancamento = $this->tipo_movimentacao === 'credito' 
+                    ? "Crédito Cliente: " . ($this->descricao ?: 'Crédito em Carteira')
+                    : "Débito Cliente: " . ($this->descricao ?: 'Débito em Carteira');
+
                 $lancamento = \App\Models\Lancamento::updateOrCreate(
                     [
                         'referencia_tipo' => 'carteira_credito',
                         'referencia_id' => $this->id,
                     ],
                     [
-                        'tipo'                        => 'despesa',
+                        'tipo'                        => $tipoLancamento,
                         'status'                      => 'pago',
                         'pessoa_id'                   => $pessoa->id,
                         'classificacao_financeira_id' => $this->classificacao_id,
                         'data_emissao'                => $this->data_movimentacao,
                         'data_vencimento'             => $this->data_movimentacao,
                         'valor_total'                 => $this->valor,
-                        'descricao'                   => "Crédito Cliente: " . ($this->descricao ?: 'Crédito em Carteira'),
+                        'descricao'                   => $descricaoLancamento,
                     ]
                 );
 

@@ -84,6 +84,25 @@ class AdminPedidoController extends Controller
 
         $validated = $request->validate($rules);
 
+        // Validar saldo da carteira (não permitir negativo nem maior que o saldo do cliente)
+        $valorSaldoUtilizado = (float) ($validated['valor_saldo_utilizado'] ?? 0);
+        if ($valorSaldoUtilizado < 0) {
+            return back()->withInput()->withErrors(['valor_saldo_utilizado' => 'O saldo utilizado não pode ser negativo.']);
+        }
+        if ($valorSaldoUtilizado > 0) {
+            $saldoCarteira = (float) (DB::table('conta_corrente')
+                ->where('user_id', $validated['user_id'])
+                ->orderByDesc('data_movimentacao')
+                ->orderByDesc('id')
+                ->value('saldo_atual') ?? 0);
+
+            if ($valorSaldoUtilizado > $saldoCarteira) {
+                return back()->withInput()->withErrors([
+                    'valor_saldo_utilizado' => 'O valor utilizado da carteira (R$ ' . number_format($valorSaldoUtilizado, 2, ',', '.') . ') é maior que o saldo disponível do cliente (R$ ' . number_format($saldoCarteira, 2, ',', '.') . ').'
+                ]);
+            }
+        }
+
         if (empty($validated['numero_pedido'])) {
             $proximoNumero = Pedido::max('id') + 1;
             $validated['numero_pedido'] = 'PED-' . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
@@ -338,6 +357,27 @@ class AdminPedidoController extends Controller
     public function update(Request $request, Pedido $pedido)
     {
         $validated = $request->validate($this->rules($pedido->id));
+
+        // Validar saldo da carteira (não permitir negativo nem maior que o saldo disponível + alocado)
+        $valorSaldoUtilizado = (float) ($validated['valor_saldo_utilizado'] ?? 0);
+        if ($valorSaldoUtilizado < 0) {
+            return back()->withInput()->withErrors(['valor_saldo_utilizado' => 'O saldo utilizado não pode ser negativo.']);
+        }
+        
+        $saldoCarteira = (float) (DB::table('conta_corrente')
+            ->where('user_id', $validated['user_id'])
+            ->orderByDesc('data_movimentacao')
+            ->orderByDesc('id')
+            ->value('saldo_atual') ?? 0);
+
+        $saldoJaAlocado = (float) ($pedido->valor_saldo_utilizado ?? 0);
+        $saldoDisponivel = $saldoCarteira + $saldoJaAlocado;
+
+        if ($valorSaldoUtilizado > $saldoDisponivel) {
+            return back()->withInput()->withErrors([
+                'valor_saldo_utilizado' => 'O valor utilizado da carteira (R$ ' . number_format($valorSaldoUtilizado, 2, ',', '.') . ') é maior que o saldo disponível do cliente (R$ ' . number_format($saldoDisponivel, 2, ',', '.') . ').'
+            ]);
+        }
 
         DB::transaction(function () use ($validated, $pedido) {
             $pedido->update($validated);

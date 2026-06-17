@@ -127,14 +127,8 @@ class PedidoObserver
                         ]
                     );
 
-                    // 2. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
-                    if ($saldoUtilizado != 0) {
-                        $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
-                        $valorMovSaldo = abs($saldoUtilizado);
-                        $descMovSaldo = $saldoUtilizado > 0 
-                            ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
-                            : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
-
+                    // 2. Se houver saldo utilizado (desconto), cria/atualiza o lançamento correspondente
+                    if ($saldoUtilizado > 0) {
                         \App\Models\ContaCorrente::updateOrCreate(
                             [
                                 'referencia_tipo' => 'desconto',
@@ -142,9 +136,9 @@ class PedidoObserver
                             ],
                             [
                                 'user_id' => $pessoa->user_id,
-                                'tipo_movimentacao' => $tipoMovSaldo,
-                                'valor' => $valorMovSaldo,
-                                'descricao' => $descMovSaldo,
+                                'tipo_movimentacao' => 'debito',
+                                'valor' => $saldoUtilizado,
+                                'descricao' => "Desconto Carteira: Pedido {$pedido->numero_pedido}",
                                 'classificacao_id' => $classificacaoId,
                                 'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                             ]
@@ -254,7 +248,7 @@ class PedidoObserver
                 $lancamento->delete();
             }
 
-            \App\Models\ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])
+            \App\Models\ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto', 'tolerancia'])
                 ->where('referencia_id', $pedido->id)
                 ->delete();
 

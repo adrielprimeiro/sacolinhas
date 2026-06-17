@@ -23,6 +23,7 @@
     @php
         $subtotal      = (float) DB::table('items_pedido')->where('pedido_id', $pedido->id)->where('status_item', 'ativo')->sum('valor_total');
         $saldoCarteira = (float) (DB::table('conta_corrente')->where('user_id', $pedido->user_id)->orderByDesc('id')->value('saldo_atual') ?? 0);
+        $isPaid        = $pedido->status_pagamento === 'aprovado';
     @endphp
 
     <form action="{{ route('admin.pedido.update', $pedido->id) }}" method="POST">
@@ -97,7 +98,8 @@
                                     <input type="number" step="0.01" name="valor_frete" id="inp_frete"
                                            value="{{ old('valor_frete', $pedido->valor_frete ?? 0) }}"
                                            oninput="recalcular()"
-                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-blue-400 focus:border-blue-400">
+                                           {{ $isPaid ? 'readonly' : '' }}
+                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-blue-400 focus:border-blue-400 {{ $isPaid ? 'bg-gray-100 cursor-not-allowed' : '' }}">
                                 </div>
                             </div>
 
@@ -115,7 +117,8 @@
                                     <input type="number" step="0.01" name="valor_desconto" id="inp_desconto"
                                            value="{{ old('valor_desconto', $pedido->valor_desconto ?? 0) }}"
                                            oninput="recalcular()"
-                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-red-400 focus:border-red-400">
+                                           {{ $isPaid ? 'readonly' : '' }}
+                                           class="w-24 border border-gray-300 rounded-md py-1 px-2 text-right text-sm focus:outline-none focus:ring-red-400 focus:border-red-400 {{ $isPaid ? 'bg-gray-100 cursor-not-allowed' : '' }}">
                                 </div>
                             </div>
 
@@ -135,8 +138,8 @@
                                 <div>
                                     <input type="number" step="0.01" name="valor_saldo_utilizado" id="inp_saldo_utilizado" 
                                            value="{{ old('valor_saldo_utilizado', $saldoJaAlocado) }}"
-                                           oninput="recalcular()"
-                                           class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('valor_saldo_utilizado') border-red-500 @enderror">
+                                           readonly
+                                           class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-gray-100 cursor-not-allowed focus:outline-none @error('valor_saldo_utilizado') border-red-500 @enderror">
                                     @error('valor_saldo_utilizado')
                                         <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                                     @enderror
@@ -293,10 +296,12 @@
                                     class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm shadow-sm transition duration-300 opacity-50 cursor-not-allowed">
                                 <i class="fas fa-undo mr-1"></i> Devolução
                             </button>
-                            <button type="button" onclick="abrirModalAdicionarItem()"
-                                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 rounded-lg shadow transition duration-200">
-                                <i class="fas fa-plus mr-1"></i> Item
-                            </button>
+                            @if(!$isPaid)
+                                <button type="button" onclick="abrirModalAdicionarItem()"
+                                        class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold py-1.5 px-3 rounded-lg shadow transition duration-200">
+                                    <i class="fas fa-plus mr-1"></i> Item
+                                </button>
+                            @endif
                         </div>
                     </div>
 
@@ -347,9 +352,15 @@
                                                 <input type="checkbox" name="itens_devolver[]" value="{{ $item->id }}" form="devolucaoForm" class="chkDevolver h-4 w-4 text-indigo-600">
                                             </td>
                                             <td class="px-2 sm:px-4 py-3 text-center">
-                                                <button type="button" onclick="confirmarRemocao({{ $item->id }}, '{{ addslashes($item->nome_do_produto) }}')" class="text-red-500 hover:text-red-700">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
+                                                @if(!$isPaid)
+                                                    <button type="button" onclick="confirmarRemocao({{ $item->id }}, '{{ addslashes($item->nome_do_produto) }}')" class="text-red-500 hover:text-red-700">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                @else
+                                                    <span class="text-gray-300 cursor-not-allowed flex items-center justify-center" title="Pedido Pago (Não é possível alterar itens)">
+                                                        <i class="fas fa-lock text-xs"></i>
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach

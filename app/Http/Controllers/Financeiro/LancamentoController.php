@@ -206,7 +206,7 @@ class LancamentoController extends Controller
                     \App\Models\ContaCorrente::withoutEvents(function() use ($cc, $lancamento) {
                         $cc->update([
                             'classificacao_id' => $lancamento->classificacao_financeira_id,
-                            'descricao'        => str_replace("Crédito Cliente: ", "", $lancamento->descricao)
+                            'descricao'        => str_replace(["Crédito Cliente: ", "Débito Cliente: "], "", $lancamento->descricao)
                         ]);
                     });
                 }

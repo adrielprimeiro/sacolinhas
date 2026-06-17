@@ -38,6 +38,28 @@
                         <span class="text-sm font-bold text-blue-700">R$ <span x-text="parseFloat(selectedTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span></span>
                     </div>
                 </div>
+                @if(!empty($user->sacolinha_autorizada_por))
+                    <div style="background-color: #fffbeb; border-color: #fde68a;" class="mt-3 border rounded-xl p-3 flex gap-3 items-start max-w-md">
+                        <div style="background-color: #fef3c7; color: #92400e;" class="p-2 rounded-lg flex-shrink-0">
+                            <i class="fas fa-unlock-alt text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p style="color: #92400e;" class="text-[10px] font-bold uppercase tracking-wider">Fechamento Autorizado</p>
+                            <p class="text-xs text-gray-800 font-semibold mt-0.5">
+                                Por: <span class="text-gray-950 font-bold">{{ $user->sacolinha_autorizada_por }}</span>
+                            </p>
+                            @if(!empty($user->sacolinha_autorizada_obs))
+                                <p class="text-[11px] text-gray-600 mt-1 italic">
+                                    "{{ $user->sacolinha_autorizada_obs }}"
+                                </p>
+                            @endif
+                            <button type="button" @click="revogarAutorizacao()"
+                                    class="text-[10px] text-red-600 font-bold hover:underline uppercase mt-2 tracking-wider block">
+                                <i class="fas fa-times"></i> Remover Autorização
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
         <div class="flex flex-col gap-2 min-w-[180px]">
@@ -54,6 +76,13 @@
                     class="w-full text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
                 <i class="fas fa-check-circle"></i> Fechar Sacolinha
             </button>
+            @if(empty($user->sacolinha_autorizada_por))
+                <button type="button" @click="openModalAutorizar()" 
+                        style="background-color: #f59e0b;"
+                        class="w-full text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 mt-1 mb-1 shadow-sm hover:opacity-90">
+                    <i class="fas fa-lock"></i> Autorizar Fechamento
+                </button>
+            @endif
             <button id="btnSimularFrete" 
                     :disabled="selectedIds.length === 0"
                     @click="openModalFrete()"
@@ -319,7 +348,7 @@
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Informe o CEP do Cliente</label>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-3">
                         <input type="text" x-model="cepInput" x-mask="99999-999" placeholder="00000-000"
                                class="flex-1 border-gray-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         <button @click="calcularFrete()" 
@@ -327,6 +356,34 @@
                             Calcular
                         </button>
                     </div>
+                    
+                    <!-- Dimensões Manuais do Pacote -->
+                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2 mb-3">
+                        <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Dimensões do Envio (Override)</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase">Peso (kg)</label>
+                                <input type="number" step="0.001" x-model="manualWeight" placeholder="Ex: 0.350"
+                                       class="w-full text-xs border-gray-300 rounded-lg p-1.5 focus:ring-blue-400 focus:border-blue-400">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase">Comprimento (cm)</label>
+                                <input type="number" step="0.1" x-model="manualLength" placeholder="Ex: 16"
+                                       class="w-full text-xs border-gray-300 rounded-lg p-1.5 focus:ring-blue-400 focus:border-blue-400">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase">Largura (cm)</label>
+                                <input type="number" step="0.1" x-model="manualWidth" placeholder="Ex: 11"
+                                       class="w-full text-xs border-gray-300 rounded-lg p-1.5 focus:ring-blue-400 focus:border-blue-400">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase">Altura (cm)</label>
+                                <input type="number" step="0.1" x-model="manualHeight" placeholder="Ex: 5"
+                                       class="w-full text-xs border-gray-300 rounded-lg p-1.5 focus:ring-blue-400 focus:border-blue-400">
+                            </div>
+                        </div>
+                    </div>
+                    
                     <p x-show="cepError" class="text-red-500 text-xs mt-1" x-text="cepError"></p>
                 </div>
                 
@@ -458,6 +515,59 @@
         </div>
     </div>
 
+    <!-- Modal de Autorização de Fechamento -->
+    <div x-show="modalAutorizar" 
+         class="fixed inset-0 z-50 overflow-y-auto" 
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="modalAutorizar = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-lock-open text-amber-500"></i> Autorizar Fechamento
+                    </h3>
+                    <button @click="modalAutorizar = false" class="text-gray-400 hover:text-gray-600 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Quem Autorizou</label>
+                        <input type="text" x-model="autorizadoPor"
+                               class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-bold focus:ring-2 focus:ring-amber-300 focus:outline-none bg-white transition-all shadow-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Motivos / Observações</label>
+                        <textarea x-model="observacoesAutorizacao" rows="3" placeholder="Escreva os motivos da autorização..."
+                                  class="w-full text-sm border border-gray-200 rounded-xl p-2.5 font-semibold focus:ring-2 focus:ring-amber-300 focus:outline-none bg-white transition-all shadow-sm"></textarea>
+                    </div>
+
+                    <button @click="salvarAutorizacao()" 
+                            style="background-color: #f59e0b;"
+                            class="w-full mt-4 text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2 hover:opacity-90"
+                            :disabled="savingAutorizacao">
+                        <template x-if="savingAutorizacao">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </template>
+                        <template x-if="!savingAutorizacao">
+                            <i class="fas fa-check"></i>
+                        </template>
+                        Confirmar Autorização
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -485,6 +595,14 @@ function sacolinhaAdmin() {
         freteResults: null,
         loadingFrete: false,
         cepError: '',
+        modalAutorizar: false,
+        autorizadoPor: '{{ auth()->user()->name ?? '' }}',
+        observacoesAutorizacao: '',
+        savingAutorizacao: false,
+        manualWeight: '',
+        manualLength: '',
+        manualWidth: '',
+        manualHeight: '',
         modalRemocao: false,
         modalEditPrice: false,
         savingPrice: false,
@@ -677,7 +795,7 @@ function sacolinhaAdmin() {
                     body: JSON.stringify({ 
                         user_id: {{ $user->id }},
                         valor_frete: this.freteValor,
-                        itens: this.selectedIds 
+                        itens: this.selectedIds
                     })
                 });
                 const data = await response.json();
@@ -688,6 +806,65 @@ function sacolinhaAdmin() {
                 }
             } catch (e) {
                 alert('Erro de comunicação');
+            }
+        },
+
+        openModalAutorizar() {
+            this.modalAutorizar = true;
+            this.observacoesAutorizacao = '';
+        },
+
+        async salvarAutorizacao() {
+            if (!this.autorizadoPor || !this.observacoesAutorizacao) {
+                alert('Preencha quem autorizou e os motivos!');
+                return;
+            }
+            this.savingAutorizacao = true;
+            try {
+                const response = await fetch('{{ route("admin.sacolinha.autorizar", $user->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        autorizado_por: this.autorizadoPor,
+                        observacoes: this.observacoesAutorizacao
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Erro ao salvar autorização');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição');
+            } finally {
+                this.savingAutorizacao = false;
+            }
+        },
+
+        async revogarAutorizacao() {
+            if (!confirm('Deseja realmente remover a autorização de fechamento desta sacolinha?')) return;
+            try {
+                const response = await fetch('{{ route("admin.sacolinha.revogar", $user->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Erro ao remover autorização');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro na requisição');
             }
         },
 
@@ -715,11 +892,24 @@ function sacolinhaAdmin() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ cep: cep, itens: this.selectedItemIds })
+                    body: JSON.stringify({ 
+                        cep: cep, 
+                        itens: this.selectedItemIds,
+                        manual_weight: this.manualWeight,
+                        manual_length: this.manualLength,
+                        manual_width: this.manualWidth,
+                        manual_height: this.manualHeight
+                    })
                 });
                 const data = await response.json();
                 if (data.success) {
                     this.freteResults = data.options;
+                    if (data.package && (!this.manualWeight || this.manualWeight === '')) {
+                        this.manualWeight = data.package.weight;
+                        this.manualLength = data.package.length;
+                        this.manualWidth = data.package.width;
+                        this.manualHeight = data.package.height;
+                    }
                 } else {
                     this.cepError = data.message || 'Nenhuma opção encontrada';
                 }

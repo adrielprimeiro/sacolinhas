@@ -33,7 +33,9 @@ class User extends Authenticatable
         'remember_token',   // Instagram
         'bloqueado',
         'needs_completion',
-        'photo'
+        'photo',
+        'sacolinha_autorizada_por',
+        'sacolinha_autorizada_obs'
     ];
 
     /**

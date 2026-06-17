@@ -256,9 +256,9 @@
                         <select class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-bold focus:ring-2 focus:ring-indigo-300 focus:outline-none transition shadow-sm" 
                                 id="referencia_tipo" name="referencia_tipo">
                             <option value="">Nenhum</option>
-                            @foreach (['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto'] as $refTipo)
+                            @foreach (['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'avaliacao'] as $refTipo)
                                 <option value="{{ $refTipo }}" {{ old('referencia_tipo', $financeiro->referencia_tipo) == $refTipo ? 'selected' : '' }}>
-                                    {{ ucfirst($refTipo) }}
+                                    {{ $refTipo === 'avaliacao' ? 'Avaliação' : ucfirst($refTipo) }}
                                 </option>
                             @endforeach
                         </select>

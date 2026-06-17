@@ -210,6 +210,11 @@
                    class="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border border-blue-200">
                     <i class="fas fa-plus"></i> Novo Lançamento
                 </a>
+                <a href="{{ route('admin.conta_corrente.create', array_merge(request()->query(), ['tipo' => 'avaliacao'])) }}" 
+                   style="background-color: #d1fae5; border-color: #a7f3d0; color: #065f46;"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm border hover:opacity-90">
+                    <i class="fas fa-tag"></i> Crédito de Avaliação
+                </a>
 
                 <div x-data="{
                     openRechargeModal: false,
@@ -498,19 +503,25 @@
                                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ route('admin.conta_corrente.edit', array_merge([$movimentacao->id], request()->query())) }}" 
-                                           class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <form action="{{ route('admin.conta_corrente.destroy', array_merge([$movimentacao->id], request()->query())) }}" 
-                                              method="POST" 
-                                              onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+                                        @if(in_array($movimentacao->referencia_tipo, ['pedido', 'desconto']))
+                                            <span class="p-2 text-gray-300 cursor-not-allowed flex items-center justify-center" title="Vinculado a um pedido (Edite no próprio pedido)">
+                                                <i class="fas fa-lock text-xs"></i>
+                                            </span>
+                                        @else
+                                            <a href="{{ route('admin.conta_corrente.edit', array_merge([$movimentacao->id], request()->query())) }}" 
+                                               class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form action="{{ route('admin.conta_corrente.destroy', array_merge([$movimentacao->id], request()->query())) }}" 
+                                                  method="POST" 
+                                                  onsubmit="return confirm('Tem certeza que deseja excluir este lançamento?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

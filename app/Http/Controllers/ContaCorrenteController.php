@@ -116,9 +116,14 @@ class ContaCorrenteController extends Controller
      */
     public function edit(ContaCorrente $financeiro) // Usando $financeiro para corresponder ao nome da rota 'financeiro'
     {
+        if (in_array($financeiro->referencia_tipo, ['pedido', 'desconto', 'tolerancia'])) {
+            return redirect()->route('admin.conta_corrente.index', request()->query())
+                ->with('error', 'Este lançamento está vinculado a um pedido e não pode ser editado diretamente pela carteira. Altere o pedido correspondente.');
+        }
+
         $classificacoes = ClassificacaoFinanceira::all();
         $tiposMovimentacao = ['debito', 'credito'];
-        $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'classificacao'];
+        $referenciaTipos = ['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'classificacao', 'avaliacao'];
 
         return view('admin.financeiro.bkp.edit', compact('financeiro', 'classificacoes', 'tiposMovimentacao', 'referenciaTipos'));
     }
@@ -128,6 +133,11 @@ class ContaCorrenteController extends Controller
      */
     public function update(Request $request, ContaCorrente $financeiro)
     {
+        if (in_array($financeiro->referencia_tipo, ['pedido', 'desconto', 'tolerancia'])) {
+            return redirect()->route('admin.conta_corrente.index', $request->query())
+                ->with('error', 'Este lançamento está vinculado a um pedido e não pode ser editado diretamente pela carteira. Altere o pedido correspondente.');
+        }
+
         $request->validate($this->rules($financeiro->id));
 
         DB::transaction(function () use ($request, $financeiro) {
@@ -151,20 +161,25 @@ class ContaCorrenteController extends Controller
     /**
      * Exclui um lançamento do banco de dados.
      */
-        public function destroy(ContaCorrente $financeiro)
-        {
-            DB::transaction(function () use ($financeiro) {
-                $userId = $financeiro->user_id;
-                $dataMovimentacao = $financeiro->data_movimentacao->toDateString(); 
-				
-                $financeiro->delete();
-
-                // Despacha o Job para recalcular os saldos em segundo plano
-                RecalcularSaldosJob::dispatch($userId, $dataMovimentacao);
-            });
-
-            return redirect()->route('admin.conta_corrente.index', request()->query())->with('success', 'Lançamento excluído com sucesso!');
+    public function destroy(ContaCorrente $financeiro)
+    {
+        if (in_array($financeiro->referencia_tipo, ['pedido', 'desconto', 'tolerancia'])) {
+            return redirect()->route('admin.conta_corrente.index', request()->query())
+                ->with('error', 'Este lançamento está vinculado a um pedido e não pode ser excluído diretamente pela carteira. Altere o pedido correspondente.');
         }
+
+        DB::transaction(function () use ($financeiro) {
+            $userId = $financeiro->user_id;
+            $dataMovimentacao = $financeiro->data_movimentacao->toDateString(); 
+            
+            $financeiro->delete();
+
+            // Despacha o Job para recalcular os saldos em segundo plano
+            RecalcularSaldosJob::dispatch($userId, $dataMovimentacao);
+        });
+
+        return redirect()->route('admin.conta_corrente.index', request()->query())->with('success', 'Lançamento excluído com sucesso!');
+    }
 
     /**
      * Regras de validação para o lançamento de conta corrente.
@@ -176,7 +191,7 @@ class ContaCorrenteController extends Controller
             'tipo_movimentacao' => ['required', Rule::in(['debito', 'credito'])],
             'valor' => ['required', 'numeric', 'min:0.01'],
             'classificacao_id' => ['required', 'exists:classificacao_financeira,id'], // <--- NOVO: classif. é obrigatória
-            'referencia_tipo' => ['nullable', Rule::in(['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'movimentacao'])], // <--- AJUSTADO: nullable
+            'referencia_tipo' => ['nullable', Rule::in(['sacolinha', 'pagamento', 'pedido', 'ajuste', 'desconto', 'movimentacao', 'avaliacao', 'tolerancia'])], // <--- AJUSTADO: nullable
             'referencia_id' => ['nullable', 'numeric'], // <--- AJUSTADO: nullable
             'data_movimentacao' => ['required', 'date'],
             'observacoes' => ['nullable', 'string'],

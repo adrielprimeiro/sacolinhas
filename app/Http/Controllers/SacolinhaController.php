@@ -1077,11 +1077,28 @@ class SacolinhaController extends Controller
             $request->validate([
                 'cep' => 'required|string',
                 'itens' => 'required|array',
-                'itens.*' => 'integer|exists:items,id'
+                'itens.*' => 'integer|exists:items,id',
+                'manual_weight' => 'nullable|numeric|min:0.001',
+                'manual_height' => 'nullable|numeric|min:0.1',
+                'manual_width' => 'nullable|numeric|min:0.1',
+                'manual_length' => 'nullable|numeric|min:0.1',
             ]);
 
             // Calcula dimensões e peso com a nova lógica
             $packageData = $calculator->calculateForItems($request->itens);
+
+            if ($request->filled('manual_weight')) {
+                $packageData['weight'] = (float) $request->input('manual_weight');
+            }
+            if ($request->filled('manual_height')) {
+                $packageData['height'] = (float) $request->input('manual_height');
+            }
+            if ($request->filled('manual_width')) {
+                $packageData['width'] = (float) $request->input('manual_width');
+            }
+            if ($request->filled('manual_length')) {
+                $packageData['length'] = (float) $request->input('manual_length');
+            }
 
             // Cota no Melhor Envio
             $result = $melhorEnvio->calculateShipping($request->cep, $packageData);
