@@ -85,35 +85,24 @@ class FixContaCorrenteHistory extends Command
                     );
                 }
 
-                // 3. Se o pedido usou saldo da carteira, converter isso em uma Movimentacao (se já não existir)
-                if ($pedido->valor_saldo_utilizado > 0) {
-                    $lancamento = Lancamento::where('referencia_tipo', 'pedido')
-                        ->where('referencia_id', $pedido->id)
-                        ->first();
+                // 3. Remover movimentações virtuais de saldo_carteira e ajustar o valor do lançamento antigo
+                $lancamento = Lancamento::where('referencia_tipo', 'pedido')
+                    ->where('referencia_id', $pedido->id)
+                    ->first();
 
-                    if ($lancamento) {
-                        $movExiste = Movimentacao::where('lancamento_id', $lancamento->id)
-                            ->where('forma_pagamento', 'saldo_carteira')
-                            ->exists();
-
-                        if (!$movExiste) {
-                            $movimentacao = Movimentacao::create([
-                                'lancamento_id' => $lancamento->id,
-                                'conta_bancaria_id' => 1,
-                                'data_pagamento' => $pedido->data_pedido ?? $pedido->created_at,
-                                'valor_pago' => $pedido->valor_saldo_utilizado,
-                                'forma_pagamento' => 'saldo_carteira',
-                            ]);
-                            // A criação dessa movimentacao já vai gerar o 'credito' correspondente na ContaCorrente automaticamente!
-
-                            // Atualizar status do lancamento
-                            $valorPagoTotal = $lancamento->movimentacoes()->sum('valor_pago');
-                            if ($valorPagoTotal >= $lancamento->valor_total) {
-                                $lancamento->update(['status' => 'pago']);
-                            }
-                        }
+                if ($lancamento) {
+                    if ($valorNetDebito > 0) {
+                        $lancamento->update(['valor_total' => $valorNetDebito]);
+                    } else {
+                        $lancamento->movimentacoes()->delete();
+                        $lancamento->delete();
                     }
                 }
+
+                // Limpeza preventiva de quaisquer movimentações de saldo_carteira
+                \App\Models\Movimentacao::whereHas('lancamento', function ($q) use ($pedido) {
+                    $q->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id);
+                })->where('forma_pagamento', 'saldo_carteira')->delete();
 
                 $bar->advance();
             }
