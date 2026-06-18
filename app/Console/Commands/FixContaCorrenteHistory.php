@@ -45,21 +45,23 @@ class FixContaCorrenteHistory extends Command
                 $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
                 $valorNetDebito = max(0.00, (float) $pedido->valor_total - $saldoUtilizado);
 
-                // 2. Garantir que o Débito Líquido do Pedido exista (sem incluir o saldo utilizado)
-                ContaCorrente::updateOrCreate(
-                    [
-                        'referencia_tipo' => 'pedido',
-                        'referencia_id' => $pedido->id,
-                        'tipo_movimentacao' => 'debito',
-                    ],
-                    [
-                        'user_id' => $pedido->user_id,
-                        'valor' => $valorNetDebito,
-                        'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
-                        'classificacao_id' => 1,
-                        'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
-                    ]
-                );
+                // 2. Garantir que o Débito Líquido do Pedido exista (apenas se for maior que 0)
+                if ($valorNetDebito > 0) {
+                    ContaCorrente::updateOrCreate(
+                        [
+                            'referencia_tipo' => 'pedido',
+                            'referencia_id' => $pedido->id,
+                            'tipo_movimentacao' => 'debito',
+                        ],
+                        [
+                            'user_id' => $pedido->user_id,
+                            'valor' => $valorNetDebito,
+                            'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
+                            'classificacao_id' => 1,
+                            'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                        ]
+                    );
+                }
 
                 // 2.5. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
                 if ($saldoUtilizado != 0) {
