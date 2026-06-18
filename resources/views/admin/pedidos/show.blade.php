@@ -192,7 +192,7 @@
                         <i class="fas fa-shipping-fast text-blue-500"></i> Entrega
                     </span>
                     <div class="flex items-center gap-2">
-                        @if($pedido->codigo_rastreamento)
+                        @if($pedido->codigo_rastreamento || $pedido->status_pedido !== 'pendente')
                         <form action="{{ route('admin.pedido.sincronizarMelhorEnvio', $pedido->id) }}" method="POST" class="inline">
                             @csrf
                             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition duration-200">

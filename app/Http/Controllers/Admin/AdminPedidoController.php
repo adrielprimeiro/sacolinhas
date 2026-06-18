@@ -204,19 +204,62 @@ class AdminPedidoController extends Controller
 
     public function sincronizarMelhorEnvio(Pedido $pedido)
     {
-        if (!$pedido->codigo_rastreamento) {
-            return back()->with('error', 'Pedido não possui código de rastreamento do Melhor Envio para sincronizar.');
+        $service = new MelhorEnvioService();
+        $trackingData = null;
+
+        if ($pedido->codigo_rastreamento) {
+            $trackingData = $service->searchOrder($pedido->codigo_rastreamento);
         }
 
-        $service = new MelhorEnvioService();
-        $trackingData = $service->searchOrder($pedido->codigo_rastreamento);
+        // Se não encontrou pelo código de rastreio (ou não tinha código de rastreio), tenta buscar por referências
+        if (!$trackingData || empty($trackingData['data'])) {
+            $trackingData = $service->searchOrder($pedido->numero_pedido);
+        }
 
         if (!$trackingData || empty($trackingData['data'])) {
-            return back()->with('error', 'Não foi possível encontrar este envio no Melhor Envio.');
+            if ($pedido->user && $pedido->user->email) {
+                $trackingData = $service->searchOrder($pedido->user->email);
+            }
         }
 
-        $orderData = $trackingData['data'][0];
+        if (!$trackingData || empty($trackingData['data'])) {
+            if ($pedido->user && $pedido->user->name) {
+                $trackingData = $service->searchOrder($pedido->user->name);
+            }
+        }
+
+        if (!$trackingData || empty($trackingData['data'])) {
+            return back()->with('error', 'Não foi possível localizar este envio no Melhor Envio. Certifique-se de que a etiqueta já foi gerada.');
+        }
+
+        // Filtra a ordem correspondente
+        $orderData = null;
+        if (count($trackingData['data']) === 1) {
+            $orderData = $trackingData['data'][0];
+        } else {
+            foreach ($trackingData['data'] as $option) {
+                if (
+                    (isset($option['reference']) && $option['reference'] === $pedido->numero_pedido) ||
+                    (isset($option['to']['postal_code']) && preg_replace('/[^0-9]/', '', $option['to']['postal_code']) === preg_replace('/[^0-9]/', '', $pedido->cep_entrega))
+                ) {
+                    $orderData = $option;
+                    break;
+                }
+            }
+            if (!$orderData) {
+                $orderData = $trackingData['data'][0];
+            }
+        }
+
         $cartOrderId = $orderData['id'];
+        $updates = [];
+
+        // Atualizar o código de rastreamento no banco se o obtivemos agora
+        $trackingCode = $orderData['tracking'] ?? null;
+        if ($trackingCode && $pedido->codigo_rastreamento !== $trackingCode) {
+            $updates['codigo_rastreamento'] = $trackingCode;
+            $pedido->codigo_rastreamento = $trackingCode;
+        }
 
         $details = $service->getTrackingDetails($cartOrderId);
 

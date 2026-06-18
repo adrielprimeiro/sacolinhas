@@ -238,6 +238,7 @@ class MelhorEnvioService
         $payload = [
             'service' => $serviceId,
             'agency' => null, // Opcional, a não ser que seja Jadlog e não tenha coleta
+            'reference' => $pedido->numero_pedido,
             'from' => [
                 'name' => config('app.name', 'Minha Mania'),
                 'phone' => env('STORE_PHONE', '48999999999'),
