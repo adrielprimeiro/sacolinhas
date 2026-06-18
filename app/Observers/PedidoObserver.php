@@ -20,13 +20,10 @@ class PedidoObserver
 
         // valor_saldo_utilizado:
         //   > 0 → saldo positivo abatido do pedido (reduz valor a pagar)
-        //   < 0 → dívida anterior embutida no pedido (aumenta valor a pagar)
-        //   = 0 → sem saldo envolvido
-        $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
+        //   <= 0 → sem saldo envolvido (legacy negative debt is ignored here to prevent ledger/revenue inflation)
+        $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
 
         // Valor líquido que entra no caixa da empresa (exclui o saldo de carteira usado)
-        // Se saldo é positivo: liquidoFinanceiro = bruto - saldoUsado (menos o que foi saldo)
-        // Se saldo é negativo (dívida embutida): liquidoFinanceiro = valor_total (inclui a dívida)
         $valorLiquido = max(0.00, $valorBruto - $saldoUtilizado);
 
         // Valor a debitar na carteira do cliente (o que ele deve ao total)

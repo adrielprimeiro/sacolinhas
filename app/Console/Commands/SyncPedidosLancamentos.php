@@ -103,7 +103,7 @@ class SyncPedidosLancamentos extends Command
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {
                 if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
-                    $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
+                    $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
                     $valorNetDebito = max(0.00, (float)$pedido->valor_total - $saldoUtilizado);
 
                     // Débito da compra pelo valor LÍQUIDO do pedido

@@ -42,7 +42,7 @@ class FixContaCorrenteHistory extends Command
                 if (!$pedido->user_id) continue;
                 $userIds[$pedido->user_id] = true;
 
-                $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
+                $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
                 $valorNetDebito = max(0.00, (float) $pedido->valor_total - $saldoUtilizado);
 
                 // 2. Garantir que o Débito Líquido do Pedido exista (apenas se for maior que 0)
@@ -63,14 +63,8 @@ class FixContaCorrenteHistory extends Command
                     );
                 }
 
-                // 2.5. Se houver saldo utilizado (desconto ou dívida embutida), cria/atualiza o lançamento correspondente
-                if ($saldoUtilizado != 0) {
-                    $tipoMovSaldo = $saldoUtilizado > 0 ? 'debito' : 'credito';
-                    $valorMovSaldo = abs($saldoUtilizado);
-                    $descMovSaldo = $saldoUtilizado > 0 
-                        ? "Desconto Carteira: Pedido {$pedido->numero_pedido}" 
-                        : "Ajuste Dívida Embutida: Pedido {$pedido->numero_pedido}";
-
+                // 2.5. Se houver saldo utilizado (desconto), cria/atualiza o lançamento correspondente
+                if ($saldoUtilizado > 0) {
                     ContaCorrente::updateOrCreate(
                         [
                             'referencia_tipo' => 'desconto',
@@ -78,9 +72,9 @@ class FixContaCorrenteHistory extends Command
                         ],
                         [
                             'user_id' => $pedido->user_id,
-                            'tipo_movimentacao' => $tipoMovSaldo,
-                            'valor' => $valorMovSaldo,
-                            'descricao' => $descMovSaldo,
+                            'tipo_movimentacao' => 'debito',
+                            'valor' => $saldoUtilizado,
+                            'descricao' => "Desconto Carteira: Pedido {$pedido->numero_pedido}",
                             'classificacao_id' => 1,
                             'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                         ]
