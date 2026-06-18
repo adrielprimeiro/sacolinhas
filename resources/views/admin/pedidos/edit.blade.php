@@ -124,45 +124,15 @@
 
                             <div class="border-t border-dashed border-gray-200 pt-2"></div>
 
-                            {{-- Total bruto --}}
-                            <div class="flex justify-between items-center font-semibold text-gray-700 text-xs">
-                                <span>Total Bruto</span>
-                                <span id="exib_total_bruto">R$ {{ number_format(max(0, $subtotal + ($pedido->valor_frete ?? 0) - ($pedido->valor_desconto ?? 0)), 2, ',', '.') }}</span>
-                            </div>
-
-                            {{-- Carteira (Editável) --}}
-                            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
-                                <div class="flex justify-between items-center text-blue-700 text-xs font-bold uppercase tracking-wide">
-                                    <span><i class="fas fa-wallet mr-1"></i> Saldo da Carteira Utilizado</span>
-                                </div>
-                                <div>
-                                    <input type="number" step="0.01" name="valor_saldo_utilizado" id="inp_saldo_utilizado" 
-                                           value="{{ old('valor_saldo_utilizado', $saldoJaAlocado) }}"
-                                           readonly
-                                           class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-gray-100 cursor-not-allowed focus:outline-none @error('valor_saldo_utilizado') border-red-500 @enderror">
-                                    @error('valor_saldo_utilizado')
-                                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div class="text-[10px] text-gray-500 space-y-1">
-                                    <p>Saldo da Carteira Atual: <span class="font-bold text-gray-700">R$ {{ number_format($saldoCarteira, 2, ',', '.') }}</span></p>
-                                    <p class="text-[9px] text-gray-400 italic mt-1 leading-normal">
-                                        * Use valor positivo para desconto (debitando da carteira). Use valor negativo para embutir uma dívida anterior da cliente no pedido.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {{-- VALOR A PAGAR --}}
-                            @php
-                                $valorExibir = $subtotal + ($pedido->valor_frete ?? 0) - ($pedido->valor_desconto ?? 0) - ($saldoJaAlocado);
-                                // saldoJaAlocado positivo reduz, negativo aumenta (já está embutido no total)
-                            @endphp
+                            {{-- VALOR TOTAL --}}
                             <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 flex justify-between items-center mt-2">
-                                <span class="text-xs font-bold text-green-600 uppercase">A Pagar</span>
-                                <p id="exib_valor_pagar" class="text-2xl font-extrabold text-green-700">
-                                    R$ {{ number_format(max(0, $valorExibir), 2, ',', '.') }}
+                                <span class="text-xs font-bold text-green-600 uppercase">Valor Total</span>
+                                <p id="exib_total_bruto" class="text-2xl font-extrabold text-green-700">
+                                    R$ {{ number_format(max(0, $subtotal + ($pedido->valor_frete ?? 0) - ($pedido->valor_desconto ?? 0)), 2, ',', '.') }}
                                 </p>
                             </div>
+
+                            <input type="hidden" name="valor_saldo_utilizado" id="inp_saldo_utilizado" value="{{ old('valor_saldo_utilizado', $saldoJaAlocado) }}">
 
                             <input type="hidden" name="valor_total" id="inp_valor_total" value="{{ old('valor_total', $pedido->valor_total) }}">
                         </div>
@@ -406,19 +376,14 @@
         const frete    = parseFloat(document.getElementById('inp_frete')?.value)    || 0;
         const desconto = parseFloat(document.getElementById('inp_desconto')?.value) || 0;
         const freteReal = parseFloat(document.getElementById('inp_frete_real')?.value) || 0;
-        const saldoUtilizado = parseFloat(document.getElementById('inp_saldo_utilizado')?.value) || 0;
 
-        // Saldo é editável: positivo reduz, negativo aumenta
         const totalBruto  = Math.max(0, SUBTOTAL_BASE + frete - desconto);
-        const valorPagar  = Math.max(0, totalBruto - saldoUtilizado);
 
         const elBruto = document.getElementById('exib_total_bruto');
-        const elPagar = document.getElementById('exib_valor_pagar');
         const elFreteReal = document.getElementById('exib_frete_real');
         const inpTotal = document.getElementById('inp_valor_total');
 
         if (elBruto)  elBruto.textContent  = fmt(totalBruto);
-        if (elPagar)  elPagar.textContent  = fmt(valorPagar);
         if (elFreteReal) elFreteReal.textContent = fmt(freteReal);
         
         // O valor_total do pedido no banco é o bruto (itens + frete - desconto)

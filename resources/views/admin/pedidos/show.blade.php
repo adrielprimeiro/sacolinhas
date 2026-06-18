@@ -176,33 +176,10 @@
 
                         <div class="border-t border-dashed border-gray-200 pt-2"></div>
 
-                        <div class="flex justify-between items-center font-semibold text-gray-700 text-xs uppercase">
-                            <span>Total Bruto</span>
-                            <span>R$ {{ number_format($totalBruto, 2, ',', '.') }}</span>
-                        </div>
-
-                        {{-- Saldo Utilizado (positivo = desconto; negativo = dívida embutida) --}}
-                        @if($saldoUsado > 0)
-                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
-                            <div class="flex justify-between items-center text-blue-700 text-xs font-bold uppercase tracking-wide">
-                                <span><i class="fas fa-wallet mr-1"></i> Saldo Utilizado</span>
-                                <span class="text-blue-600 font-bold">− R$ {{ number_format($saldoUsado, 2, ',', '.') }}</span>
-                            </div>
-                        </div>
-                        @elseif($saldoUsado < 0)
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-                            <div class="flex justify-between items-center text-red-700 text-xs font-bold uppercase tracking-wide">
-                                <span><i class="fas fa-exclamation-circle mr-1"></i> Dívida Anterior Embutida</span>
-                                <span class="text-red-600 font-bold">+ R$ {{ number_format(abs($saldoUsado), 2, ',', '.') }}</span>
-                            </div>
-                            <p class="text-[10px] text-red-400">A cliente possuía saldo negativo que foi incluído neste pedido.</p>
-                        </div>
-                        @endif
-
-                        {{-- VALOR A PAGAR --}}
+                        {{-- VALOR TOTAL --}}
                         <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 flex justify-between items-center">
-                            <span class="text-xs font-bold text-green-600 uppercase tracking-widest">A Pagar</span>
-                            <p class="text-2xl font-extrabold text-green-700">R$ {{ number_format($valorPagar, 2, ',', '.') }}</p>
+                            <span class="text-xs font-bold text-green-600 uppercase tracking-widest">Valor Total</span>
+                            <p class="text-2xl font-extrabold text-green-700">R$ {{ number_format($totalBruto, 2, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>
