@@ -34,7 +34,8 @@ class AdminSacolinhaController extends Controller
 
         $sacolinhas = $query->groupBy('u.id', 'u.name')
             ->orderBy('aberto_em', 'asc')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.sacolinhas.index', compact('sacolinhas'));
     }

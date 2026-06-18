@@ -53,7 +53,7 @@ class ClienteController extends Controller
             }
         }
         
-        $clientes = $query->orderBy('created_at', 'desc')->paginate(15);
+        $clientes = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
         return view('admin.clientes.index', compact('clientes'));
     }
 

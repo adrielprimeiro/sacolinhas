@@ -56,7 +56,8 @@ class AdminPedidoController extends Controller
 		$pedidos = $query
 			->orderByDesc('data_pedido')
 			->orderByDesc('id')
-			->paginate(15);
+			->paginate(15)
+			->withQueryString();
 
 		return view('admin.pedidos.index', compact('pedidos'));
 	}

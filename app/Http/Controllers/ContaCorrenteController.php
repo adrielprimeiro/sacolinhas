@@ -47,7 +47,8 @@ class ContaCorrenteController extends Controller
 		$movimentacoes = $query
 			->orderByDesc('data_movimentacao')
 			->orderByDesc('id')
-			->paginate(10);
+			->paginate(10)
+			->withQueryString();
 
 		// Carrega apenas o usuário selecionado no filtro (se houver), para exibir o nome pré-preenchido
 		$selectedUser = $request->filled('user_id')
