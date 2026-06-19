@@ -86,14 +86,12 @@ class RestoreFromBackup extends Command
         // 3. Restaurar a tabela no banco
         if (!$dryRun) {
             $this->info("Executando restauração da tabela conta_corrente...");
-            DB::transaction(function() use ($sqlCommands) {
-                // Desativar chaves estrangeiras temporariamente
-                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-                foreach ($sqlCommands as $cmd) {
-                    DB::statement($cmd);
-                }
-                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            });
+            // Desativar chaves estrangeiras temporariamente
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            foreach ($sqlCommands as $cmd) {
+                DB::statement($cmd);
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
             $this->info("Tabela conta_corrente restaurada com sucesso para o estado de {$cutoffDate}!");
         } else {
             $this->info("Simulação: Tabela conta_corrente seria restaurada para o estado de {$cutoffDate}.");
