@@ -31,6 +31,13 @@ class FixContaCorrenteHistory extends Command
                     ->delete();
             }
 
+            // 1.7 Deletar lançamentos e movimentações de 'carteira_credito' (ajustes virtuais de carteira)
+            $carteiraCreditoIds = Lancamento::where('referencia_tipo', 'carteira_credito')->pluck('id');
+            if ($carteiraCreditoIds->isNotEmpty()) {
+                Movimentacao::whereIn('lancamento_id', $carteiraCreditoIds)->delete();
+                Lancamento::whereIn('id', $carteiraCreditoIds)->delete();
+            }
+
             // Pegar todos os pedidos aprovados ou pendentes que têm valor
             $pedidos = Pedido::where('valor_total', '>', 0)->get();
 
@@ -40,6 +47,7 @@ class FixContaCorrenteHistory extends Command
 
             foreach ($pedidos as $pedido) {
                 if (!$pedido->user_id) continue;
+                if (str_starts_with($pedido->numero_pedido, 'REC-')) continue;
                 $userIds[$pedido->user_id] = true;
 
                 $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);

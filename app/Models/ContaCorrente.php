@@ -81,64 +81,15 @@ class ContaCorrente extends Model
 
     public function sincronizarFinanceiro()
     {
-        if (!in_array($this->referencia_tipo, ['movimentacao', 'pedido', 'desconto', 'tolerancia'])) {
-            $user = $this->user;
-            if ($user) {
-                $pessoa = $user->perfilFinanceiro;
-                if (!$pessoa) {
-                    $pessoa = \App\Models\Pessoa::create([
-                        'user_id'   => $user->id,
-                        'nome'      => $user->name,
-                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
-                        'tipo'      => 'cliente_circular',
-                    ]);
-                }
-
-                $tipoLancamento = $this->tipo_movimentacao === 'credito' ? 'despesa' : 'receita';
-                $descricaoLancamento = $this->tipo_movimentacao === 'credito' 
-                    ? "Crédito Cliente: " . ($this->descricao ?: 'Crédito em Carteira')
-                    : "Débito Cliente: " . ($this->descricao ?: 'Débito em Carteira');
-
-                $lancamento = \App\Models\Lancamento::updateOrCreate(
-                    [
-                        'referencia_tipo' => 'carteira_credito',
-                        'referencia_id' => $this->id,
-                    ],
-                    [
-                        'tipo'                        => $tipoLancamento,
-                        'status'                      => 'pago',
-                        'pessoa_id'                   => $pessoa->id,
-                        'classificacao_financeira_id' => $this->classificacao_id,
-                        'data_emissao'                => $this->data_movimentacao,
-                        'data_vencimento'             => $this->data_movimentacao,
-                        'valor_total'                 => $this->valor,
-                        'descricao'                   => $descricaoLancamento,
-                    ]
-                );
-
-                $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
-                $contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
-
-                \App\Models\Movimentacao::updateOrCreate(
-                    [
-                        'lancamento_id' => $lancamento->id,
-                    ],
-                    [
-                        'conta_bancaria_id' => $contaBancariaId,
-                        'data_pagamento' => $this->data_movimentacao,
-                        'valor_pago' => $this->valor,
-                        'forma_pagamento' => 'saldo_carteira',
-                    ]
-                );
-            }
-        } else {
-            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'carteira_credito')
-                ->where('referencia_id', $this->id)
-                ->first();
-            if ($lancamento) {
-                $lancamento->movimentacoes()->delete();
-                $lancamento->delete();
-            }
+        // Sob a regra do regime de caixa estrito, créditos e débitos internos na carteira (devoluções, avaliações, etc.)
+        // são puramente virtuais e não correspondem a fluxo de caixa real. Portanto, nunca devem gerar
+        // lançamentos e movimentações financeiras de 'carteira_credito'.
+        $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'carteira_credito')
+            ->where('referencia_id', $this->id)
+            ->first();
+        if ($lancamento) {
+            $lancamento->movimentacoes()->delete();
+            $lancamento->delete();
         }
     }
 }
