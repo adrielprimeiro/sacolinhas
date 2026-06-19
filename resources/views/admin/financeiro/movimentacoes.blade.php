@@ -179,9 +179,7 @@ $currentRoute = Route::currentRouteName();
          <tbody class="divide-y divide-gray-50">
              @forelse($movimentacoes as $m)
                  @php
-                     $isCarteira = $m->contaBancaria && str_contains(strtolower($m->contaBancaria->nome), 'carteira');
-                     $tipoLancamento = $m->lancamento->tipo ?? 'receita';
-                     $tipoExibicao = $isCarteira ? ($tipoLancamento === 'receita' ? 'despesa' : 'receita') : $tipoLancamento;
+                     $tipoExibicao = $m->lancamento->tipo ?? 'receita';
                  @endphp
                  <tr class="hover:bg-gray-50">
                      <td class="px-5 py-4 text-sm text-gray-500">{{ $m->data_pagamento->format('d/m/Y') }}</td>

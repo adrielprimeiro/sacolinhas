@@ -133,12 +133,12 @@ class MovimentacaoController extends Controller
 
         $isCarteira = $contaSelecionada && str_contains(strtolower($contaSelecionada->nome), 'carteira');
 
-        $totalEntradas = (clone $totaisQuery)->whereHas('lancamento', function ($q) use ($isCarteira) {
-            $q->where('tipo', $isCarteira ? 'despesa' : 'receita');
+        $totalEntradas = (clone $totaisQuery)->whereHas('lancamento', function ($q) {
+            $q->where('tipo', 'receita');
         })->sum('valor_pago');
 
-        $totalSaidas = (clone $totaisQuery)->whereHas('lancamento', function ($q) use ($isCarteira) {
-            $q->where('tipo', $isCarteira ? 'receita' : 'despesa');
+        $totalSaidas = (clone $totaisQuery)->whereHas('lancamento', function ($q) {
+            $q->where('tipo', 'despesa');
         })->sum('valor_pago');
 
         return view('admin.financeiro.movimentacoes', 
