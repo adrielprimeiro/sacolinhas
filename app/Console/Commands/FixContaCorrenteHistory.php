@@ -20,8 +20,10 @@ class FixContaCorrenteHistory extends Command
         $this->info("Iniciando migração de dados da Carteira...");
 
         DB::transaction(function () {
-            // 1. Deletar todos os lançamentos manuais antigos de 'pedido' e 'desconto' na ContaCorrente
-            ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])->delete();
+            // 1. Deletar apenas os débitos antigos de 'pedido' e 'desconto' na ContaCorrente (preservando créditos de devoluções!)
+            ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto'])
+                ->where('tipo_movimentacao', 'debito')
+                ->delete();
 
             // 1.5 Deletar créditos indevidos gerados por Movimentações de 'saldo_carteira' (bug anterior)
             $movimentacoesCarteira = Movimentacao::where('forma_pagamento', 'saldo_carteira')->pluck('id');
