@@ -89,24 +89,42 @@ class FixContaCorrenteHistory extends Command
                     );
                 }
 
-                // 3. Remover movimentações virtuais de saldo_carteira e ajustar o valor do lançamento antigo
+                $valorBruto = (float) $pedido->valor_total;
+                
+                // 3. Ajustar o valor do lançamento financeiro do pedido para o valor Bruto
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                     ->where('referencia_id', $pedido->id)
                     ->first();
 
                 if ($lancamento) {
-                    if ($valorNetDebito > 0) {
-                        $lancamento->update(['valor_total' => $valorNetDebito]);
+                    if ($valorBruto > 0) {
+                        $lancamento->update(['valor_total' => $valorBruto]);
+
+                        if ($saldoUtilizado > 0) {
+                            $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
+                            $contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
+
+                            \App\Models\Movimentacao::updateOrCreate(
+                                [
+                                    'lancamento_id' => $lancamento->id,
+                                    'forma_pagamento' => 'saldo_carteira',
+                                ],
+                                [
+                                    'conta_bancaria_id' => $contaBancariaId,
+                                    'data_pagamento' => $pedido->data_pedido ?? $pedido->created_at,
+                                    'valor_pago' => $saldoUtilizado,
+                                ]
+                            );
+                        } else {
+                            \App\Models\Movimentacao::where('lancamento_id', $lancamento->id)
+                                ->where('forma_pagamento', 'saldo_carteira')
+                                ->delete();
+                        }
                     } else {
                         $lancamento->movimentacoes()->delete();
                         $lancamento->delete();
                     }
                 }
-
-                // Limpeza preventiva de quaisquer movimentações de saldo_carteira
-                \App\Models\Movimentacao::whereHas('lancamento', function ($q) use ($pedido) {
-                    $q->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id);
-                })->where('forma_pagamento', 'saldo_carteira')->delete();
 
                 $bar->advance();
             }
@@ -125,6 +143,34 @@ class FixContaCorrenteHistory extends Command
             $usersBar->finish();
 
         });
+
+        $this->info("\nRecriando Lançamentos Financeiros de Créditos/Avaliações...");
+        // Pegar movimentações de ContaCorrente que não são de fluxo normal de vendas para gerar lançamentos
+        $ccMovimentos = ContaCorrente::where(function ($q) {
+            $q->whereNotIn('referencia_tipo', ['pedido', 'desconto', 'movimentacao', 'tolerancia'])
+              ->orWhereNull('referencia_tipo');
+        })->get();
+
+        $ccBar = $this->output->createProgressBar(count($ccMovimentos));
+        foreach ($ccMovimentos as $mov) {
+            // Se a classificação não existir, tentamos adivinhar com base na descrição,
+            // que é exatamente o que a trigger boot creating() agora faz para novas entradas.
+            if (empty($mov->classificacao_id)) {
+                $desc = mb_strtoupper($mov->descricao, 'UTF-8');
+                if (str_contains($desc, 'AVALIA')) {
+                    $mov->classificacao_id = 19;
+                } elseif (str_contains($desc, 'DEVOLU')) {
+                    $mov->classificacao_id = 81;
+                } else {
+                    $mov->classificacao_id = 19;
+                }
+                $mov->save(); // disparará boot -> updated -> sincronizarFinanceiro
+            } else {
+                $mov->sincronizarFinanceiro();
+            }
+            $ccBar->advance();
+        }
+        $ccBar->finish();
 
         $this->info("\nHistórico da Carteira corrigido com sucesso!");
     }

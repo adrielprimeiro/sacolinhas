@@ -47,6 +47,10 @@ Route::post('/api/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioW
 Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
+// Live Chat Webhook (recebe mensagens do browser)
+Route::post('/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 
 // Rota que vai disparar o envio das imagens
 //Route::get('/teste-enviar-gemini', [App\Http\Controllers\ImagemBatchController::class, 'enviarParaEdicao']);
@@ -222,6 +226,13 @@ Route::middleware('auth')->group(function () {
 
     // Admin Items
     Route::prefix('admin')->group(function () {
+
+        // ===== LIVE CHAT =====
+        Route::get('live-chat', [\App\Http\Controllers\Admin\LiveChatController::class, 'dashboard'])->name('admin.live-chat.dashboard');
+        Route::get('lives/{liveId}/chat-data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getChatData'])->name('admin.live-chat.data');
+        Route::post('live-chat/add-to-bag', [\App\Http\Controllers\Admin\LiveChatController::class, 'addToBag'])->name('admin.live-chat.add-to-bag');
+        Route::post('live-chat/ignore', [\App\Http\Controllers\Admin\LiveChatController::class, 'ignoreRequest'])->name('admin.live-chat.ignore');
+        Route::post('live-chat/link-user', [\App\Http\Controllers\Admin\LiveChatController::class, 'linkUser'])->name('admin.live-chat.link-user');
 
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])

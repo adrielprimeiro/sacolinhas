@@ -45,14 +45,14 @@ class SyncPedidosLancamentos extends Command
                 ]);
             }
 
-            $saldoUtilizado = (float) $pedido->valor_saldo_utilizado;
-            $valorLiquido = max(0.00, (float)$pedido->valor_total - $saldoUtilizado);
+            $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
+            $valorBruto = (float) $pedido->valor_total;
 
             $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
                 ->first();
 
-            if ($valorLiquido > 0) {
+            if ($valorBruto > 0) {
                 $dadosLancamento = [
                     'tipo'                        => 'receita',
                     'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
@@ -61,18 +61,18 @@ class SyncPedidosLancamentos extends Command
                     'classificacao_financeira_id' => $classificacaoId,
                     'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
                     'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
-                    'valor_total'                 => $valorLiquido,
+                    'valor_total'                 => $valorBruto,
                     'descricao'                   => "Pedido " . $pedido->numero_pedido,
                     'referencia_tipo'             => 'pedido',
                     'referencia_id'               => $pedido->id,
                 ];
 
                 if (!$lancamento) {
-                    $this->info("Gerando lançamento para Pedido #{$pedido->numero_pedido} (Valor Líquido: R$ {$valorLiquido})");
+                    $this->info("Gerando lançamento para Pedido #{$pedido->numero_pedido} (Valor Bruto: R$ {$valorBruto})");
                     $lancamento = Lancamento::create($dadosLancamento);
                     $newCount++;
                 } else {
-                    $this->info("Atualizando lançamento do Pedido #{$pedido->numero_pedido} (Valor Líquido: R$ {$valorLiquido})");
+                    $this->info("Atualizando lançamento do Pedido #{$pedido->numero_pedido} (Valor Bruto: R$ {$valorBruto})");
                     $lancamento->update($dadosLancamento);
                     
                     // Sincronizar cada movimentação para atualizar o livro razão (ContaCorrente)
@@ -84,21 +84,32 @@ class SyncPedidosLancamentos extends Command
                     $updatedCount++;
                 }
 
-                // Deletar qualquer movimentação virtual de saldo_carteira associada a este lançamento
-                $lancamento->movimentacoes()->where('forma_pagamento', 'saldo_carteira')->delete();
+                if ($saldoUtilizado > 0) {
+                    $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
+                    $contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
+
+                    \App\Models\Movimentacao::updateOrCreate(
+                        [
+                            'lancamento_id' => $lancamento->id,
+                            'forma_pagamento' => 'saldo_carteira',
+                        ],
+                        [
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento' => $pedido->data_pedido ?? $pedido->created_at,
+                            'valor_pago' => $saldoUtilizado,
+                        ]
+                    );
+                } else {
+                    $lancamento->movimentacoes()->where('forma_pagamento', 'saldo_carteira')->delete();
+                }
             } else {
                 if ($lancamento) {
-                    $this->info("Excluindo lançamento financeiro do Pedido #{$pedido->numero_pedido} (Pago 100% via Carteira)");
+                    $this->info("Excluindo lançamento financeiro do Pedido #{$pedido->numero_pedido} (Sem valor)");
                     $lancamento->movimentacoes()->delete();
                     $lancamento->delete();
                     $updatedCount++;
                 }
             }
-
-            // Limpeza preventiva de quaisquer movimentações virtuais de carteira associadas a este pedido
-            \App\Models\Movimentacao::whereHas('lancamento', function ($q) use ($pedido) {
-                $q->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id);
-            })->where('forma_pagamento', 'saldo_carteira')->delete();
 
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {

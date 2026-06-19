@@ -56,8 +56,8 @@ class PedidoObserver
                 ->first();
             $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
 
-            // 2. Criar ou atualizar o lançamento de receita apenas se houver valor líquido pago diretamente
-            if ($valorLiquido > 0) {
+            // 2. Criar ou atualizar o lançamento de receita com o valor bruto do pedido
+            if ($valorBruto > 0) {
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                     ->where('referencia_id', $pedido->id)
                     ->first();
@@ -70,7 +70,7 @@ class PedidoObserver
                     'classificacao_financeira_id' => $classificacaoId,
                     'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
                     'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
-                    'valor_total'                 => $valorLiquido, // Apenas o valor líquido pago (exclui saldo da carteira)
+                    'valor_total'                 => $valorBruto, // Valor bruto do pedido
                     'descricao'                   => "Pedido " . $pedido->numero_pedido,
                     'referencia_tipo'             => 'pedido',
                     'referencia_id'               => $pedido->id,
@@ -82,12 +82,27 @@ class PedidoObserver
                     $lancamento = Lancamento::create($dadosLancamento);
                 }
 
-                // Garantir que não existam baixas virtuais de carteira associadas a este lançamento
-                \App\Models\Movimentacao::where('lancamento_id', $lancamento->id)
-                    ->where('forma_pagamento', 'saldo_carteira')
-                    ->delete();
+                if ($saldoUtilizado > 0) {
+                    $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
+                    $contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
+
+                    \App\Models\Movimentacao::updateOrCreate(
+                        [
+                            'lancamento_id' => $lancamento->id,
+                            'forma_pagamento' => 'saldo_carteira',
+                        ],
+                        [
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento' => $pedido->data_pedido ?? $pedido->created_at,
+                            'valor_pago' => $saldoUtilizado,
+                        ]
+                    );
+                } else {
+                    \App\Models\Movimentacao::where('lancamento_id', $lancamento->id)
+                        ->where('forma_pagamento', 'saldo_carteira')
+                        ->delete();
+                }
             } else {
-                // Se o pedido foi pago 100% com a carteira, não deve existir lançamento financeiro
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                     ->where('referencia_id', $pedido->id)
                     ->first();
@@ -96,11 +111,6 @@ class PedidoObserver
                     $lancamento->delete();
                 }
             }
-
-            // Limpeza preventiva de quaisquer movimentações virtuais antigas associadas a este pedido
-            \App\Models\Movimentacao::whereHas('lancamento', function ($q) use ($pedido) {
-                $q->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id);
-            })->where('forma_pagamento', 'saldo_carteira')->delete();
 
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {
