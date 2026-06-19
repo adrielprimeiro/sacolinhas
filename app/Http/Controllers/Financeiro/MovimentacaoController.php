@@ -49,6 +49,24 @@ class MovimentacaoController extends Controller
             });
         }
 
+        if ($request->filled('divergencia_tipo')) {
+            if ($request->divergencia_tipo == 'saida_receita') {
+                $query->whereHas('lancamento', function ($q) {
+                    $q->where('tipo', 'despesa')
+                      ->whereHas('classificacaoFinanceira', function ($qc) {
+                          $qc->where('tipo_natureza', 'receita');
+                      });
+                });
+            } elseif ($request->divergencia_tipo == 'entrada_despesa') {
+                $query->whereHas('lancamento', function ($q) {
+                    $q->where('tipo', 'receita')
+                      ->whereHas('classificacaoFinanceira', function ($qc) {
+                          $qc->where('tipo_natureza', 'despesa');
+                      });
+                });
+            }
+        }
+
         if ($request->filled('pesquisa')) {
             $search = $request->pesquisa;
             $cleanSearch = $search;
@@ -100,6 +118,24 @@ class MovimentacaoController extends Controller
             $totaisQuery->whereHas('lancamento', function ($q) use ($request) {
                 $q->where('tipo', $request->tipo);
             });
+        }
+
+        if ($request->filled('divergencia_tipo')) {
+            if ($request->divergencia_tipo == 'saida_receita') {
+                $totaisQuery->whereHas('lancamento', function ($q) {
+                    $q->where('tipo', 'despesa')
+                      ->whereHas('classificacaoFinanceira', function ($qc) {
+                          $qc->where('tipo_natureza', 'receita');
+                      });
+                });
+            } elseif ($request->divergencia_tipo == 'entrada_despesa') {
+                $totaisQuery->whereHas('lancamento', function ($q) {
+                    $q->where('tipo', 'receita')
+                      ->whereHas('classificacaoFinanceira', function ($qc) {
+                          $qc->where('tipo_natureza', 'despesa');
+                      });
+                });
+            }
         }
         if ($request->filled('pesquisa')) {
             $search = $request->pesquisa;

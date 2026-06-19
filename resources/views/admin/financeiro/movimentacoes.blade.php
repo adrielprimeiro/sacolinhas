@@ -133,6 +133,14 @@ $currentRoute = Route::currentRouteName();
                     <option value="despesa" {{ request('tipo') == 'despesa' ? 'selected' : '' }}>Despesa</option>
                 </select>
             </div>
+            <div>
+                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Divergência</label>
+                <select name="divergencia_tipo" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white">
+                    <option value="">Todas</option>
+                    <option value="saida_receita" {{ request('divergencia_tipo') == 'saida_receita' ? 'selected' : '' }}>Saída como Receita</option>
+                    <option value="entrada_despesa" {{ request('divergencia_tipo') == 'entrada_despesa' ? 'selected' : '' }}>Entrada como Despesa</option>
+                </select>
+            </div>
             <div class="min-w-[150px]">
                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Categoria</label>
                 <select name="classificacao_financeira_id" onchange="this.form.submit()" class="border border-gray-200 rounded-xl p-2 text-sm bg-white w-full">
