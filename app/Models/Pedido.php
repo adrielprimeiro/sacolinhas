@@ -268,4 +268,13 @@ class Pedido extends Model
             \Illuminate\Support\Facades\Log::error("Erro ao sincronizar rastreio do pedido {$this->id}: " . $e->getMessage());
         }
     }
+
+    public function getValorTotalOriginalAttribute()
+    {
+        $devolvidosVal = \Illuminate\Support\Facades\DB::table('items_pedido')
+            ->where('pedido_id', $this->id)
+            ->where('status_item', 'devolvido')
+            ->sum('valor_total');
+        return (float) $this->valor_total + (float) $devolvidosVal;
+    }
 }

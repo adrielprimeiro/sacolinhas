@@ -53,7 +53,7 @@ class FixContaCorrenteHistory extends Command
                 $userIds[$pedido->user_id] = true;
 
                 $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
-                $valorNetDebito = max(0.00, (float) $pedido->valor_total - $saldoUtilizado);
+                $valorNetDebito = max(0.00, (float) $pedido->valor_total_original - $saldoUtilizado);
 
                 // 2. Garantir que o Débito Líquido do Pedido exista (apenas se for maior que 0)
                 if ($valorNetDebito > 0) {
@@ -91,7 +91,7 @@ class FixContaCorrenteHistory extends Command
                     );
                 }
 
-                $valorBruto = (float) $pedido->valor_total;
+                $valorBruto = (float) $pedido->valor_total_original;
                 
                 // 3. Ajustar o valor do lançamento financeiro do pedido para o valor Bruto
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')

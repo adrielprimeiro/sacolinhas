@@ -16,7 +16,7 @@ class PedidoObserver
     {
         // O valor_total do pedido no banco já representa o valor bruto total (itens + frete - descontos)
         // recalculado pelo trigger após inserção dos itens_pedido.
-        $valorBruto = (float) $pedido->valor_total;
+        $valorBruto = (float) $pedido->valor_total_original;
 
         // valor_saldo_utilizado:
         //   > 0 → saldo positivo abatido do pedido (reduz valor a pagar)
@@ -162,10 +162,12 @@ class PedidoObserver
                             ->delete();
                     }
 
-                    // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente
+                    // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente (preservando devoluções!)
                     \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
                         ->where('referencia_id', $pedido->id)
                         ->where('tipo_movimentacao', 'credito')
+                        ->where('classificacao_id', '!=', 81)
+                        ->where('descricao', 'not like', '%devolu%')
                         ->delete();
 
                     // Disparar recálculo de saldo da carteira da cliente

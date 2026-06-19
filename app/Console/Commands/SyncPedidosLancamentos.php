@@ -46,7 +46,7 @@ class SyncPedidosLancamentos extends Command
             }
 
             $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
-            $valorBruto = (float) $pedido->valor_total;
+            $valorBruto = (float) $pedido->valor_total_original;
 
             $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
@@ -115,7 +115,7 @@ class SyncPedidosLancamentos extends Command
             if ($pessoa->user_id) {
                 if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
                     $saldoUtilizado = max(0.00, (float) $pedido->valor_saldo_utilizado);
-                    $valorNetDebito = max(0.00, (float)$pedido->valor_total - $saldoUtilizado);
+                    $valorNetDebito = max(0.00, (float)$pedido->valor_total_original - $saldoUtilizado);
 
                     // Débito da compra pelo valor LÍQUIDO do pedido
                     \App\Models\ContaCorrente::updateOrCreate(
