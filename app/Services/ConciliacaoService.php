@@ -166,43 +166,55 @@ class ConciliacaoService
     private function autoConciliarPedido(TransacaoExtrato $transacao, \App\Models\Pedido $pedido)
     {
         try {
-            // 1. Localizar o Lançamento do pedido
-            $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
-                ->where('referencia_id', $pedido->id)
-                ->first();
+            \DB::transaction(function () use ($transacao, $pedido) {
+                // Bloqueia a linha da transação para evitar conciliação concorrente
+                $transacaoLock = TransacaoExtrato::lockForUpdate()->find($transacao->id);
+                if (!$transacaoLock || $transacaoLock->status === 'conciliado') {
+                    return;
+                }
 
-            if (!$lancamento) return;
+                // 1. Localizar o Lançamento do pedido
+                $lancamento = \App\Models\Lancamento::where('referencia_tipo', 'pedido')
+                    ->where('referencia_id', $pedido->id)
+                    ->first();
 
-            $movimentacao = $lancamento->movimentacoes()
-                ->where('valor_pago', $transacao->valor_bruto ?? $transacao->valor)
-                ->whereDoesntHave('transacaoExtrato') // Que ainda não esteja vinculada
-                ->first();
+                if (!$lancamento) return;
 
-            if (!$movimentacao) {
-                // Buscar dinamicamente a conta Mercado Pago
-                $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
-                $contaBancariaId = $contaMp ? $contaMp->id : 2;
+                $movimentacao = $lancamento->movimentacoes()
+                    ->where('valor_pago', $transacaoLock->valor_bruto ?? $transacaoLock->valor)
+                    ->whereDoesntHave('transacaoExtrato') // Que ainda não esteja vinculada
+                    ->first();
 
-                // Se não existe a movimentação (baixa), criamos uma agora
-                $movimentacao = \App\Models\Movimentacao::create([
-                    'lancamento_id' => $lancamento->id,
-                    'conta_bancaria_id' => $contaBancariaId, 
-                    'data_pagamento' => $transacao->data,
-                    'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
-                    'forma_pagamento' => 'pix', // Assumindo pix para MP moderno
+                if (!$movimentacao) {
+                    // Buscar dinamicamente a conta Mercado Pago
+                    $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+                    $contaBancariaId = $contaMp ? $contaMp->id : 2;
+
+                    // Se não existe a movimentação (baixa), criamos uma agora
+                    $movimentacao = \App\Models\Movimentacao::create([
+                        'lancamento_id' => $lancamento->id,
+                        'conta_bancaria_id' => $contaBancariaId, 
+                        'data_pagamento' => $transacaoLock->data,
+                        'valor_pago' => $transacaoLock->valor_bruto ?? $transacaoLock->valor,
+                        'forma_pagamento' => 'pix', // Assumindo pix para MP moderno
+                    ]);
+                }
+
+                // 3. Vincular a transação do extrato à movimentação
+                $transacaoLock->update([
+                    'status' => 'conciliado',
+                    'movimentacao_id' => $movimentacao->id
                 ]);
-            }
 
-            // 3. Vincular a transação do extrato à movimentação
-            $transacao->update([
-                'status' => 'conciliado',
-                'movimentacao_id' => $movimentacao->id
-            ]);
+                // Atualizar o estado da transação na memória para evitar processamento em loops externos
+                $transacao->status = 'conciliado';
+                $transacao->movimentacao_id = $movimentacao->id;
 
-            // 4. Registrar a Despesa da Taxa (se houver)
-            if ($transacao->valor_taxa > 0) {
-                $this->registrarTaxaMercadoPago($transacao);
-            }
+                // 4. Registrar a Despesa da Taxa (se houver)
+                if ($transacaoLock->valor_taxa > 0) {
+                    $this->registrarTaxaMercadoPago($transacaoLock);
+                }
+            });
 
             Log::info("Auto-conciliação realizada: Pedido #{$pedido->id} -> Transação {$transacao->fitid}");
 
@@ -217,7 +229,12 @@ class ConciliacaoService
     public function vincular(int $transacaoId, int $lancamentoId, string $formaPagamento = 'transferencia')
     {
         return \DB::transaction(function () use ($transacaoId, $lancamentoId, $formaPagamento) {
-            $transacao = TransacaoExtrato::findOrFail($transacaoId);
+            // Bloqueia a linha da transação para evitar conciliação concorrente
+            $transacao = TransacaoExtrato::lockForUpdate()->findOrFail($transacaoId);
+            if ($transacao->status === 'conciliado') {
+                throw new \Exception("Esta transação já foi conciliada.");
+            }
+
             $lancamento = Lancamento::findOrFail($lancamentoId);
 
             $defaultContaId = 1;
@@ -265,7 +282,11 @@ class ConciliacaoService
     public function vincularMultiplos(int $transacaoId, array $lancamentosDados, string $formaPagamento = 'transferencia')
     {
         return \DB::transaction(function () use ($transacaoId, $lancamentosDados, $formaPagamento) {
-            $transacao = TransacaoExtrato::findOrFail($transacaoId);
+            // Bloqueia a linha da transação para evitar conciliação concorrente
+            $transacao = TransacaoExtrato::lockForUpdate()->findOrFail($transacaoId);
+            if ($transacao->status === 'conciliado') {
+                throw new \Exception("Esta transação já foi conciliada.");
+            }
 
             $defaultContaId = 1;
             if ($transacao->origem === 'mercadopago') {
@@ -411,7 +432,11 @@ class ConciliacaoService
     public function vincularNovoLancamento(int $transacaoId, int $classificacaoId, ?int $pessoaId = null, ?int $contaBancariaId = null)
     {
         return \DB::transaction(function () use ($transacaoId, $classificacaoId, $pessoaId, $contaBancariaId) {
-            $transacao = TransacaoExtrato::findOrFail($transacaoId);
+            // Bloqueia a linha da transação para evitar conciliação concorrente
+            $transacao = TransacaoExtrato::lockForUpdate()->findOrFail($transacaoId);
+            if ($transacao->status === 'conciliado') {
+                throw new \Exception("Esta transação já foi conciliada.");
+            }
 
             // Atualizar conta bancária se fornecida
             if ($contaBancariaId) {

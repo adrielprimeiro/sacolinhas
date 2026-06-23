@@ -16,8 +16,12 @@ $currentRoute = Route::currentRouteName();
         <i class="fas fa-home mr-1"></i> Dashboard
     </a>
     <a href="{{ route('financeiro.conciliacao.index') }}"
-       class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ str_contains($currentRoute, 'conciliacao') ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
+       class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ (str_contains($currentRoute, 'conciliacao') && !str_contains($currentRoute, 'auditoria')) ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
         <i class="fas fa-balance-scale mr-1"></i> Conciliação
+    </a>
+    <a href="{{ route('financeiro.conciliacao.auditoria') }}"
+       class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ str_contains($currentRoute, 'auditoria') ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
+        <i class="fas fa-shield-alt mr-1"></i> Auditoria de Saldo
     </a>
     <a href="{{ route('financeiro.movimentacoes.index') }}"
        class="px-4 py-2 rounded-t-lg text-sm font-bold transition {{ str_contains($currentRoute, 'movimentacoes') ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600' }}">
@@ -161,6 +165,7 @@ $currentRoute = Route::currentRouteName();
                                                             'Valor exato', 'Valor líquido exato' => 'bg-green-100 text-green-800 border-green-200',
                                                             'Pedido correspondente' => 'bg-blue-100 text-blue-800 border-blue-200',
                                                             'Vencimento hoje', 'Vencimento próximo (até 3 dias)', 'Vencimento próximo (até 7 dias)' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                                                            'Histórico de descrição', 'Histórico de classificação' => 'bg-indigo-100 text-indigo-800 border-indigo-200',
                                                             default => 'bg-purple-100 text-purple-800 border-purple-200'
                                                         };
                                                     @endphp
@@ -172,22 +177,41 @@ $currentRoute = Route::currentRouteName();
                                             <div class="text-[10px] text-gray-400 font-bold space-x-3">
                                                 <span><i class="far fa-user mr-1"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
                                                 <span><i class="far fa-folder mr-1"></i>{{ $s->classificacaoFinanceira->nome ?? 'Sem Categoria' }}</span>
-                                                <span><i class="far fa-calendar-alt mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
+                                                @if(!empty($s->is_virtual))
+                                                    <span class="text-indigo-600"><i class="fas fa-magic mr-1"></i>Sugestão Inteligente</span>
+                                                @else
+                                                    <span><i class="far fa-calendar-alt mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
+                                                @endif
                                             </div>
                                         </div>
 
                                         <div class="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-indigo-100/40">
-                                            <span class="text-sm font-black text-gray-700 sm:text-right">
-                                                R$ {{ number_format($s->valor_total, 2, ',', '.') }}
-                                            </span>
-                                            <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST">
-                                                @csrf
-                                                <input type="hidden" name="transacao_id" value="{{ $t->id }}">
-                                                <input type="hidden" name="lancamento_id" value="{{ $s->id }}">
-                                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
-                                                    <i class="fas fa-link"></i> Vincular
-                                                </button>
-                                            </form>
+                                            @if(!empty($s->is_virtual))
+                                                <span class="text-sm font-black text-gray-700 sm:text-right">
+                                                    R$ {{ number_format($t->valor, 2, ',', '.') }}
+                                                </span>
+                                                <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>';">
+                                                    @csrf
+                                                    <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                    <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                    <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                                                        <i class="fas fa-plus"></i> Criar e Conciliar
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="text-sm font-black text-gray-700 sm:text-right">
+                                                    R$ {{ number_format($s->valor_total, 2, ',', '.') }}
+                                                </span>
+                                                <form action="{{ route('financeiro.conciliacao.vincular') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>';">
+                                                    @csrf
+                                                    <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                    <input type="hidden" name="lancamento_id" value="{{ $s->id }}">
+                                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                                                        <i class="fas fa-link"></i> Vincular
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 @endforeach
@@ -198,7 +222,7 @@ $currentRoute = Route::currentRouteName();
                     {{-- Manual Selection Autocomplete Search --}}
                     <div class="pt-4 border-t border-gray-100 flex flex-col gap-4">
                         <div class="w-full" x-data="manualLancamentoSearch('{{ $isEntrada ? 'receita' : 'despesa' }}', {{ $t->valor_bruto ?? $t->valor }})">
-                            <form action="{{ route('financeiro.conciliacao.vincular-multiplos') }}" method="POST" class="space-y-4">
+                            <form action="{{ route('financeiro.conciliacao.vincular-multiplos') }}" method="POST" class="space-y-4" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
                                 @csrf
                                 <input type="hidden" name="transacao_id" value="{{ $t->id }}">
                                 
@@ -300,7 +324,7 @@ $currentRoute = Route::currentRouteName();
 
     <!-- Modal OFX -->
     <div x-show="showModalOfx" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.importar') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+        <form action="{{ route('financeiro.conciliacao.importar') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 class="font-black text-gray-800">Importar Extrato Bancário</h3>
@@ -327,7 +351,7 @@ $currentRoute = Route::currentRouteName();
 
     <!-- Modal Mercado Pago -->
     <div x-show="showModalMp" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.sincronizar-mp') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+        <form action="{{ route('financeiro.conciliacao.sincronizar-mp') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 class="font-black text-gray-800">Sincronizar Mercado Pago</h3>
@@ -355,7 +379,7 @@ $currentRoute = Route::currentRouteName();
 
     <!-- Modal Banco Inter -->
     <div x-show="showModalInter" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.sincronizar-inter') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+        <form action="{{ route('financeiro.conciliacao.sincronizar-inter') }}" method="POST" class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 class="font-black text-gray-800">Sincronizar Banco Inter</h3>
@@ -381,8 +405,10 @@ $currentRoute = Route::currentRouteName();
     </div>
 
     <!-- Modal Quick Create -->
-    <div x-show="showModalQuick" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl">
+    <div x-show="showModalQuick" 
+         x-effect="if (showModalQuick) { $nextTick(() => { document.getElementById('quick-classificacao-input')?.focus(); }); }"
+         class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             <input type="hidden" name="transacao_id" x-model="quickData.id">
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -419,7 +445,10 @@ $currentRoute = Route::currentRouteName();
                 <div x-data="classificacaoSearch()">
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
                     <div class="relative">
-                        <input type="text" x-model="search" @input.debounce.300ms="buscar()" @focus="buscar()"
+                        <input type="text" id="quick-classificacao-input" x-model="search" @input.debounce.300ms="buscar()" @focus="buscar()"
+                               @keydown.down="nextItem"
+                               @keydown.up="prevItem"
+                               @keydown.enter="selectHighlighted"
                                placeholder="Buscar categoria (Ex: Venda, Aluguel...)"
                                class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold transition-all"
                                :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''" 
@@ -431,9 +460,12 @@ $currentRoute = Route::currentRouteName();
                         
                         <div x-show="results.length > 0" 
                              class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
-                            <template x-for="item in results" :key="item.id">
-                                <div @click="selecionar(item)" class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0">
-                                    <div class="font-bold text-sm text-gray-800" x-text="item.text"></div>
+                            <template x-for="(item, index) in results" :key="item.id">
+                                <div @click="selecionar(item)" 
+                                     class="p-3 cursor-pointer border-b border-gray-100 last:border-0"
+                                     :class="highlightedIndex === index ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'hover:bg-indigo-50'"
+                                >
+                                    <div class="font-bold text-sm" :class="highlightedIndex === index ? 'text-white' : 'text-gray-800'" x-text="item.text"></div>
                                 </div>
                             </template>
                         </div>
@@ -446,9 +478,13 @@ $currentRoute = Route::currentRouteName();
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Pessoa (Opcional)</label>
                     <div class="relative">
                         <input type="text" 
+                               id="quick-pessoa-input"
                                x-model="search" 
                                @input.debounce.300ms="buscar()"
                                @focus="buscar()"
+                               @keydown.down="nextItem"
+                               @keydown.up="prevItem"
+                               @keydown.enter="selectHighlighted"
                                placeholder="Buscar por nome, CPF ou email..."
                                class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold transition-all"
                                :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
@@ -459,11 +495,13 @@ $currentRoute = Route::currentRouteName();
                         </div>
                         <div x-show="results.length > 0" 
                              class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
-                            <template x-for="pessoa in results" :key="pessoa.id">
+                            <template x-for="(pessoa, index) in results" :key="pessoa.id">
                                 <div @click="selecionar(pessoa)" 
-                                     class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0">
-                                    <div class="font-bold text-sm text-gray-800" x-text="pessoa.nome"></div>
-                                    <div class="text-xs text-gray-500" x-text="pessoa.info || ''"></div>
+                                     class="p-3 cursor-pointer border-b border-gray-100 last:border-0"
+                                     :class="highlightedIndex === index ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'hover:bg-indigo-50'"
+                                >
+                                    <div class="font-bold text-sm" :class="highlightedIndex === index ? 'text-white' : 'text-gray-800'" x-text="pessoa.nome"></div>
+                                    <div class="text-xs" :class="highlightedIndex === index ? 'text-indigo-200' : 'text-gray-500'" x-text="pessoa.info || ''"></div>
                                 </div>
                             </template>
                         </div>
@@ -475,7 +513,7 @@ $currentRoute = Route::currentRouteName();
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
                 <button type="button" @click="showModalQuick = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
-                <button type="submit" class="bg-green-600 text-white px-8 py-2 rounded-xl text-sm font-black hover:bg-green-700 shadow-md">Salvar e Conciliar</button>
+                <button type="submit" id="quick-submit-button" class="bg-green-600 text-white px-8 py-2 rounded-xl text-sm font-black hover:bg-green-700 shadow-md">Salvar e Conciliar</button>
             </div>
         </form>
     </div>
@@ -542,6 +580,7 @@ $currentRoute = Route::currentRouteName();
             selectedNome: '',
             loading: false,
             timeout: null,
+            highlightedIndex: 0,
             init() {
                 window.addEventListener('pessoa-sugestionada', (e) => {
                     this.selecionar(e.detail);
@@ -570,6 +609,7 @@ $currentRoute = Route::currentRouteName();
                                 nome: p.nome,
                                 info: p.documento || p.cpf || ''
                             }));
+                            this.highlightedIndex = 0;
                             this.loading = false;
                         });
                 }, 300);
@@ -580,6 +620,9 @@ $currentRoute = Route::currentRouteName();
                 this.selectedNome = pessoa.nome || pessoa.text;
                 this.search = this.selectedNome; // Define o texto no input
                 this.results = [];
+                setTimeout(() => {
+                    document.getElementById('quick-submit-button')?.focus();
+                }, 50);
             },
             limpar() {
                 this.selected = null;
@@ -587,6 +630,25 @@ $currentRoute = Route::currentRouteName();
                 this.selectedNome = '';
                 this.search = '';
                 this.results = [];
+                this.highlightedIndex = 0;
+            },
+            nextItem(e) {
+                if (this.results.length === 0) return;
+                e.preventDefault();
+                this.highlightedIndex = (this.highlightedIndex + 1) % this.results.length;
+            },
+            prevItem(e) {
+                if (this.results.length === 0) return;
+                e.preventDefault();
+                this.highlightedIndex = (this.highlightedIndex - 1 + this.results.length) % this.results.length;
+            },
+            selectHighlighted(e) {
+                if (this.results.length > 0) {
+                    e.preventDefault();
+                    if (this.results[this.highlightedIndex]) {
+                        this.selecionar(this.results[this.highlightedIndex]);
+                    }
+                }
             }
         }
     }
@@ -599,6 +661,7 @@ $currentRoute = Route::currentRouteName();
             selectedId: '',
             selectedNome: '',
             loading: false,
+            highlightedIndex: 0,
             buscar() {
                 // Se o que está no campo é exatamente o que foi selecionado, não busca
                 if (this.selected && this.search === this.selectedNome) {
@@ -616,6 +679,7 @@ $currentRoute = Route::currentRouteName();
                     .then(r => r.json())
                     .then(data => {
                         this.results = data;
+                        this.highlightedIndex = 0;
                         this.loading = false;
                     });
             },
@@ -625,6 +689,9 @@ $currentRoute = Route::currentRouteName();
                 this.selectedNome = item.text;
                 this.search = this.selectedNome; // Define o texto no input
                 this.results = [];
+                setTimeout(() => {
+                    document.getElementById('quick-pessoa-input')?.focus();
+                }, 50);
             },
             limpar() {
                 this.selected = null;
@@ -632,6 +699,25 @@ $currentRoute = Route::currentRouteName();
                 this.selectedNome = '';
                 this.search = '';
                 this.results = [];
+                this.highlightedIndex = 0;
+            },
+            nextItem(e) {
+                if (this.results.length === 0) return;
+                e.preventDefault();
+                this.highlightedIndex = (this.highlightedIndex + 1) % this.results.length;
+            },
+            prevItem(e) {
+                if (this.results.length === 0) return;
+                e.preventDefault();
+                this.highlightedIndex = (this.highlightedIndex - 1 + this.results.length) % this.results.length;
+            },
+            selectHighlighted(e) {
+                if (this.results.length > 0) {
+                    e.preventDefault();
+                    if (this.results[this.highlightedIndex]) {
+                        this.selecionar(this.results[this.highlightedIndex]);
+                    }
+                }
             }
         }
     }

@@ -29,18 +29,35 @@ class Movimentacao extends Model
 
         static::created(function ($movimentacao) {
             $movimentacao->sincronizarCarteira();
+            $movimentacao->sincronizarClube();
             $movimentacao->sincronizarPedidoStatus();
+            $movimentacao->sincronizarLancamentoStatus();
         });
 
         static::updated(function ($movimentacao) {
             $movimentacao->sincronizarCarteira();
+            $movimentacao->sincronizarClube();
             $movimentacao->sincronizarPedidoStatus();
+            $movimentacao->sincronizarLancamentoStatus();
         });
 
         static::deleted(function ($movimentacao) {
             \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
                 ->where('referencia_id', $movimentacao->id)
                 ->delete();
+
+            $movimentacao->reverterClube();
+
+            // Desvincular transação de extrato associada
+            \DB::table('transacoes_extrato')
+                ->where('movimentacao_id', $movimentacao->id)
+                ->orWhere('id', $movimentacao->transacao_extrato_id)
+                ->update([
+                    'status' => 'pendente',
+                    'movimentacao_id' => null
+                ]);
+
+            $movimentacao->sincronizarLancamentoStatus();
         });
     }
 
@@ -60,6 +77,24 @@ class Movimentacao extends Model
 
         // Se a forma de pagamento for o próprio saldo da carteira, não espelha para evitar duplicidade de crédito
         if ($this->forma_pagamento === 'saldo_carteira') {
+            return;
+        }
+
+        // Se for Clube Mania (ID 82 ou código 1.03), não registrar na Carteira do cliente
+        $isClubeMania = false;
+        if ($lancamento->classificacao_financeira_id == 82) {
+            $isClubeMania = true;
+        } else {
+            $classificacao = $lancamento->classificacaoFinanceira;
+            if ($classificacao && ($classificacao->codigo_contabil === '1.03' || strtolower($classificacao->nome) === 'clube mania')) {
+                $isClubeMania = true;
+            }
+        }
+
+        if ($isClubeMania) {
+            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
+                ->where('referencia_id', $this->id)
+                ->delete();
             return;
         }
 
@@ -87,6 +122,142 @@ class Movimentacao extends Model
         // Despachar Job para recalcular saldo se disponível
         if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
             \App\Jobs\RecalcularSaldosJob::dispatch($pessoa->user_id, $this->data_pagamento->toDateString());
+        }
+    }
+
+    /**
+     * Sincroniza o pagamento com o Clube Mania (mensalidades) se for essa classificação
+     */
+    public function sincronizarClube()
+    {
+        $lancamento = $this->lancamento;
+        if (!$lancamento) return;
+
+        $isClubeMania = false;
+        if ($lancamento->classificacao_financeira_id == 82) {
+            $isClubeMania = true;
+        } else {
+            $classificacao = $lancamento->classificacaoFinanceira;
+            if ($classificacao && ($classificacao->codigo_contabil === '1.03' || strtolower($classificacao->nome) === 'clube mania')) {
+                $isClubeMania = true;
+            }
+        }
+        if (!$isClubeMania) return;
+
+        $pessoa = $lancamento->pessoa;
+        if (!$pessoa || !$pessoa->user_id) return;
+        $userId = $pessoa->user_id;
+
+        $dataPagamento = $this->data_pagamento;
+        if (!$dataPagamento) return;
+        
+        $ano = (int) $dataPagamento->format('Y');
+        $mes = (int) $dataPagamento->format('m');
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($userId, $ano, $mes, $dataPagamento) {
+            // 1) Garante assinatura ativa para o usuário
+            $assinatura = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                ->where('user_id', $userId)
+                ->first(['id', 'status']);
+
+            if (!$assinatura) {
+                // Se não existe, cria uma nova ativa
+                $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')->insertGetId([
+                    'user_id'    => $userId,
+                    'status'     => 'ativa',
+                    'inicio_em'  => now()->toDateString(),
+                    'fim_em'     => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $assinaturaId = $assinatura->id;
+
+                // Se existe mas não está ativa, ativa agora
+                if ($assinatura->status !== 'ativa') {
+                    \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                        ->where('id', $assinaturaId)
+                        ->update([
+                            'status'     => 'ativa',
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
+            // 2) Grava ou Atualiza a mensalidade como PAGA
+            $mensalidade = \Illuminate\Support\Facades\DB::table('clube_mensalidades')
+                ->where('user_id', $userId)
+                ->where('competencia_ano', $ano)
+                ->where('competencia_mes', $mes)
+                ->first(['id']);
+
+            $payloadMensalidade = [
+                'assinatura_id'    => $assinaturaId,
+                'status_pagamento' => 'pago',
+                'pago_em'          => $dataPagamento->toDateString(),
+                'valor'            => $this->valor_pago,
+            ];
+
+            if ($mensalidade) {
+                \Illuminate\Support\Facades\DB::table('clube_mensalidades')
+                    ->where('id', $mensalidade->id)
+                    ->update($payloadMensalidade);
+            } else {
+                $payloadMensalidade['user_id']         = $userId;
+                $payloadMensalidade['competencia_ano'] = $ano;
+                $payloadMensalidade['competencia_mes'] = $mes;
+                $payloadMensalidade['created_at']      = now();
+
+                \Illuminate\Support\Facades\DB::table('clube_mensalidades')->insert($payloadMensalidade);
+            }
+        });
+
+        // 3) Recalcular indicadores (Job assíncrono)
+        if (class_exists(\App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::class)) {
+            \App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::dispatch((int) $userId)->afterCommit();
+        }
+    }
+
+    /**
+     * Reverte a mensalidade do clube para não pago (deleta registro) se a movimentação for excluída
+     */
+    public function reverterClube()
+    {
+        $lancamento = $this->lancamento;
+        if (!$lancamento) return;
+
+        $isClubeMania = false;
+        if ($lancamento->classificacao_financeira_id == 82) {
+            $isClubeMania = true;
+        } else {
+            $classificacao = $lancamento->classificacaoFinanceira;
+            if ($classificacao && ($classificacao->codigo_contabil === '1.03' || strtolower($classificacao->nome) === 'clube mania')) {
+                $isClubeMania = true;
+            }
+        }
+        if (!$isClubeMania) return;
+
+        $pessoa = $lancamento->pessoa;
+        if (!$pessoa || !$pessoa->user_id) return;
+        $userId = $pessoa->user_id;
+
+        $dataPagamento = $this->data_pagamento;
+        if (!$dataPagamento) return;
+        
+        $ano = (int) $dataPagamento->format('Y');
+        $mes = (int) $dataPagamento->format('m');
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($userId, $ano, $mes) {
+            \Illuminate\Support\Facades\DB::table('clube_mensalidades')
+                ->where('user_id', $userId)
+                ->where('competencia_ano', $ano)
+                ->where('competencia_mes', $mes)
+                ->delete();
+        });
+
+        // Recalcular indicadores (Job assíncrono)
+        if (class_exists(\App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::class)) {
+            \App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::dispatch((int) $userId)->afterCommit();
         }
     }
 
@@ -146,5 +317,23 @@ class Movimentacao extends Model
     public function transacaoExtrato()
     {
         return $this->belongsTo(TransacaoExtrato::class, 'transacao_extrato_id');
+    }
+
+    /**
+     * Recalcula e sincroniza o status do lançamento associado.
+     */
+    public function sincronizarLancamentoStatus()
+    {
+        $lancamento = $this->lancamento ?: \App\Models\Lancamento::find($this->lancamento_id);
+        if ($lancamento) {
+            $pago = $lancamento->movimentacoes()->sum('valor_pago');
+            if ($pago >= $lancamento->valor_total) {
+                $lancamento->update(['status' => 'pago']);
+            } elseif ($pago > 0) {
+                $lancamento->update(['status' => 'pago_parcial']);
+            } else {
+                $lancamento->update(['status' => 'pendente']);
+            }
+        }
     }
 }

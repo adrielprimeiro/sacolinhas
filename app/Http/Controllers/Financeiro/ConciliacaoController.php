@@ -43,95 +43,105 @@ class ConciliacaoController extends Controller
         $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos) {
             $pedidoIdRef = $t->getPedidoId();
             
-            // Limpa e divide a descrição em termos de busca (palavras >= 3 letras)
-            $cleanDesc = preg_replace('/[^A-Za-z0-9\s]/', '', $t->descricao);
-            $descWords = array_filter(explode(' ', $cleanDesc), function ($w) {
-                return strlen($w) >= 3;
-            });
-
-            $sugestoes = $lancamentos->filter(function ($l) use ($t) {
-                // Filtra pelo tipo correspondente: entrada -> receita, saida -> despesa
-                $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
-                return $l->tipo === $tTipoMapped;
-            })->map(function ($l) use ($t, $pedidoIdRef, $descWords) {
-                $score = 0;
-                $motivos = [];
-
-                // 1. Coincidência de Valor (Bruto ou Líquido)
-                $valorMatches = false;
-                if (abs((float)$t->valor - (float)$l->valor_total) < 0.01) {
-                    $score += 15;
-                    $valorMatches = true;
-                    $motivos[] = 'Valor exato';
-                } elseif ($t->valor_liquido && abs((float)$t->valor_liquido - (float)$l->valor_total) < 0.01) {
-                    $score += 12;
-                    $valorMatches = true;
-                    $motivos[] = 'Valor líquido exato';
-                }
-
-                // 2. Coincidência de Referência/Pedido
-                $refMatches = false;
-                if ($pedidoIdRef && $l->referencia_tipo === 'pedido' && $l->referencia_id == $pedidoIdRef) {
-                    $score += 25;
-                    $refMatches = true;
-                    $motivos[] = 'Pedido correspondente';
-                }
-
-                // 3. Proximidade de Data de Vencimento
-                $diffInDays = abs($t->data->diffInDays($l->data_vencimento));
-                if ($diffInDays == 0) {
-                    $score += 6;
-                    $motivos[] = 'Vencimento hoje';
-                } elseif ($diffInDays <= 3) {
-                    $score += 4;
-                    $motivos[] = 'Vencimento próximo (até 3 dias)';
-                } elseif ($diffInDays <= 7) {
-                    $score += 2;
-                    $motivos[] = 'Vencimento próximo (até 7 dias)';
-                }
-
-                // 4. Coincidência Textual
-                $textMatches = false;
-                $lDesc = strtolower($l->descricao);
-                $lPessoaNome = $l->pessoa ? strtolower($l->pessoa->nome) : '';
+            // 1. Buscar histórico para a descrição exata do banco
+            $paresHistoricos = [];
+            
+            // Lançamentos pagos/com movimentação no passado com essa descrição
+            $historicos = \App\Models\Lancamento::where('descricao', $t->descricao)
+                ->whereNotNull('classificacao_financeira_id')
+                ->where(function ($q) {
+                    $q->whereIn('status', ['pago', 'pago_parcial'])
+                      ->orWhereHas('movimentacoes');
+                })
+                ->get(['pessoa_id', 'classificacao_financeira_id']);
                 
-                foreach ($descWords as $word) {
-                    $wordLower = strtolower($word);
-                    // Evitar termos genéricos como "PIX", "TED", "PAGAMENTO"
-                    if (in_array($wordLower, ['pix', 'ted', 'doc', 'pag', 'pagamento', 'recebido', 'enviado'])) {
-                        continue;
-                    }
-                    if (str_contains($lDesc, $wordLower)) {
-                        $score += 3;
-                        $textMatches = true;
-                        if (!in_array('Descrição semelhante', $motivos)) {
-                            $motivos[] = 'Descrição semelhante';
-                        }
-                    }
-                    if ($lPessoaNome && str_contains($lPessoaNome, $wordLower)) {
-                        $score += 5;
-                        $textMatches = true;
-                        if (!in_array('Nome semelhante', $motivos)) {
-                            $motivos[] = 'Nome semelhante';
-                        }
-                    }
+            foreach ($historicos as $h) {
+                if ($h->pessoa_id && $h->classificacao_financeira_id) {
+                    $key = $h->pessoa_id . '-' . $h->classificacao_financeira_id;
+                    $paresHistoricos[$key] = [
+                        'pessoa_id' => $h->pessoa_id,
+                        'classificacao_id' => $h->classificacao_financeira_id
+                    ];
                 }
+            }
 
-                $l->score = $score;
-                $l->motivos_match = $motivos;
+            // Transações já conciliadas no passado com essa descrição
+            $transacoesConciliadas = \App\Models\TransacaoExtrato::where('status', 'conciliado')
+                ->where('descricao', $t->descricao)
+                ->whereHas('movimentacao.lancamento')
+                ->with('movimentacao.lancamento')
+                ->get();
+                
+            foreach ($transacoesConciliadas as $tc) {
+                $l = $tc->movimentacao->lancamento;
+                if ($l && $l->pessoa_id && $l->classificacao_financeira_id) {
+                    $key = $l->pessoa_id . '-' . $l->classificacao_financeira_id;
+                    $paresHistoricos[$key] = [
+                        'pessoa_id' => $l->pessoa_id,
+                        'classificacao_id' => $l->classificacao_financeira_id
+                    ];
+                }
+            }
 
-                // Para sugerir, o registro deve coincidir no valor, na referência ou no texto
-                // Evitamos sugerir registros que apenas calham de ter vencimento próximo
-                $l->is_valid_suggestion = $valorMatches || $refMatches || $textMatches;
+            $sugestoesFinal = collect();
 
-                return $l;
-            })
-            ->filter(function ($l) {
-                return $l->is_valid_suggestion && $l->score > 0;
-            })
-            ->sortByDesc('score')
-            ->take(5)
-            ->values();
+            // A. Adicionar Lançamentos em Aberto correspondentes ao Histórico (Score 100)
+            foreach ($paresHistoricos as $par) {
+                $matchedOpen = $lancamentos->filter(function ($l) use ($par, $t) {
+                    $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
+                    if ($l->tipo !== $tTipoMapped 
+                        || $l->pessoa_id != $par['pessoa_id'] 
+                        || $l->classificacao_financeira_id != $par['classificacao_id']) {
+                        return false;
+                    }
+                    
+                    // Apenas sugere lançamentos cujo valor total ou saldo restante coincida com o da transação
+                    $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
+                    $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
+                    
+                    $valMatch = abs((float)$t->valor - (float)$l->valor_total) < 0.05;
+                    $saldoMatch = abs((float)$t->valor - $saldoRestante) < 0.05;
+                    
+                    return $valMatch || $saldoMatch;
+                });
+                
+                foreach ($matchedOpen as $l) {
+                    $lClone = clone $l;
+                    $lClone->score = 100;
+                    $lClone->motivos_match = ['Histórico de descrição'];
+                    $lClone->is_valid_suggestion = true;
+                    $sugestoesFinal->push($lClone);
+                }
+            }
+
+            // B. Adicionar Sugestões Virtuais de Criação Rápida (Score 90)
+            foreach ($paresHistoricos as $par) {
+                $pessoaModel = \App\Models\Pessoa::find($par['pessoa_id']);
+                $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($par['classificacao_id']);
+                
+                if ($pessoaModel && $classificacaoModel) {
+                    $virtual = (object) [
+                        'id' => null,
+                        'is_virtual' => true,
+                        'descricao' => 'Criar Lançamento Rápido',
+                        'tipo' => ($t->tipo === 'entrada') ? 'receita' : 'despesa',
+                        'valor_total' => $t->valor,
+                        'pessoa_id' => $pessoaModel->id,
+                        'pessoa' => $pessoaModel,
+                        'classificacao_financeira_id' => $classificacaoModel->id,
+                        'classificacaoFinanceira' => $classificacaoModel,
+                        'score' => 90,
+                        'motivos_match' => ['Histórico de classificação'],
+                        'is_valid_suggestion' => true
+                    ];
+                    $sugestoesFinal->push($virtual);
+                }
+            }
+
+            $sugestoes = $sugestoesFinal
+                ->sortByDesc('score')
+                ->take(5)
+                ->values();
 
             return [
                 'transacao' => $t,
@@ -353,5 +363,124 @@ class ConciliacaoController extends Controller
         });
 
         return response()->json($formatted);
+    }
+
+    public function auditoria(Request $request)
+    {
+        $contas = \App\Models\ContaBancaria::all();
+        
+        $selectedContaId = $request->get('conta_bancaria_id');
+        if (!$selectedContaId) {
+            $firstConta = $contas->first(fn($c) => !str_contains(strtolower($c->nome), 'carteira'));
+            $selectedContaId = $firstConta ? $firstConta->id : ($contas->first()->id ?? null);
+        }
+
+        $conta = \App\Models\ContaBancaria::find($selectedContaId);
+
+        if (!$conta) {
+            return redirect()->route('financeiro.conciliacao.index')->with('error', 'Conta bancária não encontrada.');
+        }
+
+        $saldoInicial = (float) $conta->saldo_inicial;
+        $saldoSistema = (float) $conta->saldo_atual;
+
+        $transacoesQuery = \Illuminate\Support\Facades\DB::table('transacoes_extrato')
+            ->where('conta_bancaria_id', $conta->id);
+
+        $entradasConciliadas = (float) (clone $transacoesQuery)
+            ->where('status', 'conciliado')
+            ->where('tipo', 'entrada')
+            ->sum('valor');
+
+        $saidasConciliadas = (float) (clone $transacoesQuery)
+            ->where('status', 'conciliado')
+            ->where('tipo', 'saida')
+            ->sum('valor');
+
+        $saldoExtratoConciliado = $saldoInicial + $entradasConciliadas - $saidasConciliadas;
+
+        $entradasTotal = (float) (clone $transacoesQuery)
+            ->whereIn('status', ['conciliado', 'pendente'])
+            ->where('tipo', 'entrada')
+            ->sum('valor');
+
+        $saidasTotal = (float) (clone $transacoesQuery)
+            ->whereIn('status', ['conciliado', 'pendente'])
+            ->where('tipo', 'saida')
+            ->sum('valor');
+
+        $saldoExtratoTotal = $saldoInicial + $entradasTotal - $saidasTotal;
+
+        $transacoesOrfas = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+            ->where('status', 'conciliado')
+            ->where(function($q) {
+                $q->whereNull('movimentacao_id')
+                  ->orWhereNotExists(function($sub) {
+                      $sub->select(\Illuminate\Support\Facades\DB::raw(1))
+                          ->from('movimentacoes')
+                          ->whereColumn('movimentacoes.id', 'transacoes_extrato.movimentacao_id');
+                  });
+            })
+            ->get();
+
+        $divergenciasValores = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+            ->where('status', 'conciliado')
+            ->whereNotNull('movimentacao_id')
+            ->whereExists(function($sub) {
+                $sub->select(\Illuminate\Support\Facades\DB::raw(1))
+                    ->from('movimentacoes')
+                    ->whereColumn('movimentacoes.id', 'transacoes_extrato.movimentacao_id');
+            })
+            ->with('movimentacao')
+            ->get()
+            ->filter(function($t) {
+                return $t->movimentacao && abs((float)$t->valor - (float)$t->movimentacao->valor_pago) >= 0.01;
+            });
+
+        $movimentacoesManuais = \App\Models\Movimentacao::where('conta_bancaria_id', $conta->id)
+            ->whereNull('transacao_extrato_id')
+            ->with(['lancamento.pessoa', 'lancamento.classificacaoFinanceira'])
+            ->orderBy('data_pagamento', 'desc')
+            ->get();
+
+        $transacoesPendentes = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+            ->where('status', 'pendente')
+            ->orderBy('data', 'desc')
+            ->get();
+
+        return view('admin.financeiro.auditoria', compact(
+            'contas',
+            'conta',
+            'saldoInicial',
+            'saldoSistema',
+            'saldoExtratoConciliado',
+            'saldoExtratoTotal',
+            'transacoesOrfas',
+            'divergenciasValores',
+            'movimentacoesManuais',
+            'transacoesPendentes'
+        ));
+    }
+
+    public function desvincular(\App\Models\TransacaoExtrato $transacao)
+    {
+        try {
+            \DB::transaction(function() use ($transacao) {
+                if ($transacao->movimentacao_id) {
+                    $mov = \App\Models\Movimentacao::find($transacao->movimentacao_id);
+                    if ($mov) {
+                        $mov->delete();
+                    }
+                }
+                $transacao->update([
+                    'status' => 'pendente',
+                    'movimentacao_id' => null
+                ]);
+            });
+
+            return back()->with('success', 'Transação desvinculada com sucesso! O lançamento e a transação correspondentes voltaram a ficar pendentes.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erro ao desvincular transação: ' . $e->getMessage());
+        }
     }
 }

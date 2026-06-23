@@ -1,26 +1,13 @@
 (function() {
     // Evitar múltiplas instâncias
     if (window.LiveChatCaptureInstance) {
-        alert("O Capturador de Live já está aberto!");
         return;
     }
 
     const platform = window.location.hostname.includes("tiktok") ? "tiktok" : "instagram";
+    let defaultServerUrl = "http://localhost"; // Padrão para Docker
     
-    // Sanitiza a URL para manter apenas protocolo e host (ex. http://127.0.0.1:8000)
-    function sanitizeServerUrl(url) {
-        if (!url) return "";
-        try {
-            const parsed = new URL(url.trim());
-            return parsed.origin;
-        } catch (e) {
-            const match = url.trim().match(/^(https?:\/\/[^\/]+)/);
-            return match ? match[1] : url.trim();
-        }
-    }
-
-    // Auto-detectar URL do servidor a partir de onde o script foi carregado
-    let defaultServerUrl = "http://localhost:8000";
+    // Tentar ler da URL caso o script tenha sido atualizado por um script externo
     const scriptEl = document.querySelector('script[src*="live-chat-bookmarklet.js"]');
     if (scriptEl) {
         const src = scriptEl.getAttribute("src");
@@ -30,7 +17,7 @@
         }
     }
 
-    let serverUrl = sanitizeServerUrl(localStorage.getItem("live_capture_server_url") || defaultServerUrl);
+    let serverUrl = localStorage.getItem("live_capture_server_url") || defaultServerUrl;
     let selectedLiveId = localStorage.getItem("live_capture_live_id") || "";
     let isCapturing = false;
     let observer = null;
@@ -50,6 +37,46 @@
             text: 'span[class*="comment"], span:last-child, span[class*="text"]'
         }
     }[platform];
+
+    function sanitizeServerUrl(url) {
+        if (!url) return "";
+        try {
+            const parsed = new URL(url.trim());
+            return parsed.origin;
+        } catch (e) {
+            const match = url.trim().match(/^(https?:\/\/[^\/]+)/);
+            return match ? match[1] : url.trim();
+        }
+    }
+
+    // Função para realizar requisições via Service Worker em background (evita bloqueios de CSP)
+    async function bgFetch(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({
+                action: "fetch",
+                url: url,
+                method: options.method || "GET",
+                headers: options.headers || {},
+                body: options.body ? JSON.parse(options.body) : undefined
+            }, response => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                if (response && response.success) {
+                    resolve({
+                        ok: response.result.status >= 200 && response.result.status < 300,
+                        status: response.result.status,
+                        json: async () => response.result.data
+                    });
+                } else {
+                    reject(new Error(response ? response.error : "Erro de comunicação com o Service Worker"));
+                }
+            });
+        });
+    }
+
+    serverUrl = sanitizeServerUrl(serverUrl);
 
     // Criar UI Flutuante
     const ui = document.createElement("div");
@@ -132,7 +159,7 @@
         const url = serverInput.value.trim().replace(/\/$/, "");
         try {
             log("Conectando ao Laravel...");
-            const res = await fetch(`${url}/api/lives/all`);
+            const res = await bgFetch(`${url}/api/lives/all`);
             if (!res.ok) throw new Error("Erro HTTP: " + res.status);
             const responseData = await res.json();
             
@@ -336,12 +363,28 @@
         }
 
         messages.forEach(msgNode => {
+            // Evitar processar o mesmo nó de mensagem mais de uma vez
+            if (msgNode.dataset.captured === "true") return;
+            msgNode.dataset.captured = "true";
+
             try {
                 // 1. Tentar detectar o nome do usuário usando seletores conhecidos primeiro
                 let user = "";
-                const userEl = msgNode.querySelector('a[href*="/"], span[class*="username"], .username, span[class*="nickname"], .webcast-chatroom__author-name');
-                if (userEl) {
-                    user = userEl.textContent.trim();
+                
+                // Usar o seletor do username configurado na calibração/padrão se disponível
+                if (selectors && selectors.username) {
+                    const userEl = msgNode.querySelector(selectors.username);
+                    if (userEl) {
+                        user = userEl.textContent.trim();
+                    }
+                }
+                
+                // Seletor genérico fallback para username
+                if (!user) {
+                    const userEl = msgNode.querySelector('a[href*="/"], span[class*="username"], .username, span[class*="nickname"], .webcast-chatroom__author-name, span[class*="author"]');
+                    if (userEl) {
+                        user = userEl.textContent.trim();
+                    }
                 }
 
                 // 2. Capturar todos os nós de texto folha para encontrar o comentário
@@ -376,9 +419,18 @@
                 
                 getLeafTextNodes(msgNode);
                 
-                // Se não detectamos o username via seletor, pegamos a primeira folha de texto
-                if (!user && leafs.length > 0) {
-                    user = leafs[0];
+                // Filtrar folhas para remover números isolados de badges (ex: "3", "15" de nível de usuário no TikTok)
+                let validLeafsForUser = leafs.filter(l => {
+                    let val = l.trim();
+                    // Ignora números puros (badges de nível) e símbolos/pontuações
+                    if (/^\d+$/.test(val)) return false;
+                    if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") return false;
+                    return true;
+                });
+
+                // Se não detectamos o username via seletor, pegamos a primeira folha de texto válida (que não seja número de nível)
+                if (!user && validLeafsForUser.length > 0) {
+                    user = validLeafsForUser[0];
                 }
 
                 // Limpar username
@@ -401,6 +453,15 @@
                     // Pular pontuações comuns de separação
                     if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") {
                         continue;
+                    }
+                    
+                    // Ignora números puros apenas se vierem antes do username na ordem dos nós, ou forem identificados como badges
+                    // (comentários legítimos que são apenas números como "9" ou "6" devem ser mantidos se não forem o badge inicial!)
+                    if (/^\d+$/.test(val)) {
+                        let userIdxInOriginal = validLeafsForUser.length > 0 ? leafs.indexOf(validLeafsForUser[0]) : -1;
+                        if (userIdxInOriginal !== -1 && i < userIdxInOriginal) {
+                            continue;
+                        }
                     }
                     
                     // Pular textos comuns de controle que possam ter passado
@@ -435,16 +496,12 @@
 
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message) {
-        const msgKey = `${username}:${message}`;
-        if (sentMessages.has(msgKey)) return; // Evitar duplicatas
-        sentMessages.add(msgKey);
-
         const url = serverInput.value.trim().replace(/\/$/, "");
         const liveId = liveSelect.value;
         if (!liveId) return;
 
         try {
-            const res = await fetch(`${url}/api/live-chat/message`, {
+            const res = await bgFetch(`${url}/api/live-chat/message`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

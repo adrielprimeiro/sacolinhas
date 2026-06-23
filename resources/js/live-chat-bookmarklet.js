@@ -6,25 +6,48 @@
     }
 
     const platform = window.location.hostname.includes("tiktok") ? "tiktok" : "instagram";
-    let serverUrl = localStorage.getItem("live_capture_server_url") || (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1") ? window.location.origin : "http://localhost:8000");
+    
+    // Sanitiza a URL para manter apenas protocolo e host (ex. http://127.0.0.1:8000)
+    function sanitizeServerUrl(url) {
+        if (!url) return "";
+        try {
+            const parsed = new URL(url.trim());
+            return parsed.origin;
+        } catch (e) {
+            const match = url.trim().match(/^(https?:\/\/[^\/]+)/);
+            return match ? match[1] : url.trim();
+        }
+    }
+
+    // Auto-detectar URL do servidor a partir de onde o script foi carregado
+    let defaultServerUrl = "http://localhost:8000";
+    const scriptEl = document.querySelector('script[src*="live-chat-bookmarklet.js"]');
+    if (scriptEl) {
+        const src = scriptEl.getAttribute("src");
+        const match = src.match(/^(https?:\/\/[^\/]+)/);
+        if (match) {
+            defaultServerUrl = match[1];
+        }
+    }
+
+    let serverUrl = sanitizeServerUrl(localStorage.getItem("live_capture_server_url") || defaultServerUrl);
     let selectedLiveId = localStorage.getItem("live_capture_live_id") || "";
     let isCapturing = false;
     let observer = null;
-    let sentMessages = new Set();
     
     // Seletores padrão
     let selectors = {
         tiktok: {
-            container: 'div[class*="DivChatRoomAnimationContainer"], div[class*="DivChatMessageList"], .webcast-chatroom__list',
-            message: 'div[class*="DivChatMessage"], .webcast-chatroom__message, div[data-e2e="chat-message"]',
-            username: 'span[class*="nickname"], span[class*="username"], .webcast-chatroom__author-name',
-            text: 'span[class*="comment"], span[class*="text"], .webcast-chatroom__message-text'
+            container: 'div[class*="DivChatRoomAnimationContainer"], div[class*="DivChatMessageList"], div[class*="DivChatRoom"], .webcast-chatroom__list, div[class*="ChatList"], div[class*="chat-list"]',
+            message: 'div[class*="DivChatMessage"], .webcast-chatroom__message, div[data-e2e="chat-message"], div[class*="chat-message"]',
+            username: 'span[class*="nickname"], span[class*="username"], .webcast-chatroom__author-name, span[class*="author"]',
+            text: 'span[class*="comment"], span[class*="text"], .webcast-chatroom__message-text, span[class*="text-content"]'
         },
         instagram: {
-            container: 'div[role="log"], div[class*="CommentList"]',
-            message: 'div[role="log"] > div, div[class*="CommentRow"]',
-            username: 'a[href*="/"], span[class*="username"]',
-            text: 'span[class*="comment"], span:last-child'
+            container: 'div[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]',
+            message: 'div[role="log"] > div, div[class*="CommentRow"], div[class*="comment-row"], div[class*="LiveComment"]',
+            username: 'a[href*="/"], span[class*="username"], .username',
+            text: 'span[class*="comment"], span:last-child, span[class*="text"]'
         }
     }[platform];
 
@@ -111,18 +134,29 @@
             log("Conectando ao Laravel...");
             const res = await fetch(`${url}/api/lives/all`);
             if (!res.ok) throw new Error("Erro HTTP: " + res.status);
-            const data = await res.json();
+            const responseData = await res.json();
+            
+            const livesList = responseData.data || [];
             
             liveSelect.innerHTML = "";
-            if (data.length === 0) {
+            if (livesList.length === 0) {
                 liveSelect.innerHTML = `<option value="">Nenhuma live encontrada</option>`;
                 return;
             }
 
-            data.forEach(live => {
+            livesList.forEach(live => {
                 const opt = document.createElement("option");
                 opt.value = live.id;
-                opt.textContent = `#${live.id} - ${live.tipo_live_formatado} (${live.data})`;
+                
+                const tipoTranslate = {
+                    'loja-aberta': 'Loja Aberta',
+                    'leilao': 'Leilão',
+                    'precinho': 'Precinho'
+                };
+                const tipo = tipoTranslate[live.tipo_live] || live.tipo_live || 'Live';
+                const dateClean = live.data ? live.data.split('T')[0].split('-').reverse().join('/') : '';
+                
+                opt.textContent = `#${live.id} - ${tipo} (${dateClean})`;
                 if (String(live.id) === String(selectedLiveId)) opt.selected = true;
                 liveSelect.appendChild(opt);
             });
@@ -134,7 +168,8 @@
     }
 
     serverInput.addEventListener("change", () => {
-        serverUrl = serverInput.value.trim();
+        serverUrl = sanitizeServerUrl(serverInput.value.trim());
+        serverInput.value = serverUrl;
         localStorage.setItem("live_capture_server_url", serverUrl);
         loadLives();
     });
@@ -150,28 +185,114 @@
         window.LiveChatCaptureInstance = null;
     });
 
-    // Calibração interativa de seletores
+    // Calibração interativa de seletores inteligente (1 clique)
     calibrateBtn.addEventListener("click", () => {
-        alert("Modo de calibração ativado!\n1. Mova o mouse e clique no CONTÊINER do chat.\n2. Em seguida, clique em um COMENTÁRIO dentro dele.");
-        let step = 1;
+        alert("Modo de calibração inteligente ativado!\nClique em QUALQUER COMENTÁRIO no chat da live.");
         
-        const overlay = document.createElement("div");
-        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.1);z-index:999998;cursor:crosshair;";
         document.body.appendChild(overlay);
 
-        function getUniqueSelector(el) {
-            if (el.id) return `#${el.id}`;
-            let path = [];
-            while (el.nodeType === Node.ELEMENT_NODE) {
-                let selector = el.nodeName.toLowerCase();
-                if (el.className) {
-                    selector += "." + Array.from(el.classList).join(".");
+        function detectChatStructure(clickedEl) {
+            // 1. Verificar se algum ancestral já corresponde ao seletor de mensagem padrão
+            let temp = clickedEl;
+            while (temp && temp.nodeName !== "BODY" && temp.nodeName !== "HTML") {
+                if (temp.matches && temp.matches(selectors.message)) {
+                    return {
+                        messageElement: temp,
+                        containerElement: temp.parentNode
+                    };
                 }
-                path.unshift(selector);
-                el = el.parentNode;
-                if (!el || el.nodeName === "BODY") break;
+                temp = temp.parentNode;
+            }
+
+            // 2. Caso contrário, usar heurística subindo os níveis
+            let path = [];
+            temp = clickedEl;
+            for (let i = 0; i < 5; i++) {
+                if (!temp || temp.nodeName === "BODY" || temp.nodeName === "HTML") break;
+                path.push(temp);
+                temp = temp.parentNode;
+            }
+
+            for (let i = 1; i < path.length; i++) {
+                let el = path[i];
+                let role = el.getAttribute('role') || '';
+                let className = el.className ? String(el.className).toLowerCase() : '';
+                
+                // O contêiner de mensagens real costuma ter pelo menos 3 filhos
+                // e não deve ser um elemento de linha individual (evitar classes como "item", "row", "message")
+                let isCommentRow = (className.includes('message') || className.includes('comment') || className.includes('row') || className.includes('item')) &&
+                                   !(className.includes('list') || className.includes('container') || className.includes('log') || className.includes('chat'));
+                
+                let isList = (role === 'log' || 
+                              className.includes('list') || 
+                              className.includes('scroll') || 
+                              className.includes('container') ||
+                              className.includes('log') ||
+                              el.children.length >= 4) && !isCommentRow;
+                             
+                if (isList && el.children.length >= 3) {
+                    return {
+                        messageElement: path[i-1],
+                        containerElement: el
+                    };
+                }
+            }
+            
+            if (path.length >= 3) {
+                return {
+                    messageElement: path[1],
+                    containerElement: path[2]
+                };
+            }
+            
+            return {
+                messageElement: clickedEl,
+                containerElement: clickedEl.parentNode || clickedEl
+            };
+        }
+
+        function getContainerSelector(el) {
+            if (el.id) return `#${el.id}`;
+            if (el.getAttribute('role')) return `${el.tagName.toLowerCase()}[role="${el.getAttribute('role')}"]`;
+            if (el.getAttribute('data-e2e')) return `${el.tagName.toLowerCase()}[data-e2e="${el.getAttribute('data-e2e')}"]`;
+            
+            let classes = Array.from(el.classList)
+                .filter(c => !/^[0-9_-]/.test(c) && !c.includes('hover') && !c.includes('active'))
+                .join('.');
+            if (classes) return `${el.tagName.toLowerCase()}.${classes}`;
+            
+            let path = [];
+            let current = el;
+            while (current && current.nodeType === Node.ELEMENT_NODE) {
+                if (current.id) {
+                    path.unshift(`#${current.id}`);
+                    break;
+                }
+                if (current.getAttribute('role')) {
+                    path.unshift(`${current.tagName.toLowerCase()}[role="${current.getAttribute('role')}"]`);
+                    break;
+                }
+                let tag = current.nodeName.toLowerCase();
+                let curClasses = Array.from(current.classList)
+                    .filter(c => !/^[0-9_-]/.test(c) && !c.includes('hover') && !c.includes('active'))
+                    .join('.');
+                path.unshift(tag + (curClasses ? '.' + curClasses : ''));
+                current = current.parentNode;
+                if (!current || current.nodeName === "BODY" || current.nodeName === "HTML") break;
             }
             return path.join(" > ");
+        }
+
+        function getCommentSelector(el, containerEl, containerSelector) {
+            let tag = el.nodeName.toLowerCase();
+            if (containerEl && el.parentNode === containerEl) {
+                return `${containerSelector} > ${tag}`;
+            }
+            let classes = Array.from(el.classList)
+                .filter(c => !/^[0-9_-]/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
+                .slice(0, 2);
+            let classPart = classes.length > 0 ? `.${classes.join('.')}` : '';
+            return `${containerSelector} ${tag}${classPart}`;
         }
 
         overlay.addEventListener("click", (e) => {
@@ -184,15 +305,17 @@
 
             if (!clickedElement) return;
 
-            if (step === 1) {
-                selectors.container = getUniqueSelector(clickedElement);
-                alert(`Contêiner detectado!\nSeletor: ${selectors.container}\n\nAgora clique em um COMENTÁRIO.`);
-                step = 2;
-            } else if (step === 2) {
-                selectors.message = getUniqueSelector(clickedElement);
-                alert(`Comentário detectado!\nSeletor: ${selectors.message}\n\nCalibração concluída!`);
-                document.body.removeChild(overlay);
-            }
+            const structure = detectChatStructure(clickedElement);
+            
+            const containerSel = getContainerSelector(structure.containerElement);
+            selectors.container = containerSel;
+            selectors.message = getCommentSelector(structure.messageElement, structure.containerElement, containerSel);
+            
+            alert(`Calibração Inteligente Concluída!\n\n` +
+                  `1. Contêiner detectado: ${selectors.container}\n` +
+                  `2. Linha do comentário: ${selectors.message}`);
+                  
+            document.body.removeChild(overlay);
         });
     });
 
@@ -206,38 +329,135 @@
             messages = Array.from(node.querySelectorAll(selectors.message));
         }
 
+        if (messages.length > 0) {
+            console.log(`[Capturador] Detectados ${messages.length} nós de comentário para processar.`);
+        }
+
         messages.forEach(msgNode => {
+            // Evitar processar o mesmo nó de mensagem mais de uma vez
+            if (msgNode.dataset.captured === "true") return;
+            msgNode.dataset.captured = "true";
+
             try {
-                // Tentar extrair username e texto usando seletores
-                let userEl = msgNode.querySelector(selectors.username);
-                let textEl = msgNode.querySelector(selectors.text);
-
-                // Fallbacks estruturais se os seletores falharem
-                let user = userEl ? userEl.textContent.trim() : "";
-                let text = textEl ? textEl.textContent.trim() : "";
-
-                if (!user || !text) {
-                    // Fallback para Instagram/TikTok quando classes mudam totalmente
-                    // Pega o primeiro elemento âncora/link ou elemento negrito como usuário
-                    const boldOrLink = msgNode.querySelector("a, span[style*='bold'], strong, b");
-                    if (boldOrLink) {
-                        user = boldOrLink.textContent.trim();
+                // 1. Tentar detectar o nome do usuário usando seletores conhecidos primeiro
+                let user = "";
+                
+                // Usar o seletor do username configurado na calibração/padrão se disponível
+                if (selectors && selectors.username) {
+                    const userEl = msgNode.querySelector(selectors.username);
+                    if (userEl) {
+                        user = userEl.textContent.trim();
                     }
-                    // Pega o restante do texto do nó
-                    const allSpans = Array.from(msgNode.querySelectorAll("span"));
-                    if (allSpans.length > 0) {
-                        text = allSpans[allSpans.length - 1].textContent.trim();
-                    } else {
-                        text = msgNode.textContent.replace(user, "").trim();
+                }
+                
+                // Seletor genérico fallback para username
+                if (!user) {
+                    const userEl = msgNode.querySelector('a[href*="/"], span[class*="username"], .username, span[class*="nickname"], .webcast-chatroom__author-name, span[class*="author"]');
+                    if (userEl) {
+                        user = userEl.textContent.trim();
                     }
                 }
 
-                // Limpar usernames (ex. remover '@' ou ':' adicionados pela plataforma)
-                user = user.replace(/^@/, "").replace(/:$/, "").trim();
-                text = text.replace(/^:\s*/, "").trim();
+                // 2. Capturar todos os nós de texto folha para encontrar o comentário
+                let leafs = [];
+                function getLeafTextNodes(el) {
+                    if (el.nodeType === Node.ELEMENT_NODE) {
+                        const tag = el.nodeName.toLowerCase();
+                        const role = el.getAttribute('role') || '';
+                        const className = el.className ? String(el.className).toLowerCase() : '';
+                        
+                        // Ignorar botões, SVGs, menus de ação e botões de resposta
+                        if (tag === 'button' || tag === 'svg' || tag === 'path' || 
+                            role === 'button' || 
+                            className.includes('action') ||
+                            el.textContent.trim() === '...' ||
+                            el.textContent.trim() === '…' ||
+                            el.textContent.trim().toLowerCase() === 'responder' ||
+                            el.textContent.trim().toLowerCase() === 'reply') {
+                            return;
+                        }
+                    }
+                    
+                    if (el.children && el.children.length > 0) {
+                        Array.from(el.children).forEach(child => getLeafTextNodes(child));
+                    } else {
+                        let textVal = el.textContent.trim();
+                        if (textVal.length > 0) {
+                            leafs.push(textVal);
+                        }
+                    }
+                }
+                
+                getLeafTextNodes(msgNode);
+                
+                // Filtrar folhas para remover números isolados de badges (ex: "3", "15" de nível de usuário no TikTok)
+                let validLeafsForUser = leafs.filter(l => {
+                    let val = l.trim();
+                    // Ignora números puros (badges de nível) e símbolos/pontuações
+                    if (/^\d+$/.test(val)) return false;
+                    if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") return false;
+                    return true;
+                });
+
+                // Se não detectamos o username via seletor, pegamos a primeira folha de texto válida (que não seja número de nível)
+                if (!user && validLeafsForUser.length > 0) {
+                    user = validLeafsForUser[0];
+                }
+
+                // Limpar username
+                user = user ? user.replace(/^@/, "").replace(/:$/, "").trim() : "";
+
+                // 3. Extrair a mensagem filtrando o username e elementos comuns de UI (botão curtir, tempo, etc.)
+                let messageParts = [];
+                
+                // Expressão regular para identificar strings de tempo como "1m", "2h", "15s", "1 min", "agora", etc.
+                const timeRegex = /^(agora|now|\d+\s*(s|m|h|d|min|seg|hor|dia|sec|minuto|hora|day)s?)$/i;
+
+                for (let i = 0; i < leafs.length; i++) {
+                    let val = leafs[i].trim();
+                    
+                    // Pular o username se ele aparecer na lista de folhas
+                    if (val.replace(/^@/, "").replace(/:$/, "").trim() === user) {
+                        continue;
+                    }
+                    
+                    // Pular pontuações comuns de separação
+                    if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") {
+                        continue;
+                    }
+                    
+                    // Ignora números puros apenas se vierem antes do username na ordem dos nós, ou forem identificados como badges
+                    // (comentários legítimos que são apenas números como "9" ou "6" devem ser mantidos se não forem o badge inicial!)
+                    if (/^\d+$/.test(val)) {
+                        let userIdxInOriginal = validLeafsForUser.length > 0 ? leafs.indexOf(validLeafsForUser[0]) : -1;
+                        if (userIdxInOriginal !== -1 && i < userIdxInOriginal) {
+                            continue;
+                        }
+                    }
+                    
+                    // Pular textos comuns de controle que possam ter passado
+                    let valLower = val.toLowerCase();
+                    if (valLower === '...' || valLower === '…' || valLower === 'responder' || valLower === 'reply' || valLower === 'curtir' || valLower === 'like') {
+                        continue;
+                    }
+                    
+                    // Pular marcações de tempo
+                    if (timeRegex.test(val)) {
+                        continue;
+                    }
+                    
+                    messageParts.push(leafs[i]);
+                }
+                
+                let text = messageParts.join(" ").trim();
+                text = text ? text.replace(/^:\s*/, "").trim() : "";
+
+                console.log(`[Capturador] Tentando processar - Usuário: "${user}", Texto: "${text}"`);
 
                 if (user && text) {
                     sendChatMessage(user, text);
+                } else {
+                    console.warn("[Capturador] Não foi possível extrair usuário e texto válidos do elemento:", msgNode);
                 }
             } catch (err) {
                 console.error("Erro ao ler nó de chat: ", err);
@@ -247,10 +467,6 @@
 
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message) {
-        const msgKey = `${username}:${message}`;
-        if (sentMessages.has(msgKey)) return; // Evitar duplicatas
-        sentMessages.add(msgKey);
-
         const url = serverInput.value.trim().replace(/\/$/, "");
         const liveId = liveSelect.value;
         if (!liveId) return;
@@ -289,7 +505,6 @@
             return;
         }
 
-        sentMessages.clear();
         isCapturing = true;
         toggleBtn.textContent = "Parar Captura";
         toggleBtn.style.background = "#dc2626";

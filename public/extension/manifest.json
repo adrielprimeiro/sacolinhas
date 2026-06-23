@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Capturador de Live - Minha Mania",
+  "version": "1.2",
+  "description": "Extensão para captura de comentários em tempo real nas lives do Instagram e TikTok para o sistema sacolinhas.",
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.instagram.com/*",
+        "https://www.tiktok.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

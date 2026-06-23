@@ -38,124 +38,176 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-bold text-yellow-800">Nenhuma Live Selecionada ou Ativa</h3>
-                    <p class="text-sm text-yellow-700 mt-1">Crie uma nova live ou selecione uma live existente no canto superior direito para começar a capturar os dados do chat.</p>
+                    <p class="text-sm text-yellow-700 mt-1">Selecione uma live existente no canto superior direito para começar a capturar e visualizar os dados do chat.</p>
                 </div>
             </div>
         </div>
-    @else
-        <!-- Dashboard Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <!-- COLUNA 1: FILA DE CÓDIGOS SOLICITADOS (LARGURA 5) -->
-            <div class="lg:col-span-5 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
-                <div class="bg-indigo-600 px-5 py-4 flex items-center justify-between text-white">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-list-ol"></i>
-                        <h2 class="font-bold text-lg">Fila de Códigos (Ordem de Chegada)</h2>
-                    </div>
-                    <span id="code-queue-count" class="bg-indigo-800 text-xs px-2.5 py-1 rounded-full font-bold">0 itens</span>
+    @endif
+
+    <!-- Dashboard Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- COLUNA 1: FILA DE CÓDIGOS SOLICITADOS (LARGURA 5) - OCULTO POR ENQUANTO -->
+        <div class="hidden lg:col-span-5 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+            <div class="bg-indigo-600 px-5 py-4 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-list-ol"></i>
+                    <h2 class="font-bold text-lg">Fila de Códigos (Ordem de Chegada)</h2>
                 </div>
-                
-                <div id="code-requests-container" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
-                    <!-- Gerado dinamicamente -->
+                <span id="code-queue-count" class="bg-indigo-800 text-xs px-2.5 py-1 rounded-full font-bold">0 itens</span>
+            </div>
+            
+            <div id="code-requests-container" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
+                @if(!$activeLive)
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                        <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
+                        <p class="text-sm text-center">Selecione uma live no topo da página para ver a fila de códigos.</p>
+                    </div>
+                @else
                     <div class="flex flex-col items-center justify-center h-full text-gray-400">
                         <i class="fas fa-box-open text-4xl mb-2"></i>
                         <p class="text-sm">Aguardando códigos detectados no chat...</p>
                     </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- COLUNA 2: CHAT EM TEMPO REAL (LARGURA 9) -->
+        <div class="lg:col-span-9 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+            <div class="bg-gray-800 px-5 py-4 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-comment-alt"></i>
+                    <h2 class="font-bold text-lg">Chat da Transmissão</h2>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                    <span class="text-xs text-gray-300">Conectado</span>
                 </div>
             </div>
-
-            <!-- COLUNA 2: CHAT EM TEMPO REAL (LARGURA 4) -->
-            <div class="lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
-                <div class="bg-gray-800 px-5 py-4 flex items-center justify-between text-white">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-comment-alt"></i>
-                        <h2 class="font-bold text-lg">Chat da Transmissão</h2>
+            
+            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-900 text-gray-100 font-sans">
+                @if(!$activeLive)
+                    <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                        <i class="fas fa-video-slash text-3xl mb-2"></i>
+                        <p class="text-xs text-center">Selecione uma live para ativar o chat.</p>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
-                        <span class="text-xs text-gray-300">Conectado</span>
-                    </div>
-                </div>
-                
-                <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-900 text-gray-100 font-sans">
-                    <!-- Gerado dinamicamente -->
+                @else
                     <div class="flex flex-col items-center justify-center h-full text-gray-500">
                         <i class="fas fa-plug text-3xl mb-2"></i>
                         <p class="text-xs text-center">Execute o Bookmarklet na aba da live para enviar mensagens para cá.</p>
                     </div>
-                </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (LARGURA 3) -->
+        <div class="lg:col-span-3 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 bg-gray-50">
+                <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600">
+                    Bookmarklet
+                </button>
+                <button id="tab-btn-online" onclick="switchTab('online')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Pessoas Online
+                </button>
             </div>
 
-            <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (LARGURA 3) -->
-            <div class="lg:col-span-3 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
-                <!-- Tabs -->
-                <div class="flex border-b border-gray-200 bg-gray-50">
-                    <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600">
-                        Bookmarklet
-                    </button>
-                    <button id="tab-btn-online" onclick="switchTab('online')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                        Pessoas Online
-                    </button>
-                </div>
-
-                <!-- Tab content container -->
-                <div class="flex-1 p-4 overflow-y-auto">
-                    <!-- Tab: Bookmarklet -->
-                    <div id="tab-content-bookmarklet" class="space-y-4">
-                        <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                            <h3 class="font-bold text-indigo-800 text-sm flex items-center gap-1.5">
-                                <i class="fas fa-magic"></i>
-                                Captura Rápida (Sem Extensão)
-                            </h3>
-                            <p class="text-xs text-indigo-700 mt-2 leading-relaxed">
-                                Arraste o botão abaixo para a sua barra de favoritos. Quando abrir a live no TikTok ou Instagram Web, clique no favorito para iniciar o painel flutuante!
-                            </p>
-                            
-                            <!-- Botão de Bookmarklet -->
-                            <div class="mt-4 text-center">
-                                <a id="bookmarklet-link" href="#" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm text-xs transition duration-200 cursor-move">
-                                    <i class="fas fa-anchor"></i>
-                                    Capturar Live Sacolas
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="space-y-3">
-                            <h4 class="font-bold text-gray-700 text-xs uppercase tracking-wider">Como Usar:</h4>
-                            <ol class="list-decimal pl-4 text-xs text-gray-600 space-y-2 leading-relaxed">
-                                <li><strong>Arraste</strong> o botão acima para sua barra de favoritos (ou copie o código abaixo).</li>
-                                <li>Abra a live no <strong>Google Chrome</strong> (ex. <code class="bg-gray-100 px-1 py-0.5 rounded">tiktok.com/@sua-conta/live</code>).</li>
-                                <li>Clique no favorito na barra para abrir a interface flutuante na live.</li>
-                                <li>Selecione a Live correspondente e clique em <strong>Iniciar Captura</strong>.</li>
+            <!-- Tab content container -->
+            <div class="flex-1 p-4 overflow-y-auto">
+                <!-- Tab: Bookmarklet e Extensão -->
+                <div id="tab-content-bookmarklet" class="space-y-4">
+                    <!-- Opção 1: Extensão Chrome -->
+                    <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                        <h3 class="font-bold text-indigo-800 text-sm flex items-center gap-1.5">
+                            <i class="fab fa-chrome"></i>
+                            Opção 1: Extensão Chrome (Recomendado)
+                        </h3>
+                        <p class="text-xs text-indigo-700 mt-2 leading-relaxed">
+                            Evita bloqueios de segurança do Instagram e TikTok. A janelinha de captura abrirá automaticamente sempre que acessar a live!
+                        </p>
+                        
+                        <div class="mt-3 space-y-2 text-xs text-gray-700">
+                            <p><strong>Como Instalar:</strong></p>
+                            <ol class="list-decimal pl-4 space-y-1">
+                                <li>Acesse <code class="bg-gray-150 px-1 py-0.5 rounded text-[10px] font-mono select-all">chrome://extensions</code> no Chrome.</li>
+                                <li>Ative o <strong>Modo do desenvolvedor</strong> (canto superior direito).</li>
+                                <li>Clique em <strong>Carregar sem compactação</strong> (canto superior esquerdo).</li>
+                                <li>Selecione a pasta do projeto: <br><code class="bg-gray-100 px-1.5 py-1 rounded text-[9px] font-mono block mt-1 select-all break-all border border-gray-250">C:\serv\sacolinhas\public\extension</code></li>
                             </ol>
                         </div>
+                    </div>
 
-                        <!-- Código para cópia manual -->
-                        <div class="mt-4">
-                            <label class="block text-xs font-bold text-gray-700 mb-1">Código do Bookmarklet:</label>
-                            <textarea id="bookmarklet-code" readonly onclick="this.select()" class="w-full h-24 p-2 text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
-                            <p class="text-[10px] text-gray-400 mt-1">Dica: se não conseguir arrastar, crie um favorito manualmente e cole o código acima no campo de URL.</p>
+                    <!-- Opção 2: Console F12 -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                            <i class="fas fa-terminal"></i>
+                            Opção 2: Console do Navegador (Sem Instalar)
+                        </h3>
+                        <p class="text-xs text-gray-600 mt-2 leading-relaxed">
+                            Cole o código completo abaixo diretamente no console da live.
+                        </p>
+                        
+                        <div class="mt-3 space-y-2">
+                            <ol class="list-decimal pl-4 text-xs text-gray-600 space-y-1">
+                                <li>Abra a live no Chrome.</li>
+                                <li>Pressione <strong>F12</strong> no teclado e vá na aba <strong>Console</strong>.</li>
+                                <li>Copie o código abaixo, cole no console e dê <strong>Enter</strong>.</li>
+                            </ol>
+                            
+                            @php
+                                $consoleCode = @file_get_contents(public_path('js/live-chat-bookmarklet.js'));
+                            @endphp
+                            <textarea readonly onclick="this.select()" class="w-full h-24 p-2 text-[9px] font-mono bg-gray-900 text-green-400 border border-gray-300 rounded-lg mt-2 resize-none focus:outline-none" placeholder="Carregando código..."></textarea>
+                            <script>
+                                document.addEventListener("DOMContentLoaded", function() {
+                                    // Preencher o textarea com o código completo do console
+                                    const textarea = document.querySelector('textarea[placeholder="Carregando código..."]');
+                                    if (textarea) {
+                                        // Usando o código estático já carregado no script
+                                        fetch('/js/live-chat-bookmarklet.js')
+                                            .then(r => r.text())
+                                            .then(t => { textarea.value = t; });
+                                    }
+                                });
+                            </script>
                         </div>
                     </div>
 
-                    <!-- Tab: Pessoas Online -->
-                    <div id="tab-content-online" class="hidden space-y-3">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-bold text-gray-700 text-sm">Participantes na Transmissão</h3>
-                            <span id="online-users-count" class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
-                        </div>
-                        
-                        <div id="online-users-list" class="space-y-2.5">
-                            <!-- Gerado dinamicamente -->
-                            <p class="text-xs text-gray-400 text-center py-6">Nenhum participante detectado ainda.</p>
+                    <!-- Opção 3: Favorito / Bookmarklet -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                            <i class="fas fa-anchor"></i>
+                            Opção 3: Bookmarklet (Favorito)
+                        </h3>
+                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                            Pode ser bloqueado pelo Instagram/TikTok devido à política de segurança (CSP).
+                        </p>
+                        <div class="mt-3 text-center">
+                            <a id="bookmarklet-link" href="#" class="inline-flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition duration-200 cursor-move">
+                                <i class="fas fa-anchor"></i>
+                                Capturar Live Sacolas
+                            </a>
+                            <input type="hidden" id="bookmarklet-code">
                         </div>
                     </div>
                 </div>
+
+                <!-- Tab: Pessoas Online -->
+                <div id="tab-content-online" class="hidden space-y-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-bold text-gray-700 text-sm">Participantes na Transmissão</h3>
+                        <span id="online-users-count" class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    
+                    <div id="online-users-list" class="space-y-2.5">
+                        <!-- Gerado dinamicamente -->
+                        <p class="text-xs text-gray-400 text-center py-6">Nenhum participante detectado ainda.</p>
+                    </div>
+                </div>
             </div>
-            
         </div>
-    @endif
+        
+    </div>
 </div>
 
 <!-- MODAL VINCULAR CLIENTE -->
@@ -194,7 +246,7 @@
 
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
     // Parâmetros Globais
     const liveId = "{{ $activeLive ? $activeLive->id : '' }}";
@@ -207,11 +259,13 @@
     const bookmarkletJsCode = `javascript:(function(){var%20js=document.createElement('script');js.src='${serverOrigin}/js/live-chat-bookmarklet.js?v='+Math.random();document.body.appendChild(js);})();`;
 
     document.addEventListener("DOMContentLoaded", function() {
-        if (liveId) {
-            // Inicializar código do bookmarklet na tela
-            document.getElementById("bookmarklet-link").setAttribute("href", bookmarkletJsCode);
-            document.getElementById("bookmarklet-code").value = bookmarkletJsCode;
+        // Inicializar código do bookmarklet na tela
+        const linkEl = document.getElementById("bookmarklet-link");
+        const codeEl = document.getElementById("bookmarklet-code");
+        if (linkEl) linkEl.setAttribute("href", bookmarkletJsCode);
+        if (codeEl) codeEl.value = bookmarkletJsCode;
 
+        if (liveId) {
             // Iniciar Polling de dados (a cada 3 segundos)
             fetchChatData();
             pollingInterval = setInterval(fetchChatData, 3000);
@@ -596,4 +650,4 @@
         }, 3000);
     }
 </script>
-@endsection
+@endpush

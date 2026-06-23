@@ -59,7 +59,7 @@ class LiveChatController extends Controller
                     'plataforma' => $platform,
                     'username' => $cleanUsername,
                     'message' => $messageText,
-                    'captured_at' => $validated['timestamp'] ? date('Y-m-d H:i:s', strtotime($validated['timestamp'])) : now()
+                    'captured_at' => (isset($validated['timestamp']) && $validated['timestamp']) ? date('Y-m-d H:i:s', strtotime($validated['timestamp'])) : now()
                 ]);
 
                 // 2. Tentar encontrar usuário correspondente no banco
@@ -74,11 +74,10 @@ class LiveChatController extends Controller
                         ?? User::where('name', $cleanUsername)->first();
                 }
 
-                // 3. Escanear a mensagem buscando códigos de produtos
-                // Encontrar padrões como "#45" ou "45" ou "quero 45"
-                preg_match_all('/#?([a-zA-Z0-9-]+)/', $messageText, $matches);
+                // 3. Escanear a mensagem buscando códigos de produtos (Desativado temporariamente conforme solicitação)
                 $matchedCodes = [];
-
+                /*
+                preg_match_all('/#?([a-zA-Z0-9-]+)/', $messageText, $matches);
                 if (!empty($matches[1])) {
                     $candidates = array_unique($matches[1]);
                     foreach ($candidates as $candidate) {
@@ -100,17 +99,24 @@ class LiveChatController extends Controller
                         }
                     }
                 }
+                */
 
                 return response()->json([
                     'success' => true,
                     'message_id' => $liveMessage->id,
                     'matched_user' => $user ? $user->name : null,
                     'matched_codes' => $matchedCodes
-                ]);
+                ])
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Authorization, X-CSRF-Token');
             });
         } catch (\Exception $e) {
             Log::error("Erro ao processar mensagem do chat: " . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Authorization, X-CSRF-Token');
         }
     }
 
