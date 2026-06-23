@@ -37,16 +37,16 @@ $currentRoute = Route::currentRouteName();
     </a>
 </div>
 
-<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+<div class="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div>
         <h2 class="text-2xl font-black text-gray-800">Auditoria & Diagnóstico de Conciliação</h2>
         <p class="text-sm text-gray-500 mt-1">Verifique a saúde de suas contas integradas e resolva diferenças de saldo.</p>
     </div>
     
-    <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-        <label for="conta_select" class="text-xs font-bold text-gray-400 uppercase pl-2">Selecionar Conta:</label>
-        <form action="{{ route('financeiro.conciliacao.auditoria') }}" method="GET" id="conta_form">
-            <select name="conta_bancaria_id" id="conta_select" onchange="document.getElementById('conta_form').submit()" 
+    <form action="{{ route('financeiro.conciliacao.auditoria') }}" method="GET" id="auditoria_form" class="flex flex-wrap items-center gap-3">
+        <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <label for="conta_select" class="text-xs font-bold text-gray-400 uppercase pl-2">Conta:</label>
+            <select name="conta_bancaria_id" id="conta_select" onchange="document.getElementById('auditoria_form').submit()" 
                     class="border-0 bg-transparent text-gray-800 text-sm font-black focus:ring-0 focus:outline-none pr-8 cursor-pointer">
                 @foreach($contas as $c)
                     @if(!str_contains(strtolower($c->nome), 'carteira'))
@@ -56,8 +56,24 @@ $currentRoute = Route::currentRouteName();
                     @endif
                 @endforeach
             </select>
-        </form>
-    </div>
+        </div>
+
+        <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <span class="text-xs font-bold text-gray-400 uppercase pl-2">Período:</span>
+            <input type="date" name="data_inicio" value="{{ $dataInicio }}" class="border-0 bg-transparent text-gray-800 text-sm font-bold focus:ring-0 focus:outline-none p-0 w-32">
+            <span class="text-xs text-gray-305">até</span>
+            <input type="date" name="data_fim" value="{{ $dataFim }}" class="border-0 bg-transparent text-gray-800 text-sm font-bold focus:ring-0 focus:outline-none p-0 w-32">
+        </div>
+
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition">
+            <i class="fas fa-filter mr-1"></i> Filtrar
+        </button>
+        
+        <a href="{{ route('financeiro.conciliacao.auditoria', ['conta_bancaria_id' => $conta->id, 'data_inicio' => '', 'data_fim' => '']) }}" 
+           class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition">
+            Tudo (Sem Limite)
+        </a>
+    </form>
 </div>
 
 {{-- METRICAS DE SALDO --}}

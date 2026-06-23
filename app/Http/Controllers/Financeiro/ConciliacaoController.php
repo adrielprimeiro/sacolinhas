@@ -381,6 +381,15 @@ class ConciliacaoController extends Controller
             return redirect()->route('financeiro.conciliacao.index')->with('error', 'Conta bancária não encontrada.');
         }
 
+        // Determinar datas
+        if ($request->has('data_inicio') || $request->has('data_fim')) {
+            $dataInicio = $request->get('data_inicio');
+            $dataFim = $request->get('data_fim');
+        } else {
+            $dataInicio = \Carbon\Carbon::now()->startOfMonth()->toDateString();
+            $dataFim = \Carbon\Carbon::now()->endOfMonth()->toDateString();
+        }
+
         $saldoInicial = (float) $conta->saldo_inicial;
         $saldoSistema = (float) $conta->saldo_atual;
 
@@ -411,7 +420,8 @@ class ConciliacaoController extends Controller
 
         $saldoExtratoTotal = $saldoInicial + $entradasTotal - $saidasTotal;
 
-        $transacoesOrfas = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+        // 1. Transações Órfãs
+        $transacoesOrfasQuery = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
             ->where('status', 'conciliado')
             ->where(function($q) {
                 $q->whereNull('movimentacao_id')
@@ -420,33 +430,66 @@ class ConciliacaoController extends Controller
                           ->from('movimentacoes')
                           ->whereColumn('movimentacoes.id', 'transacoes_extrato.movimentacao_id');
                   });
-            })
-            ->get();
+            });
 
-        $divergenciasValores = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+        if ($dataInicio) {
+            $transacoesOrfasQuery->where('data', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $transacoesOrfasQuery->where('data', '<=', $dataFim);
+        }
+        $transacoesOrfas = $transacoesOrfasQuery->get();
+
+        // 2. Divergências de Valores
+        $divergenciasQuery = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
             ->where('status', 'conciliado')
             ->whereNotNull('movimentacao_id')
             ->whereExists(function($sub) {
                 $sub->select(\Illuminate\Support\Facades\DB::raw(1))
                     ->from('movimentacoes')
                     ->whereColumn('movimentacoes.id', 'transacoes_extrato.movimentacao_id');
-            })
-            ->with('movimentacao')
+            });
+
+        if ($dataInicio) {
+            $divergenciasQuery->where('data', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $divergenciasQuery->where('data', '<=', $dataFim);
+        }
+
+        $divergenciasValores = $divergenciasQuery->with('movimentacao')
             ->get()
             ->filter(function($t) {
                 return $t->movimentacao && abs((float)$t->valor - (float)$t->movimentacao->valor_pago) >= 0.01;
             });
 
-        $movimentacoesManuais = \App\Models\Movimentacao::where('conta_bancaria_id', $conta->id)
-            ->whereNull('transacao_extrato_id')
-            ->with(['lancamento.pessoa', 'lancamento.classificacaoFinanceira'])
+        // 3. Movimentações Manuais
+        $movimentacoesQuery = \App\Models\Movimentacao::where('conta_bancaria_id', $conta->id)
+            ->whereNull('transacao_extrato_id');
+
+        if ($dataInicio) {
+            $movimentacoesQuery->where('data_pagamento', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $movimentacoesQuery->where('data_pagamento', '<=', $dataFim);
+        }
+
+        $movimentacoesManuais = $movimentacoesQuery->with(['lancamento.pessoa', 'lancamento.classificacaoFinanceira'])
             ->orderBy('data_pagamento', 'desc')
             ->get();
 
-        $transacoesPendentes = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
-            ->where('status', 'pendente')
-            ->orderBy('data', 'desc')
-            ->get();
+        // 4. Transações Pendentes
+        $pendentesQuery = \App\Models\TransacaoExtrato::where('conta_bancaria_id', $conta->id)
+            ->where('status', 'pendente');
+
+        if ($dataInicio) {
+            $pendentesQuery->where('data', '>=', $dataInicio);
+        }
+        if ($dataFim) {
+            $pendentesQuery->where('data', '<=', $dataFim);
+        }
+
+        $transacoesPendentes = $pendentesQuery->orderBy('data', 'desc')->get();
 
         return view('admin.financeiro.auditoria', compact(
             'contas',
@@ -458,7 +501,9 @@ class ConciliacaoController extends Controller
             'transacoesOrfas',
             'divergenciasValores',
             'movimentacoesManuais',
-            'transacoesPendentes'
+            'transacoesPendentes',
+            'dataInicio',
+            'dataFim'
         ));
     }
 
