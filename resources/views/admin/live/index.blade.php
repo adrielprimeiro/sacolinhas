@@ -13,7 +13,7 @@
         </div>
 
         <!-- Controls -->
-        <div class="flex flex-wrap items-end gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <div class="flex flex-wrap items-end gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm" id="live-creation-card">
             <div class="flex-grow min-w-[200px]">
                 <label for="live-type" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo de Live</label>
                 <select id="live-type" name="live_type" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white focus:border-blue-500 focus:ring focus:ring-blue-200">
@@ -78,6 +78,23 @@
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 
+                <!-- Selecionar Cliente -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-user text-gray-400 mr-1"></i> Selecionar Cliente
+                        </label>
+                        <a href="{{ route('admin.clientes.create') }}" class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1" target="_blank" title="Cadastrar novo cliente">
+                            <i class="fas fa-user-plus"></i> Novo Cliente
+                        </a>
+                    </div>
+                    @include('components.user-search', [
+                        'name' => 'client_id',
+                        'placeholder' => 'Digite nome ou e-mail...',
+                        'value' => old('client_id')
+                    ])
+                </div>
+
                 <!-- Selecionar Item -->
                 <div>
                     <div class="flex justify-between items-center mb-2">
@@ -94,23 +111,6 @@
                         'placeholder' => 'Buscar item por nome, SKU ou descrição...',
                         'value' => old('item_id'),
                         'priceValue' => old('item_price')
-                    ])
-                </div>
-
-                <!-- Selecionar Cliente -->
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-user text-gray-400 mr-1"></i> Selecionar Cliente
-                        </label>
-                        <a href="{{ route('admin.clientes.create') }}" class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1" target="_blank" title="Cadastrar novo cliente">
-                            <i class="fas fa-user-plus"></i> Novo Cliente
-                        </a>
-                    </div>
-                    @include('components.user-search', [
-                        'name' => 'client_id',
-                        'placeholder' => 'Buscar cliente por nome, email ou telefone...',
-                        'value' => old('client_id')
                     ])
                 </div>
 
@@ -237,10 +237,10 @@
                 mostrarAlert(`Cliente selecionado: ${user.name}`, 'info');
                 
                 setTimeout(() => {
-                    const addButton = document.getElementById('add-to-bag-btn');
-                    if (addButton) {
-                        addButton.focus();
-                        console.log('✅ Foco movido para botão Adicionar à Sacola');
+                    const itemInput = document.querySelector('[data-item-search="true"] .item-search-input');
+                    if (itemInput) {
+                        itemInput.focus();
+                        console.log('✅ Foco movido para Selecionar Item');
                     }
                 }, 300);
             });
@@ -280,15 +280,12 @@
         }
         
         setTimeout(() => {
-            console.log('⏳ Tentando mover foco para cliente...');
-            const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
-            console.log('🔍 Element encontrado:', clientInput);
-            
-            if (clientInput) {
-                clientInput.focus();
-                console.log('✅ Foco movido para o campo de cliente');
-            } else {
-                console.log('❌ Campo de cliente NÃO encontrado!');
+            console.log('⏳ Tentando mover foco para o preço...');
+            const priceInput = document.getElementById('item-price');
+            if (priceInput) {
+                priceInput.focus();
+                priceInput.select();
+                console.log('✅ Foco movido para o preço');
             }
         }, 100);
     });
@@ -760,6 +757,7 @@
         const filterCard = document.getElementById('filter-card');
         const liveTypeSelect = document.getElementById('live-type');
         const platformCheckboxes = document.querySelectorAll('.platform-checkbox');
+        const creationCard = document.getElementById('live-creation-card');
         
         if (liveAtiva) {
             toggleButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
@@ -769,6 +767,18 @@
             
             liveTypeSelect.disabled = true;
             platformCheckboxes.forEach(checkbox => checkbox.disabled = true);
+
+            if (creationCard) {
+                creationCard.classList.add('hidden');
+            }
+
+            // Ao iniciar live, dar foco em Selecionar Cliente
+            setTimeout(() => {
+                const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+                if (clientInput && document.activeElement !== clientInput) {
+                    clientInput.focus();
+                }
+            }, 300);
         } else {
             toggleButton.classList.remove('bg-red-600', 'hover:bg-red-700');
             toggleButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
@@ -777,6 +787,10 @@
 
             liveTypeSelect.disabled = false;
             platformCheckboxes.forEach(checkbox => checkbox.disabled = false);
+
+            if (creationCard) {
+                creationCard.classList.remove('hidden');
+            }
         }
     }
 

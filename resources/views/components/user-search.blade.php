@@ -5,7 +5,7 @@
         </span>
         <input type="text" 
                class="form-control user-search-input" 
-               placeholder="Buscar cliente por nome, @instagram, @tiktok, email ou ID"
+               placeholder="{{ $placeholder ?? 'Digite nome ou e-mail...' }}"
                autocomplete="off"
                spellcheck="false">
         <button class="btn btn-outline-secondary user-clear-btn" type="button" style="display: none;">
@@ -160,7 +160,7 @@ if (typeof window.initUserSearch === 'undefined') {
             dropdown.innerHTML = '<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
             dropdown.style.display = 'block';
 
-            fetch(`/users/search?q=${encodeURIComponent(q)}&role=client`)
+            fetch(`/api/users/search?q=${encodeURIComponent(q)}`)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && data.data.length > 0) {
