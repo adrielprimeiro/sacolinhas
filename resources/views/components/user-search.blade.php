@@ -23,6 +23,50 @@
         position: relative;
         margin-bottom: 1rem;
     }
+    /* Fallback CSS for non-Bootstrap contexts */
+    .user-search-wrapper .input-group {
+        display: flex;
+        width: 100%;
+    }
+    .user-search-wrapper .input-group .user-search-input {
+        flex-grow: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        outline: none;
+        font-size: 0.875rem;
+        background-color: #fff;
+    }
+    .user-search-wrapper .input-group .input-group-text {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background-color: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-right: none;
+        border-radius: 0.375rem 0 0 0.375rem;
+    }
+    .user-search-wrapper .input-group .input-group-text + .user-search-input {
+        border-radius: 0 0.375rem 0.375rem 0;
+    }
+    .user-search-wrapper .input-group .user-search-input:not(:last-child) {
+        border-radius: 0;
+    }
+    .user-search-wrapper .input-group .user-clear-btn {
+        border: 1px solid #d1d5db;
+        border-left: none;
+        border-radius: 0 0.375rem 0.375rem 0;
+        background: #f9fafb;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .user-search-wrapper .input-group .user-clear-btn:hover {
+        background-color: #f3f4f6;
+    }
 
     .user-suggestions-dropdown {
         position: absolute;

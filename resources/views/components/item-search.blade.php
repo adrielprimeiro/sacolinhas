@@ -16,9 +16,21 @@
 				data-form-type="other"
 				data-search-input="true"
 			>
+            <button class="btn btn-outline-secondary item-qr-btn" type="button" data-qr-btn="true" title="Ler QRCode">
+                <i class="fas fa-qrcode"></i>
+            </button>
             <button class="btn btn-outline-secondary item-clear-btn d-none" type="button" data-clear-btn="true">
                 <i class="fas fa-times"></i>
             </button>
+        </div>
+
+        <!-- Scanner de QRCode -->
+        <div class="item-qr-reader-wrap d-none mt-2 border border-secondary rounded p-2 bg-white" data-qr-reader-wrap="true">
+            <div class="text-sm text-muted mb-2 d-flex justify-content-between align-items-center" style="font-size: 0.85rem;">
+                <span><i class="fas fa-camera me-1"></i> Aponte a câmera para o QR Code</span>
+                <button type="button" class="btn-close border-0 bg-transparent text-secondary fw-bold" data-qr-close-btn="true" aria-label="Close" style="cursor: pointer;">✕</button>
+            </div>
+            <div class="qr-reader-area" style="width: 100%; max-width: 350px; margin: 0 auto; overflow: hidden; border-radius: 4px;"></div>
         </div>
 
         <!-- Dropdown de Sugestões -->
@@ -54,6 +66,61 @@
 <style>
 .item-search-wrapper {
     position: relative;
+}
+/* Fallback CSS for non-Bootstrap contexts */
+.item-search-wrapper .input-group {
+    display: flex;
+    width: 100%;
+}
+.item-search-wrapper .input-group .item-search-input {
+    flex-grow: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem 0 0 0.375rem;
+    padding: 0.5rem 0.75rem;
+    outline: none;
+    font-size: 0.875rem;
+    background-color: #fff;
+}
+.item-search-wrapper .input-group .input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-right: none;
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+.item-search-wrapper .input-group .input-group-text + .item-search-input {
+    border-radius: 0;
+}
+.item-search-wrapper .input-group .item-qr-btn {
+    border: 1px solid #d1d5db;
+    border-left: none;
+    background: #f9fafb;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.item-search-wrapper .input-group .item-qr-btn:hover {
+    background-color: #f3f4f6;
+}
+.item-search-wrapper .input-group .item-clear-btn {
+    border: 1px solid #d1d5db;
+    border-left: none;
+    border-radius: 0 0.375rem 0.375rem 0;
+    background: #f9fafb;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.item-search-wrapper .input-group .item-clear-btn:hover {
+    background-color: #f3f4f6;
 }
 
 .item-suggestions-dropdown {
@@ -390,6 +457,111 @@ document.addEventListener('DOMContentLoaded', function() {
         elements.selectedDisplay.classList.remove('d-none');
         elements.clearBtn.classList.remove('d-none'); // Mostra o botão de limpar
         console.log('DEBUG: Item pré-selecionado (placeholder).');
+    }
+
+    // Lógica do QR Code Scanner
+    const qrBtn = wrapper.querySelector('[data-qr-btn="true"]');
+    const qrWrap = wrapper.querySelector('[data-qr-reader-wrap="true"]');
+    const qrCloseBtn = wrapper.querySelector('[data-qr-close-btn="true"]');
+    const qrReaderArea = wrapper.querySelector('.qr-reader-area');
+    let html5QrScanner = null;
+    let qrReaderId = 'qr-reader-' + Math.random().toString(36).substr(2, 9);
+    
+    if (qrReaderArea) {
+        qrReaderArea.id = qrReaderId;
+    }
+
+    if (qrBtn && qrWrap && qrCloseBtn) {
+        async function stopQrScanner() {
+            if (html5QrScanner && html5QrScanner.isScanning) {
+                try {
+                    await html5QrScanner.stop();
+                } catch (e) {
+                    console.error("Erro ao parar scanner:", e);
+                }
+            }
+            qrWrap.classList.add('d-none');
+        }
+
+        qrCloseBtn.addEventListener('click', async () => {
+            await stopQrScanner();
+        });
+
+        qrBtn.addEventListener('click', async () => {
+            const isHidden = qrWrap.classList.contains('d-none');
+            if (!isHidden) {
+                await stopQrScanner();
+                return;
+            }
+
+            qrWrap.classList.remove('d-none');
+
+            // Carrega a biblioteca se não estiver carregada
+            if (typeof Html5Qrcode === 'undefined') {
+                const script = document.createElement('script');
+                script.src = "https://unpkg.com/html5-qrcode";
+                script.onload = () => {
+                    startScanning();
+                };
+                document.head.appendChild(script);
+            } else {
+                startScanning();
+            }
+        });
+
+        async function startScanning() {
+            if (!html5QrScanner) {
+                html5QrScanner = new Html5Qrcode(qrReaderId);
+            }
+
+            try {
+                await html5QrScanner.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 }
+                    },
+                    async (decodedText) => {
+                        console.log("QR Code detectado:", decodedText);
+                        await stopQrScanner();
+                        
+                        // Buscar item
+                        try {
+                            const response = await fetch(`/api/items/search?q=${encodeURIComponent(decodedText)}`);
+                            const data = await response.json();
+                            
+                            if (data.success && data.data && data.data.length > 0) {
+                                // Tentar achar correspondência exata de SKU/codigo ou ID
+                                let matchedItem = data.data.find(item => item.sku === decodedText || String(item.id) === decodedText);
+                                if (!matchedItem) {
+                                    matchedItem = data.data[0];
+                                }
+                                selectItem(matchedItem);
+                                
+                                // Focar no campo do cliente
+                                setTimeout(() => {
+                                    const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+                                    if (clientInput) {
+                                        clientInput.focus();
+                                    }
+                                }, 200);
+                            } else {
+                                alert(`Item com código "${decodedText}" não foi encontrado.`);
+                            }
+                        } catch (err) {
+                            console.error("Erro ao buscar item escaneado:", err);
+                        }
+                    },
+                    (errorMessage) => {
+                        // Silencioso
+                    }
+                );
+            } catch (err) {
+                console.error("Erro ao inicializar câmera:", err);
+                alert("Não foi possível acessar a câmera. Verifique as permissões.");
+                qrWrap.classList.add('d-none');
+            }
+        }
     }
 
     console.log('🎉 Componente de busca de itens pronto!');
