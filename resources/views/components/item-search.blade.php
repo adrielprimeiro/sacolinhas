@@ -123,6 +123,65 @@
     background-color: #f3f4f6;
 }
 
+/* Card & Utility Fallbacks for Tailwind context */
+.item-search-wrapper .card {
+    background-color: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.item-search-wrapper .card.border-success {
+    border-color: #10b981;
+    background-color: #ecfdf5;
+}
+.item-search-wrapper .card-body {
+    padding: 0.5rem 0.75rem;
+}
+.item-search-wrapper .d-flex {
+    display: flex;
+}
+.item-search-wrapper .align-items-center {
+    align-items: center;
+}
+.item-search-wrapper .flex-grow-1 {
+    flex-grow: 1;
+}
+.item-search-wrapper .fw-bold {
+    font-weight: 700;
+}
+.item-search-wrapper .text-success {
+    color: #10b981;
+}
+.item-search-wrapper .text-muted {
+    color: #6b7280;
+}
+.item-search-wrapper .me-2 {
+    margin-right: 0.5rem;
+}
+.item-search-wrapper .mt-2 {
+    margin-top: 0.5rem;
+}
+.item-search-wrapper .rounded {
+    border-radius: 0.25rem;
+}
+.item-search-wrapper .btn-outline-danger {
+    color: #ef4444;
+    background: transparent;
+    border: 1px solid #ef4444;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+.item-search-wrapper .btn-outline-danger:hover {
+    background-color: #ef4444;
+    color: #fff;
+}
+.item-search-wrapper .d-none {
+    display: none !important;
+}
+
 .item-suggestions-dropdown {
     position: absolute;
     top: 100%;
