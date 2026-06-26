@@ -555,7 +555,7 @@
                         </td>
                         <td class="px-6 py-4 font-semibold text-green-600">${item.formatted_total_price}</td>
                         <td class="px-6 py-4 text-center">
-                            <button class="text-red-500 hover:text-red-700 transition" onclick="removerItem(${item.item_id}, ${bag.client.id}, '${item.item_name.replace(/'/g, "\\'")}', '${item.formatted_total_price}')" title="Remover item">
+                            <button class="text-red-500 hover:text-red-700 transition" onclick="removerItem(${item.item_id}, ${bag.client.id}, '${item.item_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${item.formatted_total_price}')" title="Remover item">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </td>
@@ -590,7 +590,7 @@
         }
     }
 
-    function ejecutarRemocao(descontarPontos) {
+    function executarRemocao(descontarPontos) {
         if (!itemParaRemover) return;
         
         const data = {
@@ -806,6 +806,8 @@
     }
 
     window.handleToggleLiveClick = handleToggleLiveClick;
+    window.removerItem = removerItem;
+    window.encerrarLive = encerrarLive;
 
     function criarNovaLive() {
         console.log("🛠️ Iniciando criarNovaLive...");

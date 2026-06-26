@@ -34,6 +34,7 @@
     let selectedLiveId = localStorage.getItem("live_capture_live_id") || "";
     let isCapturing = false;
     let observer = null;
+    const sentMessages = new Set();
     
     // Seletores padrão
     let selectors = {
@@ -44,8 +45,8 @@
             text: 'span[class*="comment"], span[class*="text"], .webcast-chatroom__message-text, span[class*="text-content"]'
         },
         instagram: {
-            container: 'div[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]',
-            message: 'div[role="log"] > div, div[class*="CommentRow"], div[class*="comment-row"], div[class*="LiveComment"]',
+            container: '[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]',
+            message: '[role="log"] > *, div[class*="CommentRow"], div[class*="comment-row"], div[class*="LiveComment"]',
             username: 'a[href*="/"], span[class*="username"], .username',
             text: 'span[class*="comment"], span:last-child, span[class*="text"]'
         }
@@ -189,6 +190,8 @@
     calibrateBtn.addEventListener("click", () => {
         alert("Modo de calibração inteligente ativado!\nClique em QUALQUER COMENTÁRIO no chat da live.");
         
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.1);z-index:999998;cursor:crosshair;";
         document.body.appendChild(overlay);
 
         function detectChatStructure(clickedEl) {
@@ -228,7 +231,8 @@
                               className.includes('scroll') || 
                               className.includes('container') ||
                               className.includes('log') ||
-                              el.children.length >= 4) && !isCommentRow;
+                              className.includes('chat') ||
+                              className.includes('view')) && !isCommentRow;
                              
                 if (isList && el.children.length >= 3) {
                     return {
@@ -240,8 +244,8 @@
             
             if (path.length >= 3) {
                 return {
-                    messageElement: path[1],
-                    containerElement: path[2]
+                    messageElement: path[path.length - 2],
+                    containerElement: path[path.length - 1]
                 };
             }
             
@@ -257,7 +261,7 @@
             if (el.getAttribute('data-e2e')) return `${el.tagName.toLowerCase()}[data-e2e="${el.getAttribute('data-e2e')}"]`;
             
             let classes = Array.from(el.classList)
-                .filter(c => !/^[0-9_-]/.test(c) && !c.includes('hover') && !c.includes('active'))
+                .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && !c.includes('hover') && !c.includes('active'))
                 .join('.');
             if (classes) return `${el.tagName.toLowerCase()}.${classes}`;
             
@@ -274,7 +278,7 @@
                 }
                 let tag = current.nodeName.toLowerCase();
                 let curClasses = Array.from(current.classList)
-                    .filter(c => !/^[0-9_-]/.test(c) && !c.includes('hover') && !c.includes('active'))
+                    .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && !c.includes('hover') && !c.includes('active'))
                     .join('.');
                 path.unshift(tag + (curClasses ? '.' + curClasses : ''));
                 current = current.parentNode;
@@ -289,7 +293,7 @@
                 return `${containerSelector} > ${tag}`;
             }
             let classes = Array.from(el.classList)
-                .filter(c => !/^[0-9_-]/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
+                .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
                 .slice(0, 2);
             let classPart = classes.length > 0 ? `.${classes.join('.')}` : '';
             return `${containerSelector} ${tag}${classPart}`;
@@ -339,26 +343,7 @@
             msgNode.dataset.captured = "true";
 
             try {
-                // 1. Tentar detectar o nome do usuário usando seletores conhecidos primeiro
-                let user = "";
-                
-                // Usar o seletor do username configurado na calibração/padrão se disponível
-                if (selectors && selectors.username) {
-                    const userEl = msgNode.querySelector(selectors.username);
-                    if (userEl) {
-                        user = userEl.textContent.trim();
-                    }
-                }
-                
-                // Seletor genérico fallback para username
-                if (!user) {
-                    const userEl = msgNode.querySelector('a[href*="/"], span[class*="username"], .username, span[class*="nickname"], .webcast-chatroom__author-name, span[class*="author"]');
-                    if (userEl) {
-                        user = userEl.textContent.trim();
-                    }
-                }
-
-                // 2. Capturar todos os nós de texto folha para encontrar o comentário
+                // 1. Coletar todas as folhas de texto do nó
                 let leafs = [];
                 function getLeafTextNodes(el) {
                     if (el.nodeType === Node.ELEMENT_NODE) {
@@ -389,67 +374,86 @@
                 }
                 
                 getLeafTextNodes(msgNode);
-                
-                // Filtrar folhas para remover números isolados de badges (ex: "3", "15" de nível de usuário no TikTok)
-                let validLeafsForUser = leafs.filter(l => {
-                    let val = l.trim();
-                    // Ignora números puros (badges de nível) e símbolos/pontuações
-                    if (/^\d+$/.test(val)) return false;
-                    if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") return false;
-                    return true;
-                });
 
-                // Se não detectamos o username via seletor, pegamos a primeira folha de texto válida (que não seja número de nível)
-                if (!user && validLeafsForUser.length > 0) {
-                    user = validLeafsForUser[0];
+                // Helper para verificar se um texto se parece com badge/nível
+                function isBadgeText(val) {
+                    if (!val) return false;
+                    val = val.trim();
+                    if (/^\d+$/.test(val)) return true; // número puro
+                    if (/^(lv|level)\.?\s*\d+$/i.test(val)) return true; // Lv. 3, Level 15
+                    if (/^(mod|sub|ad|membro|member|moderador|host|creator|criador)$/i.test(val)) return true;
+                    return false;
+                }
+
+                // 2. Detectar o username
+                let user = "";
+                
+                // Usar o seletor do username configurado na calibração/padrão se disponível
+                if (selectors && selectors.username) {
+                    const userEl = msgNode.querySelector(selectors.username);
+                    if (userEl) {
+                        const potentialUser = userEl.textContent.trim();
+                        if (!isBadgeText(potentialUser)) {
+                            user = potentialUser;
+                        }
+                    }
+                }
+                
+                // Seletor genérico fallback para username
+                if (!user) {
+                    const userEl = msgNode.querySelector('a[href*="/"], span[class*="username"], .username, span[class*="nickname"], .webcast-chatroom__author-name, span[class*="author"]');
+                    if (userEl) {
+                        const potentialUser = userEl.textContent.trim();
+                        if (!isBadgeText(potentialUser)) {
+                            user = potentialUser;
+                        }
+                    }
+                }
+
+                // Se ainda não detectamos, pegamos a primeira folha de texto que não seja badge
+                if (!user) {
+                    for (let i = 0; i < leafs.length; i++) {
+                        if (!isBadgeText(leafs[i])) {
+                            user = leafs[i];
+                            break;
+                        }
+                    }
                 }
 
                 // Limpar username
                 user = user ? user.replace(/^@/, "").replace(/:$/, "").trim() : "";
 
-                // 3. Extrair a mensagem filtrando o username e elementos comuns de UI (botão curtir, tempo, etc.)
-                let messageParts = [];
-                
-                // Expressão regular para identificar strings de tempo como "1m", "2h", "15s", "1 min", "agora", etc.
-                const timeRegex = /^(agora|now|\d+\s*(s|m|h|d|min|seg|hor|dia|sec|minuto|hora|day)s?)$/i;
-
-                for (let i = 0; i < leafs.length; i++) {
-                    let val = leafs[i].trim();
-                    
-                    // Pular o username se ele aparecer na lista de folhas
-                    if (val.replace(/^@/, "").replace(/:$/, "").trim() === user) {
-                        continue;
-                    }
-                    
-                    // Pular pontuações comuns de separação
-                    if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") {
-                        continue;
-                    }
-                    
-                    // Ignora números puros apenas se vierem antes do username na ordem dos nós, ou forem identificados como badges
-                    // (comentários legítimos que são apenas números como "9" ou "6" devem ser mantidos se não forem o badge inicial!)
-                    if (/^\d+$/.test(val)) {
-                        let userIdxInOriginal = validLeafsForUser.length > 0 ? leafs.indexOf(validLeafsForUser[0]) : -1;
-                        if (userIdxInOriginal !== -1 && i < userIdxInOriginal) {
-                            continue;
+                // 3. Extrair a mensagem (todos os leafs que vêm APÓS o username)
+                let text = "";
+                if (user) {
+                    // Encontrar o índice do username na lista de leafs
+                    let userIdx = -1;
+                    for (let i = 0; i < leafs.length; i++) {
+                        if (leafs[i].replace(/^@/, "").replace(/:$/, "").trim() === user) {
+                            userIdx = i;
+                            break;
                         }
                     }
                     
-                    // Pular textos comuns de controle que possam ter passado
-                    let valLower = val.toLowerCase();
-                    if (valLower === '...' || valLower === '…' || valLower === 'responder' || valLower === 'reply' || valLower === 'curtir' || valLower === 'like') {
-                        continue;
+                    if (userIdx !== -1) {
+                        let messageParts = [];
+                        const timeRegex = /^(agora|now|\d+\s*(s|m|h|d|min|seg|hor|dia|sec|minuto|hora|day)s?)$/i;
+                        
+                        for (let i = userIdx + 1; i < leafs.length; i++) {
+                            let val = leafs[i].trim();
+                            let valLower = val.toLowerCase();
+                            
+                            // Pular caracteres de separação e botões de controle comuns
+                            if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") continue;
+                            if (valLower === 'curtir' || valLower === 'like' || valLower === 'responder' || valLower === 'reply') continue;
+                            if (timeRegex.test(val)) continue;
+                            
+                            messageParts.push(leafs[i]);
+                        }
+                        text = messageParts.join(" ").trim();
                     }
-                    
-                    // Pular marcações de tempo
-                    if (timeRegex.test(val)) {
-                        continue;
-                    }
-                    
-                    messageParts.push(leafs[i]);
                 }
-                
-                let text = messageParts.join(" ").trim();
+
                 text = text ? text.replace(/^:\s*/, "").trim() : "";
 
                 console.log(`[Capturador] Tentando processar - Usuário: "${user}", Texto: "${text}"`);
@@ -467,6 +471,10 @@
 
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message) {
+        const msgKey = `${username}:${message}`;
+        if (sentMessages.has(msgKey)) return; // Evitar duplicatas
+        sentMessages.add(msgKey);
+
         const url = serverInput.value.trim().replace(/\/$/, "");
         const liveId = liveSelect.value;
         if (!liveId) return;

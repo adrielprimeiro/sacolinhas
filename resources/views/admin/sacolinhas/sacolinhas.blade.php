@@ -710,7 +710,7 @@
 							</td>
 							<td class="fw-bold text-success">${item.formatted_total_price}</td>
 							<td>
-								<button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id}, '${item.item_name.replace(/'/g, "\\'")}', '${item.formatted_total_price}')" title="Remover item">
+								<button class="btn btn-sm btn-outline-danger" onclick="removerItem(${item.item_id}, ${bag.client.id}, '${item.item_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${item.formatted_total_price}')" title="Remover item">
 									<i class="fas fa-trash"></i>
 								</button>
 							</td>
@@ -969,6 +969,7 @@ function clearSelection(type) {
             document.dispatchEvent(new CustomEvent('itemCleared'));
         }
     }
+    </script>
     <!-- Modal de Confirmação de Remoção com Pontuação -->
     <div class="modal fade" id="modalConfirmarRemocao" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -1001,6 +1002,5 @@ function clearSelection(type) {
             </div>
         </div>
     </div>
-    </script>
 </body>
 </html>
