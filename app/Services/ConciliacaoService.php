@@ -22,12 +22,22 @@ class ConciliacaoService
         preg_match_all('/<STMTTRN>(.*?)<\/STMTTRN>/s', $content, $matches);
         
         $count = 0;
+        $seenFitids = [];
         foreach ($matches[1] as $trn) {
             $data = $this->parseOfxTransaction($trn);
             
             if ($data) {
+                $baseFitid = $data['fitid'];
+                if (!isset($seenFitids[$baseFitid])) {
+                    $seenFitids[$baseFitid] = 0;
+                    $fitid = $baseFitid;
+                } else {
+                    $seenFitids[$baseFitid]++;
+                    $fitid = $baseFitid . '_' . $seenFitids[$baseFitid];
+                }
+
                 TransacaoExtrato::updateOrCreate(
-                    ['fitid' => $data['fitid']],
+                    ['fitid' => $fitid],
                     [
                         'data' => $data['data'],
                         'descricao' => $data['descricao'],
@@ -742,6 +752,9 @@ class ConciliacaoService
             'external_reference' => $this->findHeaderIndex($headers, [
                 'external_reference', 'id_externo', 'referencia_externa', 'referência_externa', 'purchase_order'
             ]),
+            'saldo' => $this->findHeaderIndex($headers, [
+                'saldo', 'balance', 'saldo_atual', 'saldo atual', 'saldo_total', 'saldo total', 'valor_saldo'
+            ]),
         ];
 
         // Se por acaso as colunas principais mapeadas de data ou id forem -1, abortar
@@ -754,6 +767,7 @@ class ConciliacaoService
         }
 
         $count = 0;
+        $seenIds = [];
 
         // Processar registros reais a partir de $headerLineIndex + 1
         for ($i = $headerLineIndex + 1; $i < count($lines); $i++) {
@@ -820,8 +834,16 @@ class ConciliacaoService
                 $payloadOriginal['external_reference'] = $externalReference;
             }
 
+            if (!isset($seenIds[$sourceId])) {
+                $seenIds[$sourceId] = 0;
+                $fitid = (string) $sourceId;
+            } else {
+                $seenIds[$sourceId]++;
+                $fitid = $sourceId . '_' . $seenIds[$sourceId];
+            }
+
             $transacao = TransacaoExtrato::updateOrCreate(
-                ['fitid' => (string) $sourceId],
+                ['fitid' => (string) $fitid],
                 [
                     'data' => $date,
                     'descricao' => $description,
@@ -1038,6 +1060,7 @@ class ConciliacaoService
         $contaBancariaId = $contaInter ? $contaInter->id : 1;
 
         $count = 0;
+        $seenFitids = [];
         foreach ($transacoes as $item) {
             $tipo = isset($item['tipoOperacao']) && strtolower($item['tipoOperacao']) === 'd' ? 'saida' : 'entrada';
             $valor = abs((float) ($item['valor'] ?? 0));
@@ -1047,7 +1070,15 @@ class ConciliacaoService
             $descricao = $item['descricao'] ?? $item['titulo'] ?? 'Movimentação Banco Inter';
 
             // Garante um FITID único. Se CPMF/NSU não forem retornados, criamos um hash determinístico.
-            $fitid = $item['cpmf'] ?? $item['nsu'] ?? 'inter_' . md5($date . $tipo . $valor . $descricao);
+            $baseFitid = $item['cpmf'] ?? $item['nsu'] ?? 'inter_' . md5($date . $tipo . $valor . $descricao);
+
+            if (!isset($seenFitids[$baseFitid])) {
+                $seenFitids[$baseFitid] = 0;
+                $fitid = $baseFitid;
+            } else {
+                $seenFitids[$baseFitid]++;
+                $fitid = $baseFitid . '_' . $seenFitids[$baseFitid];
+            }
 
             TransacaoExtrato::updateOrCreate(
                 ['fitid' => (string) $fitid],
@@ -1107,13 +1138,22 @@ class ConciliacaoService
         ];
 
         $count = 0;
+        $seenFitids = [];
         foreach ($mockTransacoes as $item) {
             $tipo = strtolower($item['tipoOperacao']) === 'd' ? 'saida' : 'entrada';
             $valor = (float) $item['valor'];
             $date = $item['dataEntrada'];
             $descricao = $item['descricao'];
             
-            $fitid = 'mock_inter_' . md5($date . $item['tipoOperacao'] . $item['valor'] . $descricao);
+            $baseFitid = 'mock_inter_' . md5($date . $item['tipoOperacao'] . $item['valor'] . $descricao);
+
+            if (!isset($seenFitids[$baseFitid])) {
+                $seenFitids[$baseFitid] = 0;
+                $fitid = $baseFitid;
+            } else {
+                $seenFitids[$baseFitid]++;
+                $fitid = $baseFitid . '_' . $seenFitids[$baseFitid];
+            }
 
             TransacaoExtrato::updateOrCreate(
                 ['fitid' => (string) $fitid],
