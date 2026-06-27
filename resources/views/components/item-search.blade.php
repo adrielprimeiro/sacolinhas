@@ -313,8 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('DEBUG: Campo de preço externo (item-price) limpo.');
         }
 
-        // Dispara o evento customizado
-        wrapper.dispatchEvent(new CustomEvent('itemCleared'));
+        // Dispara o evento customizado (com bubble para propagar até o document)
+        wrapper.dispatchEvent(new CustomEvent('itemCleared', { bubbles: true }));
         console.log('DEBUG: Evento itemCleared disparado.');
     }
 
@@ -488,9 +488,10 @@ document.addEventListener('DOMContentLoaded', function() {
             priceField.value = item.price;
         }
 
-        // Evento
+        // Evento (com bubble para propagar até o document)
         wrapper.dispatchEvent(new CustomEvent('itemSelected', {
-            detail: { item: item }
+            detail: { item: item },
+            bubbles: true
         }));
     }
 

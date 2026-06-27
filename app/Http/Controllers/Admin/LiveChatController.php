@@ -38,6 +38,21 @@ class LiveChatController extends Controller
      */
     public function receiveMessage(Request $request)
     {
+        if (!$request->input('live_id') || $request->input('live_id') === 'auto' || !\App\Models\Live::where('id', $request->input('live_id'))->exists()) {
+            $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
+            if ($activeLive) {
+                $request->merge(['live_id' => $activeLive->id]);
+            }
+        }
+
+        $plat = strtolower((string) $request->input('platform', 'instagram'));
+        if (str_contains($plat, 'tiktok')) {
+            $plat = 'tiktok';
+        } else {
+            $plat = 'instagram';
+        }
+        $request->merge(['platform' => $plat]);
+
         $validated = $request->validate([
             'live_id' => 'required|exists:lives,id',
             'platform' => 'required|in:instagram,tiktok',

@@ -18,8 +18,12 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.instagram.com/*",
-        "https://www.tiktok.com/*"
+        "https://*.instagram.com/*",
+        "https://instagram.com/*",
+        "https://*.tiktok.com/*",
+        "https://tiktok.com/*",
+        "http://*.tiktok.com/*",
+        "http://*.instagram.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"
