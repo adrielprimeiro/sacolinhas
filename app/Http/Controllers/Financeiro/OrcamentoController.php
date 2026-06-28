@@ -30,14 +30,13 @@ class OrcamentoController extends Controller
                 DB::raw("(
                     SELECT COALESCE(SUM(
                         CASE 
-                            WHEN l.tipo = classificacao_financeira.tipo_natureza COLLATE utf8mb4_unicode_ci THEN m.valor_pago 
-                            ELSE -m.valor_pago 
+                            WHEN l.tipo = classificacao_financeira.tipo_natureza COLLATE utf8mb4_unicode_ci THEN l.valor_total 
+                            ELSE -l.valor_total 
                         END
                     ), 0)
-                    FROM movimentacoes m
-                    INNER JOIN lancamentos l ON l.id = m.lancamento_id
+                    FROM lancamentos l
                     WHERE l.classificacao_financeira_id = classificacao_financeira.id
-                      AND m.data_pagamento BETWEEN ? AND ?
+                      AND l.data_emissao BETWEEN ? AND ?
                 ) AS realizado")
             )
             ->addBinding([$inicioPeriodo->toDateString(), $fimPeriodo->toDateString()], 'select')
