@@ -41,6 +41,7 @@ class OrcamentoController extends Controller
                 ) AS realizado")
             )
             ->addBinding([$inicioPeriodo->toDateString(), $fimPeriodo->toDateString()], 'select')
+            ->whereNotIn('classificacao_financeira.nome', ['Recarga de Carteira', 'Aporte de Carteira'])
             ->with(['orcamentos' => function ($q) use ($periodoDate) {
                 $q->where('periodo', $periodoDate);
             }])

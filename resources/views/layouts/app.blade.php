@@ -158,9 +158,24 @@
                 <div>
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Financeiro</p>
                     <a href="{{ route('financeiro.dashboard') }}"
-                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
                         <i class="fas fa-chart-line text-gray-500 w-5"></i>
-                        <span>Financeiro</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{{ route('financeiro.fluxodecaixa') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.fluxodecaixa') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-funnel-dollar text-gray-500 w-5"></i>
+                        <span>Fluxo de Caixa</span>
+                    </a>
+                    <a href="{{ route('financeiro.relatoriogerencial') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.relatoriogerencial') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-chart-pie text-gray-500 w-5"></i>
+                        <span>Relatório Gerencial</span>
+                    </a>
+                    <a href="{{ route('financeiro.dre') }}"
+                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.dre') ? 'bg-gray-100 font-semibold' : '' }}">
+                        <i class="fas fa-file-invoice text-gray-500 w-5"></i>
+                        <span>DRE</span>
                     </a>
                     <a href="{{ route('classificacao_financeira.index') }}"
                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('classificacao_financeira.*') ? 'bg-gray-100 font-semibold' : '' }}">

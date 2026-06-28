@@ -152,6 +152,10 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
         Route::post('/replicar', [OrcamentoController::class, 'replicar'])->name('replicar');
     });
 
+    Route::get('/fluxo-de-caixa', [\App\Http\Controllers\Financeiro\FluxoCaixaController::class, 'index'])->name('fluxodecaixa');
+    Route::get('/relatorio-gerencial', [\App\Http\Controllers\Financeiro\RelatorioGerencialController::class, 'index'])->name('relatoriogerencial');
+    Route::get('/dre', [\App\Http\Controllers\Financeiro\DreController::class, 'index'])->name('dre');
+
     // Conciliação
     Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
         Route::get('/',                [ConciliacaoController::class, 'index'])->name('index');
