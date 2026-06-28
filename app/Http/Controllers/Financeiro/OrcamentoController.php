@@ -37,6 +37,7 @@ class OrcamentoController extends Controller
                     FROM lancamentos l
                     WHERE l.classificacao_financeira_id = classificacao_financeira.id
                       AND l.data_emissao BETWEEN ? AND ?
+                      AND (classificacao_financeira.id NOT IN (15, 17) OR l.referencia_tipo = 'pedido')
                 ) AS realizado")
             )
             ->addBinding([$inicioPeriodo->toDateString(), $fimPeriodo->toDateString()], 'select')
