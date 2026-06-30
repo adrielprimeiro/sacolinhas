@@ -3,13 +3,18 @@
 $currentRoute = Route::currentRouteName();
 @endphp
 
-<div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-3" x-data="{ activeDropdown: null }">
+<div class="flex flex-nowrap overflow-x-auto gap-2 mb-6 border-b border-gray-200 pb-3 scrollbar-none" style="scrollbar-width: none; -ms-overflow-style: none;" x-data="{ activeDropdown: null }">
+    <style>
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
     
-    {{-- Dropdown: Análises & Relatórios --}}
+    {{-- Dropdown: Análise --}}
     @php
     $isAnalisesActive = str_contains($currentRoute, 'dashboard') || str_contains($currentRoute, 'fluxodecaixa') || str_contains($currentRoute, 'relatoriogerencial') || str_contains($currentRoute, 'dre') || str_contains($currentRoute, 'orcamento');
     @endphp
-    <div class="relative" @click.outside="activeDropdown = null">
+    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'analises' ? null : 'analises'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isAnalisesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-chart-bar"></i>
@@ -44,11 +49,11 @@ $currentRoute = Route::currentRouteName();
         </div>
     </div>
 
-    {{-- Dropdown: Dia a Dia / Operações --}}
+    {{-- Dropdown: Operações --}}
     @php
     $isOperacoesActive = str_contains($currentRoute, 'lancamentos') || str_contains($currentRoute, 'conciliacao') || str_contains($currentRoute, 'movimentacoes');
     @endphp
-    <div class="relative" @click.outside="activeDropdown = null">
+    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'operacoes' ? null : 'operacoes'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isOperacoesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-exchange-alt"></i>
@@ -79,11 +84,11 @@ $currentRoute = Route::currentRouteName();
         </div>
     </div>
 
-    {{-- Dropdown: Cadastros & Estrutura --}}
+    {{-- Dropdown: Cadastro --}}
     @php
     $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
     @endphp
-    <div class="relative" @click.outside="activeDropdown = null">
+    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCadastrosActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-cogs"></i>
@@ -109,14 +114,4 @@ $currentRoute = Route::currentRouteName();
             </a>
         </div>
     </div>
-
-    {{-- Botão de Link Direto: Carteira Cliente --}}
-    @php
-    $isCarteiraActive = str_contains($currentRoute, 'conta_corrente');
-    @endphp
-    <a href="{{ route('admin.conta_corrente.index') }}"
-       class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCarteiraActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
-        <i class="fas fa-wallet"></i>
-        <span>Carteira Cliente</span>
-    </a>
 </div>
