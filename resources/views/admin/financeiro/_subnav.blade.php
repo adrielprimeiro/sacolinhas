@@ -3,23 +3,18 @@
 $currentRoute = Route::currentRouteName();
 @endphp
 
-<div class="flex flex-nowrap overflow-x-auto gap-2 mb-6 border-b border-gray-200 pb-3 scrollbar-none" style="scrollbar-width: none; -ms-overflow-style: none;" x-data="{ activeDropdown: null }">
-    <style>
-        .scrollbar-none::-webkit-scrollbar {
-            display: none;
-        }
-    </style>
+<div class="flex flex-row gap-1.5 sm:gap-2 mb-6 border-b border-gray-200 pb-3" x-data="{ activeDropdown: null }">
     
     {{-- Dropdown: Análise --}}
     @php
     $isAnalisesActive = str_contains($currentRoute, 'dashboard') || str_contains($currentRoute, 'fluxodecaixa') || str_contains($currentRoute, 'relatoriogerencial') || str_contains($currentRoute, 'dre') || str_contains($currentRoute, 'orcamento');
     @endphp
-    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
+    <div class="relative" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'analises' ? null : 'analises'"
-                class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isAnalisesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
+                class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 sm:gap-2 {{ $isAnalisesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-chart-bar"></i>
             <span>Análise</span>
-            <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'analises' ? 'rotate-180' : ''"></i>
+            <i class="fas fa-chevron-down text-[10px] sm:text-xs transition-transform duration-200" :class="activeDropdown === 'analises' ? 'rotate-180' : ''"></i>
         </button>
         
         <div x-show="activeDropdown === 'analises'" 
@@ -53,12 +48,12 @@ $currentRoute = Route::currentRouteName();
     @php
     $isOperacoesActive = str_contains($currentRoute, 'lancamentos') || str_contains($currentRoute, 'conciliacao') || str_contains($currentRoute, 'movimentacoes');
     @endphp
-    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
+    <div class="relative" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'operacoes' ? null : 'operacoes'"
-                class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isOperacoesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
+                class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 sm:gap-2 {{ $isOperacoesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-exchange-alt"></i>
             <span>Operações</span>
-            <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'operacoes' ? 'rotate-180' : ''"></i>
+            <i class="fas fa-chevron-down text-[10px] sm:text-xs transition-transform duration-200" :class="activeDropdown === 'operacoes' ? 'rotate-180' : ''"></i>
         </button>
         
         <div x-show="activeDropdown === 'operacoes'" 
@@ -88,12 +83,12 @@ $currentRoute = Route::currentRouteName();
     @php
     $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
     @endphp
-    <div class="relative flex-shrink-0" @click.outside="activeDropdown = null">
+    <div class="relative" @click.outside="activeDropdown = null">
         <button @click.stop="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
-                class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCadastrosActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
+                class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 sm:gap-2 {{ $isCadastrosActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-cogs"></i>
             <span>Cadastro</span>
-            <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'cadastros' ? 'rotate-180' : ''"></i>
+            <i class="fas fa-chevron-down text-[10px] sm:text-xs transition-transform duration-200" :class="activeDropdown === 'cadastros' ? 'rotate-180' : ''"></i>
         </button>
         
         <div x-show="activeDropdown === 'cadastros'" 
