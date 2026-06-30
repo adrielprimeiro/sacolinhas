@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Carrega a biblioteca se não estiver carregada
             if (typeof Html5Qrcode === 'undefined') {
                 const script = document.createElement('script');
-                script.src = "https://unpkg.com/html5-qrcode";
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js";
                 script.onload = () => {
                     startScanning();
                 };
@@ -575,12 +575,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
+                // Configurações otimizadas para leitura ultra rápida
+                const config = {
+                    fps: 20, // Aumenta a verificação de frames por segundo
+                    qrbox: function(width, height) {
+                        // Caixa de escaneamento dinâmica
+                        const minEdge = Math.min(width, height);
+                        const size = Math.floor(minEdge * 0.7);
+                        return {
+                            width: size,
+                            height: size
+                        };
+                    },
+                    disableFlip: true, // Desativa espelhamento para câmera traseira (economiza CPU)
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // Usa decodificador nativo do sistema do celular se disponível (quase instantâneo)
+                    }
+                };
+
                 await html5QrScanner.start(
                     { facingMode: "environment" },
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 }
-                    },
+                    config,
                     async (decodedText) => {
                         console.log("QR Code detectado:", decodedText);
                         await stopQrScanner();
