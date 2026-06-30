@@ -183,10 +183,10 @@ class PedidoObserver
             $isPagamentoAprovado = $pedido->status_pagamento === 'aprovado';
 
             if ($isPagamentoAprovado && !$pedido->pontos_creditados) {
-                // Calcular pontos a ganhar
+                // Calcular pontos a ganhar (contabiliza itens ativos e devolvidos)
                 $valorItens = \DB::table('items_pedido')
                     ->where('pedido_id', $pedido->id)
-                    ->where('status_item', 'ativo')
+                    ->whereIn('status_item', ['ativo', 'devolvido'])
                     ->sum(\DB::raw('preco_unitario * quantidade'));
 
                 $pontosGanhar = ceil($valorItens / 10);
@@ -201,10 +201,10 @@ class PedidoObserver
                     Log::info("✅ Pontos do jogo creditados para o usuário {$pedido->user_id}: {$pontosGanhar} pontos para o Pedido #{$pedido->id} (R$ {$valorItens} em itens)");
                 }
             } elseif (!$isPagamentoAprovado && $pedido->pontos_creditados) {
-                // Se o pagamento deixou de ser aprovado, removemos os pontos
+                // Se o pagamento deixou de ser aprovado, removemos os pontos (contabiliza itens ativos e devolvidos)
                 $valorItens = \DB::table('items_pedido')
                     ->where('pedido_id', $pedido->id)
-                    ->where('status_item', 'ativo')
+                    ->whereIn('status_item', ['ativo', 'devolvido'])
                     ->sum(\DB::raw('preco_unitario * quantidade'));
 
                 $pontosDeduzir = ceil($valorItens / 10);
@@ -232,9 +232,10 @@ class PedidoObserver
         try {
             // Remover pontos do jogo se o pedido deletado tinha pontos creditados
             if ($pedido->pontos_creditados) {
+                // Contabiliza itens ativos e devolvidos ao remover pontos por exclusão do pedido
                 $valorItens = \DB::table('items_pedido')
                     ->where('pedido_id', $pedido->id)
-                    ->where('status_item', 'ativo')
+                    ->whereIn('status_item', ['ativo', 'devolvido'])
                     ->sum(\DB::raw('preco_unitario * quantidade'));
 
                 $pontosDeduzir = ceil($valorItens / 10);

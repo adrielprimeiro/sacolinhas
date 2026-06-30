@@ -56,10 +56,10 @@ class RecalcularPontosJogo extends Command
                 $this->info("Processando pedido " . ($index + 1) . " de {$totalPedidos}...");
             }
 
-            // Calcular pontos do pedido
+            // Calcular pontos do pedido (contabiliza itens ativos e devolvidos)
             $valorItens = DB::table('items_pedido')
                 ->where('pedido_id', $pedido->id)
-                ->where('status_item', 'ativo')
+                ->whereIn('status_item', ['ativo', 'devolvido'])
                 ->sum(DB::raw('preco_unitario * quantidade'));
 
             $pontos = ceil($valorItens / 10);
