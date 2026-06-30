@@ -65,8 +65,12 @@ $currentRoute = Route::currentRouteName();
                 <i class="fas fa-file-invoice-dollar w-5 text-center"></i> Lançamentos
             </a>
             <a href="{{ route('financeiro.conciliacao.index') }}"
-               class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'conciliacao') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">
+               class="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'conciliacao') && !str_contains($currentRoute, 'auditoria') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">
                 <i class="fas fa-balance-scale w-5 text-center"></i> Conciliação
+            </a>
+            <a href="{{ route('financeiro.conciliacao.auditoria') }}"
+               class="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'auditoria') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">
+                <i class="fas fa-shield-alt w-5 text-center"></i> Auditoria de Saldo
             </a>
             <a href="{{ route('financeiro.movimentacoes.index') }}"
                class="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'movimentacoes') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">

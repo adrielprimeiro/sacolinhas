@@ -5,6 +5,7 @@
 @section('brand_icon', 'fas fa-sitemap')
 
 @section('content')
+    @include('admin.financeiro._subnav')
     <div class="max-w-6xl mx-auto bg-white shadow-lg rounded-lg p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-semibold text-gray-800">Plano de Contas</h1>
