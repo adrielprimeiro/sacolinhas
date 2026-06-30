@@ -13,7 +13,7 @@ $currentRoute = Route::currentRouteName();
         <button @click.stop="activeDropdown = activeDropdown === 'analises' ? null : 'analises'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isAnalisesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-chart-bar"></i>
-            <span>Análises & Relatórios</span>
+            <span>Análise</span>
             <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'analises' ? 'rotate-180' : ''"></i>
         </button>
         
@@ -52,7 +52,7 @@ $currentRoute = Route::currentRouteName();
         <button @click.stop="activeDropdown = activeDropdown === 'operacoes' ? null : 'operacoes'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isOperacoesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-exchange-alt"></i>
-            <span>Dia a Dia / Operações</span>
+            <span>Operações</span>
             <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'operacoes' ? 'rotate-180' : ''"></i>
         </button>
         
@@ -87,7 +87,7 @@ $currentRoute = Route::currentRouteName();
         <button @click.stop="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCadastrosActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-cogs"></i>
-            <span>Cadastros & Estrutura</span>
+            <span>Cadastro</span>
             <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="activeDropdown === 'cadastros' ? 'rotate-180' : ''"></i>
         </button>
         

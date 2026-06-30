@@ -167,7 +167,7 @@
                         <button @click="openAnalises = !openAnalises" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-chart-bar text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Análises & Relatórios</span>
+                                <span class="text-sm font-medium">Análise</span>
                             </div>
                             <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openAnalises ? 'rotate-180' : ''"></i>
                         </button>
@@ -195,7 +195,7 @@
                         <button @click="openOperacoes = !openOperacoes" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-exchange-alt text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Dia a Dia / Operações</span>
+                                <span class="text-sm font-medium">Operações</span>
                             </div>
                             <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openOperacoes ? 'rotate-180' : ''"></i>
                         </button>
@@ -217,7 +217,7 @@
                         <button @click="openCadastros = !openCadastros" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-cogs text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Cadastros & Estrutura</span>
+                                <span class="text-sm font-medium">Cadastro</span>
                             </div>
                             <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openCadastros ? 'rotate-180' : ''"></i>
                         </button>
