@@ -75,7 +75,8 @@ $currentRoute = Route::currentRouteName();
         </div>
     </div>
 
-    {{-- Dropdown: Cadastros &    @php
+    {{-- Dropdown: Cadastros & Estrutura --}}
+    @php
     $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
     @endphp
     <div class="relative" @click.away="activeDropdown = null">
