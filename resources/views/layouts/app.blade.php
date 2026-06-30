@@ -155,38 +155,87 @@
                 </div>
 
                 {{-- Grupo: Financeiro --}}
-                <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Financeiro</p>
-                    <a href="{{ route('financeiro.dashboard') }}"
-                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-chart-line text-gray-500 w-5"></i>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="{{ route('financeiro.fluxodecaixa') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.fluxodecaixa') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-funnel-dollar text-gray-500 w-5"></i>
-                        <span>Fluxo de Caixa</span>
-                    </a>
-                    <a href="{{ route('financeiro.relatoriogerencial') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.relatoriogerencial') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-chart-pie text-gray-500 w-5"></i>
-                        <span>Relatório Gerencial</span>
-                    </a>
-                    <a href="{{ route('financeiro.dre') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('financeiro.dre') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-file-invoice text-gray-500 w-5"></i>
-                        <span>DRE</span>
-                    </a>
-                    <a href="{{ route('classificacao_financeira.index') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('classificacao_financeira.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-list-ul text-gray-500 w-5"></i>
-                        <span>Plano de Contas</span>
-                    </a>
-                    <a href="{{ route('admin.conta_corrente.index') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-wallet text-gray-500 w-5"></i>
-                        <span>Carteira Cliente</span>
-                    </a>
+                <div x-data="{ 
+                    openAnalises: {{ (request()->routeIs('financeiro.dashboard') || request()->routeIs('financeiro.fluxodecaixa') || request()->routeIs('financeiro.relatoriogerencial') || request()->routeIs('financeiro.dre') || request()->routeIs('financeiro.orcamento.*')) ? 'true' : 'false' }},
+                    openOperacoes: {{ (request()->routeIs('financeiro.lancamentos.*') || request()->routeIs('financeiro.conciliacao.*') || request()->routeIs('financeiro.movimentacoes.*')) ? 'true' : 'false' }},
+                    openCadastros: {{ (request()->routeIs('classificacao_financeira.*') || request()->routeIs('admin.conta_corrente.*') || request()->routeIs('financeiro.contas.*') || request()->routeIs('financeiro.pessoas.*')) ? 'true' : 'false' }}
+                }">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Financeiro</p>
+                    
+                    {{-- Subgrupo: Análises --}}
+                    <div class="mb-1">
+                        <button @click="openAnalises = !openAnalises" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-chart-bar text-gray-500 w-5 text-center"></i>
+                                <span class="text-sm font-medium">Análises & Relatórios</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openAnalises ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="openAnalises" x-cloak class="pl-11 pr-3 py-1 space-y-1">
+                            <a href="{{ route('financeiro.dashboard') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dashboard') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-home mr-1"></i> Dashboard
+                            </a>
+                            <a href="{{ route('financeiro.fluxodecaixa') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.fluxodecaixa') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-funnel-dollar mr-1"></i> Fluxo de Caixa
+                            </a>
+                            <a href="{{ route('financeiro.dre') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dre') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-file-invoice mr-1"></i> DRE Contábil
+                            </a>
+                            <a href="{{ route('financeiro.relatoriogerencial') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.relatoriogerencial') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-chart-pie mr-1"></i> Relatório Gerencial
+                            </a>
+                            <a href="{{ route('financeiro.orcamento.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.orcamento.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-chart-line mr-1"></i> Orçamento
+                            </a>
+                        </div>
+                    </div>
+
+                    {{-- Subgrupo: Operações --}}
+                    <div class="mb-1">
+                        <button @click="openOperacoes = !openOperacoes" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-exchange-alt text-gray-500 w-5 text-center"></i>
+                                <span class="text-sm font-medium">Dia a Dia / Operações</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openOperacoes ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="openOperacoes" x-cloak class="pl-11 pr-3 py-1 space-y-1">
+                            <a href="{{ route('financeiro.lancamentos.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.lancamentos.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-file-invoice-dollar mr-1"></i> Lançamentos
+                            </a>
+                            <a href="{{ route('financeiro.conciliacao.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.conciliacao.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-balance-scale mr-1"></i> Conciliação
+                            </a>
+                            <a href="{{ route('financeiro.movimentacoes.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.movimentacoes.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-history mr-1"></i> Movimentações
+                            </a>
+                        </div>
+                    </div>
+
+                    {{-- Subgrupo: Cadastros --}}
+                    <div class="mb-1">
+                        <button @click="openCadastros = !openCadastros" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-cogs text-gray-500 w-5 text-center"></i>
+                                <span class="text-sm font-medium">Cadastros & Estrutura</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openCadastros ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="openCadastros" x-cloak class="pl-11 pr-3 py-1 space-y-1">
+                            <a href="{{ route('financeiro.contas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.contas.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-university mr-1"></i> Contas Bancárias
+                            </a>
+                            <a href="{{ route('classificacao_financeira.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('classificacao_financeira.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-list-ul mr-1"></i> Plano de Contas
+                            </a>
+                            <a href="{{ route('financeiro.pessoas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.pessoas.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-users mr-1"></i> Contatos
+                            </a>
+                            <a href="{{ route('admin.conta_corrente.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.conta_corrente.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-wallet mr-1"></i> Carteira Cliente
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Grupo: Comercial --}}
