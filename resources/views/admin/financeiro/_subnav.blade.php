@@ -9,8 +9,8 @@ $currentRoute = Route::currentRouteName();
     @php
     $isAnalisesActive = str_contains($currentRoute, 'dashboard') || str_contains($currentRoute, 'fluxodecaixa') || str_contains($currentRoute, 'relatoriogerencial') || str_contains($currentRoute, 'dre') || str_contains($currentRoute, 'orcamento');
     @endphp
-    <div class="relative" @click.away="activeDropdown = null">
-        <button @click="activeDropdown = activeDropdown === 'analises' ? null : 'analises'"
+    <div class="relative" @click.outside="activeDropdown = null">
+        <button @click.stop="activeDropdown = activeDropdown === 'analises' ? null : 'analises'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isAnalisesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-chart-bar"></i>
             <span>Análises & Relatórios</span>
@@ -48,8 +48,8 @@ $currentRoute = Route::currentRouteName();
     @php
     $isOperacoesActive = str_contains($currentRoute, 'lancamentos') || str_contains($currentRoute, 'conciliacao') || str_contains($currentRoute, 'movimentacoes');
     @endphp
-    <div class="relative" @click.away="activeDropdown = null">
-        <button @click="activeDropdown = activeDropdown === 'operacoes' ? null : 'operacoes'"
+    <div class="relative" @click.outside="activeDropdown = null">
+        <button @click.stop="activeDropdown = activeDropdown === 'operacoes' ? null : 'operacoes'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isOperacoesActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-exchange-alt"></i>
             <span>Dia a Dia / Operações</span>
@@ -79,8 +79,8 @@ $currentRoute = Route::currentRouteName();
     @php
     $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
     @endphp
-    <div class="relative" @click.away="activeDropdown = null">
-        <button @click="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
+    <div class="relative" @click.outside="activeDropdown = null">
+        <button @click.stop="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
                 class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCadastrosActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
             <i class="fas fa-cogs"></i>
             <span>Cadastros & Estrutura</span>
