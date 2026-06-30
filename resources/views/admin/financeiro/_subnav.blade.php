@@ -75,9 +75,8 @@ $currentRoute = Route::currentRouteName();
         </div>
     </div>
 
-    {{-- Dropdown: Cadastros & Estrutura --}}
-    @php
-    $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'conta_corrente') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
+    {{-- Dropdown: Cadastros &    @php
+    $isCadastrosActive = str_contains($currentRoute, 'classificacao_financeira') || str_contains($currentRoute, 'contas') || str_contains($currentRoute, 'pessoas');
     @endphp
     <div class="relative" @click.away="activeDropdown = null">
         <button @click="activeDropdown = activeDropdown === 'cadastros' ? null : 'cadastros'"
@@ -103,11 +102,16 @@ $currentRoute = Route::currentRouteName();
                class="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'pessoas') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">
                 <i class="fas fa-users w-5 text-center"></i> Contatos
             </a>
-            <a href="{{ route('admin.conta_corrente.index') }}"
-               class="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 {{ str_contains($currentRoute, 'conta_corrente') ? 'font-bold text-indigo-600 bg-indigo-50/50' : '' }}">
-                <i class="fas fa-wallet w-5 text-center"></i> Carteira Cliente
-            </a>
         </div>
     </div>
 
+    {{-- Botão de Link Direto: Carteira Cliente --}}
+    @php
+    $isCarteiraActive = str_contains($currentRoute, 'conta_corrente');
+    @endphp
+    <a href="{{ route('admin.conta_corrente.index') }}"
+       class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 {{ $isCarteiraActive ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600' }}">
+        <i class="fas fa-wallet"></i>
+        <span>Carteira Cliente</span>
+    </a>
 </div>

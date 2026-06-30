@@ -231,10 +231,16 @@
                             <a href="{{ route('financeiro.pessoas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.pessoas.*') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-users mr-1"></i> Contatos
                             </a>
-                            <a href="{{ route('admin.conta_corrente.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.conta_corrente.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-wallet mr-1"></i> Carteira Cliente
-                            </a>
                         </div>
+                    </div>
+
+                    {{-- Item Separado: Carteira Cliente --}}
+                    <div class="mt-2 pt-2 border-t border-gray-100/50">
+                        <a href="{{ route('admin.conta_corrente.index') }}"
+                           class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
+                            <i class="fas fa-wallet text-gray-500 w-5 text-center"></i>
+                            <span class="text-sm font-medium">Carteira Cliente</span>
+                        </a>
                     </div>
                 </div>
 
