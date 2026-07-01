@@ -271,10 +271,8 @@ class Pedido extends Model
 
     public function getValorTotalOriginalAttribute()
     {
-        $devolvidosVal = \Illuminate\Support\Facades\DB::table('items_pedido')
-            ->where('pedido_id', $this->id)
-            ->where('status_item', 'devolvido')
-            ->sum('valor_total');
-        return (float) $this->valor_total + (float) $devolvidosVal;
+        // Como o valor_total do pedido agora não diminui nas devoluções (modelo completo),
+        // o próprio valor_total já representa o valor bruto original do pedido.
+        return (float) $this->valor_total;
     }
 }

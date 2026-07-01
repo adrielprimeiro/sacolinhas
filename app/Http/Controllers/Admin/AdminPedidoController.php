@@ -644,6 +644,36 @@ class AdminPedidoController extends Controller
 				'created_at' => now(),
 				'updated_at' => now(),
 			]);
+
+			// Garantir perfil financeiro (Pessoa)
+			$pessoa = \App\Models\Pessoa::where('user_id', $pedido->user_id)->first();
+			if (!$pessoa) {
+				$user = \App\Models\User::find($pedido->user_id);
+				if ($user) {
+					$pessoa = \App\Models\Pessoa::create([
+						'user_id'   => $user->id,
+						'nome'      => $user->name,
+						'documento' => $user->cpf ?? $user->whatsapp ?? $user->phone,
+						'tipo'      => 'cliente_circular',
+					]);
+				}
+			}
+			$pessoaId = $pessoa ? $pessoa->id : null;
+
+			// Criar o lançamento de despesa por devolução no financeiro (Categoria 81)
+			\App\Models\Lancamento::create([
+				'tipo'                        => 'despesa',
+				'status'                      => 'pago', // Já liquidado na carteira
+				'description'                 => 'Devolução de Itens: Pedido ' . ($pedido->numero_pedido ?? $pedido->id),
+				'pessoa_id'                   => $pessoaId,
+				'classificacao_financeira_id' => 81, // Devolução de Vendas
+				'data_emissao'                => now(),
+				'data_vencimento'             => now(),
+				'valor_total'                 => $valorDevolver,
+				'descricao'                   => 'Devolução de Itens: Pedido ' . ($pedido->numero_pedido ?? $pedido->id),
+				'referencia_tipo'             => 'pedido_devolucao',
+				'referencia_id'               => $pedido->id,
+			]);
 		});
 
 		return redirect()

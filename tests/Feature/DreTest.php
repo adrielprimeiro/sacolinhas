@@ -41,4 +41,73 @@ class DreTest extends TestCase
             'margemLiquidaPercentual',
         ]);
     }
+
+    public function test_devolucao_does_not_decrease_order_total_and_creates_devolucao_lancamento()
+    {
+        // 1. Criar um administrador
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        // 2. Criar um pedido com um item
+        $pedido = \App\Models\Pedido::create([
+            'user_id' => $user->id,
+            'numero_pedido' => 'PED-999',
+            'status_pedido' => 'pendente',
+            'status_pagamento' => 'pendente',
+            'valor_total' => 100.00,
+            'valor_frete' => 0.00,
+            'valor_desconto' => 0.00,
+        ]);
+
+        $item = \App\Models\Item::create([
+            'codigo' => 'TST-001',
+            'nome_do_produto' => 'Item Teste',
+            'custo' => 50.00,
+            'preco' => 100.00,
+        ]);
+
+        $itemPedidoId = \Illuminate\Support\Facades\DB::table('items_pedido')->insertGetId([
+            'pedido_id' => $pedido->id,
+            'item_id' => $item->id,
+            'quantidade' => 1,
+            'preco_unitario' => 100.00,
+            'status_item' => 'ativo',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Recalcular total do pedido (para simular a trigger de insert)
+        $pedido->refresh();
+        $this->assertEquals(100.00, (float)$pedido->valor_total);
+
+        // 3. Simular a devolução do item via rota
+        $response = $this->actingAs($user)
+            ->post(route('admin.pedido.devolucao', $pedido->id), [
+                'itens_devolver' => [$itemPedidoId],
+            ]);
+
+        $response->assertRedirect();
+        
+        // 4. Verificar se o total do pedido não diminuiu no modelo completo
+        $pedido->refresh();
+        $this->assertEquals(100.00, (float)$pedido->valor_total);
+
+        // 5. Verificar se foi criado o lançamento de despesa de devolução (categoria 81)
+        $this->assertDatabaseHas('lancamentos', [
+            'tipo' => 'despesa',
+            'classificacao_financeira_id' => 81,
+            'valor_total' => 100.00,
+            'referencia_tipo' => 'pedido_devolucao',
+            'referencia_id' => $pedido->id,
+        ]);
+
+        // 6. Verificar se o crédito foi gerado na carteira do cliente
+        $this->assertDatabaseHas('conta_corrente', [
+            'user_id' => $user->id,
+            'tipo_movimentacao' => 'credito',
+            'valor' => 100.00,
+            'classificacao_id' => 81,
+        ]);
+    }
 }

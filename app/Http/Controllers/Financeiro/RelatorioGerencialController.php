@@ -51,13 +51,20 @@ class RelatorioGerencialController extends Controller
 
         // Créditos por Devoluções de Vendas / Ajustes
         $creditosDevolucao = (float) ContaCorrente::where('tipo_movimentacao', 'credito')
-            ->where('referencia_tipo', 'carteira_credito')
-            ->where('classificacao_id', '!=', 19)
-            ->where('descricao', 'not like', '%avalia%')
+            ->where(function($q) {
+                $q->where('classificacao_id', 81)
+                  ->orWhere(function($sub) {
+                      $sub->where('referencia_tipo', 'carteira_credito')
+                          ->where('classificacao_id', '!=', 19)
+                          ->where('descricao', 'not like', '%avalia%');
+                  });
+            })
             ->whereBetween('data_movimentacao', [$inicio->toDateString(), $fim->toDateString()])
             ->sum('valor');
 
         $totalCreditosGerados = $creditosAporte + $creditosAvaliacao + $creditosDevolucao;
+
+        $faturamentoLiquido = $faturamentoBruto - $creditosDevolucao;
 
         // 3. COMPRAS E GASTOS COM ESTOQUE (Investimento)
         // Compras em dinheiro real para Fornecedores (Banco Inter/Mercado Pago para Categoria 19)
@@ -77,15 +84,16 @@ class RelatorioGerencialController extends Controller
         $investimentoTotalEstoque = $custoFornecedorReal + $custoDesapegoVirtual;
 
         // 4. RESULTADO OPERACIONAL
-        $margemBruta = $faturamentoBruto - $investimentoTotalEstoque;
-        $lucratividadePercentual = $faturamentoBruto > 0 
-            ? round(($margemBruta / $faturamentoBruto) * 100, 1) 
+        $margemBruta = $faturamentoLiquido - $investimentoTotalEstoque;
+        $lucratividadePercentual = $faturamentoLiquido > 0 
+            ? round(($margemBruta / $faturamentoLiquido) * 100, 1) 
             : 0;
 
         return view('admin.financeiro.relatorio_gerencial', compact(
             'periodo',
             'pedidosCount',
             'faturamentoBruto',
+            'faturamentoLiquido',
             'saldoUtilizado',
             'liquidoDireto',
             'creditosAporte',

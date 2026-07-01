@@ -53,9 +53,13 @@
                 </div>
                 <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">{{ $pedidosCount }} Pedidos</span>
             </div>
-            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Faturamento Bruto Comercial</h3>
-            <p class="text-3xl font-black text-gray-800 mt-1">R$ {{ number_format($faturamentoBruto, 2, ',', '.') }}</p>
-            <p class="text-[10px] text-gray-400 mt-2">Faturamento real gerado a partir do fechamento de pedidos.</p>
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Faturamento Líquido Comercial</h3>
+            <p class="text-3xl font-black text-gray-800 mt-1">R$ {{ number_format($faturamentoLiquido, 2, ',', '.') }}</p>
+            <div class="text-[10px] text-gray-400 mt-2 font-semibold flex flex-wrap gap-x-2">
+                <span>Bruto: R$ {{ number_format($faturamentoBruto, 2, ',', '.') }}</span>
+                <span>•</span>
+                <span class="text-amber-600">Devolvido: R$ {{ number_format($creditosDevolucao, 2, ',', '.') }}</span>
+            </div>
         </div>
 
         <!-- Investimento em Estoque -->
@@ -94,7 +98,7 @@
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Margem de Operação</h3>
             <p class="text-3xl font-black {{ $colorClass }} mt-1">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
-            <p class="text-[10px] text-gray-400 mt-2">Diferença entre faturamento bruto e investimento em estoque.</p>
+            <p class="text-[10px] text-gray-400 mt-2">Diferença entre faturamento líquido e investimento em estoque.</p>
         </div>
 
     </div>
