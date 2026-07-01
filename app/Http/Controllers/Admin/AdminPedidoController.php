@@ -267,8 +267,6 @@ class AdminPedidoController extends Controller
             return back()->with('error', 'Não foi possível obter os detalhes do rastreamento.');
         }
 
-        $updates = [];
-
         // Verifica data de postagem (envio)
         if (isset($details['posted_at'])) {
             $updates['data_envio'] = \Carbon\Carbon::parse($details['posted_at'])->tz('America/Sao_Paulo');

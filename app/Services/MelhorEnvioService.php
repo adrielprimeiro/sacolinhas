@@ -228,8 +228,7 @@ class MelhorEnvioService
         $cepDestino = preg_replace('/[^0-9]/', '', $user->cep ?? '');
         $cepOrigem = preg_replace('/[^0-9]/', '', $this->cepOrigem);
         
-        $enderecoParts = explode(' ', $user->endereco ?? '');
-        $rua = $enderecoParts[0] ?? 'Rua Padrão';
+        $rua = $user->endereco ?? 'Rua Padrão';
         $numero = $user->numero_endereco ?? 'S/N';
         $bairro = $user->bairro ?? 'Centro';
         $cidade = $user->cidade ?? 'São Paulo';
