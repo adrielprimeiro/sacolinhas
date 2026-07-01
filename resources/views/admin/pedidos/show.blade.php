@@ -25,13 +25,17 @@
             ])
             ->get();
 
-        // Subtotal real: soma dos itens ativos
-        $subtotal      = (float) $itens->where('status_item', 'ativo')->sum('valor_total');
+        // Subtotal real: soma de todos os itens do pedido (ativos + devolvidos)
+        $subtotal      = (float) $itens->sum('valor_total');
         $frete         = (float) ($pedido->valor_frete ?? 0);
         $desconto      = (float) ($pedido->valor_desconto ?? 0);
         $saldoUsado    = (float) ($pedido->valor_saldo_utilizado ?? 0);
-        $totalBruto    = max(0, $subtotal + $frete - $desconto);
+        
+        // No modelo contábil completo, o total do pedido não diminui.
+        // O valor_total do pedido já é o valor original bruto total (itens + frete - desconto).
+        $totalBruto    = (float) $pedido->valor_total;
         $valorPagar    = max(0, $totalBruto - $saldoUsado);
+        $valorDevolvido = (float) $itens->where('status_item', 'devolvido')->sum('valor_total');
 
         // Saldo disponível na carteira do cliente
         $saldoCarteira = (float) (DB::table('conta_corrente')
@@ -181,6 +185,13 @@
                             <span class="text-xs font-bold text-green-600 uppercase tracking-widest">Valor Total</span>
                             <p class="text-2xl font-extrabold text-green-700">R$ {{ number_format($totalBruto, 2, ',', '.') }}</p>
                         </div>
+
+                        @if($valorDevolvido > 0)
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex justify-between items-center mt-2">
+                            <span class="text-xs font-bold text-amber-700 uppercase tracking-widest">Itens Devolvidos</span>
+                            <p class="text-lg font-bold text-amber-800">R$ {{ number_format($valorDevolvido, 2, ',', '.') }}</p>
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
