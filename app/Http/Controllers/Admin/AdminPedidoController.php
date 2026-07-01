@@ -415,9 +415,11 @@ class AdminPedidoController extends Controller
             ->value('saldo_atual') ?? 0);
 
         $saldoJaAlocado = (float) ($pedido->valor_saldo_utilizado ?? 0);
-        $saldoDisponivel = $saldoCarteira + $saldoJaAlocado;
+        
+        // O saldo disponível real desconsiderando este pedido é o saldo atual mais o valor total do pedido
+        $saldoDisponivel = $saldoCarteira + (float) $pedido->valor_total;
 
-        if ($valorSaldoUtilizado > $saldoDisponivel) {
+        if ($valorSaldoUtilizado > $saldoJaAlocado && $valorSaldoUtilizado > $saldoDisponivel) {
             return back()->withInput()->withErrors([
                 'valor_saldo_utilizado' => 'O valor utilizado da carteira (R$ ' . number_format($valorSaldoUtilizado, 2, ',', '.') . ') é maior que o saldo disponível do cliente (R$ ' . number_format($saldoDisponivel, 2, ',', '.') . ').'
             ]);

@@ -21,10 +21,28 @@
     </div>
 
     @php
-        $subtotal      = (float) DB::table('items_pedido')->where('pedido_id', $pedido->id)->where('status_item', 'ativo')->sum('valor_total');
+        $subtotal      = (float) DB::table('items_pedido')->where('pedido_id', $pedido->id)->sum('valor_total');
         $saldoCarteira = (float) (DB::table('conta_corrente')->where('user_id', $pedido->user_id)->orderByDesc('id')->value('saldo_atual') ?? 0);
         $isPaid        = $pedido->status_pagamento === 'aprovado';
     @endphp
+
+    @if ($errors->any())
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-r-xl shadow-sm">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-bold text-red-800">Ops! Ocorreram alguns erros ao salvar:</h3>
+                    <ul class="mt-2 list-disc list-inside text-xs text-red-700 space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <form action="{{ route('admin.pedido.update', $pedido->id) }}" method="POST">
         @csrf

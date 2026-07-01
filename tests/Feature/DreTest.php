@@ -110,4 +110,37 @@ class DreTest extends TestCase
             'classificacao_id' => 81,
         ]);
     }
+
+    public function test_update_pedido_form_submits_successfully()
+    {
+        $user = User::factory()->create(['role' => 'admin']);
+        $pedido = \App\Models\Pedido::create([
+            'user_id' => $user->id,
+            'numero_pedido' => 'PED-TEST-123',
+            'status_pedido' => 'pendente',
+            'status_pagamento' => 'pendente',
+            'valor_total' => 100.00,
+            'valor_frete' => 0.00,
+            'valor_desconto' => 0.00,
+            'data_pedido' => now(),
+            'origem_pedido' => 'admin',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->put(route('admin.pedido.update', $pedido->id), [
+                'user_id' => $user->id,
+                'numero_pedido' => 'PED-TEST-123',
+                'status_pedido' => 'confirmado',
+                'status_pagamento' => 'aprovado',
+                'valor_total' => 100.00,
+                'valor_frete' => 10.00,
+                'valor_desconto' => 5.00,
+                'data_pedido' => now()->format('Y-m-d\TH:i'),
+                'origem_pedido' => 'admin',
+                'valor_saldo_utilizado' => 0.00,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('admin.pedido.index'));
+    }
 }
