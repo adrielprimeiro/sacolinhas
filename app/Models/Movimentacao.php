@@ -42,8 +42,8 @@ class Movimentacao extends Model
         });
 
         static::deleted(function ($movimentacao) {
-            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
-                ->where('referencia_id', $movimentacao->id)
+            \App\Models\ContaCorrente::where('referencia_id', $movimentacao->id)
+                ->whereIn('referencia_tipo', ['movimentacao', 'movimentacao_contra'])
                 ->delete();
 
             $movimentacao->reverterClube();
@@ -118,6 +118,28 @@ class Movimentacao extends Model
             ['referencia_tipo' => 'movimentacao', 'referencia_id' => $this->id],
             $data
         );
+
+        // Se for despesa de Fornecedor/Avaliados (ID 19), gera também a contrapartida de crédito para registrar a entrada de itens
+        if ($lancamento->tipo === 'despesa' && $lancamento->classificacao_financeira_id == 19) {
+            \App\Models\ContaCorrente::updateOrCreate(
+                [
+                    'referencia_tipo' => 'movimentacao_contra',
+                    'referencia_id' => $this->id,
+                    'tipo_movimentacao' => 'credito',
+                ],
+                [
+                    'user_id' => $pessoa->user_id,
+                    'valor' => $this->valor_pago,
+                    'descricao' => "Crédito de Avaliados (Entrada de Itens): " . ($lancamento->descricao ?: 'S/D'),
+                    'classificacao_id' => $lancamento->classificacao_financeira_id,
+                    'data_movimentacao' => $this->data_pagamento,
+                ]
+            );
+        } else {
+            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao_contra')
+                ->where('referencia_id', $this->id)
+                ->delete();
+        }
 
         // Despachar Job para recalcular saldo se disponível
         if (class_exists(\App\Jobs\RecalcularSaldosJob::class)) {
