@@ -42,8 +42,8 @@ class Movimentacao extends Model
         });
 
         static::deleted(function ($movimentacao) {
-            \App\Models\ContaCorrente::where('referencia_id', $movimentacao->id)
-                ->whereIn('referencia_tipo', ['movimentacao', 'movimentacao_contra'])
+            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
+                ->where('referencia_id', $movimentacao->id)
                 ->delete();
 
             $movimentacao->reverterClube();
@@ -114,16 +114,28 @@ class Movimentacao extends Model
             'data_movimentacao' => $this->data_pagamento,
         ];
 
-        $contaCorrente = \App\Models\ContaCorrente::updateOrCreate(
-            ['referencia_tipo' => 'movimentacao', 'referencia_id' => $this->id],
-            $data
-        );
-
-        // Se for despesa de Fornecedor/Avaliados (ID 19), gera também a contrapartida de crédito para registrar a entrada de itens
+        // Se for despesa de Fornecedor/Avaliados (ID 19), gera o débito e o crédito separadamente
         if ($lancamento->tipo === 'despesa' && $lancamento->classificacao_financeira_id == 19) {
+            // 1. O Débito (o pagamento em si)
             \App\Models\ContaCorrente::updateOrCreate(
                 [
-                    'referencia_tipo' => 'movimentacao_contra',
+                    'referencia_tipo' => 'movimentacao',
+                    'referencia_id' => $this->id,
+                    'tipo_movimentacao' => 'debito',
+                ],
+                [
+                    'user_id' => $pessoa->user_id,
+                    'valor' => $this->valor_pago,
+                    'descricao' => "Pagamento: " . ($lancamento->descricao ?: 'S/D'),
+                    'classificacao_id' => $lancamento->classificacao_financeira_id,
+                    'data_movimentacao' => $this->data_pagamento,
+                ]
+            );
+
+            // 2. O Crédito (a entrada dos avaliados)
+            \App\Models\ContaCorrente::updateOrCreate(
+                [
+                    'referencia_tipo' => 'movimentacao',
                     'referencia_id' => $this->id,
                     'tipo_movimentacao' => 'credito',
                 ],
@@ -136,8 +148,21 @@ class Movimentacao extends Model
                 ]
             );
         } else {
-            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao_contra')
+            // Para outros tipos de movimentação, o comportamento padrão de uma única via
+            \App\Models\ContaCorrente::updateOrCreate(
+                [
+                    'referencia_tipo' => 'movimentacao',
+                    'referencia_id' => $this->id,
+                    'tipo_movimentacao' => $tipoMov
+                ],
+                $data
+            );
+
+            // Limpar a contrapartida oposta se existir
+            $tipoOposto = $tipoMov === 'credito' ? 'debito' : 'credito';
+            \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
                 ->where('referencia_id', $this->id)
+                ->where('tipo_movimentacao', $tipoOposto)
                 ->delete();
         }
 
