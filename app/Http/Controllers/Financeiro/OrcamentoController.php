@@ -36,6 +36,7 @@ class OrcamentoController extends Controller
                     ), 0)
                     FROM lancamentos l
                     WHERE l.classificacao_financeira_id = classificacao_financeira.id
+                      AND l.status = 'pago'
                       AND l.data_vencimento BETWEEN ? AND ?
                       AND (classificacao_financeira.id NOT IN (15, 17) OR l.referencia_tipo = 'pedido')
                 ) AS realizado")
