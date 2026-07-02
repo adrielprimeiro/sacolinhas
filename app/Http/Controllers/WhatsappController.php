@@ -180,6 +180,7 @@ class WhatsappController extends Controller
 			// Busca a data de vencimento mais antiga
 			$vencimentoRow = DB::table('sacolinhas as s')
 				->where('s.user_id', $user->id)
+				->where('s.status', '!=', 'pedido')
 				->whereNotNull('s.add_at')
 				->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) < ?", [$hoje])
 				->selectRaw("MIN(DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY))) as vencimento_mais_antigo")
@@ -248,6 +249,7 @@ class WhatsappController extends Controller
 			// Sacolinha existe se existe registro em sacolinhas para o user
 			$hasSacolinha = DB::table('sacolinhas')
 				->where('user_id', $user->id)
+				->where('status', '!=', 'pedido')
 				->where('live_id', '!=', $liveIdAtual)
 				->exists();
 
@@ -271,6 +273,7 @@ class WhatsappController extends Controller
 			// mas ele NÃO deve decidir msg2/msg3 (decisão é pelo limite).
 			$itensEmAnaliseCount = DB::table('sacolinhas')
 				->where('user_id', $user->id)
+				->where('status', '!=', 'pedido')
 				->where('live_id', $liveIdAtual)
 				->count();
 
@@ -278,6 +281,7 @@ class WhatsappController extends Controller
 			$dadosSacola = DB::table('sacolinhas')
 				->selectRaw('MIN(add_at) as abertura, COUNT(*) as num_items, SUM(quantity * price) as valor_total')
 				->where('user_id', $user->id)
+				->where('status', '!=', 'pedido')
 				->first();
 
 			// 4.3) Decide msg1/msg2/msg3

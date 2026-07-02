@@ -33,6 +33,7 @@ class ApplyPrecinhoDiscount extends Command
         if (!$liveId) {
             // Encontra a última live que possui itens na sacola
             $liveIdsWithItems = DB::table('sacolinhas')
+                ->where('status', '!=', 'pedido')
                 ->select('live_id')
                 ->distinct()
                 ->get()
@@ -57,7 +58,7 @@ class ApplyPrecinhoDiscount extends Command
             }
         }
 
-        $itemCount = DB::table('sacolinhas')->where('live_id', $liveId)->count();
+        $itemCount = DB::table('sacolinhas')->where('live_id', $liveId)->where('status', '!=', 'pedido')->count();
 
         $this->info("=== APLICAÇÃO DE DESCONTO DE 50% (LIVE DO PRECINHO) ===");
         $this->info("Live Selecionada: ID {$live->id}");
@@ -81,6 +82,7 @@ class ApplyPrecinhoDiscount extends Command
             ->join('items as i', 's.item_id', '=', 'i.id')
             ->join('users as u', 's.user_id', '=', 'u.id')
             ->where('s.live_id', $liveId)
+            ->where('s.status', '!=', 'pedido')
             ->select('s.id as sacolinha_id', 's.price as sacolinha_price', 'i.nome_do_produto', 'i.preco as item_original_price', 'u.name as user_name')
             ->get();
 

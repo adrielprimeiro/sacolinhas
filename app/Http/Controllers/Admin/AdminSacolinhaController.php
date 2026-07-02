@@ -18,6 +18,7 @@ class AdminSacolinhaController extends Controller
     {
         $query = DB::table('sacolinhas as s')
             ->join('users as u', 'u.id', '=', 's.user_id')
+            ->where('s.status', '!=', 'pedido')
             ->select([
                 'u.id as user_id',
                 'u.name',
@@ -78,6 +79,7 @@ class AdminSacolinhaController extends Controller
         $itens = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
             ->where('s.user_id', $user->id)
+            ->where('s.status', '!=', 'pedido')
             ->orderBy('s.add_at', 'asc')
             ->select([
                 's.id as sacolinha_id',
@@ -323,7 +325,12 @@ class AdminSacolinhaController extends Controller
                         'updated_at' => now()
                     ]);
                     
-                    DB::table('sacolinhas')->where('id', $sacola->id)->delete();
+                    // Atualizar status na sacolinha em vez de deletar
+                    DB::table('sacolinhas')->where('id', $sacola->id)->update([
+                        'status' => 'pedido',
+                        'obs' => 'Pedido ' . $pedido->numero_pedido,
+                        'updated_at' => now()
+                    ]);
                 }
 
                 // 8. Se já nasceu aprovado, dar baixa no estoque
@@ -400,6 +407,7 @@ class AdminSacolinhaController extends Controller
         $itens = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
             ->where('s.user_id', $user->id)
+            ->where('s.status', '!=', 'pedido')
             ->orderBy('s.add_at', 'asc')
             ->select([
                 's.price',

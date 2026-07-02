@@ -29,6 +29,13 @@ class Sacolinhas extends Model
         'quantity' => 'integer'
     ];
 
+    protected static function booted()
+    {
+        static::addGlobalScope('active', function ($builder) {
+            $builder->where('status', '!=', 'pedido');
+        });
+    }
+
     // Relacionamentos
     public function user()
     {

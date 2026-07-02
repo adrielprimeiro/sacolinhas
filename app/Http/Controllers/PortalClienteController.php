@@ -34,6 +34,7 @@ class PortalClienteController extends Controller
 		// 2) Sacolinha (dados reais)
 		$sacolinhaRow = DB::table('sacolinhas')
 			->where('user_id', $user->id)
+			->where('status', '!=', 'pedido')
 			->selectRaw('COUNT(*) as itens')
 			->selectRaw('COALESCE(SUM(price),0) as valor')
 			->selectRaw('MIN(add_at) as aberto_em')
@@ -256,6 +257,7 @@ class PortalClienteController extends Controller
 		$itens = DB::table('sacolinhas as s')
 			->join('items as i', 'i.id', '=', 's.item_id')
 			->where('s.user_id', $user->id)
+			->where('s.status', '!=', 'pedido')
 			->orderBy('s.add_at', $temEmAnalise ? 'desc' : 'asc') // Se tiver em análise, mais novo primeiro
 			->select([
 				's.id as sacolinha_id',

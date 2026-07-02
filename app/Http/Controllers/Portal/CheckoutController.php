@@ -80,8 +80,12 @@ class CheckoutController extends Controller
                         'updated_at' => now()
                     ]);
                     
-                    // Remover da sacolinha
-                    DB::table('sacolinhas')->where('id', $sacola->id)->delete();
+                    // Atualizar status na sacolinha em vez de deletar
+                    DB::table('sacolinhas')->where('id', $sacola->id)->update([
+                        'status' => 'pedido',
+                        'obs' => 'Pedido ' . $pedido->numero_pedido,
+                        'updated_at' => now()
+                    ]);
                 }
 
                 // Recarregar o pedido do banco para obter o valor_total atualizado pelo trigger e disparar o PedidoObserver com os dados finais corretos
@@ -215,21 +219,46 @@ class CheckoutController extends Controller
                 $itensPedido = DB::table('items_pedido')->where('pedido_id', $pedidoId)->get();
 
                 foreach ($itensPedido as $itemPedido) {
-                    DB::table('sacolinhas')->insert([
-                        'user_id' => auth()->id(),
-                        'item_id' => $itemPedido->item_id,
-                        'price' => $itemPedido->preco_unitario,
-                        'quantity' => 1,
-                        'live_id' => 1,
-                        'status' => 'pendente',
-                        'add_at' => now(),
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
+                    // Tenta encontrar o registro de sacolinha correspondente com status 'pedido'
+                    // e reverter o status para 'pendente' ou 'live'
+                    $existsInSacolinha = DB::table('sacolinhas')
+                        ->where('user_id', auth()->id())
+                        ->where('item_id', $itemPedido->item_id)
+                        ->where('status', 'pedido')
+                        ->orderByDesc('id')
+                        ->first();
+
+                    if ($existsInSacolinha) {
+                        DB::table('sacolinhas')
+                            ->where('id', $existsInSacolinha->id)
+                            ->update([
+                                'status' => 'pendente',
+                                'obs' => null,
+                                'updated_at' => now()
+                            ]);
+                    } else {
+                        // Se não encontrar o histórico por algum motivo, insere de volta
+                        DB::table('sacolinhas')->insert([
+                            'user_id' => auth()->id(),
+                            'item_id' => $itemPedido->item_id,
+                            'price' => $itemPedido->preco_unitario,
+                            'quantity' => 1,
+                            'live_id' => 1,
+                            'status' => 'pendente',
+                            'add_at' => now(),
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
                 }
 
                 DB::table('items_pedido')->where('pedido_id', $pedidoId)->delete();
-                DB::table('pedidos')->where('id', $pedidoId)->delete();
+
+                // Usar Eloquent Model para deletar o pedido e disparar os Observers corretamente
+                $pedidoModel = Pedido::find($pedidoId);
+                if ($pedidoModel) {
+                    $pedidoModel->delete();
+                }
             });
 
             return response()->json([

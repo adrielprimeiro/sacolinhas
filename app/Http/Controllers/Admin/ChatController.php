@@ -538,6 +538,7 @@ class ChatController extends Controller
 		// TOTAL SACOLINHAS
 		$totalSacolinhas = DB::table('sacolinhas')
 			->where('live_id', $liveId)
+			->where('status', '!=', 'pedido')
 			->distinct()
 			->count('user_id');
 
