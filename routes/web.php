@@ -50,6 +50,8 @@ Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookContro
 // Live Chat Webhook (recebe mensagens do browser)
 Route::post('/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+Route::post('/api/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 
 // Rota que vai disparar o envio das imagens

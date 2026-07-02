@@ -260,6 +260,7 @@ class WhatsappController extends Controller
 			// Saldo do cliente (vem de conta_corrente). Se não existir registro, assume 0
 			$saldoCliente = (float) (DB::table('conta_corrente')
 				->where('user_id', $user->id)
+				->orderByDesc('data_movimentacao')
 				->orderByDesc('id')  // Pega a movimentação mais recente (ou use 'created_at' se preferir)
 				->value('saldo_atual') ?? 0);			
 				

@@ -68,6 +68,17 @@ class LiveChatController extends Controller
 
         try {
             return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $validated) {
+                // Evitar duplicidade técnica de leitura do DOM (mesmo usuário e texto em menos de 2 segundos)
+                $existing = LiveMessage::where('live_id', $liveId)
+                    ->where('plataforma', $platform)
+                    ->where('username', $cleanUsername)
+                    ->where('message', $messageText)
+                    ->where('created_at', '>=', now()->subSeconds(2))
+                    ->first();
+                if ($existing) {
+                    return response()->json(['success' => true, 'duplicate' => true, 'data' => $existing]);
+                }
+
                 // 1. Salvar a mensagem no chat
                 $liveMessage = LiveMessage::create([
                     'live_id' => $liveId,
@@ -133,6 +144,61 @@ class LiveChatController extends Controller
                 ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
                 ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Authorization, X-CSRF-Token');
         }
+    }
+
+    public function receiveMessageBatch(Request $request)
+    {
+        $messages = $request->input('messages', []);
+        if (!is_array($messages) || empty($messages)) {
+            return response()->json(['success' => false, 'message' => 'Lote vazio'])
+                ->header('Access-Control-Allow-Origin', '*');
+        }
+
+        $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() 
+                   ?? \App\Models\Live::orderBy('id', 'desc')->first();
+        if (!$activeLive) {
+            return response()->json(['success' => false, 'message' => 'Nenhuma live ativa'])
+                ->header('Access-Control-Allow-Origin', '*');
+        }
+        $liveId = $activeLive->id;
+
+        $createdCount = 0;
+        try {
+            DB::transaction(function () use ($messages, $liveId, &$createdCount) {
+                foreach ($messages as $item) {
+                    if (empty($item['username']) || empty($item['message'])) continue;
+
+                    $cleanUsername = trim($item['username']);
+                    $messageText = trim($item['message']);
+                    $plat = strtolower((string) ($item['platform'] ?? 'instagram'));
+                    $platform = str_contains($plat, 'tiktok') ? 'tiktok' : 'instagram';
+
+                    $existing = LiveMessage::where('live_id', $liveId)
+                        ->where('plataforma', $platform)
+                        ->where('username', $cleanUsername)
+                        ->where('message', $messageText)
+                        ->where('created_at', '>=', now()->subSeconds(2))
+                        ->first();
+                    if ($existing) continue;
+
+                    LiveMessage::create([
+                        'live_id' => $liveId,
+                        'plataforma' => $platform,
+                        'username' => $cleanUsername,
+                        'message' => $messageText,
+                        'captured_at' => now()
+                    ]);
+                    $createdCount++;
+                }
+            });
+        } catch (\Exception $e) {
+            Log::error("Erro no lote do chat: " . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'processed' => $createdCount])
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Authorization');
     }
 
     /**

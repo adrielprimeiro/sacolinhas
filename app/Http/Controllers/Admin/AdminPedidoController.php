@@ -620,6 +620,7 @@ class AdminPedidoController extends Controller
 			// Saldo atual do usuário (último movimento)
 			$ultimo = DB::table('conta_corrente')
 				->where('user_id', $pedido->user_id)
+				->orderByDesc('data_movimentacao')
 				->orderByDesc('id')
 				->lockForUpdate()
 				->first();
