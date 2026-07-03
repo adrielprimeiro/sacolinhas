@@ -216,36 +216,48 @@ class LiveChatController extends Controller
 
         // 2. Pessoas online (quem comentou, ordenado por data mais recente)
         $onlineRaw = LiveMessage::where('live_id', $liveId)
-            ->select('username', 'plataforma', DB::raw('MAX(created_at) as last_seen'))
+            ->select('username', 'plataforma', DB::raw('MAX(created_at) as last_seen'), DB::raw('MAX(id) as max_id'))
             ->groupBy('username', 'plataforma')
-            ->orderBy('last_seen', 'desc')
+            ->orderByDesc('max_id')
             ->get();
+
+        $allUsernames = $onlineRaw->pluck('username')->unique()->filter()->values()->toArray();
+        $matchedUsersCollection = !empty($allUsernames) ? User::whereIn('tiktok', $allUsernames)
+            ->orWhereIn('instagram', $allUsernames)
+            ->orWhereIn('apelido', $allUsernames)
+            ->orWhereIn('name', $allUsernames)
+            ->get() : collect([]);
 
         $onlineUsers = [];
         foreach ($onlineRaw as $online) {
-            $cleanUsername = $online->username;
+            $cleanUsername = trim($online->username);
             $matchedUser = null;
 
             if ($online->plataforma === 'tiktok') {
-                $matchedUser = User::where('tiktok', $cleanUsername)->first()
-                    ?? User::where('apelido', $cleanUsername)->first()
-                    ?? User::where('name', $cleanUsername)->first();
+                $matchedUser = $matchedUsersCollection->firstWhere('tiktok', $cleanUsername)
+                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUsername)
+                    ?? $matchedUsersCollection->firstWhere('name', $cleanUsername);
             } else {
-                $matchedUser = User::where('instagram', $cleanUsername)->first()
-                    ?? User::where('apelido', $cleanUsername)->first()
-                    ?? User::where('name', $cleanUsername)->first();
+                $matchedUser = $matchedUsersCollection->firstWhere('instagram', $cleanUsername)
+                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUsername)
+                    ?? $matchedUsersCollection->firstWhere('name', $cleanUsername);
             }
 
             $onlineUsers[] = [
                 'username' => $cleanUsername,
                 'plataforma' => $online->plataforma,
                 'last_seen' => $online->last_seen ? date('H:i:s', strtotime($online->last_seen)) : '',
+                'max_id' => $online->max_id,
                 'user_id' => $matchedUser ? $matchedUser->id : null,
                 'user_name' => $matchedUser ? $matchedUser->name : null,
                 'user_apelido' => $matchedUser ? $matchedUser->apelido : null,
                 'user_whatsapp' => $matchedUser ? $matchedUser->whatsapp : null,
             ];
         }
+
+        usort($onlineUsers, function($a, $b) {
+            return $b['max_id'] <=> $a['max_id'];
+        });
 
         // 3. Fila de códigos solicitados (pendentes), agrupados por código e ordenados por ordem de chegada
         $codeRequests = LiveCodeRequest::with(['user', 'item'])

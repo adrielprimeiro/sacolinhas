@@ -105,7 +105,7 @@
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 bg-gray-50">
                 <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600">
-                    Bookmarklet
+                    Conectar Lives
                 </button>
                 <button id="tab-btn-online" onclick="switchTab('online')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Pessoas Online
@@ -114,80 +114,52 @@
 
             <!-- Tab content container -->
             <div class="flex-1 p-4 overflow-y-auto">
-                <!-- Tab: Bookmarklet e Extensão -->
+                <!-- Tab: Conectar Lives -->
                 <div id="tab-content-bookmarklet" class="space-y-4">
-                    <!-- Opção 1: Extensão Chrome -->
-                    <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                        <h3 class="font-bold text-indigo-800 text-sm flex items-center gap-1.5">
-                            <i class="fab fa-chrome"></i>
-                            Opção 1: Extensão Chrome (Recomendado)
-                        </h3>
-                        <p class="text-xs text-indigo-700 mt-2 leading-relaxed">
-                            Evita bloqueios de segurança do Instagram e TikTok. A janelinha de captura abrirá automaticamente sempre que acessar a live!
+                    <!-- 1. Captura Direta TikTok Backend -->
+                    <div class="bg-pink-50 rounded-xl p-4 border border-pink-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-pink-900 text-sm flex items-center gap-1.5">
+                                <i class="fab fa-tiktok text-pink-600 text-base"></i>
+                                TikTok Backend (Sem Aba)
+                            </h3>
+                            <span id="tiktok-backend-badge" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span id="tiktok-status-dot" class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                                <span id="tiktok-status-text">Desconectado</span>
+                            </span>
+                        </div>
+                        <p class="text-xs text-pink-800 mt-1.5 leading-relaxed">
+                            Conecta direto aos servidores públicos do TikTok <strong>sem precisar de login ou aba aberta</strong> no Chrome!
                         </p>
                         
-                        <div class="mt-3 space-y-2 text-xs text-gray-700">
-                            <p><strong>Como Instalar:</strong></p>
-                            <ol class="list-decimal pl-4 space-y-1">
-                                <li>Acesse <code class="bg-gray-150 px-1 py-0.5 rounded text-[10px] font-mono select-all">chrome://extensions</code> no Chrome.</li>
-                                <li>Ative o <strong>Modo do desenvolvedor</strong> (canto superior direito).</li>
-                                <li>Clique em <strong>Carregar sem compactação</strong> (canto superior esquerdo).</li>
-                                <li>Selecione a pasta do projeto: <br><code class="bg-gray-100 px-1.5 py-1 rounded text-[9px] font-mono block mt-1 select-all break-all border border-gray-250">C:\serv\sacolinhas\public\extension</code></li>
-                            </ol>
+                        <div class="mt-3 flex gap-2">
+                            <input type="text" id="tiktok-username-input" value="de_minha_mania" placeholder="@usuario_tiktok" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 font-semibold text-gray-800">
+                            <button type="button" onclick="toggleTikTokBackend()" id="tiktok-toggle-btn" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
+                                <i class="fas fa-play text-[10px]"></i> Conectar
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Opção 2: Console F12 -->
-                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                            <i class="fas fa-terminal"></i>
-                            Opção 2: Console do Navegador (Sem Instalar)
-                        </h3>
-                        <p class="text-xs text-gray-600 mt-2 leading-relaxed">
-                            Cole o código completo abaixo diretamente no console da live.
+                    <!-- 2. Captura Instagram via Extensão -->
+                    <div class="bg-purple-50 rounded-xl p-4 border border-purple-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-purple-900 text-sm flex items-center gap-1.5">
+                                <i class="fab fa-instagram text-purple-600 text-base"></i>
+                                Instagram Live (Extensão Chrome)
+                            </h3>
+                            <span class="bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                60 FPS Turbo
+                            </span>
+                        </div>
+                        <p class="text-xs text-purple-800 mt-1.5 leading-relaxed">
+                            Seguro contra bloqueios da Meta. Com a extensão ativa no Chrome, clique abaixo para abrir a Live que a captura inicia automaticamente!
                         </p>
                         
-                        <div class="mt-3 space-y-2">
-                            <ol class="list-decimal pl-4 text-xs text-gray-600 space-y-1">
-                                <li>Abra a live no Chrome.</li>
-                                <li>Pressione <strong>F12</strong> no teclado e vá na aba <strong>Console</strong>.</li>
-                                <li>Copie o código abaixo, cole no console e dê <strong>Enter</strong>.</li>
-                            </ol>
-                            
-                            @php
-                                $consoleCode = @file_get_contents(public_path('js/live-chat-bookmarklet.js'));
-                            @endphp
-                            <textarea readonly onclick="this.select()" class="w-full h-24 p-2 text-[9px] font-mono bg-gray-900 text-green-400 border border-gray-300 rounded-lg mt-2 resize-none focus:outline-none" placeholder="Carregando código..."></textarea>
-                            <script>
-                                document.addEventListener("DOMContentLoaded", function() {
-                                    // Preencher o textarea com o código completo do console
-                                    const textarea = document.querySelector('textarea[placeholder="Carregando código..."]');
-                                    if (textarea) {
-                                        // Usando o código estático já carregado no script
-                                        fetch('/js/live-chat-bookmarklet.js')
-                                            .then(r => r.text())
-                                            .then(t => { textarea.value = t; });
-                                    }
-                                });
-                            </script>
-                        </div>
-                    </div>
-
-                    <!-- Opção 3: Favorito / Bookmarklet -->
-                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                            <i class="fas fa-anchor"></i>
-                            Opção 3: Bookmarklet (Favorito)
-                        </h3>
-                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
-                            Pode ser bloqueado pelo Instagram/TikTok devido à política de segurança (CSP).
-                        </p>
-                        <div class="mt-3 text-center">
-                            <a id="bookmarklet-link" href="#" class="inline-flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition duration-200 cursor-move">
-                                <i class="fas fa-anchor"></i>
-                                Capturar Live Sacolas
-                            </a>
-                            <input type="hidden" id="bookmarklet-code">
+                        <div class="mt-3 flex gap-2">
+                            <input type="text" id="insta-username-input" value="de_minha_mania" placeholder="@usuario_insta" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-purple-300 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-semibold text-gray-800">
+                            <button type="button" onclick="openInstagramLive()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
+                                <i class="fas fa-external-link-alt text-[10px]"></i> Abrir Live
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -270,7 +242,80 @@
             fetchChatData();
             pollingInterval = setInterval(fetchChatData, 3000);
         }
+
+        checkTikTokBackendStatus();
+        setInterval(checkTikTokBackendStatus, 2500);
     });
+
+    let tiktokConnected = false;
+    async function checkTikTokBackendStatus() {
+        try {
+            const res = await fetch("http://localhost:3001/status");
+            const data = await res.json();
+            const badge = document.getElementById("tiktok-backend-badge");
+            const dot = document.getElementById("tiktok-status-dot");
+            const text = document.getElementById("tiktok-status-text");
+            const btn = document.getElementById("tiktok-toggle-btn");
+            if (!badge || !btn) return;
+
+            tiktokConnected = data.connected;
+            if (data.connecting) {
+                badge.className = "bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-300";
+                dot.className = "w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping";
+                text.textContent = "Conectando...";
+                btn.className = "bg-yellow-500 hover:bg-yellow-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5 opacity-75 cursor-not-allowed";
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin text-[10px]"></i> Conectando`;
+            } else if (data.connected) {
+                badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300";
+                dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+                text.textContent = `Ao Vivo: @${data.username}`;
+                btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+                btn.innerHTML = `<i class="fas fa-stop text-[10px]"></i> Parar`;
+            } else {
+                badge.className = "bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
+                dot.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
+                text.textContent = "Desconectado";
+                btn.className = "bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+                btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Conectar`;
+            }
+        } catch (e) {
+            const badge = document.getElementById("tiktok-backend-badge");
+            const text = document.getElementById("tiktok-status-text");
+            if (badge && text) {
+                badge.className = "bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
+                text.textContent = "Offline (3001)";
+            }
+        }
+    }
+
+    async function toggleTikTokBackend() {
+        const input = document.getElementById("tiktok-username-input");
+        if (!input) return;
+        const username = input.value.trim();
+
+        if (tiktokConnected) {
+            await fetch("http://localhost:3001/disconnect", { method: "POST" }).catch(() => {});
+        } else {
+            if (!username) {
+                alert("Digite o usuário do TikTok!");
+                return;
+            }
+            await fetch("http://localhost:3001/connect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: username })
+            }).catch(() => {});
+        }
+        checkTikTokBackendStatus();
+    }
+
+    function openInstagramLive() {
+        const input = document.getElementById("insta-username-input");
+        let username = input ? input.value.trim() : "de_minha_mania";
+        username = username.replace(/^@/, '');
+        if (!username) username = "de_minha_mania";
+        window.open(`https://www.instagram.com/${username}/live/`, "_blank");
+    }
 
     // Alternar abas da barra lateral
     function switchTab(tab) {

@@ -192,6 +192,13 @@ if (typeof window.initUserSearch === 'undefined') {
                             div.onclick = () => selectUser(user);
                             dropdown.appendChild(div);
                         });
+
+                        // Selecionar o primeiro cliente como padrão
+                        selectedIndex = 0;
+                        const items = dropdown.querySelectorAll('.suggestion-item');
+                        if (items.length > 0) {
+                            highlightItem(items, 0);
+                        }
                     } else {
                         dropdown.innerHTML = '<div class="p-3 text-center text-muted">Nenhum cliente encontrado</div>';
                     }

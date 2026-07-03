@@ -245,6 +245,14 @@
                 }, 300);
             });
         }
+        
+        // Garante foco em Selecionar Cliente ao carregar a página
+        setTimeout(() => {
+            const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+            if (clientInput) {
+                clientInput.focus();
+            }
+        }, 500);
     });
 
     // Event listener para seleção de item
@@ -405,10 +413,10 @@
                     selectedUser = null;
                     
                     setTimeout(function() {
-                        const itemSearchInput = document.querySelector('[data-item-search="true"] [data-search-input="true"]');
-                        if (itemSearchInput) {
-                            console.log('🎯 Focando no ITEM para próxima adição...');
-                            itemSearchInput.focus();
+                        const clientSearchInput = document.querySelector('[data-user-search="true"] .user-search-input');
+                        if (clientSearchInput) {
+                            console.log('🎯 Focando no CLIENTE para próxima adição...');
+                            clientSearchInput.focus();
                         }
                     }, 200);
                     

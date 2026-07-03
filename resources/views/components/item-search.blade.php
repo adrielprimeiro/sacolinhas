@@ -435,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         showDropdown();
-        highlightedIndex = -1;
+        highlightItem(0); // Destaca o primeiro item por padrão
     }
 
     // Sem resultados
@@ -629,13 +629,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                                 selectItem(matchedItem);
                                 
-                                // Focar no campo do cliente
+                                // Submete a adição à sacola automaticamente
                                 setTimeout(() => {
-                                    const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
-                                    if (clientInput) {
-                                        clientInput.focus();
+                                    const form = document.getElementById('add-item-form');
+                                    if (form) {
+                                        console.log('🚀 Código QR/Bar lido, enviando formulário automaticamente...');
+                                        const submitButton = form.querySelector('button[type="submit"]');
+                                        if (submitButton) {
+                                            submitButton.click();
+                                        }
                                     }
-                                }, 200);
+                                }, 300);
                             } else {
                                 alert(`Item com código "${decodedText}" não foi encontrado.`);
                             }
