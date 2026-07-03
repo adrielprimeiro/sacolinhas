@@ -76,32 +76,32 @@
         
         <!-- Cartão Entradas -->
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-emerald-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+            <div class="absolute -right-4 -bottom-4 text-indigo-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
                 <i class="fas fa-arrow-trend-up"></i>
             </div>
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-emerald-600/20">
+                <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/20">
                     <i class="fas fa-arrow-up text-lg"></i>
                 </div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Entradas</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Entradas</span>
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Recebido (Caixa)</h3>
-            <p class="text-3xl font-black text-emerald-600 mt-1">R$ {{ number_format($totalEntradas, 2, ',', '.') }}</p>
+            <p class="text-3xl font-black mt-1" style="color: #059669;">R$ {{ number_format($totalEntradas, 2, ',', '.') }}</p>
         </div>
 
         <!-- Cartão Saídas -->
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-rose-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+            <div class="absolute -right-4 -bottom-4 text-indigo-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
                 <i class="fas fa-arrow-trend-down"></i>
             </div>
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-rose-600/20">
+                <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/20">
                     <i class="fas fa-arrow-down text-lg"></i>
                 </div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-100 px-3 py-1 rounded-full">Saídas</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Saídas</span>
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Pago (Caixa)</h3>
-            <p class="text-3xl font-black text-rose-600 mt-1">R$ {{ number_format($totalSaidas, 2, ',', '.') }}</p>
+            <p class="text-3xl font-black mt-1" style="color: #dc2626;">R$ {{ number_format($totalSaidas, 2, ',', '.') }}</p>
         </div>
 
         <!-- Cartão Saldo Líquido -->
@@ -117,7 +117,7 @@
                     <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/20">
                         <i class="fas fa-scale-balanced text-lg"></i>
                     </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Saldo Líquido</span>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full font-bold">Saldo Líquido</span>
                 </div>
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Resultado do Mês</h3>
                 <p class="text-3xl font-black text-indigo-600 mt-1">R$ {{ number_format($saldoLiquido, 2, ',', '.') }}</p>
@@ -129,7 +129,7 @@
                     <div class="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-red-600/20">
                         <i class="fas fa-scale-balanced text-lg"></i>
                     </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-3 py-1 rounded-full">Saldo Líquido</span>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-3 py-1 rounded-full font-bold">Saldo Líquido</span>
                 </div>
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Resultado do Mês</h3>
                 <p class="text-3xl font-black text-red-600 mt-1">R$ {{ number_format($saldoLiquido, 2, ',', '.') }}</p>

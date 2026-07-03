@@ -60,14 +60,14 @@
 
         <!-- Lucro Bruto -->
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-purple-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+            <div class="absolute -right-4 -bottom-4 text-indigo-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
                 <i class="fas fa-scale-balanced"></i>
             </div>
             <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 bg-purple-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-purple-600/20">
+                <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/20">
                     <i class="fas fa-scale-balanced text-lg"></i>
                 </div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-100 px-3 py-1 rounded-full">{{ $margemBrutaPercentual }}% Margem</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">{{ $margemBrutaPercentual }}% Margem</span>
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Lucro Bruto</h3>
             <p class="text-3xl font-black text-gray-800 mt-1">R$ {{ number_format($lucroBruto, 2, ',', '.') }}</p>
@@ -77,32 +77,23 @@
         <!-- Lucro Líquido (LLE) -->
         @php
             $isPositivo = $lucroLiquido >= 0;
+            $colorClass = $isPositivo ? 'text-emerald-600' : 'text-red-600';
         @endphp
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
+            <div class="absolute -right-4 -bottom-4 text-indigo-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+                <i class="fas fa-crown"></i>
+            </div>
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/20">
+                    <i class="fas fa-crown text-lg"></i>
+                </div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">{{ $margemLiquidaPercentual }}% Margem</span>
+            </div>
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Lucro Líquido (LLE)</h3>
             @if($isPositivo)
-                <div class="absolute -right-4 -bottom-4 text-emerald-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
-                    <i class="fas fa-crown"></i>
-                </div>
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-emerald-600/20">
-                        <i class="fas fa-crown text-lg"></i>
-                    </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{{ $margemLiquidaPercentual }}% Margem</span>
-                </div>
-                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Lucro Líquido (LLE)</h3>
-                <p class="text-3xl font-black text-emerald-600 mt-1">R$ {{ number_format($lucroLiquido, 2, ',', '.') }}</p>
+                <p class="text-3xl font-black mt-1" style="color: #059669;">R$ {{ number_format($lucroLiquido, 2, ',', '.') }}</p>
             @else
-                <div class="absolute -right-4 -bottom-4 text-red-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
-                    <i class="fas fa-crown"></i>
-                </div>
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-red-600/20">
-                        <i class="fas fa-crown text-lg"></i>
-                    </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-3 py-1 rounded-full">{{ $margemLiquidaPercentual }}% Margem</span>
-                </div>
-                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Lucro Líquido (LLE)</h3>
-                <p class="text-3xl font-black text-red-600 mt-1">R$ {{ number_format($lucroLiquido, 2, ',', '.') }}</p>
+                <p class="text-3xl font-black mt-1" style="color: #dc2626;">R$ {{ number_format($lucroLiquido, 2, ',', '.') }}</p>
             @endif
             <p class="text-[10px] text-gray-400 mt-2">Lucro final descontando todas as despesas operacionais.</p>
         </div>
