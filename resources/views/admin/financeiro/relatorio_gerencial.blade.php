@@ -107,11 +107,7 @@
                 @endif
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Margem de Operação</h3>
-            @if($isPositivo)
-                <p class="text-3xl font-black mt-1" style="color: #059669;">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
-            @else
-                <p class="text-3xl font-black mt-1" style="color: #dc2626;">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
-            @endif
+            <p class="text-3xl font-black text-gray-800 mt-1">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
             <p class="text-[10px] text-gray-400 mt-2">Diferença entre faturamento líquido e investimento em estoque.</p>
         </div>
 
