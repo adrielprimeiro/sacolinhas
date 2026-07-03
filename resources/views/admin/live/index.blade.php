@@ -7,10 +7,6 @@
 
     <!-- Header Section -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Gerenciar Live</h1>
-            <p class="text-sm text-gray-500 mt-1">Crie transmissões, acompanhe vendas em tempo real e gerencie sacolas de clientes.</p>
-        </div>
 
         <!-- Controls -->
         <div class="flex flex-wrap items-end gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm" id="live-creation-card">
@@ -48,7 +44,7 @@
     </div>
 
     <!-- Alert Container -->
-    <div id="alert-container" class="space-y-2 mb-4">
+    <div id="alert-container" class="space-y-2 fixed top-6 right-6 z-[9999] max-w-sm w-full pointer-events-none">
         @if(session('success'))
             <div class="flex items-center justify-between p-4 text-sm bg-green-50 border border-green-300 text-green-800 rounded-xl shadow-sm">
                 <div class="flex items-center gap-2">
@@ -743,7 +739,7 @@
             iconClass = 'fa-info-circle text-blue-500';
         }
         
-        alert.className = `flex items-center justify-between p-4 border rounded-xl shadow-sm ${colorClasses}`;
+        alert.className = `flex items-center justify-between p-4 border rounded-xl shadow-sm pointer-events-auto ${colorClasses}`;
         alert.innerHTML = `
             <div class="flex items-center gap-2">
                 <i class="fas ${iconClass} text-lg"></i>
