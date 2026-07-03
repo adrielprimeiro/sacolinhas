@@ -493,13 +493,17 @@ class CheckoutController extends Controller
                                 }
                             }
 
-                            \App\Models\Movimentacao::create([
-                                'lancamento_id'    => $lancamento->id,
-                                'conta_bancaria_id' => $contaBancariaId,
-                                'data_pagamento'   => now()->toDateString(),
-                                'valor_pago'       => $valorPago,
-                                'forma_pagamento'  => 'pix',
-                            ]);
+                            \App\Models\Movimentacao::updateOrCreate(
+                                [
+                                    'lancamento_id'    => $lancamento->id,
+                                    'forma_pagamento'  => 'pix',
+                                ],
+                                [
+                                    'conta_bancaria_id' => $contaBancariaId,
+                                    'data_pagamento'   => now()->toDateString(),
+                                    'valor_pago'       => $valorPago,
+                                ]
+                            );
                         }
                     });
 

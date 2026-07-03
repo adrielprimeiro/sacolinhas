@@ -74,13 +74,17 @@ class InterWebhookController extends Controller
                         $contaBancariaId = $contaInter ? $contaInter->id : 1;
 
                         // 3. Criar a movimentação
-                        Movimentacao::create([
-                            'lancamento_id'    => $lancamento->id,
-                            'conta_bancaria_id' => $contaBancariaId,
-                            'data_pagamento'   => $dataPagamento,
-                            'valor_pago'       => $valorPago,
-                            'forma_pagamento'  => 'pix',
-                        ]);
+                        Movimentacao::updateOrCreate(
+                            [
+                                'lancamento_id'    => $lancamento->id,
+                                'forma_pagamento'  => 'pix',
+                            ],
+                            [
+                                'conta_bancaria_id' => $contaBancariaId,
+                                'data_pagamento'   => $dataPagamento,
+                                'valor_pago'       => $valorPago,
+                            ]
+                        );
 
                         DB::commit();
                         Log::info("Lançamento #{$lancamento->id} processado com sucesso via webhook Banco Inter.");
@@ -122,13 +126,17 @@ class InterWebhookController extends Controller
                     $contaBancariaId = $contaInter ? $contaInter->id : 1;
 
                     // Cria a movimentação financeira diretamente
-                    Movimentacao::create([
-                        'lancamento_id'    => $lancamento->id,
-                        'conta_bancaria_id' => $contaBancariaId,
-                        'data_pagamento'   => $dataPagamento,
-                        'valor_pago'       => $valorPago,
-                        'forma_pagamento'  => 'pix',
-                    ]);
+                    Movimentacao::updateOrCreate(
+                        [
+                            'lancamento_id'    => $lancamento->id,
+                            'forma_pagamento'  => 'pix',
+                        ],
+                        [
+                            'conta_bancaria_id' => $contaBancariaId,
+                            'data_pagamento'   => $dataPagamento,
+                            'valor_pago'       => $valorPago,
+                        ]
+                    );
 
                     Log::info("Baixa de faturamento registrada via webhook Banco Inter para o Pedido #{$pedido->id}");
                 } else {
