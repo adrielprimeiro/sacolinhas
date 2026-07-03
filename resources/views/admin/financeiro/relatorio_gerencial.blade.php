@@ -44,7 +44,7 @@
         
         <!-- Faturamento Comercial -->
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-indigo-500/5 text-9xl group-hover:scale-110 transition-transform duration-500">
+            <div class="absolute -right-4 -bottom-4 text-indigo-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
                 <i class="fas fa-receipt"></i>
             </div>
             <div class="flex items-center justify-between mb-4">
@@ -64,7 +64,7 @@
 
         <!-- Investimento em Estoque -->
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-purple-500/5 text-9xl group-hover:scale-110 transition-transform duration-500">
+            <div class="absolute -right-4 -bottom-4 text-purple-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
                 <i class="fas fa-box-open"></i>
             </div>
             <div class="flex items-center justify-between mb-4">
@@ -81,23 +81,33 @@
         <!-- Margem Bruta Comercial -->
         @php
             $isPositivo = $margemBruta >= 0;
-            $colorClass = $isPositivo ? 'text-emerald-600' : 'text-red-600';
-            $bgColor = $isPositivo ? 'bg-emerald-500' : 'bg-red-500';
-            $shadowColor = $isPositivo ? 'shadow-emerald-500/20' : 'shadow-red-500/20';
-            $badgeColor = $isPositivo ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100';
         @endphp
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
-            <div class="absolute -right-4 -bottom-4 text-emerald-500/5 text-9xl group-hover:scale-110 transition-transform duration-500">
-                <i class="fas fa-scale-balanced"></i>
-            </div>
-            <div class="flex items-center justify-between mb-4">
-                <div class="w-12 h-12 {{ $bgColor }} text-white rounded-2xl flex items-center justify-center shadow-md {{ $shadowColor }}">
-                    <i class="fas fa-scale-balanced text-lg"></i>
+            @if($isPositivo)
+                <div class="absolute -right-4 -bottom-4 text-emerald-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+                    <i class="fas fa-scale-balanced"></i>
                 </div>
-                <span class="text-[10px] font-black uppercase tracking-widest {{ $badgeColor }} px-3 py-1 rounded-full">{{ $lucratividadePercentual }}% Margem</span>
+            @else
+                <div class="absolute -right-4 -bottom-4 text-red-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+                    <i class="fas fa-scale-balanced"></i>
+                </div>
+            @endif
+            
+            <div class="flex items-center justify-between mb-4">
+                @if($isPositivo)
+                    <div class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-emerald-500/20">
+                        <i class="fas fa-scale-balanced text-lg"></i>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{{ $lucratividadePercentual }}% Margem</span>
+                @else
+                    <div class="w-12 h-12 bg-red-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-red-500/20">
+                        <i class="fas fa-scale-balanced text-lg"></i>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-3 py-1 rounded-full">{{ $lucratividadePercentual }}% Margem</span>
+                @endif
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Margem de Operação</h3>
-            <p class="text-3xl font-black {{ $colorClass }} mt-1">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
+            <p class="text-3xl font-black mt-1 {{ $isPositivo ? 'text-emerald-600' : 'text-red-600' }}">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
             <p class="text-[10px] text-gray-400 mt-2">Diferença entre faturamento líquido e investimento em estoque.</p>
         </div>
 
