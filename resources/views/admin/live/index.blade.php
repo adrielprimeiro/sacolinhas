@@ -223,6 +223,18 @@
     let selectedUser = null;
     let itemHighlightedIndex = -1;
 
+    // Função robusta para focar no campo Selecionar Cliente (tenta múltiplas vezes para contornar atrasos de layout)
+    function focusClient() {
+        const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+        if (clientInput) {
+            console.log('🎯 Focando no cliente (focusClient)...');
+            clientInput.focus();
+            setTimeout(() => clientInput.focus(), 50);
+            setTimeout(() => clientInput.focus(), 250);
+        }
+    }
+    window.focusClient = focusClient;
+
     document.addEventListener('DOMContentLoaded', () => {
         itemSearchWrapper = document.querySelector('[data-item-search="true"]');
         carregarLiveStatus();
@@ -248,10 +260,7 @@
         
         // Garante foco em Selecionar Cliente ao carregar a página
         setTimeout(() => {
-            const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
-            if (clientInput) {
-                clientInput.focus();
-            }
+            focusClient();
         }, 500);
     });
 
@@ -412,13 +421,7 @@
                     selectedItem = null;
                     selectedUser = null;
                     
-                    setTimeout(function() {
-                        const clientSearchInput = document.querySelector('[data-user-search="true"] .user-search-input');
-                        if (clientSearchInput) {
-                            console.log('🎯 Focando no CLIENTE para próxima adição...');
-                            clientSearchInput.focus();
-                        }
-                    }, 200);
+                    focusClient();
                     
                     carregarSacolas();
                 }
@@ -782,10 +785,7 @@
 
             // Ao iniciar live, dar foco em Selecionar Cliente
             setTimeout(() => {
-                const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
-                if (clientInput && document.activeElement !== clientInput) {
-                    clientInput.focus();
-                }
+                focusClient();
             }, 300);
         } else {
             toggleButton.classList.remove('bg-red-600', 'hover:bg-red-700');
