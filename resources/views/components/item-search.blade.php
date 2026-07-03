@@ -571,13 +571,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function startScanning() {
             if (!html5QrScanner) {
-                html5QrScanner = new Html5Qrcode(qrReaderId);
+                let formats = [0, 9, 5];
+                if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                    formats = [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.CODE_128
+                    ];
+                }
+                html5QrScanner = new Html5Qrcode(qrReaderId, {
+                    formatsToSupport: formats
+                });
             }
 
             try {
                 // Configurações otimizadas para leitura ultra rápida
                 const config = {
-                    fps: 20, // Aumenta a verificação de frames por segundo
+                    fps: 12, // Equilíbrio ideal: rápido o suficiente sem sobrecarregar CPUs de celulares mais antigos
                     qrbox: function(width, height) {
                         // Caixa de escaneamento dinâmica
                         const minEdge = Math.min(width, height);
@@ -590,6 +600,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     disableFlip: true, // Desativa espelhamento para câmera traseira (economiza CPU)
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true // Usa decodificador nativo do sistema do celular se disponível (quase instantâneo)
+                    },
+                    videoConstraints: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "environment",
+                        focusMode: { ideal: "continuous" }
                     }
                 };
 
