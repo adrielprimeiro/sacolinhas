@@ -84,30 +84,34 @@
         @endphp
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group">
             @if($isPositivo)
-                <div class="absolute -right-4 -bottom-4 text-emerald-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+                <div class="absolute -right-4 -bottom-4 text-9xl group-hover:scale-110 transition-transform duration-500" style="color: #10b981; opacity: 0.05;">
                     <i class="fas fa-scale-balanced"></i>
                 </div>
             @else
-                <div class="absolute -right-4 -bottom-4 text-red-500 text-9xl group-hover:scale-110 transition-transform duration-500" style="opacity: 0.05;">
+                <div class="absolute -right-4 -bottom-4 text-9xl group-hover:scale-110 transition-transform duration-500" style="color: #ef4444; opacity: 0.05;">
                     <i class="fas fa-scale-balanced"></i>
                 </div>
             @endif
             
             <div class="flex items-center justify-between mb-4">
                 @if($isPositivo)
-                    <div class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-emerald-500/20">
+                    <div class="w-12 h-12 text-white rounded-2xl flex items-center justify-center" style="background-color: #10b981; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2), 0 2px 4px -2px rgba(16, 185, 129, 0.2);">
                         <i class="fas fa-scale-balanced text-lg"></i>
                     </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{{ $lucratividadePercentual }}% Margem</span>
+                    <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full" style="color: #059669; background-color: #d1fae5;">{{ $lucratividadePercentual }}% Margem</span>
                 @else
-                    <div class="w-12 h-12 bg-red-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-red-500/20">
+                    <div class="w-12 h-12 text-white rounded-2xl flex items-center justify-center" style="background-color: #ef4444; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2), 0 2px 4px -2px rgba(239, 68, 68, 0.2);">
                         <i class="fas fa-scale-balanced text-lg"></i>
                     </div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-3 py-1 rounded-full">{{ $lucratividadePercentual }}% Margem</span>
+                    <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full" style="color: #dc2626; background-color: #fee2e2;">{{ $lucratividadePercentual }}% Margem</span>
                 @endif
             </div>
             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Margem de Operação</h3>
-            <p class="text-3xl font-black mt-1 {{ $isPositivo ? 'text-emerald-600' : 'text-red-600' }}">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
+            @if($isPositivo)
+                <p class="text-3xl font-black mt-1" style="color: #059669;">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
+            @else
+                <p class="text-3xl font-black mt-1" style="color: #dc2626;">R$ {{ number_format($margemBruta, 2, ',', '.') }}</p>
+            @endif
             <p class="text-[10px] text-gray-400 mt-2">Diferença entre faturamento líquido e investimento em estoque.</p>
         </div>
 
