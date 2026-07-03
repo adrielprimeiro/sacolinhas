@@ -41,7 +41,6 @@ class RelatorioGerencialController extends Controller
 
         // Créditos por Avaliação de Desapego
         $creditosAvaliacao = (float) ContaCorrente::where('tipo_movimentacao', 'credito')
-            ->where('referencia_tipo', 'carteira_credito')
             ->where(function($q) {
                 $q->where('descricao', 'like', '%avalia%')
                   ->orWhere('classificacao_id', 19);
@@ -54,9 +53,12 @@ class RelatorioGerencialController extends Controller
             ->where(function($q) {
                 $q->where('classificacao_id', 81)
                   ->orWhere(function($sub) {
-                      $sub->where('referencia_tipo', 'carteira_credito')
-                          ->where('classificacao_id', '!=', 19)
-                          ->where('descricao', 'not like', '%avalia%');
+                      $sub->where(function($s) {
+                          $s->whereNotIn('referencia_tipo', ['movimentacao', 'pedido', 'desconto', 'tolerancia'])
+                            ->orWhereNull('referencia_tipo');
+                      })
+                      ->where('classificacao_id', '!=', 19)
+                      ->where('descricao', 'not like', '%avalia%');
                   });
             })
             ->whereBetween('data_movimentacao', [$inicio->toDateString(), $fim->toDateString()])
