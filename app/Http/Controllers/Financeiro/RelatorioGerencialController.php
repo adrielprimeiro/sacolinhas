@@ -48,19 +48,9 @@ class RelatorioGerencialController extends Controller
             ->whereBetween('data_movimentacao', [$inicio->toDateString(), $fim->toDateString()])
             ->sum('valor');
 
-        // Créditos por Devoluções de Vendas / Ajustes
+        // Créditos por Devoluções de Vendas / Ajustes (Classificação 81)
         $creditosDevolucao = (float) ContaCorrente::where('tipo_movimentacao', 'credito')
-            ->where(function($q) {
-                $q->where('classificacao_id', 81)
-                  ->orWhere(function($sub) {
-                      $sub->where(function($s) {
-                          $s->whereNotIn('referencia_tipo', ['movimentacao', 'pedido', 'desconto', 'tolerancia'])
-                            ->orWhereNull('referencia_tipo');
-                      })
-                      ->where('classificacao_id', '!=', 19)
-                      ->where('descricao', 'not like', '%avalia%');
-                  });
-            })
+            ->where('classificacao_id', 81)
             ->whereBetween('data_movimentacao', [$inicio->toDateString(), $fim->toDateString()])
             ->sum('valor');
 
