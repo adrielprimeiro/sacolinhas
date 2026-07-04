@@ -45,6 +45,10 @@ class RelatorioGerencialController extends Controller
                 $q->where('descricao', 'like', '%avalia%')
                   ->orWhere('classificacao_id', 19);
             })
+            ->where(function($q) {
+                $q->where('referencia_tipo', '!=', 'movimentacao')
+                  ->orWhereNull('referencia_tipo');
+            })
             ->whereBetween('data_movimentacao', [$inicio->toDateString(), $fim->toDateString()])
             ->sum('valor');
 
