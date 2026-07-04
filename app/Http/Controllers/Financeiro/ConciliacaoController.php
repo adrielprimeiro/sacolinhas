@@ -22,6 +22,12 @@ class ConciliacaoController extends Controller
 
     public function index()
     {
+        try {
+            $this->service->autoConciliarTransacoesPendentes();
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
+        }
+
         $extrato = TransacaoExtrato::where('status', 'pendente')
             ->orderBy('data', 'desc')
             ->get();
@@ -135,6 +141,56 @@ class ConciliacaoController extends Controller
                         'is_valid_suggestion' => true
                     ];
                     $sugestoesFinal->push($virtual);
+                }
+            }
+
+            // C. Adicionar Sugestões por Nome do Cliente na Descrição (Score 110)
+            $matchedByPessoa = $lancamentos->filter(function ($l) use ($t) {
+                $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
+                if ($l->tipo !== $tTipoMapped) {
+                    return false;
+                }
+                
+                $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
+                $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
+                $valMatch = abs((float)$t->valor - (float)$l->valor_total) < 0.05;
+                $saldoMatch = abs((float)$t->valor - $saldoRestante) < 0.05;
+                
+                if (!$valMatch && !$saldoMatch) {
+                    return false;
+                }
+                
+                if ($l->pessoa && $l->pessoa->nome) {
+                    $nomePessoa = mb_strtolower($l->pessoa->nome, 'UTF-8');
+                    $descTransacao = mb_strtolower($t->descricao, 'UTF-8');
+                    
+                    $nomeNormalizado = preg_replace('/[^a-z0-9 ]/i', '', iconv('UTF-8', 'ASCII//TRANSLIT', $nomePessoa));
+                    $descNormalizada = preg_replace('/[^a-z0-9 ]/i', '', iconv('UTF-8', 'ASCII//TRANSLIT', $descTransacao));
+                    
+                    $partes = explode(' ', $nomeNormalizado);
+                    $partesValidas = array_filter($partes, function($p) { return strlen($p) > 2; });
+                    
+                    if (!empty($partesValidas)) {
+                        $matchCount = 0;
+                        foreach ($partesValidas as $parte) {
+                            if (str_contains($descNormalizada, $parte)) {
+                                $matchCount++;
+                            }
+                        }
+                        return $matchCount >= max(1, count($partesValidas) / 2);
+                    }
+                }
+                
+                return false;
+            });
+            
+            foreach ($matchedByPessoa as $l) {
+                if (!$sugestoesFinal->contains('id', $l->id)) {
+                    $lClone = clone $l;
+                    $lClone->score = 110;
+                    $lClone->motivos_match = ['Nome do cliente na descrição do banco'];
+                    $lClone->is_valid_suggestion = true;
+                    $sugestoesFinal->push($lClone);
                 }
             }
 

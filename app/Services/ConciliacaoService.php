@@ -52,6 +52,12 @@ class ConciliacaoService
             }
         }
         
+        try {
+            $this->autoConciliarTransacoesPendentes($contaBancariaId);
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação pós-OFX: " . $e->getMessage());
+        }
+        
         return $count;
     }
 
@@ -115,6 +121,12 @@ class ConciliacaoService
             'payments' => $count,
             'reports' => $countReports
         ]);
+        
+        try {
+            $this->autoConciliarTransacoesPendentes();
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação pós-sincronização MP: " . $e->getMessage());
+        }
         
         return $count + $countReports;
     }
@@ -233,9 +245,6 @@ class ConciliacaoService
         }
     }
 
-    /**
-     * Vincular uma transação do extrato a um lançamento existente
-     */
     public function vincular(int $transacaoId, int $lancamentoId, string $formaPagamento = 'transferencia')
     {
         return \DB::transaction(function () use ($transacaoId, $lancamentoId, $formaPagamento) {
@@ -253,15 +262,31 @@ class ConciliacaoService
                 $defaultContaId = $contaMp ? $contaMp->id : 2;
             }
 
-            // 1. Criar a Movimentação (Baixa) para o valor bruto (Total do Pedido/Lançamento)
-            $movimentacao = \App\Models\Movimentacao::create([
-                'lancamento_id' => $lancamento->id,
-                'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId, 
-                'data_pagamento' => $transacao->data,
-                'valor_pago' => $transacao->valor_bruto ?? $transacao->valor,
-                'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
-                'transacao_extrato_id' => $transacao->id,
-            ]);
+            $valorDesejado = $transacao->valor_bruto ?? $transacao->valor;
+
+            // 1. Procurar Movimentação (Baixa) existente para o mesmo valor que ainda não esteja vinculada
+            $movimentacao = $lancamento->movimentacoes()
+                ->where('valor_pago', $valorDesejado)
+                ->whereDoesntHave('transacaoExtrato')
+                ->first();
+
+            if (!$movimentacao) {
+                // Criar nova movimentação apenas se não existir uma correspondente
+                $movimentacao = \App\Models\Movimentacao::create([
+                    'lancamento_id' => $lancamento->id,
+                    'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId, 
+                    'data_pagamento' => $transacao->data,
+                    'valor_pago' => $valorDesejado,
+                    'forma_pagamento' => $this->mapFormaPagamento($transacao->origem, $formaPagamento),
+                    'transacao_extrato_id' => $transacao->id,
+                ]);
+            } else {
+                // Se já existe, vincula a transação do extrato a ela
+                $movimentacao->update([
+                    'transacao_extrato_id' => $transacao->id,
+                    'conta_bancaria_id' => $transacao->conta_bancaria_id ?? $defaultContaId,
+                ]);
+            }
 
             // 2. Atualizar Status do Lançamento
             $valorTotalPago = $lancamento->movimentacoes()->sum('valor_pago');
@@ -1099,6 +1124,12 @@ class ConciliacaoService
             $count++;
         }
 
+        try {
+            $this->autoConciliarTransacoesPendentes($contaBancariaId);
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação pós-sincronização Banco Inter: " . $e->getMessage());
+        }
+
         return $count;
     }
 
@@ -1171,6 +1202,101 @@ class ConciliacaoService
                 ]
             );
             $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Tenta conciliar automaticamente transações pendentes que já possuem movimentações correspondentes no sistema
+     */
+    public function autoConciliarTransacoesPendentes(?int $contaBancariaId = null): int
+    {
+        $query = TransacaoExtrato::where('status', 'pendente');
+        if ($contaBancariaId) {
+            $query->where('conta_bancaria_id', $contaBancariaId);
+        }
+        $transacoes = $query->get();
+
+        $count = 0;
+        foreach ($transacoes as $transacao) {
+            $matched = \DB::transaction(function () use ($transacao) {
+                // Lock row
+                $tLock = TransacaoExtrato::lockForUpdate()->find($transacao->id);
+                if (!$tLock || $tLock->status === 'conciliado') {
+                    return false;
+                }
+
+                $valor = $tLock->valor_bruto ?? $tLock->valor;
+                $dataMin = Carbon::parse($tLock->data)->subDays(3)->toDateString();
+                $dataMax = Carbon::parse($tLock->data)->addDays(3)->toDateString();
+
+                // Busca movimentações pendentes de vinculação com mesmo valor e conta
+                $movs = \App\Models\Movimentacao::where('valor_pago', $valor)
+                    ->where('conta_bancaria_id', $tLock->conta_bancaria_id)
+                    ->whereDoesntHave('transacaoExtrato')
+                    ->whereBetween('data_pagamento', [$dataMin, $dataMax])
+                    ->with('lancamento.pessoa')
+                    ->get();
+
+                foreach ($movs as $mov) {
+                    $lancamento = $mov->lancamento;
+                    if (!$lancamento) continue;
+
+                    $match = false;
+
+                    // 1. Tenta casar pelo nome da pessoa
+                    if ($lancamento->pessoa && $lancamento->pessoa->nome) {
+                        $nomePessoa = mb_strtolower($lancamento->pessoa->nome, 'UTF-8');
+                        $descTransacao = mb_strtolower($tLock->descricao, 'UTF-8');
+
+                        // Remove acentos/caracteres especiais
+                        $nomeNormalizado = preg_replace('/[^a-z0-9 ]/i', '', iconv('UTF-8', 'ASCII//TRANSLIT', $nomePessoa));
+                        $descNormalizada = preg_replace('/[^a-z0-9 ]/i', '', iconv('UTF-8', 'ASCII//TRANSLIT', $descTransacao));
+
+                        $partes = explode(' ', $nomeNormalizado);
+                        $partesValidas = array_filter($partes, function($p) { return strlen($p) > 2; });
+
+                        if (!empty($partesValidas)) {
+                            $matchCount = 0;
+                            foreach ($partesValidas as $parte) {
+                                if (str_contains($descNormalizada, $parte)) {
+                                    $matchCount++;
+                                }
+                            }
+                            if ($matchCount >= max(1, count($partesValidas) / 2)) {
+                                $match = true;
+                            }
+                        }
+                    }
+
+                    // 2. Tenta casar se for pedido e a descrição contiver o ID do pedido
+                    if (!$match && $lancamento->referencia_tipo === 'pedido') {
+                        $pedidoId = $lancamento->referencia_id;
+                        $descTransacao = mb_strtolower($tLock->descricao, 'UTF-8');
+                        if (str_contains($descTransacao, "ped-" . str_pad($pedidoId, 6, '0', STR_PAD_LEFT)) || str_contains($descTransacao, (string)$pedidoId)) {
+                            $match = true;
+                        }
+                    }
+
+                    if ($match) {
+                        // Vincula!
+                        $mov->update(['transacao_extrato_id' => $tLock->id]);
+                        $tLock->update([
+                            'status' => 'conciliado',
+                            'movimentacao_id' => $mov->id
+                        ]);
+                        Log::info("Auto-conciliação automática de extrato realizada: Movimentacao #{$mov->id} -> Transacao {$tLock->fitid}");
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+
+            if ($matched) {
+                $count++;
+            }
         }
 
         return $count;
