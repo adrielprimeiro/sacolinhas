@@ -79,9 +79,14 @@
                     <i class="fas fa-comment-alt"></i>
                     <h2 class="font-bold text-lg">Chat da Transmissão</h2>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
-                    <span class="text-xs text-gray-300">Conectado</span>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="toggleMasterPause()" id="btn-master-pause" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
+                        <i class="fas fa-pause text-[10px]"></i> Pausar Captura
+                    </button>
+                    <div class="flex items-center gap-1.5">
+                        <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping" id="chat-ping-dot"></span>
+                        <span class="text-xs text-gray-300" id="chat-status-text">Capturando</span>
+                    </div>
                 </div>
             </div>
             
@@ -133,7 +138,7 @@
                         </p>
                         
                         <div class="mt-3 flex gap-2">
-                            <input type="text" id="tiktok-username-input" value="de_minha_mania" placeholder="@usuario_tiktok" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 font-semibold text-gray-800">
+                            <input type="text" id="tiktok-username-input" value="_minhamania" placeholder="@usuario_tiktok" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 font-semibold text-gray-800">
                             <button type="button" onclick="toggleTikTokBackend()" id="tiktok-toggle-btn" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
                                 <i class="fas fa-play text-[10px]"></i> Conectar
                             </button>
@@ -147,8 +152,9 @@
                                 <i class="fab fa-instagram text-purple-600 text-base"></i>
                                 Instagram Live (Extensão Chrome)
                             </h3>
-                            <span class="bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                60 FPS Turbo
+                            <span id="insta-badge" class="bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span id="insta-status-dot" class="hidden w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                <span id="insta-status-text">60 FPS Turbo</span>
                             </span>
                         </div>
                         <p class="text-xs text-purple-800 mt-1.5 leading-relaxed">
@@ -157,8 +163,8 @@
                         
                         <div class="mt-3 flex gap-2">
                             <input type="text" id="insta-username-input" value="de_minha_mania" placeholder="@usuario_insta" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-purple-300 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-semibold text-gray-800">
-                            <button type="button" onclick="openInstagramLive()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
-                                <i class="fas fa-external-link-alt text-[10px]"></i> Abrir Live
+                            <button type="button" onclick="toggleInstagramCapture()" id="insta-toggle-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
+                                <i class="fas fa-play text-[10px]"></i> Conectar
                             </button>
                         </div>
                     </div>
@@ -268,13 +274,25 @@
             } else if (data.connected) {
                 badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300";
                 dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
-                text.textContent = `Ao Vivo: @${data.username}`;
+                text.textContent = "Ao Vivo";
                 btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
                 btn.innerHTML = `<i class="fas fa-stop text-[10px]"></i> Parar`;
             } else {
-                badge.className = "bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
-                dot.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
-                text.textContent = "Desconectado";
+                if (data.error) {
+                    badge.className = "bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-300";
+                    dot.className = "w-1.5 h-1.5 rounded-full bg-red-500";
+                    let errText = data.error;
+                    if (errText.includes('room_id') || errText.includes('user_not_found') || errText.toLowerCase().includes('offline')) {
+                        errText = 'Sem Live Ativa no momento';
+                    } else {
+                        errText = errText.slice(0, 25);
+                    }
+                    text.textContent = errText;
+                } else {
+                    badge.className = "bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
+                    dot.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
+                    text.textContent = "Desconectado";
+                }
                 btn.className = "bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
                 btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Conectar`;
             }
@@ -309,12 +327,67 @@
         checkTikTokBackendStatus();
     }
 
+    function openTikTokLive() {
+        const input = document.getElementById("tiktok-username-input");
+        let username = input ? input.value.trim() : "_minhamania";
+        username = username.replace(/^@/, '');
+        if (!username) username = "_minhamania";
+        window.open(`https://www.tiktok.com/@${username}/live`, "_blank");
+    }
+
     function openInstagramLive() {
         const input = document.getElementById("insta-username-input");
         let username = input ? input.value.trim() : "de_minha_mania";
         username = username.replace(/^@/, '');
         if (!username) username = "de_minha_mania";
         window.open(`https://www.instagram.com/${username}/live/`, "_blank");
+    }
+
+    function updateInstagramState(instaActive) {
+        const badge = document.getElementById("insta-badge");
+        const dot = document.getElementById("insta-status-dot");
+        const text = document.getElementById("insta-status-text");
+        const btn = document.getElementById("insta-toggle-btn");
+        if (!badge || !btn) return;
+
+        if (instaActive) {
+            badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300";
+            if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+            if (text) text.textContent = "Ao Vivo";
+            btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-stop text-[10px]"></i> Parar`;
+        } else {
+            badge.className = "bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
+            if (dot) dot.className = "hidden";
+            if (text) text.textContent = "60 FPS Turbo";
+            btn.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Conectar`;
+        }
+    }
+
+    async function toggleInstagramCapture() {
+        const btn = document.getElementById("insta-toggle-btn");
+        const isCurrentlyActive = btn && btn.textContent.includes("Parar");
+        const action = isCurrentlyActive ? "stop" : "start";
+
+        try {
+            const res = await fetch("/admin/live-chat/toggle-instagram", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) updateInstagramState(data.insta_active);
+        } catch (e) {
+            console.error("Erro ao alternar captura do Instagram:", e);
+        }
+
+        if (action === "start") {
+            openInstagramLive();
+        }
     }
 
     // Alternar abas da barra lateral
@@ -346,12 +419,49 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    if (typeof updatePauseState === 'function') updatePauseState(data.is_paused);
+                    if (typeof updateInstagramState === 'function') updateInstagramState(data.insta_active);
                     renderChatMessages(data.messages);
                     renderOnlineUsers(data.online_users);
                     renderCodeRequests(data.code_requests);
                 }
             })
             .catch(err => console.error("Erro no polling da live:", err));
+    }
+
+    async function toggleMasterPause() {
+        try {
+            const res = await fetch("/admin/live-chat/toggle-pause", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                }
+            });
+            const data = await res.json();
+            if (data.success) updatePauseState(data.is_paused);
+        } catch (e) {
+            console.error("Erro ao alternar pausa:", e);
+        }
+    }
+
+    function updatePauseState(isPaused) {
+        const btn = document.getElementById("btn-master-pause");
+        const dot = document.getElementById("chat-ping-dot");
+        const text = document.getElementById("chat-status-text");
+        if (!btn) return;
+
+        if (isPaused) {
+            btn.className = "bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Retomar Captura`;
+            if (dot) dot.className = "inline-block w-2.5 h-2.5 bg-yellow-500 rounded-full";
+            if (text) text.textContent = "Pausado no Sistema";
+        } else {
+            btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-pause text-[10px]"></i> Pausar Captura`;
+            if (dot) dot.className = "inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping";
+            if (text) text.textContent = "Capturando";
+        }
     }
 
     // Renderizar mensagens de chat no terminal

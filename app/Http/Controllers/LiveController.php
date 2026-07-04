@@ -129,8 +129,18 @@ class LiveController extends Controller
                 ->pluck('user_id');
 
             if ($clientesIds->isEmpty()) {
-                DB::rollBack();
-                return response()->json(['error' => 'Nenhuma sacolinha encontrada'], 404);
+                DB::table('lives')->where('id', $liveId)->update([
+                    'ativo' => 0,
+                    'encerrada_em' => now(),
+                    'updated_at' => now(),
+                ]);
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Live encerrada com sucesso (nenhuma sacolinha para processar).',
+                    'pdfs_ok' => 0,
+                    'jobs_enfileirados' => 0
+                ]);
             }
 
             DB::commit();

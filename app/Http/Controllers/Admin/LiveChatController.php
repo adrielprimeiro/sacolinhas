@@ -12,6 +12,7 @@ use App\Models\Sacolinhas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class LiveChatController extends Controller
 {
@@ -38,6 +39,11 @@ class LiveChatController extends Controller
      */
     public function receiveMessage(Request $request)
     {
+        if (Cache::get('live_capture_paused', false)) {
+            return response()->json(['success' => true, 'paused' => true])
+                ->header('Access-Control-Allow-Origin', '*');
+        }
+
         if (!$request->input('live_id') || $request->input('live_id') === 'auto' || !\App\Models\Live::where('id', $request->input('live_id'))->exists()) {
             $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
             if ($activeLive) {
@@ -50,6 +56,13 @@ class LiveChatController extends Controller
             $plat = 'tiktok';
         } else {
             $plat = 'instagram';
+        }
+        if ($plat === 'instagram' && Cache::get('instagram_capture_stopped', false)) {
+            return response()->json(['success' => true, 'stopped' => true])
+                ->header('Access-Control-Allow-Origin', '*');
+        }
+        if ($plat === 'instagram') {
+            Cache::put('insta_capture_active', true, 86400);
         }
         $request->merge(['platform' => $plat]);
 
@@ -148,6 +161,11 @@ class LiveChatController extends Controller
 
     public function receiveMessageBatch(Request $request)
     {
+        if (Cache::get('live_capture_paused', false)) {
+            return response()->json(['success' => true, 'paused' => true])
+                ->header('Access-Control-Allow-Origin', '*');
+        }
+
         $messages = $request->input('messages', []);
         if (!is_array($messages) || empty($messages)) {
             return response()->json(['success' => false, 'message' => 'Lote vazio'])
@@ -172,6 +190,8 @@ class LiveChatController extends Controller
                     $messageText = trim($item['message']);
                     $plat = strtolower((string) ($item['platform'] ?? 'instagram'));
                     $platform = str_contains($plat, 'tiktok') ? 'tiktok' : 'instagram';
+                    if ($platform === 'instagram' && Cache::get('instagram_capture_stopped', false)) continue;
+                    if ($platform === 'instagram') Cache::put('insta_capture_active', true, 86400);
 
                     $existing = LiveMessage::where('live_id', $liveId)
                         ->where('plataforma', $platform)
@@ -294,6 +314,8 @@ class LiveChatController extends Controller
 
         return response()->json([
             'success' => true,
+            'is_paused' => Cache::get('live_capture_paused', false),
+            'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false),
             'messages' => $messages,
             'online_users' => $onlineUsers,
             'code_requests' => $groupedRequests
@@ -397,5 +419,29 @@ class LiveChatController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function togglePause(Request $request)
+    {
+        $current = Cache::get('live_capture_paused', false);
+        $new = !$current;
+        Cache::put('live_capture_paused', $new);
+        return response()->json(['success' => true, 'is_paused' => $new]);
+    }
+
+    public function toggleInstagram(Request $request)
+    {
+        $action = $request->input('action');
+        if ($action === 'stop') {
+            Cache::put('instagram_capture_stopped', true, 86400);
+            Cache::put('insta_capture_active', false);
+        } else {
+            Cache::forget('instagram_capture_stopped');
+            Cache::put('insta_capture_active', true, 86400);
+        }
+        return response()->json([
+            'success' => true,
+            'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false)
+        ]);
     }
 }
