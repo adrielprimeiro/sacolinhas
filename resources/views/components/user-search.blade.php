@@ -245,16 +245,16 @@ if (typeof window.initUserSearch === 'undefined') {
                             
                             let badges = '';
                             if (instagram) {
-                                badges += `<span class="custom-badge custom-badge-instagram">@${instagram}</span>`;
+                                badges += `<span class="custom-badge" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
                             }
                             if (tiktok) {
-                                badges += `<span class="custom-badge custom-badge-tiktok">@${tiktok}</span>`;
+                                badges += `<span class="custom-badge" style="background-color: #000000 !important; color: white !important; margin-right: 4px;">@${tiktok}</span>`;
                             }
                             if (whatsapp) {
-                                badges += `<span class="custom-badge custom-badge-whatsapp"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
+                                badges += `<span class="custom-badge" style="background-color: #25d366 !important; color: white !important; margin-right: 4px;"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
                             }
                             if (user.apelido) {
-                                badges += `<span class="custom-badge custom-badge-secondary">${user.apelido}</span>`;
+                                badges += `<span class="custom-badge" style="background-color: #6b7280 !important; color: white !important; margin-right: 4px;">${user.apelido}</span>`;
                             }
                             
                             div.innerHTML = `
@@ -293,16 +293,16 @@ if (typeof window.initUserSearch === 'undefined') {
             
             let badges = '';
             if (instagram) {
-                badges += `<span class="custom-badge custom-badge-instagram">@${instagram}</span>`;
+                badges += `<span class="custom-badge" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
             }
             if (tiktok) {
-                badges += `<span class="custom-badge custom-badge-tiktok">@${tiktok}</span>`;
+                badges += `<span class="custom-badge" style="background-color: #000000 !important; color: white !important; margin-right: 4px;">@${tiktok}</span>`;
             }
             if (whatsapp) {
-                badges += `<span class="custom-badge custom-badge-whatsapp"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
+                badges += `<span class="custom-badge" style="background-color: #25d366 !important; color: white !important; margin-right: 4px;"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
             }
             if (user.apelido) {
-                badges += `<span class="custom-badge custom-badge-secondary">${user.apelido}</span>`;
+                badges += `<span class="custom-badge" style="background-color: #6b7280 !important; color: white !important; margin-right: 4px;">${user.apelido}</span>`;
             }
             
             display.innerHTML = `

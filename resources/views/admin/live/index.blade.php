@@ -253,16 +253,16 @@
                     
                     let badges = '';
                     if (instagram) {
-                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500">@${instagram}</span>`;
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
                     }
                     if (tiktok) {
-                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-black">@${tiktok}</span>`;
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded" style="background-color: #000000 !important; color: white !important; margin-right: 4px;">@${tiktok}</span>`;
                     }
                     if (whatsapp) {
-                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-green-500 inline-flex items-center gap-1"><i class="fab fa-whatsapp"></i> ${whatsapp}</span>`;
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded inline-flex items-center gap-1" style="background-color: #25d366 !important; color: white !important; margin-right: 4px;"><i class="fab fa-whatsapp"></i> ${whatsapp}</span>`;
                     }
                     if (user.apelido) {
-                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-gray-500">${user.apelido}</span>`;
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded" style="background-color: #6b7280 !important; color: white !important; margin-right: 4px;">${user.apelido}</span>`;
                     }
                     
                     display.innerHTML = `
