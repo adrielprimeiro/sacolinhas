@@ -243,6 +243,59 @@
                 selectedUser = user;
                 console.log('Cliente selecionado:', user);
                 mostrarAlert(`Cliente selecionado: ${user.name}`, 'info');
+
+                // Sobrescreve o card do cliente com estilo Tailwind padronizado
+                const display = document.querySelector('[data-user-search="true"] .user-selected-display');
+                if (display) {
+                    const instagram = user.instagram || '';
+                    const tiktok = user.tiktok || '';
+                    const whatsapp = user.whatsapp || '';
+                    
+                    let badges = '';
+                    if (instagram) {
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500">@${instagram}</span>`;
+                    }
+                    if (tiktok) {
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-black">@${tiktok}</span>`;
+                    }
+                    if (whatsapp) {
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-green-500 inline-flex items-center gap-1"><i class="fab fa-whatsapp"></i> ${whatsapp}</span>`;
+                    }
+                    if (user.apelido) {
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded text-white bg-gray-500">${user.apelido}</span>`;
+                    }
+                    
+                    display.innerHTML = `
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between shadow-sm mt-2">
+                            <div class="flex items-center gap-3">
+                                <div class="rounded-full text-white flex items-center justify-center font-bold text-lg" style="width: 36px; height: 36px; background-color: #10b981;">
+                                    ${user.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm">${user.name}</h4>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        ${badges || '<span class="text-xs text-gray-400">Sem redes sociais</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="text-red-500 hover:text-red-700" title="Remover cliente">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Vincula o botão de fechar para limpar a seleção
+                    const closeBtn = display.querySelector('button');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', function() {
+                            // Clica no botão de limpar original do componente de busca
+                            const origClearBtn = document.querySelector('[data-user-search="true"] .user-clear-btn');
+                            if (origClearBtn) {
+                                origClearBtn.click();
+                            }
+                        });
+                    }
+                }
                 
                 setTimeout(() => {
                     const itemInput = document.querySelector('[data-item-search="true"] .item-search-input');

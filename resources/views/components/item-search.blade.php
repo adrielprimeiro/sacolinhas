@@ -45,20 +45,20 @@
 
     <!-- Item Selecionado -->
     <div class="item-selected-display mt-2 d-none" data-selected-display="true">
-        <div class="card border-success">
-            <div class="card-body p-2">
-                <div class="d-flex align-items-center">
-                    <img class="item-selected-image rounded me-2" src="" alt="" width="32" height="32">
-                    <div class="flex-grow-1">
-                        <div class="item-selected-name fw-bold"></div>
-                        <small class="item-selected-price text-success fw-bold"></small>
-                        <br><small class="item-selected-sku text-muted"></small>
+        <div class="search-selected-card">
+            <div class="search-selected-card-info">
+                <img class="item-selected-image rounded" src="" alt="" width="36" height="36" style="border-radius: 0.375rem; border: 1px solid #dee2e6;">
+                <div>
+                    <h4 class="item-selected-name search-selected-card-title"></h4>
+                    <div class="search-selected-card-subtitle">
+                        <span class="item-selected-sku"></span>
+                        <span class="item-selected-price custom-badge custom-badge-whatsapp" style="background-color: #10b981 !important;"></span>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger item-remove-btn" data-remove-btn="true">
-                        <i class="fas fa-times"></i>
-                    </button>
                 </div>
             </div>
+            <button type="button" class="search-selected-card-remove item-remove-btn" data-remove-btn="true" title="Remover item">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     </div>
 </div>
@@ -227,6 +227,86 @@
 .item-suggestion-item.highlighted {
     background-color: #e9ecef; /* Cor de destaque */
     border-left: 3px solid #007bff; /* Borda para indicar destaque */
+}
+
+/* Custom selected card layout (standardized) */
+.search-selected-card {
+    background-color: #f0fdf4 !important; /* bg-green-50 */
+    border: 1px solid #bbf7d0 !important; /* border-green-200 */
+    border-radius: 0.75rem !important; /* rounded-xl */
+    padding: 0.75rem !important; /* p-3 */
+    display: flex !important; /* flex */
+    align-items: center !important; /* items-center */
+    justify-content: space-between; /* justify-between */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; /* shadow-sm */
+    margin-top: 0.5rem !important; /* mt-2 */
+}
+
+.search-selected-card-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+}
+
+.search-selected-card-title {
+    font-weight: 700 !important;
+    color: #1f2937 !important; /* text-gray-800 */
+    font-size: 0.875rem !important; /* text-sm */
+    margin: 0 !important;
+}
+
+.search-selected-card-subtitle {
+    font-size: 0.75rem !important; /* text-xs */
+    color: #6b7280 !important; /* text-gray-500 */
+    margin-top: 0.25rem !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.375rem !important;
+    align-items: center !important;
+}
+
+.search-selected-card-remove {
+    color: #ef4444 !important; /* text-red-500 */
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 0.25rem !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+    transition: color 0.2s !important;
+}
+
+.search-selected-card-remove:hover {
+    color: #b91c1c !important; /* text-red-700 */
+}
+
+/* Custom badge styles */
+.custom-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.125rem 0.375rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+    border-radius: 0.25rem !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+    margin-left: 0.25rem !important;
+}
+
+.custom-badge-instagram {
+    background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important;
+}
+
+.custom-badge-tiktok {
+    background: #000000 !important;
+}
+
+.custom-badge-whatsapp {
+    background: #25d366 !important;
+}
+
+.custom-badge-secondary {
+    background: #6b7280 !important;
 }
 </style>
 

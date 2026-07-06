@@ -74,13 +74,13 @@
         left: 0;
         right: 0;
         background: white;
-        border: 1px solid #ddd;
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        max-height: 300px;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        max-height: 350px;
         overflow-y: auto;
-        z-index: 1000;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 9999;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        margin-top: 4px;
     }
 
     .suggestion-item {
@@ -94,14 +94,84 @@
         background-color: #f8f9fa;
     }
 
-    .badge-instagram {
-        background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important;
-        color: white;
+    /* Custom selected card layout (standardized) */
+    .search-selected-card {
+        background-color: #f0fdf4 !important; /* bg-green-50 */
+        border: 1px solid #bbf7d0 !important; /* border-green-200 */
+        border-radius: 0.75rem !important; /* rounded-xl */
+        padding: 0.75rem !important; /* p-3 */
+        display: flex !important; /* flex */
+        align-items: center !important; /* items-center */
+        justify-content: space-between; /* justify-between */
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; /* shadow-sm */
+        margin-top: 0.5rem !important; /* mt-2 */
+    }
+    
+    .search-selected-card-info {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+    }
+    
+    .search-selected-card-title {
+        font-weight: 700 !important;
+        color: #1f2937 !important; /* text-gray-800 */
+        font-size: 0.875rem !important; /* text-sm */
+        margin: 0 !important;
+    }
+    
+    .search-selected-card-subtitle {
+        font-size: 0.75rem !important; /* text-xs */
+        color: #6b7280 !important; /* text-gray-500 */
+        margin-top: 0.25rem !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.375rem !important;
+        align-items: center !important;
+    }
+    
+    .search-selected-card-remove {
+        color: #ef4444 !important; /* text-red-500 */
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        padding: 0.25rem !important;
+        font-size: 1rem !important;
+        line-height: 1 !important;
+        transition: color 0.2s !important;
+    }
+    
+    .search-selected-card-remove:hover {
+        color: #b91c1c !important; /* text-red-700 */
     }
 
-    .badge-tiktok {
-        background: #000 !important;
-        color: white;
+    /* Custom badge styles */
+    .custom-badge {
+        display: inline-flex !important;
+        align-items: center !important;
+        padding: 0.125rem 0.375rem !important;
+        font-size: 0.6875rem !important;
+        font-weight: 700 !important;
+        border-radius: 0.25rem !important;
+        line-height: 1 !important;
+        color: #ffffff !important;
+        margin-left: 0.25rem !important;
+    }
+    
+    .custom-badge-instagram {
+        background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important;
+    }
+    
+    .custom-badge-tiktok {
+        background: #000000 !important;
+    }
+    
+    .custom-badge-whatsapp {
+        background: #25d366 !important;
+    }
+    
+    .custom-badge-secondary {
+        background: #6b7280 !important;
     }
 </style>
 
@@ -171,22 +241,25 @@ if (typeof window.initUserSearch === 'undefined') {
                             
                             const instagram = getInstagram(user);
                             const tiktok = getTikTok(user);
+                            const whatsapp = getWhatsApp(user);
                             
                             let badges = '';
                             if (instagram) {
-                                badges += `<span class="badge badge-instagram ms-1">@${instagram}</span>`;
+                                badges += `<span class="custom-badge custom-badge-instagram">@${instagram}</span>`;
                             }
                             if (tiktok) {
-                                badges += `<span class="badge badge-tiktok ms-1">@${tiktok}</span>`;
+                                badges += `<span class="custom-badge custom-badge-tiktok">@${tiktok}</span>`;
+                            }
+                            if (whatsapp) {
+                                badges += `<span class="custom-badge custom-badge-whatsapp"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
                             }
                             if (user.apelido) {
-                                badges += `<span class="badge bg-secondary ms-1">${user.apelido}</span>`;
+                                badges += `<span class="custom-badge custom-badge-secondary">${user.apelido}</span>`;
                             }
                             
-                           
                             div.innerHTML = `
                                 <div class="fw-bold">${user.name}</div>
-                                <div>${badges}</div>
+                                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">${badges}</div>
                             `;
                             
                             div.onclick = () => selectUser(user);
@@ -216,31 +289,38 @@ if (typeof window.initUserSearch === 'undefined') {
             
             const instagram = getInstagram(user);
             const tiktok = getTikTok(user);
+            const whatsapp = getWhatsApp(user);
             
             let badges = '';
             if (instagram) {
-                badges += `<span class="badge badge-instagram ms-1">@${instagram}</span>`;
+                badges += `<span class="custom-badge custom-badge-instagram">@${instagram}</span>`;
             }
             if (tiktok) {
-                badges += `<span class="badge badge-tiktok ms-1">@${tiktok}</span>`;
+                badges += `<span class="custom-badge custom-badge-tiktok">@${tiktok}</span>`;
+            }
+            if (whatsapp) {
+                badges += `<span class="custom-badge custom-badge-whatsapp"><i class="fab fa-whatsapp me-1"></i>${whatsapp}</span>`;
             }
             if (user.apelido) {
-                badges += `<span class="badge bg-secondary ms-1">${user.apelido}</span>`;
+                badges += `<span class="custom-badge custom-badge-secondary">${user.apelido}</span>`;
             }
             
             display.innerHTML = `
-                <div class="card border-success mt-2">
-                    <div class="card-body p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-bold">${user.name}</div>
-                                <div>${badges}</div>
+                <div class="search-selected-card">
+                    <div class="search-selected-card-info">
+                        <div class="rounded-circle text-white flex items-center justify-center font-bold" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; background-color: #10b981; border-radius: 50%;">
+                            ${user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h4 class="search-selected-card-title">${user.name}</h4>
+                            <div class="search-selected-card-subtitle">
+                                ${badges || '<span class="text-muted" style="font-size:0.75rem;">Sem redes sociais</span>'}
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-times"></i>
-                            </button>
                         </div>
                     </div>
+                    <button type="button" class="search-selected-card-remove" title="Remover cliente">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             `;
             
