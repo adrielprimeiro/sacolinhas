@@ -125,9 +125,9 @@
                     </div>
                     
                     {{-- Itens Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*') ? 'true' : 'false' }} }">
+                    <div x-data="{ open: {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*', 'admin.avaliacoes.*') ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*') ? 'bg-gray-100 font-semibold' : '' }}">
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*', 'admin.marcas.*', 'admin.avaliacoes.*') ? 'bg-gray-100 font-semibold' : '' }}">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-box text-gray-500 w-5"></i>
                                 <span>Itens</span>
@@ -140,6 +140,12 @@
                             </a>
                             <a href="{{ route('admin.categorias.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.categorias.*') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-tags mr-1"></i> Categorias
+                            </a>
+                            <a href="{{ route('admin.marcas.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.marcas.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-copyright mr-1"></i> Marcas
+                            </a>
+                            <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.avaliacoes.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-hand-holding-usd mr-1"></i> Avaliação Desapegos
                             </a>
                             <a href="{{ route('inventario') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-clipboard-list mr-1"></i> Inventário

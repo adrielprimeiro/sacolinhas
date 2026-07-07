@@ -1,0 +1,14 @@
+{
+  "name": "sacolinhas-insta-service",
+  "version": "1.0.0",
+  "description": "Serviço Headless de captura do Instagram Live para o Sacolinhas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "puppeteer": "^22.0.0"
+  }
+}

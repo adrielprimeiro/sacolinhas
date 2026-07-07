@@ -269,6 +269,32 @@ Route::middleware('auth')->group(function () {
         ]);
 
 
+        // ===== ADMIN AVALIAÇÕES (ENTRADA DE MERCADORIA) =====
+        Route::resource('avaliacoes', \App\Http\Controllers\Admin\AvaliacaoController::class)->parameters([
+            'avaliacoes' => 'avaliacao'
+        ])->names([
+            'index' => 'admin.avaliacoes.index',
+            'create' => 'admin.avaliacoes.create',
+            'store' => 'admin.avaliacoes.store',
+            'show' => 'admin.avaliacoes.show',
+            'edit' => 'admin.avaliacoes.edit',
+            'update' => 'admin.avaliacoes.update',
+            'destroy' => 'admin.avaliacoes.destroy',
+        ]);
+        Route::post('avaliacoes/{avaliacao}/finalizar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'finalize'])->name('admin.avaliacoes.finalize');
+        Route::post('avaliacoes/{avaliacao}/cancelar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'cancel'])->name('admin.avaliacoes.cancel');
+        Route::resource('marcas', \App\Http\Controllers\Admin\MarcaController::class)->names([
+            'index' => 'admin.marcas.index',
+            'create' => 'admin.marcas.create',
+            'store' => 'admin.marcas.store',
+            'show' => 'admin.marcas.show',
+            'edit' => 'admin.marcas.edit',
+            'update' => 'admin.marcas.update',
+            'destroy' => 'admin.marcas.destroy',
+        ]);
+
+
+
         // ===== ADMIN CLIENTES =====
         Route::resource('clientes', ClienteController::class)->names([
             'index' => 'admin.clientes.index',

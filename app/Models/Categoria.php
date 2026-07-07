@@ -19,7 +19,8 @@ class Categoria extends Model
         'altura',
         'largura',
         'comprimento',
-        'peso'
+        'peso',
+        'preco_base'
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class Categoria extends Model
         'largura' => 'decimal:2',
         'comprimento' => 'decimal:2',
         'peso' => 'decimal:3',
+        'preco_base' => 'decimal:2',
     ];
 
     protected static function boot()

@@ -80,9 +80,6 @@
                     <h2 class="font-bold text-lg">Chat da Transmissão</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button type="button" onclick="toggleMasterPause()" id="btn-master-pause" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
-                        <i class="fas fa-pause text-[10px]"></i> Pausar Captura
-                    </button>
                     <div class="flex items-center gap-1.5">
                         <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping" id="chat-ping-dot"></span>
                         <span class="text-xs text-gray-300" id="chat-status-text">Capturando</span>
@@ -256,7 +253,8 @@
     let tiktokConnected = false;
     async function checkTikTokBackendStatus() {
         try {
-            const res = await fetch("http://localhost:3001/status");
+            const host = window.location.hostname || "localhost";
+            const res = await fetch(`http://${host}:3001/status`);
             const data = await res.json();
             const badge = document.getElementById("tiktok-backend-badge");
             const dot = document.getElementById("tiktok-status-dot");
@@ -311,18 +309,23 @@
         if (!input) return;
         const username = input.value.trim();
 
+        const host = window.location.hostname || "localhost";
         if (tiktokConnected) {
-            await fetch("http://localhost:3001/disconnect", { method: "POST" }).catch(() => {});
+            await fetch(`http://${host}:3001/disconnect`, { method: "POST" }).catch(() => {});
         } else {
             if (!username) {
                 alert("Digite o usuário do TikTok!");
                 return;
             }
-            await fetch("http://localhost:3001/connect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: username })
-            }).catch(() => {});
+            try {
+                await fetch(`http://${host}:3001/connect`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: username })
+                });
+            } catch (err) {
+                alert("O serviço de captura do TikTok (Porta 3001) está offline ou não foi iniciado.");
+            }
         }
         checkTikTokBackendStatus();
     }
@@ -386,7 +389,28 @@
         }
 
         if (action === "start") {
-            openInstagramLive();
+            const input = document.getElementById("insta-username-input");
+            let username = input ? input.value.trim() : "de_minha_mania";
+            username = username.replace(/^@/, '');
+            if (!username) username = "de_minha_mania";
+
+            const host = window.location.hostname || "localhost";
+            fetch(`http://${host}:3002/connect`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: username })
+            }).then(res => {
+                if (!res.ok) throw new Error("Offline");
+                return res.json();
+            }).then(data => {
+                console.log("[Insta Headless] Conectado no servidor:", data.message);
+            }).catch(err => {
+                // Se a porta 3002 não estiver rodando, abre a aba para a extensão do Chrome
+                openInstagramLive();
+            });
+        } else {
+            const host = window.location.hostname || "localhost";
+            fetch(`http://${host}:3002/disconnect`, { method: "POST" }).catch(() => {});
         }
     }
 
@@ -441,7 +465,7 @@
             const data = await res.json();
             if (data.success) updatePauseState(data.is_paused);
         } catch (e) {
-            console.error("Erro ao alternar pausa:", e);
+            console.error("Erro ao alternar pausa");
         }
     }
 
@@ -449,16 +473,21 @@
         const btn = document.getElementById("btn-master-pause");
         const dot = document.getElementById("chat-ping-dot");
         const text = document.getElementById("chat-status-text");
-        if (!btn) return;
+
+        if (btn) {
+            if (isPaused) {
+                btn.className = "bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+                btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Retomar Captura`;
+            } else {
+                btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
+                btn.innerHTML = `<i class="fas fa-pause text-[10px]"></i> Pausar Captura`;
+            }
+        }
 
         if (isPaused) {
-            btn.className = "bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-            btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Retomar Captura`;
             if (dot) dot.className = "inline-block w-2.5 h-2.5 bg-yellow-500 rounded-full";
             if (text) text.textContent = "Pausado no Sistema";
         } else {
-            btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-            btn.innerHTML = `<i class="fas fa-pause text-[10px]"></i> Pausar Captura`;
             if (dot) dot.className = "inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping";
             if (text) text.textContent = "Capturando";
         }
@@ -512,15 +541,12 @@
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500 text-xs"></i>' : '<i class="fab fa-instagram text-purple-500 text-xs"></i>';
             const initials = u.username.slice(0,2).toUpperCase();
             
-            let badge = '';
+            let subtitle = '';
             if (u.user_id) {
-                badge = `<span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                            <i class="fas fa-check text-[8px]"></i> ${escapeHtml(u.user_name)}
-                         </span>`;
+                const clientName = escapeHtml(u.user_name || u.user_apelido || '');
+                subtitle = clientName ? `<span class="text-[8.5px] font-normal text-green-700 flex items-center gap-1 mt-0.5"><i class="fas fa-user text-[7.5px]"></i> ${clientName}</span>` : '';
             } else {
-                badge = `<button onclick="openLinkModal('${escapeHtml(u.username)}', '${u.plataforma}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-300 transition duration-150">
-                            <i class="fas fa-link text-[8px]"></i> Vincular
-                         </button>`;
+                subtitle = `<span class="text-[9.5px] text-gray-400">Visto às ${u.last_seen}</span>`;
             }
 
             html += `
@@ -533,11 +559,8 @@
                             <div class="flex items-center gap-1 text-xs font-semibold text-gray-800">
                                 ${icon} @${escapeHtml(u.username)}
                             </div>
-                            <span class="text-[10px] text-gray-400">Visto às ${u.last_seen}</span>
+                            ${subtitle}
                         </div>
-                    </div>
-                    <div>
-                        ${badge}
                     </div>
                 </div>
             `;
@@ -572,8 +595,8 @@
 
                 if (qItem.user_id) {
                     userBlock = `
-                        <span class="text-xs font-bold text-green-700 flex items-center gap-1">
-                            <i class="fas fa-user-circle"></i> ${escapeHtml(qItem.user_name)} (@${qItem.username})
+                        <span class="text-xs font-bold text-green-700 flex items-center gap-1.5">
+                            <i class="fas fa-user-circle"></i> @${qItem.username} <span class="text-[9.5px] font-normal text-green-600">(${escapeHtml(qItem.user_name)})</span>
                         </span>
                     `;
                     actionBtn = `
@@ -584,7 +607,7 @@
                 } else {
                     userBlock = `
                         <span class="text-xs font-bold text-amber-700 flex items-center gap-1">
-                            <i class="fas fa-question-circle"></i> @${qItem.username} (Não vinculado)
+                            <i class="fas fa-question-circle"></i> @${qItem.username} (Sem cadastro)
                         </span>
                     `;
                     actionBtn = `

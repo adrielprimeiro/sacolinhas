@@ -1,0 +1,14 @@
+{
+  "name": "sacolinhas-tiktok-service",
+  "version": "1.0.0",
+  "description": "Serviço de captura em segundo plano do TikTok Live sem login para o Sacolinhas Laravel",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "tiktok-live-connector": "^2.4.0"
+  }
+}

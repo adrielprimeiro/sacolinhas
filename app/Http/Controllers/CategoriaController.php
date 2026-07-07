@@ -56,7 +56,7 @@ class CategoriaController extends Controller
 
     public function create()
     {
-        $parentCategorias = Categoria::all();
+        $parentCategorias = $this->getTreeCategoriesList();
         return view('admin.categorias.form', compact('parentCategorias'));
     }
 
@@ -98,6 +98,7 @@ class CategoriaController extends Controller
             'largura'        => 'nullable|numeric|min:0',
             'comprimento'    => 'nullable|numeric|min:0',
             'peso'           => 'nullable|numeric|min:0',
+            'preco_base'     => 'nullable|numeric|min:0',
         ]);
 
         $validated['slug'] = $this->gerarSlug($validated['name'], $validated['parent_id'] ?? null);
@@ -109,7 +110,7 @@ class CategoriaController extends Controller
 
     public function edit(Categoria $categoria)
     {
-        $parentCategorias = Categoria::where('id', '!=', $categoria->id)->get();
+        $parentCategorias = $this->getTreeCategoriesList($categoria->id);
         return view('admin.categorias.form', compact('categoria', 'parentCategorias'));
     }
 
@@ -124,6 +125,7 @@ class CategoriaController extends Controller
             'largura'        => 'nullable|numeric|min:0',
             'comprimento'    => 'nullable|numeric|min:0',
             'peso'           => 'nullable|numeric|min:0',
+            'preco_base'     => 'nullable|numeric|min:0',
         ]);
 
         $validated['slug'] = $this->gerarSlug($validated['name'], $validated['parent_id'] ?? null, $categoria->id);
@@ -137,5 +139,40 @@ class CategoriaController extends Controller
     {
         $categoria->delete();
         return redirect()->route('admin.categorias.index')->with('success', 'Categoria removida com sucesso!');
+    }
+
+    /**
+     * Retorna a lista de categorias ordenada de forma hierárquica.
+     */
+    private function getTreeCategoriesList(?int $exceptId = null)
+    {
+        $categorias = [];
+        $buildTreeList = function($cats, $level = 0, $path = '') use (&$buildTreeList, &$categorias, $exceptId) {
+            foreach ($cats as $cat) {
+                if ($exceptId !== null && $cat->id == $exceptId) {
+                    continue;
+                }
+
+                $indent = str_repeat("\u{00A0}\u{00A0}\u{00A0}\u{00A0}", $level);
+                $prefix = $level > 0 ? '↳ ' : '';
+                $currentPath = $path ? $path . ' › ' . $cat->name : $cat->name;
+                
+                $categorias[] = [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'formatted_name' => $indent . $prefix . $cat->name,
+                    'path' => $currentPath,
+                ];
+                
+                if ($cat->children->isNotEmpty()) {
+                    $buildTreeList($cat->children, $level + 1, $currentPath);
+                }
+            }
+        };
+
+        $rootCats = Categoria::whereNull('parent_id')->with('children')->orderBy('name')->get();
+        $buildTreeList($rootCats);
+
+        return $categorias;
     }
 }

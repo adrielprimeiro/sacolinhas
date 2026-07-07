@@ -63,3 +63,8 @@ docker/nginx/certs/
 # Local certificates and scratch scripts
 /Inter/
 /scratch/
+node_modules/
+insta_session/
+social_stream_temp*
+*.zip
+

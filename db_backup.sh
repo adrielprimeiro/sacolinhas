@@ -10,7 +10,7 @@ BACKUP_DIR="/var/backups/mysql"
 
 # --- Função para ler .env (Limpa e Segura) ---
 get_env() {
-    grep "^$1=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r'
+    grep "^$1=" "$ENV_FILE" | tail -n 1 | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r'
 }
 
 # --- Validações Iniciais ---
@@ -39,10 +39,10 @@ echo "Iniciando backup de $DB_DATABASE..."
 
 if [ -n "$CONTAINER_NAME" ]; then
     # MODO DOCKER
-    docker exec "$CONTAINER_NAME" /usr/bin/mysqldump --no-tablespaces -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" | gzip > "$BACKUP_DIR/$FILENAME"
+    docker exec "$CONTAINER_NAME" /usr/bin/mysqldump -h 127.0.0.1 --no-tablespaces -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" | gzip > "$BACKUP_DIR/$FILENAME"
 else
     # MODO NATIVO (Sem Docker)
-    /usr/bin/mysqldump --no-tablespaces -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" | gzip > "$BACKUP_DIR/$FILENAME"
+    /usr/bin/mysqldump -h 127.0.0.1 --no-tablespaces -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" | gzip > "$BACKUP_DIR/$FILENAME"
 fi
 
 # --- Verificação ---

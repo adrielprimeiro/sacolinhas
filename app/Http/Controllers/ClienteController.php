@@ -381,9 +381,19 @@ class ClienteController extends Controller
                                 'cpf'
                              ]);
 
+            $clientesData = $clientes->map(function ($c) {
+                $hasAssinatura = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                                   ->where('user_id', $c->id)
+                                   ->where('status', 'ativa')
+                                   ->exists();
+                
+                $c->tipo_cliente = $hasAssinatura ? 'clube' : 'fora_clube';
+                return $c;
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $clientes,
+                'data' => $clientesData,
                 'search_term' => $query
             ]);
 
