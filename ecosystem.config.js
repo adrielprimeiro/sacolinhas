@@ -7,7 +7,8 @@ module.exports = {
       max_memory_restart: '300M',
       env: {
         NODE_ENV: "production",
-        PORT: 3001
+        PORT: 3001,
+        LARAVEL_URL: "http://127.0.0.1/api/live-chat/message-batch"
       }
     },
     {
@@ -17,7 +18,8 @@ module.exports = {
       max_memory_restart: '800M',
       env: {
         NODE_ENV: "production",
-        PORT: 3002
+        PORT: 3002,
+        LARAVEL_URL: "http://127.0.0.1/api/live-chat/message-batch"
       }
     }
   ]

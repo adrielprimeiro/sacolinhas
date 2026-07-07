@@ -16,7 +16,7 @@ app.use((req, res, next) => {
 });
 
 const PORT = 3002;
-const LARAVEL_WEBHOOK_URL = 'http://127.0.0.1:8000/api/live-chat/message-batch';
+const LARAVEL_WEBHOOK_URL = process.env.LARAVEL_URL || 'http://127.0.0.1:8000/api/live-chat/message-batch';
 
 let browserInstance = null;
 let pageInstance = null;
