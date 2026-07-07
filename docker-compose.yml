@@ -66,6 +66,8 @@ services:
       - ./docker/letsencrypt-log:/var/log/letsencrypt
     depends_on:
       - app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - sacolinhas-network
 

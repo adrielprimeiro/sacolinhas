@@ -250,11 +250,19 @@
         setInterval(checkTikTokBackendStatus, 2500);
     });
 
+    function getBackendUrl(port, path) {
+        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        if (isLocal) {
+            return `http://localhost:${port}${path}`;
+        }
+        const prefix = port === 3001 ? "/tiktok-api" : "/insta-api";
+        return `${prefix}${path}`;
+    }
+
     let tiktokConnected = false;
     async function checkTikTokBackendStatus() {
         try {
-            const host = window.location.hostname || "localhost";
-            const res = await fetch(`http://${host}:3001/status`);
+            const res = await fetch(getBackendUrl(3001, "/status"));
             const data = await res.json();
             const badge = document.getElementById("tiktok-backend-badge");
             const dot = document.getElementById("tiktok-status-dot");
@@ -309,16 +317,15 @@
         if (!input) return;
         const username = input.value.trim();
 
-        const host = window.location.hostname || "localhost";
         if (tiktokConnected) {
-            await fetch(`http://${host}:3001/disconnect`, { method: "POST" }).catch(() => {});
+            await fetch(getBackendUrl(3001, "/disconnect"), { method: "POST" }).catch(() => {});
         } else {
             if (!username) {
                 alert("Digite o usuário do TikTok!");
                 return;
             }
             try {
-                await fetch(`http://${host}:3001/connect`, {
+                await fetch(getBackendUrl(3001, "/connect"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username: username })
@@ -394,8 +401,7 @@
             username = username.replace(/^@/, '');
             if (!username) username = "de_minha_mania";
 
-            const host = window.location.hostname || "localhost";
-            fetch(`http://${host}:3002/connect`, {
+            fetch(getBackendUrl(3002, "/connect"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username: username })
@@ -409,8 +415,7 @@
                 openInstagramLive();
             });
         } else {
-            const host = window.location.hostname || "localhost";
-            fetch(`http://${host}:3002/disconnect`, { method: "POST" }).catch(() => {});
+            fetch(getBackendUrl(3002, "/disconnect"), { method: "POST" }).catch(() => {});
         }
     }
 
