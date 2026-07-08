@@ -732,4 +732,14 @@ class CheckoutController extends Controller
             'redirect' => $redirectUrl
         ]);
     }
+
+    /**
+     * Acesso automático e seguro ao portal do cliente via URL assinada.
+     */
+    public function autologin(\App\Models\User $user)
+    {
+        \Illuminate\Support\Facades\Auth::login($user);
+
+        return redirect()->route('portal.welcome');
+    }
 }

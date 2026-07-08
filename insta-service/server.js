@@ -188,6 +188,6 @@ app.get('/status', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`⚡ [Instagram Headless Service] Rodando na porta ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`⚡ [Instagram Headless Service] Rodando na porta ${PORT} em 0.0.0.0`);
 });

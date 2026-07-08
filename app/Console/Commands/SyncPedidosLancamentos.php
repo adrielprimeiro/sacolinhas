@@ -19,12 +19,16 @@ class SyncPedidosLancamentos extends Command
         $newCount = 0;
         $updatedCount = 0;
 
-        $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
+        $this->info("Sincronizando lançamentos de pedidos...");
+        $classificacaoLive = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
             ->orWhere('nome', 'Venda Live')
             ->first();
-        $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
+        $classificacaoLiveId = $classificacaoLive ? $classificacaoLive->id : 15;
 
-        $this->info("Usando classificação ID {$classificacaoId} ('" . ($classificacao ? $classificacao->nome : 'Venda Live') . "') para os pedidos.");
+        $classificacaoSite = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda no Site')
+            ->orWhere('nome', 'Venda Site')
+            ->first();
+        $classificacaoSiteId = $classificacaoSite ? $classificacaoSite->id : 17;
 
         foreach ($pedidos as $pedido) {
             if ($pedido->valor_total <= 0) continue;
@@ -53,12 +57,14 @@ class SyncPedidosLancamentos extends Command
                 ->first();
 
             if ($valorBruto > 0) {
+                $pedidoClassId = in_array($pedido->origem_pedido, ['portal', 'site']) ? $classificacaoSiteId : $classificacaoLiveId;
+
                 $dadosLancamento = [
                     'tipo'                        => 'receita',
                     'status'                      => $pedido->status_pagamento === 'aprovado' ? 'pago' : 'pendente',
                     'description'                 => "Pedido " . $pedido->numero_pedido,
                     'pessoa_id'                   => $pessoa->id,
-                    'classificacao_financeira_id' => $classificacaoId,
+                    'classificacao_financeira_id' => $pedidoClassId,
                     'data_emissao'                => $pedido->data_pedido ?? $pedido->created_at,
                     'data_vencimento'             => $pedido->data_pedido ?? $pedido->created_at,
                     'valor_total'                 => $valorBruto,
@@ -128,7 +134,7 @@ class SyncPedidosLancamentos extends Command
                             'user_id' => $pessoa->user_id,
                             'valor' => $valorNetDebito,
                             'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
-                            'classificacao_id' => $classificacaoId,
+                            'classificacao_id' => $pedidoClassId,
                             'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                         ]
                     );
@@ -151,7 +157,7 @@ class SyncPedidosLancamentos extends Command
                                 'tipo_movimentacao' => $tipoMovSaldo,
                                 'valor' => $valorMovSaldo,
                                 'descricao' => $descMovSaldo,
-                                'classificacao_id' => $classificacaoId,
+                                'classificacao_id' => $pedidoClassId,
                                 'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
                             ]
                         );

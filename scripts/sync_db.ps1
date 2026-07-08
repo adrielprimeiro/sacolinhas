@@ -20,15 +20,40 @@ Write-Host "====================================================================
 Write-Host "`n1. Limpando cache SSH antigo para o IP $VPS_IP..." -ForegroundColor Yellow
 ssh-keygen -R $VPS_IP 2>$null
 
-# 2. Executar mysqldump no servidor remoto via SSH e salvar direto na máquina local
-Write-Host "`n2. Executando dump remoto via SSH e salvando localmente..." -ForegroundColor Yellow
+# 2. Criar dump compactado no servidor e transferir
+Write-Host "`n2. Criando dump compactado no servidor e baixando via SCP..." -ForegroundColor Yellow
 Write-Host "Se solicitado, digite a senha do servidor VPS (Gr@nesigo#184)." -ForegroundColor Gray
-cmd /c "ssh $VPS_USER@$VPS_IP `"docker exec mysql-db mysqldump --no-tablespaces -u $DB_USER -p'$DB_PASS' $DB_NAME`" > $BACKUP_FILE"
+
+# Executar mysqldump e criar o tar.gz no servidor
+cmd /c "ssh $VPS_USER@$VPS_IP `"docker exec mysql-db mysqldump --no-tablespaces -u $DB_USER -p'$DB_PASS' $DB_NAME > /tmp/backup_sync.sql && tar -czf /tmp/backup_sync.tar.gz -C /tmp backup_sync.sql && rm -f /tmp/backup_sync.sql`""
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Erro ao realizar o dump do banco de dados remoto via SSH!"
+    Write-Error "Erro ao gerar o dump compactado no servidor remoto!"
     exit 1
 }
+
+# Baixar o arquivo tar.gz
+cmd /c "scp ${VPS_USER}@${VPS_IP}:/tmp/backup_sync.tar.gz ./backup_sync.tar.gz"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Erro ao baixar o dump do banco de dados via SCP!"
+    exit 1
+}
+
+# Remover o arquivo temporário do servidor
+cmd /c "ssh $VPS_USER@$VPS_IP `"rm -f /tmp/backup_sync.tar.gz`""
+
+# Extrair localmente
+Write-Host "Extraindo o backup localmente..." -ForegroundColor Yellow
+cmd /c "tar -xzf ./backup_sync.tar.gz"
+if (Test-Path ./backup_sync.sql) {
+    if (Test-Path $BACKUP_FILE) { Remove-Item $BACKUP_FILE }
+    Rename-Item ./backup_sync.sql $BACKUP_FILE
+    Remove-Item ./backup_sync.tar.gz
+} else {
+    Write-Error "Erro ao extrair o backup localmente!"
+    exit 1
+}
+
 Write-Host "✅ Backup salvo localmente como: $BACKUP_FILE" -ForegroundColor Green
 
 # 3. Baixar regras_pontuacao.sql via SCP

@@ -42,6 +42,7 @@ return [
 		'webhook_token'  => env('TWILIO_WEBHOOK_TOKEN'),
 		'order_template' => env('TWILIO_WHATSAPP_ORDER_TEMPLATE_SID'),
 		'initial_template' => env('TWILIO_WHATSAPP_TEMPLATE_INICIAL_SID'),
+		'portal_template' => env('TWILIO_WHATSAPP_PORTAL_TEMPLATE_SID', 'HX683ab296fb0256860ac186db30c9462c'),
 	],	
 	
 	'gemini' => [

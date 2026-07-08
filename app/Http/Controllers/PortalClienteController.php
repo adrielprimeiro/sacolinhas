@@ -501,4 +501,192 @@ class PortalClienteController extends Controller
 
         return $tempPath;
     }
+
+    /**
+     * Tela inteligente de boas-vindas e checkout personalizado.
+     */
+    public function welcomeLanding()
+    {
+        $user = auth()->user();
+
+        // 0. Se o cliente tiver algum pedido PENDENTE de pagamento, redireciona diretamente para a tela de checkout desse pedido
+        $pendingPedido = \App\Models\Pedido::where('user_id', $user->id)
+            ->where('status_pagamento', 'pendente')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($pendingPedido) {
+            return redirect()->route('portal.checkout.show', $pendingPedido->id);
+        }
+
+        // 1. É do clube?
+        $isClube = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+            ->where('user_id', $user->id)
+            ->where('status', 'ativa')
+            ->exists();
+
+        // 2. É a primeira compra? (Só consideramos compras anteriores se o pagamento foi APROVADO)
+        $hasPreviousOrders = \App\Models\Pedido::where('user_id', $user->id)
+            ->where('status_pagamento', 'aprovado')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->exists();
+        $isFirstPurchase = !$hasPreviousOrders;
+
+        // 3. Obter itens da sacolinha atual
+        $sacolinhaItens = \Illuminate\Support\Facades\DB::table('sacolinhas')
+            ->join('items', 'sacolinhas.item_id', '=', 'items.id')
+            ->where('sacolinhas.user_id', $user->id)
+            ->where('sacolinhas.status', '!=', 'pedido')
+            ->select(
+                'sacolinhas.id as sacolinha_id',
+                'sacolinhas.item_id',
+                'sacolinhas.live_id',
+                'sacolinhas.price',
+                'sacolinhas.quantity',
+                'sacolinhas.add_at',
+                'items.nome_do_produto as item_name',
+                'items.codigo as item_sku',
+                'items.marca as item_brand',
+                'items.cor as item_color',
+                'items.tamanho as item_size'
+            )
+            ->get();
+
+        $hasSacolinha = $sacolinhaItens->isNotEmpty();
+
+        // 4. Buscar saldo na carteira
+        $saldoCliente = 0;
+        try {
+            $ultima = \App\Models\ContaCorrente::where('user_id', $user->id)
+                ->orderByDesc('data_movimentacao')
+                ->orderByDesc('id')
+                ->first();
+            $saldoCliente = (float) ($ultima?->saldo_atual ?? 0);
+        } catch (\Exception $e) {
+            $saldoCliente = 0;
+        }
+
+        // 5. Verificar pendência financeira / limite de crédito (para não membros do clube)
+        $hasUnpaidItems = false;
+        if (!$isClube && $hasSacolinha) {
+            $totalSacolinha = $sacolinhaItens->sum(function($item) {
+                return $item->quantity * $item->price;
+            });
+            // Se o valor total dos itens na sacolinha for maior que o saldo pago na carteira, tem itens não pagos
+            $hasUnpaidItems = $totalSacolinha > $saldoCliente;
+        }
+
+        // 6. Verificar expiração da sacolinha (>30 dias)
+        $isExpired = false;
+        $oldestItemDateFmt = null;
+        if ($hasSacolinha) {
+            $oldestItemDate = \Illuminate\Support\Facades\DB::table('sacolinhas')
+                ->where('user_id', $user->id)
+                ->where('status', '!=', 'pedido')
+                ->min('add_at');
+            if ($oldestItemDate) {
+                $isExpired = \Carbon\Carbon::parse($oldestItemDate)->diffInDays(now()) > 30;
+                $oldestItemDateFmt = \Carbon\Carbon::parse($oldestItemDate)->format('d/m/Y');
+            }
+        }
+
+        // 7. Informações do clube (Pontos no jogo, etc.)
+        $mesAtual = date('m/Y');
+        $pontosClube = (int) (\Illuminate\Support\Facades\DB::table('pontuacoes_clientes')
+            ->where('user_id', $user->id)
+            ->where('mes_ano', $mesAtual)
+            ->value('total') ?? 0);
+
+        // 8. Definir o fluxo correto
+        $flow = 'regular';
+        if ($isClube) {
+            $flow = 'clube';
+        } elseif ($isFirstPurchase) {
+            $flow = 'first_purchase';
+        } elseif ($isExpired || $hasUnpaidItems) {
+            $flow = 'pendencies';
+        } elseif (!$hasSacolinha) {
+            $flow = 'no_bag';
+        } else {
+            $flow = 'regular';
+        }
+
+        // Permite sobrescrever o fluxo via parâmetro de URL (ex: ?flow=first_purchase) para testes
+        if (request()->has('flow')) {
+            $requestedFlow = request()->query('flow');
+            if (in_array($requestedFlow, ['clube', 'first_purchase', 'pendencies', 'regular', 'no_bag'])) {
+                $flow = $requestedFlow;
+            }
+        }
+
+        // Buscar dados da última live
+        $ultimaLive = \Illuminate\Support\Facades\DB::table('lives')->orderByDesc('id')->first();
+        
+        // Obter os itens da sacolinha relativos à última live (o pedido atual da live)
+        $itensLiveAtual = collect();
+        if ($ultimaLive) {
+            $itensLiveAtual = $sacolinhaItens->where('live_id', $ultimaLive->id);
+        }
+
+        return view('portal.cliente.welcome', compact(
+            'user',
+            'isClube',
+            'isFirstPurchase',
+            'hasSacolinha',
+            'sacolinhaItens',
+            'itensLiveAtual',
+            'saldoCliente',
+            'hasUnpaidItems',
+            'isExpired',
+            'oldestItemDateFmt',
+            'pontosClube',
+            'flow',
+            'ultimaLive'
+        ));
+    }
+
+    /**
+     * Limpa itens antigos da sacolinha (desfazer sacolinha).
+     */
+    public function desfazerSacolinha()
+    {
+        $user = auth()->user();
+        
+        $ultimaLive = \Illuminate\Support\Facades\DB::table('lives')->orderByDesc('id')->first();
+        
+        if ($ultimaLive) {
+            // Apaga itens que não pertencem à última live e que estão na sacolinha
+            \Illuminate\Support\Facades\DB::table('sacolinhas')
+                ->where('user_id', $user->id)
+                ->where('live_id', '!=', $ultimaLive->id)
+                ->where('status', '!=', 'pedido')
+                ->delete();
+        }
+        
+        return redirect()->route('portal.welcome')->with('success', 'Itens antigos da sua sacolinha foram removidos com sucesso.');
+    }
+
+    /**
+     * Exibe o resumo das avaliações do cliente.
+     */
+    public function avaliacoes()
+    {
+        $user = auth()->user();
+
+        // Obter avaliações do cliente com a lista de itens avaliados
+        $avaliacoes = \Illuminate\Support\Facades\DB::table('avaliacoes')
+            ->where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->get()
+            ->map(function($av) {
+                $av->itens = \Illuminate\Support\Facades\DB::table('avaliacao_items')
+                    ->where('avaliacao_id', $av->id)
+                    ->get();
+                $av->qtd_itens = $av->itens->count();
+                return $av;
+            });
+
+        return view('portal.cliente.avaliacoes', compact('user', 'avaliacoes'));
+    }
 }

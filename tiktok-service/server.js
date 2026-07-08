@@ -146,6 +146,6 @@ app.get('/status', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`⚡ [TikTok Backend Service] Rodando na porta ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`⚡ [TikTok Backend Service] Rodando na porta ${PORT} em 0.0.0.0`);
 });

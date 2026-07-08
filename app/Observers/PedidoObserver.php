@@ -50,11 +50,18 @@ class PedidoObserver
                 ]);
             }
 
-            // Buscar a classificação financeira por nome (Venda na Live / Venda Live)
-            $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
-                ->orWhere('nome', 'Venda Live')
-                ->first();
-            $classificacaoId = $classificacao ? $classificacao->id : 2; // Fallback para 2
+            // Buscar a classificação financeira com base na origem do pedido (Portal/Site -> Venda no Site, senão Venda na Live)
+            if (in_array($pedido->origem_pedido, ['portal', 'site'])) {
+                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda no Site')
+                    ->orWhere('nome', 'Venda Site')
+                    ->first();
+                $classificacaoId = $classificacao ? $classificacao->id : 17; // Fallback para Venda no Site
+            } else {
+                $classificacao = \App\Models\ClassificacaoFinanceira::where('nome', 'Venda na Live')
+                    ->orWhere('nome', 'Venda Live')
+                    ->first();
+                $classificacaoId = $classificacao ? $classificacao->id : 15; // Fallback para Venda na Live
+            }
 
             // 2. Criar ou atualizar o lançamento de receita com o valor bruto do pedido
             if ($valorBruto > 0) {

@@ -73,19 +73,57 @@ class SendWhatsAppMessage implements ShouldQueue
         if ($from !== '' && !str_starts_with($from, 'whatsapp:')) {
             $from = 'whatsapp:' . $from;
         }
-        $contentSid = (string) config('services.twilio.initial_template', 'HX378937c73b703db60f41b0acfbd497e3');
-
-        // 3) Variável {{1}} = primeiro nome
+        // 3) Carrega template e variáveis de acordo com o tipo de mensagem
         $nome = (string) (DB::table('users')->where('id', $this->userId)->value('name') ?? '');
         $primeiroNome = trim(explode(' ', trim($nome))[0] ?? '');
         if ($primeiroNome === '') {
             $primeiroNome = 'amiga(o)';
         }
 
-        $contentVars = json_encode(
-            ['1' => $primeiroNome],
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        );
+        if ($this->messageType === 'portal') {
+            $contentSid = (string) config('services.twilio.portal_template', 'HX683ab296fb0256860ac186db30c9462c');
+            
+            // Calcula quantidades e valores para o template
+            $dadosSacola = DB::table('sacolinhas')
+                ->where('user_id', $this->userId)
+                ->where('live_id', $this->liveId)
+                ->where('status', '!=', 'pedido')
+                ->selectRaw('COUNT(*) as num_items, SUM(price) as valor_total')
+                ->first();
+
+            $totalItens = (int) ($dadosSacola?->num_items ?? 0);
+            $valorTotal = number_format((float) ($dadosSacola?->valor_total ?? 0), 2, ',', '.');
+
+            // URL temporária assinada (valida por 30 dias)
+            $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                'portal.autologin', 
+                now()->addDays(30), 
+                ['user' => $this->userId]
+            );
+            
+            // Extrai a parte variável da URL após /portal/autologin
+            $basePath = url('/portal/autologin');
+            $tail = str_replace($basePath, '', $url);
+            $tail = ltrim($tail, '/');
+
+            $vars = [
+                '1' => $primeiroNome,
+                '2' => (string) $totalItens,
+                '3' => $valorTotal,
+                '4' => $tail
+            ];
+
+            $contentVars = json_encode(
+                $vars,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+        } else {
+            $contentSid = (string) config('services.twilio.initial_template', 'HX378937c73b703db60f41b0acfbd497e3');
+            $contentVars = json_encode(
+                ['1' => $primeiroNome],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+        }
 
         // 4) Validações
         if ($accountSid === '' || $authToken === '' || $from === '' || $contentSid === '' || $contentVars === false) {
@@ -122,8 +160,9 @@ class SendWhatsAppMessage implements ShouldQueue
             }
         }
 
-        // 5) URL do webhook de status (USANDO config('app.url') PARA EVITAR LOCALHOST)
+        // 5) URL do webhook de status
         $statusCallback = rtrim((string) config('app.url'), '/') . '/twilio-status';
+        $hasLocalhost = str_contains($statusCallback, 'localhost') || str_contains($statusCallback, '127.0.0.1');
 
         // 6) Monta payload e envia
         $payload = [
@@ -131,8 +170,12 @@ class SendWhatsAppMessage implements ShouldQueue
             'To' => $to,
             'ContentSid' => $contentSid,
             'ContentVariables' => $contentVars,
-            'StatusCallback' => $statusCallback,
         ];
+
+        // Só envia StatusCallback se não for localhost (evita erro HTTP 400 da Twilio)
+        if (!$hasLocalhost) {
+            $payload['StatusCallback'] = $statusCallback;
+        }
 
         Log::info('Twilio Job: payload envio template', [
             'to' => $to,

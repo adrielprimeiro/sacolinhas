@@ -101,6 +101,9 @@ Route::get('/', function () {
 // Rota pública de pagamento direto (sem login via Token)
 Route::get('/checkout/pagamento/{token}', [App\Http\Controllers\Portal\CheckoutController::class, 'pagamentoToken'])->name('portal.checkout.pagamento');
 
+// Rota pública de autologin seguro no portal do cliente (Signed URL)
+Route::get('/portal/autologin/{user}', [App\Http\Controllers\Portal\CheckoutController::class, 'autologin'])->name('portal.autologin')->middleware('signed');
+
 // =====================================================================
 // ===== MÓDULO FINANCEIRO (Regime de Competência + Caixa) =============
 // =====================================================================
@@ -541,6 +544,10 @@ Route::post('/twilio-status', [ChatController::class, 'twilioStatus'])->withoutM
 
 Route::post('/admin/live/{liveId}/send-whatsapp', [LiveWhatsAppController::class, 'send'])
     ->withoutMiddleware([VerifyCsrfToken::class]);
+
+Route::post('/admin/live/{liveId}/send-portal-notifications', [LiveWhatsAppController::class, 'sendPortalNotifications'])
+    ->name('admin.live.send-portal-notifications')
+    ->withoutMiddleware([VerifyCsrfToken::class]);
 //Encerrar live
 Route::delete('lives/{id}', [LiveController::class, 'destroy'])->withoutMiddleware([VerifyCsrfToken::class]);	
 //Msg para cliente individual de uma live
@@ -602,6 +609,9 @@ Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markM
 // ============================================
 Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->group(function () {
     
+    // Boas-vindas inteligente / smart landing page
+    Route::get('/boas-vindas', [PortalClienteController::class, 'welcomeLanding'])->name('welcome');
+
     // Dashboard do cliente
     Route::get('/dashboard', [PortalClienteController::class, 'dashboard'])->name('dashboard');
     
@@ -619,9 +629,13 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
 	Route::get('/movimentacao', [PortalClienteController::class, 'movimentacao'])->name('movimentacao');
 	
     Route::delete('/sacolinha/{id}', [PortalClienteController::class, 'sacolinhaExcluir'])->name('sacolinha.excluir');
+    Route::post('/sacolinha/desfazer', [PortalClienteController::class, 'desfazerSacolinha'])->name('sacolinha.desfazer');
 
     // Desafios do Clube
     Route::get('/desafios', [PortalClienteController::class, 'desafios'])->name('desafios');
+
+    // Minhas Avaliações
+    Route::get('/avaliacoes', [PortalClienteController::class, 'avaliacoes'])->name('avaliacoes');
 
     // Mercado Pago Checkout Transparente
     Route::get('/mercadopago/{pedido}/checkout', [\App\Http\Controllers\MercadoPagoController::class, 'checkout'])->name('mercadopago.checkout');
