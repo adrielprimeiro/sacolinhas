@@ -154,16 +154,50 @@ app.post('/connect', async (req, res) => {
         } else {
             console.log(`[Insta Service] 🌟 Página carregada em: ${currentUrl}`);
             
-            // Se redirecionou para o perfil (/de_minha_mania/), tentar clicar no anel/foto de perfil para abrir a live
+            // 1. Fechar qualquer popup ou modal como "Nova nota", "Notificações", "Salvar login"
+            try {
+                await pageInstance.evaluate(() => {
+                    const closeBtns = document.querySelectorAll('svg[aria-label="Fechar"], svg[aria-label="Close"], div[role="button"][aria-label="Fechar"], div[role="button"][aria-label="Close"]');
+                    closeBtns.forEach(btn => btn.closest('div[role="button"], button')?.click() || btn.click());
+                });
+                await new Promise(r => setTimeout(r, 1500));
+            } catch (e) {}
+
+            // 2. Se redirecionou para o perfil (/de_minha_mania/), clicar especificamente no CANVAS (anel da live/stories) e não na nota
             if (currentUrl.replace(/\/$/, '').endsWith(cleanUser.toLowerCase())) {
-                console.log(`[Insta Service] Redirecionado para o perfil @${cleanUser}. Tentando clicar na foto de perfil (Live Ring)...`);
+                console.log(`[Insta Service] Redirecionado para o perfil @${cleanUser}. Procurando especificamente o anel de Live (canvas ou foto de perfil Principal)...`);
                 try {
-                    await pageInstance.waitForSelector("header img, header canvas, header div[role='button']", { timeout: 5000 });
                     await pageInstance.evaluate(() => {
-                        const headerImg = document.querySelector("header img, header canvas, header div[role='button']");
-                        if (headerImg) headerImg.click();
+                        // Fechar modais de novo por garantia
+                        const closeBtns = document.querySelectorAll('svg[aria-label="Fechar"], svg[aria-label="Close"]');
+                        closeBtns.forEach(btn => btn.closest('div[role="button"], button')?.click());
+
+                        // Procurar o canvas da live/story ou o elemento com foto de perfil e clicar no canvas/anel
+                        const liveRing = document.querySelector('header canvas') || 
+                                         document.querySelector('header img[alt*="Foto do perfil"], header img[alt*="profile picture"]') ||
+                                         document.querySelector('header canvas')?.parentElement ||
+                                         document.querySelector('header img');
+                        if (liveRing) {
+                            liveRing.click();
+                        }
                     });
-                    await new Promise(r => setTimeout(r, 4000));
+                    await new Promise(r => setTimeout(r, 4500));
+                    
+                    // Se abriu modal de escolha entre "Ver Story" vs "Assistir a vídeo ao vivo", clicar em "Assistir a vídeo ao vivo"
+                    await pageInstance.evaluate(() => {
+                        const allDivs = document.querySelectorAll('div[role="button"], div[role="dialog"] div, span, button');
+                        for (const el of allDivs) {
+                            const txt = el.textContent.trim().toLowerCase();
+                            if (txt.includes('assistir') && (txt.includes('ao vivo') || txt.includes('live'))) {
+                                el.click();
+                                break;
+                            } else if (txt === 'assistir a vídeo ao vivo' || txt === 'watch live video') {
+                                el.click();
+                                break;
+                            }
+                        }
+                    });
+                    await new Promise(r => setTimeout(r, 3500));
                     currentUrl = pageInstance.url();
                     console.log(`[Insta Service] URL após clique no anel da Live: ${currentUrl}`);
                 } catch (e) {
