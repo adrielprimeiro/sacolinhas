@@ -1,5 +1,7 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -101,6 +103,36 @@ app.post('/connect', async (req, res) => {
         pageInstance = await browserInstance.newPage();
         await pageInstance.setUserAgent('Mozilla/50.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
+        // Carregar cookies do Instagram se existirem em insta_session/cookies.json
+        const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
+        if (fs.existsSync(cookiesPath)) {
+            try {
+                const cookiesContent = fs.readFileSync(cookiesPath, 'utf8');
+                const cookies = JSON.parse(cookiesContent);
+                if (Array.isArray(cookies) && cookies.length > 0) {
+                    const formattedCookies = cookies.map(c => {
+                        let domain = c.domain || '.instagram.com';
+                        if (!domain.startsWith('.')) domain = '.' + domain.replace(/^www\./, '');
+                        return {
+                            name: c.name,
+                            value: c.value,
+                            domain: domain,
+                            path: c.path || '/',
+                            secure: c.secure !== undefined ? c.secure : true,
+                            httpOnly: c.httpOnly !== undefined ? c.httpOnly : false,
+                            sameSite: (c.sameSite === 'no_restriction' || c.sameSite === 'None' || c.sameSite === 'none') ? 'None' : (c.sameSite === 'Lax' || c.sameSite === 'lax' ? 'Lax' : 'Strict')
+                        };
+                    });
+                    await pageInstance.setCookie(...formattedCookies);
+                    console.log(`[Insta Service] 🍪 ${formattedCookies.length} cookies injetados com sucesso!`);
+                }
+            } catch (err) {
+                console.error('[Insta Service] Erro ao processar insta_session/cookies.json:', err.message);
+            }
+        } else {
+            console.log('[Insta Service] ⚠️ Arquivo insta_session/cookies.json não encontrado.');
+        }
+
         await pageInstance.exposeFunction('onInstagramComment', (data) => {
             if (!data || !data.username || !data.message) return;
             batchQueue.push({
@@ -115,6 +147,13 @@ app.post('/connect', async (req, res) => {
 
         const liveUrl = `https://www.instagram.com/${cleanUser}/live/`;
         await pageInstance.goto(liveUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+        const currentUrl = pageInstance.url();
+        if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
+            console.log(`[Insta Service] ⚠️ ALERTA: O Instagram redirecionou para a tela de login (${currentUrl}). O arquivo de cookies precisa ser atualizado.`);
+        } else {
+            console.log(`[Insta Service] 🌟 Página carregada em: ${currentUrl}`);
+        }
 
         // Injetar observador no DOM para extrair comentários
         await pageInstance.evaluate(() => {
