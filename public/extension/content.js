@@ -1054,7 +1054,151 @@
             console.error("Erro ao enviar mensagem para o Laravel:", e);
             log(`Erro de rede: ${e.message}`, true);
         }
+    }
+
+    function scanAndProcessInstagramComments(targetSection) {
+        const scope = targetSection || document.body;
+
+        // 1. Estratégia de linhas estruturadas (Social Stream Ninja / findLiveRows)
+        findLiveRows(scope).forEach(row => {
+            if (row.dataset.captured === "true") return;
+
+            const parsed = parseLiveRow(row);
+            if (parsed && parsed.chatname && parsed.chatmessage) {
+                const user = parsed.chatname;
+                const text = parsed.chatmessage;
+
+                // Ignorar mensagens de sistema / eventos do Instagram Live
+                const lowerText = text.toLowerCase();
+                if (lowerText === 'entrou' || lowerText === 'joined' || lowerText.includes('acenou') || lowerText.includes('waved') || lowerText.includes('solicitou') || lowerText.includes('participar')) {
+                    row.dataset.captured = "true";
+                    return;
+                }
+
+                if (isValidUsername(user)) {
+                    row.dataset.captured = "true";
+                    sendChatMessage(user, text);
+                }
+            }
+        });
+
+        // 2. Estratégia direta por imagens de perfil e blocos DOM (à prova de falhas do Instagram / Producer)
+        try {
+            const imgs = scope.querySelectorAll("img[alt*='profile'], img[src*='s150x150'], img[src*='instagram'], img[src*='cdninstagram']");
+            imgs.forEach(img => {
+                let row = img.closest("div[class], section, li") || img.parentElement;
+                for (let depth = 0; row && depth < 5; depth++) {
+                    if (row.dataset.captured === "true") break;
+                    const text = (row.textContent || "").trim();
+                    if (text && text.length > 2 && text.length < 300) {
+                        const leaves = row.querySelectorAll("span, div, a");
+                        let username = "";
+                        let message = "";
+                        for (let i = 0; i < leaves.length; i++) {
+                            let t = (leaves[i].textContent || "").trim();
+                            if (!t || t.toLowerCase() === 'responder' || t.toLowerCase() === 'reply' || t.includes("entrou") || t.includes("joined") || t === "...") continue;
+                            if (!username && t.length < 30 && !t.includes(" ")) {
+                                username = t;
+                            } else if (username && t !== username) {
+                                message = t;
+                                break;
+                            }
+                        }
+                        if (username && message && isValidUsername(username)) {
+                            const lowerMsg = message.toLowerCase();
+                            if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
+                                row.dataset.captured = "true";
+                                sendChatMessage(username.replace(/^@/, ''), message);
+                                break;
+                            }
+                        }
+                    }
+                    row = row.parentElement;
+                }
+            });
+        } catch (e) {}
+    }
+
+    function autoDetectContainer() {
+        if (platform === "tiktok") {
+            return document.querySelector(selectors.container);
         }
+
+        // 1. Heurística de botões "Responder" / "Reply" (específica e super estável para Instagram)
+        const replyEls = [];
+        const candidates = document.querySelectorAll('div, span, button, a');
+        for (const el of candidates) {
+            if (el.children.length === 0) { // Apenas nós folhas
+                const txt = el.textContent.trim().toLowerCase();
+                if (txt === 'responder' || txt === 'reply') {
+                    replyEls.push(el);
+                }
+            }
+        }
+        if (replyEls.length > 0) {
+            // Achar o menor ancestral comum que contém pelo menos 2 botões responder
+            if (replyEls.length === 1) {
+                let parent = replyEls[0].parentElement;
+                for (let i = 0; i < 6 && parent; i++) {
+                    if (parent.scrollHeight > 150) return parent;
+                    parent = parent.parentElement;
+                }
+            } else {
+                let p1 = replyEls[0];
+                const p2 = replyEls[replyEls.length - 1];
+                const parents1 = new Set();
+                while (p1) { parents1.add(p1); p1 = p1.parentElement; }
+                let curr = p2;
+                while (curr) {
+                    if (parents1.has(curr) && curr !== document.body) {
+                        return curr;
+                    }
+                    curr = curr.parentElement;
+                }
+            }
+        }
+
+        // 2. Fallback pela busca por palavras-chave do Instagram Live
+        const allDivs = document.querySelectorAll('div');
+        let bestCandidate = null;
+        let maxScore = -1;
+
+        for (const div of allDivs) {
+            if (!div.children || div.children.length === 0) continue;
+            
+            const text = div.textContent.toLowerCase();
+            if (text.includes("entrou") || text.includes("joined") || text.includes("acenou") || text.includes("waved")) {
+                const depth = getElementDepth(div);
+                const score = depth;
+                if (score > maxScore && div.scrollHeight < window.innerHeight * 0.9) {
+                    maxScore = score;
+                    bestCandidate = div;
+                }
+            }
+        }
+
+        if (bestCandidate) {
+            let parent = bestCandidate.parentElement;
+            for (let i = 0; i < 4 && parent; i++) {
+                if (parent.scrollHeight > bestCandidate.scrollHeight * 1.2) {
+                    return parent;
+                }
+                parent = parent.parentElement;
+            }
+            return bestCandidate;
+        }
+
+        return document.body;
+    }
+
+    function getElementDepth(element) {
+        let depth = 0;
+        let curr = element;
+        while (curr.parentElement) {
+            depth++;
+            curr = curr.parentElement;
+        }
+        return depth;
     }
 
     // Iniciar monitoramento
@@ -1062,16 +1206,9 @@
         console.log("[Capturador] Iniciando captura...");
         
         if (platform === "instagram") {
-            console.log("[Capturador] Usando estratégia do Social Stream Ninja para Instagram...");
+            console.log("[Capturador] Usando estratégia do Social Stream Ninja + Producer para Instagram...");
             
-            const sections = document.querySelectorAll("section");
-            let targetSection = null;
-            for (const sec of sections) {
-                if (getProfileImgCandidates(sec).length > 0) {
-                    targetSection = sec;
-                    break;
-                }
-            }
+            let targetSection = document.querySelector('[role="dialog"]') || document.querySelector("section") || document.body;
             
             if (targetSection) {
                 isCapturing = true;
