@@ -148,19 +148,43 @@ app.post('/connect', async (req, res) => {
         const liveUrl = `https://www.instagram.com/${cleanUser}/live/`;
         await pageInstance.goto(liveUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-        const currentUrl = pageInstance.url();
+        let currentUrl = pageInstance.url();
         if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
             console.log(`[Insta Service] ⚠️ ALERTA: O Instagram redirecionou para a tela de login (${currentUrl}). O arquivo de cookies precisa ser atualizado.`);
         } else {
             console.log(`[Insta Service] 🌟 Página carregada em: ${currentUrl}`);
+            
+            // Se redirecionou para o perfil (/de_minha_mania/), tentar clicar no anel/foto de perfil para abrir a live
+            if (currentUrl.replace(/\/$/, '').endsWith(cleanUser.toLowerCase())) {
+                console.log(`[Insta Service] Redirecionado para o perfil @${cleanUser}. Tentando clicar na foto de perfil (Live Ring)...`);
+                try {
+                    await pageInstance.waitForSelector("header img, header canvas, header div[role='button']", { timeout: 5000 });
+                    await pageInstance.evaluate(() => {
+                        const headerImg = document.querySelector("header img, header canvas, header div[role='button']");
+                        if (headerImg) headerImg.click();
+                    });
+                    await new Promise(r => setTimeout(r, 4000));
+                    currentUrl = pageInstance.url();
+                    console.log(`[Insta Service] URL após clique no anel da Live: ${currentUrl}`);
+                } catch (e) {
+                    console.log(`[Insta Service] Aviso ao clicar no anel da Live: ${e.message}`);
+                }
+            }
         }
+
+        // Tirar screenshot de diagnóstico para podermos ver exatamente a tela no navegador via https://minhamania.net/insta_debug.png
+        try {
+            await pageInstance.screenshot({ path: path.resolve(__dirname, '../public/insta_debug.png') });
+            console.log(`[Insta Service] 📸 Screenshot salva em /public/insta_debug.png`);
+        } catch (e) {}
 
         // Injetar observador no DOM para extrair comentários
         await pageInstance.evaluate(() => {
             window.__seenComments = new Set();
             setInterval(() => {
                 try {
-                    const imgs = document.querySelectorAll("img[alt*='profile'], img[src*='s150x150'], img[src*='instagram']");
+                    const scope = document.querySelector('[role="dialog"]') || document.querySelector("section") || document.body;
+                    const imgs = scope.querySelectorAll("img[alt*='profile'], img[src*='s150x150'], img[src*='instagram'], img[src*='cdninstagram']");
                     imgs.forEach(img => {
                         let row = img.closest("div[class], section, li") || img.parentElement;
                         for (let depth = 0; row && depth < 5; depth++) {
@@ -171,7 +195,7 @@ app.post('/connect', async (req, res) => {
                                 let message = "";
                                 for (let i = 0; i < leaves.length; i++) {
                                     let t = (leaves[i].textContent || "").trim();
-                                    if (!t || t.includes("entrou") || t.includes("joined") || t === "...") continue;
+                                    if (!t || t.toLowerCase() === 'responder' || t.toLowerCase() === 'reply' || t.includes("entrou") || t.includes("joined") || t === "...") continue;
                                     if (!username && t.length < 30 && !t.includes(" ")) {
                                         username = t;
                                     } else if (username && t !== username) {
@@ -180,20 +204,23 @@ app.post('/connect', async (req, res) => {
                                     }
                                 }
                                 if (username && message && !window.__seenComments.has(username + ":" + message)) {
-                                    window.__seenComments.add(username + ":" + message);
-                                    if (window.__seenComments.size > 1500) window.__seenComments.clear();
-                                    window.onInstagramComment({
-                                        username: username.replace(/^@/, ''),
-                                        message: message,
-                                        profile_picture: img.src || ''
-                                    });
+                                    const lowerMsg = message.toLowerCase();
+                                    if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
+                                        window.__seenComments.add(username + ":" + message);
+                                        if (window.__seenComments.size > 1500) window.__seenComments.clear();
+                                        window.onInstagramComment({
+                                            username: username.replace(/^@/, ''),
+                                            message: message,
+                                            profile_picture: img.src || ''
+                                        });
+                                        break;
+                                    }
                                 }
-                                break;
                             }
                             row = row.parentElement;
                         }
                     });
-                } catch(e) {}
+                } catch (e) {}
             }, 800);
         });
 
