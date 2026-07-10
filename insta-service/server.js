@@ -145,6 +145,11 @@ app.post('/connect', async (req, res) => {
             startFlushTimer();
         });
 
+        await pageInstance.exposeFunction('onInstagramIdleTimeout', async () => {
+            console.log(`[Insta Service] Auto-desconectando robô por inatividade (economia de memória RAM)...`);
+            await disconnectCurrent();
+        });
+
         const liveUrl = `https://www.instagram.com/${cleanUser}/live/`;
         await pageInstance.goto(liveUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
@@ -262,6 +267,29 @@ app.post('/connect', async (req, res) => {
                             row = row.parentElement;
                         }
                     });
+
+                    // AUTO-WATCHDOG DE MEMÓRIA E RECONEXÃO:
+                    // Se passar 15 minutos sem nenhum comentário novo (live encerrada), auto-desconectar para liberar RAM (fechar Chromium)
+                    if (!window.__lastActivityTime) window.__lastActivityTime = Date.now();
+                    if (window.__lastSeenCount !== window.__seenComments.size) {
+                        window.__lastSeenCount = window.__seenComments.size;
+                        window.__lastActivityTime = Date.now();
+                    }
+                    if (Date.now() - window.__lastActivityTime > 15 * 60 * 1000) {
+                        console.log("[Insta Service] ⏰ 15 minutos sem novos comentários. Live encerrada. Fechando Chromium para economizar RAM...");
+                        window.onInstagramIdleTimeout();
+                    } else if (Date.now() - window.__lastActivityTime > 3 * 60 * 1000) {
+                        // Se faz 3 minutos sem comentários e estamos no perfil, tentar clicar no anel <canvas> para entrar na nova live
+                        if (!window.__lastRingRetry || Date.now() - window.__lastRingRetry > 3 * 60 * 1000) {
+                            window.__lastRingRetry = Date.now();
+                            const c = document.querySelector('header canvas');
+                            if (c) {
+                                console.log("[Insta Service] 🔄 Tentando entrar na live via clique no canvas...");
+                                c.click();
+                                if (c.parentElement) c.parentElement.click();
+                            }
+                        }
+                    }
                 } catch (e) {}
             }, 800);
         });

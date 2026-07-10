@@ -410,12 +410,20 @@
                 return res.json();
             }).then(data => {
                 console.log("[Insta Headless] Conectado no servidor:", data.message);
+                checkInstagramBackendStatus();
             }).catch(err => {
                 // Se a porta 3002 não estiver rodando, abre a aba para a extensão do Chrome
                 openInstagramLive();
             });
-        } else {
-            fetch(getBackendUrl(3002, "/disconnect"), { method: "POST" }).catch(() => {});
+        } else if (action === "stop") {
+            // Desliga imediatamente o Chromium no servidor (liberando 300MB de RAM)
+            fetch(getBackendUrl(3002, "/disconnect"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            }).then(() => {
+                console.log("[Insta Headless] Chromium encerrado no servidor para liberar RAM.");
+                checkInstagramBackendStatus();
+            }).catch(() => {});
         }
     }
 
