@@ -116,7 +116,7 @@
         </div>
 
         {{-- Itens List --}}
-        <div class="border border-gray-200 rounded-xl overflow-hidden mb-6">
+        <div class="border border-gray-200 rounded-xl overflow-x-auto mb-6">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -132,7 +132,7 @@
                 <tbody class="bg-white divide-y divide-gray-150">
                     @foreach ($avaliacao->items as $item)
                         <tr>
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <td class="px-4 py-3">
                                 <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
                                 <div class="text-xs text-gray-400 mt-0.5">
                                     {{ $item->categoria ? $item->categoria->name : 'Sem categoria' }}

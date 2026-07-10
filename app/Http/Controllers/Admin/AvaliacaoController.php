@@ -9,6 +9,7 @@ use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\Item;
 use App\Models\ContaCorrente;
+use App\Models\ContaBancaria;
 use App\Models\Lancamento;
 use App\Models\Movimentacao;
 use App\Models\Pessoa;
@@ -24,7 +25,7 @@ class AvaliacaoController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Avaliacao::with('user');
+        $query = Avaliacao::with(['user', 'items']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -353,8 +354,18 @@ class AvaliacaoController extends Controller
             // 2. Realiza o lançamento contábil/carteira do repasse
             if ($totalPayout > 0) {
                 if ($pagamento === 'credito') {
+                    // Obter último saldo do usuário para calcular saldo_anterior e saldo_atual
+                    $ultimoMovimento = \Illuminate\Support\Facades\DB::table('conta_corrente')
+                        ->where('user_id', $avaliacao->user_id)
+                        ->orderByDesc('data_movimentacao')
+                        ->orderByDesc('id')
+                        ->first();
+
+                    $saldoAnterior = $ultimoMovimento ? (float) $ultimoMovimento->saldo_atual : 0.0;
+                    $saldoAtual = $saldoAnterior + $totalPayout;
+
                     // Lançamento de crédito na conta corrente virtual do fornecedor
-                    ContaCorrente::create([
+                    $mov = ContaCorrente::create([
                         'user_id' => $avaliacao->user_id,
                         'tipo_movimentacao' => 'credito',
                         'valor' => $totalPayout,
@@ -362,8 +373,13 @@ class AvaliacaoController extends Controller
                         'referencia_tipo' => 'avaliacao',
                         'referencia_id' => $avaliacao->id,
                         'classificacao_id' => 19, // Classificação Padrão de Avaliação
+                        'saldo_anterior' => $saldoAnterior,
+                        'saldo_atual' => $saldoAtual,
                         'data_movimentacao' => now(),
                     ]);
+
+                    // Dispatch o job para recalcular qualquer movimentação posterior se houver
+                    \App\Jobs\RecalcularSaldosJob::dispatch($avaliacao->user_id, $mov->data_movimentacao->toDateString());
                 } else {
                     $userName = $avaliacao->user ? $avaliacao->user->name : 'Fornecedor #' . $avaliacao->user_id;
                     $userDoc = $avaliacao->user 
@@ -381,26 +397,15 @@ class AvaliacaoController extends Controller
 
                     $lancamento = Lancamento::create([
                         'tipo' => 'despesa',
-                        'status' => 'pago',
+                        'status' => 'pendente', // Mantido como 'pendente' (em aberto) para o financeiro liquidar/conciliar depois
                         'pessoa_id' => $pessoa->id,
                         'classificacao_financeira_id' => 19, // Classificação de Avaliação
                         'data_emissao' => now(),
                         'data_vencimento' => now(),
                         'valor_total' => $totalPayout,
-                        'descricao' => 'Pagamento em Dinheiro - Avaliação de Desapego #' . $avaliacao->id,
+                        'descricao' => 'Pagamento da Avaliação de Desapego #' . $avaliacao->id,
                         'referencia_tipo' => 'avaliacao',
                         'referencia_id' => $avaliacao->id,
-                    ]);
-
-                    $contaCaixa = ContaBancaria::where('nome', 'like', '%caixa%')->first();
-                    $contaId = $contaCaixa ? $contaCaixa->id : 3;
-
-                    Movimentacao::create([
-                        'lancamento_id' => $lancamento->id,
-                        'conta_bancaria_id' => $contaId,
-                        'data_pagamento' => now(),
-                        'valor_pago' => $totalPayout,
-                        'forma_pagamento' => 'dinheiro',
                     ]);
                 }
             }
@@ -476,6 +481,35 @@ class AvaliacaoController extends Controller
             DB::rollBack();
             Log::error('Erro ao cancelar avaliação: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Ocorreu um erro ao cancelar a avaliação: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Dispara a notificação de WhatsApp para o cliente sobre a avaliação.
+     */
+    public function sendWhatsappNotification(Avaliacao $avaliacao)
+    {
+        $user = $avaliacao->user;
+        if (!$user) {
+            return redirect()->back()->with('error', 'Cliente/Fornecedor não encontrado nesta avaliação.');
+        }
+
+        $phone = $user->whatsapp ?: $user->phone;
+        $digits = preg_replace('/\D+/', '', $phone ?? '');
+
+        if (empty($digits)) {
+            return redirect()->back()->with('error', 'O cliente não possui um número de WhatsApp/Telefone cadastrado.');
+        }
+
+        try {
+            // Disparar o Job SendWhatsAppMessage com tipo 'avaliacao'
+            // Passamos o ID da avaliação como o segundo parâmetro (liveId)
+            \App\Jobs\SendWhatsAppMessage::dispatch($digits, $avaliacao->id, $user->id, 'avaliacao');
+
+            return redirect()->back()->with('success', 'Mensagem de WhatsApp enfileirada para envio com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('Erro ao enfileirar WhatsApp de Avaliação: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocorreu um erro ao enviar a mensagem: ' . $e->getMessage());
         }
     }
 

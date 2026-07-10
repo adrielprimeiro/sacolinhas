@@ -286,6 +286,7 @@ Route::middleware('auth')->group(function () {
         ]);
         Route::post('avaliacoes/{avaliacao}/finalizar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'finalize'])->name('admin.avaliacoes.finalize');
         Route::post('avaliacoes/{avaliacao}/cancelar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'cancel'])->name('admin.avaliacoes.cancel');
+        Route::post('avaliacoes/{avaliacao}/enviar-whatsapp', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'sendWhatsappNotification'])->name('admin.avaliacoes.send-whatsapp');
         Route::resource('marcas', \App\Http\Controllers\Admin\MarcaController::class)->names([
             'index' => 'admin.marcas.index',
             'create' => 'admin.marcas.create',
@@ -636,6 +637,7 @@ Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->
 
     // Minhas Avaliações
     Route::get('/avaliacoes', [PortalClienteController::class, 'avaliacoes'])->name('avaliacoes');
+    Route::get('/avaliacoes/{avaliacao}', [PortalClienteController::class, 'verAvaliacao'])->name('avaliacoes.ver');
 
     // Mercado Pago Checkout Transparente
     Route::get('/mercadopago/{pedido}/checkout', [\App\Http\Controllers\MercadoPagoController::class, 'checkout'])->name('mercadopago.checkout');

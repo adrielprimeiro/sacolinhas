@@ -133,8 +133,19 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-950">
                                 {{ $av->formatted_total_venda }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-black text-indigo-600">
-                                {{ $av->formatted_total_payout }}
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                @if ($av->status === 'finalizada')
+                                    <span class="font-black text-indigo-600">{{ $av->formatted_total_payout }}</span>
+                                @else
+                                    <div class="text-xs space-y-0.5">
+                                        <div class="text-purple-700 font-bold">
+                                            Créd: R$ {{ number_format($av->items->sum('payout_credito'), 2, ',', '.') }}
+                                        </div>
+                                        <div class="text-blue-700 font-bold">
+                                            Din: R$ {{ number_format($av->items->sum('payout_dinheiro'), 2, ',', '.') }}
+                                        </div>
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 @if ($av->status === 'finalizada')
@@ -153,6 +164,14 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
+                                    {{-- Enviar por WhatsApp --}}
+                                    <form action="{{ route('admin.avaliacoes.send-whatsapp', $av) }}" method="POST" class="inline" onsubmit="return confirm('Deseja realmente enviar esta avaliação via WhatsApp para o cliente?')">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-green-50 text-green-600 transition-colors border border-gray-200" title="Enviar por WhatsApp">
+                                            <i class="fab fa-whatsapp text-sm font-bold"></i>
+                                        </button>
+                                    </form>
+
                                     {{-- Visualizar recibo --}}
                                     <a href="{{ route('admin.avaliacoes.show', $av) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors border border-gray-200" title="Ver Detalhes / Recibo">
                                         <i class="fas fa-eye text-xs"></i>

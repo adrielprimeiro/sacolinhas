@@ -110,7 +110,7 @@ class ContaCorrente extends Model
 
                 $tipoLancamento = $this->tipo_movimentacao === 'credito' ? 'despesa' : 'receita';
                 $descricaoLancamento = $this->tipo_movimentacao === 'credito' 
-                    ? "Crédito Cliente (Avaliação/Devolução/Manual): " . ($this->descricao ?: 'Crédito em Carteira')
+                    ? "Crédito Cliente: " . ($this->descricao ?: 'Crédito em Carteira')
                     : "Débito Cliente (Ajuste/Manual): " . ($this->descricao ?: 'Débito em Carteira');
 
                 $lancamento = \App\Models\Lancamento::updateOrCreate(

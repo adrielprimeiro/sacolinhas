@@ -662,7 +662,7 @@ class AdminPedidoController extends Controller
 			$pessoaId = $pessoa ? $pessoa->id : null;
 
 			// Criar o lançamento de despesa por devolução no financeiro (Categoria 81)
-			\App\Models\Lancamento::create([
+			$lancamento = \App\Models\Lancamento::create([
 				'tipo'                        => 'despesa',
 				'status'                      => 'pago', // Já liquidado na carteira
 				'description'                 => 'Devolução de Itens: Pedido ' . ($pedido->numero_pedido ?? $pedido->id),
@@ -674,6 +674,18 @@ class AdminPedidoController extends Controller
 				'descricao'                   => 'Devolução de Itens: Pedido ' . ($pedido->numero_pedido ?? $pedido->id),
 				'referencia_tipo'             => 'pedido_devolucao',
 				'referencia_id'               => $pedido->id,
+			]);
+
+			// Vincular movimentação de saída na conta virtual de Carteira (saldo_carteira)
+			$contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%carteira%')->first();
+			$contaBancariaId = $contaCarteira ? $contaCarteira->id : 3;
+
+			\App\Models\Movimentacao::create([
+				'lancamento_id'     => $lancamento->id,
+				'conta_bancaria_id' => $contaBancariaId,
+				'data_pagamento'    => now(),
+				'valor_pago'        => $valorDevolver,
+				'forma_pagamento'   => 'saldo_carteira',
 			]);
 		});
 

@@ -117,6 +117,38 @@ class SendWhatsAppMessage implements ShouldQueue
                 $vars,
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
             );
+        } elseif ($this->messageType === 'avaliacao') {
+            $contentSid = 'HX1adbad63d8d7d779e092cfffdbb10d18';
+            
+            $totalItens = (int) DB::table('avaliacao_items')
+                ->where('avaliacao_id', $this->liveId)
+                ->count();
+
+            // URL temporária assinada (valida por 30 dias)
+            $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                'portal.autologin', 
+                now()->addDays(30), 
+                [
+                    'user' => $this->userId,
+                    'redirect' => route('portal.avaliacoes.ver', $this->liveId)
+                ]
+            );
+            
+            // Extrai a parte variável da URL após /portal/autologin
+            $basePath = url('/portal/autologin');
+            $tail = str_replace($basePath, '', $url);
+            $tail = ltrim($tail, '/');
+
+            $vars = [
+                '1' => $primeiroNome,
+                '2' => (string) $totalItens,
+                '3' => $tail
+            ];
+
+            $contentVars = json_encode(
+                $vars,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
         } else {
             $contentSid = (string) config('services.twilio.initial_template', 'HX378937c73b703db60f41b0acfbd497e3');
             $contentVars = json_encode(

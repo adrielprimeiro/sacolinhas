@@ -689,4 +689,22 @@ class PortalClienteController extends Controller
 
         return view('portal.cliente.avaliacoes', compact('user', 'avaliacoes'));
     }
+
+    /**
+     * Exibe os detalhes de uma avaliação do cliente (sem valores individuais).
+     */
+    public function verAvaliacao($id)
+    {
+        $user = auth()->user();
+
+        // Obter a avaliação garantindo que pertence ao usuário
+        $avaliacao = \App\Models\Avaliacao::where('id', $id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        // Eager load items
+        $avaliacao->load('items.categoria');
+
+        return view('portal.cliente.ver_avaliacao', compact('user', 'avaliacao'));
+    }
 }

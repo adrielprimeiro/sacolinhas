@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lote #00002 - Portal do Cliente | Mania</title>
+<link rel="icon" href="https://minhamania.net/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="https://minhamania.net/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://minhamania.net/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#F5148C; --pink-dark:#C90E72; --pink-soft:#FDE7F3; --pink-soft-40:rgba(253,231,243,.45);
+  --ink:#141414; --paper:#FBF9FA; --gray-500:#6b7280; --gray-600:#4b5563; --gray-700:#374151;
+  --purple:#8A52E8; --purple-light:#B37FFB;
+  --radius:24px;
+  --shadow-card:0 4px 24px -6px rgba(20,20,20,.08);
+  --shadow-mania:0 12px 40px -12px rgba(245,20,140,.25);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit;border:none;background:none;cursor:pointer}
+.container{width:100%;max-width:1024px;margin:0 auto;padding:0 16px}
+.hidden{display:none!important}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid #fce7f3}
+.header-inner{height:64px;display:flex;align-items:center;justify-content:space-between}
+.header-left{display:flex;align-items:center;gap:12px}
+.menu-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--ink);transition:background .2s}
+.menu-btn:hover{background:var(--pink-soft)}
+.logo{height:32px;width:auto;display:block}
+.header-right{display:flex;align-items:center;gap:16px}
+.user-chip{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--gray-600)}
+.avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--pink-soft)}
+.logout-link{font-size:14px;font-weight:600;color:var(--gray-500);display:flex;align-items:center;gap:6px;transition:color .2s}
+.logout-link:hover{color:var(--pink)}
+
+/* DRAWER */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}
+.drawer{position:fixed;top:0;bottom:0;left:0;width:288px;background:#fff;z-index:50;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);display:flex;flex-direction:column}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:64px;border-bottom:1px solid #fce7f3}
+.drawer-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:18px}
+.close-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .2s}
+.close-btn:hover{background:var(--pink-soft)}
+.drawer nav{flex:1;padding:16px;display:flex;flex-direction:column;gap:4px;font-weight:500;color:var(--gray-700)}
+.nav-link{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;transition:background .2s,color .2s}
+.nav-link:hover{background:var(--pink-soft);color:var(--pink)}
+.nav-link i{width:20px;text-align:center}
+.nav-link img{width:20px;height:20px;object-fit:contain}
+.drawer-foot{padding:16px;border-top:1px solid #fce7f3}
+.drawer-foot button{width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;color:var(--gray-500);font-weight:500;font-size:15px;transition:background .2s;text-align:left}
+.drawer-foot button:hover{background:#f3f4f6}
+
+/* MAIN */
+main{flex:1;width:100%;max-width:1024px;margin:0 auto;padding:32px 16px 56px;display:flex;flex-direction:column;gap:24px}
+
+/* CARD BASE */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-card);border:1px solid #fce7f3}
+
+/* LOTE HEADER */
+.lote-head{padding:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.lote-id{display:flex;align-items:center;gap:16px}
+.lote-icon{width:52px;height:52px;border-radius:16px;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+h1{font-family:'Outfit',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.3px}
+.lote-meta{display:flex;flex-wrap:wrap;gap:16px;margin-top:6px;font-size:13px;color:var(--gray-500)}
+.lote-meta i{color:var(--pink);margin-right:5px}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:'Outfit',sans-serif}
+.badge-analise{background:#FEF9C3;color:#A16207}
+.badge-pendente{background:#f3f4f6;color:var(--gray-600)}
+.back-btn{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--gray-600);background:#fff;border:1px solid #fce7f3;border-radius:999px;padding:10px 20px;transition:background .2s,color .2s}
+.back-btn:hover{background:var(--pink-soft);color:var(--pink)}
+
+/* REPASSE */
+.section-card{padding:24px}
+h3.section-label{font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--gray-500);margin-bottom:16px}
+.repasse-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:640px){.repasse-grid{grid-template-columns:1fr 1fr}}
+.repasse-option{position:relative;overflow:hidden;border-radius:20px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.repasse-club{background:linear-gradient(135deg,#B37FFB 0%,#8A52E8 100%);color:#fff;box-shadow:0 10px 30px -10px rgba(138,82,232,.45)}
+.repasse-club .blob-mini{position:absolute;top:-24px;right:-24px;width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.14)}
+.repasse-pix{background:linear-gradient(135deg,#FFF0F7 0%,#FCDCEC 100%);border:1px solid #f9c6e0}
+.option-label{font-size:13px;font-weight:600}
+.repasse-club .option-label{color:rgba(255,255,255,.9)}
+.repasse-pix .option-label{color:var(--gray-700)}
+.option-name{font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;margin-top:2px}
+.repasse-pix .option-name{color:var(--ink)}
+.option-value{font-family:'Outfit',sans-serif;font-weight:800;font-size:24px;position:relative}
+.repasse-pix .option-value{color:var(--pink)}
+.repasse-note{margin-top:16px;display:flex;gap:10px;align-items:flex-start;background:var(--pink-soft-40);border-radius:14px;padding:12px 16px;font-size:13px;color:var(--gray-600);line-height:1.6}
+.repasse-note i{color:var(--pink);margin-top:2px}
+
+/* TABELA */
+.table-card{overflow:hidden}
+.table-head{padding:20px 24px;border-bottom:1px solid #fdf2f8;display:flex;align-items:center;gap:10px}
+.table-head i{color:var(--pink)}
+h2{font-family:'Outfit',sans-serif;font-weight:700;font-size:17px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:560px}
+thead th{background:var(--pink-soft-40);padding:12px 24px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray-600);text-align:left}
+thead th.center, td.center{text-align:center}
+tbody td{padding:16px 24px;border-top:1px solid #fdf2f8;font-size:14px;color:var(--gray-700)}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--pink-soft-40)}
+.item-name{font-weight:700;color:var(--ink)}
+.item-cat{font-size:12px;color:var(--gray-500);margin-top:2px}
+.conserva{font-family:'Outfit',sans-serif;font-weight:800;color:var(--pink)}
+
+/* FOOTER */
+footer{border-top:1px solid #fce7f3;background:#fff;padding:24px 0;margin-top:auto}
+footer p{text-align:center;font-size:12px;color:#9ca3af}
+footer i{color:var(--pink)}
+
+.fade-out{opacity:0;transition:opacity .4s ease}
+@media(max-width:640px){.user-chip span.name{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container header-inner">
+    <div class="header-left">
+      <button id="portalMenuBtn" class="menu-btn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+      <a href="https://minhamania.net/portal/dashboard"><img src="https://minhamania.net/images/Logo_Grande_Preto.png" alt="Mania" class="logo"></a>
+    </div>
+    <div class="header-right">
+      <span class="user-chip"><img src="https://minhamania.net/storage/profiles/6a2c7bf10dbaa.png" alt="Foto" class="avatar"><span class="name">Mania de Cliente</span></span>
+      <form action="https://minhamania.net/logout" method="POST" style="display:inline">
+        <input type="hidden" name="_token" value="srf14zCuLjInwubfJzmOc0L45oT790fL1DsDEGKv" autocomplete="off">
+        <button type="submit" class="logout-link"><i class="fas fa-arrow-right-from-bracket"></i> Sair</button>
+      </form>
+    </div>
+  </div>
+</header>
+
+<div id="portalOverlay" class="overlay hidden"></div>
+<aside id="portalDrawer" class="drawer hidden">
+  <div class="drawer-head">
+    <span class="drawer-title">Menu do Cliente</span>
+    <button id="portalMenuCloseBtn" class="close-btn" aria-label="Fechar menu"><i class="fas fa-xmark"></i></button>
+  </div>
+  <nav>
+    <a href="https://minhamania.net/portal/dashboard" class="nav-link"><i class="fas fa-gauge"></i> Painel</a>
+    <a href="https://minhamania.net/portal/perfil" class="nav-link"><i class="fas fa-user"></i> Meu Perfil</a>
+    <a href="https://minhamania.net/portal/pedidos" class="nav-link"><i class="fas fa-receipt"></i> Meus Pedidos</a>
+    <a href="https://minhamania.net/portal/sacolinha" class="nav-link"><i class="fas fa-bag-shopping"></i> Minha Sacolinha</a>
+    <a href="https://minhamania.net/portal/avaliacoes" class="nav-link"><i class="fas fa-star"></i> Minhas Avaliações</a>
+    <a href="https://minhamania.net/loja" class="nav-link"><img src="https://minhamania.net/favicon.ico" alt="Loja"> Loja</a>
+    <a href="https://minhamania.net/dashboard-pontuacoes" class="nav-link"><i class="fas fa-gamepad"></i> Jogar</a>
+  </nav>
+  <div class="drawer-foot">
+    <form method="POST" action="https://minhamania.net/logout">
+      <input type="hidden" name="_token" value="srf14zCuLjInwubfJzmOc0L45oT790fL1DsDEGKv" autocomplete="off">
+      <button type="submit"><i class="fas fa-arrow-right-from-bracket"></i> Sair</button>
+    </form>
+  </div>
+</aside>
+
+<main>
+
+  <!-- Cabeçalho do Lote -->
+  <section class="card lote-head">
+    <div class="lote-id">
+      <div class="lote-icon"><i class="fas fa-layer-group"></i></div>
+      <div>
+        <h1>Lote #00002</h1>
+        <div class="lote-meta">
+          <span><i class="far fa-calendar-alt"></i>10/07/26</span>
+          <span><i class="fas fa-shirt"></i>1 peça</span>
+        </div>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge badge-analise"><i class="fas fa-hourglass-half"></i> Lote: Em Análise</span>
+      <span class="badge badge-pendente"><i class="fas fa-clock"></i> Pagamento: Pendente</span>
+    </div>
+    <a href="https://minhamania.net/portal/avaliacoes" class="back-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
+  </section>
+
+  <!-- Total de Repasse -->
+  <section class="card section-card">
+    <h3 class="section-label">Total de Repasse Consolidado</h3>
+    <div class="repasse-grid">
+      <div class="repasse-option repasse-club">
+        <div class="blob-mini"></div>
+        <div>
+          <div class="option-label">Opção 1</div>
+          <div class="option-name"><i class="fas fa-gift"></i> Crédito na Loja</div>
+        </div>
+        <div class="option-value">R$ 72,00</div>
+      </div>
+      <div class="repasse-option repasse-pix">
+        <div>
+          <div class="option-label">Opção 2</div>
+          <div class="option-name"><i class="fas fa-money-bill-wave"></i> Dinheiro / PIX</div>
+        </div>
+        <div class="option-value">R$ 48,00</div>
+      </div>
+    </div>
+    <div class="repasse-note">
+      <i class="fas fa-circle-info"></i>
+      <span>A escolha da forma de recebimento será definida com o atendimento.</span>
+    </div>
+  </section>
+
+  <!-- Relação de Peças -->
+  <section class="card table-card">
+    <div class="table-head">
+      <i class="fas fa-shirt"></i>
+      <h2>Relação de Peças</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Peça / Categoria</th>
+            <th class="center">Marca</th>
+            <th class="center">Cor / Tam</th>
+            <th class="center">Conservação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="item-name">Bota</div>
+              <div class="item-cat">Botas</div>
+            </td>
+            <td class="center">Farm</td>
+            <td class="center">Preto / 42</td>
+            <td class="center"><span class="conserva">10/10</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Feito com <i class="fas fa-heart"></i> pela Mania &copy; 2026 — Todos os direitos reservados</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var successAlert = document.getElementById('success-alert');
+  var errorAlert = document.getElementById('error-alert');
+  [successAlert, errorAlert].forEach(function (el) {
+    if (!el) return;
+    setTimeout(function () {
+      el.classList.add('fade-out');
+      el.addEventListener('transitionend', function () { el.remove(); });
+    }, 5000);
+  });
+
+  var btn = document.getElementById('portalMenuBtn');
+  var closeBtn = document.getElementById('portalMenuCloseBtn');
+  var drawer = document.getElementById('portalDrawer');
+  var overlay = document.getElementById('portalOverlay');
+
+  function openDrawer() {
+    if (!drawer || !overlay) return;
+    drawer.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+  }
+  function closeDrawer() {
+    if (!drawer || !overlay) return;
+    drawer.classList.add('hidden');
+    overlay.classList.add('hidden');
+  }
+
+  if (btn) btn.addEventListener('click', openDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  if (overlay) overlay.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawer(); });
+});
+</script>
+</body>
+</html>

@@ -738,6 +738,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (!input || !hidden || !list) return;
 
+  // Evitar submissão do formulário ao pressionar Enter nos campos de input
+  var form = document.getElementById('evaluation-form');
+  if (form) {
+    form.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+
   var debounceTimer = null;
   var abortCtrl = null;
 
