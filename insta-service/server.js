@@ -3,6 +3,107 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
+function getEnvConfig() {
+    const config = {};
+    const envPaths = [
+        path.resolve(__dirname, '../.env'),
+        path.resolve(__dirname, '.env'),
+        '/var/www/sacolinhas/.env'
+    ];
+    for (const envPath of envPaths) {
+        if (fs.existsSync(envPath)) {
+            try {
+                const content = fs.readFileSync(envPath, 'utf8');
+                content.split('\n').forEach(line => {
+                    const trimmed = line.trim();
+                    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+                        const idx = trimmed.indexOf('=');
+                        const key = trimmed.substring(0, idx).trim();
+                        let val = trimmed.substring(idx + 1).trim();
+                        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                            val = val.substring(1, val.length - 1);
+                        }
+                        config[key] = val;
+                    }
+                });
+                break;
+            } catch(e){}
+        }
+    }
+    return {
+        username: process.env.INSTAGRAM_USERNAME || process.env.INSTA_USER || config.INSTAGRAM_USERNAME || config.INSTA_USER || "",
+        password: process.env.INSTAGRAM_PASSWORD || process.env.INSTA_PASSWORD || config.INSTAGRAM_PASSWORD || config.INSTA_PASSWORD || ""
+    };
+}
+
+async function performAutoLoginFromEnv(page, targetProfileUrl) {
+    const autoCreds = getEnvConfig();
+    if (!autoCreds.username || !autoCreds.password) {
+        console.log('[Insta Service] ⚠️ Autologin indisponível: INSTAGRAM_USERNAME ou INSTAGRAM_PASSWORD não configurados no arquivo .env.');
+        return false;
+    }
+    console.log(`[Insta Service] 🔄 Tela de login detectada. Iniciando AUTOLOGIN silencioso com credenciais do .env (@${autoCreds.username})...`);
+    try {
+        if (!page.url().includes('login')) {
+            await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await new Promise(r => setTimeout(r, 3000));
+        }
+        try { await page.keyboard.press('Escape'); } catch(e){}
+
+        const userFilled = await page.evaluate(async (usr, pwd) => {
+            const userInp = document.querySelector('input[name="username"]');
+            const passInp = document.querySelector('input[name="password"]');
+            if (userInp && passInp) {
+                userInp.focus();
+                userInp.value = usr;
+                userInp.dispatchEvent(new Event('input', { bubbles: true }));
+                userInp.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                passInp.focus();
+                passInp.value = pwd;
+                passInp.dispatchEvent(new Event('input', { bubbles: true }));
+                passInp.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const btn = document.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.click();
+                    return true;
+                }
+            }
+            return false;
+        }, autoCreds.username, autoCreds.password);
+
+        if (userFilled) {
+            console.log('[Insta Service] 📝 Credenciais do .env submetidas. Aguardando autenticação (6s)...');
+            await new Promise(r => setTimeout(r, 6000));
+        }
+
+        const currentUrl = page.url();
+        if (currentUrl.includes('challenge') || currentUrl.includes('two_factor')) {
+            console.log('[Insta Service] ⚠️ Autologin pelo .env solicitou código 2FA/Desafio. Captura salva em /insta_login_challenge.png.');
+            try { await page.screenshot({ path: path.resolve(__dirname, '../public/insta_login_challenge.png') }); } catch(e){}
+            return false;
+        }
+
+        const freshCookies = await page.cookies('https://www.instagram.com');
+        if (freshCookies.some(c => c.name === 'sessionid') || !currentUrl.includes('login')) {
+            const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
+            fs.writeFileSync(cookiesPath, JSON.stringify(freshCookies, null, 4));
+            console.log(`[Insta Service] 🍪 Autologin 100% concluído! ${freshCookies.length} cookies salvos em cookies.json.`);
+            
+            if (targetProfileUrl) {
+                console.log(`[Insta Service] Retornando ao perfil alvo (${targetProfileUrl})...`);
+                await page.goto(targetProfileUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+                await new Promise(r => setTimeout(r, 4000));
+            }
+            return true;
+        }
+    } catch(err) {
+        console.error('[Insta Service] Erro no AUTOLOGIN via .env:', err.message);
+    }
+    return false;
+}
+
 const app = express();
 app.use(express.json());
 
@@ -159,7 +260,13 @@ app.post('/connect', async (req, res) => {
 
         let currentUrl = pageInstance.url();
         if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
-            console.log(`[Insta Service] ⚠️ ALERTA: O Instagram redirecionou para a tela de login (${currentUrl}). O arquivo de cookies precisa ser atualizado.`);
+            console.log(`[Insta Service] ⚠️ Redirecionado para tela de login (${currentUrl}). Tentando AUTOLOGIN imediato pelo .env...`);
+            await performAutoLoginFromEnv(pageInstance, profileUrl);
+            currentUrl = pageInstance.url();
+        }
+
+        if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
+            console.log(`[Insta Service] ⚠️ ALERTA: Login automático via .env não pôde ser concluído ou requer verificação de 2FA. Use o botão no painel se necessário.`);
         } else {
             console.log(`[Insta Service] 🌟 Página carregada em: ${currentUrl}`);
             
@@ -365,9 +472,11 @@ app.post('/eval', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+    const envConfig = getEnvConfig();
+    const username = req.body.username || envConfig.username;
+    const password = req.body.password || envConfig.password;
     if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios para login no servidor.' });
+        return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios (ou configure INSTAGRAM_USERNAME e INSTAGRAM_PASSWORD no arquivo .env).' });
     }
 
     const cleanUser = username.replace(/^@/, '').trim();
