@@ -164,6 +164,11 @@
                                 <i class="fas fa-play text-[10px]"></i> Conectar
                             </button>
                         </div>
+                        <div class="mt-2 flex justify-end">
+                            <button type="button" onclick="openInstaLoginModal()" class="text-purple-700 hover:text-purple-900 font-bold text-[11px] underline flex items-center gap-1 transition duration-150">
+                                <i class="fas fa-key"></i> Login Direto no Servidor (Sem precisar exportar cookies)
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -254,6 +259,61 @@
         <!-- Botão Fechar -->
         <div class="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-3">
             <button onclick="closeOnlineQrModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-5 py-2 rounded-xl text-sm transition duration-150">Concluir e Voltar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE LOGIN AUTOMÁTICO DO INSTAGRAM NO SERVIDOR (VPS) -->
+<div id="insta-login-modal" class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-gray-100 flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="text-base font-bold text-purple-800 flex items-center gap-2">
+                <i class="fas fa-key text-purple-600 text-xl"></i>
+                <span>Login Direto no Servidor (VPS)</span>
+            </h3>
+            <button type="button" onclick="closeInstaLoginModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1 leading-none">&times;</button>
+        </div>
+
+        <p class="text-xs text-gray-600 mb-4 leading-relaxed">
+            Faça login na sua conta (ou em um perfil secundário/anônimo, ex: <strong>@sacolinhas_captura</strong>) diretamente dentro do navegador do servidor. Isso gera uma sessão definitiva na VPS e evita que o Instagram deslogue por troca de IP!
+        </p>
+
+        <div id="insta-login-form-step">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Usuário do Instagram (@usuario):</label>
+                    <input type="text" id="vps-insta-user" placeholder="Ex: sacolinhas_captura ou de_minha_mania" class="w-full p-2.5 rounded-xl border border-gray-300 text-sm font-semibold focus:ring-purple-500 focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Senha:</label>
+                    <input type="password" id="vps-insta-pass" placeholder="Sua senha do Instagram" class="w-full p-2.5 rounded-xl border border-gray-300 text-sm font-semibold focus:ring-purple-500 focus:border-purple-500">
+                </div>
+            </div>
+
+            <div class="mt-5 flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button type="button" onclick="closeInstaLoginModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs transition duration-150">Cancelar</button>
+                <button type="button" id="vps-login-submit-btn" onclick="submitVpsInstaLogin()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-sm transition duration-150 flex items-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Fazer Login e Salvar Sessão
+                </button>
+            </div>
+        </div>
+
+        <!-- Passo 2FA / Desafio -->
+        <div id="insta-login-2fa-step" class="hidden space-y-4">
+            <div class="bg-amber-50 border border-amber-300 p-3 rounded-xl text-xs text-amber-800 font-medium">
+                <p class="font-bold mb-1"><i class="fas fa-shield-alt"></i> Verificação de Segurança (2FA / Desafio)</p>
+                <p id="vps-2fa-msg">O Instagram enviou um código para seu e-mail, SMS ou aplicativo autenticador. Digite o código abaixo:</p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1">Código de Verificação (6 dígitos):</label>
+                <input type="text" id="vps-insta-code" placeholder="Ex: 123456" class="w-full p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-center tracking-widest focus:ring-purple-500 focus:border-purple-500">
+            </div>
+            <div class="flex justify-end gap-3 border-t border-gray-100 pt-3">
+                <button type="button" onclick="closeInstaLoginModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs">Cancelar</button>
+                <button type="button" id="vps-2fa-submit-btn" onclick="submitVpsInstaCode()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2">
+                    <i class="fas fa-check"></i> Confirmar Código
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1052,6 +1112,95 @@
             toast.style.opacity = "0";
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    }
+    // Controle do Modal de Login Direto na VPS do Instagram
+    function openInstaLoginModal() {
+        document.getElementById("insta-login-modal").classList.remove("hidden");
+        document.getElementById("insta-login-form-step").classList.remove("hidden");
+        document.getElementById("insta-login-2fa-step").classList.add("hidden");
+    }
+
+    function closeInstaLoginModal() {
+        document.getElementById("insta-login-modal").classList.add("hidden");
+    }
+
+    async function submitVpsInstaLogin() {
+        const usr = document.getElementById("vps-insta-user").value.trim();
+        const pwd = document.getElementById("vps-insta-pass").value.trim();
+        if (!usr || !pwd) {
+            alert("Preencha o usuário e senha do Instagram.");
+            return;
+        }
+
+        const btn = document.getElementById("vps-login-submit-btn");
+        const oldText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Autenticando na VPS...`;
+
+        try {
+            const res = await fetch(getBackendUrl(3002, "/login"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: usr, password: pwd })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+
+            if (data.success) {
+                showToast(data.message);
+                closeInstaLoginModal();
+                const input = document.getElementById("insta-username-input");
+                if (input) input.value = usr.replace(/^@/, '');
+                checkInstagramBackendStatus();
+            } else if (data.status === 'challenge') {
+                document.getElementById("insta-login-form-step").classList.add("hidden");
+                document.getElementById("insta-login-2fa-step").classList.remove("hidden");
+                if (data.message) document.getElementById("vps-2fa-msg").textContent = data.message;
+            } else {
+                alert("Atenção: " + (data.message || "Verifique suas credenciais."));
+            }
+        } catch(e) {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+            alert("Erro ao comunicar com a VPS: " + e.message);
+        }
+    }
+
+    async function submitVpsInstaCode() {
+        const code = document.getElementById("vps-insta-code").value.trim();
+        if (!code) {
+            alert("Digite o código de 6 dígitos recebido.");
+            return;
+        }
+
+        const btn = document.getElementById("vps-2fa-submit-btn");
+        const oldText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Confirmando...`;
+
+        try {
+            const res = await fetch(getBackendUrl(3002, "/login-code"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: code })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+
+            if (data.success) {
+                showToast(data.message);
+                closeInstaLoginModal();
+                checkInstagramBackendStatus();
+            } else {
+                alert("Erro: " + (data.message || "Código inválido ou expirado."));
+            }
+        } catch(e) {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+            alert("Erro na requisição: " + e.message);
+        }
     }
 </script>
 @endpush

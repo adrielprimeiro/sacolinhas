@@ -103,9 +103,11 @@ app.post('/connect', async (req, res) => {
         pageInstance = await browserInstance.newPage();
         await pageInstance.setUserAgent('Mozilla/50.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-        // Carregar cookies do Instagram se existirem em insta_session/cookies.json
+        // Carregar cookies do Instagram de insta_session/cookies.json apenas se não houver sessão ativa
+        const existingCookies = await pageInstance.cookies('https://www.instagram.com');
+        const hasActiveSession = existingCookies.some(c => c.name === 'sessionid');
         const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
-        if (fs.existsSync(cookiesPath)) {
+        if (!hasActiveSession && fs.existsSync(cookiesPath)) {
             try {
                 const cookiesContent = fs.readFileSync(cookiesPath, 'utf8');
                 const cookies = JSON.parse(cookiesContent);
@@ -129,6 +131,8 @@ app.post('/connect', async (req, res) => {
             } catch (err) {
                 console.error('[Insta Service] Erro ao processar insta_session/cookies.json:', err.message);
             }
+        } else if (hasActiveSession) {
+            console.log(`[Insta Service] ⚡ Sessão ativa encontrada no perfil de navegador (userDataDir). Mantendo sessão!`);
         } else {
             console.log('[Insta Service] ⚠️ Arquivo insta_session/cookies.json não encontrado.');
         }
@@ -239,6 +243,16 @@ app.post('/connect', async (req, res) => {
             console.log(`[Insta Service] 📸 Screenshot salva em /public/insta_debug.png`);
         } catch (e) {}
 
+        // Se após a navegação a sessão estiver ativa, atualizar o arquivo de cookies local
+        try {
+            const currentSessionCookies = await pageInstance.cookies('https://www.instagram.com');
+            if (currentSessionCookies.some(c => c.name === 'sessionid')) {
+                const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
+                fs.writeFileSync(cookiesPath, JSON.stringify(currentSessionCookies, null, 4));
+                console.log(`[Insta Service] 🍪 Sessão ativa atualizada e persistida no servidor em cookies.json!`);
+            }
+        } catch(e) {}
+
         // Injetar observador no DOM para extrair comentários
         await pageInstance.evaluate(() => {
             window.__seenComments = new Set();
@@ -347,6 +361,168 @@ app.post('/eval', async (req, res) => {
         return res.json({ success: true, result });
     } catch(e) {
         return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios para login no servidor.' });
+    }
+
+    const cleanUser = username.replace(/^@/, '').trim();
+
+    await disconnectCurrent();
+    isConnecting = true;
+    lastError = null;
+
+    console.log(`[Insta Service] 🔑 Iniciando login para @${cleanUser} no servidor VPS...`);
+
+    try {
+        browserInstance = await puppeteer.launch({
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--window-size=1280,800'
+            ],
+            userDataDir: './insta_session'
+        });
+
+        pageInstance = await browserInstance.newPage();
+        await pageInstance.setUserAgent('Mozilla/50.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        console.log(`[Insta Service] Navegando para tela de login do Instagram...`);
+        await pageInstance.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await new Promise(r => setTimeout(r, 4000));
+
+        // Pressionar Escape para fechar modais de cookies caso apareçam (Europa/LGPD/etc)
+        try { await pageInstance.keyboard.press('Escape'); } catch(e){}
+
+        // Tentar preencher usuário e senha e submeter
+        const userFilled = await pageInstance.evaluate(async (usr, pwd) => {
+            const userInp = document.querySelector('input[name="username"]');
+            const passInp = document.querySelector('input[name="password"]');
+            if (userInp && passInp) {
+                userInp.focus();
+                userInp.value = usr;
+                userInp.dispatchEvent(new Event('input', { bubbles: true }));
+                userInp.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                passInp.focus();
+                passInp.value = pwd;
+                passInp.dispatchEvent(new Event('input', { bubbles: true }));
+                passInp.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const btn = document.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.click();
+                    return true;
+                }
+            }
+            return false;
+        }, cleanUser, password);
+
+        if (!userFilled) {
+            console.log(`[Insta Service] Inputs de login não encontrados. URL atual: ${pageInstance.url()}`);
+        } else {
+            console.log(`[Insta Service] Submetido formulário de login. Aguardando resposta do Instagram (6s)...`);
+            await new Promise(r => setTimeout(r, 6000));
+        }
+
+        let currentUrl = pageInstance.url();
+        console.log(`[Insta Service] URL após tentativa de login: ${currentUrl}`);
+
+        // Salvar screenshot do resultado do login para inspeção e visualização pelo painel
+        const loginChallengePath = path.resolve(__dirname, '../public/insta_login_challenge.png');
+        try { await pageInstance.screenshot({ path: loginChallengePath }); } catch(e){}
+
+        // Verificar se pediu código 2FA / desafio de segurança (SMS/Email/App)
+        if (currentUrl.includes('challenge') || currentUrl.includes('two_factor') || currentUrl.includes('login/two_factor')) {
+            isConnecting = false;
+            return res.json({
+                success: false,
+                status: 'challenge',
+                message: 'O Instagram enviou um código de segurança (2FA/Challenge) para o seu e-mail, SMS ou aplicativo autenticador. Digite o código recebido no campo abaixo para aprovar o login.'
+            });
+        }
+
+        // Salvar novos cookies
+        const cookies = await pageInstance.cookies('https://www.instagram.com');
+        const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
+        if (cookies.length > 0) {
+            fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 4));
+            console.log(`[Insta Service] 🍪 ${cookies.length} cookies salvos no servidor em insta_session/cookies.json após login!`);
+        }
+
+        isConnecting = false;
+        if (cookies.some(c => c.name === 'sessionid') || !currentUrl.includes('login')) {
+            currentUsername = cleanUser;
+            return res.json({ success: true, message: `🎉 Login efetuado com sucesso no Servidor! Sessão e Cookies salvos na VPS. Agora clique no botão Conectar para iniciar a captura da Live.` });
+        } else {
+            return res.status(400).json({ success: false, message: `Não foi possível concluir o login. Verifique se o usuário e senha estão corretos. (Uma captura de tela foi salva em /insta_login_challenge.png)` });
+        }
+    } catch (err) {
+        isConnecting = false;
+        lastError = err.message || 'Erro durante o login';
+        console.error(`[Insta Service] Erro no login:`, err.message);
+        await disconnectCurrent();
+        return res.status(500).json({ success: false, message: lastError });
+    }
+});
+
+app.post('/login-code', async (req, res) => {
+    const { code } = req.body;
+    if (!code || !pageInstance) {
+        return res.status(400).json({ success: false, message: 'Código de verificação ou sessão do navegador inválida/encerrada.' });
+    }
+
+    console.log(`[Insta Service] 🔑 Inserindo código de verificação (${code})...`);
+
+    try {
+        await pageInstance.evaluate((c) => {
+            const inps = document.querySelectorAll('input[name="verificationCode"], input[name="security_code"], input[type="tel"], input[placeholder*="Código"], input');
+            for (const inp of inps) {
+                if (inp.type !== 'hidden' && inp.type !== 'submit') {
+                    inp.focus();
+                    inp.value = c;
+                    inp.dispatchEvent(new Event('input', { bubbles: true }));
+                    inp.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            const btns = document.querySelectorAll('button[type="submit"], button, div[role="button"]');
+            for (const b of btns) {
+                const txt = (b.textContent || "").trim().toLowerCase();
+                if (txt.includes('confirm') || txt.includes('enviar') || txt.includes('submit') || b.type === 'submit') {
+                    b.click();
+                    break;
+                }
+            }
+        }, code);
+
+        await new Promise(r => setTimeout(r, 6000));
+        let currentUrl = pageInstance.url();
+        console.log(`[Insta Service] URL após envio do código 2FA: ${currentUrl}`);
+
+        const loginChallengePath = path.resolve(__dirname, '../public/insta_login_challenge.png');
+        try { await pageInstance.screenshot({ path: loginChallengePath }); } catch(e){}
+
+        const cookies = await pageInstance.cookies('https://www.instagram.com');
+        const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
+        if (cookies.length > 0) {
+            fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 4));
+            console.log(`[Insta Service] 🍪 ${cookies.length} cookies salvos após confirmação do código!`);
+        }
+
+        if (cookies.some(c => c.name === 'sessionid') || !currentUrl.includes('challenge')) {
+            return res.json({ success: true, message: `✔️ Código confirmado e sessão validada! Cookies salvos no servidor da VPS. Agora você já pode clicar em Conectar na Live.` });
+        } else {
+            return res.status(400).json({ success: false, message: `Código incorreto ou verificação ainda pendente no Instagram. (Verifique o print /insta_login_challenge.png)` });
+        }
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
     }
 });
 
