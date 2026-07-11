@@ -338,6 +338,18 @@ app.get('/status', (req, res) => {
     });
 });
 
+app.post('/eval', async (req, res) => {
+    if (!pageInstance) return res.status(400).json({ error: 'No active browser page' });
+    try {
+        const codeStr = req.body.code;
+        const fn = new Function(`return (${codeStr})();`);
+        const result = await pageInstance.evaluate(fn);
+        return res.json({ success: true, result });
+    } catch(e) {
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`⚡ [Instagram Headless Service] Rodando na porta ${PORT} em 0.0.0.0`);
 });
