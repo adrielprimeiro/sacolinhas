@@ -16,7 +16,7 @@ app.use((req, res, next) => {
 });
 
 const PORT = 3001;
-const LARAVEL_WEBHOOK_URL = process.env.LARAVEL_URL || 'http://127.0.0.1:8000/api/live-chat/message-batch';
+const LARAVEL_WEBHOOK_URL = process.env.LARAVEL_URL || 'https://minhamania.net/api/live-chat/message-batch';
 
 let tiktokConnection = null;
 let currentUsername = null;

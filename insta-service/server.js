@@ -119,7 +119,7 @@ app.use((req, res, next) => {
 });
 
 const PORT = 3002;
-const LARAVEL_WEBHOOK_URL = process.env.LARAVEL_URL || 'http://127.0.0.1:8000/api/live-chat/message-batch';
+const LARAVEL_WEBHOOK_URL = process.env.LARAVEL_URL || 'https://minhamania.net/api/live-chat/message-batch';
 
 let browserInstance = null;
 let pageInstance = null;
@@ -329,6 +329,11 @@ app.post('/connect', async (req, res) => {
                     await new Promise(r => setTimeout(r, 4000));
                     currentUrl = pageInstance.url();
                     console.log(`[Insta Service] URL após clique no anel da Live: ${currentUrl}`);
+                    if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
+                        console.log(`[Insta Service] 🔄 Redirecionado para login após clique no anel. Acionando AUTOLOGIN pelo .env...`);
+                        await performAutoLoginFromEnv(pageInstance, profileUrl);
+                        currentUrl = pageInstance.url();
+                    }
                 } catch (e) {
                     console.log(`[Insta Service] Aviso ao clicar no anel da Live: ${e.message}`);
                 }
@@ -339,6 +344,10 @@ app.post('/connect', async (req, res) => {
                     try {
                         await pageInstance.goto(`https://www.instagram.com/${cleanUser}/live/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
                         await new Promise(r => setTimeout(r, 4000));
+                        if (pageInstance.url().includes('login') || pageInstance.url().includes('challenge')) {
+                            console.log(`[Insta Service] 🔄 Redirecionado para login em /live/. Acionando AUTOLOGIN pelo .env...`);
+                            await performAutoLoginFromEnv(pageInstance, profileUrl);
+                        }
                     } catch(e) {}
                 }
             }
