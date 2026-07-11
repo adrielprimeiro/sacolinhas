@@ -150,8 +150,8 @@ app.post('/connect', async (req, res) => {
             await disconnectCurrent();
         });
 
-        const liveUrl = `https://www.instagram.com/${cleanUser}/live/`;
-        await pageInstance.goto(liveUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        const profileUrl = `https://www.instagram.com/${cleanUser}/`;
+        await pageInstance.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         let currentUrl = pageInstance.url();
         if (currentUrl.includes('login') || currentUrl.includes('challenge')) {
@@ -159,9 +159,16 @@ app.post('/connect', async (req, res) => {
         } else {
             console.log(`[Insta Service] 🌟 Página carregada em: ${currentUrl}`);
             
-            // Se redirecionou para o perfil (/de_minha_mania/), aguardar carregamento completo do DOM
-            if (currentUrl.replace(/\/$/, '').endsWith(cleanUser.toLowerCase())) {
-                console.log(`[Insta Service] Redirecionado para o perfil @${cleanUser}. Aguardando 4s para renderização do canvas da Live...`);
+            // Se redirecionou para feed ou não está no perfil, garantir que vamos para o perfil
+            if (!currentUrl.toLowerCase().includes(cleanUser.toLowerCase())) {
+                console.log(`[Insta Service] Redirecionado para fora do perfil (${currentUrl}). Forçando ida para @${cleanUser}...`);
+                await pageInstance.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+                currentUrl = pageInstance.url();
+            }
+
+            // Se não estamos dentro da URL de live ainda, tentar entrar pela foto de perfil (Canvas/Ring)
+            if (!currentUrl.includes('/live/')) {
+                console.log(`[Insta Service] No perfil @${cleanUser}. Aguardando 4s para renderização do canvas da Live...`);
                 await new Promise(r => setTimeout(r, 4000));
 
                 // 1. Pressionar a tecla Escape 2 vezes e tentar fechar qualquer modal aberto ("Nova nota", "Notificações", etc)
@@ -172,7 +179,6 @@ app.post('/connect', async (req, res) => {
                     await pageInstance.evaluate(() => {
                         const dialog = document.querySelector('[role="dialog"]');
                         if (dialog) {
-                            // O primeiro botão ou SVG no topo esquerdo do dialog costuma ser o X (Fechar)
                             const firstClickable = dialog.querySelector('svg, div[role="button"], button');
                             if (firstClickable) firstClickable.closest('div[role="button"], button')?.click() || firstClickable.click();
                         }
@@ -184,13 +190,12 @@ app.post('/connect', async (req, res) => {
                 try {
                     console.log(`[Insta Service] Clicando no elemento <canvas> (anel de Live/Story)...`);
                     await pageInstance.evaluate(() => {
-                        const c = document.querySelector('canvas');
+                        const c = document.querySelector('header canvas, canvas');
                         if (c) {
                             c.click();
                             if (c.parentElement) c.parentElement.click();
                         } else {
-                            // Se não houver canvas (nenhum anel colorido na hora), tentar a foto do perfil sem pegar a Nota
-                            const avatarSpan = document.querySelector('header img[alt*="Foto do perfil"], header img[alt*="profile picture"]')?.closest('span, div[role="button"]');
+                            const avatarSpan = document.querySelector('header img[alt*="Foto do perfil"], header img[alt*="profile picture"]')?.closest('span, div[role="button"], a');
                             if (avatarSpan) avatarSpan.click();
                         }
                     });
@@ -215,6 +220,15 @@ app.post('/connect', async (req, res) => {
                     console.log(`[Insta Service] URL após clique no anel da Live: ${currentUrl}`);
                 } catch (e) {
                     console.log(`[Insta Service] Aviso ao clicar no anel da Live: ${e.message}`);
+                }
+
+                // 4. Se ainda não entrou na URL /live/, tentar ir direto para /live/
+                if (!pageInstance.url().includes('/live/')) {
+                    console.log(`[Insta Service] Tentando URL direta de live: https://www.instagram.com/${cleanUser}/live/`);
+                    try {
+                        await pageInstance.goto(`https://www.instagram.com/${cleanUser}/live/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                        await new Promise(r => setTimeout(r, 4000));
+                    } catch(e) {}
                 }
             }
         }
