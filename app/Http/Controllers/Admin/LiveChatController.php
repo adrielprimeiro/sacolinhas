@@ -328,7 +328,7 @@ class LiveChatController extends Controller
     public function addToBag(Request $request)
     {
         $validated = $request->validate([
-            'code_request_id' => 'required|exists:live_code_requests,id',
+            'code_request_id' => 'nullable|exists:live_code_requests,id',
             'user_id' => 'required|exists:users,id',
             'item_id' => 'required|exists:items,id',
             'live_id' => 'required|exists:lives,id'
@@ -356,8 +356,10 @@ class LiveChatController extends Controller
                 // 2. Atualizar status do item
                 $item->update(['status' => 'sacolinha']);
 
-                // 3. Atualizar status do pedido de código para adicionado
-                LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
+                // 3. Atualizar status do pedido de código se informado
+                if (!empty($validated['code_request_id'])) {
+                    LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
+                }
             });
 
             return response()->json(['success' => true, 'message' => 'Item adicionado à sacola com sucesso!']);

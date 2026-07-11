@@ -219,6 +219,45 @@
     </div>
 </div>
 
+<!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE -->
+<div id="online-qr-modal" class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-gray-100 flex flex-col max-h-[95vh]">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
+            <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-qrcode text-indigo-600 text-xl"></i>
+                <span>Ler Produto para: <strong id="online-qr-client-name" class="text-indigo-600 font-extrabold">@usuario</strong></span>
+            </h3>
+            <button onclick="closeOnlineQrModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1 leading-none">&times;</button>
+        </div>
+
+        <p class="text-xs text-gray-500 mb-3">Aponte a câmera para a etiqueta do produto com QRCode/Código de Barras para adicionar instantaneamente à sacola deste cliente:</p>
+
+        <!-- Container da Câmera -->
+        <div class="flex-1 flex flex-col items-center justify-center bg-black rounded-xl overflow-hidden min-h-[260px] max-h-[340px] relative border border-gray-200">
+            <div id="online-qr-reader" class="w-full h-full"></div>
+        </div>
+
+        <!-- Feedback Visual em Tempo Real -->
+        <div id="online-qr-feedback" class="mt-3 p-3 rounded-xl text-xs font-bold hidden transition duration-200"></div>
+
+        <!-- Entrada Manual / Leitor USB -->
+        <div class="mt-3 pt-3 border-t border-gray-100">
+            <label class="block text-xs font-bold text-gray-700 mb-1">Ou digite/bipe com leitor USB o Código/SKU:</label>
+            <div class="flex gap-2">
+                <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: VEST-01 ou 12345..." class="flex-1 p-2.5 rounded-xl border border-gray-300 text-sm font-semibold focus:ring-indigo-500 focus:border-indigo-500">
+                <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm flex items-center gap-1.5">
+                    <i class="fas fa-plus"></i> Adicionar
+                </button>
+            </div>
+        </div>
+
+        <!-- Botão Fechar -->
+        <div class="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-3">
+            <button onclick="closeOnlineQrModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-5 py-2 rounded-xl text-sm transition duration-150">Concluir e Voltar</button>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -562,8 +601,10 @@
                 subtitle = `<span class="text-[9.5px] text-gray-400">Visto às ${u.last_seen}</span>`;
             }
 
+            const clientName = escapeHtml(u.user_name || u.user_apelido || '');
             html += `
-                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-150 hover:bg-gray-100 transition duration-150">
+                <div ${u.user_id ? `onclick="openOnlineQrModal('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}')"` : `onclick="openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')"`} 
+                     class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-150 hover:bg-indigo-50/70 hover:border-indigo-300 cursor-pointer transition duration-150 shadow-xs">
                     <div class="flex items-center gap-2">
                         <div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">
                             ${initials}
@@ -574,6 +615,14 @@
                             </div>
                             ${subtitle}
                         </div>
+                    </div>
+                    <div>
+                        ${
+                            u.user_id ? 
+                            `<button type="button" onclick="event.stopPropagation(); openOnlineQrModal('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}')" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition duration-150 shadow-sm flex items-center gap-1.5"><i class="fas fa-qrcode text-sm"></i> Ler QRCode</button>`
+                            :
+                            `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1 rounded-xl text-[11px] transition duration-150 shadow-sm flex items-center gap-1"><i class="fas fa-link"></i> Vincular & QR</button>`
+                        }
                     </div>
                 </div>
             `;
@@ -800,11 +849,175 @@
                 showToast("Vinculação realizada com sucesso!");
                 closeLinkModal();
                 fetchChatData();
+                // Abre o leitor de QR Code para esse usuário que acabou de ser vinculado
+                openOnlineQrModal(userId, username, '');
             } else {
                 alert("Erro ao vincular: " + data.message);
             }
         })
         .catch(err => console.error("Erro ao vincular usuário:", err));
+    }
+
+    // ==========================================
+    // LEITOR DE QRCODE / ETIQUETAS PARA PESSOAS ONLINE
+    // ==========================================
+    let onlineQrScannerInstance = null;
+    let currentOnlineQrUser = null;
+
+    function openOnlineQrModal(userId, username, clientName) {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            openLinkModal(username, 'instagram');
+            return;
+        }
+
+        currentOnlineQrUser = {
+            userId: userId,
+            username: username,
+            clientName: clientName || username
+        };
+
+        const clientNameEl = document.getElementById("online-qr-client-name");
+        if (clientNameEl) {
+            clientNameEl.textContent = `@${username} (${clientName || 'Cliente'})`;
+        }
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold hidden transition duration-200";
+            feedback.textContent = "";
+        }
+
+        document.getElementById("online-qr-modal").classList.remove("hidden");
+        if (manualInput) manualInput.focus();
+
+        // Inicializar câmera HTML5-QRCode
+        if (typeof Html5Qrcode === 'undefined') {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js";
+            script.onload = () => startOnlineQrCamera();
+            document.head.appendChild(script);
+        } else {
+            startOnlineQrCamera();
+        }
+    }
+
+    async function startOnlineQrCamera() {
+        if (!onlineQrScannerInstance) {
+            let formats = [0, 9, 5]; // QR_CODE, EAN_13, CODE_128
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                formats = [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.CODE_128
+                ];
+            }
+            onlineQrScannerInstance = new Html5Qrcode("online-qr-reader", { formatsToSupport: formats });
+        }
+
+        try {
+            const config = {
+                fps: 15,
+                qrbox: function(width, height) {
+                    const minEdge = Math.min(width, height);
+                    const size = Math.floor(minEdge * 0.75);
+                    return { width: size, height: size };
+                },
+                disableFlip: true
+            };
+
+            await onlineQrScannerInstance.start(
+                { facingMode: "environment" },
+                config,
+                async (decodedText) => {
+                    console.log("QRCode da etiqueta lido para usuário online:", decodedText);
+                    await handleOnlineQrScan(decodedText);
+                }
+            );
+        } catch (err) {
+            console.warn("Não foi possível iniciar a câmera ou permissão negada:", err);
+            const feedback = document.getElementById("online-qr-feedback");
+            if (feedback) {
+                feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 block";
+                feedback.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Câmera não acessível (${err.message || 'Sem permissão'}). Digite ou bipe o código no campo abaixo!`;
+            }
+        }
+    }
+
+    async function closeOnlineQrModal() {
+        if (onlineQrScannerInstance) {
+            try {
+                await onlineQrScannerInstance.stop();
+            } catch (e) {}
+        }
+        document.getElementById("online-qr-modal").classList.add("hidden");
+        fetchChatData();
+    }
+
+    async function handleOnlineQrScan(decodedText) {
+        if (!decodedText || !decodedText.trim() || !currentOnlineQrUser) return;
+        const code = decodedText.trim();
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-blue-100 text-blue-800 block animate-pulse";
+            feedback.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Buscando produto para a etiqueta "${code}"...`;
+        }
+
+        try {
+            const response = await fetch(`/items/search?q=${encodeURIComponent(code)}`);
+            const data = await response.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                if (feedback) {
+                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
+                    feedback.innerHTML = `<i class="fas fa-times-circle"></i> Nenhum produto disponível encontrado para a etiqueta/SKU <b>"${code}"</b>!`;
+                }
+                return;
+            }
+
+            let matchedItem = data.data.find(item => item.sku === code || String(item.id) === code) || data.data[0];
+
+            const addResponse = await fetch('/admin/live-chat/add-to-bag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    code_request_id: null,
+                    user_id: currentOnlineQrUser.userId,
+                    item_id: matchedItem.id,
+                    live_id: liveId
+                })
+            });
+
+            const addData = await addResponse.json();
+
+            if (addData.success) {
+                showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
+                if (feedback) {
+                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-green-100 text-green-800 block border border-green-300 shadow-sm";
+                    feedback.innerHTML = `<i class="fas fa-check-circle text-green-600 text-sm"></i> <b>${matchedItem.name}</b> (${matchedItem.formatted_price}) adicionado com sucesso para @${currentOnlineQrUser.username}! Aponte para o próximo produto...`;
+                }
+            } else {
+                if (feedback) {
+                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
+                    feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro ao adicionar na sacola: ${addData.message}`;
+                }
+            }
+        } catch (err) {
+            console.error("Erro na leitura/adição por QR Code:", err);
+            if (feedback) {
+                feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
+                feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro de comunicação com o servidor ao processar "${code}".`;
+            }
+        }
     }
 
     // Utilitários de escape de HTML
