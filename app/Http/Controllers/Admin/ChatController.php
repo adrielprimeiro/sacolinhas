@@ -633,10 +633,16 @@ class ChatController extends Controller
 			->get();
 
 		// CONFLITOS PARA MOSTRAR NA TABELA (COM MSG2 = ERRO)
+		$liveCreatedAt = DB::table('lives')->where('id', $liveId)->value('created_at');
 		$conflicts = DB::table('whatsapp_conflicts')
 			->where('resolved', 0)
-			->where(function ($q) use ($liveId) {
-				$q->where('live_id', $liveId)->orWhereNull('live_id');
+			->where(function ($q) use ($liveId, $liveCreatedAt) {
+				$q->where('live_id', $liveId);
+				if ($liveCreatedAt) {
+					$q->orWhere(function($sub) use ($liveCreatedAt) {
+						$sub->whereNull('live_id')->where('created_at', '>=', $liveCreatedAt);
+					});
+				}
 			})
 			->get();
 
