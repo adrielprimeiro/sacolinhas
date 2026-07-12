@@ -86,7 +86,7 @@ async function performAutoLoginFromEnv(page, targetProfileUrl) {
         }
 
         const freshCookies = await page.cookies('https://www.instagram.com');
-        if (freshCookies.some(c => c.name === 'sessionid') || !currentUrl.includes('login')) {
+        if (freshCookies.some(c => c.name === 'sessionid')) {
             const cookiesPath = path.resolve(__dirname, 'insta_session/cookies.json');
             fs.writeFileSync(cookiesPath, JSON.stringify(freshCookies, null, 4));
             console.log(`[Insta Service] 🍪 Autologin 100% concluído! ${freshCookies.length} cookies salvos em cookies.json.`);
@@ -190,13 +190,16 @@ app.post('/connect', async (req, res) => {
 
     try {
         browserInstance = await puppeteer.launch({
-            headless: "new",
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--window-size=1280,800'
+                '--window-size=1280,800',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-site-isolation-trials',
+                '--disable-web-security'
             ],
             userDataDir: './insta_session'
         });
@@ -498,13 +501,16 @@ app.post('/login', async (req, res) => {
 
     try {
         browserInstance = await puppeteer.launch({
-            headless: "new",
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--window-size=1280,800'
+                '--window-size=1280,800',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-site-isolation-trials',
+                '--disable-web-security'
             ],
             userDataDir: './insta_session'
         });
@@ -576,11 +582,11 @@ app.post('/login', async (req, res) => {
         }
 
         isConnecting = false;
-        if (cookies.some(c => c.name === 'sessionid') || !currentUrl.includes('login')) {
+        if (cookies.some(c => c.name === 'sessionid')) {
             currentUsername = cleanUser;
             return res.json({ success: true, message: `🎉 Login efetuado com sucesso no Servidor! Sessão e Cookies salvos na VPS. Agora clique no botão Conectar para iniciar a captura da Live.` });
         } else {
-            return res.status(400).json({ success: false, message: `Não foi possível concluir o login. Verifique se o usuário e senha estão corretos. (Uma captura de tela foi salva em /insta_login_challenge.png)` });
+            return res.status(400).json({ success: false, message: `Não foi possível concluir o login (sem sessionid gerado). Verifique se o usuário e senha estão corretos.` });
         }
     } catch (err) {
         isConnecting = false;
