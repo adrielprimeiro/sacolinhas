@@ -201,7 +201,7 @@ app.post('/connect', async (req, res) => {
                 '--disable-site-isolation-trials',
                 '--disable-web-security'
             ],
-            userDataDir: './insta_session'
+            userDataDir: '/tmp/insta_chrome_session'
         });
 
         pageInstance = await browserInstance.newPage();
@@ -512,7 +512,7 @@ app.post('/login', async (req, res) => {
                 '--disable-site-isolation-trials',
                 '--disable-web-security'
             ],
-            userDataDir: './insta_session'
+            userDataDir: '/tmp/insta_chrome_session'
         });
 
         pageInstance = await browserInstance.newPage();
