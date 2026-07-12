@@ -613,12 +613,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (qrBtn && qrWrap && qrCloseBtn) {
         async function stopQrScanner() {
-            if (html5QrScanner && html5QrScanner.isScanning) {
-                try {
-                    await html5QrScanner.stop();
-                } catch (e) {
-                    console.error("Erro ao parar scanner:", e);
+            if (html5QrScanner) {
+                if (html5QrScanner.isScanning) {
+                    try {
+                        await html5QrScanner.stop();
+                    } catch (e) {
+                        console.error("Erro ao parar scanner:", e);
+                    }
                 }
+                html5QrScanner = null;
+            }
+            if (qrReaderArea) {
+                qrReaderArea.innerHTML = '';
             }
             qrWrap.classList.add('d-none');
         }
@@ -667,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Configurações otimizadas para leitura ultra rápida
                 const config = {
-                    fps: 12, // Equilíbrio ideal: rápido o suficiente sem sobrecarregar CPUs de celulares mais antigos
+                    fps: 20, // Taxa de quadros mais alta para detecção mais ágil e fluida
                     qrbox: function(width, height) {
                         // Caixa de escaneamento dinâmica
                         const minEdge = Math.min(width, height);
