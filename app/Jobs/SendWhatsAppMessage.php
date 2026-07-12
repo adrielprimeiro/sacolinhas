@@ -151,8 +151,26 @@ class SendWhatsAppMessage implements ShouldQueue
             );
         } else {
             $contentSid = (string) config('services.twilio.initial_template', 'HX378937c73b703db60f41b0acfbd497e3');
+            
+            // Calcula quantidades e valores para o template inicial
+            $dadosSacola = DB::table('sacolinhas')
+                ->where('user_id', $this->userId)
+                ->where('live_id', $this->liveId)
+                ->where('status', '!=', 'pedido')
+                ->selectRaw('SUM(quantity) as num_items, SUM(quantity * price) as valor_total')
+                ->first();
+
+            $totalItens = (int) ($dadosSacola?->num_items ?? 0);
+            $valorTotal = number_format((float) ($dadosSacola?->valor_total ?? 0), 2, ',', '.');
+
+            $vars = [
+                '1' => $primeiroNome,
+                '2' => (string) $totalItens,
+                '3' => $valorTotal
+            ];
+
             $contentVars = json_encode(
-                ['1' => $primeiroNome],
+                $vars,
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
             );
         }
