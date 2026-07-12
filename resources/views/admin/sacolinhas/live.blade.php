@@ -230,8 +230,10 @@
 
     // Cache local de sacolas para busca em tempo real
     let currentLiveBags = [];
+    let currentLiveId = null;
     function exibirSacolas(bags, container, liveId) {
         currentLiveBags = bags || [];
+        currentLiveId = liveId;
         filtrarSacolas();
     }
 
@@ -262,9 +264,16 @@
                             <span class="text-xs text-gray-450 block">ID: ${bag.client.id}</span>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <span class="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold uppercase tracking-wide">Itens: ${bag.total_items}</span>
-                        <div class="font-black text-green-600 text-sm mt-0.5">${bag.formatted_total}</div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="enviarMensagemInicial(${currentLiveId}, ${bag.client.id}, this)" 
+                                class="bg-green-600 hover:bg-green-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
+                                title="Enviar mensagem inicial da live">
+                            <i class="fab fa-whatsapp text-sm"></i> Msg Inicial
+                        </button>
+                        <div class="text-right">
+                            <span class="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold uppercase tracking-wide">Itens: ${bag.total_items}</span>
+                            <div class="font-black text-green-600 text-sm mt-0.5">${bag.formatted_total}</div>
+                        </div>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -397,6 +406,37 @@
             }
         } catch (e) {
             alert('Erro ao enviar notificações. Verifique a conexão.');
+        }
+    }
+
+    async function enviarMensagemInicial(liveId, userId, btn) {
+        if (!confirm('Deseja realmente enviar a mensagem inicial da live (Msg1) para este cliente?')) {
+            return;
+        }
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...';
+
+        try {
+            const res = await fetch(`/lives/${liveId}/sacolas/${userId}/whatsapp/first`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Mensagem enfileirada com sucesso!');
+            } else {
+                alert(data.message || 'Erro ao enviar a mensagem.');
+            }
+        } catch (e) {
+            alert('Erro de conexão ao enviar a mensagem.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
     }
 </script>
