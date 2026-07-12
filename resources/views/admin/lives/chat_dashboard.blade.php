@@ -224,41 +224,79 @@
     </div>
 </div>
 
-<!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE -->
-<div id="online-qr-modal" class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-gray-100 flex flex-col max-h-[95vh]">
-        <div class="flex justify-between items-center pb-3 border-b border-gray-100 mb-4">
-            <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                <i class="fas fa-qrcode text-indigo-600 text-xl"></i>
-                <span>Ler Produto para: <strong id="online-qr-client-name" class="text-indigo-600 font-extrabold">@usuario</strong></span>
-            </h3>
-            <button onclick="closeOnlineQrModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1 leading-none">&times;</button>
-        </div>
-
-        <p class="text-xs text-gray-500 mb-3">Aponte a câmera para a etiqueta do produto com QRCode/Código de Barras para adicionar instantaneamente à sacola deste cliente:</p>
-
-        <!-- Container da Câmera -->
-        <div class="flex-1 flex flex-col items-center justify-center bg-black rounded-xl overflow-hidden min-h-[260px] max-h-[340px] relative border border-gray-200">
-            <div id="online-qr-reader" class="w-full h-full"></div>
-        </div>
-
-        <!-- Feedback Visual em Tempo Real -->
-        <div id="online-qr-feedback" class="mt-3 p-3 rounded-xl text-xs font-bold hidden transition duration-200"></div>
-
-        <!-- Entrada Manual / Leitor USB -->
-        <div class="mt-3 pt-3 border-t border-gray-100">
-            <label class="block text-xs font-bold text-gray-700 mb-1">Ou digite/bipe com leitor USB o Código/SKU:</label>
-            <div class="flex gap-2">
-                <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: VEST-01 ou 12345..." class="flex-1 p-2.5 rounded-xl border border-gray-300 text-sm font-semibold focus:ring-indigo-500 focus:border-indigo-500">
-                <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm flex items-center gap-1.5">
-                    <i class="fas fa-plus"></i> Adicionar
-                </button>
+<!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
+<div id="online-qr-modal" class="fixed inset-0 bg-gray-950 z-[100] flex flex-col hidden overflow-hidden">
+    <!-- Cabeçalho Fullscreen Elegante -->
+    <div class="bg-gray-900/95 border-b border-gray-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-inner">
+                <i class="fas fa-qrcode text-indigo-400 text-2xl animate-pulse"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-wide">
+                        Leitor de Etiqueta / QRCode
+                    </h3>
+                    <span class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Tela Inteira</span>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 mt-0.5">Adicionando itens na sacola de: <strong id="online-qr-client-name" class="text-indigo-400 font-extrabold text-sm sm:text-base bg-gray-800/80 px-2.5 py-0.5 rounded-md border border-gray-700/60">@usuario</strong></p>
             </div>
         </div>
 
-        <!-- Botão Fechar -->
-        <div class="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-3">
-            <button onclick="closeOnlineQrModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-5 py-2 rounded-xl text-sm transition duration-150">Concluir e Voltar</button>
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <button onclick="closeOnlineQrModal()" class="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/20 active:scale-95">
+                <i class="fas fa-times text-base"></i> Concluir e Voltar
+            </button>
+        </div>
+    </div>
+
+    <!-- Corpo / Área da Câmera em Tela Inteira -->
+    <div class="flex-1 flex flex-col lg:flex-row gap-6 p-4 sm:p-6 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <!-- Container da Câmera (Ocupa a maior parte da tela inteira) -->
+        <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden relative border-2 border-indigo-500/30 shadow-2xl min-h-[45vh] lg:min-h-0">
+            <div id="online-qr-reader" class="w-full h-full flex-1"></div>
+            
+            <div class="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10">
+                <div class="bg-gray-900/85 backdrop-blur-md px-5 py-2.5 rounded-full border border-gray-700 text-gray-200 text-xs sm:text-sm font-semibold flex items-center gap-2.5 shadow-xl">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <i class="fas fa-camera text-indigo-400"></i>
+                    <span>Aponte a câmera para o QR Code ou Código de Barras da etiqueta</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Lateral de Controles e Entrada Manual / Feedback (Largura fixa em telas grandes) -->
+        <div class="w-full lg:w-[420px] flex flex-col gap-4 shrink-0 overflow-y-auto">
+            <!-- Box de Entrada Manual / Leitor USB -->
+            <div class="bg-gray-900/90 rounded-3xl p-6 border border-gray-800 shadow-xl flex flex-col gap-3">
+                <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                    <i class="fas fa-keyboard text-indigo-400 text-base"></i>
+                    <span>Bipador USB / Entrada Manual</span>
+                </h4>
+                <p class="text-xs text-gray-300 leading-relaxed">
+                    Se estiver usando leitor USB de código de barras ou quiser digitar o SKU manualmente, use o campo abaixo:
+                </p>
+                <div class="flex gap-2 mt-1">
+                    <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: VEST-01 ou 12345..." class="flex-1 px-4 py-3.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-5 py-3.5 rounded-xl text-sm shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Feedback Visual em Tempo Real -->
+            <div id="online-qr-feedback" class="p-4 sm:p-5 rounded-3xl text-sm font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
+
+            <!-- Instruções Rápidas -->
+            <div class="bg-gray-900/60 rounded-3xl p-5 border border-gray-800/80 text-xs text-gray-300 space-y-2.5 flex-1">
+                <p class="font-bold text-white flex items-center gap-2 text-sm"><i class="fas fa-info-circle text-indigo-400"></i> Como funciona em Tela Inteira:</p>
+                <ul class="list-disc pl-4 space-y-1.5 text-gray-300 leading-normal">
+                    <li>A câmera permanece aberta continuamente em tela cheia para você bipar vários itens seguidos sem fechar a janela.</li>
+                    <li>Cada leitura bem-sucedida adiciona o produto automaticamente à sacola da cliente.</li>
+                    <li>O feedback de sucesso ou erro aparecerá em destaque logo acima.</li>
+                    <li>Ao finalizar todos os produtos da cliente, clique em <strong class="text-white">Concluir e Voltar</strong> para retornar à lista.</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
@@ -982,7 +1020,7 @@
                 fps: 15,
                 qrbox: function(width, height) {
                     const minEdge = Math.min(width, height);
-                    const size = Math.floor(minEdge * 0.75);
+                    const size = Math.min(Math.floor(minEdge * 0.8), 650);
                     return { width: size, height: size };
                 },
                 disableFlip: true
@@ -1000,8 +1038,8 @@
             console.warn("Não foi possível iniciar a câmera ou permissão negada:", err);
             const feedback = document.getElementById("online-qr-feedback");
             if (feedback) {
-                feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-amber-100 text-amber-800 block";
-                feedback.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Câmera não acessível (${err.message || 'Sem permissão'}). Digite ou bipe o código no campo abaixo!`;
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-xs sm:text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                feedback.innerHTML = `<i class="fas fa-exclamation-triangle text-amber-400 mr-1.5"></i> Câmera não acessível (${err.message || 'Sem permissão'}). Digite ou bipe o código com leitor USB no campo acima!`;
             }
         }
     }
@@ -1025,8 +1063,8 @@
 
         const feedback = document.getElementById("online-qr-feedback");
         if (feedback) {
-            feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-blue-100 text-blue-800 block animate-pulse";
-            feedback.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Buscando produto para a etiqueta "${code}"...`;
+            feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-blue-500/20 text-blue-200 border border-blue-500/40 block animate-pulse shadow-lg";
+            feedback.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-spinner fa-spin text-blue-400 text-xl"></i><div><b>Buscando produto...</b><br><span class="text-xs text-blue-300 font-normal">Etiqueta/SKU: ${escapeHtml(code)}</span></div></div>`;
         }
 
         try {
@@ -1035,8 +1073,8 @@
 
             if (!data.success || !data.data || data.data.length === 0) {
                 if (feedback) {
-                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
-                    feedback.innerHTML = `<i class="fas fa-times-circle"></i> Nenhum produto disponível encontrado para a etiqueta/SKU <b>"${code}"</b>!`;
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg animate-shake";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-times-circle text-red-400 text-xl mt-0.5"></i><div><b>Produto não encontrado!</b><br><span class="text-xs text-red-300 font-normal">Nenhum produto cadastrado com o SKU ou código de barras <b>"${escapeHtml(code)}"</b>. Verifique o código e tente novamente.</span></div></div>`;
                 }
                 return;
             }
@@ -1062,20 +1100,20 @@
             if (addData.success) {
                 showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
                 if (feedback) {
-                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-green-100 text-green-800 block border border-green-300 shadow-sm";
-                    feedback.innerHTML = `<i class="fas fa-check-circle text-green-600 text-sm"></i> <b>${matchedItem.name}</b> (${matchedItem.formatted_price}) adicionado com sucesso para @${currentOnlineQrUser.username}! Aponte para o próximo produto...`;
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal"><i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.</div></div></div>`;
                 }
             } else {
                 if (feedback) {
-                    feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
-                    feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro ao adicionar na sacola: ${addData.message}`;
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Erro ao adicionar:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola. Tente novamente.')}</span></div></div>`;
                 }
             }
         } catch (err) {
             console.error("Erro na leitura/adição por QR Code:", err);
             if (feedback) {
-                feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold bg-red-100 text-red-800 block";
-                feedback.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro de comunicação com o servidor ao processar "${code}".`;
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg";
+                feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-circle text-red-400 text-xl mt-0.5"></i><div><b>Erro de comunicação:</b><br><span class="text-xs text-red-300 font-normal">Falha ao se comunicar com o servidor ao processar "${escapeHtml(code)}".</span></div></div>`;
             }
         }
     }
