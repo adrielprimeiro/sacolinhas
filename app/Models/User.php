@@ -76,6 +76,19 @@ class User extends Authenticatable
                 );
             }
         });
+
+        static::updated(function ($user) {
+            if ($user->role === 'client') {
+                \App\Models\Pessoa::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nome'      => $user->name,
+                        'documento' => $user->cpf,
+                        'tipo'      => 'cliente_circular',
+                    ]
+                );
+            }
+        });
     }
 
     /**
