@@ -312,9 +312,9 @@
                 {{-- Grupo: Relatórios --}}
                 <div>
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Relatórios</p>
-                    <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios') ? 'true' : 'false' }} }">
+                    <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clientes.relatorios') ? 'bg-gray-100 font-semibold' : '' }}">
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'bg-gray-100 font-semibold' : '' }}">
                             <div class="flex items-center gap-3">
                                 <i class="fas fa-chart-bar text-gray-500 w-5"></i>
                                 <span>Relatórios</span>
@@ -324,6 +324,9 @@
                         <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
                             <a href="{{ route('admin.clientes.relatorios') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.clientes.relatorios') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-chart-line mr-1"></i> Clientes
+                            </a>
+                            <a href="{{ route('admin.portal-acessos.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.portal-acessos.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-history mr-1"></i> Acessos Portal
                             </a>
                             <a href="#" class="block py-1 text-sm text-gray-600 hover:text-indigo-600">
                                 <i class="fas fa-shopping-cart mr-1"></i> Vendas

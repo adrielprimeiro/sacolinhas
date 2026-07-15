@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
 			'check.admin' => \App\Http\Middleware\CheckAdmin::class, // Novo para portal admin
 			'check.client' => \App\Http\Middleware\CheckClient::class, 
+			'track.portal.access' => \App\Http\Middleware\TrackPortalAccess::class,
             // O 'admin' original continua funcionando
         ]);
     })

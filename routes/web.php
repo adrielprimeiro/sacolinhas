@@ -610,7 +610,7 @@ Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markM
 // ============================================
 // PORTAL DO CLIENTE (NOVO)
 // ============================================
-Route::middleware(['auth', 'check.client'])->prefix('portal')->name('portal.')->group(function () {
+Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('portal')->name('portal.')->group(function () {
     
     // Boas-vindas inteligente / smart landing page
     Route::get('/boas-vindas', [PortalClienteController::class, 'welcomeLanding'])->name('welcome');
@@ -820,4 +820,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::resource('grupos', \App\Http\Controllers\Admin\GruposController::class)->middleware('can:admin');
     Route::post('grupos/{grupo}/membros', [\App\Http\Controllers\Admin\GruposController::class, 'addMembro'])->middleware('can:admin')->name('grupos.addMembro');
     Route::delete('grupos/{grupo}/membros/{user}', [\App\Http\Controllers\Admin\GruposController::class, 'removeMembro'])->middleware('can:admin')->name('grupos.removeMembro');
+    
+    // Rastreamento de Acessos do Portal do Cliente
+    Route::get('portal-acessos', [\App\Http\Controllers\Admin\PortalAcessosController::class, 'index'])->name('portal-acessos.index');
 });
