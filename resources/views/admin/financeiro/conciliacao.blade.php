@@ -139,7 +139,10 @@
                                                     <span class="text-gray-900"><i class="far fa-calendar-alt text-gray-500 mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
                                                 @endif
                                             </div>
-                                                                        @if(!empty($s->is_virtual))
+                                        </div>
+
+                                        <div class="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-indigo-100/40 flex-wrap sm:flex-nowrap">
+                                            @if(!empty($s->is_virtual))
                                                 <span class="text-sm font-black text-gray-700 sm:text-right">
                                                     R$ {{ number_format($t->valor, 2, ',', '.') }}
                                                 </span>
