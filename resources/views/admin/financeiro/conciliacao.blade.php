@@ -11,7 +11,10 @@
 <div x-data="conciliacaoApp()">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
+            <button @click="showModalRegras = true" class="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition shadow-md flex items-center gap-2">
+                <i class="fas fa-cog"></i>Regras Padrão
+            </button>
             <button @click="showModalOfx = true" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition shadow-sm">
                 <i class="fas fa-file-upload mr-2"></i>Importar Extrato (OFX/CSV)
             </button>
@@ -136,22 +139,40 @@
                                                     <span class="text-gray-900"><i class="far fa-calendar-alt text-gray-500 mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
                                                 @endif
                                             </div>
-                                        </div>
-
-                                        <div class="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-indigo-100/40">
-                                            @if(!empty($s->is_virtual))
+                                                                        @if(!empty($s->is_virtual))
                                                 <span class="text-sm font-black text-gray-700 sm:text-right">
                                                     R$ {{ number_format($t->valor, 2, ',', '.') }}
                                                 </span>
-                                                <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>';">
-                                                    @csrf
-                                                    <input type="hidden" name="transacao_id" value="{{ $t->id }}">
-                                                    <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
-                                                    <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
-                                                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
-                                                        <i class="fas fa-plus"></i> Criar e Conciliar
-                                                    </button>
-                                                </form>
+                                                <div class="flex items-center gap-2">
+                                                    @php
+                                                        $isDefault = $item['regra_correspondente'] && $item['regra_correspondente']['classificacao_financeira_id'] == $s->classificacao_financeira_id && $item['regra_correspondente']['pessoa_id'] == $s->pessoa_id;
+                                                    @endphp
+                                                    @if($isDefault)
+                                                        <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1" title="Esta é a regra padrão configurada para esta descrição">
+                                                            <i class="fas fa-star text-amber-500"></i> Padrão
+                                                        </span>
+                                                    @else
+                                                        <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline">
+                                                            @csrf
+                                                            <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
+                                                            <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                            <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                            <button type="submit" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1" title="Definir esta classificação e contato como regra padrão para esta descrição de extrato">
+                                                                <i class="far fa-star text-gray-400"></i> Tornar Padrão
+                                                            </button>
+                                                        </form>
+                                                    @endif
+
+                                                    <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>';">
+                                                        @csrf
+                                                        <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                        <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                        <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                                                            <i class="fas fa-plus"></i> Criar e Conciliar
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             @else
                                                 <span class="text-sm font-black text-gray-700 sm:text-right">
                                                     R$ {{ number_format($s->valor_total, 2, ',', '.') }}
@@ -273,6 +294,109 @@
                 <p class="text-sm text-gray-400 mt-1.5 leading-relaxed">Nenhuma transação de extrato pendente para conciliação. Excelente trabalho!</p>
             </div>
         @endforelse
+    </div>
+
+    <!-- Modal Regras de Conciliação Padrão -->
+    <div x-show="showModalRegras" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <div class="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <h3 class="font-black text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-cog text-amber-500"></i> Regras de Conciliação Padrão
+                </h3>
+                <button type="button" @click="showModalRegras = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+                <p class="text-xs text-gray-500 leading-relaxed font-semibold">
+                    Aqui você pode gerenciar os padrões de conciliação. Quando uma transação do extrato contiver o termo pesquisado na descrição, o sistema sugerirá automaticamente o Contato e a Classificação configurada no topo da lista.
+                </p>
+
+                <!-- Nova Regra Form -->
+                <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="bg-gray-50 p-4 rounded-2xl border border-gray-150 space-y-3">
+                    @csrf
+                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Adicionar Nova Regra</h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Descrição Procurada (banco)</label>
+                            <input type="text" name="descricao_banco" placeholder="Ex: VINDI PAGAMENTOS" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Contato Padrão</label>
+                            <select name="pessoa_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                                <option value="">Selecione...</option>
+                                @foreach($pessoas as $p)
+                                    <option value="{{ $p->id }}">{{ $p->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Classificação Padrão</label>
+                            <select name="classificacao_financeira_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                                <option value="">Selecione...</option>
+                                @foreach($classificacoes as $c)
+                                    <option value="{{ $c->id }}">{{ $c->codigo }} - {{ $c->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
+                            <i class="fas fa-plus mr-1"></i> Salvar Regra
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Listagem das Regras -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Regras Ativas</h4>
+                    
+                    @php
+                        $regrasAtivas = json_decode(\DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor'), true) ?: [];
+                    @endphp
+
+                    @if(empty($regrasAtivas))
+                        <p class="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-2xl text-center">Nenhuma regra cadastrada ainda. Use o formulário acima ou clique em "Tornar Padrão" nas sugestões automáticas do extrato.</p>
+                    @else
+                        <div class="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-100">
+                            @foreach($regrasAtivas as $regra)
+                                @php
+                                    $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
+                                    $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
+                                @endphp
+                                <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition">
+                                    <div class="space-y-1">
+                                        <div class="text-xs font-bold text-gray-805">
+                                            Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                                        </div>
+                                        <div class="text-[10px] text-gray-500 flex items-center gap-3">
+                                            <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>
+                                            <span class="bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
+                                                <i class="far fa-folder text-indigo-500"></i>
+                                                {{ $cModel->nome ?? 'Sem Categoria' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja realmente excluir esta regra padrão?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-55 rounded-lg transition" title="Excluir Regra">
+                                            <i class="far fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-gray-50 flex justify-end flex-shrink-0">
+                <button type="button" @click="showModalRegras = false" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-xl text-sm font-bold transition">Fechar</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal OFX -->
@@ -480,6 +604,7 @@
         return {
             quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
             showModalOfx: false,
+            showModalRegras: false,
             showModalMp: false,
             showModalInter: false,
             showModalQuick: false,

@@ -46,10 +46,24 @@ class ConciliacaoController extends Controller
             ->orderBy('data_vencimento', 'asc')
             ->get();
 
-        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos) {
+        $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
+        $regras = json_decode($regrasRaw, true) ?: [];
+
+        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras) {
             $pedidoIdRef = $t->getPedidoId();
             
-            // 1. Buscar histórico para a descrição exata do banco
+            // 1. Procurar regra correspondente para a descrição
+            $regraCorrespondente = null;
+            $tDescLower = mb_strtolower($t->descricao, 'UTF-8');
+            foreach ($regras as $r) {
+                $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                if (str_contains($tDescLower, $ruleDescLower)) {
+                    $regraCorrespondente = $r;
+                    break;
+                }
+            }
+
+            // 2. Buscar histórico para a descrição exata do banco
             $paresHistoricos = [];
             
             // Lançamentos pagos/com movimentação no passado com essa descrição
@@ -101,6 +115,14 @@ class ConciliacaoController extends Controller
                         return false;
                     }
                     
+                    // Se o lançamento já estiver pago, só sugere se a data de vencimento for próxima à data da transação (limite de 10 dias)
+                    if ($l->status === 'pago') {
+                        $diferencaDias = abs(\Illuminate\Support\Carbon::parse($t->data)->diffInDays(\Illuminate\Support\Carbon::parse($l->data_vencimento)));
+                        if ($diferencaDias > 10) {
+                            return false;
+                        }
+                    }
+                    
                     // Apenas sugere lançamentos cujo valor total ou saldo restante coincida com o da transação
                     $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
                     $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
@@ -120,8 +142,84 @@ class ConciliacaoController extends Controller
                 }
             }
 
-            // B. Adicionar Sugestões Virtuais de Criação Rápida (Score 90)
+            // B. Adicionar Lançamentos em Aberto correspondentes à Regra de Conciliação (Score 150)
+            if ($regraCorrespondente) {
+                $matchedRuleOpen = $lancamentos->filter(function ($l) use ($regraCorrespondente, $t) {
+                    $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
+                    if ($l->tipo !== $tTipoMapped 
+                        || $l->pessoa_id != $regraCorrespondente['pessoa_id'] 
+                        || $l->classificacao_financeira_id != $regraCorrespondente['classificacao_financeira_id']) {
+                        return false;
+                    }
+                    
+                    // Para regras, também limitamos 10 dias se já estiver pago
+                    if ($l->status === 'pago') {
+                        $diferencaDias = abs(\Illuminate\Support\Carbon::parse($t->data)->diffInDays(\Illuminate\Support\Carbon::parse($l->data_vencimento)));
+                        if ($diferencaDias > 10) {
+                            return false;
+                        }
+                    }
+                    
+                    $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
+                    $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
+                    
+                    $valMatch = abs((float)$t->valor - (float)$l->valor_total) < 0.05;
+                    $saldoMatch = abs((float)$t->valor - $saldoRestante) < 0.05;
+                    
+                    return $valMatch || $saldoMatch;
+                });
+
+                foreach ($matchedRuleOpen as $l) {
+                    if (!$sugestoesFinal->contains('id', $l->id)) {
+                        $lClone = clone $l;
+                        $lClone->score = 150;
+                        $lClone->motivos_match = ['Regra padrão de conciliação'];
+                        $lClone->is_valid_suggestion = true;
+                        $sugestoesFinal->push($lClone);
+                    } else {
+                        // Se já existia, atualiza o score para dar prioridade máxima
+                        $existing = $sugestoesFinal->firstWhere('id', $l->id);
+                        if ($existing) {
+                            $existing->score = 150;
+                            $existing->motivos_match = ['Regra padrão de conciliação'];
+                        }
+                    }
+                }
+            }
+
+            // C. Adicionar Sugestões Virtuais de Criação Rápida por Regra (Score 140)
+            if ($regraCorrespondente) {
+                $pessoaModel = \App\Models\Pessoa::find($regraCorrespondente['pessoa_id']);
+                $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($regraCorrespondente['classificacao_financeira_id']);
+                
+                if ($pessoaModel && $classificacaoModel) {
+                    $virtualRule = (object) [
+                        'id' => null,
+                        'is_virtual' => true,
+                        'descricao' => 'Criar Lançamento Rápido',
+                        'tipo' => ($t->tipo === 'entrada') ? 'receita' : 'despesa',
+                        'valor_total' => $t->valor,
+                        'pessoa_id' => $pessoaModel->id,
+                        'pessoa' => $pessoaModel,
+                        'classificacao_financeira_id' => $classificacaoModel->id,
+                        'classificacaoFinanceira' => $classificacaoModel,
+                        'score' => 140,
+                        'motivos_match' => ['Regra padrão'],
+                        'is_valid_suggestion' => true
+                    ];
+                    $sugestoesFinal->push($virtualRule);
+                }
+            }
+
+            // D. Adicionar Sugestões Virtuais de Criação Rápida por Histórico (Score 90)
             foreach ($paresHistoricos as $par) {
+                // Se já adicionamos essa mesma combinação pela regra, não duplica com score baixo
+                if ($regraCorrespondente 
+                    && $par['pessoa_id'] == $regraCorrespondente['pessoa_id'] 
+                    && $par['classificacao_id'] == $regraCorrespondente['classificacao_financeira_id']) {
+                    continue;
+                }
+
                 $pessoaModel = \App\Models\Pessoa::find($par['pessoa_id']);
                 $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($par['classificacao_id']);
                 
@@ -144,13 +242,21 @@ class ConciliacaoController extends Controller
                 }
             }
 
-            // C. Adicionar Sugestões por Nome do Cliente na Descrição (Score 110)
+            // E. Adicionar Sugestões por Nome do Cliente na Descrição (Score 110)
             $matchedByPessoa = $lancamentos->filter(function ($l) use ($t) {
                 $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
                 if ($l->tipo !== $tTipoMapped) {
                     return false;
                 }
                 
+                // Limite de 10 dias para pagos
+                if ($l->status === 'pago') {
+                    $diferencaDias = abs(\Illuminate\Support\Carbon::parse($t->data)->diffInDays(\Illuminate\Support\Carbon::parse($l->data_vencimento)));
+                    if ($diferencaDias > 10) {
+                        return false;
+                    }
+                }
+
                 $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
                 $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
                 $valMatch = abs((float)$t->valor - (float)$l->valor_total) < 0.05;
@@ -194,14 +300,34 @@ class ConciliacaoController extends Controller
                 }
             }
 
-            $sugestoes = $sugestoesFinal
+            // Garantir que removemos qualquer duplicado de ID de sugestão
+            $sugestoesUnicas = collect();
+            foreach ($sugestoesFinal as $sug) {
+                if ($sug->id !== null) {
+                    if (!$sugestoesUnicas->contains('id', $sug->id)) {
+                        $sugestoesUnicas->push($sug);
+                    }
+                } else {
+                    $exists = $sugestoesUnicas->contains(function ($value) use ($sug) {
+                        return $value->id === null 
+                            && $value->pessoa_id == $sug->pessoa_id 
+                            && $value->classificacao_financeira_id == $sug->classificacao_financeira_id;
+                    });
+                    if (!$exists) {
+                        $sugestoesUnicas->push($sug);
+                    }
+                }
+            }
+
+            $sugestoes = $sugestoesUnicas
                 ->sortByDesc('score')
                 ->take(5)
                 ->values();
 
             return [
                 'transacao' => $t,
-                'sugestoes' => $sugestoes
+                'sugestoes' => $sugestoes,
+                'regra_correspondente' => $regraCorrespondente
             ];
         });
 
@@ -582,6 +708,79 @@ class ConciliacaoController extends Controller
             return back()->with('success', 'Transação desvinculada com sucesso! O lançamento e a transação correspondentes voltaram a ficar pendentes.');
         } catch (\Exception $e) {
             return back()->with('error', 'Erro ao desvincular transação: ' . $e->getMessage());
+        }
+    }
+
+    public function salvarRegra(Request $request)
+    {
+        $request->validate([
+            'descricao_banco' => 'required|string',
+            'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
+            'pessoa_id' => 'required|exists:pessoas,id',
+        ]);
+
+        try {
+            \DB::transaction(function() use ($request) {
+                $config = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->first();
+                $regras = $config ? json_decode($config->valor, true) : [];
+                if (!is_array($regras)) {
+                    $regras = [];
+                }
+
+                $descricaoBanco = trim($request->descricao_banco);
+
+                $updated = false;
+                foreach ($regras as &$r) {
+                    if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')) {
+                        $r['classificacao_financeira_id'] = (int) $request->classificacao_financeira_id;
+                        $r['pessoa_id'] = (int) $request->pessoa_id;
+                        $updated = true;
+                        break;
+                    }
+                }
+
+                if (!$updated) {
+                    $regras[] = [
+                        'id' => uniqid(),
+                        'descricao_banco' => $descricaoBanco,
+                        'classificacao_financeira_id' => (int) $request->classificacao_financeira_id,
+                        'pessoa_id' => (int) $request->pessoa_id,
+                    ];
+                }
+
+                \DB::table('configuracoes')->updateOrInsert(
+                    ['chave' => 'regras_conciliacao'],
+                    ['valor' => json_encode($regras), 'updated_at' => now()]
+                );
+            });
+
+            return back()->with('success', 'Regra de conciliação padrão salva com sucesso!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erro ao salvar regra: ' . $e->getMessage());
+        }
+    }
+
+    public function excluirRegra($id)
+    {
+        try {
+            \DB::transaction(function() use ($id) {
+                $config = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->first();
+                if ($config) {
+                    $regras = json_decode($config->valor, true) ?: [];
+                    $regrasFiltradas = array_filter($regras, function($r) use ($id) {
+                        return $r['id'] !== $id;
+                    });
+                    
+                    \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->update([
+                        'valor' => json_encode(array_values($regrasFiltradas)),
+                        'updated_at' => now()
+                    ]);
+                }
+            });
+
+            return back()->with('success', 'Regra de conciliação padrão excluída com sucesso!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erro ao excluir regra: ' . $e->getMessage());
         }
     }
 }
