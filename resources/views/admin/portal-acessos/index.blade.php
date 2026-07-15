@@ -46,15 +46,114 @@ function parseUserAgent($ua) {
     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Filtrar Acessos</h3>
     <form action="{{ route('admin.portal-acessos.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         <div>
-            <label for="user_id" class="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label>
-            <select name="user_id" id="user_id" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Todos os clientes</option>
-                @foreach($clients as $c)
-                    <option value="{{ $c->id }}" {{ request('user_id') == $c->id ? 'selected' : '' }}>
-                        {{ $c->name }} {{ $c->apelido ? "({$c->apelido})" : '' }}
-                    </option>
-                @endforeach
-            </select>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cliente</label>
+            @php $selectedUser = request('user_id') ? \App\Models\User::find(request('user_id')) : null; @endphp
+            <div x-data="{ 
+                open: false, 
+                search: '{{ addslashes($selectedUser->name ?? request('cliente') ?? '') }}',
+                selectedId: '{{ request('user_id') }}',
+                users: [],
+                loading: false,
+                focusedIndex: -1,
+                timeout: null,
+                handleInput() {
+                    this.selectedId = '';
+                    this.focusedIndex = -1;
+                    this.open = true;
+                    if (this.search.length < 2) {
+                        this.users = [];
+                        return;
+                    }
+                    this.loading = true;
+                    clearTimeout(this.timeout);
+                    this.timeout = setTimeout(() => {
+                        this.fetchUsers();
+                    }, 300);
+                },
+                fetchUsers() {
+                    fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.users = res.data.map(u => {
+                                    let extraInfo = [u.email, u.instagram, u.tiktok, u.apelido].filter(Boolean).join(' • ');
+                                    return { id: String(u.id), name: u.name, info: extraInfo };
+                                });
+                                this.focusedIndex = this.users.length > 0 ? 0 : -1;
+                            } else {
+                                this.users = [];
+                                this.focusedIndex = -1;
+                            }
+                            this.loading = false;
+                        })
+                        .catch(() => {
+                            this.users = [];
+                            this.focusedIndex = -1;
+                            this.loading = false;
+                        });
+                },
+                selectUser(user) {
+                    this.selectedId = user.id; 
+                    this.search = user.name; 
+                    this.open = false;
+                },
+                onKeyDown(e) {
+                    if (e.key === 'Enter') {
+                        if (this.open && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+                            e.preventDefault();
+                            this.selectUser(this.users[this.focusedIndex]);
+                        }
+                        return;
+                    }
+                    
+                    if (!this.open || this.users.length === 0) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+                    }
+                }
+            }" class="relative">
+                <input type="text" 
+                       name="cliente"
+                       x-model="search"
+                       @input="handleInput()"
+                       @click="open = true"
+                       @click.away="open = false"
+                       @keydown.escape="open = false"
+                       @keydown="onKeyDown($event)"
+                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       placeholder="Digite nome ou e-mail...">
+                
+                <input type="hidden" name="user_id" :value="selectedId">
+
+                <!-- Dropdown de Sugestões -->
+                <div x-show="open" 
+                     x-transition
+                     class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-xl rounded-xl max-h-60 overflow-y-auto"
+                     style="display: none;">
+                    <template x-for="(user, index) in users" :key="user.id">
+                        <div @click="selectUser(user)"
+                             class="p-3 cursor-pointer border-b border-gray-100 last:border-0 transition"
+                             :class="[
+                                selectedId == user.id ? 'border-l-4 border-indigo-600' : 'border-l-4 border-transparent',
+                                focusedIndex === index ? 'bg-indigo-50' : 'hover:bg-indigo-50'
+                             ]">
+                            <div class="font-bold text-sm text-gray-800" x-text="user.name"></div>
+                            <div class="text-[10px] text-gray-500" x-show="user.info" x-text="user.info"></div>
+                        </div>
+                    </template>
+                    <div x-show="loading" class="px-4 py-2 text-sm text-gray-400 italic">
+                        Carregando...
+                    </div>
+                    <div x-show="!loading && users.length === 0" class="px-4 py-2 text-sm text-gray-400 italic">
+                        Nenhum cliente encontrado.
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div>
