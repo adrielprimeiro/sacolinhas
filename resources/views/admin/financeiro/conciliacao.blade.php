@@ -117,17 +117,17 @@
                                 @foreach($sugestoes as $s)
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-indigo-50/10 rounded-xl border border-indigo-100/20 hover:bg-indigo-50/30 transition">
                                         <div class="space-y-1 flex-grow">
-                                            {{-- Primeira Linha: Apenas o Lançamento (em cinza, sem negrito) --}}
+                                            {{-- Primeira Linha: Apenas o Lançamento (em cinza, com negrito) --}}
                                             <div class="flex items-center gap-2">
-                                                <span class="text-xs font-normal text-gray-400">{{ $s->descricao }}</span>
+                                                <span class="text-xs font-bold text-gray-400">{{ $s->descricao }}</span>
                                             </div>
                                             
-                                            {{-- Segunda Linha: Detalhes (em preto, sem negrito), com destaque na classificação --}}
+                                            {{-- Segunda Linha: Detalhes (em preto, sem negrito), com destaque na classificação (em negrito) --}}
                                             <div class="text-[10px] text-gray-900 font-normal flex items-center flex-wrap gap-x-3 gap-y-1">
                                                 <span class="text-gray-900"><i class="far fa-user mr-1 text-gray-500"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
                                                 
-                                                {{-- Classificação com Destaque --}}
-                                                <span class="bg-indigo-50 text-indigo-700 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1 shadow-sm">
+                                                {{-- Classificação com Destaque (Negrito) --}}
+                                                <span class="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1 shadow-sm">
                                                     <i class="far fa-folder text-indigo-500"></i>
                                                     {{ $s->classificacaoFinanceira->nome ?? 'Sem Categoria' }}
                                                 </span>
