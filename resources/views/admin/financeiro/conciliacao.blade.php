@@ -115,56 +115,28 @@
                         @else
                             <div class="space-y-2.5">
                                 @foreach($sugestoes as $s)
-                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition">
-                                        <div class="space-y-2.5 flex-grow">
-                                            {{-- Top Row: High-visibility Classification and Person --}}
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                {{-- Classificação (Highlighted) --}}
-                                                <span class="bg-indigo-50 text-indigo-700 text-xs font-black px-2.5 py-1 rounded-lg border border-indigo-100 flex items-center gap-1.5 shadow-sm">
-                                                    <i class="far fa-folder text-indigo-500 text-sm"></i>
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-indigo-50/10 rounded-xl border border-indigo-100/20 hover:bg-indigo-50/30 transition">
+                                        <div class="space-y-1 flex-grow">
+                                            {{-- Primeira Linha: Apenas o Lançamento --}}
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-gray-800">{{ $s->descricao }}</span>
+                                            </div>
+                                            
+                                            {{-- Segunda Linha: Detalhes, com destaque na classificação --}}
+                                            <div class="text-[10px] text-gray-500 font-bold flex items-center flex-wrap gap-x-3 gap-y-1">
+                                                <span class="text-gray-600"><i class="far fa-user mr-1 text-gray-400"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
+                                                
+                                                {{-- Classificação com Destaque --}}
+                                                <span class="bg-indigo-50 text-indigo-700 text-[9px] font-black px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1 shadow-sm">
+                                                    <i class="far fa-folder text-indigo-500"></i>
                                                     {{ $s->classificacaoFinanceira->nome ?? 'Sem Categoria' }}
                                                 </span>
 
-                                                {{-- Cliente / Pessoa (Highlighted) --}}
-                                                <span class="text-xs font-extrabold text-gray-800 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-150 flex items-center gap-1.5">
-                                                    <i class="far fa-user text-gray-500"></i>
-                                                    {{ $s->pessoa->nome ?? 'Sem Contato' }}
-                                                </span>
-
-                                                {{-- Vencimento ou Sugestão Inteligente --}}
                                                 @if(!empty($s->is_virtual))
-                                                     <span class="bg-gray-100 text-gray-500 border border-gray-200 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                                         <i class="fas fa-magic text-gray-400"></i> Sugestão Inteligente
-                                                     </span>
+                                                    <span class="text-gray-500"><i class="fas fa-magic text-gray-400 mr-1"></i>Sugestão Inteligente</span>
                                                 @else
-                                                     <span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-lg border border-gray-200 flex items-center gap-1">
-                                                         <i class="far fa-calendar-alt text-gray-400"></i>
-                                                         Venc. {{ $s->data_vencimento->format('d/m/Y') }}
-                                                     </span>
+                                                    <span class="text-gray-600"><i class="far fa-calendar-alt text-gray-400 mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
                                                 @endif
-                                            </div>
-
-                                            {{-- Bottom Row: System details (greyed out description and Match score) --}}
-                                            <div class="flex items-center gap-2 text-[10px] text-gray-400 font-semibold flex-wrap">
-                                                <span class="text-gray-400/90 font-medium bg-gray-50 px-2 py-0.5 rounded border border-gray-100/80">Lançamento: "{{ $s->descricao }}"</span>
-                                                
-                                                <span class="bg-gray-50 text-gray-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-gray-200/60">
-                                                    Match: {{ $s->score }} pts
-                                                </span>
-
-                                                @foreach($s->motivos_match as $motivo)
-                                                    @php
-                                                        $badgeColor = match($motivo) {
-                                                            'Valor exato', 'Valor líquido exato' => 'bg-green-50/50 text-green-600 border-green-100',
-                                                            'Pedido correspondente' => 'bg-blue-50/50 text-blue-600 border-blue-100',
-                                                            'Vencimento hoje', 'Vencimento próximo (até 3 dias)', 'Vencimento próximo (até 7 dias)' => 'bg-yellow-50/50 text-yellow-600 border-yellow-100',
-                                                            default => 'bg-gray-50 text-gray-400 border-gray-200/60'
-                                                        };
-                                                    @endphp
-                                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border {{ $badgeColor }}">
-                                                         {{ $motivo }}
-                                                    </span>
-                                                @endforeach
                                             </div>
                                         </div>
 
