@@ -117,14 +117,14 @@
                                 @foreach($sugestoes as $s)
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-indigo-50/10 rounded-xl border border-indigo-100/20 hover:bg-indigo-50/30 transition">
                                         <div class="space-y-1 flex-grow">
-                                            {{-- Primeira Linha: Apenas o Lançamento --}}
+                                                                            {{-- Primeira Linha: Apenas o Lançamento (em cinza) --}}
                                             <div class="flex items-center gap-2">
-                                                <span class="text-xs font-bold text-gray-800">{{ $s->descricao }}</span>
+                                                <span class="text-xs font-semibold text-gray-400">{{ $s->descricao }}</span>
                                             </div>
                                             
-                                            {{-- Segunda Linha: Detalhes, com destaque na classificação --}}
-                                            <div class="text-[10px] text-gray-500 font-bold flex items-center flex-wrap gap-x-3 gap-y-1">
-                                                <span class="text-gray-600"><i class="far fa-user mr-1 text-gray-400"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
+                                            {{-- Segunda Linha: Detalhes (em preto), com destaque na classificação --}}
+                                            <div class="text-[10px] text-gray-900 font-extrabold flex items-center flex-wrap gap-x-3 gap-y-1">
+                                                <span class="text-gray-900"><i class="far fa-user mr-1 text-gray-500"></i>{{ $s->pessoa->nome ?? 'Sem Contato' }}</span>
                                                 
                                                 {{-- Classificação com Destaque --}}
                                                 <span class="bg-indigo-50 text-indigo-700 text-[9px] font-black px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1 shadow-sm">
@@ -133,9 +133,9 @@
                                                 </span>
 
                                                 @if(!empty($s->is_virtual))
-                                                    <span class="text-gray-500"><i class="fas fa-magic text-gray-400 mr-1"></i>Sugestão Inteligente</span>
+                                                    <span class="text-gray-900"><i class="fas fa-magic text-gray-500 mr-1"></i>Sugestão Inteligente</span>
                                                 @else
-                                                    <span class="text-gray-600"><i class="far fa-calendar-alt text-gray-400 mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
+                                                    <span class="text-gray-900"><i class="far fa-calendar-alt text-gray-500 mr-1"></i>Venc. {{ $s->data_vencimento->format('d/m/Y') }}</span>
                                                 @endif
                                             </div>
                                         </div>
