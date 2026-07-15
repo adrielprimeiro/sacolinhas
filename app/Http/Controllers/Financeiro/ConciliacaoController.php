@@ -56,10 +56,26 @@ class ConciliacaoController extends Controller
             $regraCorrespondente = null;
             $tDescLower = mb_strtolower($t->descricao, 'UTF-8');
             foreach ($regras as $r) {
-                $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
-                if (str_contains($tDescLower, $ruleDescLower)) {
-                    $regraCorrespondente = $r;
-                    break;
+                if (($r['tipo'] ?? 'sugestao') === 'sugestao') {
+                    $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                    if (str_contains($tDescLower, $ruleDescLower)) {
+                        $regraCorrespondente = $r;
+                        break;
+                    }
+                }
+            }
+
+            // 1.2. Filtrar regras de exclusão correspondentes para esta descrição
+            $exclusoes = [];
+            foreach ($regras as $r) {
+                if (($r['tipo'] ?? 'sugestao') === 'exclusao') {
+                    $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                    if (str_contains($tDescLower, $ruleDescLower)) {
+                        $exclusoes[] = [
+                            'pessoa_id' => (int) $r['pessoa_id'],
+                            'classificacao_financeira_id' => (int) $r['classificacao_financeira_id']
+                        ];
+                    }
                 }
             }
 
@@ -299,6 +315,16 @@ class ConciliacaoController extends Controller
                     $sugestoesFinal->push($lClone);
                 }
             }
+
+            // Filtrar exclusões
+            $sugestoesFinal = $sugestoesFinal->reject(function ($sug) use ($exclusoes) {
+                foreach ($exclusoes as $exc) {
+                    if ($exc['pessoa_id'] == $sug->pessoa_id && $exc['classificacao_financeira_id'] == $sug->classificacao_financeira_id) {
+                        return true;
+                    }
+                }
+                return false;
+            });
 
             // Garantir que removemos qualquer duplicado de ID de sugestão
             $sugestoesUnicas = collect();
@@ -717,10 +743,13 @@ class ConciliacaoController extends Controller
             'descricao_banco' => 'required|string',
             'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
             'pessoa_id' => 'required|exists:pessoas,id',
+            'tipo' => 'nullable|string|in:sugestao,exclusao',
         ]);
 
+        $tipo = $request->input('tipo', 'sugestao');
+
         try {
-            \DB::transaction(function() use ($request) {
+            \DB::transaction(function() use ($request, $tipo) {
                 $config = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->first();
                 $regras = $config ? json_decode($config->valor, true) : [];
                 if (!is_array($regras)) {
@@ -731,7 +760,10 @@ class ConciliacaoController extends Controller
 
                 $updated = false;
                 foreach ($regras as &$r) {
-                    if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')) {
+                    if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')
+                        && ($r['tipo'] ?? 'sugestao') === $tipo
+                        && ($tipo === 'sugestao' || ( $r['pessoa_id'] == $request->pessoa_id && $r['classificacao_financeira_id'] == $request->classificacao_financeira_id ))
+                    ) {
                         $r['classificacao_financeira_id'] = (int) $request->classificacao_financeira_id;
                         $r['pessoa_id'] = (int) $request->pessoa_id;
                         $updated = true;
@@ -742,6 +774,7 @@ class ConciliacaoController extends Controller
                 if (!$updated) {
                     $regras[] = [
                         'id' => uniqid(),
+                        'tipo' => $tipo,
                         'descricao_banco' => $descricaoBanco,
                         'classificacao_financeira_id' => (int) $request->classificacao_financeira_id,
                         'pessoa_id' => (int) $request->pessoa_id,
@@ -754,7 +787,11 @@ class ConciliacaoController extends Controller
                 );
             });
 
-            return back()->with('success', 'Regra de conciliação padrão salva com sucesso!');
+            $mensagem = $tipo === 'exclusao' 
+                ? 'Sugestão bloqueada com sucesso!' 
+                : 'Regra de conciliação padrão salva com sucesso!';
+
+            return back()->with('success', $mensagem);
         } catch (\Exception $e) {
             return back()->with('error', 'Erro ao salvar regra: ' . $e->getMessage());
         }

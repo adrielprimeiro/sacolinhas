@@ -164,6 +164,17 @@
                                                                 <i class="far fa-star text-gray-400"></i> Tornar Padrão
                                                             </button>
                                                         </form>
+
+                                                        <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline" onsubmit="return confirm('Deseja realmente ocultar esta sugestão para esta descrição de banco no futuro?');">
+                                                            @csrf
+                                                            <input type="hidden" name="tipo" value="exclusao">
+                                                            <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
+                                                            <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                            <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                            <button type="submit" class="bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-400 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1" title="Ocultar esta sugestão para esta descrição no futuro">
+                                                                <i class="fas fa-ban"></i> Bloquear
+                                                            </button>
+                                                        </form>
                                                     @endif
 
                                                     <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>';">
@@ -311,13 +322,25 @@
             
             <div class="p-6 overflow-y-auto space-y-6 flex-grow">
                 <p class="text-xs text-gray-500 leading-relaxed font-semibold">
-                    Aqui você pode gerenciar os padrões de conciliação. Quando uma transação do extrato contiver o termo pesquisado na descrição, o sistema sugerirá automaticamente o Contato e a Classificação configurada no topo da lista.
+                    Aqui você pode gerenciar os padrões de conciliação. Quando uma transação do extrato contiver o termo pesquisado na descrição, o sistema sugerirá automaticamente o Contato e a Classificação configurados.
                 </p>
 
                 <!-- Nova Regra Form -->
                 <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="bg-gray-50 p-4 rounded-2xl border border-gray-150 space-y-3">
                     @csrf
-                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Adicionar Nova Regra</h4>
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Adicionar Nova Regra</h4>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                                <input type="radio" name="tipo" value="sugestao" checked class="text-indigo-600 focus:ring-indigo-500">
+                                Sugerir Padrão
+                            </label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                                <input type="radio" name="tipo" value="exclusao" class="text-red-600 focus:ring-red-500">
+                                Bloquear/Ocultar
+                            </label>
+                        </div>
+                    </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
@@ -325,7 +348,7 @@
                             <input type="text" name="descricao_banco" placeholder="Ex: VINDI PAGAMENTOS" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Contato Padrão</label>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Contato</label>
                             <select name="pessoa_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                                 <option value="">Selecione...</option>
                                 @foreach($pessoas as $p)
@@ -334,7 +357,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Classificação Padrão</label>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Classificação</label>
                             <select name="classificacao_financeira_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                                 <option value="">Selecione...</option>
                                 @foreach($classificacoes as $c)
@@ -352,47 +375,96 @@
                 </form>
 
                 <!-- Listagem das Regras -->
-                <div class="space-y-2">
-                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Regras Ativas</h4>
-                    
+                <div class="space-y-4">
                     @php
                         $regrasAtivas = json_decode(\DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor'), true) ?: [];
+                        $sugestoesAtivas = array_filter($regrasAtivas, function($r) { return ($r['tipo'] ?? 'sugestao') === 'sugestao'; });
+                        $exclusoesAtivas = array_filter($regrasAtivas, function($r) { return ($r['tipo'] ?? 'sugestao') === 'exclusao'; });
                     @endphp
 
-                    @if(empty($regrasAtivas))
-                        <p class="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-2xl text-center">Nenhuma regra cadastrada ainda. Use o formulário acima ou clique em "Tornar Padrão" nas sugestões automáticas do extrato.</p>
-                    @else
-                        <div class="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-100">
-                            @foreach($regrasAtivas as $regra)
-                                @php
-                                    $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
-                                    $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
-                                @endphp
-                                <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition">
-                                    <div class="space-y-1">
-                                        <div class="text-xs font-bold text-gray-805">
-                                            Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                    <!-- 1. Regras de Sugestão -->
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span> Sugestões Padrão (Priorizar no topo)
+                        </h4>
+                        
+                        @if(empty($sugestoesAtivas))
+                            <p class="text-xs text-gray-400 italic bg-gray-50 p-3.5 rounded-2xl text-center">Nenhuma regra de sugestão padrão cadastrada.</p>
+                        @else
+                            <div class="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-sm">
+                                @foreach($sugestoesAtivas as $regra)
+                                    @php
+                                        $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
+                                        $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
+                                    @endphp
+                                    <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
+                                        <div class="space-y-1">
+                                            <div class="text-xs font-bold text-gray-805">
+                                                Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                                            </div>
+                                            <div class="text-[10px] text-gray-500 flex items-center gap-3">
+                                                <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>
+                                                <span class="bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
+                                                    <i class="far fa-folder text-indigo-500"></i>
+                                                    {{ $cModel->nome ?? 'Sem Categoria' }}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div class="text-[10px] text-gray-500 flex items-center gap-3">
-                                            <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>
-                                            <span class="bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
-                                                <i class="far fa-folder text-indigo-500"></i>
-                                                {{ $cModel->nome ?? 'Sem Categoria' }}
-                                            </span>
-                                        </div>
+                                        
+                                        <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja realmente excluir esta regra padrão?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition" title="Excluir Regra">
+                                                <i class="far fa-trash-alt"></i>
+                                            </button>
+                                        </form>
                                     </div>
-                                    
-                                    <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja realmente excluir esta regra padrão?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-55 rounded-lg transition" title="Excluir Regra">
-                                            <i class="far fa-trash-alt"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- 2. Regras de Bloqueio/Exclusão -->
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-red-500"></span> Sugestões Bloqueadas (Ocultar)
+                        </h4>
+                        
+                        @if(empty($exclusoesAtivas))
+                            <p class="text-xs text-gray-400 italic bg-gray-50 p-3.5 rounded-2xl text-center">Nenhuma sugestão bloqueada cadastrada.</p>
+                        @else
+                            <div class="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-sm">
+                                @foreach($exclusoesAtivas as $regra)
+                                    @php
+                                        $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
+                                        $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
+                                    @endphp
+                                    <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
+                                        <div class="space-y-1">
+                                            <div class="text-xs font-bold text-gray-805">
+                                                Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                                            </div>
+                                            <div class="text-[10px] text-gray-500 flex items-center gap-3">
+                                                <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>
+                                                <span class="bg-red-50 text-red-700 font-semibold px-2 py-0.5 rounded-md border border-red-100 flex items-center gap-1">
+                                                    <i class="fas fa-ban text-red-500"></i>
+                                                    {{ $cModel->nome ?? 'Sem Categoria' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja reativar esta sugestão?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-55 rounded-lg transition text-xs font-bold flex items-center gap-1" title="Reativar Sugestão">
+                                                <i class="fas fa-undo"></i> Reativar
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
             
