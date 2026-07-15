@@ -12,7 +12,7 @@
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
         <div class="flex gap-2 flex-wrap">
-            <button @click="showModalRegras = true" class="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition shadow-md flex items-center gap-2">
+            <button @click="showModalRegras = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #d97706;">
                 <i class="fas fa-cog"></i>Regras Padrão
             </button>
             <button @click="showModalOfx = true" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition shadow-sm">
