@@ -543,7 +543,7 @@
                     @php
                         $isCredito = $movimentacao->tipo_movimentacao === 'credito';
                     @endphp
-                    <div class="p-4 space-y-3">
+                    <div class="p-3 space-y-2">
                         <!-- Topo: Cliente & Data -->
                         <div class="flex justify-between items-center text-xs">
                             <span class="font-bold text-gray-800">
@@ -555,28 +555,27 @@
                             </span>
                             <span class="text-gray-500 font-medium">
                                 {{ $movimentacao->data_movimentacao->format('d/m') }} 
-                                <span class="text-gray-400 text-[10px]">{{ $movimentacao->data_movimentacao->format('H:i') }}</span>
                             </span>
                         </div>
 
                         <!-- Meio: Descrição & Tipo -->
                         <div class="flex justify-between items-start gap-2">
-                            <p class="text-sm font-semibold text-gray-800 flex-1 leading-tight">
+                            <p class="text-xs text-gray-500 flex-1 leading-tight">
                                 {{ $movimentacao->descricao }}
                             </p>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold {{ $isCredito ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isCredito ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
                                 {{ $isCredito ? 'C' : 'D' }}
                             </span>
                         </div>
 
                         <!-- Base: Valores & Ações -->
-                        <div class="flex justify-between items-center pt-1 border-t border-gray-50">
+                        <div class="flex justify-between items-center pt-1.5 border-t border-gray-50">
                             <div class="space-y-0.5">
-                                <p class="text-sm font-black {{ $isCredito ? 'text-green-600' : 'text-red-600' }}">
+                                <p class="text-xs font-black {{ $isCredito ? 'text-green-600' : 'text-red-600' }}">
                                     R$ {{ number_format($movimentacao->valor, 2, ',', '.') }}
                                 </p>
-                                <p class="text-[11px] text-gray-500 font-medium">
-                                    Saldo: <span class="font-bold text-gray-700">R$ {{ number_format($movimentacao->saldo_atual, 2, ',', '.') }}</span>
+                                <p class="text-[10px] text-gray-400 font-medium">
+                                    Saldo: <span class="font-bold text-gray-500">R$ {{ number_format($movimentacao->saldo_atual, 2, ',', '.') }}</span>
                                 </p>
                             </div>
                             <div class="flex items-center gap-1">
