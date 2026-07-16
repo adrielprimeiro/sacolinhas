@@ -6,24 +6,26 @@
 <div class="space-y-6">
 
     <!-- Cabeçalho -->
-    <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between">
+    <div class="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-bold text-gray-800">Minha Sacolinha</h1>
             <p class="text-gray-600 text-sm">
                 <span class="font-bold">{{ $itens->count() }}</span> {{ $itens->count() == 1 ? 'Item reservado' : 'Itens reservados' }} pra você
             </p>
-            <div class="mt-2 flex items-baseline gap-2">
-                <p class="text-xs text-gray-500 uppercase font-semibold">Total:</p>
-                <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+                <div class="flex items-baseline gap-2">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Total:</p>
+                    <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
+                </div>
                 
                 <!-- Badge Dinâmico de Selecionados -->
-                <div id="totalSelecionado" class="hidden flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 ml-2">
+                <div id="totalSelecionado" class="hidden flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                     <span class="text-[10px] text-blue-600 font-bold uppercase">Selecionado:</span>
                     <span class="text-sm font-bold text-blue-700">R$ 0,00</span>
                 </div>
             </div>
         </div>
-        <div class="flex flex-col gap-2 min-w-[180px]">
+        <div class="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[180px]">
             <button id="btnFecharSacolinha" 
                     disabled
                     class="w-full bg-gray-200 text-gray-400 text-xs font-bold py-2 px-4 rounded-lg cursor-not-allowed transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
