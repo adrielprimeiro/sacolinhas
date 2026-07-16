@@ -538,38 +538,43 @@
             </div>
 
             <!-- Cards (mobile) -->
-            <div class="md:hidden divide-y divide-gray-100 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div class="md:hidden divide-y divide-gray-100 bg-white rounded-none border-y border-gray-100 overflow-hidden -mx-6">
                 @forelse ($movimentacoes as $movimentacao)
                     @php
                         $isCredito = $movimentacao->tipo_movimentacao === 'credito';
+                        
+                        // Formatar o nome para exibir apenas primeiro e último nome
+                        $nomeFormatado = 'Sistema';
+                        if ($movimentacao->user) {
+                            $nameParts = explode(' ', trim($movimentacao->user->name));
+                            $nomeFormatado = count($nameParts) > 1 
+                                ? $nameParts[0] . ' ' . end($nameParts) 
+                                : $movimentacao->user->name;
+                        }
                     @endphp
-                    <div class="p-3 space-y-2">
-                        <!-- Topo: Cliente & Data -->
+                    <div class="px-3 py-2 space-y-1.5">
+                        <!-- Topo: Descrição & Data -->
                         <div class="flex justify-between items-center text-xs">
-                            <span class="font-bold text-gray-800">
-                                @if ($movimentacao->user)
-                                    {{ $movimentacao->user->name }}
-                                @else
-                                    <span class="text-gray-400">Sistema</span>
-                                @endif
-                            </span>
-                            <span class="text-gray-500 font-medium">
+                            <p class="text-xs text-gray-500 flex-1 leading-tight mr-2 font-medium">
+                                {{ $movimentacao->descricao }}
+                            </p>
+                            <span class="text-gray-400 font-medium shrink-0">
                                 {{ $movimentacao->data_movimentacao->format('d/m') }} 
                             </span>
                         </div>
 
-                        <!-- Meio: Descrição & Tipo -->
-                        <div class="flex justify-between items-start gap-2">
-                            <p class="text-xs text-gray-500 flex-1 leading-tight">
-                                {{ $movimentacao->descricao }}
-                            </p>
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isCredito ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                        <!-- Meio: Cliente & Tipo -->
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="font-bold text-xs text-gray-800">
+                                {{ $nomeFormatado }}
+                            </span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isCredito ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }} shrink-0">
                                 {{ $isCredito ? 'C' : 'D' }}
                             </span>
                         </div>
 
                         <!-- Base: Valores & Ações -->
-                        <div class="flex justify-between items-center pt-1.5 border-t border-gray-50">
+                        <div class="flex justify-between items-center pt-1 border-t border-gray-50">
                             <div class="space-y-0.5">
                                 <p class="text-xs font-black {{ $isCredito ? 'text-green-600' : 'text-red-600' }}">
                                     R$ {{ number_format($movimentacao->valor, 2, ',', '.') }}
@@ -580,17 +585,17 @@
                             </div>
                             <div class="flex items-center gap-1">
                                 <a href="{{ route('admin.conta_corrente.show', array_merge([$movimentacao->id], request()->query())) }}" 
-                                   class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
-                                    <i class="fas fa-eye"></i>
+                                   class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Ver">
+                                    <i class="fas fa-eye text-xs"></i>
                                 </a>
                                 @if(in_array($movimentacao->referencia_tipo, ['pedido', 'desconto']))
-                                    <span class="p-2 text-gray-300 cursor-not-allowed" title="Vinculado a um pedido (Edite no próprio pedido)">
-                                        <i class="fas fa-lock text-xs"></i>
+                                    <span class="p-1.5 text-gray-300 cursor-not-allowed" title="Vinculado a um pedido (Edite no próprio pedido)">
+                                        <i class="fas fa-lock text-[10px]"></i>
                                     </span>
                                 @else
                                     <a href="{{ route('admin.conta_corrente.edit', array_merge([$movimentacao->id], request()->query())) }}" 
-                                       class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
-                                        <i class="fas fa-edit"></i>
+                                       class="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Editar">
+                                        <i class="fas fa-edit text-xs"></i>
                                     </a>
                                     <form action="{{ route('admin.conta_corrente.destroy', array_merge([$movimentacao->id], request()->query())) }}" 
                                           method="POST" 
@@ -598,8 +603,8 @@
                                           class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
-                                            <i class="fas fa-trash"></i>
+                                        <button type="submit" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                                            <i class="fas fa-trash text-xs"></i>
                                         </button>
                                     </form>
                                 @endif
