@@ -40,7 +40,8 @@ class MelhorEnvioAuthController extends Controller
             'shipping-generate',
             'shipping-print',
             'users-read',
-            'shipping-tracking'
+            'shipping-tracking',
+            'orders-read'
         ];
 
         $query = http_build_query([
