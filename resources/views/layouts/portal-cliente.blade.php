@@ -118,6 +118,12 @@
                     <span>Minha Sacolinha</span>
                 </a>
 
+                <a href="{{ route('portal.movimentacao') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.movimentacao') ? 'bg-gray-100 font-semibold' : '' }}">
+                    <i class="fas fa-wallet text-gray-500 w-5"></i>
+                    <span>Minha Carteira</span>
+                </a>
+
                 <a href="{{ route('portal.avaliacoes') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.avaliacoes') ? 'bg-gray-100 font-semibold' : '' }}">
                     <i class="fas fa-star text-gray-500 w-5"></i>
