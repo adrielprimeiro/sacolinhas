@@ -271,7 +271,7 @@
                     @endphp
 
                     @if($rastreamentos->count() > 0)
-                        <div class="relative pl-4 border-l-2 border-gray-200 space-y-6">
+                        <div class="relative pl-8 border-l-2 border-gray-200 space-y-6">
                             @foreach($rastreamentos as $index => $rastreio)
                                 @php
                                     $isUltimo = ($index === 0);
@@ -298,7 +298,7 @@
                                     }
                                 @endphp
                                 <div class="relative">
-                                    <div class="absolute -left-[25px] mt-1 h-6 w-6 rounded-full {{ $bgClass }} flex items-center justify-center border-2 border-white shadow-sm">
+                                    <div class="absolute -left-[44px] mt-1 h-6 w-6 rounded-full {{ $bgClass }} flex items-center justify-center border-2 border-white shadow-sm">
                                         <i class="{{ $icon }} text-[10px] {{ $color }}"></i>
                                     </div>
                                     <div>
