@@ -199,8 +199,8 @@
         </div>
     </div>
 
-    <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
-        <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="bg-white border-y border-gray-150 sm:border sm:border-gray-100 sm:rounded-2xl sm:shadow-xl overflow-hidden -mx-4 sm:mx-0">
+        <div class="px-4 sm:px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
             <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fas fa-history text-blue-600"></i>
                 Carteira Clientes
@@ -443,9 +443,9 @@
             </div>
         </div>
 
-        <div class="p-6">
+        <div class="px-0 py-4 sm:p-6">
             @if (session('success'))
-                <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-r-xl flex items-center gap-3">
+                <div class="mb-6 mx-4 sm:mx-0 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-r-xl flex items-center gap-3">
                     <i class="fas fa-check-circle"></i>
                     {{ session('success') }}
                 </div>
@@ -538,7 +538,7 @@
             </div>
 
             <!-- Cards (mobile) -->
-            <div class="md:hidden divide-y divide-gray-100 bg-white rounded-none border-y border-gray-100 overflow-hidden -mx-6">
+            <div class="md:hidden divide-y divide-gray-100 bg-white overflow-hidden">
                 @forelse ($movimentacoes as $movimentacao)
                     @php
                         $isCredito = $movimentacao->tipo_movimentacao === 'credito';
@@ -552,36 +552,33 @@
                                 : $movimentacao->user->name;
                         }
                     @endphp
-                    <div class="px-3 py-2 space-y-1.5">
-                        <!-- Topo: Descrição & Data -->
-                        <div class="flex justify-between items-center text-xs">
-                            <p class="text-xs text-gray-500 flex-1 leading-tight mr-2 font-medium">
+                    <div class="px-3 py-2.5 space-y-1.5">
+                        <!-- Topo: Descrição & Valor -->
+                        <div class="flex justify-between items-center gap-2">
+                            <p class="text-xs font-bold text-gray-800 flex-1 leading-tight mr-2">
                                 {{ $movimentacao->descricao }}
                             </p>
-                            <span class="text-gray-400 font-medium shrink-0">
-                                {{ $movimentacao->data_movimentacao->format('d/m') }} 
+                            <span class="text-xs font-black {{ $isCredito ? 'text-blue-600' : 'text-red-600' }} shrink-0">
+                                R$ {{ number_format($movimentacao->valor, 2, ',', '.') }}
                             </span>
                         </div>
 
                         <!-- Meio: Cliente & Tipo -->
                         <div class="flex justify-between items-center gap-2">
-                            <span class="font-bold text-xs text-gray-800">
+                            <span class="text-xs text-gray-400 font-medium">
                                 {{ $nomeFormatado }}
                             </span>
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isCredito ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }} shrink-0">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isCredito ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700' }} shrink-0">
                                 {{ $isCredito ? 'C' : 'D' }}
                             </span>
                         </div>
 
-                        <!-- Base: Valores & Ações -->
-                        <div class="flex justify-between items-center pt-1 border-t border-gray-50">
-                            <div class="space-y-0.5">
-                                <p class="text-xs font-black {{ $isCredito ? 'text-green-600' : 'text-red-600' }}">
-                                    R$ {{ number_format($movimentacao->valor, 2, ',', '.') }}
-                                </p>
-                                <p class="text-[10px] text-gray-400 font-medium">
-                                    Saldo: <span class="font-bold text-gray-500">R$ {{ number_format($movimentacao->saldo_atual, 2, ',', '.') }}</span>
-                                </p>
+                        <!-- Base: Data & Saldo & Ações -->
+                        <div class="flex justify-between items-center pt-1.5 border-t border-gray-50">
+                            <div class="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                                <span>{{ $movimentacao->data_movimentacao->format('d/m') }}</span>
+                                <span class="text-gray-300">•</span>
+                                <span>Saldo: R$ {{ number_format($movimentacao->saldo_atual, 2, ',', '.') }}</span>
                             </div>
                             <div class="flex items-center gap-1">
                                 <a href="{{ route('admin.conta_corrente.show', array_merge([$movimentacao->id], request()->query())) }}" 
