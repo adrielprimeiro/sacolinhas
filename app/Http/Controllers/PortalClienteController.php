@@ -237,6 +237,7 @@ class PortalClienteController extends Controller
 				'i.estado',
 				'i.cor',
 				'i.tamanho',
+				'i.image',
 			])
 			->get();
 

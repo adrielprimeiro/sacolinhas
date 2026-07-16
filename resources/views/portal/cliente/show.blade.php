@@ -110,22 +110,42 @@
                 
                 <div class="divide-y divide-gray-100">
                     @foreach($itensPedido as $item)
-                        <div class="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div class="flex-1 min-w-0">
-                                <h3 class="text-sm font-semibold text-gray-800">{{ $item->nome_do_produto }}</h3>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Código: <span class="font-medium text-gray-700">{{ $item->codigo }}</span> • 
-                                    Marca: <span class="font-medium text-gray-700">{{ $item->marca }}</span> • 
-                                    Tamanho: <span class="font-medium text-gray-700">{{ $item->tamanho }}</span>
-                                </p>
-                                <p class="text-xs text-gray-500 mt-0.5">
-                                    Estado: <span class="font-medium text-gray-700">{{ $item->estado }}</span> • 
-                                    Cor: <span class="font-medium text-gray-700">{{ $item->cor }}</span>
-                                </p>
+                        @php
+                            $img = $item->image ?? null;
+                            $imgUrl = $img ? asset('storage/' . ltrim($img, '/')) : null;
+                            
+                            $detalhes = [];
+                            if (!empty($item->marca)) $detalhes[] = $item->marca;
+                            if (!empty($item->estado)) $detalhes[] = $item->estado;
+                            if (!empty($item->cor)) $detalhes[] = $item->cor;
+                            if (!empty($item->tamanho)) $detalhes[] = 'Tam: ' . $item->tamanho;
+                            
+                            $detalhesFormatados = implode(' • ', $detalhes);
+                            if (empty($detalhesFormatados)) $detalhesFormatados = '-';
+                        @endphp
+                        <div class="p-4 flex gap-4">
+                            <!-- Imagem do produto -->
+                            <div class="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex items-center justify-center flex-shrink-0 border border-gray-100 shadow-sm">
+                                @if($imgUrl)
+                                    <img src="{{ $imgUrl }}" alt="{{ $item->nome_do_produto ?? 'Produto' }}" class="w-full h-full object-cover">
+                                @else
+                                    <i class="fas fa-image text-gray-400 text-lg"></i>
+                                @endif
                             </div>
-                            <div class="text-left sm:text-right w-full sm:w-auto">
-                                <p class="text-sm font-semibold text-gray-800">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">{{ $item->quantidade }}x R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}</p>
+
+                            <!-- Detalhes do produto -->
+                            <div class="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-gray-800">{{ $item->nome_do_produto ?? 'Produto sem nome' }}</h3>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Código: <span class="font-medium text-gray-700">{{ $item->codigo ?? '-' }}</span>
+                                    </p>
+                                    <p class="text-xs text-gray-600 mt-1.5">{{ $detalhesFormatados }}</p>
+                                </div>
+                                <div class="text-left sm:text-right">
+                                    <p class="text-sm font-semibold text-gray-800">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $item->quantidade }}x R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}</p>
+                                </div>
                             </div>
                         </div>
                     @endforeach
