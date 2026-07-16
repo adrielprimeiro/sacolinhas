@@ -346,9 +346,12 @@ class PortalClienteController extends Controller
 		$user = Auth::user();
 		$movimentacoes = ContaCorrente::where('user_id', $user->id)
 									  ->orderBy('data_movimentacao', 'desc')
+									  ->orderBy('id', 'desc')
 									  ->get();
 		
-		return view('portal.cliente.movimentacao', compact('user', 'movimentacoes'));
+		$saldo = $movimentacoes->first()?->saldo_atual ?? 0;
+		
+		return view('portal.cliente.movimentacao', compact('user', 'movimentacoes', 'saldo'));
 	}
 
     public function desafios()
