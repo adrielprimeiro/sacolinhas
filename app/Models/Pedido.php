@@ -110,8 +110,8 @@ class Pedido extends Model
      */
     public function checkAndSyncTracking($force = false)
     {
-        // Se o pedido já estiver concluído, entregue ou cancelado, não precisa mais sincronizar
-        if (in_array(strtolower($this->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
+        // Se o pedido já estiver concluído, entregue ou cancelado, não precisa mais sincronizar de forma automática
+        if (!$force && in_array(strtolower($this->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
             return false;
         }
 
