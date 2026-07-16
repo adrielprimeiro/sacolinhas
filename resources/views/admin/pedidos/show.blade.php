@@ -298,7 +298,7 @@
                                     }
                                 @endphp
                                 <div class="relative">
-                                    <div class="absolute -left-[44px] mt-1 h-6 w-6 rounded-full {{ $bgClass }} flex items-center justify-center border-2 border-white shadow-sm">
+                                    <div class="absolute mt-1 h-6 w-6 rounded-full {{ $bgClass }} flex items-center justify-center border-2 border-white shadow-sm" style="left: -44px;">
                                         <i class="{{ $icon }} text-[10px] {{ $color }}"></i>
                                     </div>
                                     <div>
