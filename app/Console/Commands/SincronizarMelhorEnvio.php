@@ -33,12 +33,23 @@ class SincronizarMelhorEnvio extends Command
         Log::info("Cron/Artisan: Iniciando me:sync para pedidos ativos");
 
         try {
-            // Busca pedidos que não estão finalizados (entregues/concluídos/cancelados)
-            $pedidos = Pedido::whereNotIn('status_pedido', [
-                    'entregue', 'concluido', 'cancelado',
-                    'Entregue', 'Concluido', 'Cancelado',
-                    'ENTREGUE', 'CONCLUIDO', 'CANCELADO'
-                ])
+            // Busca pedidos que:
+            // 1. Não estão finalizados (ativos em trânsito)
+            // 2. OU pedidos entregues/concluídos que ainda não possuem código de rastreio (pedidos antigos a sincronizar)
+            $pedidos = Pedido::where(function ($query) {
+                    $query->whereNotIn('status_pedido', [
+                        'entregue', 'concluido', 'cancelado',
+                        'Entregue', 'Concluido', 'Cancelado',
+                        'ENTREGUE', 'CONCLUIDO', 'CANCELADO'
+                    ])
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->whereIn('status_pedido', ['entregue', 'concluido', 'Entregue', 'Concluido', 'ENTREGUE', 'CONCLUIDO'])
+                            ->where(function ($nullQuery) {
+                                $nullQuery->whereNull('codigo_rastreamento')
+                                    ->orWhere('codigo_rastreamento', '');
+                            });
+                    });
+                })
                 ->where(function ($query) {
                     $query->whereNotNull('melhor_envio_id')
                         ->orWhereNotNull('codigo_rastreamento')
