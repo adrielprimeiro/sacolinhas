@@ -201,9 +201,9 @@ class MelhorEnvioService
             ]
         ];
     }
-    private function getClient()
+    private function getClient($forceRefresh = false)
     {
-        $this->refreshTokenIfNeeded();
+        $this->refreshTokenIfNeeded($forceRefresh);
 
         $request = Http::withHeaders([
             'Accept' => 'application/json',
@@ -395,7 +395,7 @@ class MelhorEnvioService
      * Renova o token se estiver expirado ou perto de expirar (nos próximos 5 minutos).
      * Retorna true se o token estiver válido ou foi renovado com sucesso.
      */
-    public function refreshTokenIfNeeded()
+    public function refreshTokenIfNeeded($force = false)
     {
         $accessToken = \App\Models\Configuracao::get('melhor_envio_access_token');
         $refreshToken = \App\Models\Configuracao::get('melhor_envio_refresh_token');
@@ -411,7 +411,7 @@ class MelhorEnvioService
             return false;
         }
 
-        if (!$expiresAt || \Carbon\Carbon::parse($expiresAt)->lte(now()->addMinutes(5))) {
+        if ($force || !$expiresAt || \Carbon\Carbon::parse($expiresAt)->lte(now()->addMinutes(5))) {
             Log::info('Melhor Envio: Token expirando ou expirado. Iniciando renovação...');
 
             $clientId = env('MELHOR_ENVIO_CLIENT_ID');
@@ -505,6 +505,11 @@ class MelhorEnvioService
             
             $response = $this->getClient()->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
             
+            if ($response->status() === 401) {
+                Log::warning('Melhor Envio: Token inválido (401). Tentando forçar a renovação do token...');
+                $response = $this->getClient(true)->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
+            }
+            
             if ($response->successful()) {
                 $data = $response->json();
                 
@@ -543,6 +548,13 @@ class MelhorEnvioService
                 'q' => $term
             ]);
 
+            if ($response->status() === 401) {
+                Log::warning('Melhor Envio: Token inválido (401). Tentando forçar a renovação do token...');
+                $response = $this->getClient(true)->get($this->baseUrl . '/api/v2/me/orders/search', [
+                    'q' => $term
+                ]);
+            }
+
             if ($response->successful()) {
                 return $response->json();
             }
@@ -569,6 +581,11 @@ class MelhorEnvioService
             ];
             
             $response = $this->getClient()->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
+            
+            if ($response->status() === 401) {
+                Log::warning('Melhor Envio: Token inválido (401). Tentando forçar a renovação do token...');
+                $response = $this->getClient(true)->post($this->baseUrl . '/api/v2/me/shipment/tracking', $payload);
+            }
             
             if ($response->successful()) {
                 $data = $response->json();
