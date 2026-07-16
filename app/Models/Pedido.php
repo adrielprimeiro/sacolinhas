@@ -125,7 +125,7 @@ class Pedido extends Model
             }
         }
 
-        if (!$cartOrderId && !$this->codigo_rastreamento) {
+        if (!$force && !$cartOrderId && !$this->codigo_rastreamento) {
             return false;
         }
 
