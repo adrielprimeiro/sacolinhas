@@ -116,6 +116,12 @@
                                             class="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
                                         Detalhes
                                     </button>
+                                    @if(strtolower($pedido->status_pedido ?? '') === 'pendente')
+                                        <button onclick="confirmarCancelamento({{ $pedido->id }})"
+                                                class="inline-flex items-center justify-center bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
+                                            <i class="fas fa-times mr-1"></i> Cancelar
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
 
@@ -361,6 +367,12 @@
                                     class="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 rounded-md transition duration-200">
                                 Ver Detalhes
                             </button>
+                            @if(strtolower($pedido->status_pedido ?? '') === 'pendente')
+                                <button onclick="confirmarCancelamento({{ $pedido->id }})"
+                                        class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-md transition duration-200 flex justify-center items-center">
+                                    <i class="fas fa-times mr-2"></i> Cancelar Pedido
+                                </button>
+                            @endif
                         </div>
 
                         <!-- Detalhes expansíveis (mobile) -->
@@ -550,6 +562,31 @@ function toggleDetalhes(pedidoId, type) {
     const detalhes = document.getElementById('detalhes-' + type + '-' + pedidoId);
     if (detalhes) {
         detalhes.classList.toggle('hidden');
+    }
+}
+
+function confirmarCancelamento(pedidoId) {
+    if (confirm("Aviso: Ao cancelar este pedido, todos os itens voltarão para sua sacolinha. Deseja realmente prosseguir?")) {
+        fetch(`/checkout/${pedidoId}/cancelar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Erro ao cancelar o pedido: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ocorreu um erro ao processar o cancelamento.');
+        });
     }
 }
 
