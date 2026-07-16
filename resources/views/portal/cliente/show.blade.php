@@ -142,9 +142,8 @@
                                     </p>
                                     <p class="text-xs text-gray-600 mt-1.5">{{ $detalhesFormatados }}</p>
                                 </div>
-                                <div class="text-left sm:text-right">
+                                <div class="text-left sm:text-right flex items-center">
                                     <p class="text-sm font-semibold text-gray-800">R$ {{ number_format($item->valor_total, 2, ',', '.') }}</p>
-                                    <p class="text-xs text-gray-500 mt-0.5">{{ $item->quantidade }}x R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}</p>
                                 </div>
                             </div>
                         </div>
