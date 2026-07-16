@@ -557,6 +557,35 @@
 
 </div>
 
+<!-- Modal de Confirmação de Cancelamento -->
+<div id="cancelModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <!-- Backdrop com desfoque blur -->
+    <div class="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"></div>
+    
+    <!-- Caixa do modal -->
+    <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 transform scale-95 transition-transform duration-300 z-10">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <i class="fas fa-exclamation-triangle text-lg"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900">Confirmar Cancelamento</h3>
+        </div>
+        
+        <p class="text-sm text-gray-600 mb-6">
+            Aviso: Ao cancelar este pedido, todos os itens voltarão para sua sacolinha. Deseja realmente prosseguir?
+        </p>
+        
+        <div class="flex justify-end gap-3">
+            <button onclick="fecharModalCancelamento()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                Não
+            </button>
+            <button id="btnConfirmarCancelamento" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm flex items-center gap-2">
+                <span>Sim</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function toggleDetalhes(pedidoId, type) {
     const detalhes = document.getElementById('detalhes-' + type + '-' + pedidoId);
@@ -565,30 +594,72 @@ function toggleDetalhes(pedidoId, type) {
     }
 }
 
+let pedidoIdParaCancelar = null;
+
 function confirmarCancelamento(pedidoId) {
-    if (confirm("Aviso: Ao cancelar este pedido, todos os itens voltarão para sua sacolinha. Deseja realmente prosseguir?")) {
-        fetch(`/checkout/${pedidoId}/cancelar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert('Erro ao cancelar o pedido: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ocorreu um erro ao processar o cancelamento.');
-        });
+    pedidoIdParaCancelar = pedidoId;
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.querySelector('.transform').classList.remove('scale-95');
+            modal.querySelector('.transform').classList.add('scale-100');
+        }, 10);
     }
 }
+
+function fecharModalCancelamento() {
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.querySelector('.transform').classList.remove('scale-100');
+        modal.querySelector('.transform').classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pedidoIdParaCancelar = null;
+        }, 150);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btnConfirmar = document.getElementById('btnConfirmarCancelamento');
+    if (btnConfirmar) {
+        btnConfirmar.addEventListener('click', function() {
+            if (!pedidoIdParaCancelar) return;
+            
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processando...';
+            
+            fetch(`/checkout/${pedidoIdParaCancelar}/cancelar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                fecharModalCancelamento();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Erro ao cancelar o pedido: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ocorreu um erro ao processar o cancelamento.');
+                fecharModalCancelamento();
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        });
+    }
+});
 
 // Exibe mensagem de sucesso se vier redirecionado após o pagamento Pix
 document.addEventListener('DOMContentLoaded', function() {
