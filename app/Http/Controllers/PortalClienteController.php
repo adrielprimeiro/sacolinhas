@@ -207,9 +207,42 @@ class PortalClienteController extends Controller
 		}
 
 		return view('portal.cliente.pedidos', compact('user', 'pedidos'));
-	}	
+	}
 
-	
+	public function mostrarPedido(\App\Models\Pedido $pedido)
+	{
+		$user = Auth::user();
+
+		// Garante que o pedido pertence ao usuário logado
+		if ($pedido->user_id !== $user->id) {
+			abort(403, 'Acesso não autorizado a este pedido.');
+		}
+
+		// Sincroniza o rastreio em tempo real se necessário
+		if (($pedido->codigo_rastreamento || $pedido->melhor_envio_id || preg_match('/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/', $pedido->observacoes)) && !in_array(strtolower($pedido->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
+			$pedido->checkAndSyncTracking();
+		}
+
+		$itensPedido = DB::table('items_pedido as ip')
+			->join('items as i', 'i.id', '=', 'ip.item_id')
+			->where('ip.pedido_id', $pedido->id)
+			->select([
+				'ip.quantidade',
+				'ip.preco_unitario',
+				'ip.valor_total',
+				'ip.status_item',
+				'i.nome_do_produto',
+				'i.codigo',
+				'i.marca',
+				'i.estado',
+				'i.cor',
+				'i.tamanho',
+			])
+			->get();
+
+		return view('portal.cliente.show', compact('user', 'pedido', 'itensPedido'));
+	}
+
 	public function sacolinha()
 	{
 		$user = Auth::user();

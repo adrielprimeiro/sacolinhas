@@ -112,10 +112,10 @@
                                             <i class="fas fa-money-bill-wave mr-1"></i> Pagar
                                         </a>
                                     @endif
-                                    <button onclick="toggleDetalhes({{ $pedido->id }}, 'desktop')"
-                                            class="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
-                                        Detalhes
-                                    </button>
+                                    <a href="{{ route('portal.pedidos.show', $pedido->id) }}"
+                                             class="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
+                                         Detalhes
+                                     </a>
                                     @if(strtolower($pedido->status_pedido ?? '') === 'pendente')
                                         <button onclick="confirmarCancelamento({{ $pedido->id }})"
                                                 class="inline-flex items-center justify-center bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-md transition duration-200">
@@ -363,10 +363,10 @@
                                     <i class="fas fa-money-bill-wave mr-2"></i> Pagar
                                 </a>
                             @endif
-                            <button onclick="toggleDetalhes({{ $pedido->id }}, 'mobile')"
-                                    class="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 rounded-md transition duration-200">
+                            <a href="{{ route('portal.pedidos.show', $pedido->id) }}"
+                                     class="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 rounded-md transition duration-200 flex justify-center items-center">
                                 Ver Detalhes
-                            </button>
+                            </a>
                             @if(strtolower($pedido->status_pedido ?? '') === 'pendente')
                                 <button onclick="confirmarCancelamento({{ $pedido->id }})"
                                         class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-md transition duration-200 flex justify-center items-center">

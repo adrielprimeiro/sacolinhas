@@ -624,6 +624,7 @@ Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('port
     
     // Histórico de pedidos
     Route::get('/pedidos', [PortalClienteController::class, 'pedidos'])->name('pedidos');
+    Route::get('/pedidos/{pedido}', [PortalClienteController::class, 'mostrarPedido'])->name('pedidos.show');
     
     // Sacolinha atual
     Route::get('/sacolinha', [PortalClienteController::class, 'sacolinha'])->name('sacolinha');
