@@ -132,7 +132,7 @@
 
                 <a href="{{ route('loja.index') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('loja.index') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <img src="{{ asset('favicon.ico') }}" alt="Loja" class="w-5 h-5 object-contain">
+                    <i class="fas fa-store text-gray-500 w-5"></i>
                     <span>Loja</span>
                 </a>
 				
