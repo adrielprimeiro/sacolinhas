@@ -201,7 +201,7 @@ class PortalClienteController extends Controller
 			->get();
 
 		foreach ($pedidos as $pedido) {
-			if ($pedido->codigo_rastreamento && !in_array(strtolower($pedido->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
+			if (($pedido->codigo_rastreamento || $pedido->melhor_envio_id || preg_match('/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/', $pedido->observacoes)) && !in_array(strtolower($pedido->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
 				$pedido->checkAndSyncTracking();
 			}
 		}

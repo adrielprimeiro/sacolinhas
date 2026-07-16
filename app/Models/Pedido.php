@@ -30,6 +30,7 @@ class Pedido extends Model
         'cidade_entrega',
         'estado_entrega',
         'codigo_rastreamento',
+        'melhor_envio_id',
         'data_envio',
         'data_entrega_prevista',
         'data_entrega_realizada',
@@ -105,49 +106,119 @@ class Pedido extends Model
 
     /**
      * Verifica e sincroniza os detalhes de rastreamento do Melhor Envio se necessário.
+     * Retorna true em caso de sucesso na obtenção dos dados e false em caso de falha.
      */
-    public function checkAndSyncTracking()
+    public function checkAndSyncTracking($force = false)
     {
-        if (!$this->codigo_rastreamento) {
-            return;
-        }
-
         // Se o pedido já estiver concluído, entregue ou cancelado, não precisa mais sincronizar
         if (in_array(strtolower($this->status_pedido ?? ''), ['entregue', 'concluido', 'cancelado'])) {
-            return;
+            return false;
         }
 
-        // Verifica a última sincronização para evitar sobrecarga de requisições (mínimo de 30 minutos)
-        $ultimoRastreio = \Illuminate\Support\Facades\DB::table('pedido_rastreamentos')
-            ->where('pedido_id', $this->id)
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if ($ultimoRastreio) {
-            $lastSync = \Carbon\Carbon::parse($ultimoRastreio->created_at);
-            if ($lastSync->diffInMinutes(now()) < 30) {
-                return;
+        $cartOrderId = null;
+        if (!empty($this->melhor_envio_id)) {
+            $cartOrderId = $this->melhor_envio_id;
+        } else {
+            // Tenta extrair das observações (etiqueta URL) para compatibilidade com pedidos anteriores
+            if (preg_match('/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/', $this->observacoes, $matches)) {
+                $cartOrderId = $matches[0];
             }
+        }
+
+        if (!$cartOrderId && !$this->codigo_rastreamento) {
+            return false;
+        }
+
+        if (!$force) {
+            $cacheKey = "tracking_sync_{$this->id}";
+            if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                return false;
+            }
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addMinutes(30));
         }
 
         try {
             $service = new \App\Services\MelhorEnvioService();
-            $trackingData = $service->searchOrder($this->codigo_rastreamento);
+            $trackingData = null;
+            $orderData = null;
+            $details = null;
 
-            if (!$trackingData || empty($trackingData['data'])) {
-                return;
+            if ($cartOrderId) {
+                $details = $service->getTrackingDetails($cartOrderId);
+                $searchRes = $service->searchOrder($cartOrderId);
+                if ($searchRes && !empty($searchRes['data'])) {
+                    $orderData = $searchRes['data'][0];
+                }
             }
 
-            $orderData = $trackingData['data'][0];
-            $cartOrderId = $orderData['id'];
+            if (!$details && $this->codigo_rastreamento) {
+                $trackingData = $service->searchOrder($this->codigo_rastreamento);
+            }
 
-            $details = $service->getTrackingDetails($cartOrderId);
+            if ((!$trackingData || empty($trackingData['data'])) && !$details) {
+                $trackingData = $service->searchOrder($this->numero_pedido);
+            }
+
+            if ((!$trackingData || empty($trackingData['data'])) && !$details && $this->user && $this->user->cpf) {
+                $cpfClean = preg_replace('/[^0-9]/', '', $this->user->cpf);
+                if ($cpfClean) {
+                    $trackingData = $service->searchOrder($cpfClean);
+                }
+            }
+
+            if ((!$trackingData || empty($trackingData['data'])) && !$details && $this->user && $this->user->email) {
+                $trackingData = $service->searchOrder($this->user->email);
+            }
+
+            if ((!$trackingData || empty($trackingData['data'])) && !$details && $this->user && $this->user->name) {
+                $trackingData = $service->searchOrder($this->user->name);
+            }
+
+            if ($trackingData && !empty($trackingData['data']) && !$details) {
+                if (count($trackingData['data']) === 1) {
+                    $orderData = $trackingData['data'][0];
+                } else {
+                    foreach ($trackingData['data'] as $option) {
+                        if (
+                            (isset($option['reference']) && $option['reference'] === $this->numero_pedido) ||
+                            (isset($option['to']['postal_code']) && preg_replace('/[^0-9]/', '', $option['to']['postal_code']) === preg_replace('/[^0-9]/', '', $this->cep_entrega))
+                        ) {
+                            $orderData = $option;
+                            break;
+                        }
+                    }
+                    if (!$orderData) {
+                        $orderData = $trackingData['data'][0];
+                    }
+                }
+                $cartOrderId = $orderData['id'];
+                $details = $service->getTrackingDetails($cartOrderId);
+            }
 
             if (!$details) {
-                return;
+                return false;
             }
 
             $updates = [];
+
+            // Atualizar o código de rastreamento no banco se o obtivemos agora
+            $trackingCode = $orderData['tracking'] ?? $details['tracking'] ?? null;
+            if ($trackingCode && $this->codigo_rastreamento !== $trackingCode) {
+                $updates['codigo_rastreamento'] = $trackingCode;
+            }
+            if ($cartOrderId && $this->melhor_envio_id !== $cartOrderId) {
+                $updates['melhor_envio_id'] = $cartOrderId;
+            }
+
+            // Verifica data de postagem (envio)
+            if (isset($details['posted_at'])) {
+                $updates['data_envio'] = \Carbon\Carbon::parse($details['posted_at'])->tz('America/Sao_Paulo');
+            }
+            
+            if (isset($orderData['price'])) {
+                $updates['valor_frete_real'] = $orderData['price'];
+            }
+
             $events = [];
 
             // 1. Criado / Pendente
@@ -264,8 +335,11 @@ class Pedido extends Model
             if (!empty($updates)) {
                 $this->update($updates);
             }
+
+            return true;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Erro ao sincronizar rastreio do pedido {$this->id}: " . $e->getMessage());
+            return false;
         }
     }
 
