@@ -75,7 +75,7 @@
 
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3">
-                                    <p class="text-sm font-semibold text-gray-800">{{ $pedido->numero_pedido }}</p>
+                                    <p class="text-sm font-semibold text-gray-800">{{ preg_replace('/^PED-0*/i', '', $pedido->numero_pedido ?? $pedido->id) }}</p>
                                     <p class="text-xs text-gray-500">ID: {{ $pedido->id }}</p>
                                 </td>
 
@@ -324,7 +324,7 @@
                     <div class="p-4">
                         <div class="flex items-start justify-between">
                             <div>
-                                <p class="text-sm font-semibold text-gray-800">{{ $pedido->numero_pedido }}</p>
+                                <p class="text-sm font-semibold text-gray-800">{{ preg_replace('/^PED-0*/i', '', $pedido->numero_pedido ?? $pedido->id) }}</p>
                                 <p class="text-xs text-gray-500">ID: {{ $pedido->id }}</p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     {{ !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('d/m/Y H:i') : 'N/A' }}

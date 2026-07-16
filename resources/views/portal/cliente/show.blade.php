@@ -1,6 +1,6 @@
 @extends('layouts.portal-cliente')
 
-@section('title', 'Pedido #' . ($pedido->numero_pedido ?? $pedido->id) . ' - Portal do Cliente')
+@section('title', 'Pedido #' . preg_replace('/^PED-0*/i', '', $pedido->numero_pedido ?? $pedido->id) . ' - Portal do Cliente')
 
 @section('content')
 <div class="space-y-6">
@@ -12,8 +12,8 @@
                 <i class="fas fa-arrow-left text-gray-700"></i>
             </a>
             <div>
-                <h1 class="text-xl font-bold text-gray-800">Pedido {{ $pedido->numero_pedido }}</h1>
-                <p class="text-gray-600 text-sm">Criado em {{ !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('d/m/Y \à\s H:i') : 'N/A' }}</p>
+                <h1 class="text-xl font-bold text-gray-800">Pedido {{ preg_replace('/^PED-0*/i', '', $pedido->numero_pedido ?? $pedido->id) }}</h1>
+                <p class="text-gray-600 text-sm">Criado: {{ !empty($pedido->data_pedido) ? \Carbon\Carbon::parse($pedido->data_pedido)->format('d/m/y') : 'N/A' }}</p>
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -38,6 +38,70 @@
             
             <!-- Resumo e Itens -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <!-- Informações do Pedido (Inserido no primeiro card) -->
+                <div class="p-4 bg-gray-50 border-b border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <p class="text-xs text-gray-500">Status do Pedido</p>
+                        @php
+                            $statusPedido = strtolower($pedido->status_pedido ?? '');
+                            $badgePedido = 'bg-gray-100 text-gray-700';
+                            if (in_array($statusPedido, ['pago', 'enviado', 'concluido'])) $badgePedido = 'bg-green-100 text-green-700';
+                            if (in_array($statusPedido, ['processando'])) $badgePedido = 'bg-blue-100 text-blue-700';
+                            if (in_array($statusPedido, ['cancelado'])) $badgePedido = 'bg-red-100 text-red-700';
+                        @endphp
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $badgePedido }} mt-1">
+                            {{ $pedido->status_pedido ?? '-' }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Status do Pagamento</p>
+                        @php
+                            $statusPagamento = strtolower($pedido->status_pagamento ?? '');
+                            $badgePagamento = 'bg-gray-100 text-gray-700';
+                            if (in_array($statusPagamento, ['aprovado'])) $badgePagamento = 'bg-green-100 text-green-700';
+                            if (in_array($statusPagamento, ['rejeitado', 'estornado'])) $badgePagamento = 'bg-red-100 text-red-700';
+                        @endphp
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $badgePagamento }} mt-1">
+                            {{ $pedido->status_pagamento ?? '-' }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Forma de Pagamento</p>
+                        <p class="font-semibold text-gray-800 mt-1">{{ $pedido->forma_pagamento ?? 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Origem</p>
+                        <p class="font-semibold text-gray-800 mt-1">{{ $pedido->origem_pedido ?? 'N/A' }}</p>
+                    </div>
+                    @if($pedido->codigo_rastreamento || $pedido->data_envio || $pedido->data_entrega_prevista)
+                        <div class="col-span-2 sm:col-span-4 border-t border-gray-200 pt-3 mt-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            @if($pedido->codigo_rastreamento)
+                                <div>
+                                    <p class="text-xs text-gray-500">Código de Rastreamento</p>
+                                    <p class="font-bold text-blue-600 mt-1 flex items-center gap-1">
+                                        <span>{{ $pedido->codigo_rastreamento }}</span>
+                                        <button onclick="navigator.clipboard.writeText('{{ $pedido->codigo_rastreamento }}'); alert('Código copiado!');" class="text-gray-400 hover:text-gray-600 ml-1">
+                                            <i class="far fa-copy text-xs"></i>
+                                        </button>
+                                    </p>
+                                </div>
+                            @endif
+                            @if($pedido->data_envio)
+                                <div>
+                                    <p class="text-xs text-gray-500">Data de Envio</p>
+                                    <p class="font-semibold text-gray-800 mt-1">{{ \Carbon\Carbon::parse($pedido->data_envio)->format('d/m/Y H:i') }}</p>
+                                </div>
+                            @endif
+                            @if($pedido->data_entrega_prevista)
+                                <div>
+                                    <p class="text-xs text-gray-500">Entrega Prevista</p>
+                                    <p class="font-semibold text-gray-800 mt-1">{{ \Carbon\Carbon::parse($pedido->data_entrega_prevista)->format('d/m/Y') }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
                 <div class="p-4 border-b border-gray-200">
                     <h2 class="text-sm font-semibold text-gray-800 flex items-center">
                         <i class="fas fa-shopping-bag text-blue-500 mr-2"></i> Itens do Pedido
@@ -106,74 +170,8 @@
             
         </div>
         
-        <!-- Coluna da Direita (Acompanhamento e Status) -->
+        <!-- Coluna da Direita (Acompanhamento) -->
         <div class="space-y-6">
-            
-            <!-- Informações Resumidas do Pedido -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-                <h2 class="text-sm font-semibold text-gray-800 flex items-center">
-                    <i class="fas fa-info-circle text-gray-400 mr-2"></i> Informações do Pedido
-                </h2>
-                
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <p class="text-xs text-gray-500">Status do Pedido</p>
-                        @php
-                            $statusPedido = strtolower($pedido->status_pedido ?? '');
-                            $badgePedido = 'bg-gray-100 text-gray-700';
-                            if (in_array($statusPedido, ['pago', 'enviado', 'concluido'])) $badgePedido = 'bg-green-100 text-green-700';
-                            if (in_array($statusPedido, ['processando'])) $badgePedido = 'bg-blue-100 text-blue-700';
-                            if (in_array($statusPedido, ['cancelado'])) $badgePedido = 'bg-red-100 text-red-700';
-                        @endphp
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $badgePedido }} mt-1">
-                            {{ $pedido->status_pedido ?? '-' }}
-                        </span>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Status do Pagamento</p>
-                        @php
-                            $statusPagamento = strtolower($pedido->status_pagamento ?? '');
-                            $badgePagamento = 'bg-gray-100 text-gray-700';
-                            if (in_array($statusPagamento, ['aprovado'])) $badgePagamento = 'bg-green-100 text-green-700';
-                            if (in_array($statusPagamento, ['rejeitado', 'estornado'])) $badgePagamento = 'bg-red-100 text-red-700';
-                        @endphp
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ $badgePagamento }} mt-1">
-                            {{ $pedido->status_pagamento ?? '-' }}
-                        </span>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Forma de Pagamento</p>
-                        <p class="font-semibold text-gray-800 mt-1">{{ $pedido->forma_pagamento ?? 'N/A' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Origem</p>
-                        <p class="font-semibold text-gray-800 mt-1">{{ $pedido->origem_pedido ?? 'N/A' }}</p>
-                    </div>
-                    @if($pedido->codigo_rastreamento)
-                        <div class="col-span-2">
-                            <p class="text-xs text-gray-500">Código de Rastreamento</p>
-                            <p class="font-bold text-blue-600 mt-1 flex items-center gap-1">
-                                <span>{{ $pedido->codigo_rastreamento }}</span>
-                                <button onclick="navigator.clipboard.writeText('{{ $pedido->codigo_rastreamento }}'); alert('Código copiado!');" class="text-gray-400 hover:text-gray-600 ml-1">
-                                    <i class="far fa-copy text-xs"></i>
-                                </button>
-                            </p>
-                        </div>
-                    @endif
-                    @if($pedido->data_envio)
-                        <div>
-                            <p class="text-xs text-gray-500">Data de Envio</p>
-                            <p class="font-semibold text-gray-800 mt-1">{{ \Carbon\Carbon::parse($pedido->data_envio)->format('d/m/Y H:i') }}</p>
-                        </div>
-                    @endif
-                    @if($pedido->data_entrega_prevista)
-                        <div>
-                            <p class="text-xs text-gray-500">Entrega Prevista</p>
-                            <p class="font-semibold text-gray-800 mt-1">{{ \Carbon\Carbon::parse($pedido->data_entrega_prevista)->format('d/m/Y') }}</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
             
             <!-- Acompanhamento da Entrega -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
