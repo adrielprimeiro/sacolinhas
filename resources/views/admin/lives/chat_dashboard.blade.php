@@ -155,8 +155,18 @@
                             </span>
                         </div>
                         <p class="text-xs text-purple-800 mt-1.5 leading-relaxed">
-                            Seguro contra bloqueios da Meta. Com a extensão ativa no Chrome, clique abaixo para abrir a Live que a captura inicia automaticamente!
+                            Seguro contra bloqueios da Meta. Com a extensão ativa no Chrome, clique em Conectar para abrir a Live que a captura inicia automaticamente!
                         </p>
+                        
+                        <div class="mt-2.5 bg-purple-100/70 p-2 rounded-lg border border-purple-300 flex items-center justify-between text-xs">
+                            <span class="font-extrabold text-purple-900 flex items-center gap-1.5">
+                                <i class="fas fa-puzzle-piece text-purple-700"></i>
+                                Extensão Oficial Minha Mania v1.3:
+                            </span>
+                            <a href="/extensao-capturador-minhamania.zip" download class="bg-purple-800 hover:bg-purple-900 text-white font-black px-3 py-1.5 rounded-md text-[11px] shadow-sm flex items-center gap-1 transition">
+                                <i class="fas fa-download"></i> Baixar Extensão (.ZIP)
+                            </a>
+                        </div>
                         
                         <div class="mt-3 flex gap-2">
                             <input type="text" id="insta-username-input" value="de_minha_mania" placeholder="@usuario_insta" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-purple-300 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-semibold text-gray-800">
@@ -169,6 +179,43 @@
                                 <i class="fas fa-key"></i> Login Direto no Servidor (Sem precisar exportar cookies)
                             </button>
                         </div>
+                    </div>
+
+                    <!-- 3. Leitor Rápido via Favoritos (Sem Extensão) -->
+                    <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-indigo-900 text-sm flex items-center gap-1.5">
+                                <i class="fas fa-bookmark text-indigo-600 text-base"></i>
+                                Leitor via Favoritos (Sem precisar de extensão)
+                            </h3>
+                            <span class="bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <i class="fas fa-bolt"></i> 1 Clique
+                            </span>
+                        </div>
+                        <p class="text-xs text-indigo-800 mt-1.5 leading-relaxed">
+                            Como você não tem a extensão instalada no Chrome e deletou o favorito anterior, pegue o novo botão abaixo!
+                        </p>
+                        
+                        <div class="mt-3 bg-white p-3.5 rounded-lg border border-indigo-300 flex flex-col items-center justify-center text-center shadow-inner">
+                            <span class="text-[11px] font-bold text-gray-700 mb-2.5 flex items-center gap-1">
+                                <i class="fas fa-hand-pointer text-indigo-600 animate-pulse"></i>
+                                Arraste este botão azul com o mouse para a sua Barra de Favoritos lá no topo:
+                            </span>
+                            <a id="bookmarklet-link" href="#" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transform hover:scale-105 transition duration-200 cursor-grab active:cursor-grabbing border-2 border-indigo-400">
+                                <i class="fas fa-bookmark text-yellow-300 text-sm animate-bounce"></i>
+                                <span>Capturar Live Sacolas (Novo)</span>
+                            </a>
+                            <span class="text-[10px] text-gray-500 mt-2 font-medium">Depois de soltar o botão lá no topo, basta dar 1 clique nele quando estiver na janela do Instagram!</span>
+                        </div>
+
+                        <!-- Opção manual caso não consiga arrastar -->
+                        <div class="mt-3 border-t border-indigo-200 pt-2.5 flex items-center justify-between text-[11px] text-indigo-800">
+                            <span class="font-medium">Prefere copiar o link e criar o favorito manualmente?</span>
+                            <button type="button" onclick="copyBookmarkletCode()" class="font-extrabold underline text-indigo-900 hover:text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-md transition">
+                                Copiar Link do Favorito
+                            </button>
+                        </div>
+                        <input type="hidden" id="bookmarklet-code">
                     </div>
                 </div>
 
@@ -387,6 +434,15 @@
         setInterval(checkTikTokBackendStatus, 2500);
     });
 
+    function copyBookmarkletCode() {
+        const codeEl = document.getElementById("bookmarklet-code");
+        if (codeEl && codeEl.value) {
+            navigator.clipboard.writeText(codeEl.value).then(() => {
+                alert("Link do Favorito copiado! Agora clique com o botão direito na sua Barra de Favoritos lá no topo do Chrome > 'Adicionar página...' e cole no campo 'URL'.");
+            });
+        }
+    }
+
     function getBackendUrl(port, path) {
         const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
         if (isLocal) {
@@ -517,6 +573,11 @@
         const isCurrentlyActive = btn && btn.textContent.includes("Parar");
         const action = isCurrentlyActive ? "stop" : "start";
 
+        if (action === "start") {
+            // Abre a aba IMEDIATAMENTE antes de qualquer await fetch, para o Chrome não bloquear como Popup!
+            openInstagramLive();
+        }
+
         try {
             const res = await fetch("/admin/live-chat/toggle-instagram", {
                 method: "POST",
@@ -548,10 +609,7 @@
             }).then(data => {
                 console.log("[Insta Headless] Conectado no servidor:", data.message);
                 checkInstagramBackendStatus();
-            }).catch(err => {
-                // Se a porta 3002 não estiver rodando, abre a aba para a extensão do Chrome
-                openInstagramLive();
-            });
+            }).catch(() => {});
         } else if (action === "stop") {
             // Desliga imediatamente o Chromium no servidor (liberando 300MB de RAM)
             fetch(getBackendUrl(3002, "/disconnect"), {

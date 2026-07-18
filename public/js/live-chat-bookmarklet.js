@@ -1,9 +1,13 @@
 (function() {
-    // Evitar múltiplas instâncias
+    // Se já existia uma instância ou UI antiga na tela, limpa e inicia a nova versão atualizada na hora!
     if (window.LiveChatCaptureInstance) {
-        alert("O Capturador de Live já está aberto!");
-        return;
+        try {
+            if (window.LiveChatCaptureInstance.stopCapture) window.LiveChatCaptureInstance.stopCapture();
+        } catch(e) {}
+        window.LiveChatCaptureInstance = null;
     }
+    const oldUiEl = document.getElementById("live-chat-capture-ui");
+    if (oldUiEl) oldUiEl.remove();
 
     const platform = window.location.hostname.includes("tiktok") ? "tiktok" : "instagram";
     
@@ -20,7 +24,7 @@
     }
 
     // Auto-detectar URL do servidor a partir de onde o script foi carregado
-    let defaultServerUrl = "http://localhost:8000";
+    let defaultServerUrl = "https://minhamania.net";
     const scriptEl = document.querySelector('script[src*="live-chat-bookmarklet.js"]');
     if (scriptEl) {
         const src = scriptEl.getAttribute("src");
@@ -48,8 +52,8 @@
     }
 
     let serverUrl = sanitizeServerUrl(safeGetItem("live_capture_server_url", defaultServerUrl));
-    if (serverUrl === "http://localhost" || serverUrl === "http://127.0.0.1") {
-        serverUrl = "http://localhost:8000";
+    if (serverUrl === "http://localhost" || serverUrl === "http://127.0.0.1" || serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1") || serverUrl === "http://localhost:8000") {
+        serverUrl = "https://minhamania.net";
         safeSetItem("live_capture_server_url", serverUrl);
     }
     let selectedLiveId = safeGetItem("live_capture_live_id", "");
@@ -203,6 +207,17 @@
                 liveSelect.appendChild(opt);
             });
             log("Lives carregadas com sucesso!");
+
+            if (!selectedLiveId || !livesList.some(l => String(l.id) === String(selectedLiveId))) {
+                selectedLiveId = livesList[0].id;
+                liveSelect.value = selectedLiveId;
+                safeSetItem("live_capture_live_id", selectedLiveId);
+            }
+            if (!isCapturing && selectedLiveId) {
+                setTimeout(() => {
+                    startCapture();
+                }, 1500);
+            }
         } catch (e) {
             log("Erro ao carregar lives: " + e.message, true);
             liveSelect.innerHTML = `<option value="">Erro ao carregar lives</option>`;

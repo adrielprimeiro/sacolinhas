@@ -5,7 +5,7 @@
     }
 
     const platform = window.location.hostname.includes("tiktok") ? "tiktok" : "instagram";
-    let defaultServerUrl = "http://localhost:8000"; // Porta padrão do Laravel
+    let defaultServerUrl = "https://minhamania.net"; // Servidor de Produção Laravel
     
     // Tentar ler da URL caso o script tenha sido atualizado por um script externo
     const scriptEl = document.querySelector('script[src*="live-chat-bookmarklet.js"]');
@@ -35,8 +35,8 @@
     }
 
     let serverUrl = safeGetItem("live_capture_server_url", defaultServerUrl);
-    if (serverUrl === "http://localhost" || serverUrl === "http://127.0.0.1") {
-        serverUrl = "http://localhost:8000";
+    if (serverUrl === "http://localhost" || serverUrl === "http://127.0.0.1" || serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1") || serverUrl === "http://localhost:8000") {
+        serverUrl = "https://minhamania.net";
         safeSetItem("live_capture_server_url", serverUrl);
     }
     let selectedLiveId = safeGetItem("live_capture_live_id", "");
@@ -213,6 +213,12 @@
                 return;
             }
 
+            const activeLive = livesList.find(l => l.ativo) || livesList[0];
+            if (activeLive) {
+                selectedLiveId = activeLive.id;
+                safeSetItem("live_capture_live_id", selectedLiveId);
+            }
+
             livesList.forEach(live => {
                 const opt = document.createElement("option");
                 opt.value = live.id;
@@ -225,11 +231,23 @@
                 const tipo = tipoTranslate[live.tipo_live] || live.tipo_live || 'Live';
                 const dateClean = live.data ? live.data.split('T')[0].split('-').reverse().join('/') : '';
                 
-                opt.textContent = `#${live.id} - ${tipo} (${dateClean})`;
+                opt.textContent = `#${live.id} - ${tipo} (${dateClean})${live.ativo ? ' [ATIVA]' : ''}`;
                 if (String(live.id) === String(selectedLiveId)) opt.selected = true;
                 liveSelect.appendChild(opt);
             });
             log("Lives carregadas com sucesso!");
+
+            if (!selectedLiveId && livesList.length > 0) {
+                selectedLiveId = livesList[0].id;
+                liveSelect.value = selectedLiveId;
+                safeSetItem("live_capture_live_id", selectedLiveId);
+            }
+            // Auto-iniciar captura imediatamente sem precisar clicar na janelinha flutuante!
+            if (!isCapturing && selectedLiveId) {
+                setTimeout(() => {
+                    startCapture();
+                }, 1000);
+            }
         } catch (e) {
             log("Erro ao carregar lives: " + e.message, true);
             liveSelect.innerHTML = `<option value="">Erro ao carregar lives</option>`;
@@ -663,135 +681,6 @@
         };
     }
 
-    function scanAndProcessInstagramComments(targetSection) {
-        findLiveRows(targetSection).forEach(row => {
-            if (row.dataset.captured === "true") return;
-
-            const parsed = parseLiveRow(row);
-            if (parsed && parsed.chatname && parsed.chatmessage) {
-                const user = parsed.chatname;
-                const text = parsed.chatmessage;
-
-                // Ignorar mensagens de sistema / eventos do Instagram Live
-                const lowerText = text.toLowerCase();
-                if (lowerText === 'entrou' || lowerText === 'joined' || lowerText.includes('acenou') || lowerText.includes('waved') || lowerText.includes('solicitou') || lowerText.includes('participar')) {
-                    row.dataset.captured = "true";
-                    return;
-                }
-
-                if (isValidUsername(user)) {
-                    row.dataset.captured = "true";
-                    sendChatMessage(user, text);
-                }
-            }
-        });
-    }
-
-    function autoDetectContainer() {
-        if (platform === "tiktok") {
-            return document.querySelector(selectors.container);
-        }
-
-        // 1. Heurística de botões "Responder" / "Reply" (específica e super estável para Instagram)
-        const replyEls = [];
-        const candidates = document.querySelectorAll('div, span, button, a');
-        for (const el of candidates) {
-            if (el.children.length === 0) { // Apenas nós folhas
-                const txt = el.textContent.trim().toLowerCase();
-                if (txt === 'responder' || txt === 'reply') {
-                    replyEls.push(el);
-                }
-            }
-        }
-
-        if (replyEls.length > 0) {
-            const ancestorCounts = new Map();
-            for (const replyEl of replyEls) {
-                let current = replyEl.parentNode;
-                let depth = 0;
-                while (current && current !== document.body && depth < 12) {
-                    ancestorCounts.set(current, (ancestorCounts.get(current) || 0) + 1);
-                    current = current.parentNode;
-                    depth++;
-                }
-            }
-
-            let bestContainer = null;
-            let maxCount = 0;
-            for (const [ancestor, count] of ancestorCounts.entries()) {
-                // Evitar selecionar elementos de controle como container
-                const tag = ancestor.tagName.toLowerCase();
-                const role = (ancestor.getAttribute('role') || '').toLowerCase();
-                if (tag === 'button' || tag === 'a' || role === 'button' || role === 'link') {
-                    continue;
-                }
-
-                if (count > maxCount) {
-                    maxCount = count;
-                    bestContainer = ancestor;
-                } else if (count === maxCount && bestContainer && bestContainer.contains(ancestor)) {
-                    bestContainer = ancestor;
-                }
-            }
-
-            if (bestContainer) {
-                bestContainer = findCommentsContainer(bestContainer);
-            }
-
-            if (bestContainer && maxCount >= 1) {
-                console.log("[Capturador] Contêiner detectado via botões Responder/Reply:", bestContainer);
-                return bestContainer;
-            }
-        }
-
-        // 2. Tentar encontrar via área de input de comentário (placeholder comum)
-        const commentInput = document.querySelector('input[placeholder*="comentário" i], textarea[placeholder*="comentário" i], input[placeholder*="comment" i], textarea[placeholder*="comment" i]');
-        if (commentInput) {
-            let current = commentInput.parentNode;
-            let depth = 0;
-            while (current && current !== document.body && depth < 8) {
-                const scrollable = current.querySelector('div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]');
-                if (scrollable) {
-                    console.log("[Capturador] Contêiner detectado via input e seletor interno:", scrollable);
-                    return scrollable;
-                }
-                current = current.parentNode;
-                depth++;
-            }
-        }
-
-        // 3. Fallback para contêiner rolável com avatares/usuários
-        const roots = Array.from(document.querySelectorAll('[role="dialog"], [class*="Live"], [class*="live"], [class*="room"], [class*="chat"]'));
-        if (roots.length === 0) roots.push(document.body);
-
-        for (let root of roots) {
-            const divs = Array.from(root.querySelectorAll('div'));
-            for (let div of divs) {
-                const style = window.getComputedStyle(div);
-                const isScrollable = style.overflowY === 'auto' || style.overflowY === 'scroll' || (div.scrollHeight > div.clientHeight && div.clientHeight > 100);
-                if (isScrollable && div.children.length >= 3) {
-                    const hasUserElements = div.querySelector('img, canvas, a[href*="/"], [class*="avatar"], [class*="username"]');
-                    if (hasUserElements) {
-                        console.log("[Capturador] Contêiner detectado via rolagem e elementos de usuário:", div);
-                        return div;
-                    }
-                }
-            }
-        }
-
-        // 4. Fallback final para seletores padrão
-        const defaultSelector = platform === "tiktok" 
-            ? 'div[class*="DivChatRoomAnimationContainer"], div[class*="DivChatMessageList"], div[class*="DivChatRoom"], .webcast-chatroom__list, div[class*="ChatList"], div[class*="chat-list"]'
-            : '[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]';
-        const defaultEl = document.querySelector(defaultSelector);
-        if (defaultEl) {
-            console.log("[Capturador] Contêiner detectado via seletor padrão:", defaultEl);
-            return defaultEl;
-        }
-
-        return null;
-    }
-
     // Calibração interativa de seletores inteligente (1 clique)
     calibrateBtn.addEventListener("click", () => {
         alert("Modo de calibração inteligente ativado!\nClique em QUALQUER COMENTÁRIO no chat da live.");
@@ -1057,9 +946,22 @@
     }
 
     function scanAndProcessInstagramComments(targetSection) {
-        const scope = targetSection || document.body;
+        const scope = document.body;
 
-        // 1. Estratégia de linhas estruturadas (Social Stream Ninja / findLiveRows)
+        // 0. Estratégia do Social Stream Ninja (sobreposição explícita / atributos de dados ou classes do Social Stream)
+        const socialStreamRows = scope.querySelectorAll('[data-chatname], .chat-message, .social-stream-row, #chat-room > div, [class*="chat-item"]');
+        socialStreamRows.forEach(row => {
+            if (row.dataset.captured === "true") return;
+            const userAttr = row.getAttribute("data-chatname") || row.querySelector("[data-chatname]")?.getAttribute("data-chatname");
+            const msgAttr = row.getAttribute("data-chatmessage") || row.querySelector("[data-chatmessage]")?.getAttribute("data-chatmessage");
+            if (userAttr && msgAttr && isValidUsername(userAttr)) {
+                row.dataset.captured = "true";
+                sendChatMessage(userAttr, msgAttr);
+                return;
+            }
+        });
+
+        // 1. Estratégia de linhas estruturadas (findLiveRows)
         findLiveRows(scope).forEach(row => {
             if (row.dataset.captured === "true") return;
 
@@ -1117,6 +1019,49 @@
                 }
             });
         } catch (e) {}
+
+        // 3. Estratégia de botões "Responder" / "Reply" (específica e super estável para Instagram Web)
+        try {
+            const replyBtns = scope.querySelectorAll('div, span, button, a');
+            replyBtns.forEach(btn => {
+                if (btn.children.length === 0 && (btn.textContent.trim().toLowerCase() === 'responder' || btn.textContent.trim().toLowerCase() === 'reply')) {
+                    let commentContainer = btn.closest('li, div[role="row"], div[class*="comment"], div[class*="message"], div[class*="item"]') || btn.parentElement?.parentElement;
+                    if (!commentContainer || commentContainer.dataset.captured === "true") return;
+
+                    let fullText = (commentContainer.textContent || "").trim();
+                    if (!fullText || fullText.length < 3) return;
+
+                    fullText = fullText.replace(/responder$/i, "").replace(/reply$/i, "").trim();
+
+                    const subEls = commentContainer.querySelectorAll('span, a, strong');
+                    let username = "";
+                    let message = "";
+
+                    for (let i = 0; i < subEls.length; i++) {
+                        let txt = (subEls[i].textContent || "").trim();
+                        if (!txt || txt.toLowerCase() === 'responder' || txt.toLowerCase() === 'reply' || txt.includes("entrou") || txt === "...") continue;
+                        if (!username && isValidUsername(txt)) {
+                            username = txt;
+                        } else if (username && txt !== username && !username.includes(txt)) {
+                            message = txt;
+                            break;
+                        }
+                    }
+
+                    if (!message && username && fullText.toLowerCase().startsWith(username.toLowerCase())) {
+                        message = fullText.slice(username.length).trim();
+                    }
+
+                    if (username && message && isValidUsername(username)) {
+                        const lowerMsg = message.toLowerCase();
+                        if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
+                            commentContainer.dataset.captured = "true";
+                            sendChatMessage(username.replace(/^@/, ''), message);
+                        }
+                    }
+                }
+            });
+        } catch (e) {}
     }
 
     function autoDetectContainer() {
@@ -1158,37 +1103,24 @@
             }
         }
 
-        // 2. Fallback pela busca por palavras-chave do Instagram Live
-        const allDivs = document.querySelectorAll('div');
+        // 2. Fallback: contêiner com múltiplos elementos e rolagem (genérico)
         let bestCandidate = null;
-        let maxScore = -1;
-
+        let maxChildren = 0;
+        const allDivs = document.querySelectorAll("div, ul, section, main");
+        
         for (const div of allDivs) {
-            if (!div.children || div.children.length === 0) continue;
-            
-            const text = div.textContent.toLowerCase();
-            if (text.includes("entrou") || text.includes("joined") || text.includes("acenou") || text.includes("waved")) {
-                const depth = getElementDepth(div);
-                const score = depth;
-                if (score > maxScore && div.scrollHeight < window.innerHeight * 0.9) {
-                    maxScore = score;
+            if (div === document.body || div.id === "live-chat-capture-ui" || div.contains(ui)) continue;
+            const style = window.getComputedStyle(div);
+            const isScrollable = (style.overflowY === 'auto' || style.overflowY === 'scroll' || div.scrollHeight > div.clientHeight + 20);
+            if (isScrollable && div.clientHeight > 100 && div.clientHeight < window.innerHeight * 0.95) {
+                const childCount = div.children.length;
+                if (childCount > maxChildren) {
+                    maxChildren = childCount;
                     bestCandidate = div;
                 }
             }
         }
-
-        if (bestCandidate) {
-            let parent = bestCandidate.parentElement;
-            for (let i = 0; i < 4 && parent; i++) {
-                if (parent.scrollHeight > bestCandidate.scrollHeight * 1.2) {
-                    return parent;
-                }
-                parent = parent.parentElement;
-            }
-            return bestCandidate;
-        }
-
-        return document.body;
+        return bestCandidate || document.body;
     }
 
     function getElementDepth(element) {
@@ -1206,39 +1138,31 @@
         console.log("[Capturador] Iniciando captura...");
         
         if (platform === "instagram") {
-            console.log("[Capturador] Usando estratégia do Social Stream Ninja + Producer para Instagram...");
+            console.log("[Capturador] Usando estratégia do Social Stream Ninja + Producer para Instagram (document.body)...");
             
-            let targetSection = document.querySelector('[role="dialog"]') || document.querySelector("section") || document.body;
-            
-            if (targetSection) {
-                isCapturing = true;
-                toggleBtn.textContent = "Parar Captura";
-                toggleBtn.style.background = "#dc2626";
-                log("Captura iniciada com sucesso!");
+            isCapturing = true;
+            toggleBtn.textContent = "Parar Captura";
+            toggleBtn.style.background = "#dc2626";
+            log("Captura iniciada com sucesso!");
 
-                // Executar varredura inicial
-                scanAndProcessInstagramComments(targetSection);
+            // Executar varredura inicial
+            scanAndProcessInstagramComments(document.body);
 
-                // Observar mudanças na seção inteira com throttling
-                let scanTimeout = null;
-                observer = new MutationObserver(() => {
-                    if (!scanTimeout) {
-                        scanTimeout = setTimeout(() => {
-                            scanAndProcessInstagramComments(targetSection);
-                            scanTimeout = null;
-                        }, 100);
-                    }
-                });
-                observer.observe(targetSection, { 
-                    childList: true, 
-                    subtree: true,
-                    characterData: true
-                });
-            } else {
-                console.error("[Capturador] Seção de comentários do Instagram não encontrada.");
-                log("Seção de comentários do Instagram não encontrada!", true);
-                alert("Aba de chat não localizada! Certifique-se de que a live está aberta e o painel de chat visível.");
-            }
+            // Observar mudanças no document.body inteiro
+            let scanTimeout = null;
+            observer = new MutationObserver(() => {
+                if (!scanTimeout) {
+                    scanTimeout = setTimeout(() => {
+                        scanAndProcessInstagramComments(document.body);
+                        scanTimeout = null;
+                    }, 100);
+                }
+            });
+            observer.observe(document.body, { 
+                childList: true, 
+                subtree: true,
+                characterData: true
+            });
             return;
         }
 

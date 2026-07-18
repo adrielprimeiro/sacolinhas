@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Portal do Cliente</title>
+	<link rel="icon" href="https://minhamania.net/favicon.ico">
+	<link rel="icon" type="image/png" sizes="32x32" href="https://minhamania.net/favicon-32x32.png">
+	<link rel="apple-touch-icon" href="https://minhamania.net/apple-touch-icon.png">
+	
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif !important;
+        }
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 antialiased">
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto flex justify-between items-center p-4">
+            <div class="flex items-center gap-3">
+                
+                <button id="portalMenuBtn"
+                        type="button"
+                        class="inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        aria-label="Abrir menu">
+                    <i class="fas fa-bars text-gray-700"></i>
+                </button>
+
+                
+                                <a href="https://minhamania.net/portal/dashboard"
+                   class="text-2xl font-bold text-gray-800 hover:text-green-600 transition duration-300 flex items-center gap-2">
+                                                                        <img src="https://minhamania.net/storage/profiles/6a2c7bf10dbaa.png" alt="Foto" class="w-8 h-8 rounded-full object-cover">
+                                                                <span class="brand-text-span">Mania de Cliente1</span>
+                </a>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                                    <form action="https://minhamania.net/logout" method="POST" class="inline">
+                        <input type="hidden" name="_token" value="5B20Kz5AnVWetXP4GmdbUNGGCm33rGIJV25uuc1C" autocomplete="off">                        <button type="submit" class="text-gray-600 hover:text-green-600 transition duration-300 focus:outline-none flex items-center gap-1">
+                            <i class="fas fa-sign-out-alt"></i> Sair
+                        </button>
+                    </form>
+                            </div>
+        </div>
+
+        
+        <div id="portalOverlay" class="fixed inset-0 bg-black/40 hidden" style="z-index: 9998;"></div>
+
+        
+        <aside id="portalDrawer"
+               class="fixed top-0 left-0 h-full w-72 bg-white shadow-xl hidden"
+               style="z-index: 9999;">
+            <div class="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+                <div class="font-semibold text-gray-800">
+                    Menu do Cliente
+                </div>
+                <button id="portalMenuCloseBtn"
+                        type="button"
+                        class="inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        aria-label="Fechar menu">
+                    <i class="fas fa-times text-gray-700"></i>
+                </button>
+            </div>
+
+            <nav class="p-4">
+                <a href="https://minhamania.net/portal/dashboard"
+                   class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 bg-gray-100 font-semibold">
+                    <i class="fas fa-home text-gray-500 w-5"></i>
+                    <span>Painel</span>
+                </a>
+
+                <a href="https://minhamania.net/portal/perfil"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-user text-gray-500 w-5"></i>
+                    <span>Meu Perfil</span>
+                </a>
+
+                <a href="https://minhamania.net/portal/pedidos"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-receipt text-gray-500 w-5"></i>
+                    <span>Meus Pedidos</span>
+                </a>
+						
+                <a href="https://minhamania.net/portal/sacolinha"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
+                    <span>Minha Sacolinha</span>
+                </a>
+
+                <a href="https://minhamania.net/portal/movimentacao"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-wallet text-gray-500 w-5"></i>
+                    <span>Minha Carteira</span>
+                </a>
+
+                <a href="https://minhamania.net/portal/avaliacoes"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-star text-gray-500 w-5"></i>
+                    <span>Minhas Avaliações</span>
+                </a>
+
+                <a href="https://minhamania.net/loja"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+                    <i class="fas fa-store text-gray-500 w-5"></i>
+                    <span>Loja</span>
+                </a>
+				
+				<a href="https://minhamania.net/dashboard-pontuacoes"
+				   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 ">
+				   
+					<img src="https://minhamania.net/icons8-trophy-48.png" alt="Jogar" class="w-5 h-5 object-contain flex-shrink-0">
+				   
+				   <span>Jogar</span>
+				</a>
+                <div class="my-4 border-t border-gray-200"></div>
+
+                                    <form method="POST" action="https://minhamania.net/logout">
+                        <input type="hidden" name="_token" value="5B20Kz5AnVWetXP4GmdbUNGGCm33rGIJV25uuc1C" autocomplete="off">                        <button type="submit"
+                                class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 text-left">
+                            <i class="fas fa-sign-out-alt text-gray-500 w-5"></i>
+                            <span>Sair</span>
+                        </button>
+                    </form>
+                            </nav>
+        </aside>
+    </nav>
+
+    <main class="container mx-auto mt-8 p-4">
+        <!-- Flash Messages -->
+        
+        
+        
+<div class="space-y-6">
+    <!-- Saudação -->
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <h1 class="text-xl font-bold text-gray-800">Olá, Cliente Teste!</h1>
+        <p class="text-gray-600 text-sm">Bem-vindo ao seu portal</p>
+    </div>
+
+    <!-- Grid de Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+	
+        <!-- Card: Sacolinha -->
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-800">Sacolinha</h3>
+                <i class="fas fa-shopping-bag text-gray-400"></i>
+            </div>
+            
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Itens:</span>
+                    <span class="font-medium">2</span>
+                </div>
+                
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Valor:</span>
+                    <span class="font-medium">R$ 90,00</span>
+                </div>
+                
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Aberto em:</span>
+                    <span class="font-medium">16/07/2026</span>
+                </div>
+            </div>
+            
+            <a href="https://minhamania.net/portal/sacolinha" 
+               class="inline-block mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white text-center text-sm py-2 rounded-md transition duration-200">
+                Ver Sacolinha
+            </a>
+        </div>        
+		
+        <!-- Card: Limite Sacolinha -->
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200 md:col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-800">Limite Sacolinha</h3>
+                <i class="fas fa-chart-pie text-gray-400"></i>
+            </div>
+
+			<div class="space-y-2">
+				<div class="flex justify-between text-sm">
+					<span class="text-gray-600">Valor do Limite:</span>
+					<span class="font-medium">R$ 500,00</span>
+				</div>
+
+				<div class="flex justify-between text-sm">
+					<span class="text-gray-600">Utilizado:</span>
+					<span class="font-medium text-red-600">R$ 130,00</span>
+				</div>
+
+				<div class="flex justify-between text-sm">
+					<span class="text-gray-600">Valor Pago:</span>
+					<span class="font-medium text-blue-600">R$ -1.330,14</span>
+				</div>
+
+				<div class="flex justify-between text-sm">
+					<span class="text-gray-600">Disponível:</span>
+					<span class="font-medium text-green-600">R$ 0,00</span>
+				</div>
+			</div>
+            
+            <!-- Barra de Progresso -->
+            <div class="mt-3">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-500 h-2 rounded-full" 
+                         style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 text-center">
+                    0% utilizado
+                </p>
+            </div>
+        </div>		
+		
+        <!-- Card: Saldo -->
+        <div class="bg-gradient-to-r from-green-400 to-green-500 rounded-lg shadow-sm p-4 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium opacity-90">Saldo</h3>
+                    <p class="text-2xl font-bold">R$ -1.330,14</p>
+                </div>
+                <i class="fas fa-wallet text-3xl opacity-75"></i>
+            </div>
+            <a href="https://minhamania.net/portal/movimentacao" 
+               class="inline-block mt-2 bg-white/20 hover:bg-white/30 text-xs px-3 py-1 rounded-full transition duration-200">
+                Ver Movimentação
+            </a>
+			<p class="text-xs opacity-75 mt-2">*Valor pago (em dinheiro ou avaliados) que ainda não foi abatido em nenhum pedido enviado</p>
+        </div>		
+		
+        <!-- Card: Pontos 
+        <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg shadow-sm p-4 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium opacity-90">Pontos</h3>
+                    <p class="text-2xl font-bold">1.250</p> 
+                </div>
+                <i class="fas fa-star text-3xl opacity-75"></i>
+				<i class="fas fa-gamepad text-3xl opacity-75"></i>
+            </div>
+            <p class="text-xs opacity-75 mt-2">Acumule pontos em compras</p>
+        </div>-->
+		
+        <!-- Card: Clube Mania -->
+        <div class="bg-gradient-to-r from-purple-400 to-purple-500 rounded-lg shadow-sm p-4 text-white md:col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium opacity-90">Clube Mania</h3>
+                    <p class="text-2xl font-bold">
+                        Ativo
+                    </p>
+                </div>
+                <i class="fas fa-users text-3xl opacity-75"></i>
+            </div>
+            
+            <div class="mt-3 space-y-1">
+                <div class="flex justify-between text-xs opacity-90">
+                    <span>Sequência:</span>
+                    <span class="font-medium">2 meses</span>
+                </div>
+                
+                <div class="flex justify-between text-xs opacity-90">
+                    <span>Pedidos concluídos:</span>
+                    <span class="font-medium">2</span>
+                </div>
+                
+                <div class="flex justify-between text-xs opacity-90">
+                    <span>Taxa cancel/devol (6m):</span>
+                    <span class="font-medium">20,00%</span>
+                </div>
+                
+                                    <div class="text-xs opacity-75 mt-2">
+                        Atualizado em: 27/03/2026 09:06
+                    </div>
+                            </div>
+        </div>		
+		
+		
+
+        <!-- Card: Clube Mania -->
+		 <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg shadow-sm p-4 text-white md:col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium opacity-90">Clube Mania</h3>
+
+                    <p class="text-2xl font-bold">Nível 1</p> 
+                </div>
+                
+				<i class="fas fa-star text-3xl opacity-75"></i>
+            </div>
+            <p class="text-xs opacity-75 mt-2">Continue jogando para subir de nível</p>
+        </div>
+
+    </div>
+
+    <!-- Ações Rápidas -->
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <a href="https://minhamania.net/portal/perfil" 
+               class="flex flex-col items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
+                <i class="fas fa-user text-2xl text-blue-500 mb-2"></i>
+                <span class="text-sm text-gray-700">Meu Perfil</span>
+            </a>
+            
+            <a href="https://minhamania.net/portal/pedidos" 
+               class="flex flex-col items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
+                <i class="fas fa-receipt text-2xl text-green-500 mb-2"></i>
+                <span class="text-sm text-gray-700">Meus Pedidos</span>
+            </a>
+            
+            <a href="https://minhamania.net/portal/sacolinha" 
+               class="flex flex-col items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
+                <i class="fas fa-shopping-bag text-2xl text-purple-500 mb-2"></i>
+                <span class="text-sm text-gray-700">Sacolinha</span>
+            </a>
+            
+            <a href="https://minhamania.net/dashboard-pontuacoes"
+               class="flex flex-col items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
+                <i class="fas fa-gamepad text-2xl text-yellow-500 mb-2"></i>
+                <span class="text-sm text-gray-700">Jogar</span>
+            </a>
+        </div>
+    </div>
+</div>
+    </main>
+
+    <script>
+        // Script para fechar as mensagens de alerta
+        document.addEventListener('DOMContentLoaded', function() {
+            const successAlert = document.getElementById('success-alert');
+            const errorAlert = document.getElementById('error-alert');
+
+            if (successAlert) {
+                setTimeout(() => {
+                    successAlert.classList.add('fade-out');
+                    successAlert.addEventListener('transitionend', () => successAlert.remove());
+                }, 5000);
+                successAlert.querySelector('svg').addEventListener('click', () => successAlert.remove());
+            }
+
+            if (errorAlert) {
+                setTimeout(() => {
+                    errorAlert.classList.add('fade-out');
+                    errorAlert.addEventListener('transitionend', () => errorAlert.remove());
+                }, 5000);
+                errorAlert.querySelector('svg').addEventListener('click', () => errorAlert.remove());
+            }
+        });
+
+        // Script para menu do portal
+        document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('portalMenuBtn');
+            var closeBtn = document.getElementById('portalMenuCloseBtn');
+            var drawer = document.getElementById('portalDrawer');
+            var overlay = document.getElementById('portalOverlay');
+
+            function openDrawer() {
+                if (!drawer || !overlay) return;
+                drawer.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+            }
+
+            function closeDrawer() {
+                if (!drawer || !overlay) return;
+                drawer.classList.add('hidden');
+                overlay.classList.add('hidden');
+            }
+
+            if (btn) btn.addEventListener('click', openDrawer);
+            if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+            if (overlay) overlay.addEventListener('click', closeDrawer);
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeDrawer();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -37,10 +37,31 @@
 			box-shadow: 0 10px 30px rgba(0,0,0,.25);
 			display:flex;
 			flex-direction:column;
+			transition: transform 0.3s ease;
 		}
 
-		@media (max-width: 576px){
+		@media (max-width: 768px){
 			.chat-drawer{ width: 92vw; max-width: 360px; }
+		}
+
+		/* No desktop, o drawer fica fixo na esquerda como uma sidebar */
+		@media (min-width: 769px){
+			.chat-drawer {
+				position: static !important;
+				box-shadow: none !important;
+				border-right: 1px solid #ddd;
+				display: flex !important;
+				z-index: 1 !important;
+			}
+			.chat-overlay {
+				display: none !important;
+			}
+			#chatMenuBtn {
+				display: none !important;
+			}
+			#chatMenuCloseBtn {
+				display: none !important;
+			}
 		}
 
 		.sidebar-header { padding:14px 16px; background:#075e54; color:#fff; font-weight:600; }
@@ -226,7 +247,6 @@
 
 			<h4 id="activeChatTitle" class="m-0" style="font-size:1.05rem;">Selecione uma conversa</h4>
 
-			<div id="windowTimer" class="window-timer" style="display:none;"></div>
 			<div id="activeChatMeta" class="small-muted"></div>
 
 			<div id="assignmentControls" class="assignment-controls" style="display:none;">
@@ -399,36 +419,26 @@ async function assignConversation() {
 	}
 }
 
-function startTimer(expiresAt) {
-	if (timerInterval) clearInterval(timerInterval);
-	const timerEl = document.getElementById('windowTimer');
-	if (!expiresAt) {
-		timerEl.textContent = 'Janela de 24h fechada.';
-		timerEl.style.display = 'block';
-		return;
-	}
-
-	function updateTimer() {
-		const now = new Date();
-		const expiry = new Date(expiresAt);
-		const diff = expiry.getTime() - now.getTime();
-
-		if (diff <= 0) {
-			timerEl.textContent = 'Janela de 24h expirou.';
-			clearInterval(timerInterval);
+setInterval(() => {
+	document.querySelectorAll('.window-countdown').forEach(el => {
+		if (!el.dataset.expires || el.dataset.expires === 'null') {
+			el.textContent = 'Fechada';
 			return;
 		}
-
-		const hours = Math.floor(diff / (1000 * 60 * 60));
-		const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-		const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-		timerEl.textContent = `Janela expira em: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-	}
-	updateTimer();
-	timerEl.style.display = 'block';
-	timerInterval = setInterval(updateTimer, 1000);
-}
+		const now = new Date();
+		const expiry = new Date(el.dataset.expires);
+		const diff = expiry.getTime() - now.getTime();
+		
+		if (diff <= 0) {
+			el.textContent = 'Fechada';
+		} else {
+			const hours = Math.floor(diff / (1000 * 60 * 60));
+			const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+			const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+			el.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+		}
+	});
+}, 1000);
 
 function renderConversations() {
 	const list = document.getElementById('conversationList');
@@ -480,8 +490,14 @@ function renderConversations() {
 		}
 
 		const time = document.createElement('div');
-		time.className = 'conversation-time';
-		time.textContent = conv.last_message_at ? formatTime(conv.last_message_at) : '';
+		time.className = 'conversation-time window-countdown';
+		time.style.fontWeight = 'bold';
+		time.style.color = '#007bff';
+		if (conv.window_expires_at) {
+			time.dataset.expires = conv.window_expires_at;
+		} else {
+			time.dataset.expires = 'null';
+		}
 
 		item.appendChild(avatar);
 		item.appendChild(info);
@@ -509,7 +525,7 @@ async function selectConversation(userId) {
 		document.getElementById('adminSelector').value = conv?.assigned_admin_id || '';
 	}
 
-	startTimer(conv?.window_expires_at);
+
 
 	document.getElementById('activeChatMeta').textContent = conv?.user_whatsapp ? conv.user_whatsapp : '';
 	document.getElementById('chatInput').style.display = 'flex';

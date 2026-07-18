@@ -824,4 +824,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     
     // Rastreamento de Acessos do Portal do Cliente
     Route::get('portal-acessos', [\App\Http\Controllers\Admin\PortalAcessosController::class, 'index'])->name('portal-acessos.index');
+    
+    // Gerenciamento de Equipe (Admins)
+    Route::get('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('equipe.index');
+    Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
 });

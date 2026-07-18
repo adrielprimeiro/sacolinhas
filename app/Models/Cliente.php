@@ -113,7 +113,7 @@ class Cliente extends Model
 
     public function scopeClientes($query)
     {
-        return $query->where('role', 'client');
+        return $query; // Allow all users (including admins) to be treated as clients
     }
 
     public function scopePorCidade($query, $cidade)

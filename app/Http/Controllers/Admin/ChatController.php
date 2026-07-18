@@ -113,9 +113,9 @@ class ChatController extends Controller
 			return response()->json(['error' => 'Não autorizado'], 403);
 		}
 
-		// Lista apenas atendentes (role = admin). Master não precisa aparecer no select.
+		// Lista atendentes (role = admin) e masters
 		$admins = User::where('is_admin', 1)
-			->where('role', 'admin')
+			->whereIn('role', ['admin', 'admin_master'])
 			->orderBy('name')
 			->get(['id', 'name', 'role']);
 
