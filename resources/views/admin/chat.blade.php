@@ -222,7 +222,13 @@
 
 	<aside id="chatDrawer" class="chat-drawer hidden" style="z-index: 9999;">
 		<div class="sidebar-header d-flex align-items-center justify-content-between">
-			<span>Conversas</span>
+			<span id="chatSidebarTitle">Conversas</span>
+			<div id="filterAdminContainer" style="display:none; flex-grow: 1; margin-right: 10px;">
+				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" onchange="renderConversations()">
+					<option value="">Todas as Conversas</option>
+					<option value="unassigned">Não atribuídas</option>
+				</select>
+			</div>
 			<button id="chatMenuCloseBtn" type="button" class="icon-btn" title="Fechar" aria-label="Fechar menu">
 				<i class="bi bi-x-lg"></i>
 			</button>
@@ -233,14 +239,6 @@
 			<div class="conversation-search-wrap">
 				<i class="bi bi-search search-icon"></i>
 				<input type="text" id="conversationSearch" class="form-control form-control-sm" placeholder="Buscar conversa...">
-			</div>
-			
-			<script>var isMaster = {{ (auth()->user()->is_admin == 1 && auth()->user()->role === 'admin_master') ? 'true' : 'false' }};</script>
-			<div id="filterAdminContainer" style="display:none; margin-top: 8px;">
-				<select id="filterAdminSelector" class="form-select form-select-sm" onchange="renderConversations()">
-					<option value="">Todos os atendentes</option>
-					<option value="unassigned">Não atribuídas</option>
-				</select>
 			</div>
 		</div>
 
@@ -368,6 +366,7 @@ async function initialize() {
 	if (isMaster) {
 		await loadAdmins();
 		document.getElementById('filterAdminContainer').style.display = 'block';
+		document.getElementById('chatSidebarTitle').style.display = 'none';
 	}
 	await loadConversations();
 	setupSendMessage();
