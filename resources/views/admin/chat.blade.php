@@ -12,6 +12,7 @@
 
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 	<style>
 		body { background-color:#f0f0f0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; height:100vh; }
@@ -228,11 +229,125 @@
 			</button>
 		</div>
 
-		<!-- Barra de busca -->
-		<div class="conversation-search">
-			<div class="conversation-search-wrap">
-				<i class="bi bi-search search-icon"></i>
-				<input type="text" id="conversationSearch" class="form-control form-control-sm" placeholder="Buscar conversa...">
+		<!-- Barra de busca com Autocomplete -->
+		<div class="conversation-search" style="overflow: visible;">
+			<div class="conversation-search-wrap" style="position: relative; z-index: 50;" x-data="{ 
+				open: false, 
+				search: '',
+				users: [],
+				loading: false,
+				focusedIndex: -1,
+				timeout: null,
+				handleInput() {
+					this.focusedIndex = -1;
+					this.open = true;
+					if (this.search.length < 2) {
+						this.users = [];
+						return;
+					}
+					this.loading = true;
+					clearTimeout(this.timeout);
+					this.timeout = setTimeout(() => {
+						this.fetchUsers();
+					}, 300);
+					
+					// Disparar o filtro local também
+					if(typeof renderConversations === 'function') renderConversations();
+				},
+				fetchUsers() {
+					fetch('/api/users/search?q=' + encodeURIComponent(this.search))
+						.then(res => res.json())
+						.then(res => {
+							if (res.success) {
+								this.users = res.data.map(u => {
+									let extraInfo = [u.email, u.instagram, u.tiktok, u.apelido].filter(Boolean).join(' • ');
+									return { id: String(u.id), name: u.name, info: extraInfo };
+								});
+								this.focusedIndex = this.users.length > 0 ? 0 : -1;
+							} else {
+								this.users = [];
+								this.focusedIndex = -1;
+							}
+							this.loading = false;
+						})
+						.catch(() => {
+							this.users = [];
+							this.focusedIndex = -1;
+							this.loading = false;
+						});
+				},
+				selectUser(user) {
+					this.search = '';
+					this.open = false;
+					// Chamar função do chat para abrir conversa
+					if(typeof selectConversation === 'function') {
+						// Tentar achar na lista
+						const conv = conversations.find(c => String(c.user_id) === String(user.id));
+						if (!conv) {
+							// Adiciona mock para renderizar corretamente o titulo se nao houver
+							conversations.push({
+								user_id: user.id,
+								user_name: user.name,
+								last_message_body: '...'
+							});
+						}
+						selectConversation(user.id);
+					}
+				},
+				onKeyDown(e) {
+					if (e.key === 'Enter') {
+						if (this.open && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+							e.preventDefault();
+							this.selectUser(this.users[this.focusedIndex]);
+						}
+						return;
+					}
+					
+					if (!this.open || this.users.length === 0) return;
+					
+					if (e.key === 'ArrowDown') {
+						e.preventDefault();
+						this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+					} else if (e.key === 'ArrowUp') {
+						e.preventDefault();
+						this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+					}
+				}
+			}">
+				<i class="bi bi-search search-icon" style="position: absolute; left: 24px; top: 12px; color: #aaa;"></i>
+				<input type="text" id="conversationSearch" class="form-control form-control-sm" style="padding-left: 32px;"
+					   placeholder="Buscar ou iniciar conversa..." autocomplete="off"
+					   x-model="search"
+					   @input="handleInput()"
+					   @click="open = true"
+					   @click.away="open = false"
+					   @keydown.escape="open = false"
+					   @keydown="onKeyDown($event)">
+				
+				<!-- Dropdown de Sugestões -->
+				<div x-show="open && search.length >= 2" 
+					 x-transition
+					 class="dropdown-menu show"
+					 style="position: absolute; top: 100%; left: 16px; right: 16px; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 8px; border: 1px solid #eee; padding: 0;">
+					
+					<template x-for="(user, index) in users" :key="user.id">
+						<div @click="selectUser(user)"
+							 class="dropdown-item"
+							 style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5;"
+							 :style="focusedIndex === index ? 'background-color: #f8f9fa;' : ''"
+							 @mouseover="focusedIndex = index">
+							<div style="font-weight: 600; font-size: 0.9rem; color: #333;" x-text="user.name"></div>
+							<div style="font-size: 0.75rem; color: #888; margin-top: 2px;" x-text="user.info" x-show="user.info"></div>
+						</div>
+					</template>
+					
+					<div x-show="users.length === 0 && search.length >= 2 && !loading" style="padding: 12px; font-size: 0.85rem; color: #888; text-align: center;">
+						Nenhum cliente encontrado.
+					</div>
+					<div x-show="loading" style="padding: 12px; font-size: 0.85rem; color: #888; text-align: center;">
+						Buscando...
+					</div>
+				</div>
 			</div>
 		</div>
 
