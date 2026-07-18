@@ -110,8 +110,10 @@ class ChatController extends Controller
 		}
 
 		$messages = DB::table('whatsapp_messages')
-			->where('user_id', $userId)
-			->orderBy('created_at', 'asc')
+			->leftJoin('users', 'whatsapp_messages.admin_id', '=', 'users.id')
+			->where('whatsapp_messages.user_id', $userId)
+			->orderBy('whatsapp_messages.created_at', 'asc')
+			->select('whatsapp_messages.*', 'users.name as admin_name')
 			->get()
 			->map(function ($m) {
 				$m->has_media = !empty($m->media_url);
@@ -320,6 +322,7 @@ class ChatController extends Controller
 
 		DB::table('whatsapp_messages')->insert([
 			'user_id' => $userId,
+			'admin_id' => auth()->id(),
 			'direction' => 'outbound',
 			'status' => 'queued',
 			'message_sid' => $sid,

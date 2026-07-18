@@ -607,6 +607,17 @@ function renderMessages(messages, scrollToBottom = true) {
 		const isOutbound = String(msg.direction) === 'outbound';
 		bubble.className = 'message-bubble ' + (isOutbound ? 'sent-message' : 'received-message');
 
+		if (isOutbound) {
+			const adminLabel = document.createElement('div');
+			adminLabel.style.fontSize = '0.70rem';
+			adminLabel.style.fontWeight = '600';
+			adminLabel.style.color = '#0b5b50';
+			adminLabel.style.marginBottom = '4px';
+			adminLabel.style.textAlign = 'right';
+			adminLabel.textContent = msg.admin_name ? msg.admin_name : 'Sistema';
+			bubble.appendChild(adminLabel);
+		}
+
 		const content = document.createElement('div');
 		content.className = 'message-content';
 		content.innerHTML = escapeHtml(msg.body || '');
