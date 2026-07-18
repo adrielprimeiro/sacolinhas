@@ -259,7 +259,9 @@
 				<select id="adminSelector" class="form-select form-select-sm">
 					<option value="">Ninguém</option>
 				</select>
-				<button id="assignButton" class="btn btn-sm btn-light">Atribuir</button>
+				<button id="assignButton" class="btn btn-sm btn-light" title="Atribuir">
+					<i class="bi bi-person-check-fill"></i>
+				</button>
 			</div>
 		</div>
 
@@ -399,9 +401,10 @@ async function loadAdmins() {
 		const filterSelector = document.getElementById('filterAdminSelector');
 		selector.innerHTML = '<option value="">Ninguém</option>';
 		admins.forEach(admin => {
-			selector.innerHTML += `<option value="${admin.id}">${admin.name} (${admin.role})</option>`;
+			const firstName = admin.name.split(' ')[0];
+			selector.innerHTML += `<option value="${admin.id}">${firstName}</option>`;
 			if (filterSelector) {
-				filterSelector.innerHTML += `<option value="${admin.id}">${admin.name}</option>`;
+				filterSelector.innerHTML += `<option value="${admin.id}">${firstName}</option>`;
 			}
 		});
 	} catch (e) {
