@@ -234,6 +234,14 @@
 				<i class="bi bi-search search-icon"></i>
 				<input type="text" id="conversationSearch" class="form-control form-control-sm" placeholder="Buscar conversa...">
 			</div>
+			
+			<script>var isMaster = {{ (auth()->user()->is_admin == 1 && auth()->user()->role === 'admin_master') ? 'true' : 'false' }};</script>
+			<div id="filterAdminContainer" style="display:none; margin-top: 8px;">
+				<select id="filterAdminSelector" class="form-select form-select-sm" onchange="renderConversations()">
+					<option value="">Todos os atendentes</option>
+					<option value="unassigned">Não atribuídas</option>
+				</select>
+			</div>
 		</div>
 
 		<div class="conversation-list" id="conversationList"></div>
@@ -359,6 +367,7 @@ async function initialize() {
 
 	if (isMaster) {
 		await loadAdmins();
+		document.getElementById('filterAdminContainer').style.display = 'block';
 	}
 	await loadConversations();
 	setupSendMessage();
@@ -388,9 +397,13 @@ async function loadAdmins() {
 		const resp = await fetch('/admin/chat/api/admins');
 		admins = await resp.json();
 		const selector = document.getElementById('adminSelector');
+		const filterSelector = document.getElementById('filterAdminSelector');
 		selector.innerHTML = '<option value="">Ninguém</option>';
 		admins.forEach(admin => {
 			selector.innerHTML += `<option value="${admin.id}">${admin.name} (${admin.role})</option>`;
+			if (filterSelector) {
+				filterSelector.innerHTML += `<option value="${admin.id}">${admin.name}</option>`;
+			}
 		});
 	} catch (e) {
 		console.error('Erro ao carregar admins:', e);
@@ -446,15 +459,28 @@ function renderConversations() {
 
 	const term = getConversationSearchTerm();
 
-	const filtered = term
-		? conversations.filter(conv => {
+	const filterSelector = document.getElementById('filterAdminSelector');
+	const selectedAdminId = filterSelector ? filterSelector.value : '';
+
+	let filtered = conversations;
+	
+	// Filtra por atendente primeiro
+	if (selectedAdminId === 'unassigned') {
+		filtered = filtered.filter(conv => !conv.assigned_admin_id);
+	} else if (selectedAdminId) {
+		filtered = filtered.filter(conv => String(conv.assigned_admin_id) === String(selectedAdminId));
+	}
+
+	// Depois filtra por texto
+	filtered = term
+		? filtered.filter(conv => {
 			const name = String(conv.user_name || ('Usuário #' + conv.user_id)).toLowerCase();
 			const whatsapp = String(conv.user_whatsapp || '').toLowerCase();
 			const lastText = String(conv.last_message_body || '').toLowerCase();
 			const assigned = String(conv.assigned_admin_name || '').toLowerCase();
 			return name.includes(term) || whatsapp.includes(term) || lastText.includes(term) || assigned.includes(term);
 		})
-		: conversations;
+		: filtered;
 	const currentJson = JSON.stringify({ filtered, activeUserId });
 	if (currentJson === lastConversationsJson) return;
 	lastConversationsJson = currentJson;
