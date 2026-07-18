@@ -14,7 +14,9 @@ class ClienteController extends Controller
     {
         $query = Cliente::clientes()->with(['limite']); // ✅ USAR SCOPE E CARREGAR LIMITE
         
-        if ($request->filled('search')) {
+        if ($request->filled('user_id')) {
+            $query->where('id', $request->user_id);
+        } elseif ($request->filled('search')) {
             $search = $request->get('search');
             $query->buscar($search); // ✅ USAR SCOPE DO MODEL
         }
