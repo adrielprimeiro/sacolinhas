@@ -30,8 +30,16 @@ class ChatController extends Controller
 			->whereNotNull('user_id')
 			->groupBy('user_id');
 
+		// Subquery para pegar a última mensagem recebida de cada cliente
+		$subLastInbound = DB::table('whatsapp_messages')
+			->select('user_id', DB::raw('MAX(created_at) as last_inbound_at'))
+			->where('direction', 'inbound')
+			->whereNotNull('user_id')
+			->groupBy('user_id');
+
 		$query = DB::table('whatsapp_messages as wm')
 			->joinSub($subLastMessage, 'last_msg', 'wm.id', '=', 'last_msg.last_message_id')
+			->leftJoinSub($subLastInbound, 'sub_inbound', 'sub_inbound.user_id', '=', 'wm.user_id')
 			->join('users', 'users.id', '=', 'wm.user_id')
 			->leftJoin('chat_assignments as ca', 'ca.user_id', '=', 'wm.user_id')
 			->leftJoin('users as admin_user', 'admin_user.id', '=', 'ca.assigned_admin_id') // Para pegar o nome do atendente
@@ -43,7 +51,8 @@ class ChatController extends Controller
 				DB::raw("CASE WHEN wm.media_url IS NOT NULL AND wm.media_url != '' THEN 1 ELSE 0 END as last_message_has_media"),
 				'ca.assigned_admin_id',
 				'admin_user.name as assigned_admin_name',
-				'ca.expires_at as window_expires_at'  // ✅ ALTERADO: Usa o expires_at SALVO no chat_assignments (não recalcula)
+				'ca.expires_at',
+				'sub_inbound.last_inbound_at'
 			)
 			->orderBy('wm.created_at', 'desc');
 
@@ -55,13 +64,22 @@ class ChatController extends Controller
 
 		$conversations = $query->get();
 
-		// Adiciona contagem de não lidas
+		// Adiciona contagem de não lidas e calcula window_expires_at
 		$conversations->each(function ($conv) {
 			$conv->unread_count = DB::table('whatsapp_messages')
 				->where('user_id', $conv->user_id)
 				->where('direction', 'inbound')
 				->where('status', '!=', 'read')
 				->count();
+
+			// Calcula o window_expires_at se não estiver explícito no ca.expires_at
+			if ($conv->expires_at) {
+				$conv->window_expires_at = $conv->expires_at;
+			} elseif ($conv->last_inbound_at) {
+				$conv->window_expires_at = Carbon::parse($conv->last_inbound_at)->addHours(24)->toDateTimeString();
+			} else {
+				$conv->window_expires_at = null;
+			}
 		});
 
 		return response()->json($conversations);
