@@ -22,11 +22,116 @@
     <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Filtros de Pesquisa</h2>
     <form method="GET" action="{{ route('admin.clientes.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {{-- Busca Geral --}}
-        <div class="sm:col-span-2">
+        <div class="sm:col-span-2 relative">
             <label class="text-xs text-gray-400 font-medium block mb-1">Busca Geral</label>
-            <input type="text" name="search" value="{{ request('search') }}"
-                   placeholder="Nome, email, CPF ou rede social..."
-                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+            @php $selectedUser = request('user_id') ? \App\Models\User::find(request('user_id')) : null; @endphp
+            <div x-data="{ 
+                open: false, 
+                search: '{{ addslashes($selectedUser->name ?? request('search') ?? '') }}',
+                selectedId: '{{ request('user_id') }}',
+                users: [],
+                loading: false,
+                focusedIndex: -1,
+                timeout: null,
+                handleInput() {
+                    this.selectedId = '';
+                    this.focusedIndex = -1;
+                    this.open = true;
+                    if (this.search.length < 2) {
+                        this.users = [];
+                        return;
+                    }
+                    this.loading = true;
+                    clearTimeout(this.timeout);
+                    this.timeout = setTimeout(() => {
+                        this.fetchUsers();
+                    }, 300);
+                },
+                fetchUsers() {
+                    fetch('{{ route('api.users.search') }}?q=' + encodeURIComponent(this.search))
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.success) {
+                                this.users = res.data.map(u => {
+                                    let extraInfo = [u.email, u.instagram, u.tiktok, u.apelido].filter(Boolean).join(' • ');
+                                    return { id: String(u.id), name: u.name, info: extraInfo };
+                                });
+                                this.focusedIndex = this.users.length > 0 ? 0 : -1;
+                            } else {
+                                this.users = [];
+                                this.focusedIndex = -1;
+                            }
+                            this.loading = false;
+                        })
+                        .catch(() => {
+                            this.users = [];
+                            this.focusedIndex = -1;
+                            this.loading = false;
+                        });
+                },
+                selectUser(user) {
+                    this.selectedId = user.id; 
+                    this.search = user.name; 
+                    this.open = false;
+                    document.getElementById('btn-filtrar-clientes').focus();
+                },
+                onKeyDown(e) {
+                    if (e.key === 'Enter') {
+                        if (this.open && this.focusedIndex >= 0 && this.focusedIndex < this.users.length) {
+                            e.preventDefault();
+                            this.selectUser(this.users[this.focusedIndex]);
+                        }
+                        return;
+                    }
+                    
+                    if (!this.open || this.users.length === 0) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        this.focusedIndex = this.focusedIndex < this.users.length - 1 ? this.focusedIndex + 1 : 0;
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        this.focusedIndex = this.focusedIndex > 0 ? this.focusedIndex - 1 : this.users.length - 1;
+                    }
+                }
+            }">
+                <input type="text" 
+                       name="search"
+                       x-model="search"
+                       @input="handleInput()"
+                       @click="open = true"
+                       @click.away="open = false"
+                       @keydown.escape="open = false"
+                       @keydown="onKeyDown($event)"
+                       class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none"
+                       placeholder="Nome, email, CPF ou rede social..." autocomplete="off">
+                
+                <input type="hidden" name="user_id" :value="selectedId">
+
+                <!-- Dropdown de Sugestões -->
+                <div x-show="open" 
+                     x-transition
+                     class="absolute z-50 mt-1 w-full bg-white border border-gray-100 shadow-xl rounded-xl max-h-60 overflow-y-auto"
+                     style="display: none;">
+                    <template x-for="(user, index) in users" :key="user.id">
+                        <div @click="selectUser(user)"
+                             class="p-3 cursor-pointer border-b border-gray-100 last:border-0 transition"
+                             :class="[
+                                selectedId == user.id ? 'border-l-4 border-indigo-600' : 'border-l-4 border-transparent',
+                                focusedIndex === index ? 'bg-indigo-50' : 'hover:bg-indigo-50'
+                             ]">
+                            <div class="font-bold text-sm text-gray-800" x-text="user.name"></div>
+                            <div class="text-xs text-gray-500 mt-0.5" x-text="user.info" x-show="user.info"></div>
+                        </div>
+                    </template>
+                    <div x-show="users.length === 0 && search.length >= 2 && !loading" class="p-3 text-sm text-gray-500 text-center">
+                        Nenhum cliente encontrado.
+                    </div>
+                    <div x-show="loading" class="p-3 text-sm text-gray-500 text-center">
+                        Buscando...
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Status --}}
@@ -85,7 +190,7 @@
                class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 text-sm font-bold px-4 py-2 rounded-lg transition">
                 <i class="fas fa-redo"></i> Limpar
             </a>
-            <button type="submit" 
+            <button type="submit" id="btn-filtrar-clientes"
                     class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-6 py-2 rounded-lg transition shadow-sm">
                 <i class="fas fa-search"></i> Filtrar
             </button>
