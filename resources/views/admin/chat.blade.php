@@ -440,9 +440,9 @@ setInterval(() => {
 	});
 }, 1000);
 
+let lastConversationsJson = '';
 function renderConversations() {
 	const list = document.getElementById('conversationList');
-	list.innerHTML = '';
 
 	const term = getConversationSearchTerm();
 
@@ -455,6 +455,11 @@ function renderConversations() {
 			return name.includes(term) || whatsapp.includes(term) || lastText.includes(term) || assigned.includes(term);
 		})
 		: conversations;
+	const currentJson = JSON.stringify({ filtered, activeUserId });
+	if (currentJson === lastConversationsJson) return;
+	lastConversationsJson = currentJson;
+
+	list.innerHTML = '';
 
 	filtered.forEach(conv => {
 		const item = document.createElement('div');
@@ -558,8 +563,15 @@ async function loadMessages(userId, scrollToBottom = true) {
 	}
 }
 
+let lastMessagesJson = '';
 function renderMessages(messages, scrollToBottom = true) {
+	const currentJson = JSON.stringify({ messages, activeUserId });
+	if (currentJson === lastMessagesJson) return;
+	lastMessagesJson = currentJson;
+
 	const box = document.getElementById('chatMessages');
+	const wasAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 20;
+
 	box.innerHTML = '';
 
 	messages.forEach(msg => {
@@ -635,7 +647,7 @@ function renderMessages(messages, scrollToBottom = true) {
 		box.appendChild(row);
 	});
 
-	if (scrollToBottom) {
+	if (scrollToBottom && wasAtBottom) {
 		box.scrollTop = box.scrollHeight;
 	}
 }
