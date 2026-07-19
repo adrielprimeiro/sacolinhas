@@ -388,7 +388,7 @@
                 </div>
                 
                 <div x-show="freteResults" class="space-y-3 mt-4 max-h-60 overflow-y-auto">
-                    <template x-for="opt in freteResults" :key="opt.name">
+                    <template x-for="opt in freteResults" :key="opt.id">
                         <div class="border border-gray-100 rounded-xl p-3 flex justify-between items-center bg-gray-50">
                             <div class="flex items-center gap-3">
                                 <img :src="opt.company.picture" class="h-8 w-8 object-contain">
