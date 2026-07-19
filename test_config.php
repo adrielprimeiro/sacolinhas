@@ -4,36 +4,24 @@ $app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-use App\Models\Configuracao;
-use Illuminate\Support\Facades\Http;
+use App\Models\Item;
+use App\Services\ShippingCalculatorService;
+use App\Services\MelhorEnvioService;
 
-$token = Configuracao::get('melhor_envio_access_token') ?: env('MELHOR_ENVIO_TOKEN', '');
-$cepOrigem = env('MELHOR_ENVIO_CEP_ORIGEM', '88160152');
-$cepDestino = '01001000'; // São Paulo, Sé
+$item = Item::first();
+if (!$item) {
+    echo "No items found in database!\n";
+    exit;
+}
+echo "Found item: " . $item->nome_do_produto . " (ID: " . $item->id . ")\n";
 
-$payload = [
-    'from' => [
-        'postal_code' => $cepOrigem
-    ],
-    'to' => [
-        'postal_code' => $cepDestino
-    ],
-    'package' => [
-        'weight' => 0.5,
-        'width'  => 15,
-        'height' => 15,
-        'length' => 15,
-    ]
-];
+$calculator = new ShippingCalculatorService();
+$packageData = $calculator->calculateForItems([$item->id]);
+echo "Package data:\n";
+print_r($packageData);
 
-$baseUrl = env('MELHOR_ENVIO_URL', 'https://melhorenvio.com.br');
+$melhorEnvio = new MelhorEnvioService();
+$result = $melhorEnvio->calculateShipping('01001000', $packageData);
 
-$response = Http::withHeaders([
-    'Accept' => 'application/json',
-    'Content-Type' => 'application/json',
-    'Authorization' => 'Bearer ' . $token,
-])->post($baseUrl . '/api/v2/me/shipment/calculate', $payload);
-
-echo "HTTP Status: " . $response->status() . "\n";
-echo "Response Body:\n";
-print_r($response->json());
+echo "Result:\n";
+print_r($result);
