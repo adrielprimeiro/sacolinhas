@@ -1100,8 +1100,12 @@ class SacolinhaController extends Controller
                 $packageData['length'] = (float) $request->input('manual_length');
             }
 
+            Log::info("Simulacao de Frete: CEP={$request->cep}, Itens=" . implode(',', $request->itens) . ", PackageData=" . json_encode($packageData));
+
             // Cota no Melhor Envio
             $result = $melhorEnvio->calculateShipping($request->cep, $packageData);
+
+            Log::info("Resultado Simulacao Frete: Success=" . ($result['success'] ? 'true' : 'false') . ", OptionsCount=" . (isset($result['options']) ? count($result['options']) : 0) . ", Message=" . ($result['message'] ?? ''));
 
             if ($result['success']) {
                 return response()->json([
