@@ -64,16 +64,16 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <div class="flex gap-2 items-center">
+                                <div class="flex flex-col lg:flex-row gap-2 items-start lg:items-center">
                                     <form action="{{ route('admin.equipe.updateRole', $user->id) }}" method="POST" class="flex gap-2 items-center">
                                         @csrf
-                                        <select name="role" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                        <select name="role" class="block w-full pl-3 pr-8 py-1 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
                                             <option value="client" {{ $user->role === 'client' ? 'selected' : '' }}>Cliente Padrão</option>
-                                            <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Atendente (Admin)</option>
-                                            <option value="admin_master" {{ $user->role === 'admin_master' ? 'selected' : '' }}>Master (Admin Master)</option>
+                                            <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Atendente</option>
+                                            <option value="admin_master" {{ $user->role === 'admin_master' ? 'selected' : '' }}>Master</option>
                                         </select>
-                                        <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-1 px-3 rounded border border-indigo-200 transition">
-                                            Salvar Nível
+                                        <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-1 px-2 rounded border border-indigo-200 transition" title="Salvar Nível">
+                                            Salvar
                                         </button>
                                     </form>
 
