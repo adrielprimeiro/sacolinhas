@@ -112,9 +112,12 @@ class ChatController extends Controller
 		$messages = DB::table('whatsapp_messages')
 			->leftJoin('users', 'whatsapp_messages.admin_id', '=', 'users.id')
 			->where('whatsapp_messages.user_id', $userId)
-			->orderBy('whatsapp_messages.created_at', 'asc')
+			->orderBy('whatsapp_messages.created_at', 'desc')
+			->take(50)
 			->select('whatsapp_messages.*', 'users.name as admin_name')
 			->get()
+			->reverse()
+			->values()
 			->map(function ($m) {
 				$m->has_media = !empty($m->media_url);
 				$m->download_url = $m->has_media ? route('admin.chat.download', ['id' => $m->id]) : null;
