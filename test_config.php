@@ -4,24 +4,31 @@ $app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
+use App\Http\Controllers\SacolinhaController;
+use Illuminate\Http\Request;
 use App\Models\Item;
-use App\Services\ShippingCalculatorService;
-use App\Services\MelhorEnvioService;
 
 $item = Item::first();
 if (!$item) {
     echo "No items found in database!\n";
     exit;
 }
-echo "Found item: " . $item->nome_do_produto . " (ID: " . $item->id . ")\n";
 
-$calculator = new ShippingCalculatorService();
-$packageData = $calculator->calculateForItems([$item->id]);
-echo "Package data:\n";
-print_r($packageData);
+$request = Request::create('/frete/simular', 'POST', [
+    'cep' => '01001000',
+    'itens' => [$item->id]
+]);
 
-$melhorEnvio = new MelhorEnvioService();
-$result = $melhorEnvio->calculateShipping('01001000', $packageData);
-
-echo "Result:\n";
-print_r($result);
+$controller = app(SacolinhaController::class);
+try {
+    $response = $controller->simularFrete(
+        $request,
+        app(\App\Services\ShippingCalculatorService::class),
+        app(\App\Services\MelhorEnvioService::class)
+    );
+    echo "Status: " . $response->status() . "\n";
+    echo "Content:\n";
+    print_r(json_decode($response->content(), true));
+} catch (\Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+}
