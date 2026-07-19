@@ -55,4 +55,30 @@ class AdminUserController extends Controller
 
         return redirect()->back()->with('success', "Permissão de {$user->name} atualizada com sucesso!");
     }
+
+    public function update(Request $request, $id)
+    {
+        abort_if(!auth()->user() || auth()->user()->role !== 'admin_master', 403, 'Acesso negado. Apenas Master.');
+
+        $user = User::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'telefone' => 'nullable|string|max:20',
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        $user->name = $request->input('name');
+        $user->email = $request->input('email');
+        $user->telefone = $request->input('telefone');
+
+        if ($request->filled('password')) {
+            $user->password = \Illuminate\Support\Facades\Hash::make($request->input('password'));
+        }
+
+        $user->save();
+
+        return redirect()->back()->with('success', "Dados de {$user->name} atualizados com sucesso!");
+    }
 }

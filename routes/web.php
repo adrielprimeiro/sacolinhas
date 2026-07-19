@@ -828,4 +828,5 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     // Gerenciamento de Equipe (Admins)
     Route::get('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('equipe.index');
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
+    Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
 });
