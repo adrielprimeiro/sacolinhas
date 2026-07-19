@@ -52,7 +52,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <div>{{ $user->email }}</div>
-                                <div>{{ $user->telefone }}</div>
+                                <div>{{ $user->whatsapp }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($user->role === 'admin_master')
@@ -109,8 +109,8 @@
                                                             <input type="email" name="email" id="email_{{ $user->id }}" value="{{ $user->email }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
                                                         </div>
                                                         <div class="mb-4">
-                                                            <label for="telefone_{{ $user->id }}" class="block text-sm font-medium text-gray-700">Telefone / WhatsApp</label>
-                                                            <input type="text" name="telefone" id="telefone_{{ $user->id }}" value="{{ $user->telefone }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                            <label for="whatsapp_{{ $user->id }}" class="block text-sm font-medium text-gray-700">Telefone / WhatsApp</label>
+                                                            <input type="text" name="whatsapp" id="whatsapp_{{ $user->id }}" value="{{ $user->whatsapp }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                                                         </div>
                                                         <div class="mb-4">
                                                             <label for="password_{{ $user->id }}" class="block text-sm font-medium text-gray-700">Nova Senha (deixe em branco para manter)</label>

@@ -19,7 +19,7 @@ class AdminUserController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('telefone', 'like', "%{$search}%");
+                  ->orWhere('whatsapp', 'like', "%{$search}%");
             });
         }
 
@@ -65,13 +65,13 @@ class AdminUserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
-            'telefone' => 'nullable|string|max:20',
+            'whatsapp' => 'nullable|string|max:20',
             'password' => 'nullable|string|min:6',
         ]);
 
         $user->name = $request->input('name');
         $user->email = $request->input('email');
-        $user->telefone = $request->input('telefone');
+        $user->whatsapp = $request->input('whatsapp');
 
         if ($request->filled('password')) {
             $user->password = \Illuminate\Support\Facades\Hash::make($request->input('password'));
