@@ -26,7 +26,7 @@ class RelatorioVencimentosController extends Controller
             ->where('s.status', '!=', 'pedido')
             ->where(function ($query) {
                 $query->whereNull('s.obs')
-                      ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+                      ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('s.add_at')
             ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()");
@@ -83,7 +83,7 @@ class RelatorioVencimentosController extends Controller
                 ->where('s.status', '!=', 'pedido')
                 ->where(function ($query) {
                     $query->whereNull('s.obs')
-                          ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+                          ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
                 })
                 ->whereNotNull('s.add_at')
                 ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
@@ -146,7 +146,7 @@ class RelatorioVencimentosController extends Controller
             ->where('s.status', '!=', 'pedido')
             ->where(function ($query) {
                 $query->whereNull('s.obs')
-                      ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+                      ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('s.add_at')
             ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
@@ -179,7 +179,7 @@ class RelatorioVencimentosController extends Controller
             ->where('status', '!=', 'pedido')
             ->where(function ($query) {
                 $query->whereNull('obs')
-                      ->orWhere('obs', 'not like', '%Pedido PED-%');
+                      ->orWhereRaw("LOWER(obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('add_at')
             ->whereRaw("DATE_ADD(add_at, INTERVAL 90 DAY) < NOW()")
