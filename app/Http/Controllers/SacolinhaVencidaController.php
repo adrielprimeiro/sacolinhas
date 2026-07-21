@@ -25,7 +25,11 @@ class SacolinhaVencidaController extends Controller
             ->join('users as u', 'u.id', '=', 's.user_id')
             ->whereNotNull('s.add_at')
             ->where('u.role', 'client')
-            // VENCIDO: (add_at + 90 dias) =< hoje
+            ->where('s.status', '!=', 'pedido')
+            ->where(function ($q) {
+                $q->whereNull('s.obs')
+                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+            })
             ->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY)) <= ?', [$hoje]);
 
         // Se quiser excluir status (ajuste conforme seus valores reais):
@@ -79,6 +83,11 @@ class SacolinhaVencidaController extends Controller
 			->leftJoin('items as i', 'i.id', '=', 's.item_id')
 			->whereIn('s.user_id', $userIds)
 			->whereNotNull('s.add_at')
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
 			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
 			->select([
 				's.user_id',
