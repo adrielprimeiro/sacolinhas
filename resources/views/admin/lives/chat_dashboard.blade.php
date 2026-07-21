@@ -116,106 +116,75 @@
 
             <!-- Tab content container -->
             <div class="flex-1 p-4 overflow-y-auto">
-                <!-- Tab: Conectar Lives -->
+                <!-- Tab: Conectar Lives (Gravação via Social Stream) -->
                 <div id="tab-content-bookmarklet" class="space-y-4">
-                    <!-- 1. Captura Direta TikTok Backend -->
-                    <div class="bg-pink-50 rounded-xl p-4 border border-pink-200 shadow-sm">
+                    <!-- O bloco do Social Stream Ninja foi removido para deixar só o necessário -->
+
+                    <!-- 1.5. Extensão Oficial (Alternativa 100% Silenciosa) -->
+                    <div class="bg-blue-50 rounded-xl p-4 border border-blue-200 shadow-sm mt-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-bold text-pink-900 text-sm flex items-center gap-1.5">
-                                <i class="fab fa-tiktok text-pink-600 text-base"></i>
-                                TikTok Backend (Sem Aba)
+                            <h3 class="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+                                <i class="fas fa-puzzle-piece text-blue-600 text-base"></i>
+                                Extensão Oficial Minha Mania (Alternativa)
                             </h3>
-                            <span id="tiktok-backend-badge" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <span id="tiktok-status-dot" class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-                                <span id="tiktok-status-text">Desconectado</span>
+                            <span class="bg-blue-200 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <i class="fas fa-ghost"></i> 100% Invisível
                             </span>
                         </div>
-                        <p class="text-xs text-pink-800 mt-1.5 leading-relaxed">
-                            Conecta direto aos servidores públicos do TikTok <strong>sem precisar de login ou aba aberta</strong> no Chrome!
+                        <p class="text-xs text-blue-800 mt-2 leading-relaxed">
+                            Se você <strong>não tiver</strong> o Social Stream Ninja, use nossa Extensão Oficial. Ela foi atualizada para rodar de forma <strong>completamente silenciosa</strong> no fundo. Nenhuma janela vai abrir no seu Instagram! Apenas instale e use os botões de Iniciar Gravação abaixo.
                         </p>
                         
-                        <div class="mt-3 flex gap-2">
-                            <input type="text" id="tiktok-username-input" value="_minhamania" placeholder="@usuario_tiktok" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 font-semibold text-gray-800">
-                            <button type="button" onclick="toggleTikTokBackend()" id="tiktok-toggle-btn" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
-                                <i class="fas fa-play text-[10px]"></i> Conectar
-                            </button>
+                        <div class="mt-3 flex gap-2 items-center bg-white p-2 rounded-lg border border-blue-300 shadow-inner justify-between">
+                            <span class="text-[11px] font-bold text-gray-700">Capturador Silencioso v1.4:</span>
+                            <a href="/extensao-capturador-minhamania.zip" download class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-[10px] font-bold transition flex items-center gap-1 shadow">
+                                <i class="fas fa-download"></i> Baixar Extensão (.ZIP)
+                            </a>
                         </div>
                     </div>
 
-                    <!-- 2. Captura Instagram via Extensão -->
+                    <!-- 2. Controle de Gravação Instagram -->
                     <div class="bg-purple-50 rounded-xl p-4 border border-purple-200 shadow-sm">
                         <div class="flex items-center justify-between">
                             <h3 class="font-bold text-purple-900 text-sm flex items-center gap-1.5">
                                 <i class="fab fa-instagram text-purple-600 text-base"></i>
-                                Instagram Live (Extensão Chrome)
+                                Gravação Instagram
                             </h3>
-                            <span id="insta-badge" class="bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span id="insta-badge" class="bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all">
                                 <span id="insta-status-dot" class="hidden w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                <span id="insta-status-text">60 FPS Turbo</span>
+                                <span id="insta-status-text">Inativo</span>
                             </span>
                         </div>
-                        <p class="text-xs text-purple-800 mt-1.5 leading-relaxed">
-                            Seguro contra bloqueios da Meta. Com a extensão ativa no Chrome, clique em Conectar para abrir a Live que a captura inicia automaticamente!
+                        <p class="text-[11px] text-purple-800 mt-1.5 leading-relaxed">
+                            Clique em Iniciar para que o servidor permita salvar os comentários do Instagram enviados pelo Social Stream.
                         </p>
-                        
-                        <div class="mt-2.5 bg-purple-100/70 p-2 rounded-lg border border-purple-300 flex items-center justify-between text-xs">
-                            <span class="font-extrabold text-purple-900 flex items-center gap-1.5">
-                                <i class="fas fa-puzzle-piece text-purple-700"></i>
-                                Extensão Oficial Minha Mania v1.3:
-                            </span>
-                            <a href="/extensao-capturador-minhamania.zip" download class="bg-purple-800 hover:bg-purple-900 text-white font-black px-3 py-1.5 rounded-md text-[11px] shadow-sm flex items-center gap-1 transition">
-                                <i class="fas fa-download"></i> Baixar Extensão (.ZIP)
-                            </a>
-                        </div>
-                        
                         <div class="mt-3 flex gap-2">
-                            <input type="text" id="insta-username-input" value="de_minha_mania" placeholder="@usuario_insta" class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-purple-300 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-semibold text-gray-800">
-                            <button type="button" onclick="toggleInstagramCapture()" id="insta-toggle-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5">
-                                <i class="fas fa-play text-[10px]"></i> Conectar
-                            </button>
-                        </div>
-                        <div class="mt-2 flex justify-end">
-                            <button type="button" onclick="openInstaLoginModal()" class="text-purple-700 hover:text-purple-900 font-bold text-[11px] underline flex items-center gap-1 transition duration-150">
-                                <i class="fas fa-key"></i> Login Direto no Servidor (Sem precisar exportar cookies)
+                            <button type="button" onclick="toggleInstagramCapture()" id="insta-toggle-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-play"></i> Iniciar Gravação Instagram
                             </button>
                         </div>
                     </div>
 
-                    <!-- 3. Leitor Rápido via Favoritos (Sem Extensão) -->
-                    <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-200 shadow-sm">
+                    <!-- 3. Controle de Gravação TikTok -->
+                    <div class="bg-pink-50 rounded-xl p-4 border border-pink-200 shadow-sm">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-bold text-indigo-900 text-sm flex items-center gap-1.5">
-                                <i class="fas fa-bookmark text-indigo-600 text-base"></i>
-                                Leitor via Favoritos (Sem precisar de extensão)
+                            <h3 class="font-bold text-pink-900 text-sm flex items-center gap-1.5">
+                                <i class="fab fa-tiktok text-pink-600 text-base"></i>
+                                Gravação TikTok
                             </h3>
-                            <span class="bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <i class="fas fa-bolt"></i> 1 Clique
+                            <span id="tiktok-backend-badge" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all">
+                                <span id="tiktok-status-dot" class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                                <span id="tiktok-status-text">Inativo</span>
                             </span>
                         </div>
-                        <p class="text-xs text-indigo-800 mt-1.5 leading-relaxed">
-                            Como você não tem a extensão instalada no Chrome e deletou o favorito anterior, pegue o novo botão abaixo!
+                        <p class="text-[11px] text-pink-800 mt-1.5 leading-relaxed">
+                            Clique em Iniciar para que o servidor permita salvar os comentários do TikTok enviados pelo Social Stream.
                         </p>
-                        
-                        <div class="mt-3 bg-white p-3.5 rounded-lg border border-indigo-300 flex flex-col items-center justify-center text-center shadow-inner">
-                            <span class="text-[11px] font-bold text-gray-700 mb-2.5 flex items-center gap-1">
-                                <i class="fas fa-hand-pointer text-indigo-600 animate-pulse"></i>
-                                Arraste este botão azul com o mouse para a sua Barra de Favoritos lá no topo:
-                            </span>
-                            <a id="bookmarklet-link" href="#" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transform hover:scale-105 transition duration-200 cursor-grab active:cursor-grabbing border-2 border-indigo-400">
-                                <i class="fas fa-bookmark text-yellow-300 text-sm animate-bounce"></i>
-                                <span>Capturar Live Sacolas (Novo)</span>
-                            </a>
-                            <span class="text-[10px] text-gray-500 mt-2 font-medium">Depois de soltar o botão lá no topo, basta dar 1 clique nele quando estiver na janela do Instagram!</span>
-                        </div>
-
-                        <!-- Opção manual caso não consiga arrastar -->
-                        <div class="mt-3 border-t border-indigo-200 pt-2.5 flex items-center justify-between text-[11px] text-indigo-800">
-                            <span class="font-medium">Prefere copiar o link e criar o favorito manualmente?</span>
-                            <button type="button" onclick="copyBookmarkletCode()" class="font-extrabold underline text-indigo-900 hover:text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-md transition">
-                                Copiar Link do Favorito
+                        <div class="mt-3 flex gap-2">
+                            <button type="button" onclick="toggleTikTokBackend()" id="tiktok-toggle-btn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="fas fa-play"></i> Iniciar Gravação TikTok
                             </button>
                         </div>
-                        <input type="hidden" id="bookmarklet-code">
                     </div>
                 </div>
 
@@ -414,34 +383,13 @@
     let lastMessageId = 0;
     let pollingInterval = null;
 
-    // JavaScript do Bookmarklet compilado
-    const bookmarkletJsCode = `javascript:(function(){var%20js=document.createElement('script');js.src='${serverOrigin}/js/live-chat-bookmarklet.js?v='+Math.random();document.body.appendChild(js);})();`;
-
     document.addEventListener("DOMContentLoaded", function() {
-        // Inicializar código do bookmarklet na tela
-        const linkEl = document.getElementById("bookmarklet-link");
-        const codeEl = document.getElementById("bookmarklet-code");
-        if (linkEl) linkEl.setAttribute("href", bookmarkletJsCode);
-        if (codeEl) codeEl.value = bookmarkletJsCode;
-
         if (liveId) {
             // Iniciar Polling de dados (a cada 3 segundos)
             fetchChatData();
             pollingInterval = setInterval(fetchChatData, 3000);
         }
-
-        checkTikTokBackendStatus();
-        setInterval(checkTikTokBackendStatus, 2500);
     });
-
-    function copyBookmarkletCode() {
-        const codeEl = document.getElementById("bookmarklet-code");
-        if (codeEl && codeEl.value) {
-            navigator.clipboard.writeText(codeEl.value).then(() => {
-                alert("Link do Favorito copiado! Agora clique com o botão direito na sua Barra de Favoritos lá no topo do Chrome > 'Adicionar página...' e cole no campo 'URL'.");
-            });
-        }
-    }
 
     function getBackendUrl(port, path) {
         const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
@@ -451,120 +399,37 @@
         const prefix = port === 3001 ? "/tiktok-api" : "/insta-api";
         return `${prefix}${path}`;
     }
-
-    let tiktokConnected = false;
-    async function checkTikTokBackendStatus() {
-        try {
-            const res = await fetch(getBackendUrl(3001, "/status"));
-            const data = await res.json();
-            const badge = document.getElementById("tiktok-backend-badge");
-            const dot = document.getElementById("tiktok-status-dot");
-            const text = document.getElementById("tiktok-status-text");
-            const btn = document.getElementById("tiktok-toggle-btn");
-            if (!badge || !btn) return;
-
-            tiktokConnected = data.connected;
-            if (data.connecting) {
-                badge.className = "bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-300";
-                dot.className = "w-1.5 h-1.5 rounded-full bg-yellow-500 animate-ping";
-                text.textContent = "Conectando...";
-                btn.className = "bg-yellow-500 hover:bg-yellow-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5 opacity-75 cursor-not-allowed";
-                btn.innerHTML = `<i class="fas fa-spinner fa-spin text-[10px]"></i> Conectando`;
-            } else if (data.connected) {
-                badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300";
-                dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
-                text.textContent = "Ao Vivo";
-                btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-                btn.innerHTML = `<i class="fas fa-stop text-[10px]"></i> Parar`;
-            } else {
-                if (data.error) {
-                    badge.className = "bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-300";
-                    dot.className = "w-1.5 h-1.5 rounded-full bg-red-500";
-                    let errText = data.error;
-                    if (errText.includes('room_id') || errText.includes('user_not_found') || errText.toLowerCase().includes('offline')) {
-                        errText = 'Sem Live Ativa no momento';
-                    } else {
-                        errText = errText.slice(0, 25);
-                    }
-                    text.textContent = errText;
-                } else {
-                    badge.className = "bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
-                    dot.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
-                    text.textContent = "Desconectado";
-                }
-                btn.className = "bg-pink-600 hover:bg-pink-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-                btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Conectar`;
-            }
-        } catch (e) {
-            const badge = document.getElementById("tiktok-backend-badge");
-            const text = document.getElementById("tiktok-status-text");
-            if (badge && text) {
-                badge.className = "bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
-                text.textContent = "Offline (3001)";
-            }
-        }
+    // Controle Simplificado de Gravação (Social Stream Webhooks)
+    function copyWebhookUrl() {
+        const input = document.getElementById("webhook-url-input");
+        input.select();
+        input.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        showToast("URL do Webhook copiada para a área de transferência!");
     }
 
-    async function toggleTikTokBackend() {
-        const input = document.getElementById("tiktok-username-input");
-        if (!input) return;
-        const username = input.value.trim();
-
-        if (tiktokConnected) {
-            await fetch(getBackendUrl(3001, "/disconnect"), { method: "POST" }).catch(() => {});
-        } else {
-            if (!username) {
-                alert("Digite o usuário do TikTok!");
-                return;
-            }
-            try {
-                await fetch(getBackendUrl(3001, "/connect"), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: username })
-                });
-            } catch (err) {
-                alert("O serviço de captura do TikTok (Porta 3001) está offline ou não foi iniciado.");
-            }
-        }
-        checkTikTokBackendStatus();
-    }
-
-    function openTikTokLive() {
-        const input = document.getElementById("tiktok-username-input");
-        let username = input ? input.value.trim() : "_minhamania";
-        username = username.replace(/^@/, '');
-        if (!username) username = "_minhamania";
-        window.open(`https://www.tiktok.com/@${username}/live`, "_blank");
-    }
-
-    function openInstagramLive() {
-        const input = document.getElementById("insta-username-input");
-        let username = input ? input.value.trim() : "de_minha_mania";
-        username = username.replace(/^@/, '');
-        if (!username) username = "de_minha_mania";
-        window.open(`https://www.instagram.com/${username}/live/`, "_blank");
-    }
-
-    function updateInstagramState(instaActive) {
+    function updateInstagramState(isRecording) {
         const badge = document.getElementById("insta-badge");
         const dot = document.getElementById("insta-status-dot");
         const text = document.getElementById("insta-status-text");
         const btn = document.getElementById("insta-toggle-btn");
         if (!badge || !btn) return;
 
-        if (instaActive) {
-            badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300";
-            if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
-            if (text) text.textContent = "Ao Vivo";
-            btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-            btn.innerHTML = `<i class="fas fa-stop text-[10px]"></i> Parar`;
+        if (isRecording) {
+            badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300 transition-all";
+            if (dot) {
+                dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+                dot.classList.remove("hidden");
+            }
+            if (text) text.textContent = "Gravando";
+            btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-stop"></i> Parar Gravação Instagram`;
         } else {
-            badge.className = "bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1";
-            if (dot) dot.className = "hidden";
-            if (text) text.textContent = "60 FPS Turbo";
-            btn.className = "bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition duration-150 shadow-sm flex items-center gap-1.5";
-            btn.innerHTML = `<i class="fas fa-play text-[10px]"></i> Conectar`;
+            badge.className = "bg-purple-200 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all";
+            if (dot) dot.classList.add("hidden");
+            if (text) text.textContent = "Inativo";
+            btn.className = "w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-play"></i> Iniciar Gravação Instagram`;
         }
     }
 
@@ -572,11 +437,6 @@
         const btn = document.getElementById("insta-toggle-btn");
         const isCurrentlyActive = btn && btn.textContent.includes("Parar");
         const action = isCurrentlyActive ? "stop" : "start";
-
-        if (action === "start") {
-            // Abre a aba IMEDIATAMENTE antes de qualquer await fetch, para o Chrome não bloquear como Popup!
-            openInstagramLive();
-        }
 
         try {
             const res = await fetch("/admin/live-chat/toggle-instagram", {
@@ -588,37 +448,65 @@
                 body: JSON.stringify({ action: action })
             });
             const data = await res.json();
-            if (data.success) updateInstagramState(data.insta_active);
+            if (data.success) {
+                updateInstagramState(data.insta_active);
+                showToast(data.insta_active ? "Gravação do Instagram Iniciada!" : "Gravação do Instagram Parada!");
+            }
         } catch (e) {
             console.error("Erro ao alternar captura do Instagram:", e);
         }
+    }
 
-        if (action === "start") {
-            const input = document.getElementById("insta-username-input");
-            let username = input ? input.value.trim() : "de_minha_mania";
-            username = username.replace(/^@/, '');
-            if (!username) username = "de_minha_mania";
+    function updateTikTokState(isRecording) {
+        const badge = document.getElementById("tiktok-backend-badge");
+        const dot = document.getElementById("tiktok-status-dot");
+        const text = document.getElementById("tiktok-status-text");
+        const btn = document.getElementById("tiktok-toggle-btn");
+        if (!badge || !btn) return;
 
-            fetch(getBackendUrl(3002, "/connect"), {
+        if (isRecording) {
+            badge.className = "bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-300 transition-all";
+            if (dot) {
+                dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+                dot.classList.remove("hidden");
+            }
+            if (text) text.textContent = "Gravando";
+            btn.className = "w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-stop"></i> Parar Gravação TikTok`;
+        } else {
+            badge.className = "bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all";
+            if (dot) {
+                dot.className = "w-1.5 h-1.5 rounded-full bg-gray-500";
+                dot.classList.remove("hidden");
+            }
+            if (text) text.textContent = "Inativo";
+            btn.className = "w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 rounded-lg text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5";
+            btn.innerHTML = `<i class="fas fa-play"></i> Iniciar Gravação TikTok`;
+        }
+    }
+
+    async function toggleTikTokBackend() {
+        const btn = document.getElementById("tiktok-toggle-btn");
+        const isCurrentlyActive = btn && btn.textContent.includes("Parar");
+        const action = isCurrentlyActive ? "stop" : "start";
+
+        try {
+            // Reaproveitamos o mesmo estilo de endpoint do Instagram
+            const res = await fetch("/admin/live-chat/toggle-tiktok", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: username })
-            }).then(res => {
-                if (!res.ok) throw new Error("Offline");
-                return res.json();
-            }).then(data => {
-                console.log("[Insta Headless] Conectado no servidor:", data.message);
-                checkInstagramBackendStatus();
-            }).catch(() => {});
-        } else if (action === "stop") {
-            // Desliga imediatamente o Chromium no servidor (liberando 300MB de RAM)
-            fetch(getBackendUrl(3002, "/disconnect"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" }
-            }).then(() => {
-                console.log("[Insta Headless] Chromium encerrado no servidor para liberar RAM.");
-                checkInstagramBackendStatus();
-            }).catch(() => {});
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                updateTikTokState(data.tiktok_active);
+                showToast(data.tiktok_active ? "Gravação do TikTok Iniciada!" : "Gravação do TikTok Parada!");
+            }
+        } catch (e) {
+            console.error("Erro ao alternar captura do TikTok:", e);
         }
     }
 

@@ -24,6 +24,10 @@ class RelatorioVencimentosController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 's.user_id')
             ->leftJoin('items as i', 'i.id', '=', 's.item_id') // <-- se sua tabela não for "items", ajuste aqui
             ->where('s.status', '!=', 'pedido')
+            ->where(function ($query) {
+                $query->whereNull('s.obs')
+                      ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+            })
             ->whereNotNull('s.add_at')
             ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()");
 
@@ -77,6 +81,10 @@ class RelatorioVencimentosController extends Controller
                 ->leftJoin('items as i', 'i.id', '=', 's.item_id') // <-- ajuste se necessário
                 ->whereIn('s.user_id', $userIds)
                 ->where('s.status', '!=', 'pedido')
+                ->where(function ($query) {
+                    $query->whereNull('s.obs')
+                          ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+                })
                 ->whereNotNull('s.add_at')
                 ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
                 ->select([
@@ -136,6 +144,10 @@ class RelatorioVencimentosController extends Controller
             ->leftJoin('items as i', 'i.id', '=', 's.item_id') // ajuste se necessário
             ->where('s.user_id', $userId)
             ->where('s.status', '!=', 'pedido')
+            ->where(function ($query) {
+                $query->whereNull('s.obs')
+                      ->orWhere('s.obs', 'not like', '%Pedido PED-%');
+            })
             ->whereNotNull('s.add_at')
             ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
             ->select([
@@ -165,6 +177,10 @@ class RelatorioVencimentosController extends Controller
         $apagados = DB::table('sacolinhas')
             ->where('user_id', $userId)
             ->where('status', '!=', 'pedido')
+            ->where(function ($query) {
+                $query->whereNull('obs')
+                      ->orWhere('obs', 'not like', '%Pedido PED-%');
+            })
             ->whereNotNull('add_at')
             ->whereRaw("DATE_ADD(add_at, INTERVAL 90 DAY) < NOW()")
             ->delete();

@@ -51,7 +51,7 @@ class LiveChatController extends Controller
             }
         }
 
-        $plat = strtolower((string) $request->input('platform', 'instagram'));
+        $plat = strtolower((string) $request->input('platform', $request->input('source', 'instagram')));
         if (str_contains($plat, 'tiktok')) {
             $plat = 'tiktok';
         } else {
@@ -64,7 +64,16 @@ class LiveChatController extends Controller
         if ($plat === 'instagram') {
             Cache::put('insta_capture_active', true, 86400);
         }
-        $request->merge(['platform' => $plat]);
+
+        // Mapeamento nativo para payloads do Social Stream Ninja (author / chatname / chatmessage)
+        $username = $request->input('username') ?? $request->input('author') ?? $request->input('chatname') ?? '';
+        $message = $request->input('message') ?? $request->input('chatmessage') ?? $request->input('text') ?? '';
+
+        $request->merge([
+            'platform' => $plat,
+            'username' => $username,
+            'message' => $message
+        ]);
 
         $validated = $request->validate([
             'live_id' => 'required|exists:lives,id',
@@ -444,6 +453,22 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false)
+        ]);
+    }
+
+    public function toggleTiktok(Request $request)
+    {
+        $action = $request->input('action');
+        if ($action === 'stop') {
+            Cache::put('tiktok_capture_stopped', true, 86400);
+            Cache::put('tiktok_capture_active', false);
+        } else {
+            Cache::forget('tiktok_capture_stopped');
+            Cache::put('tiktok_capture_active', true, 86400);
+        }
+        return response()->json([
+            'success' => true,
+            'tiktok_active' => Cache::get('tiktok_capture_active', false) && !Cache::get('tiktok_capture_stopped', false)
         ]);
     }
 }
