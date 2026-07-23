@@ -487,6 +487,7 @@ function renderConversations() {
 	if (currentJson === lastConversationsJson) return;
 	lastConversationsJson = currentJson;
 
+	const scrollPos = list.scrollTop;
 	list.innerHTML = '';
 
 	filtered.forEach(conv => {
@@ -545,6 +546,8 @@ function renderConversations() {
 
 		list.appendChild(item);
 	});
+
+	list.scrollTop = scrollPos;
 }
 
 async function selectConversation(userId) {
