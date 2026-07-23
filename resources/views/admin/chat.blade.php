@@ -204,7 +204,7 @@
 
 		.assignment-controls select {
 			font-size: 0.8rem;
-			padding: 2px 5px;
+			padding: 2px 24px 2px 8px;
 		}
 
 		.assigned-info {
@@ -225,7 +225,7 @@
 			<span id="chatSidebarTitle">Conversas</span>
 			<div id="filterAdminContainer" style="display:none; flex-grow: 1; margin-right: 10px;">
 				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" onchange="renderConversations()">
-					<option value="">Todas as Conversas</option>
+					<option value="">Todas</option>
 					<option value="unassigned">Não atribuídas</option>
 				</select>
 			</div>
