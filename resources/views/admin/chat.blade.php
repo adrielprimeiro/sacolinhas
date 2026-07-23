@@ -256,12 +256,9 @@
 			<div id="activeChatMeta" class="small-muted"></div>
 
 			<div id="assignmentControls" class="assignment-controls" style="display:none;">
-				<select id="adminSelector" class="form-select form-select-sm">
+				<select id="adminSelector" class="form-select form-select-sm" onchange="assignConversation()">
 					<option value="">Ninguém</option>
 				</select>
-				<button id="assignButton" class="btn btn-sm btn-light" title="Atribuir">
-					<i class="bi bi-person-check-fill"></i>
-				</button>
 			</div>
 		</div>
 
@@ -368,14 +365,9 @@ async function initialize() {
 	if (isMaster) {
 		await loadAdmins();
 		document.getElementById('filterAdminContainer').style.display = 'block';
-		document.getElementById('chatSidebarTitle').style.display = 'none';
 	}
 	await loadConversations();
 	setupSendMessage();
-
-	if (isMaster) {
-		document.getElementById('assignButton').addEventListener('click', assignConversation);
-	}
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -430,7 +422,7 @@ async function assignConversation() {
 			alert(data.error || 'Erro ao atribuir.');
 		}
 	} catch (e) {
-		console.error('Erro ao atribuir:', e);
+		alert('Erro ao atribuir conversa.');
 	}
 }
 
@@ -487,72 +479,89 @@ function renderConversations() {
 	if (currentJson === lastConversationsJson) return;
 	lastConversationsJson = currentJson;
 
-	const scrollPos = list.scrollTop;
-	const fragment = document.createDocumentFragment();
-
-	filtered.forEach(conv => {
-		const item = document.createElement('div');
-		item.className = 'conversation-item' + (String(conv.user_id) === String(activeUserId) ? ' active' : '');
-		item.dataset.userId = conv.user_id;
-		item.onclick = () => selectConversation(conv.user_id);
-
-		const avatar = document.createElement('div');
-		avatar.className = 'conversation-avatar';
-		avatar.textContent = (conv.user_name || '?').trim().slice(0,1).toUpperCase();
-
-		const info = document.createElement('div');
-		info.className = 'conversation-info';
-
-		const name = document.createElement('p');
-		name.className = 'conversation-name';
-		name.textContent = conv.user_name || ('Usuário #' + conv.user_id);
-
-		const lastMsg = document.createElement('div');
-		lastMsg.className = 'conversation-last-message';
-
-		const lastText = conv.last_message_body ? String(conv.last_message_body) : '';
-		const lastAttachment = conv.last_message_has_media ? '📎 Anexo' : '';
-		lastMsg.textContent = lastText || lastAttachment || '';
-
-		info.appendChild(name);
-		info.appendChild(lastMsg);
-
-		if (conv.assigned_admin_name) {
-			const assignedInfo = document.createElement('div');
-			assignedInfo.className = 'assigned-info';
-			assignedInfo.textContent = 'Atribuído a: ' + conv.assigned_admin_name;
-			info.appendChild(assignedInfo);
+	// Remove items that are no longer in the filtered list
+	const currentElements = Array.from(list.children);
+	currentElements.forEach(el => {
+		const userId = el.dataset.userId;
+		if (!filtered.find(c => String(c.user_id) === String(userId))) {
+			el.remove();
 		}
-
-		const time = document.createElement('div');
-		time.className = 'conversation-time window-countdown';
-		time.style.fontWeight = 'bold';
-		time.style.color = '#007bff';
-		if (conv.window_expires_at) {
-			time.dataset.expires = conv.window_expires_at;
-		} else {
-			time.dataset.expires = 'null';
-		}
-
-		item.appendChild(avatar);
-		item.appendChild(info);
-		item.appendChild(time);
-
-		if (conv.unread_count && Number(conv.unread_count) > 0) {
-			const badge = document.createElement('div');
-			badge.className = 'unread-badge';
-			badge.textContent = String(conv.unread_count);
-			item.appendChild(badge);
-		}
-
-		fragment.appendChild(item);
 	});
 
-	list.replaceChildren(fragment);
-	
-	// Força o navegador a recalcular a altura antes de restaurar o scroll (evita que o scrollTop seja zerado ou limitado)
-	void list.scrollHeight;
-	list.scrollTop = scrollPos;
+	// Reorder and update/create items
+	let previousNode = null;
+	filtered.forEach(conv => {
+		let item = document.querySelector(`.conversation-item[data-user-id="${conv.user_id}"]`);
+		
+		if (!item) {
+			// Create new item
+			item = document.createElement('div');
+			item.className = 'conversation-item';
+			item.dataset.userId = conv.user_id;
+			item.onclick = () => selectConversation(conv.user_id);
+
+			const avatar = document.createElement('div');
+			avatar.className = 'conversation-avatar';
+			item.appendChild(avatar);
+
+			const info = document.createElement('div');
+			info.className = 'conversation-info';
+			item.appendChild(info);
+
+			const time = document.createElement('div');
+			time.className = 'conversation-time window-countdown';
+			item.appendChild(time);
+		}
+
+		// Update properties
+		item.className = 'conversation-item' + (String(conv.user_id) === String(activeUserId) ? ' active' : '');
+		
+		const avatar = item.querySelector('.conversation-avatar');
+		const firstName = (conv.user_name || 'U').charAt(0).toUpperCase();
+		if (avatar.textContent !== firstName) avatar.textContent = firstName;
+
+		const info = item.querySelector('.conversation-info');
+		let infoHTML = `<h6 class="conversation-name">${escapeHtml(conv.user_name || 'Usuário #' + conv.user_id)}</h6>`;
+		if (conv.last_message_has_media === 1) {
+			infoHTML += `<div class="conversation-last-message"><i class="bi bi-image"></i> Mídia</div>`;
+		} else {
+			infoHTML += `<div class="conversation-last-message">${escapeHtml(conv.last_message_body || '')}</div>`;
+		}
+		if (conv.assigned_admin_name) {
+			infoHTML += `<div class="assigned-info">Atribuído a: ${escapeHtml(conv.assigned_admin_name)}</div>`;
+		}
+		if (info.innerHTML !== infoHTML) info.innerHTML = infoHTML;
+
+		const time = item.querySelector('.conversation-time');
+		if (conv.window_expires_at) {
+			time.dataset.expires = conv.window_expires_at;
+			// Update text manually if needed or let the interval handle it
+		} else {
+			time.removeAttribute('data-expires');
+			time.textContent = 'Fechada';
+		}
+
+		// Update badge
+		let badge = item.querySelector('.unread-badge');
+		if (conv.unread_count && Number(conv.unread_count) > 0) {
+			if (!badge) {
+				badge = document.createElement('div');
+				badge.className = 'unread-badge';
+				item.appendChild(badge);
+			}
+			badge.textContent = String(conv.unread_count);
+		} else if (badge) {
+			badge.remove();
+		}
+
+		// Enforce correct order
+		if (!previousNode) {
+			if (list.firstChild !== item) list.insertBefore(item, list.firstChild);
+		} else {
+			if (previousNode.nextSibling !== item) list.insertBefore(item, previousNode.nextSibling);
+		}
+		previousNode = item;
+	});
 }
 
 async function selectConversation(userId) {
