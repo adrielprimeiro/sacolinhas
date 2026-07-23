@@ -222,14 +222,14 @@
 
 	<aside id="chatDrawer" class="chat-drawer hidden" style="z-index: 9999;">
 		<div class="sidebar-header d-flex align-items-center justify-content-between">
-			<span id="chatSidebarTitle">Conversas</span>
-			<div id="filterAdminContainer" style="display:none; flex-grow: 1; margin-right: 10px;">
-				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" onchange="renderConversations()">
+			<span id="chatSidebarTitle" class="me-2">Conversas</span>
+			<div id="filterAdminContainer" style="display:none; margin-right: 10px;">
+				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" style="font-size: 0.75rem; padding: 2px 24px 2px 8px; width: auto;" onchange="renderConversations()">
 					<option value="">Todas</option>
 					<option value="unassigned">Não atribuídas</option>
 				</select>
 			</div>
-			<button id="chatMenuCloseBtn" type="button" class="icon-btn" title="Fechar" aria-label="Fechar menu">
+			<button id="chatMenuCloseBtn" type="button" class="icon-btn ms-auto" title="Fechar" aria-label="Fechar menu">
 				<i class="bi bi-x-lg"></i>
 			</button>
 		</div>
