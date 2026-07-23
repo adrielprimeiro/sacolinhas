@@ -547,10 +547,9 @@ function renderConversations() {
 		list.appendChild(item);
 	});
 
-	// Restaura a posição no próximo frame para garantir que o DOM já tem altura
-	requestAnimationFrame(() => {
-		list.scrollTop = scrollPos;
-	});
+	// Força o navegador a recalcular a altura antes de restaurar o scroll (evita que o scrollTop seja zerado ou limitado)
+	void list.scrollHeight;
+	list.scrollTop = scrollPos;
 }
 
 async function selectConversation(userId) {
