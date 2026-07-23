@@ -547,7 +547,10 @@ function renderConversations() {
 		list.appendChild(item);
 	});
 
-	list.scrollTop = scrollPos;
+	// Restaura a posição no próximo frame para garantir que o DOM já tem altura
+	requestAnimationFrame(() => {
+		list.scrollTop = scrollPos;
+	});
 }
 
 async function selectConversation(userId) {
