@@ -488,11 +488,12 @@ function renderConversations() {
 	lastConversationsJson = currentJson;
 
 	const scrollPos = list.scrollTop;
-	list.innerHTML = '';
+	const fragment = document.createDocumentFragment();
 
 	filtered.forEach(conv => {
 		const item = document.createElement('div');
 		item.className = 'conversation-item' + (String(conv.user_id) === String(activeUserId) ? ' active' : '');
+		item.dataset.userId = conv.user_id;
 		item.onclick = () => selectConversation(conv.user_id);
 
 		const avatar = document.createElement('div');
@@ -544,9 +545,11 @@ function renderConversations() {
 			item.appendChild(badge);
 		}
 
-		list.appendChild(item);
+		fragment.appendChild(item);
 	});
 
+	list.replaceChildren(fragment);
+	
 	// Força o navegador a recalcular a altura antes de restaurar o scroll (evita que o scrollTop seja zerado ou limitado)
 	void list.scrollHeight;
 	list.scrollTop = scrollPos;
@@ -568,7 +571,11 @@ async function selectConversation(userId) {
 	document.getElementById('activeChatMeta').textContent = conv?.user_whatsapp ? conv.user_whatsapp : '';
 	document.getElementById('chatInput').style.display = 'flex';
 
-	renderConversations();
+	// Remove active de todos e adiciona no selecionado sem re-renderizar a lista inteira
+	document.querySelectorAll('.conversation-item').forEach(el => el.classList.remove('active'));
+	const clickedEl = document.querySelector(`.conversation-item[data-user-id="${userId}"]`);
+	if (clickedEl) clickedEl.classList.add('active');
+
 	await loadMessages(userId, true);
 	await markMessagesAsRead(userId);
 	startPolling(userId);
