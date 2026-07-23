@@ -671,6 +671,12 @@ function renderMessages(messages, scrollToBottom = true) {
 				img.style.maxWidth = '200px';
 				img.style.cursor = 'pointer';
 				img.style.objectFit = 'cover';
+				
+				img.onload = () => {
+					if (scrollToBottom || box.scrollHeight - box.scrollTop <= box.clientHeight + 100) {
+						box.scrollTop = box.scrollHeight;
+					}
+				};
 
 				link.appendChild(img);
 				attach.appendChild(link);
@@ -707,7 +713,7 @@ function renderMessages(messages, scrollToBottom = true) {
 		box.appendChild(row);
 	});
 
-	if (scrollToBottom && wasAtBottom) {
+	if (scrollToBottom || wasAtBottom) {
 		box.scrollTop = box.scrollHeight;
 	}
 }
