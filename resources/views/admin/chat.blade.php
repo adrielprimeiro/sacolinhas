@@ -297,6 +297,10 @@ let conversations = [];
 let messagePollingInterval = null;
 let sendSetupDone = false;
 
+let currentMessageLimit = 50;
+let isFetchingOlder = false;
+let reachedEndOfMessages = false;
+
 let admins = [];
 let timerInterval = null;
 const authUser = @json(auth()->user());
@@ -368,6 +372,20 @@ async function initialize() {
 	}
 	await loadConversations();
 	setupSendMessage();
+
+	// Infinite scroll das mensagens
+	document.getElementById('chatMessages').addEventListener('scroll', async function() {
+		if (this.scrollTop === 0 && !isFetchingOlder && !reachedEndOfMessages && activeUserId) {
+			isFetchingOlder = true;
+			const oldScrollHeight = this.scrollHeight;
+			currentMessageLimit += 50;
+			
+			await loadMessages(activeUserId, false);
+			
+			this.scrollTop = this.scrollHeight - oldScrollHeight;
+			isFetchingOlder = false;
+		}
+	});
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -566,6 +584,9 @@ function renderConversations() {
 
 async function selectConversation(userId) {
 	activeUserId = userId;
+	currentMessageLimit = 50;
+	isFetchingOlder = false;
+	reachedEndOfMessages = false;
 
 	const conv = conversations.find(c => String(c.user_id) === String(userId));
 	document.getElementById('activeChatTitle').textContent = conv?.user_name ? conv.user_name : ('Usuário #' + userId);
@@ -604,8 +625,13 @@ function startPolling(userId) {
 
 async function loadMessages(userId, scrollToBottom = true) {
 	try {
-		const resp = await fetch(`/admin/chat/api/messages/${userId}`, { headers: { 'Accept': 'application/json' } });
+		const resp = await fetch(`/admin/chat/api/messages/${userId}?limit=${currentMessageLimit}`, { headers: { 'Accept': 'application/json' } });
 		const messages = await resp.json();
+		
+		if (Array.isArray(messages) && messages.length < currentMessageLimit) {
+			reachedEndOfMessages = true;
+		}
+		
 		renderMessages(Array.isArray(messages) ? messages : [], scrollToBottom);
 	} catch (e) {
 		console.error(e);

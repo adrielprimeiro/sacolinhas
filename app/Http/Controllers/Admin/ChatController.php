@@ -109,11 +109,13 @@ class ChatController extends Controller
 			}
 		}
 
+		$limit = (int) request()->query('limit', 50);
+
 		$messages = DB::table('whatsapp_messages')
 			->leftJoin('users', 'whatsapp_messages.admin_id', '=', 'users.id')
 			->where('whatsapp_messages.user_id', $userId)
 			->orderBy('whatsapp_messages.created_at', 'desc')
-			->take(50)
+			->take($limit)
 			->select('whatsapp_messages.*', 'users.name as admin_name')
 			->get()
 			->reverse()
