@@ -50,6 +50,7 @@ Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookContro
 // Live Chat Webhook (recebe mensagens do browser)
 Route::post('/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+Route::get('/api/active-tiktok-lives', [\App\Http\Controllers\Admin\LiveChatController::class, 'getActiveTiktokLives']);
 Route::post('/api/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
@@ -288,6 +289,7 @@ Route::middleware('auth')->group(function () {
             'update' => 'admin.avaliacoes.update',
             'destroy' => 'admin.avaliacoes.destroy',
         ]);
+        Route::get('avaliacoes/{avaliacao}/pdf', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'pdf'])->name('admin.avaliacoes.pdf');
         Route::post('avaliacoes/{avaliacao}/finalizar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'finalize'])->name('admin.avaliacoes.finalize');
         Route::post('avaliacoes/{avaliacao}/cancelar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'cancel'])->name('admin.avaliacoes.cancel');
         Route::post('avaliacoes/{avaliacao}/enviar-whatsapp', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'sendWhatsappNotification'])->name('admin.avaliacoes.send-whatsapp');

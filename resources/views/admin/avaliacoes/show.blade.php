@@ -24,13 +24,13 @@
         </nav>
         
         <div class="flex items-center gap-2">
-            <button 
-                type="button" 
-                onclick="window.print()"
+            <a 
+                href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"
+                target="_blank"
                 class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm py-2 px-4 rounded-lg border border-gray-300 transition-colors shadow-sm"
             >
-                <i class="fas fa-print text-gray-500"></i> Imprimir Recibo
-            </button>
+                <i class="fas fa-file-pdf text-red-500"></i> Gerar PDF
+            </a>
             
             @if ($avaliacao->status === 'rascunho')
                 <a 

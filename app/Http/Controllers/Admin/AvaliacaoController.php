@@ -514,6 +514,16 @@ class AvaliacaoController extends Controller
     }
 
     /**
+     * Generate PDF for the evaluation.
+     */
+    public function pdf(Avaliacao $avaliacao)
+    {
+        $avaliacao->load(['user', 'items.categoria']);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao'));
+        return $pdf->stream("avaliacao-" . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . ".pdf");
+    }
+
+    /**
      * Retorna a lista de categorias ordenada de forma hierárquica.
      */
     private function getTreeCategoriesList()
