@@ -395,7 +395,11 @@
         <form action="{{ route('admin.clube.pagamento.registrar') }}" method="POST" class="p-5 space-y-4">
             @csrf
             <input type="hidden" name="user_id" id="pagamento_user_id">
-            <input type="hidden" name="mes_ano" value="{{ $mesAtual }}">
+            <div class="grid grid-cols-1 mb-4">
+                <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Competência (Mês de Referência)</label>
+                <input type="month" name="mes_ano" value="{{ $mesAtual }}" required
+                       class="w-full rounded-2xl border-2 border-gray-200 bg-white focus:border-indigo-400 focus:ring-0 outline-none text-gray-900 font-bold px-4 py-3 text-base">
+            </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Valor (R$)</label>
@@ -403,7 +407,7 @@
                            class="w-full rounded-2xl border-2 border-gray-200 bg-white focus:border-indigo-400 focus:ring-0 outline-none text-gray-900 font-bold px-4 py-3 text-base">
                 </div>
                 <div>
-                    <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Data</label>
+                    <label class="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Data do Pagamento</label>
                     <input type="date" name="data_pagamento" value="{{ date('Y-m-d') }}" required
                            class="w-full rounded-2xl border-2 border-gray-200 bg-white focus:border-indigo-400 focus:ring-0 outline-none text-gray-900 font-bold px-4 py-3 text-base">
                 </div>
