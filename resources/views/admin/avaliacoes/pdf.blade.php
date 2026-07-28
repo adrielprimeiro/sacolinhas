@@ -11,34 +11,35 @@
             margin: 0;
             padding: 10px;
         }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #2563eb; /* Blue border */
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #2563eb;
             padding-bottom: 8px;
             margin-bottom: 15px;
-            position: relative;
         }
-        .header .logo {
-            display: block;
-            margin: 0 auto 5px auto;
+        .header-table td {
+            vertical-align: middle;
+        }
+        .header-table .logo {
             max-width: 120px;
             height: auto;
+            margin-bottom: 5px;
         }
-        .header h1 {
-            margin: 0;
+        .header-table h1 {
+            margin: 0 0 5px 0;
             font-size: 20px;
             color: #2563eb;
         }
-        .header p {
-            margin: 3px 0 0;
+        .header-table p {
+            margin: 0;
             color: #666;
             font-size: 11px;
         }
-        .header .lote {
+        .header-table .lote {
             font-weight: bold;
             color: #4f46e5;
             font-size: 14px;
-            margin-top: 5px;
+            margin-bottom: 5px;
         }
         .details-table {
             width: 100%;
@@ -137,16 +138,22 @@
 </head>
 <body>
 
-    <div class="header">
-        @if(file_exists(public_path('images/logo.png')))
-            <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
-        @else
-            <h1>Mania</h1>
-        @endif
-        <p>Clube de Moda Circular</p>
-        <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
-        <p>Data da Avaliação: {{ $avaliacao->formatted_data_avaliacao }}</p>
-    </div>
+    <table class="header-table">
+        <tr>
+            <td style="text-align: left; width: 50%;">
+                @if(file_exists(public_path('images/logo.png')))
+                    <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+                @else
+                    <h1>Mania</h1>
+                @endif
+                <p>Clube de Moda Circular</p>
+            </td>
+            <td style="text-align: right; width: 50%;">
+                <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
+                <p>Data da Avaliação: {{ $avaliacao->formatted_data_avaliacao }}</p>
+            </td>
+        </tr>
+    </table>
 
     <table class="details-table">
         <tr>
