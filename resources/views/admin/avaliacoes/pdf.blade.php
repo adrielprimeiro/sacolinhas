@@ -131,8 +131,8 @@
 <body>
 
     <div class="header">
-        <h1>Sacolinhas Mania</h1>
-        <p>Brechó & Curadoria de Moda Circular</p>
+        <h1>Mania</h1>
+        <p>Clube de Moda Circular</p>
         <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
         <p>Data da Avaliação: {{ $avaliacao->formatted_data_avaliacao }}</p>
     </div>
@@ -177,12 +177,9 @@
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 30%;">Peça / Descrição</th>
-                <th class="text-center" style="width: 15%;">Marca</th>
-                <th class="text-center" style="width: 15%;">Cor/Tamanho</th>
-                <th class="text-center" style="width: 10%;">Nota Curadoria</th>
-                <th class="text-right" style="width: 15%;">Preço Venda</th>
-                <th class="text-right" style="width: 15%;">Repasse</th>
+                <th style="width: 50%;">Peça / Descrição</th>
+                <th class="text-center" style="width: 25%;">Marca</th>
+                <th class="text-center" style="width: 25%;">Cor/Tamanho</th>
             </tr>
         </thead>
         <tbody>
@@ -198,27 +195,7 @@
                 <td class="text-center">
                     {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}
                 </td>
-                <td class="text-center">
-                    @if ($avaliacao->tipo_compra === 'direta')
-                        -
-                    @else
-                        {{ $item->nota_curadoria }}/10
-                    @endif
-                </td>
-                <td class="text-right">
-                    R$ {{ number_format($item->preco_venda, 2, ',', '.') }}
-                </td>
-                <td class="text-right" style="color: #4f46e5; font-weight: bold;">
-                    @php
-                        $payoutVal = 0.00;
-                        if ($avaliacao->status === 'finalizada') {
-                            $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
-                        } else {
-                            $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
-                        }
-                    @endphp
-                    R$ {{ number_format($payoutVal, 2, ',', '.') }}
-                </td>
+
             </tr>
             @endforeach
         </tbody>
@@ -265,7 +242,7 @@
     @endif
 
     <div class="footer">
-        <p>Sacolinhas Mania - Documento gerado em {{ now()->format('d/m/Y H:i') }}</p>
+        <p>Mania - Documento gerado em {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 
 </body>
