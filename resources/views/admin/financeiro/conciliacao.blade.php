@@ -594,6 +594,10 @@
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Competência (Mês de Referência) <span class="text-gray-300 font-normal normal-case text-[10px]">(Opcional/Clube)</span></label>
+                    <input type="month" name="competencia" value="{{ date('Y-m') }}" class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold">
+                </div>
                 <div x-data="classificacaoSearch()">
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Classificação Financeira <span class="text-red-500">*</span></label>
                     <div class="relative">

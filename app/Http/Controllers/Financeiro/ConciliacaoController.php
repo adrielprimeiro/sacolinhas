@@ -452,12 +452,75 @@ class ConciliacaoController extends Controller
         ]);
 
         try {
-            $this->service->vincularNovoLancamento(
-                $request->transacao_id,
-                $request->classificacao_financeira_id,
-                $request->pessoa_id,
-                $request->conta_bancaria_id
-            );
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+                // Cria e concilia
+                $this->service->vincularNovoLancamento(
+                    $request->transacao_id,
+                    $request->classificacao_financeira_id,
+                    $request->pessoa_id,
+                    $request->conta_bancaria_id
+                );
+
+                // Integração com o Clube
+                $classificacao = \App\Models\ClassificacaoFinanceira::find($request->classificacao_financeira_id);
+                if ($classificacao && $classificacao->codigo === '1.03') {
+                    $transacao = \App\Models\TransacaoExtrato::find($request->transacao_id);
+                    
+                    // Se não tiver pessoa_id no request, tenta buscar a do lançamento recém-criado
+                    $pessoaId = $request->pessoa_id;
+                    if (!$pessoaId) {
+                        $lancamento = \App\Models\Lancamento::where('data_emissao', $transacao->data)
+                            ->where('valor_total', $transacao->valor)
+                            ->orderBy('id', 'desc')
+                            ->first();
+                        if ($lancamento) {
+                            $pessoaId = $lancamento->pessoa_id;
+                        }
+                    }
+
+                    $pessoa = \App\Models\Pessoa::find($pessoaId);
+                    if ($pessoa && $pessoa->user_id) {
+                        $mesAno = $request->competencia ?? date('Y-m');
+                        [$ano, $mes] = array_map('intval', explode('-', $mesAno));
+
+                        $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                            ->where('user_id', $pessoa->user_id)
+                            ->value('id');
+
+                        if (!$assinaturaId) {
+                            $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')->insertGetId([
+                                'user_id' => $pessoa->user_id,
+                                'status' => 'ativa',
+                                'inicio_em' => now()->toDateString(),
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        } else {
+                            \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                                ->where('id', $assinaturaId)
+                                ->update(['status' => 'ativa', 'updated_at' => now()]);
+                        }
+
+                        \Illuminate\Support\Facades\DB::table('clube_mensalidades')->updateOrInsert(
+                            [
+                                'user_id' => $pessoa->user_id,
+                                'competencia_ano' => $ano,
+                                'competencia_mes' => $mes
+                            ],
+                            [
+                                'assinatura_id' => $assinaturaId,
+                                'status_pagamento' => 'pago',
+                                'pago_em' => $transacao->data ?? now()->toDateString(),
+                                'valor' => $transacao->valor ?? 0,
+                            ]
+                        );
+
+                        // Recalcular pontos
+                        \Illuminate\Support\Facades\DB::unprepared("CALL atualizar_pontuacoes_user({$pessoa->user_id}, '{$mesAno}')");
+                    }
+                }
+            });
+
             return back()->with('success', 'Lançamento criado e conciliado!');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
