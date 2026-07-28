@@ -19,10 +19,9 @@
             position: relative;
         }
         .header .logo {
-            position: absolute;
-            top: -10px;
-            right: 0;
-            width: 80px;
+            display: block;
+            margin: 0 auto 5px auto;
+            max-width: 120px;
             height: auto;
         }
         .header h1 {
@@ -141,8 +140,9 @@
     <div class="header">
         @if(file_exists(public_path('images/logo.png')))
             <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+        @else
+            <h1>Mania</h1>
         @endif
-        <h1>Mania</h1>
         <p>Clube de Moda Circular</p>
         <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
         <p>Data da Avaliação: {{ $avaliacao->formatted_data_avaliacao }}</p>
