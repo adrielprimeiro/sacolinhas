@@ -454,7 +454,7 @@ class ConciliacaoController extends Controller
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
                 // Cria e concilia
-                $this->service->vincularNovoLancamento(
+                $conciliacao = $this->service->vincularNovoLancamento(
                     $request->transacao_id,
                     $request->classificacao_financeira_id,
                     $request->pessoa_id,
@@ -463,61 +463,59 @@ class ConciliacaoController extends Controller
 
                 // Integração com o Clube
                 $classificacao = \App\Models\ClassificacaoFinanceira::find($request->classificacao_financeira_id);
-                if ($classificacao && $classificacao->codigo === '1.03') {
+                if ($classificacao && trim($classificacao->codigo) === '1.03') {
                     $transacao = \App\Models\TransacaoExtrato::find($request->transacao_id);
                     
-                    // Se não tiver pessoa_id no request, tenta buscar a do lançamento recém-criado
-                    $pessoaId = $request->pessoa_id;
+                    // Pegar o pessoa_id do lançamento gerado para garantir que seja o correto
+                    $lancamento = \App\Models\Lancamento::find($conciliacao->lancamento_id);
+                    $pessoaId = $lancamento ? $lancamento->pessoa_id : $request->pessoa_id;
+
                     if (!$pessoaId) {
-                        $lancamento = \App\Models\Lancamento::where('data_emissao', $transacao->data)
-                            ->where('valor_total', $transacao->valor)
-                            ->orderBy('id', 'desc')
-                            ->first();
-                        if ($lancamento) {
-                            $pessoaId = $lancamento->pessoa_id;
-                        }
+                        throw new \Exception('Para conciliar um pagamento do Clube, é obrigatório selecionar a Pessoa (Contato).');
                     }
 
                     $pessoa = \App\Models\Pessoa::find($pessoaId);
-                    if ($pessoa && $pessoa->user_id) {
-                        $mesAno = $request->competencia ?? date('Y-m');
-                        [$ano, $mes] = array_map('intval', explode('-', $mesAno));
-
-                        $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
-                            ->where('user_id', $pessoa->user_id)
-                            ->value('id');
-
-                        if (!$assinaturaId) {
-                            $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')->insertGetId([
-                                'user_id' => $pessoa->user_id,
-                                'status' => 'ativa',
-                                'inicio_em' => now()->toDateString(),
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-                        } else {
-                            \Illuminate\Support\Facades\DB::table('clube_assinaturas')
-                                ->where('id', $assinaturaId)
-                                ->update(['status' => 'ativa', 'updated_at' => now()]);
-                        }
-
-                        \Illuminate\Support\Facades\DB::table('clube_mensalidades')->updateOrInsert(
-                            [
-                                'user_id' => $pessoa->user_id,
-                                'competencia_ano' => $ano,
-                                'competencia_mes' => $mes
-                            ],
-                            [
-                                'assinatura_id' => $assinaturaId,
-                                'status_pagamento' => 'pago',
-                                'pago_em' => $transacao->data ?? now()->toDateString(),
-                                'valor' => $transacao->valor ?? 0,
-                            ]
-                        );
-
-                        // Recalcular pontos
-                        \Illuminate\Support\Facades\DB::unprepared("CALL atualizar_pontuacoes_user({$pessoa->user_id}, '{$mesAno}')");
+                    if (!$pessoa || !$pessoa->user_id) {
+                        throw new \Exception('O contato selecionado não está vinculado a um usuário do sistema. Edite o contato e vincule-o ao usuário correto para poder registrar o Clube.');
                     }
+
+                    $mesAno = $request->competencia ?? date('Y-m');
+                    [$ano, $mes] = array_map('intval', explode('-', $mesAno));
+
+                    $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                        ->where('user_id', $pessoa->user_id)
+                        ->value('id');
+
+                    if (!$assinaturaId) {
+                        $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')->insertGetId([
+                            'user_id' => $pessoa->user_id,
+                            'status' => 'ativa',
+                            'inicio_em' => now()->toDateString(),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    } else {
+                        \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                            ->where('id', $assinaturaId)
+                            ->update(['status' => 'ativa', 'updated_at' => now()]);
+                    }
+
+                    \Illuminate\Support\Facades\DB::table('clube_mensalidades')->updateOrInsert(
+                        [
+                            'user_id' => $pessoa->user_id,
+                            'competencia_ano' => $ano,
+                            'competencia_mes' => $mes
+                        ],
+                        [
+                            'assinatura_id' => $assinaturaId,
+                            'status_pagamento' => 'pago',
+                            'pago_em' => $transacao->data ?? now()->toDateString(),
+                            'valor' => $transacao->valor ?? 0,
+                        ]
+                    );
+
+                    // Recalcular pontos
+                    \Illuminate\Support\Facades\DB::unprepared("CALL atualizar_pontuacoes_user({$pessoa->user_id}, '{$mesAno}')");
                 }
             });
 
