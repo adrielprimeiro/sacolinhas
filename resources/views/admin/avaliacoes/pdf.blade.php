@@ -16,6 +16,14 @@
             border-bottom: 2px solid #2563eb; /* Blue border */
             padding-bottom: 8px;
             margin-bottom: 15px;
+            position: relative;
+        }
+        .header .logo {
+            position: absolute;
+            top: -10px;
+            right: 0;
+            width: 80px;
+            height: auto;
         }
         .header h1 {
             margin: 0;
@@ -131,6 +139,9 @@
 <body>
 
     <div class="header">
+        @if(file_exists(public_path('images/logo.png')))
+            <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
+        @endif
         <h1>Mania</h1>
         <p>Clube de Moda Circular</p>
         <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
