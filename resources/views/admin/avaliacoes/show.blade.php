@@ -134,15 +134,20 @@
                         <tr>
                             <td class="px-4 py-3">
                                 <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
+                                @if ($item->item_id)
                                 <div class="text-xs text-gray-400 mt-0.5">
-                                    {{ $item->categoria ? $item->categoria->name : 'Sem categoria' }}
-                                    @if ($item->item_id)
-                                        · <a href="{{ route('admin.items.show', $item->item_id) }}" class="text-blue-600 hover:underline print:hidden"><i class="fas fa-box-open mr-1"></i>Ver Item Estoque</a>
-                                    @endif
+                                    <a href="{{ route('admin.items.show', $item->item_id) }}" class="text-blue-600 hover:underline print:hidden"><i class="fas fa-box-open mr-1"></i>Ver Item Estoque</a>
                                 </div>
+                                @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600 capitalize">
-                                {{ $item->marca === 'sem_marca' ? 'Sem Marca' : ($item->marca === 'de_marca' ? 'De Marca' : 'Farm') }}
+                                @php
+                                    $marcaLabel = $item->marca;
+                                    if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
+                                    elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
+                                    elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
+                                @endphp
+                                {{ $marcaLabel }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600">
                                 {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}

@@ -204,11 +204,16 @@
             @foreach ($avaliacao->items as $item)
             <tr>
                 <td>
-                    <strong>{{ $item->nome }}</strong><br>
-                    <span style="color: #6b7280; font-size: 9px;">{{ $item->categoria ? $item->categoria->name : 'Sem categoria' }}</span>
+                    <strong>{{ $item->nome }}</strong>
                 </td>
                 <td class="text-center">
-                    {{ $item->marca === 'sem_marca' ? 'Sem Marca' : ($item->marca === 'de_marca' ? 'De Marca' : 'Farm') }}
+                    @php
+                        $marcaLabel = $item->marca;
+                        if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
+                        elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
+                        elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
+                    @endphp
+                    {{ $marcaLabel }}
                 </td>
                 <td class="text-center">
                     {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}
