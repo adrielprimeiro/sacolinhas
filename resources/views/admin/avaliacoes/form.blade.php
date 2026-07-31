@@ -143,7 +143,7 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="hover:bg-gray-50">
                                      {{-- Categoria e Nome --}}
-                                     <td class="px-1 py-2 align-top min-w-[160px]">
+                                     <td class="px-1 py-2 align-top min-w-[400px] w-full">
                                          <div class="relative mb-2" @click.away="item.showCatDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -197,7 +197,7 @@
                                      </td>
 
                                      {{-- Marca --}}
-                                     <td class="px-1 py-2 align-top min-w-[400px] w-full">
+                                     <td class="px-1 py-2 align-top min-w-[160px]">
                                          <div class="relative mb-2" @click.away="item.showBrandDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -257,7 +257,7 @@
                                     {{-- Conservação --}}
                                     <td class="px-1 py-2 text-center align-top" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][estado]`" x-model="item.estado" @change="recalculateItem(item)"
-                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-20 mx-auto">
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-12 mx-auto text-center">
                                             <template x-for="n in 10">
                                                 <option :value="n" x-text="n" :selected="item.estado == n"></option>
                                             </template>
@@ -267,7 +267,7 @@
                                     {{-- Curadoria --}}
                                     <td class="px-1 py-2 text-center align-top" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" @change="recalculateItem(item)"
-                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-20 mx-auto">
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-12 mx-auto text-center">
                                             <template x-for="n in 10">
                                                 <option :value="n" x-text="n" :selected="item.nota_curadoria == n"></option>
                                             </template>
@@ -278,10 +278,10 @@
                                     <td class="px-1 py-2 align-top">
                                         <input type="text" :name="`items[${index}][cor]`" x-model="item.cor" placeholder="Cor"
                                                @blur="item.cor = capitalizeWords(item.cor)"
-                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
+                                               class="block w-20 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
                                         <input type="text" :name="`items[${index}][tamanho]`" x-model="item.tamanho" placeholder="Tam"
                                                @blur="item.tamanho = (item.tamanho || '').toUpperCase().trim()"
-                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
+                                               class="block w-20 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
                                     </td>
 
                                     {{-- Preço Base --}}
@@ -291,7 +291,7 @@
                                                @blur="formatPrecoBaseRaw(item);"
                                                @keydown="onPrecoBaseKeyDown($event)"
                                                required
-                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-24 mx-auto text-center">
+                                               class="block w-28 border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mx-auto text-center">
                                         <input type="hidden" :name="`items[${index}][preco_base]`" :value="item.preco_base">
                                     </td>
 
