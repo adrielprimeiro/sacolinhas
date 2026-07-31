@@ -116,12 +116,6 @@
                             <i class="fas fa-tshirt text-blue-500"></i> Peças para Avaliação
                         </h2>
                     </div>
-                    <button type="button" id="btn-add-item" @click="addItem(true)"
-                            :disabled="!canAddItem()"
-                            :class="!canAddItem() ? 'bg-gray-300 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'"
-                            class="text-sm font-bold py-2 px-4 rounded-lg shadow transition duration-200">
-                        <i class="fas fa-plus mr-1"></i> Adicionar Peça
-                    </button>
                 </div>
 
                 <div class="overflow-x-auto pb-36">
@@ -325,6 +319,18 @@
                                 </tr>
                               </template>
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="9" class="px-1 py-4">
+                                    <button type="button" id="btn-add-item" @click="addItem(true)"
+                                            :disabled="!canAddItem()"
+                                            :class="!canAddItem() ? 'bg-gray-300 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                                            class="w-full text-sm font-bold py-2.5 px-4 rounded-lg shadow border border-transparent transition duration-200 flex justify-center items-center gap-2">
+                                        <i class="fas fa-plus"></i> Adicionar Peça
+                                    </button>
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
