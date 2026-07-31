@@ -61,6 +61,11 @@ class FinanceiroDashboardController extends Controller
         $totalReceitasMes = Lancamento::where('tipo', 'receita')
             ->whereRaw("DATE_FORMAT(data_vencimento, '%Y-%m') = ?", [$mesAtual])
             ->whereNotIn('status', ['cancelado'])
+            ->where(function ($query) {
+                $query->whereDoesntHave('classificacaoFinanceira', function ($q) {
+                    $q->where('nome', 'Recarga de Carteira');
+                });
+            })
             ->sum('valor_total');
 
         $totalAtrasados = Lancamento::whereIn('status', ['pendente', 'pago_parcial'])
