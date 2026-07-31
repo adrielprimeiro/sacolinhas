@@ -136,7 +136,7 @@
                                 <th class="px-1 py-3 text-center" x-show="tipoCompra === 'avaliados'">Preço Base</th>
                                 <th class="px-1 py-3 text-center" x-show="tipoCompra === 'direta'">Custo</th>
                                 <th class="px-1 py-3 text-right">Preço Venda / Repasse</th>
-                                <th class="px-1 py-3 text-center w-10"></th>
+                                <th class="px-1 py-3 text-center w-16"></th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -309,8 +309,12 @@
                                     </td>
 
                                     {{-- Ações --}}
-                                    <td class="px-1 py-2 text-center align-top">
-                                        <button type="button" @click="removeItem(index)"
+                                    <td class="px-1 py-2 text-center align-top whitespace-nowrap">
+                                        <button type="button" @click="duplicateItem(index)" title="Duplicar Peça"
+                                                class="text-blue-500 hover:text-blue-700 transition-colors w-8 h-8 rounded-lg hover:bg-blue-50 inline-flex items-center justify-center border border-transparent hover:border-blue-100">
+                                            <i class="far fa-copy text-xs"></i>
+                                        </button>
+                                        <button type="button" @click="removeItem(index)" title="Remover Peça"
                                                 class="text-red-500 hover:text-red-700 transition-colors w-8 h-8 rounded-lg hover:bg-red-50 inline-flex items-center justify-center border border-transparent hover:border-red-100">
                                             <i class="far fa-trash-alt text-xs"></i>
                                         </button>
@@ -494,6 +498,16 @@ function evaluationForm(config) {
                     }
                 });
             }
+        },
+
+        duplicateItem(index) {
+            const original = this.items[index];
+            const duplicate = JSON.parse(JSON.stringify(original));
+            if (duplicate.id) {
+                delete duplicate.id;
+            }
+            this.items.splice(index + 1, 0, duplicate);
+            this.recalculateAll();
         },
 
         removeItem(index) {
