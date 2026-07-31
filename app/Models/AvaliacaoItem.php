@@ -94,8 +94,9 @@ class AvaliacaoItem extends Model
             }
         }
 
-        // 2. Preço de venda = Base * (Porcentagem / 100)
-        $this->preco_venda = ((float) $this->preco_base * ($porcentagem / 100.00));
+        // 2. Preço de venda = Base * (Porcentagem / 100), arredondado para múltiplo de 5
+        $preco_calculado = ((float) $this->preco_base * ($porcentagem / 100.00));
+        $this->preco_venda = round($preco_calculado / 5) * 5;
 
         // 3. Taxa de curadoria (10 é 0, 1 é 10, outros são 10 - nota)
         $nota = (int) $this->nota_curadoria;

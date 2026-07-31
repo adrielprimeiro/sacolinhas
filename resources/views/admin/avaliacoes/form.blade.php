@@ -784,7 +784,8 @@ function evaluationForm(config) {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
 
-                item.preco_venda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
+                let calcVenda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
+                item.preco_venda = Math.round(calcVenda / 5) * 5;
 
                 const nota = parseInt(item.nota_curadoria) || 10;
                 if (nota === 10) {
