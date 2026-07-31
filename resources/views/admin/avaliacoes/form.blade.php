@@ -128,10 +128,10 @@
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
                             <tr>
-                                <th class="px-1 py-3 text-left w-[30%]">Categoria / Nome</th>
+                                <th class="px-1 py-3 text-left w-[35%]">Categoria / Nome</th>
                                 <th class="px-1 py-3 text-center w-[20%]">Marca</th>
-                                <th class="px-1 py-3 text-center w-[5%]" x-show="tipoCompra === 'avaliados'">Conserv.</th>
-                                <th class="px-1 py-3 text-center w-[5%]" x-show="tipoCompra === 'avaliados'">Curadoria</th>
+                                <th class="px-1 py-3 text-center w-[2.5%]" x-show="tipoCompra === 'avaliados'">Conserv.</th>
+                                <th class="px-1 py-3 text-center w-[2.5%]" x-show="tipoCompra === 'avaliados'">Curadoria</th>
                                 <th class="px-1 py-3 text-center w-[10%]">Cor / Tam</th>
                                 <th class="px-1 py-3 text-center w-[10%]" x-show="tipoCompra === 'avaliados'">Preço Base</th>
                                 <th class="px-1 py-3 text-center w-[10%]" x-show="tipoCompra === 'direta'">Custo</th>
@@ -143,7 +143,7 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="hover:bg-gray-50">
                                      {{-- Categoria e Nome --}}
-                                     <td class="px-1 py-2 align-top w-[30%]">
+                                     <td class="px-1 py-2 align-top w-[35%]">
                                          <div class="relative mb-2" @click.away="item.showCatDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -255,17 +255,17 @@
                                      </td>
 
                                     {{-- Conservação --}}
-                                    <td class="px-1 py-2 text-center align-top w-[5%]" x-show="tipoCompra === 'avaliados'">
+                                    <td class="px-1 py-2 text-center align-top w-[2.5%]" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][estado]`" x-model="item.estado" @change="recalculateItem(item)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
-                                            <template x-for="n in 10">
-                                                <option :value="n" x-text="n" :selected="item.estado == n"></option>
-                                            </template>
+                                            <option value="Novo">Novo</option>
+                                            <option value="Seminovo">Seminovo</option>
+                                            <option value="Usado">Usado</option>
                                         </select>
                                     </td>
 
                                     {{-- Curadoria --}}
-                                    <td class="px-1 py-2 text-center align-top w-[5%]" x-show="tipoCompra === 'avaliados'">
+                                    <td class="px-1 py-2 text-center align-top w-[2.5%]" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" @change="recalculateItem(item)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <template x-for="n in 10">
@@ -490,7 +490,7 @@ function evaluationForm(config) {
                 showBrandDropdown: false,
                 activeBrandIndex: 0,
                 marca: '',
-                estado: 10,
+                estado: 'Seminovo',
                 nota_curadoria: 10,
                 cor: '',
                 tamanho: '',
