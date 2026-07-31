@@ -287,6 +287,7 @@
                                                required
                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                         <input type="hidden" :name="`items[${index}][preco_base]`" :value="item.preco_base">
+                                        <input type="hidden" :name="`items[${index}][is_fixed_price]`" :value="item.is_fixed_price ? 1 : 0">
                                     </td>
 
                                     {{-- Resultados --}}
@@ -482,6 +483,7 @@ function evaluationForm(config) {
                         tamanho: item.tamanho || '',
                         preco_base: parseFloat(item.preco_base),
                         preco_base_raw: parseFloat(item.preco_base).toFixed(2).replace('.', ','),
+                        is_fixed_price: item.is_fixed_price || false,
                         preco_venda: parseFloat(item.preco_venda),
                         taxa_curadoria: parseFloat(item.taxa_curadoria),
                         payout_credito: parseFloat(item.payout_credito),
@@ -532,6 +534,7 @@ function evaluationForm(config) {
                 tamanho: '',
                 preco_base: 0.00,
                 preco_base_raw: '0,00',
+                is_fixed_price: false,
                 preco_venda: 0.00,
                 taxa_curadoria: 0.00,
                 payout_credito: 0.00,
@@ -668,6 +671,7 @@ function evaluationForm(config) {
             item.nome = this.capitalizeWords(this.singularizePortuguese(cat.name));
             item.preco_base = parseFloat(cat.preco_base);
             item.preco_base_raw = parseFloat(cat.preco_base || 0).toFixed(2).replace('.', ',');
+            item.is_fixed_price = false;
             item.showCatDropdown = false;
             this.recalculateItem(item);
 
@@ -710,14 +714,19 @@ function evaluationForm(config) {
         },
 
         normalizePrecoBase(item) {
-            let cleaned = (item.preco_base_raw || '').toString().replace(',', '.');
+            let rawStr = (item.preco_base_raw || '').toString().trim();
+            item.is_fixed_price = rawStr.startsWith('*');
+            if (item.is_fixed_price) {
+                rawStr = rawStr.substring(1);
+            }
+            let cleaned = rawStr.replace(',', '.');
             let val = parseFloat(cleaned);
             item.preco_base = isNaN(val) ? 0 : val;
         },
 
         formatPrecoBaseRaw(item) {
             let val = parseFloat(item.preco_base || 0);
-            item.preco_base_raw = val.toFixed(2).replace('.', ',');
+            item.preco_base_raw = (item.is_fixed_price ? '*' : '') + val.toFixed(2).replace('.', ',');
         },
 
         updateFrete() {
@@ -812,7 +821,11 @@ function evaluationForm(config) {
             const freteUnitario = parseFloat(this.frete || 0) / numItems;
 
             if (this.tipoCompra === 'direta') {
-                item.preco_venda = parseFloat(item.preco_base || 0) * 2.023121387;
+                if (item.is_fixed_price) {
+                    item.preco_venda = parseFloat(item.preco_base || 0);
+                } else {
+                    item.preco_venda = parseFloat(item.preco_base || 0) * 2.023121387;
+                }
                 item.taxa_curadoria = 0.00;
                 item.payout_credito = parseFloat(item.preco_base || 0);
                 item.payout_dinheiro = parseFloat(item.preco_base || 0);
@@ -820,8 +833,12 @@ function evaluationForm(config) {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
 
-                let calcVenda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
-                item.preco_venda = Math.round(calcVenda / 5) * 5;
+                if (item.is_fixed_price) {
+                    item.preco_venda = parseFloat(item.preco_base || 0);
+                } else {
+                    let calcVenda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
+                    item.preco_venda = Math.round(calcVenda / 5) * 5;
+                }
 
                 const nota = parseInt(item.nota_curadoria) || 10;
                 if (nota === 10) {

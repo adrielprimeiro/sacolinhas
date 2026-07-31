@@ -113,12 +113,17 @@ class AvaliacaoController extends Controller
                     'cor' => $itemData['cor'] ?? null,
                     'tamanho' => $itemData['tamanho'] ?? null,
                     'preco_base' => $itemData['preco_base'],
+                    'is_fixed_price' => isset($itemData['is_fixed_price']) ? filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN) : false,
                 ]);
 
                 // Se for Compra Direta, o valor de payout (crédito/dinheiro) é o próprio valor inserido em preco_base,
                 // e o preco_venda é calculado multiplicando pelo Markup (2.0231)
                 if ($avaliacao->tipo_compra === 'direta') {
-                    $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                    if (isset($itemData['is_fixed_price']) && filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN)) {
+                        $avItem->preco_venda = $itemData['preco_base'];
+                    } else {
+                        $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                    }
                     $avItem->taxa_curadoria = 0.00;
                     $avItem->payout_credito = $itemData['preco_base'];
                     $avItem->payout_dinheiro = $itemData['preco_base'];
@@ -240,10 +245,15 @@ class AvaliacaoController extends Controller
                     'cor' => $itemData['cor'] ?? null,
                     'tamanho' => $itemData['tamanho'] ?? null,
                     'preco_base' => $itemData['preco_base'],
+                    'is_fixed_price' => isset($itemData['is_fixed_price']) ? filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN) : false,
                 ]);
 
                 if ($avaliacao->tipo_compra === 'direta') {
-                    $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                    if (isset($itemData['is_fixed_price']) && filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN)) {
+                        $avItem->preco_venda = $itemData['preco_base'];
+                    } else {
+                        $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                    }
                     $avItem->taxa_curadoria = 0.00;
                     $avItem->payout_credito = $itemData['preco_base'];
                     $avItem->payout_dinheiro = $itemData['preco_base'];
@@ -321,7 +331,11 @@ class AvaliacaoController extends Controller
             foreach ($items as $item) {
                 // Recalcula pra ter certeza absoluta
                 if ($avaliacao->tipo_compra === 'direta') {
-                    $item->preco_venda = $item->preco_base * 2.023121387;
+                    if ($item->is_fixed_price) {
+                        $item->preco_venda = $item->preco_base;
+                    } else {
+                        $item->preco_venda = $item->preco_base * 2.023121387;
+                    }
                     $item->taxa_curadoria = 0.00;
                     $item->payout_credito = $item->preco_base;
                     $item->payout_dinheiro = $item->preco_base;
