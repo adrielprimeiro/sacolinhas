@@ -125,7 +125,7 @@
                 </div>
 
                 <div class="overflow-x-auto pb-36">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
                             <tr>
                                 <th class="px-1 py-3 text-left w-[35%]">Categoria / Nome</th>
@@ -784,7 +784,7 @@ function evaluationForm(config) {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
 
-                item.preco_venda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00)) * (parseInt(item.estado) / 10.0);
+                item.preco_venda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
 
                 const nota = parseInt(item.nota_curadoria) || 10;
                 if (nota === 10) {
