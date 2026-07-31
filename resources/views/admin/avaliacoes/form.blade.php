@@ -128,22 +128,22 @@
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
                             <tr>
-                                <th class="px-1 py-3 text-left w-1/3">Categoria / Nome</th>
-                                <th class="px-1 py-3 text-center">Marca</th>
-                                <th class="px-1 py-3 text-center" x-show="tipoCompra === 'avaliados'">Conserv.</th>
-                                <th class="px-1 py-3 text-center" x-show="tipoCompra === 'avaliados'">Curadoria</th>
-                                <th class="px-1 py-3 text-center">Cor / Tam</th>
-                                <th class="px-1 py-3 text-center" x-show="tipoCompra === 'avaliados'">Preço Base</th>
-                                <th class="px-1 py-3 text-center" x-show="tipoCompra === 'direta'">Custo</th>
-                                <th class="px-1 py-3 text-right">Preço Venda / Repasse</th>
-                                <th class="px-1 py-3 text-center w-16"></th>
+                                <th class="px-1 py-3 text-left w-[30%]">Categoria / Nome</th>
+                                <th class="px-1 py-3 text-center w-[20%]">Marca</th>
+                                <th class="px-1 py-3 text-center w-[5%]" x-show="tipoCompra === 'avaliados'">Conserv.</th>
+                                <th class="px-1 py-3 text-center w-[5%]" x-show="tipoCompra === 'avaliados'">Curadoria</th>
+                                <th class="px-1 py-3 text-center w-[10%]">Cor / Tam</th>
+                                <th class="px-1 py-3 text-center w-[10%]" x-show="tipoCompra === 'avaliados'">Preço Base</th>
+                                <th class="px-1 py-3 text-center w-[10%]" x-show="tipoCompra === 'direta'">Custo</th>
+                                <th class="px-1 py-3 text-right w-[20%]">Preço Venda / Repasse</th>
+                                <th class="px-1 py-3 text-center w-12"></th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="hover:bg-gray-50">
                                      {{-- Categoria e Nome --}}
-                                     <td class="px-1 py-2 align-top min-w-[400px] w-full">
+                                     <td class="px-1 py-2 align-top w-[30%]">
                                          <div class="relative mb-2" @click.away="item.showCatDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -197,7 +197,7 @@
                                      </td>
 
                                      {{-- Marca --}}
-                                     <td class="px-1 py-2 align-top min-w-[160px]">
+                                     <td class="px-1 py-2 align-top w-[20%]">
                                          <div class="relative mb-2" @click.away="item.showBrandDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -255,9 +255,9 @@
                                      </td>
 
                                     {{-- Conservação --}}
-                                    <td class="px-1 py-2 text-center align-top" x-show="tipoCompra === 'avaliados'">
+                                    <td class="px-1 py-2 text-center align-top w-[5%]" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][estado]`" x-model="item.estado" @change="recalculateItem(item)"
-                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-12 mx-auto text-center">
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <template x-for="n in 10">
                                                 <option :value="n" x-text="n" :selected="item.estado == n"></option>
                                             </template>
@@ -265,9 +265,9 @@
                                     </td>
 
                                     {{-- Curadoria --}}
-                                    <td class="px-1 py-2 text-center align-top" x-show="tipoCompra === 'avaliados'">
+                                    <td class="px-1 py-2 text-center align-top w-[5%]" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" @change="recalculateItem(item)"
-                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs w-12 mx-auto text-center">
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <template x-for="n in 10">
                                                 <option :value="n" x-text="n" :selected="item.nota_curadoria == n"></option>
                                             </template>
@@ -275,28 +275,28 @@
                                     </td>
 
                                     {{-- Cor / Tam --}}
-                                    <td class="px-1 py-2 align-top">
+                                    <td class="px-1 py-2 align-top w-[10%]">
                                         <input type="text" :name="`items[${index}][cor]`" x-model="item.cor" placeholder="Cor"
                                                @blur="item.cor = capitalizeWords(item.cor)"
-                                               class="block w-20 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
                                         <input type="text" :name="`items[${index}][tamanho]`" x-model="item.tamanho" placeholder="Tam"
                                                @blur="item.tamanho = (item.tamanho || '').toUpperCase().trim()"
-                                               class="block w-20 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
                                     </td>
 
                                     {{-- Preço Base --}}
-                                    <td class="px-1 py-2 text-center align-top">
+                                    <td class="px-1 py-2 text-center align-top w-[10%]">
                                         <input type="text" x-model="item.preco_base_raw" 
                                                @input="normalizePrecoBase(item); recalculateItem(item);"
                                                @blur="formatPrecoBaseRaw(item);"
                                                @keydown="onPrecoBaseKeyDown($event)"
                                                required
-                                               class="block w-28 border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mx-auto text-center">
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                         <input type="hidden" :name="`items[${index}][preco_base]`" :value="item.preco_base">
                                     </td>
 
                                     {{-- Resultados --}}
-                                    <td class="px-1 py-2 text-right text-xs whitespace-nowrap align-top">
+                                    <td class="px-1 py-2 text-right text-xs whitespace-nowrap align-top w-[20%]">
                                         <div class="font-bold text-gray-900">
                                             Venda: <span x-text="formatCurrency(item.preco_venda)"></span>
                                         </div>
