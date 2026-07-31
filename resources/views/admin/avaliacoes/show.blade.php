@@ -40,6 +40,14 @@
                     <i class="fas fa-edit"></i> Editar Rascunho
                 </a>
             @endif
+
+            <button 
+                type="button"
+                id="btn-print-labels"
+                class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
+            >
+                <i class="fas fa-print"></i> Imprimir Etiquetas
+            </button>
         </div>
     </div>
 
@@ -120,6 +128,9 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-4 py-3 text-center w-10 print:hidden">
+                            <input type="checkbox" id="selectAllEtiquetas" class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                        </th>
                         <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Peça / Descrição</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Marca</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cor/Tamanho</th>
@@ -131,7 +142,23 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-150">
                     @foreach ($avaliacao->items as $item)
+                        @php
+                            $marcaLabel = $item->marca;
+                            if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
+                            elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
+                            elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
+                            
+                            $itemData = [
+                                'codigo' => $item->item ? $item->item->sku : 'AV'.$item->id,
+                                'produto' => strtoupper($marcaLabel) . '   ' . titleCase($item->nome) . ' ' . titleCase($item->cor) . ' [' . strtolower($item->estado) . ']',
+                                'tamanho' => trim($item->tamanho),
+                                'preco' => number_format($item->preco_venda, 2, ',', '')
+                            ];
+                        @endphp
                         <tr>
+                            <td class="px-4 py-3 text-center print:hidden">
+                                <input type="checkbox" class="item-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500" data-item="{{ json_encode($itemData) }}">
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
                                 @if ($item->item_id)
@@ -141,12 +168,6 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600 capitalize">
-                                @php
-                                    $marcaLabel = $item->marca;
-                                    if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
-                                    elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
-                                    elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
-                                @endphp
                                 {{ $marcaLabel }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600">
@@ -156,7 +177,7 @@
                                 @if ($avaliacao->tipo_compra === 'direta')
                                     -
                                 @else
-                                    Est: <span class="font-semibold text-gray-900">{{ $item->estado }}/10</span> · Cur: <span class="font-semibold text-gray-900">{{ $item->nota_curadoria }}/10</span>
+                                    Est: <span class="font-semibold text-gray-900">{{ $item->estado }}</span> · Cur: <span class="font-semibold text-gray-900">{{ $item->nota_curadoria }}/10</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900">
@@ -258,4 +279,177 @@
     }
 }
 </style>
+</style>
+
+@php
+    function titleCase($str) {
+        if (!$str) return '';
+        $words = explode(' ', $str);
+        foreach ($words as &$word) {
+            $word = ucfirst(strtolower($word));
+        }
+        return implode(' ', $words);
+    }
+@endphp
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAllBtn = document.getElementById('selectAllEtiquetas');
+        const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+        const printBtn = document.getElementById('btn-print-labels');
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('change', function() {
+                itemCheckboxes.forEach(cb => cb.checked = this.checked);
+            });
+        }
+
+        if (printBtn) {
+            printBtn.addEventListener('click', function() {
+                const selectedItems = Array.from(itemCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => JSON.parse(cb.dataset.item));
+
+                if (selectedItems.length === 0) {
+                    alert('Selecione pelo menos um item para imprimir a etiqueta.');
+                    return;
+                }
+
+                printLabelsMultiplas(selectedItems);
+            });
+        }
+
+        function printLabelsMultiplas(etiquetas) {
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                    @page {
+                        size: 60mm 30mm;
+                        margin: 0;
+                    }
+                    body {
+                        margin: 0.5mm;
+                        padding: 0;
+                        display: flex;
+                        flex-wrap: wrap;
+                        flex-direction: row;
+                        font-family: Arial, sans-serif;
+                        line-height: 1.05;
+                    }
+                    .label {
+                        width: 60mm;
+                        height: 29mm; /* Reduzido para 29mm para garantir que não passe para outra página */
+                        display: flex;
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        font-size: 12px;
+                        padding: 1mm;
+                        box-sizing: border-box;
+                        overflow: hidden;
+                    }
+                    .left {
+                        flex: 1.3;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: flex-start;
+                        align-items: flex-start;
+                        height: 100%;
+                        gap: 0.1mm;
+                        overflow: hidden;
+                    }
+                    .produto {
+                        font-weight: normal;
+                        font-size: 9px;
+                        text-align: left;
+                        word-wrap: break-word;
+                        white-space: normal;
+                        margin: 0;
+                        line-height: 1.1;
+                    }
+                    .tamanho {
+                        font-weight: bold;
+                        font-size: 22px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                        margin-bottom: 0;
+                        line-height: 1;
+                    }
+                    .preco {
+                        font-weight: bold;
+                        font-size: 11px;
+                        margin-top: 0 !important;
+                        white-space: nowrap;
+                    }
+                    .valor {
+                        font-weight: normal;
+                        font-size: 11px;
+                        margin-top: 0 !important;
+                        margin-left: 0.5mm;
+                    }
+                    .right {
+                        flex: 0 0 22.5mm;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-end;
+                        height: 100%;
+                        gap: 0.1mm;
+                    }
+                    .barcode {
+                        width: 22.5mm;
+                        height: 22.5mm;
+                    }
+                    .codigoBarra {
+                        font-weight: normal;
+                        font-size: 10px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    }
+                    </style>
+                </head>
+                <body>
+                    ${etiquetas.map(etiqueta => `
+                        <div class="label">
+                            <div class="left">
+                                <div>
+                                    <span class="produto">- ${etiqueta.produto.replace(/'/g, "\\'")}</span>
+                                </div>
+                                <div class="tamanho">${etiqueta.tamanho}</div>
+                                <div>
+                                    <span class="preco">Preço:  </span>
+                                    <span class="valor">${etiqueta.preco}</span>
+                                </div>
+                            </div>
+                            <div class="right">
+                            <img class="barcode" 
+                                 src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(etiqueta.codigo)}"
+                                 alt="QR Code ${etiqueta.codigo}" 
+                                 onload="this.style.opacity=1;" 
+                                 style="opacity:0.5;" />
+                                <div class="codigoBarra">${etiqueta.codigo}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', 'EtiquetasSacolinha', 'width=1000,height=700,scrollbars=yes,resizable=yes');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        }
+    });
+</script>
 @endsection

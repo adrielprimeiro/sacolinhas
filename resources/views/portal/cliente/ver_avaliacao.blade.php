@@ -184,7 +184,7 @@ tbody tr:hover{background:var(--pink-soft-40)}
                 {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}
               </td>
               <td class="center">
-                <span class="conserva">{{ $item->estado }}/10</span>
+                <span class="conserva">{{ $item->estado }}</span>
               </td>
             </tr>
           @endforeach
