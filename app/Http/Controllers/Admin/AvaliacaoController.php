@@ -139,10 +139,16 @@ class AvaliacaoController extends Controller
             ]);
 
             DB::commit();
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => true, 'id' => $avaliacao->id]);
+            }
             return redirect()->route('admin.avaliacoes.index')->with('success', 'Avaliação de desapego salva como Rascunho com sucesso!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erro ao salvar avaliação: ' . $e->getMessage());
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
             return redirect()->back()->withInput()->with('error', 'Ocorreu um erro ao salvar a avaliação: ' . $e->getMessage());
         }
     }
@@ -257,10 +263,16 @@ class AvaliacaoController extends Controller
             ]);
 
             DB::commit();
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => true, 'id' => $avaliacao->id]);
+            }
             return redirect()->route('admin.avaliacoes.index')->with('success', 'Avaliação atualizada com sucesso!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erro ao atualizar avaliação: ' . $e->getMessage());
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
             return redirect()->back()->withInput()->with('error', 'Ocorreu um erro ao atualizar a avaliação: ' . $e->getMessage());
         }
     }

@@ -36,7 +36,11 @@ class MarcaController extends Controller
             'porcentagem_valor' => 'required|numeric|min:0',
         ]);
 
-        Marca::create($validated);
+        $marca = Marca::create($validated);
+
+        if ($request->wantsJson() || $request->has('ajax')) {
+            return response()->json(['success' => true, 'marca' => $marca]);
+        }
 
         return redirect()->route('admin.marcas.index')->with('success', 'Marca criada com sucesso!');
     }

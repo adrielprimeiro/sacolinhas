@@ -143,7 +143,7 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="hover:bg-gray-50">
                                      {{-- Categoria e Nome --}}
-                                     <td class="px-1 py-2 align-top min-w-[220px]">
+                                     <td class="px-1 py-2 align-top min-w-[160px]">
                                          <div class="relative mb-2" @click.away="item.showCatDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -197,7 +197,7 @@
                                      </td>
 
                                      {{-- Marca --}}
-                                     <td class="px-1 py-2 align-top min-w-[360px]">
+                                     <td class="px-1 py-2 align-top min-w-[400px] w-full">
                                          <div class="relative mb-2" @click.away="item.showBrandDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -239,8 +239,11 @@
                                                          <span class="text-[10px] text-gray-400 font-medium" x-text="`(${parseInt(brand.porcentagem_valor)}%)`"></span>
                                                      </button>
                                                  </template>
-                                                 <div x-show="getFilteredMarcas(item).length === 0" class="px-3 py-2 text-gray-400 text-center font-medium">
-                                                     Nenhuma marca encontrada
+                                                 <div x-show="getFilteredMarcas(item).length === 0" class="px-3 py-2 text-center font-medium">
+                                                     <span class="text-gray-400 block mb-2">Nenhuma marca encontrada</span>
+                                                     <button type="button" @click="openNovaMarcaModal(item, index)" class="text-blue-600 text-xs font-bold hover:underline">
+                                                         + Adicionar Nova Marca
+                                                     </button>
                                                  </div>
                                              </div>
                                          </div>
@@ -390,6 +393,12 @@ function evaluationForm(config) {
         totalVenda: 0,
         totalPayoutCredito: 0,
         totalPayoutDinheiro: 0,
+        showMarcaModal: false,
+        salvandoMarca: false,
+        novaMarcaForm: { nome: '', porcentagem_valor: 100 },
+        marcaTargetItem: null,
+        marcaTargetIndex: null,
+        isSavingSilently: false,
 
         init() {
             if (config.editingAvaliacao) {
@@ -463,6 +472,10 @@ function evaluationForm(config) {
         },
 
         addItem(focusNew = false) {
+            if (this.canAddItem() && this.items.length > 0) {
+                this.saveSilently();
+            }
+
             const semMarca = this.marcas.find(m => m.nome.toLowerCase() === 'sem marca' || m.nome.toLowerCase() === 'sem_marca');
             const defaultMarcaId = semMarca ? semMarca.id : '';
 
@@ -508,6 +521,92 @@ function evaluationForm(config) {
             }
             this.items.splice(index + 1, 0, duplicate);
             this.recalculateAll();
+            this.saveSilently();
+        },
+
+        openNovaMarcaModal(item, index) {
+            this.marcaTargetItem = item;
+            this.marcaTargetIndex = index;
+            this.novaMarcaForm.nome = item.brandSearch || '';
+            this.novaMarcaForm.porcentagem_valor = 100;
+            this.showMarcaModal = true;
+        },
+
+        async salvarNovaMarca() {
+            if (!this.novaMarcaForm.nome) return;
+            this.salvandoMarca = true;
+            try {
+                const formData = new FormData();
+                formData.append('nome', this.novaMarcaForm.nome);
+                formData.append('porcentagem_valor', this.novaMarcaForm.porcentagem_valor);
+                formData.append('ajax', '1');
+                formData.append('_token', document.querySelector('input[name="_token"]').value);
+
+                const res = await fetch('{{ route("admin.marcas.store") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.marca) {
+                        this.marcas.push(data.marca);
+                        if (this.marcaTargetItem !== null) {
+                            this.selectBrand(this.marcaTargetItem, data.marca, this.marcaTargetIndex);
+                        }
+                        this.showMarcaModal = false;
+                    }
+                } else {
+                    const err = await res.json();
+                    alert(err.message || 'Erro ao salvar marca. Pode já existir.');
+                }
+            } catch (e) {
+                alert('Erro de conexão ao tentar salvar a marca.');
+            } finally {
+                this.salvandoMarca = false;
+            }
+        },
+
+        async saveSilently() {
+            if (!this.userId) return;
+            const validItems = this.items.filter(i => i.categoria_id && i.nome && i.marca_id);
+            if (validItems.length === 0) return;
+            
+            const form = document.getElementById('evaluation-form');
+            if (!form.checkValidity()) return;
+            
+            this.isSavingSilently = true;
+            try {
+                const formData = new FormData(form);
+                formData.append('ajax', '1');
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.id && !form.action.endsWith('/' + data.id)) {
+                        form.action = '{{ url("admin/avaliacoes") }}/' + data.id;
+                        if (!form.querySelector('input[name="_method"]')) {
+                            const methodInput = document.createElement('input');
+                            methodInput.type = 'hidden';
+                            methodInput.name = '_method';
+                            methodInput.value = 'PUT';
+                            form.appendChild(methodInput);
+                        }
+                        const title = document.querySelector('h1');
+                        if (title && title.innerText.includes('Nova')) {
+                            title.innerText = 'Editar Lote de Avaliação #' + String(data.id).padStart(5, '0');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Auto-save falhou', e);
+            } finally {
+                this.isSavingSilently = false;
+            }
         },
 
         removeItem(index) {
