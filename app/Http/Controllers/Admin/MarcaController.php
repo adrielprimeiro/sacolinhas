@@ -11,9 +11,16 @@ class MarcaController extends Controller
     /**
      * Display a listing of the brands.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $marcas = Marca::orderBy('total_registros', 'desc')->orderBy('nome')->paginate(15);
+        $query = Marca::query();
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where('nome', 'like', "%{$searchTerm}%");
+        }
+
+        $marcas = $query->orderBy('total_registros', 'desc')->orderBy('nome')->paginate(15)->withQueryString();
         $totalMarcas = Marca::count();
         return view('admin.marcas.index', compact('marcas', 'totalMarcas'));
     }

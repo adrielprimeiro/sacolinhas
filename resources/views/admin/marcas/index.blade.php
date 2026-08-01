@@ -14,10 +14,23 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <form action="{{ route('admin.marcas.index') }}" method="GET" class="relative w-full sm:w-auto">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar marca..." 
+                       class="block w-full sm:w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                @if(request('search'))
+                    <a href="{{ route('admin.marcas.index') }}" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </a>
+                @endif
+            </form>
+
             <a
                 href="{{ route('admin.marcas.create') }}"
-                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm whitespace-nowrap"
             >
                 <i class="fas fa-plus"></i>
                 Nova Marca
