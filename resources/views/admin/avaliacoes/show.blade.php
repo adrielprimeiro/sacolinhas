@@ -24,6 +24,14 @@
         </nav>
         
         <div class="flex items-center gap-2">
+            <button 
+                type="button"
+                onclick="window.print()"
+                class="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
+            >
+                <i class="fas fa-print"></i> Imprimir Recibo
+            </button>
+
             <a 
                 href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"
                 target="_blank"
