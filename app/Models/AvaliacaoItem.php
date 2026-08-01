@@ -19,6 +19,7 @@ class AvaliacaoItem extends Model
         'marca',
         'estado',
         'nota_curadoria',
+        'motivo_curadoria',
         'taxa_curadoria',
         'preco_base',
         'preco_venda',

@@ -122,11 +122,12 @@
                     <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold tracking-wider">
                             <tr>
-                                <th class="px-1 py-3 text-left" style="width: 31%;">Categoria / Nome</th>
+                                <th class="px-1 py-3 text-left" style="width: 28%;">Categoria / Nome</th>
                                 <th class="px-1 py-3 text-center" style="width: 28%;">Marca</th>
                                 <th class="px-1 py-3 text-center" style="width: 6%;" x-show="tipoCompra === 'avaliados'">Conserv.</th>
                                 <th class="px-1 py-3 text-center" style="width: 3%;" x-show="tipoCompra === 'avaliados'">Curadoria</th>
-                                <th class="px-1 py-3 text-center" style="width: 11%;">Cor / Tam</th>
+                                <th class="px-1 py-3 text-center" style="width: 5%;" x-show="tipoCompra === 'avaliados'">Motivo</th>
+                                <th class="px-1 py-3 text-center" style="width: 9%;">Cor / Tam</th>
                                 <th class="px-1 py-3 text-center" style="width: 8%;" x-show="tipoCompra === 'avaliados'">Preço Base</th>
                                 <th class="px-1 py-3 text-center" style="width: 8%;" x-show="tipoCompra === 'direta'">Custo</th>
                                 <th class="px-1 py-3 text-left pl-4" style="width: 13%;">Preço Venda / Repasse</th>
@@ -137,7 +138,7 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="hover:bg-gray-50">
                                      {{-- Categoria e Nome --}}
-                                     <td class="px-1 py-2 align-top" style="width: 31%;">
+                                     <td class="px-1 py-2 align-top" style="width: 28%;">
                                          <div class="relative mb-2" @click.away="item.showCatDropdown = false">
                                              <!-- Campo de busca -->
                                              <div class="relative">
@@ -260,7 +261,8 @@
 
                                     {{-- Curadoria --}}
                                     <td class="px-1 py-2 text-center align-top" style="width: 3%;" x-show="tipoCompra === 'avaliados'">
-                                        <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" @change="recalculateItem(item)"
+                                        <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" 
+                                                @change="recalculateItem(item)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <template x-for="n in 10">
                                                 <option :value="n" x-text="n" :selected="item.nota_curadoria == n"></option>
@@ -268,8 +270,19 @@
                                         </select>
                                     </td>
 
+                                    {{-- Motivo --}}
+                                    <td class="px-1 py-2 text-center align-top" style="width: 5%;" x-show="tipoCompra === 'avaliados'">
+                                        <select :name="`items[${index}][motivo_curadoria]`" x-model="item.motivo_curadoria"
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
+                                            <option value="">Nenhum</option>
+                                            <option value="Lavação">Lavação</option>
+                                            <option value="Bolinha">Bolinha</option>
+                                            <option value="Limpeza">Limpeza</option>
+                                        </select>
+                                    </td>
+
                                     {{-- Cor / Tam --}}
-                                    <td class="px-1 py-2 align-top" style="width: 11%;">
+                                    <td class="px-1 py-2 align-top" style="width: 9%;">
                                         <input type="text" :name="`items[${index}][cor]`" x-model="item.cor" placeholder="Cor"
                                                @blur="item.cor = capitalizeWords(item.cor)"
                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
@@ -479,6 +492,7 @@ function evaluationForm(config) {
                         marca: isSemMarca ? '' : (item.marca || (brandObj ? brandObj.nome : '')),
                         estado: item.estado,
                         nota_curadoria: item.nota_curadoria,
+                        motivo_curadoria: item.motivo_curadoria || '',
                         cor: item.cor || '',
                         tamanho: item.tamanho || '',
                         preco_base: parseFloat(item.preco_base),
@@ -530,6 +544,7 @@ function evaluationForm(config) {
                 marca: '',
                 estado: 'Seminovo',
                 nota_curadoria: 10,
+                motivo_curadoria: '',
                 cor: '',
                 tamanho: '',
                 preco_base: 0.00,

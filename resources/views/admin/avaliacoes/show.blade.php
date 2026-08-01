@@ -178,6 +178,9 @@
                                     -
                                 @else
                                     Est: <span class="font-semibold text-gray-900">{{ $item->estado }}</span> · Cur: <span class="font-semibold text-gray-900">{{ $item->nota_curadoria }}/10</span>
+                                    @if($item->motivo_curadoria)
+                                        <br><span class="text-xs text-gray-500">Motivo: {{ $item->motivo_curadoria }}</span>
+                                    @endif
                                 @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900">
