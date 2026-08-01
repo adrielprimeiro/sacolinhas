@@ -139,13 +139,15 @@
                         <th class="px-4 py-3 text-center w-10 print:hidden">
                             <input type="checkbox" id="selectAllEtiquetas" class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
                         </th>
-                        <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Peça / Descrição</th>
+                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Código</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Peça</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Marca</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cor/Tamanho</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conserv./Curadoria</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço Venda</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Taxa Curad.</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Repasse</th>
+                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider print:hidden">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-150">
@@ -167,14 +169,11 @@
                             <td class="px-4 py-3 text-center print:hidden">
                                 <input type="checkbox" class="item-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500" data-item="{{ json_encode($itemData) }}">
                             </td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap text-xs text-gray-500 font-mono">
+                                {{ $itemData['codigo'] }}
+                            </td>
                             <td class="px-4 py-3">
-                                <div class="text-[10px] text-gray-400 font-mono mb-0.5">{{ $itemData['codigo'] }}</div>
                                 <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
-                                @if ($item->item_id)
-                                <div class="text-xs text-gray-400 mt-0.5">
-                                    <a href="{{ route('admin.items.show', $item->item_id) }}" class="text-blue-600 hover:underline print:hidden"><i class="fas fa-box-open mr-1"></i>Ver Item Estoque</a>
-                                </div>
-                                @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600 capitalize">
                                 {{ $marcaLabel }}
@@ -208,6 +207,15 @@
                                     }
                                 @endphp
                                 R$ {{ number_format($payoutVal, 2, ',', '.') }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-center print:hidden">
+                                @if ($item->item_id)
+                                    <a href="{{ route('admin.items.edit', $item->item_id) }}" class="text-blue-600 hover:text-blue-800 transition-colors" title="Editar no Estoque">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                @else
+                                    <span class="text-gray-300" title="Item ainda em rascunho"><i class="fas fa-edit"></i></span>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
