@@ -168,6 +168,7 @@
                                 <input type="checkbox" class="item-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500" data-item="{{ json_encode($itemData) }}">
                             </td>
                             <td class="px-4 py-3">
+                                <div class="text-[10px] text-gray-400 font-mono mb-0.5">{{ $itemData['codigo'] }}</div>
                                 <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
                                 @if ($item->item_id)
                                 <div class="text-xs text-gray-400 mt-0.5">
