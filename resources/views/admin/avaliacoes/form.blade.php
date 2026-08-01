@@ -126,7 +126,7 @@
                                 <th class="px-1 py-3 text-center" style="width: 28%;">Marca</th>
                                 <th class="px-1 py-3 text-center" style="width: 6%;" x-show="tipoCompra === 'avaliados'">Conserv.</th>
                                 <th class="px-1 py-3 text-center" style="width: 3%;" x-show="tipoCompra === 'avaliados'">Curadoria</th>
-                                <th class="px-1 py-3 text-center" style="width: 5%;" x-show="tipoCompra === 'avaliados'">Motivo</th>
+                                <th class="px-1 py-3 text-center" style="width: 5%;" x-show="tipoCompra === 'avaliados'">Local</th>
                                 <th class="px-1 py-3 text-center" style="width: 9%;">Cor / Tam</th>
                                 <th class="px-1 py-3 text-center" style="width: 8%;" x-show="tipoCompra === 'avaliados'">Preço Base</th>
                                 <th class="px-1 py-3 text-center" style="width: 8%;" x-show="tipoCompra === 'direta'">Custo</th>
@@ -270,11 +270,11 @@
                                         </select>
                                     </td>
 
-                                    {{-- Motivo --}}
+                                    {{-- Local --}}
                                     <td class="px-1 py-2 text-center align-top" style="width: 5%;" x-show="tipoCompra === 'avaliados'">
                                         <select :name="`items[${index}][motivo_curadoria]`" x-model="item.motivo_curadoria"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
-                                            <option value="">Nenhum</option>
+                                            <option value="Cadastro">Cadastro</option>
                                             <option value="Lavação">Lavação</option>
                                             <option value="Bolinha">Bolinha</option>
                                             <option value="Limpeza">Limpeza</option>
@@ -492,7 +492,7 @@ function evaluationForm(config) {
                         marca: isSemMarca ? '' : (item.marca || (brandObj ? brandObj.nome : '')),
                         estado: item.estado,
                         nota_curadoria: item.nota_curadoria,
-                        motivo_curadoria: item.motivo_curadoria || '',
+                        motivo_curadoria: item.motivo_curadoria || 'Cadastro',
                         cor: item.cor || '',
                         tamanho: item.tamanho || '',
                         preco_base: parseFloat(item.preco_base),
@@ -544,7 +544,7 @@ function evaluationForm(config) {
                 marca: '',
                 estado: 'Seminovo',
                 nota_curadoria: 10,
-                motivo_curadoria: '',
+                motivo_curadoria: 'Cadastro',
                 cor: '',
                 tamanho: '',
                 preco_base: 0.00,
