@@ -132,18 +132,15 @@
         </div>
 
         {{-- Itens List --}}
-        <div class="border border-gray-200 rounded-xl overflow-x-auto mb-6">
+        <div class="border border-gray-200 rounded-xl overflow-x-auto mb-6" x-data="quickEditManager()">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-3 text-center w-10 print:hidden">
                             <input type="checkbox" id="selectAllEtiquetas" class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
                         </th>
-                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Código</th>
                         <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Peça</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Marca</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cor/Tamanho</th>
-                        <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conserv./Curadoria</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Detalhes</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço Venda</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Taxa Curad.</th>
                         <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Repasse</th>
@@ -164,32 +161,30 @@
                                 'tamanho' => trim($item->tamanho),
                                 'preco' => number_format($item->preco_venda, 2, ',', '')
                             ];
+                            
+                            $detalhes = [];
+                            if (!empty($marcaLabel)) $detalhes[] = $marcaLabel;
+                            if (!empty($item->estado)) $detalhes[] = $item->estado;
+                            if (!empty($item->nota_curadoria)) $detalhes[] = 'Cur: ' . $item->nota_curadoria . '/10';
+                            if (!empty($item->motivo_curadoria)) $detalhes[] = 'Local: ' . $item->motivo_curadoria;
+                            if (!empty($item->cor)) $detalhes[] = $item->cor;
+                            if (!empty($item->tamanho)) $detalhes[] = 'Tam: ' . $item->tamanho;
+                            $detalhesFormatados = implode(' • ', $detalhes);
                         @endphp
-                        <tr>
-                            <td class="px-4 py-3 text-center print:hidden">
+                        <tr class="hover:bg-gray-50 cursor-pointer transition-colors" @click.self="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                            <td class="px-4 py-3 text-center print:hidden" @click.stop>
                                 <input type="checkbox" class="item-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500" data-item="{{ json_encode($itemData) }}">
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap text-xs text-gray-500 font-mono">
-                                {{ $itemData['codigo'] }}
+                            <td class="px-4 py-3" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                                <p class="text-sm font-semibold text-gray-900 leading-tight">
+                                    {{ $item->nome }}
+                                </p>
+                                <p class="text-[10px] text-gray-400 font-mono mt-0.5">
+                                    Cod: <span class="font-bold">{{ $itemData['codigo'] }}</span>
+                                </p>
                             </td>
-                            <td class="px-4 py-3">
-                                <div class="text-sm font-semibold text-gray-900">{{ $item->nome }}</div>
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600 capitalize">
-                                {{ $marcaLabel }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600">
-                                {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center text-xs text-gray-600">
-                                @if ($avaliacao->tipo_compra === 'direta')
-                                    -
-                                @else
-                                    Est: <span class="font-semibold text-gray-900">{{ $item->estado }}</span> · Cur: <span class="font-semibold text-gray-900">{{ $item->nota_curadoria }}/10</span>
-                                    @if($item->motivo_curadoria)
-                                        <br><span class="text-xs text-gray-500">Local: {{ $item->motivo_curadoria }}</span>
-                                    @endif
-                                @endif
+                            <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                                {{ $detalhesFormatados }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900">
                                 R$ {{ number_format($item->preco_venda, 2, ',', '.') }}
@@ -221,6 +216,65 @@
                     @endforeach
                 </tbody>
             </table>
+            
+            <!-- Modal Template (Alpine) - Inside the same scope -->
+            <template x-teleport="body">
+                <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden" style="display: none;">
+                    <!-- Backdrop -->
+                    <div class="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity" @click="closeModal"
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"></div>
+                         
+                    <!-- Modal Panel -->
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all relative z-10"
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+                         
+                        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <h3 class="text-lg font-bold text-gray-900">Editar Detalhes</h3>
+                            <button @click="closeModal" type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Descrição (Nome)</label>
+                                <input type="text" x-model="itemForm.nome" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Cor</label>
+                                    <input type="text" x-model="itemForm.cor" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tamanho</label>
+                                    <input type="text" x-model="itemForm.tamanho" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm uppercase">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+                            <button @click="closeModal" type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none">
+                                Cancelar
+                            </button>
+                            <button @click="submitEdit" type="button" :disabled="saving" class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50">
+                                <i class="fas fa-spinner fa-spin mr-2" x-show="saving"></i>
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
 
         {{-- Seção de Totais e Assinatura --}}
@@ -472,4 +526,61 @@
         }
     });
 </script>
+
+<!-- AlpineJS Quick Edit Manager -->
+<script>
+    function quickEditManager() {
+        return {
+            showModal: false,
+            saving: false,
+            itemForm: {
+                id: null,
+                nome: '',
+                cor: '',
+                tamanho: ''
+            },
+            
+            openModal(id, nome, cor, tamanho) {
+                this.itemForm.id = id;
+                this.itemForm.nome = nome;
+                this.itemForm.cor = cor;
+                this.itemForm.tamanho = tamanho;
+                this.showModal = true;
+            },
+            
+            closeModal() {
+                this.showModal = false;
+            },
+            
+            async submitEdit() {
+                this.saving = true;
+                try {
+                    const response = await fetch(`/admin/avaliacoes/item/${this.itemForm.id}/quick-update`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(this.itemForm)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Reload page to reflect changes
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Erro ao atualizar o item');
+                    }
+                } catch (error) {
+                    alert('Erro de comunicação. Tente novamente.');
+                } finally {
+                    this.saving = false;
+                }
+            }
+        }
+    }
+</script>
+
 @endsection

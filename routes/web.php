@@ -293,6 +293,7 @@ Route::middleware('auth')->group(function () {
         Route::post('avaliacoes/{avaliacao}/finalizar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'finalize'])->name('admin.avaliacoes.finalize');
         Route::post('avaliacoes/{avaliacao}/cancelar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'cancel'])->name('admin.avaliacoes.cancel');
         Route::post('avaliacoes/{avaliacao}/enviar-whatsapp', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'sendWhatsappNotification'])->name('admin.avaliacoes.send-whatsapp');
+        Route::put('avaliacoes/item/{id}/quick-update', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'quickUpdateItem'])->name('admin.avaliacoes.quick-update-item');
         Route::resource('marcas', \App\Http\Controllers\Admin\MarcaController::class)->names([
             'index' => 'admin.marcas.index',
             'create' => 'admin.marcas.create',

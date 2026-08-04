@@ -456,6 +456,57 @@ class AvaliacaoController extends Controller
     }
 
     /**
+     * Atualização rápida (via modal/AJAX) de um item específico do lote.
+     */
+    public function quickUpdateItem(Request $request, $id)
+    {
+        $request->validate([
+            'nome' => 'required|string|max:255',
+            'cor' => 'nullable|string|max:255',
+            'tamanho' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $avaliacaoItem = \App\Models\AvaliacaoItem::findOrFail($id);
+            
+            $avaliacaoItem->update([
+                'nome' => titleCase($request->nome),
+                'cor' => titleCase($request->cor),
+                'tamanho' => strtoupper($request->tamanho),
+            ]);
+
+            // Se o item já estiver no estoque, atualiza a tabela items também
+            if ($avaliacaoItem->item_id) {
+                $item = \App\Models\Item::find($avaliacaoItem->item_id);
+                if ($item) {
+                    $item->update([
+                        'nome_do_produto' => titleCase($request->nome),
+                        'cor' => titleCase($request->cor),
+                        'tamanho' => strtoupper($request->tamanho),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item atualizado com sucesso.',
+                'item' => [
+                    'id' => $avaliacaoItem->id,
+                    'nome' => $avaliacaoItem->nome,
+                    'cor' => $avaliacaoItem->cor,
+                    'tamanho' => $avaliacaoItem->tamanho
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erro no quickUpdateItem: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar o item.'
+            ], 500);
+        }
+    }
+
+    /**
      * Cancela uma avaliação finalizada, removendo os itens do estoque e estornando o financeiro.
      */
     public function cancel(Avaliacao $avaliacao)
