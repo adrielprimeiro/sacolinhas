@@ -250,32 +250,39 @@
                             </button>
                         </div>
                         
-                        <div class="p-6 space-y-5">
+                        <div class="space-y-5">
                             <div>
                                 <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Descrição (Nome)</label>
-                                <input type="text" x-ref="nomeInput" x-model="itemForm.nome" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800 capitalize">
+                                <input type="text" x-ref="nomeInput" x-model="itemForm.nome" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 px-4 font-semibold text-gray-800 capitalize">
                             </div>
                             
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Cor</label>
-                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800 capitalize">
+                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 px-4 font-semibold text-gray-800 capitalize">
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Tamanho</label>
-                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase py-3 font-semibold text-gray-800">
+                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase py-3 px-4 font-semibold text-gray-800">
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="px-6 pb-6 pt-2 flex gap-3">
-                            <button @click="closeModal" type="button" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                                Cancelar
-                            </button>
-                            <button @click="submitEdit" type="button" :disabled="saving" class="flex-1 inline-flex items-center justify-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
+                        <div class="px-6 pb-6 pt-2 flex flex-col gap-3">
+                            <div class="flex gap-3">
+                                <button @click="closeModal" type="button" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                                    Cancelar
+                                </button>
+                                <button @click="submitEdit(false)" type="button" :disabled="saving" class="flex-1 inline-flex items-center justify-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
+                                    <i class="fas fa-spinner fa-spin mr-2" x-show="saving"></i>
+                                    <i class="fas fa-check mr-2" x-show="!saving"></i>
+                                    Confirmar
+                                </button>
+                            </div>
+                            <button @click="submitEdit(true)" type="button" :disabled="saving" class="w-full inline-flex items-center justify-center py-3.5 bg-gray-800 hover:bg-gray-900 text-white text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-sm disabled:opacity-50 mt-1">
                                 <i class="fas fa-spinner fa-spin mr-2" x-show="saving"></i>
-                                <i class="fas fa-check mr-2" x-show="!saving"></i>
-                                Confirmar
+                                <i class="fas fa-print mr-2" x-show="!saving"></i>
+                                Confirmar e Imprimir
                             </button>
                         </div>
                     </div>
@@ -359,7 +366,6 @@
     }
 }
 </style>
-</style>
 
 @php
     function titleCase($str) {
@@ -399,7 +405,7 @@
             });
         }
 
-        function printLabelsMultiplas(etiquetas) {
+        window.imprimirEtiquetas = function(etiquetas) {
             const htmlContent = `
                 <!DOCTYPE html>
                 <html>
@@ -420,7 +426,7 @@
                     }
                     .label {
                         width: 60mm;
-                        height: 29mm; /* Reduzido para 29mm para garantir que não passe para outra página */
+                        height: 29mm;
                         display: flex;
                         flex-direction: row;
                         justify-content: space-between;
@@ -519,6 +525,7 @@
                         window.onload = function() {
                             setTimeout(function() {
                                 window.print();
+                                window.close();
                             }, 500);
                         };
                     <\/script>
@@ -530,6 +537,9 @@
             printWindow.document.write(htmlContent);
             printWindow.document.close();
         }
+
+        // Keep local reference for buttons
+        window.printLabelsMultiplas = window.imprimirEtiquetas;
     });
 </script>
 
@@ -563,7 +573,7 @@
                 this.showModal = false;
             },
             
-            async submitEdit() {
+            async submitEdit(imprimir = false) {
                 this.saving = true;
                 try {
                     const response = await fetch(`/admin/avaliacoes/item/${this.itemForm.id}/quick-update`, {
@@ -579,14 +589,22 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Reload page to reflect changes
-                        window.location.reload();
+                        if (imprimir && data.etiqueta) {
+                            if (typeof window.imprimirEtiquetas === 'function') {
+                                window.imprimirEtiquetas([data.etiqueta]);
+                                setTimeout(() => window.location.reload(), 1500);
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            window.location.reload();
+                        }
                     } else {
                         alert(data.message || 'Erro ao atualizar o item');
+                        this.saving = false;
                     }
-                } catch (error) {
-                    alert('Erro de comunicação. Tente novamente.');
-                } finally {
+                } catch (e) {
+                    alert('Erro de conexão ao salvar.');
                     this.saving = false;
                 }
             }

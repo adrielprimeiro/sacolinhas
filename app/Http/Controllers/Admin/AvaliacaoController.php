@@ -487,6 +487,20 @@ class AvaliacaoController extends Controller
                 }
             }
 
+            $marcaLabel = $avaliacaoItem->marca;
+            if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
+            elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
+            elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
+            
+            $codigo = $avaliacaoItem->item ? $avaliacaoItem->item->sku : 'AV'.$avaliacaoItem->id;
+            
+            $etiqueta = [
+                'codigo' => $codigo,
+                'produto' => strtoupper($marcaLabel) . '   ' . \Illuminate\Support\Str::title($avaliacaoItem->nome) . ' ' . \Illuminate\Support\Str::title($avaliacaoItem->cor) . ' [' . strtolower($avaliacaoItem->estado) . ']',
+                'tamanho' => trim($avaliacaoItem->tamanho),
+                'preco' => number_format($avaliacaoItem->preco_venda, 2, ',', '')
+            ];
+
             return response()->json([
                 'success' => true,
                 'message' => 'Item atualizado com sucesso.',
@@ -495,7 +509,8 @@ class AvaliacaoController extends Controller
                     'nome' => $avaliacaoItem->nome,
                     'cor' => $avaliacaoItem->cor,
                     'tamanho' => $avaliacaoItem->tamanho
-                ]
+                ],
+                'etiqueta' => $etiqueta
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erro no quickUpdateItem: ' . $e->getMessage());
