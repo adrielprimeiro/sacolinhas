@@ -180,7 +180,7 @@
                                     {{ $item->nome }}
                                 </p>
                                 <p class="text-[10px] text-gray-400 font-mono mt-0.5">
-                                    Cod: <span class="font-bold">{{ $itemData['codigo'] }}</span>
+                                    <span class="font-bold">{{ $itemData['codigo'] }}</span>
                                 </p>
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
