@@ -253,26 +253,26 @@
                         <div class="p-6 space-y-5">
                             <div>
                                 <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Descrição (Nome)</label>
-                                <input type="text" x-model="itemForm.nome" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
+                                <input type="text" x-model="itemForm.nome" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
                             </div>
                             
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Cor</label>
-                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
+                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Tamanho</label>
-                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase py-3 font-semibold text-gray-800">
+                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase py-3 font-semibold text-gray-800">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="px-6 pb-6 pt-2 flex gap-3">
-                            <button @click="closeModal" type="button" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold uppercase tracking-wide rounded-[14px] transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            <button @click="closeModal" type="button" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
                                 Cancelar
                             </button>
-                            <button @click="submitEdit" type="button" :disabled="saving" class="flex-1 inline-flex items-center justify-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold uppercase tracking-wide rounded-[14px] transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
+                            <button @click="submitEdit" type="button" :disabled="saving" class="flex-1 inline-flex items-center justify-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold uppercase tracking-wide rounded-2xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
                                 <i class="fas fa-spinner fa-spin mr-2" x-show="saving"></i>
                                 <i class="fas fa-check mr-2" x-show="!saving"></i>
                                 Confirmar
