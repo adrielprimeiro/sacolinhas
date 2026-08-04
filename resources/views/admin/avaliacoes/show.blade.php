@@ -155,11 +155,18 @@
                             elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
                             elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
                             
+                            $payoutVal = 0.00;
+                            if ($avaliacao->status === 'finalizada') {
+                                $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
+                            } else {
+                                $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
+                            }
+                            
                             $itemData = [
                                 'codigo' => $item->item ? $item->item->sku : 'AV'.$item->id,
-                                'produto' => strtoupper($marcaLabel) . '   ' . titleCase($item->nome) . ' ' . titleCase($item->cor) . ' [' . strtolower($item->estado) . ']',
+                                'produto' => strtoupper($marcaLabel) . '   ' . \Illuminate\Support\Str::title($item->nome) . ' ' . \Illuminate\Support\Str::title($item->cor) . ' [' . strtolower($item->estado) . ']',
                                 'tamanho' => trim($item->tamanho),
-                                'preco' => number_format($item->preco_venda, 2, ',', '')
+                                'preco' => number_format($payoutVal, 2, ',', '')
                             ];
                             
                             $detalhes = [];
@@ -193,14 +200,6 @@
                                 {{ $item->taxa_curadoria > 0 ? '- R$ ' . number_format($item->taxa_curadoria, 2, ',', '.') : '-' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-black text-indigo-600">
-                                @php
-                                    $payoutVal = 0.00;
-                                    if ($avaliacao->status === 'finalizada') {
-                                        $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
-                                    } else {
-                                        $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
-                                    }
-                                @endphp
                                 R$ {{ number_format($payoutVal, 2, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center print:hidden">
