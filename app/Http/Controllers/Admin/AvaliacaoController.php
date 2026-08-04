@@ -494,19 +494,13 @@ class AvaliacaoController extends Controller
             
             $codigo = $avaliacaoItem->item ? $avaliacaoItem->item->sku : 'AV'.$avaliacaoItem->id;
             
-            $avaliacao = $avaliacaoItem->avaliacao;
-            $payoutVal = 0.00;
-            if ($avaliacao->status === 'finalizada') {
-                $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $avaliacaoItem->payout_credito : $avaliacaoItem->payout_dinheiro;
-            } else {
-                $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $avaliacaoItem->payout_credito : $avaliacaoItem->payout_credito;
-            }
+            $precoEtiqueta = $avaliacaoItem->item ? $avaliacaoItem->item->preco : $avaliacaoItem->preco_venda;
             
             $etiqueta = [
                 'codigo' => $codigo,
                 'produto' => strtoupper($marcaLabel) . '   ' . \Illuminate\Support\Str::title($avaliacaoItem->nome) . ' ' . \Illuminate\Support\Str::title($avaliacaoItem->cor) . ' [' . strtolower($avaliacaoItem->estado) . ']',
                 'tamanho' => trim($avaliacaoItem->tamanho),
-                'preco' => number_format($payoutVal, 2, ',', '')
+                'preco' => number_format($precoEtiqueta, 2, ',', '')
             ];
 
             return response()->json([

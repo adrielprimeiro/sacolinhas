@@ -161,12 +161,14 @@
                             } else {
                                 $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
                             }
+
+                            $precoEtiqueta = $item->item ? $item->item->preco : $item->preco_venda;
                             
                             $itemData = [
                                 'codigo' => $item->item ? $item->item->sku : 'AV'.$item->id,
                                 'produto' => strtoupper($marcaLabel) . '   ' . \Illuminate\Support\Str::title($item->nome) . ' ' . \Illuminate\Support\Str::title($item->cor) . ' [' . strtolower($item->estado) . ']',
                                 'tamanho' => trim($item->tamanho),
-                                'preco' => number_format($payoutVal, 2, ',', '')
+                                'preco' => number_format($precoEtiqueta, 2, ',', '')
                             ];
                             
                             $detalhes = [];
