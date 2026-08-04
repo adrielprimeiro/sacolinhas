@@ -624,21 +624,34 @@ function evaluationForm(config) {
 
         async saveSilently() {
             if (!this.userId) return;
-            const validItems = this.items.filter(i => i.categoria_id && i.nome && i.marca_id);
+            const validItems = this.items.filter(i => i.nome && i.nome.trim() !== '');
             if (validItems.length === 0) return;
             
             const form = document.getElementById('evaluation-form');
-            if (!form.checkValidity()) return;
+            // Removemos form.checkValidity() pois pode bloquear silenciosamente o auto-save se um campo não obrigatório para rascunho estiver vazio
             
             this.isSavingSilently = true;
             try {
                 const formData = new FormData(form);
                 formData.append('ajax', '1');
+                
+                // Remover itens que estão completamente vazios para não quebrar a validação do Laravel
+                for (let i = 0; i < this.items.length; i++) {
+                    if (!this.items[i].nome || !this.items[i].nome.trim()) {
+                        for (let key of Array.from(formData.keys())) {
+                            if (key.startsWith(`items[${i}][`)) {
+                                formData.delete(key);
+                            }
+                        }
+                    }
+                }
+
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: formData,
                     headers: { 'Accept': 'application/json' }
                 });
+                
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && data.id && !form.action.endsWith('/' + data.id)) {
@@ -655,9 +668,12 @@ function evaluationForm(config) {
                             title.innerText = 'Editar Lote de Avaliação #' + String(data.id).padStart(5, '0');
                         }
                     }
+                } else {
+                    const err = await res.json();
+                    console.error('Auto-save falhou com erro do servidor:', err);
                 }
             } catch (e) {
-                console.error('Auto-save falhou', e);
+                console.error('Auto-save falhou na requisição', e);
             } finally {
                 this.isSavingSilently = false;
             }
