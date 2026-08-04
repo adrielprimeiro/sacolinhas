@@ -470,8 +470,8 @@ class AvaliacaoController extends Controller
             $avaliacaoItem = \App\Models\AvaliacaoItem::findOrFail($id);
             
             $avaliacaoItem->update([
-                'nome' => titleCase($request->nome),
-                'cor' => titleCase($request->cor),
+                'nome' => \Illuminate\Support\Str::title(strtolower($request->nome)),
+                'cor' => \Illuminate\Support\Str::title(strtolower($request->cor)),
                 'tamanho' => strtoupper($request->tamanho),
             ]);
 
@@ -480,8 +480,8 @@ class AvaliacaoController extends Controller
                 $item = \App\Models\Item::find($avaliacaoItem->item_id);
                 if ($item) {
                     $item->update([
-                        'nome_do_produto' => titleCase($request->nome),
-                        'cor' => titleCase($request->cor),
+                        'nome_do_produto' => \Illuminate\Support\Str::title(strtolower($request->nome)),
+                        'cor' => \Illuminate\Support\Str::title(strtolower($request->cor)),
                         'tamanho' => strtoupper($request->tamanho),
                     ]);
                 }

@@ -253,13 +253,13 @@
                         <div class="p-6 space-y-5">
                             <div>
                                 <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Descrição (Nome)</label>
-                                <input type="text" x-model="itemForm.nome" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
+                                <input type="text" x-ref="nomeInput" x-model="itemForm.nome" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800 capitalize">
                             </div>
                             
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Cor</label>
-                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
+                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-2xl border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800 capitalize">
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Tamanho</label>
@@ -554,6 +554,9 @@
                 this.itemForm.cor = cor;
                 this.itemForm.tamanho = tamanho;
                 this.showModal = true;
+                setTimeout(() => {
+                    this.$refs.nomeInput.focus();
+                }, 100);
             },
             
             closeModal() {
