@@ -171,11 +171,11 @@
                             if (!empty($item->tamanho)) $detalhes[] = 'Tam: ' . $item->tamanho;
                             $detalhesFormatados = implode(' • ', $detalhes);
                         @endphp
-                        <tr class="hover:bg-gray-50 cursor-pointer transition-colors" @click.self="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                        <tr class="hover:bg-gray-50 cursor-pointer transition-colors" @click.self="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
                             <td class="px-4 py-3 text-center print:hidden" @click.stop>
                                 <input type="checkbox" class="item-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500" data-item="{{ json_encode($itemData) }}">
                             </td>
-                            <td class="px-4 py-3" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                            <td class="px-4 py-3" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
                                 <p class="text-sm font-semibold text-gray-900 leading-tight">
                                     {{ $item->nome }}
                                 </p>
@@ -183,7 +183,7 @@
                                     Cod: <span class="font-bold">{{ $itemData['codigo'] }}</span>
                                 </p>
                             </td>
-                            <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}')">
+                            <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
                                 {{ $detalhesFormatados }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900">
@@ -230,7 +230,7 @@
                          x-transition:leave-end="opacity-0"></div>
                          
                     <!-- Modal Panel -->
-                    <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full mx-4 transform transition-all relative z-10"
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all relative z-10 overflow-hidden"
                          x-transition:enter="ease-out duration-300"
                          x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                          x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
@@ -238,38 +238,44 @@
                          x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
                          x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
                          
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-2xl font-bold text-gray-800">Editar Detalhes</h3>
-                            <button @click="closeModal" type="button" class="text-gray-400 hover:text-gray-600 focus:outline-none transition">
-                                <i class="fas fa-times text-xl"></i>
+                        <div class="bg-blue-100 px-6 py-5 border-b border-blue-200 flex justify-between items-start">
+                            <div>
+                                <h3 class="text-xl font-bold text-indigo-900 flex items-center gap-2">
+                                    <i class="fas fa-edit text-indigo-700"></i> Editar Detalhes
+                                </h3>
+                                <p class="text-sm text-indigo-800 italic mt-1 font-semibold" x-text="itemForm.sku || 'Carregando...'"></p>
+                            </div>
+                            <button @click="closeModal" type="button" class="text-indigo-400 hover:text-indigo-600 focus:outline-none transition bg-blue-50 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center">
+                                <i class="fas fa-times"></i>
                             </button>
                         </div>
                         
-                        <div class="space-y-5">
+                        <div class="p-6 space-y-5">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">Descrição (Nome)</label>
-                                <input type="text" x-model="itemForm.nome" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm">
+                                <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Descrição (Nome)</label>
+                                <input type="text" x-model="itemForm.nome" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
                             </div>
                             
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Cor</label>
-                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm">
+                                    <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Cor</label>
+                                    <input type="text" x-model="itemForm.cor" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm py-3 font-semibold text-gray-800">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tamanho</label>
-                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase">
+                                    <label class="block text-[11px] font-extrabold text-gray-500 uppercase tracking-wider mb-2">Tamanho</label>
+                                    <input type="text" x-model="itemForm.tamanho" class="w-full rounded-[14px] border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition sm:text-sm uppercase py-3 font-semibold text-gray-800">
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="mt-8 flex justify-end gap-3">
-                            <button @click="closeModal" type="button" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        <div class="px-6 pb-6 pt-2 flex gap-3">
+                            <button @click="closeModal" type="button" class="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold uppercase tracking-wide rounded-[14px] transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
                                 Cancelar
                             </button>
-                            <button @click="submitEdit" type="button" :disabled="saving" class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
+                            <button @click="submitEdit" type="button" :disabled="saving" class="flex-1 inline-flex items-center justify-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold uppercase tracking-wide rounded-[14px] transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm disabled:opacity-50">
                                 <i class="fas fa-spinner fa-spin mr-2" x-show="saving"></i>
-                                Salvar Alterações
+                                <i class="fas fa-check mr-2" x-show="!saving"></i>
+                                Confirmar
                             </button>
                         </div>
                     </div>
@@ -535,13 +541,15 @@
             saving: false,
             itemForm: {
                 id: null,
+                sku: '',
                 nome: '',
                 cor: '',
                 tamanho: ''
             },
             
-            openModal(id, nome, cor, tamanho) {
+            openModal(id, nome, cor, tamanho, sku) {
                 this.itemForm.id = id;
+                this.itemForm.sku = sku;
                 this.itemForm.nome = nome;
                 this.itemForm.cor = cor;
                 this.itemForm.tamanho = tamanho;
