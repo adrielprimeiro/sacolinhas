@@ -64,7 +64,8 @@ class PedidoObserver
             }
 
             // 2. Criar ou atualizar o lançamento de receita com o valor bruto do pedido
-            if ($valorBruto > 0) {
+            $isCancelado = $pedido->status_pedido === 'cancelado';
+            if ($valorBruto > 0 && !$isCancelado) {
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                     ->where('referencia_id', $pedido->id)
                     ->first();
@@ -122,51 +123,58 @@ class PedidoObserver
             // Sincronizar Débito e Crédito da Compra na Conta Corrente do Cliente (Ledger)
             if ($pessoa->user_id) {
                 if (!str_starts_with($pedido->numero_pedido, 'REC-')) {
-                    $valorNetDebito = max(0.00, $valorBruto - $saldoUtilizado);
-
-                    // 1. Débito da compra pelo valor LÍQUIDO do pedido (apenas se for maior que 0)
-                    if ($valorNetDebito > 0) {
-                        \App\Models\ContaCorrente::updateOrCreate(
-                            [
-                                'referencia_tipo' => 'pedido',
-                                'referencia_id' => $pedido->id,
-                                'tipo_movimentacao' => 'debito',
-                            ],
-                            [
-                                'user_id' => $pessoa->user_id,
-                                'valor' => $valorNetDebito,
-                                'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
-                                'classificacao_id' => $classificacaoId,
-                                'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
-                            ]
-                        );
-                    } else {
-                        \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
-                            ->where('referencia_id', $pedido->id)
-                            ->where('tipo_movimentacao', 'debito')
-                            ->delete();
-                    }
-
-                    // 2. Se houver saldo utilizado (desconto), cria/atualiza o lançamento correspondente
-                    if ($saldoUtilizado > 0) {
-                        \App\Models\ContaCorrente::updateOrCreate(
-                            [
-                                'referencia_tipo' => 'desconto',
-                                'referencia_id' => $pedido->id,
-                            ],
-                            [
-                                'user_id' => $pessoa->user_id,
-                                'tipo_movimentacao' => 'debito',
-                                'valor' => $saldoUtilizado,
-                                'descricao' => "Desconto Carteira: Pedido {$pedido->numero_pedido}",
-                                'classificacao_id' => $classificacaoId,
-                                'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
-                            ]
-                        );
-                    } else {
-                        \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+                    
+                    if ($isCancelado) {
+                        \App\Models\ContaCorrente::whereIn('referencia_tipo', ['pedido', 'desconto', 'tolerancia'])
                             ->where('referencia_id', $pedido->id)
                             ->delete();
+                    } else {
+                        $valorNetDebito = max(0.00, $valorBruto - $saldoUtilizado);
+
+                        // 1. Débito da compra pelo valor LÍQUIDO do pedido (apenas se for maior que 0)
+                        if ($valorNetDebito > 0) {
+                            \App\Models\ContaCorrente::updateOrCreate(
+                                [
+                                    'referencia_tipo' => 'pedido',
+                                    'referencia_id' => $pedido->id,
+                                    'tipo_movimentacao' => 'debito',
+                                ],
+                                [
+                                    'user_id' => $pessoa->user_id,
+                                    'valor' => $valorNetDebito,
+                                    'descricao' => "Compra: Pedido {$pedido->numero_pedido}",
+                                    'classificacao_id' => $classificacaoId,
+                                    'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                                ]
+                            );
+                        } else {
+                            \App\Models\ContaCorrente::where('referencia_tipo', 'pedido')
+                                ->where('referencia_id', $pedido->id)
+                                ->where('tipo_movimentacao', 'debito')
+                                ->delete();
+                        }
+
+                        // 2. Se houver saldo utilizado (desconto), cria/atualiza o lançamento correspondente
+                        if ($saldoUtilizado > 0) {
+                            \App\Models\ContaCorrente::updateOrCreate(
+                                [
+                                    'referencia_tipo' => 'desconto',
+                                    'referencia_id' => $pedido->id,
+                                ],
+                                [
+                                    'user_id' => $pessoa->user_id,
+                                    'tipo_movimentacao' => 'debito',
+                                    'valor' => $saldoUtilizado,
+                                    'descricao' => "Desconto Carteira: Pedido {$pedido->numero_pedido}",
+                                    'classificacao_id' => $classificacaoId,
+                                    'data_movimentacao' => $pedido->data_pedido ?? $pedido->created_at,
+                                ]
+                            );
+                        } else {
+                            \App\Models\ContaCorrente::where('referencia_tipo', 'desconto')
+                                ->where('referencia_id', $pedido->id)
+                                ->delete();
+                        }
                     }
 
                     // Limpar qualquer registro antigo de crédito de uso de saldo para este pedido na ContaCorrente (preservando devoluções!)
