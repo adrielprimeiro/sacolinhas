@@ -281,76 +281,72 @@ class ItemController extends Controller
     }
 	
 	
-	    // NOVO MÉTODO PARA INVENTÁRIO
-	public function inventario(Request $request)
-	{
-		// 1. LÓGICA DO BOTÃO LIMPAR (RESET)
-		if ($request->has('reset')) {
-			session(['inventory_start_time' => now()]);
-			session()->forget('last_status');
-			return redirect()->route('inventario')
-				->with('success', '🧹 Lista reiniciada! Mostrando apenas itens modificados a partir de agora.');
-		}
+    // INVENTÁRIO SCANNER
+    public function inventario(Request $request)
+    {
+        return view('admin.items.inventario');
+    }
 
-		// 2. DEFINIR O INÍCIO DO FILTRO
-		$dataInicio = session('inventory_start_time', now()->setTimezone('America/Sao_Paulo')->startOfDay()->setTimezone('UTC'));
-		$query = Item::where('updated_at', '>=', $dataInicio);
+    public function inventarioProcessar(Request $request)
+    {
+        $request->validate([
+            'codigos'     => 'required|array|min:1',
+            'codigos.*'   => 'required|string',
+            'status'      => 'nullable|string',
+            'localizacao' => 'nullable|string|max:255',
+        ]);
 
-		// 3. LÓGICA DE SCANNER E ATUALIZAÇÃO
-		if ($request->filled('search')) {
-			$codigoBuscado = trim($request->get('search'));
-			
-			// Busca no banco todo
-			$itemEncontrado = Item::where('codigo', $codigoBuscado)->first();
-			
-			if ($itemEncontrado) {
-				// ✅ ITEM ENCONTRADO
-				if ($request->filled('status')) {
-					$novoStatus = $request->get('status');
-					
-					// 🛑 VERIFICAÇÃO DE SEGURANÇA (AQUI ESTÁ A MUDANÇA)
-					// Se o status atual for IGUAL ao novo status...
-					if ($itemEncontrado->status === $novoStatus) {
-						$statusLabel = $this->getStatusLabel($novoStatus);
-						
-						// Retorna com AVISO (Warning) e NÃO atualiza nada no banco
-						return redirect()->route('inventario')
-							->with('warning', "⚠️ Nenhuma alteração: O item '{$itemEncontrado->nome_do_produto}' já possui o status '{$statusLabel}'.")
-							->with('last_status', $novoStatus); // Mantém o dropdown selecionado
-					}
+        $codigos     = array_unique(array_filter($request->codigos));
+        $novoStatus  = $request->status;
+        $localizacao = $request->localizacao;
 
-					// Se chegou aqui, é porque o status É DIFERENTE. Pode atualizar.
-					$itemEncontrado->update([
-						'status' => $novoStatus,
-						'updated_at' => now() 
-					]);
-					
-					$statusLabel = $this->getStatusLabel($novoStatus);
-					$message = "✅ Item '{$itemEncontrado->nome_do_produto}' (código: {$codigoBuscado}) atualizado para '{$statusLabel}'!";
-					
-					return redirect()->route('inventario')
-						->with('success', $message)
-						->with('last_status', $novoStatus);
-				}
-				
-				// Apenas encontrou (sem status selecionado no dropdown)
-				$message = "ℹ️ Item verificado: '{$itemEncontrado->nome_do_produto}' (código: {$codigoBuscado})";
-				return redirect()->route('inventario')->with('info', $message);
-				
-			} else {
-				// ❌ NÃO ENCONTRADO
-				return redirect()->route('inventario')
-					->with('warning', "❌ Item não encontrado com o código: {$codigoBuscado}")
-					->with('last_status', $request->get('status'));
-			}
-		}
+        $resultados = [];
+        $atualizados = 0;
+        $naoEncontrados = [];
 
-		// 4. ORDENAÇÃO
-		$items = $query->orderBy('updated_at', 'desc')->paginate(10);
-		
-		return view('admin.items.inventario', compact('items'));
-	}	
-	
+        foreach ($codigos as $codigo) {
+            $item = Item::where('codigo', $codigo)->first();
+            if (!$item) {
+                $naoEncontrados[] = $codigo;
+                $resultados[] = ['codigo' => $codigo, 'ok' => false, 'msg' => 'Não encontrado'];
+                continue;
+            }
+
+            $dados = [];
+            if ($novoStatus && $item->status !== $novoStatus) {
+                $dados['status'] = $novoStatus;
+            }
+            if ($localizacao !== null && $localizacao !== '') {
+                $dados['localizacao'] = $localizacao;
+            }
+
+            if (!empty($dados)) {
+                $dados['updated_at'] = now();
+                $item->update($dados);
+                $atualizados++;
+            }
+
+            $resultados[] = [
+                'codigo' => $codigo,
+                'ok'     => true,
+                'nome'   => $item->nome_do_produto,
+                'status' => $item->fresh()->status,
+            ];
+        }
+
+        $statusLabel = $this->getStatusLabel($novoStatus ?? '');
+
+        $msg = "✅ {$atualizados} item(ns) atualizado(s)";
+        if ($novoStatus)  $msg .= " → status: {$statusLabel}";
+        if ($localizacao) $msg .= " | local: {$localizacao}";
+        if (count($naoEncontrados)) {
+            $msg .= " | ⚠️ Não encontrados: " . implode(', ', $naoEncontrados);
+        }
+
+        return redirect()->route('inventario')->with('success', $msg);
+    }
+
+
 	private function getStatusLabel($status)
 	{
 		$labels = [

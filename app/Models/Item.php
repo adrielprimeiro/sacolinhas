@@ -27,7 +27,8 @@ class Item extends Model
         'cor',
         'tamanho',
         'image',
-        'status'
+        'status',
+        'localizacao'
     ];
 
     protected $casts = [

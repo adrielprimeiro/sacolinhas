@@ -237,6 +237,7 @@ Route::middleware('auth')->group(function () {
     // ===== ITEMS =====
     Route::resource('items', ItemController::class);
 	Route::get('/inventario', [ItemController::class, 'inventario'])->name('inventario');
+	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
 
 
 
