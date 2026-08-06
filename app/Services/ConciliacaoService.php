@@ -170,8 +170,16 @@ class ConciliacaoService
             $pedidoId = $payment['external_reference'] ?? null;
             if ($pedidoId && is_numeric($pedidoId)) {
                 $pedido = \App\Models\Pedido::find($pedidoId);
-                // Se o pedido existe e já está aprovado no sistema, podemos tentar auto-conciliar
-                if ($pedido && $pedido->status_pagamento === 'aprovado' && $transacao->status === 'pendente') {
+                // Se o pedido existe, tentamos auto-conciliar (a transação do MP já está aprovada)
+                if ($pedido && $transacao->status === 'pendente') {
+                    // Garantimos que o pedido também seja marcado como aprovado, se já não estiver
+                    if ($pedido->status_pagamento !== 'aprovado') {
+                        $pedido->status_pagamento = 'aprovado';
+                        $pedido->status_pedido = 'pago';
+                        $pedido->save();
+                        
+                        // Opcional: chamar darBaixaEstoque se necessário, mas o webhook geralmente faz isso.
+                    }
                     $this->autoConciliarPedido($transacao, $pedido);
                 }
             }
@@ -885,7 +893,12 @@ class ConciliacaoService
 
             if ($tipo === 'entrada' && $externalReference && is_numeric($externalReference)) {
                 $pedido = \App\Models\Pedido::find($externalReference);
-                if ($pedido && $pedido->status_pagamento === 'aprovado' && $transacao->status === 'pendente') {
+                if ($pedido && $transacao->status === 'pendente') {
+                    if ($pedido->status_pagamento !== 'aprovado') {
+                        $pedido->status_pagamento = 'aprovado';
+                        $pedido->status_pedido = 'pago';
+                        $pedido->save();
+                    }
                     $this->autoConciliarPedido($transacao, $pedido);
                 }
             }

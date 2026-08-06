@@ -364,13 +364,19 @@ class ConciliacaoController extends Controller
         $pessoas = Pessoa::all(['id', 'nome']);
         $contas = \App\Models\ContaBancaria::all(['id', 'nome']);
 
+        $ignorados = TransacaoExtrato::where('status', 'ignorado')
+            ->orderBy('data', 'desc')
+            ->limit(50)
+            ->get();
+
         return view('admin.financeiro.conciliacao', compact(
             'extratoComSugestoes',
             'lancamentosReceita',
             'lancamentosDespesa',
             'classificacoes',
             'pessoas',
-            'contas'
+            'contas',
+            'ignorados'
         ));
     }
 
@@ -529,6 +535,79 @@ class ConciliacaoController extends Controller
     {
         $transacao->update(['status' => 'ignorado']);
         return back()->with('success', 'Transação ignorada.');
+    }
+
+    public function ignorarTransacao(Request $request, $id)
+    {
+        $transacao = TransacaoExtrato::findOrFail($id);
+        
+        $transacao->update([
+            'status' => 'ignorado'
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function restaurarTransacao(Request $request, $id)
+    {
+        $transacao = TransacaoExtrato::findOrFail($id);
+        
+        $transacao->update([
+            'status' => 'pendente'
+        ]);
+
+        return back()->with('success', 'Transação restaurada com sucesso.');
+    }
+
+    public function conciliarTransferencia(Request $request)
+    {
+        $request->validate([
+            'transacao_saida_id' => 'required|exists:transacoes_extrato,id',
+            'transacao_entrada_id' => 'required|exists:transacoes_extrato,id',
+        ]);
+
+        $saida = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_saida_id);
+        $entrada = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_entrada_id);
+
+        if ($saida->tipo !== 'saida' || $entrada->tipo !== 'entrada') {
+            return back()->with('error', 'Uma transação deve ser de saída e a outra de entrada.');
+        }
+
+        // Buscar categoria de transferência
+        $catTransferencia = ClassificacaoFinanceira::where('nome', 'Transferência entre Contas')->first();
+        if (!$catTransferencia) {
+            return back()->with('error', 'Categoria "Transferência entre Contas" não encontrada.');
+        }
+
+        \DB::transaction(function () use ($saida, $entrada, $catTransferencia) {
+            // Lançamento de Saída
+            $lancSaida = Lancamento::create([
+                'tipo' => 'despesa',
+                'status' => 'pago',
+                'pessoa_id' => null,
+                'classificacao_financeira_id' => $catTransferencia->id,
+                'data_emissao' => $saida->data,
+                'data_vencimento' => $saida->data,
+                'valor_total' => $saida->valor,
+                'descricao' => 'Transferência enviada - ' . $saida->descricao,
+            ]);
+            $this->service->vincular($saida->id, $lancSaida->id);
+
+            // Lançamento de Entrada
+            $lancEntrada = Lancamento::create([
+                'tipo' => 'receita',
+                'status' => 'pago',
+                'pessoa_id' => null,
+                'classificacao_financeira_id' => $catTransferencia->id,
+                'data_emissao' => $entrada->data,
+                'data_vencimento' => $entrada->data,
+                'valor_total' => $entrada->valor,
+                'descricao' => 'Transferência recebida - ' . $entrada->descricao,
+            ]);
+            $this->service->vincular($entrada->id, $lancEntrada->id);
+        });
+
+        return back()->with('success', 'Transferência conciliada com sucesso!');
     }
 
     public function getSugestaoPessoa(TransacaoExtrato $transacao)

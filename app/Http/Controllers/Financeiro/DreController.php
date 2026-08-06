@@ -31,6 +31,9 @@ class DreController extends Controller
         $outrasReceitas = (float) Lancamento::where('tipo', 'receita')
             ->where('referencia_tipo', '!=', 'pedido')
             ->whereNotIn('classificacao_financeira_id', [84]) // Ignora recargas de carteira
+            ->whereDoesntHave('classificacaoFinanceira', function ($q) {
+                $q->where('nome', 'Transferência entre Contas');
+            })
             ->whereBetween('data_emissao', [$inicio->toDateString(), $fim->toDateString()])
             ->sum('valor_total');
 
@@ -70,6 +73,9 @@ class DreController extends Controller
         $lancamentosDespesas = Lancamento::with('classificacaoFinanceira')
             ->where('tipo', 'despesa')
             ->whereNotIn('classificacao_financeira_id', [19, 81])
+            ->whereDoesntHave('classificacaoFinanceira', function ($q) {
+                $q->where('nome', 'Transferência entre Contas');
+            })
             ->whereBetween('data_emissao', [$inicio->toDateString(), $fim->toDateString()])
             ->get();
 

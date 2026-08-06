@@ -177,6 +177,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
         Route::get('/buscar-lancamentos', [ConciliacaoController::class, 'buscarLancamentos'])->name('buscar-lancamentos');
         Route::get('/get-sugestao-pessoa/{transacao}', [ConciliacaoController::class, 'getSugestaoPessoa'])->name('get-sugestao-pessoa');
         Route::post('/{transacao}/ignorar', [ConciliacaoController::class, 'ignorar'])->name('ignorar');
+        Route::post('/{transacao}/restaurar', [ConciliacaoController::class, 'restaurarTransacao'])->name('restaurar');
+        Route::post('/transferencia', [ConciliacaoController::class, 'conciliarTransferencia'])->name('transferencia');
         Route::post('/regras',         [ConciliacaoController::class, 'salvarRegra'])->name('regras.salvar');
         Route::delete('/regras/{id}',  [ConciliacaoController::class, 'excluirRegra'])->name('regras.excluir');
     });

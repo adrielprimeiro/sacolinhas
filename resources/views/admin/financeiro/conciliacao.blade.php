@@ -8,12 +8,15 @@
 
 @include('admin.financeiro._subnav')
 
-<div x-data="conciliacaoApp()">
+<div x-data="conciliacaoApp({{ $extratoComSugestoes->map(fn($item) => ['id' => $item['transacao']->id, 'tipo' => $item['transacao']->tipo, 'descricao' => $item['transacao']->descricao, 'valor' => $item['transacao']->valor_bruto ?? $item['transacao']->valor, 'origem' => $item['transacao']->origem, 'data' => $item['transacao']->data->format('d/m/Y')])->toJson() }})">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
         <div class="flex gap-2 flex-wrap">
             <button @click="showModalRegras = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #d97706;">
                 <i class="fas fa-cog"></i>Regras Padrão
+            </button>
+            <button @click="showModalIgnorados = true" class="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-200 transition shadow-sm flex items-center gap-2">
+                <i class="fas fa-trash-restore"></i>Ignorados ({{ $ignorados->count() }})
             </button>
             <button @click="showModalOfx = true" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition shadow-sm">
                 <i class="fas fa-file-upload mr-2"></i>Importar Extrato (OFX/CSV)
@@ -87,6 +90,11 @@
 
                         {{-- Action Buttons --}}
                         <div class="flex items-center gap-1.5">
+                            <button @click='openTransferModal({{ $t->id }}, "{{ $t->tipo }}", {{ json_encode($t->descricao) }}, {{ $t->valor_bruto ?? $t->valor }}, "{{ $t->origem }}")' 
+                                    class="bg-white border border-gray-200 text-teal-600 hover:bg-teal-50 p-2.5 rounded-xl transition shadow-sm text-xs font-bold flex items-center gap-1.5"
+                                    title="Conciliar como Transferência">
+                                <i class="fas fa-exchange-alt"></i> <span class="hidden sm:inline">Transferência</span>
+                            </button>
                             <button @click='openQuickCreate({{ $t->id }}, {{ json_encode($t->descricao) }}, {{ $t->valor }}, "{{ $t->tipo }}", "{{ $t->origem }}")' 
                                     class="bg-white border border-gray-200 text-indigo-600 hover:bg-indigo-50 p-2.5 rounded-xl transition shadow-sm text-xs font-bold flex items-center gap-1.5"
                                     title="Criar lançamento rápido e conciliar">
@@ -320,7 +328,7 @@
                 <button type="button" @click="showModalRegras = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
             
-            <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+            <div class="p-6 overflow-y-auto space-y-6 flex-grow min-h-0" style="max-height: 65vh;">
                 <p class="text-xs text-gray-500 leading-relaxed font-semibold">
                     Aqui você pode gerenciar os padrões de conciliação. Quando uma transação do extrato contiver o termo pesquisado na descrição, o sistema sugerirá automaticamente o Contato e a Classificação configurados.
                 </p>
@@ -673,20 +681,147 @@
             </div>
         </form>
     </div>
+    <!-- Modal Transferência -->
+    <div x-show="showModalTransferencia" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <form action="{{ route('financeiro.conciliacao.transferencia') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
+            @csrf
+            
+            <template x-if="transferData.tipo_origem === 'saida'">
+                <input type="hidden" name="transacao_saida_id" :value="transferData.id_origem">
+            </template>
+            <template x-if="transferData.tipo_origem === 'entrada'">
+                <input type="hidden" name="transacao_entrada_id" :value="transferData.id_origem">
+            </template>
+
+            <template x-if="transferData.tipo_origem === 'saida'">
+                <input type="hidden" name="transacao_entrada_id" :value="transferData.id_destino">
+            </template>
+            <template x-if="transferData.tipo_origem === 'entrada'">
+                <input type="hidden" name="transacao_saida_id" :value="transferData.id_destino">
+            </template>
+
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800"><i class="fas fa-exchange-alt text-teal-600 mr-2"></i>Conciliar como Transferência</h3>
+                <button type="button" @click="showModalTransferencia = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-5">
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Transação Selecionada</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-gray-700" x-text="transferData.descricao_origem"></span>
+                        <span class="text-sm font-black" :class="transferData.tipo_origem === 'entrada' ? 'text-green-600' : 'text-red-600'" x-text="(transferData.tipo_origem === 'entrada' ? '+' : '-') + ' R$ ' + transferData.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
+                        Selecione a transação correspondente na outra conta:
+                    </label>
+                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white" required>
+                        <option value="">Selecione a transação correspondente...</option>
+                        <template x-for="opcao in transferDestinosDisponiveis" :key="opcao.id">
+                            <option :value="opcao.id" x-text="opcao.data + ' - Conta ' + opcao.origem.toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
+                        </template>
+                    </select>
+                    
+                    <p x-show="transferDestinosDisponiveis.length === 0" class="mt-2 text-xs text-red-500 font-bold">
+                        Não há transações pendentes de <span x-text="transferData.tipo_origem === 'saida' ? 'entrada' : 'saída'"></span> disponíveis para vincular.
+                    </p>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
+                <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="bg-teal-600 text-white disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none px-8 py-2 rounded-xl text-sm font-black hover:bg-teal-700 shadow-md transition-all" :disabled="!transferData.id_destino">Confirmar Transferência</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal Ignorados -->
+    <div x-show="showModalIgnorados" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
+        <div class="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <h3 class="font-black text-gray-800"><i class="fas fa-trash-restore text-gray-500 mr-2"></i>Transações Ignoradas</h3>
+                <button type="button" @click="showModalIgnorados = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-4 flex-grow min-h-0" style="max-height: 65vh;">
+                @if($ignorados->isEmpty())
+                    <p class="text-sm text-gray-500 text-center italic py-8">Nenhuma transação ignorada no momento.</p>
+                @else
+                    <div class="space-y-3">
+                        @foreach($ignorados as $ignorado)
+                            @php $isEnt = $ignorado->tipo === 'entrada'; @endphp
+                            <div class="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:border-gray-200 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 {{ $isEnt ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600' }}">
+                                        <i class="fas {{ $isEnt ? 'fa-arrow-down' : 'fa-arrow-up' }} text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-gray-400">{{ $ignorado->data->format('d/m/Y') }}</span>
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                                                {{ $ignorado->origem }}
+                                            </span>
+                                        </div>
+                                        <h4 class="text-sm font-bold text-gray-800 mt-0.5">{{ $ignorado->descricao }}</h4>
+                                        <div class="text-xs font-black {{ $isEnt ? 'text-green-600' : 'text-red-600' }} mt-0.5">
+                                            {{ $isEnt ? '+' : '-' }} R$ {{ number_format($ignorado->valor_bruto ?? $ignorado->valor, 2, ',', '.') }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <form action="{{ route('financeiro.conciliacao.restaurar', $ignorado->id) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-100 shadow-sm" title="Restaurar para Pendente">
+                                        <i class="fas fa-undo"></i> Restaurar
+                                    </button>
+                                </form>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+            
+            <div class="px-6 py-4 bg-gray-50 flex justify-end flex-shrink-0">
+                <button type="button" @click="showModalIgnorados = false" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-xl text-sm font-bold transition">Fechar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @endsection
 
 @push('scripts')
 <script>
-    function conciliacaoApp() {
+    function conciliacaoApp(pendentes = []) {
         return {
+            pendentes: pendentes,
             quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
+            transferData: { id_origem: '', tipo_origem: '', descricao_origem: '', valor: 0, id_destino: '', origem_origem: '' },
             showModalOfx: false,
             showModalRegras: false,
             showModalMp: false,
             showModalInter: false,
             showModalQuick: false,
+            showModalTransferencia: false,
+            showModalIgnorados: false,
+
+            openTransferModal(id, tipo, desc, valor, origem) {
+                this.transferData = {
+                    id_origem: id,
+                    tipo_origem: tipo,
+                    descricao_origem: desc,
+                    valor: valor,
+                    id_destino: '',
+                    origem_origem: origem
+                };
+                this.showModalTransferencia = true;
+            },
+
+            get transferDestinosDisponiveis() {
+                let oposto = this.transferData.tipo_origem === 'saida' ? 'entrada' : 'saida';
+                return this.pendentes.filter(p => p.tipo === oposto && p.id !== this.transferData.id_origem && p.origem !== this.transferData.origem_origem);
+            },
 
             openQuickCreate(id, desc, valor, tipo, origem) {
                 let defaultConta = 1;
