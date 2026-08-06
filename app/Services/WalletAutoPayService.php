@@ -110,7 +110,7 @@ class WalletAutoPayService
                         now()->toDateString(),
                         $valorParaAbater,
                         3, // Conta ID 3 = Carteira Cliente
-                        'carteira_cliente'
+                        'saldo_carteira'
                     );
 
                     // Descontar da carteira do cliente
