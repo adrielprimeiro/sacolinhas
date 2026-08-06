@@ -113,23 +113,12 @@ class WalletAutoPayService
                         'saldo_carteira'
                     );
 
-                    // Descontar da carteira do cliente
-                    $novoSaldo = $saldoDisponivel - $valorParaAbater;
-                    
-                    ContaCorrente::create([
-                        'user_id' => $userId,
-                        'tipo_movimentacao' => 'debito',
-                        'valor' => $valorParaAbater,
-                        'descricao' => "Pagamento Automático do Pedido {$pedido->numero_pedido}",
-                        'referencia_tipo' => 'pedido',
-                        'referencia_id' => $pedido->id,
-                        'classificacao_id' => 17, // Assumindo ID 17 = Vendas / ou alguma classificação adequada.
-                        'saldo_anterior' => $saldoDisponivel,
-                        'saldo_atual' => $novoSaldo,
-                        'data_movimentacao' => now(),
-                    ]);
+                    // Não precisamos criar um débito na ContaCorrente aqui!
+                    // O PedidoObserver já criou o débito referente à compra no momento em que o Pedido foi criado.
+                    // E o MovimentacaoObserver não cria crédito quando a forma de pagamento é 'saldo_carteira'.
+                    // Portanto, o saldo da carteira do cliente não sofre impacto nesta operação (ele já reflete a dívida ou o pagamento real).
 
-                    $saldoDisponivel = $novoSaldo;
+                    $saldoDisponivel -= $valorParaAbater;
                     $pedidosAbatidos++;
 
                     // Atualizar status do pedido
