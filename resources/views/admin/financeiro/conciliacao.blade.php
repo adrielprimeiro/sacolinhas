@@ -731,7 +731,12 @@
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
                 <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
-                <button type="submit" class="bg-teal-600 text-white disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none px-8 py-2 rounded-xl text-sm font-black hover:bg-teal-700 shadow-md transition-all" :disabled="!transferData.id_destino">Confirmar Transferência</button>
+                <button type="submit" 
+                        class="px-8 py-2 rounded-xl text-sm font-black transition-all"
+                        :class="transferData.id_destino ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+                        :disabled="!transferData.id_destino">
+                    Confirmar Transferência
+                </button>
             </div>
         </form>
     </div>
