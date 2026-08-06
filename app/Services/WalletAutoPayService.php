@@ -34,11 +34,11 @@ class WalletAutoPayService
                                       ->lockForUpdate() // Evita concorrência
                                       ->first();
 
-            if (!$ultimaMov || $ultimaMov->saldo_atual <= 0) {
+            if (!$ultimaMov) {
                 return 0;
             }
 
-            $saldoDisponivel = $ultimaMov->saldo_atual;
+            $saldoDisponivelReal = $ultimaMov->saldo_atual;
             $pedidosAbatidos = 0;
 
             // Busca pedidos pendentes ou parciais do usuário (mais antigos primeiro)
@@ -47,24 +47,55 @@ class WalletAutoPayService
                                       ->orderBy('created_at', 'asc')
                                       ->get();
 
-            foreach ($pedidosPendentes as $pedido) {
-                if ($saldoDisponivel <= 0.01) {
-                    break;
-                }
+            if ($pedidosPendentes->isEmpty()) {
+                return 0;
+            }
 
-                // Encontra o lançamento de receita correspondente ao pedido
+            // Calcula o total em lançamentos pendentes (receitas) desses pedidos
+            $totalPendentes = 0;
+            $totalPago = 0;
+            
+            $lancamentosProcessar = collect();
+
+            foreach ($pedidosPendentes as $pedido) {
                 $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                                         ->where('referencia_id', $pedido->id)
                                         ->where('tipo', 'receita')
                                         ->whereIn('status', ['pendente', 'pago_parcial'])
                                         ->first();
+                if ($lancamento) {
+                    $totalPendentes += $lancamento->valor_total;
+                    $jaPago = $lancamento->movimentacoes()->sum('valor_pago');
+                    $totalPago += $jaPago;
+                    
+                    $lancamentosProcessar->push([
+                        'pedido' => $pedido,
+                        'lancamento' => $lancamento,
+                        'valor_restante' => max(0, $lancamento->valor_total - $jaPago)
+                    ]);
+                }
+            }
+
+            // A mágica matemática: Calcula o saldo virtual disponível apenas para os pedidos, 
+            // abatendo automaticamente qualquer dívida paralela que a carteira possua.
+            $saldoDisponivel = ($totalPendentes + $saldoDisponivelReal) - $totalPago;
+
+            if ($saldoDisponivel <= 0.01) {
+                return 0; // Não há saldo virtual suficiente para abater pedidos
+            }
+
+            foreach ($lancamentosProcessar as $item) {
+                if ($saldoDisponivel <= 0.01) {
+                    break;
+                }
+
+                $pedido = $item['pedido'];
+                $lancamento = $item['lancamento'];
+                $valorRestante = $item['valor_restante'];
 
                 if (!$lancamento) {
                     continue;
                 }
-
-                $valorJaPago = $lancamento->movimentacoes()->sum('valor_pago');
-                $valorRestante = max(0, $lancamento->valor_total - $valorJaPago);
 
                 if ($valorRestante <= 0.01) {
                     continue; // Já foi pago de alguma forma
