@@ -71,5 +71,13 @@
             });
 
             Log::info("Recálculo de saldos concluído para user_id: {$this->userId}");
+
+            // Tenta processar o pagamento automático de pedidos com o novo saldo recalculado
+            try {
+                $autoPayService = app(\App\Services\WalletAutoPayService::class);
+                $autoPayService->process($this->userId);
+            } catch (\Exception $e) {
+                Log::error("Erro ao tentar auto-pagar pedidos no RecalcularSaldosJob: " . $e->getMessage());
+            }
         }
     }
