@@ -93,21 +93,23 @@
                         <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Preço de Venda</p>
                         <p class="text-3xl font-bold text-green-600">{{ $item->formatted_price }}</p>
                     </div>
-                    @if($item->custo)
+                    <div>
                         <div class="pb-1">
-                            <p class="text-xs text-gray-400">Custo: R$ {{ number_format($item->custo, 2, ',', '.') }}</p>
+                            <p class="text-xs text-gray-400">Custo: R$ {{ number_format((float)$item->custo, 2, ',', '.') }}</p>
                             @php
-                                $margem = $item->custo > 0
-                                    ? (($item->preco - $item->custo) / $item->custo) * 100
+                                $margem = (float)$item->custo > 0
+                                    ? (((float)$item->preco - (float)$item->custo) / (float)$item->custo) * 100
                                     : null;
                             @endphp
                             @if($margem !== null)
                                 <p class="text-xs {{ $margem >= 0 ? 'text-green-500' : 'text-red-500' }}">
                                     Margem: {{ number_format($margem, 1) }}%
                                 </p>
+                            @else
+                                <p class="text-xs text-gray-400">Margem: N/A</p>
                             @endif
                         </div>
-                    @endif
+                    </div>
                 </div>
             </div>
 
