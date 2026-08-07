@@ -528,6 +528,22 @@ const chipsEl       = document.getElementById('chips');
 document.getElementById('btn-open-scanner').addEventListener('click', openScanner);
 
 async function openScanner() {
+    // Cria e desbloqueia o AudioContext AQUI — dentro do gesto do usuário
+    try {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        // Toca um beep silencioso para desbloquear o contexto no iOS
+        const osc = audioCtx.createOscillator();
+        const vol = audioCtx.createGain();
+        vol.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        osc.connect(vol); vol.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.001);
+    } catch(e) {}
+
     try {
         // Pedir câmera traseira
         state.stream = await navigator.mediaDevices.getUserMedia({
@@ -565,33 +581,29 @@ function startDecoding() {
     });
 }
 
-// ── Audio Context (lazy init para iOS) ──
+// ── Audio Context ──
 let audioCtx = null;
-function getAudioCtx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    return audioCtx;
-}
 
-// ── Beep via Web Audio API ──
-function beep({ freq = 880, duration = 80, type = 'sine', gain = 0.4 } = {}) {
+async function beep({ freq = 880, duration = 80, type = 'sine', gain = 0.35 } = {}) {
     try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const vol = ctx.createGain();
+        if (!audioCtx) return; // não inicializado ainda
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const vol = audioCtx.createGain();
         osc.connect(vol);
-        vol.connect(ctx.destination);
-        osc.type      = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        vol.gain.setValueAtTime(gain, ctx.currentTime);
-        vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + duration / 1000);
-    } catch(e) { /* silencia erros de autoplay */ }
+        vol.connect(audioCtx.destination);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        vol.gain.setValueAtTime(gain, audioCtx.currentTime);
+        vol.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration / 1000);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + duration / 1000);
+    } catch(e) {}
 }
 
 // ── Vibração ──
-function vibrate(pattern) {
-    if (navigator.vibrate) navigator.vibrate(pattern);
+function vibrate(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
 }
 
 // ── Processar código lido ──
