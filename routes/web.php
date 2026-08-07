@@ -692,6 +692,7 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
         Route::get('/', [ClubeDashboardController::class, 'index'])->name('dashboard');
         Route::post('/desafio', [ClubeDashboardController::class, 'lancarDesafio'])->name('desafio.lancar');
         Route::post('/pagamento', [ClubeDashboardController::class, 'registrarPagamento'])->name('pagamento.registrar');
+        Route::post('/pagamento/desfazer', [ClubeDashboardController::class, 'desfazerPagamento'])->name('pagamento.desfazer');
         Route::post('/mudar-grupo', [ClubeDashboardController::class, 'mudarGrupo'])->name('mudar-grupo');
 
         Route::get('mensalidades/registrar', [ClubeMensalidadesController::class, 'create'])

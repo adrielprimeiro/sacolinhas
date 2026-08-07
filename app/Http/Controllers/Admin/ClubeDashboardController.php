@@ -175,6 +175,41 @@ class ClubeDashboardController extends Controller
         return back()->with('success', 'Pagamento registrado e pontos atualizados!');
     }
 
+    public function desfazerPagamento(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'mes_ano' => 'required|date_format:Y-m',
+        ]);
+
+        [$ano, $mes] = array_map('intval', explode('-', $request->mes_ano));
+
+        DB::transaction(function () use ($request, $ano, $mes) {
+            DB::table('clube_mensalidades')
+                ->where('user_id', $request->user_id)
+                ->where('competencia_ano', $ano)
+                ->where('competencia_mes', $mes)
+                ->update([
+                    'status_pagamento' => 'pendente',
+                    'pago_em' => null,
+                ]);
+            
+            // Recalcular pontos da assinatura
+            DB::unprepared("CALL atualizar_pontuacoes_user({$request->user_id}, '{$request->mes_ano}')");
+            
+            // Se tiver grupo, recalcular
+            $grupoId = DB::table('grupo_membros')
+                ->where('user_id', $request->user_id)
+                ->value('grupo_id');
+
+            if ($grupoId) {
+                DB::unprepared("CALL atualizar_pontuacoes_grupo($grupoId, '{$request->mes_ano}')");
+            }
+        });
+
+        return back()->with('success', 'Pagamento desfeito com sucesso e pontos recalculados!');
+    }
+
     public function mudarGrupo(Request $request)
     {
         $request->validate([

@@ -134,11 +134,16 @@
         {{-- Linha 2: status pagamento + grupo --}}
         <div class="flex items-center justify-between mb-3">
             <div>
-                @if($p->status_pagamento === 'pago')
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Pago
-                    </span>
-                @else
+                        @if($p->status_pagamento === 'pago')
+                            <form action="{{ route('admin.clube.pagamento.desfazer') }}" method="POST" class="inline" onsubmit="return confirm('Tem certeza que deseja desfazer o pagamento deste cliente? Os pontos desta mensalidade serão retirados.')">
+                                @csrf
+                                <input type="hidden" name="user_id" value="{{ $p->id }}">
+                                <input type="hidden" name="mes_ano" value="{{ $mesAtual }}">
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 transition" title="Clique para desfazer o pagamento">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Pago
+                                </button>
+                            </form>
+                        @else
                     <button onclick="openModalPagamento({{ $p->id }}, '{{ $p->name }}')"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 active:bg-red-200">
                         <i class="fas fa-exclamation-circle text-[10px]"></i> Pendente
@@ -216,9 +221,14 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         @if($p->status_pagamento === 'pago')
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Pago
-                            </span>
+                            <form action="{{ route('admin.clube.pagamento.desfazer') }}" method="POST" class="inline" onsubmit="return confirm('Tem certeza que deseja desfazer o pagamento deste cliente? Os pontos desta mensalidade serão retirados.')">
+                                @csrf
+                                <input type="hidden" name="user_id" value="{{ $p->id }}">
+                                <input type="hidden" name="mes_ano" value="{{ $mesAtual }}">
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 transition" title="Clique para desfazer o pagamento">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Pago
+                                </button>
+                            </form>
                         @else
                             <button onclick="openModalPagamento({{ $p->id }}, '{{ $p->name }}')"
                                     class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 transition">
