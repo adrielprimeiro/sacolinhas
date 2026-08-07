@@ -565,6 +565,35 @@ function startDecoding() {
     });
 }
 
+// ── Audio Context (lazy init para iOS) ──
+let audioCtx = null;
+function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+}
+
+// ── Beep via Web Audio API ──
+function beep({ freq = 880, duration = 80, type = 'sine', gain = 0.4 } = {}) {
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const vol = ctx.createGain();
+        osc.connect(vol);
+        vol.connect(ctx.destination);
+        osc.type      = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        vol.gain.setValueAtTime(gain, ctx.currentTime);
+        vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration / 1000);
+    } catch(e) { /* silencia erros de autoplay */ }
+}
+
+// ── Vibração ──
+function vibrate(pattern) {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
 // ── Processar código lido ──
 function handleScan(code) {
     const now = Date.now();
@@ -578,6 +607,17 @@ function handleScan(code) {
     // Adiciona à lista
     const isDup = state.scanned.some(s => s.codigo === code);
     state.scanned.push({ codigo: code, at: now });
+
+    if (isDup) {
+        // Duplicado: beep grave + vibração longa (aviso)
+        beep({ freq: 300, duration: 120, type: 'square', gain: 0.3 });
+        setTimeout(() => beep({ freq: 260, duration: 120, type: 'square', gain: 0.3 }), 150);
+        vibrate([80, 60, 150]);
+    } else {
+        // Leitura nova: beep agudo curto + vibração curta (confirmação)
+        beep({ freq: 1046, duration: 90, type: 'sine', gain: 0.35 });
+        vibrate(80);
+    }
 
     // Feedback visual
     flashGreen();
