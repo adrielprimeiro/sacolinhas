@@ -140,6 +140,10 @@
                         <dt class="text-gray-400 font-medium">Categoria</dt>
                         <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->codigo_da_categoria ?? '—' }}</dd>
                     </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Localização</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->localizacao ?? '—' }}</dd>
+                    </div>
                     @if($item->pedido)
                         <div class="col-span-2">
                             <dt class="text-gray-400 font-medium">Pedido</dt>
