@@ -528,8 +528,8 @@ const chipsEl       = document.getElementById('chips');
 document.getElementById('btn-open-scanner').addEventListener('click', openScanner);
 
 async function openScanner() {
-    // PASSO 1: Inicializar áudio DENTRO do gesto do usuário
-    await initAudio();
+    // PASSO 1: Desbloquear áudio DENTRO do gesto do usuário (obrigatório iOS)
+    await unlockAudio();
 
     // PASSO 2: Abrir câmera
     try {
@@ -567,63 +567,70 @@ function startDecoding() {
     });
 }
 
-// ── Sistema de Áudio com AudioBuffer pré-renderizado ──
-let audioCtx    = null;
-let bufOk       = null;   // beep de confirmação
-let bufDup      = null;   // beep de duplicado
+// ── Sistema de Áudio via HTML Audio + WAV gerado em memória ──
+let sndOk  = null;   // beep de confirmação
+let sndDup = null;   // beep de duplicado (dois pulsos graves)
 
-async function initAudio() {
-    try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        await audioCtx.resume();
+// Gera um WAV PCM 16-bit mono como Blob URL
+function makeBeepUrl(freqs, durations, sr = 22050) {
+    // freqs e durations são arrays paralelos de segmentos
+    const segments = freqs.map((f, i) => ({ f, d: durations[i] }));
+    const totalSamples = segments.reduce((s, seg) => s + Math.floor(sr * seg.d), 0);
+    const buf  = new ArrayBuffer(44 + totalSamples * 2);
+    const view = new DataView(buf);
+    const str  = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
 
-        const sr = audioCtx.sampleRate;
+    str(0,  'RIFF');  view.setUint32(4,  36 + totalSamples * 2, true);
+    str(8,  'WAVE');  str(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20,  1, true);   // PCM
+    view.setUint16(22,  1, true);   // mono
+    view.setUint32(24, sr, true);   // sample rate
+    view.setUint32(28, sr * 2, true); // byte rate
+    view.setUint16(32,  2, true);   // block align
+    view.setUint16(34, 16, true);   // bits/sample
+    str(36, 'data'); view.setUint32(40, totalSamples * 2, true);
 
-        // Buffer OK: 880 Hz, 100ms, com fade-out
-        bufOk = audioCtx.createBuffer(1, Math.floor(sr * 0.10), sr);
-        (function() {
-            const d = bufOk.getChannelData(0);
-            for (let i = 0; i < d.length; i++) {
-                const t  = i / sr;
-                const env = 1 - (t / 0.10);          // fade linear
-                d[i] = 0.4 * Math.sin(2 * Math.PI * 880 * t) * env;
-            }
-        })();
+    let offset = 44;
+    let globalT = 0;
+    for (const seg of segments) {
+        const n = Math.floor(sr * seg.d);
+        for (let i = 0; i < n; i++) {
+            const t   = i / sr;
+            const env = seg.f > 0 ? (1 - t / seg.d) : 0;   // fade-out linear
+            const v   = seg.f > 0
+                ? Math.sin(2 * Math.PI * seg.f * (globalT + t)) * env * 0.5
+                : 0;
+            view.setInt16(offset, Math.round(v * 32767), true);
+            offset += 2;
+        }
+        globalT += seg.d;
+    }
 
-        // Buffer DUP: 400Hz → 320Hz, 220ms, dois pulsos
-        bufDup = audioCtx.createBuffer(1, Math.floor(sr * 0.22), sr);
-        (function() {
-            const d = bufDup.getChannelData(0);
-            for (let i = 0; i < d.length; i++) {
-                const t   = i / sr;
-                const freq = t < 0.10 ? 400 : (t < 0.12 ? 0 : 320); // pausa entre pulsos
-                const env  = t < 0.10 ? (1 - t / 0.10) : (t < 0.12 ? 0 : 1 - (t - 0.12) / 0.10);
-                d[i] = freq > 0 ? 0.35 * Math.sin(2 * Math.PI * freq * t) * env : 0;
-            }
-        })();
-
-        // Toca buffer silencioso para desbloquear iOS completamente
-        const silent = audioCtx.createBuffer(1, 1, sr);
-        const src    = audioCtx.createBufferSource();
-        src.buffer   = silent;
-        src.connect(audioCtx.destination);
-        src.start(0);
-
-    } catch(e) { console.warn('Audio init failed:', e); }
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 }
 
-function playBuffer(buf) {
-    if (!audioCtx || !buf) return;
+async function unlockAudio() {
     try {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const src = audioCtx.createBufferSource();
-        src.buffer = buf;
-        src.connect(audioCtx.destination);
-        src.start(0);
-    } catch(e) {}
+        sndOk  = new Audio(makeBeepUrl([880],        [0.12]));
+        sndDup = new Audio(makeBeepUrl([380, 0, 300], [0.10, 0.06, 0.12]));
+
+        // Play + pause imediato dentro do gesto — desbloqueia iOS
+        for (const snd of [sndOk, sndDup]) {
+            snd.volume = 1.0;
+            await snd.play();
+            snd.pause();
+            snd.currentTime = 0;
+        }
+    } catch(e) { console.warn('Audio unlock:', e); }
 }
 
-// ── Vibração ──
+function playSound(snd) {
+    if (!snd) return;
+    try { snd.currentTime = 0; snd.play().catch(() => {}); } catch(e) {}
+}
+
+// ── Vibração (Android only) ──
 function vibrate(ms) {
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
 }
@@ -643,11 +650,12 @@ function handleScan(code) {
     state.scanned.push({ codigo: code, at: now });
 
     if (isDup) {
-        playBuffer(bufDup);
+        playSound(sndDup);
         vibrate([80, 60, 120]);
     } else {
-        playBuffer(bufOk);
+        playSound(sndOk);
         vibrate(70);
+
     }
 
     // Feedback visual
