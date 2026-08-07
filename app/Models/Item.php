@@ -67,7 +67,7 @@ class Item extends Model
     // Accessor para preço formatado
     public function getFormattedPriceAttribute()
     {
-        return 'R\$ ' . number_format((float) $this->preco, 2, ',', '.');
+        return 'R$ ' . number_format((float) $this->preco, 2, ',', '.');
     }
 
     // Scope para itens disponíveis
