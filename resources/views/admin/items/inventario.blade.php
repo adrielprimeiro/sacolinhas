@@ -528,24 +528,11 @@ const chipsEl       = document.getElementById('chips');
 document.getElementById('btn-open-scanner').addEventListener('click', openScanner);
 
 async function openScanner() {
-    // Cria e desbloqueia o AudioContext AQUI — dentro do gesto do usuário
-    try {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-        // Toca um beep silencioso para desbloquear o contexto no iOS
-        const osc = audioCtx.createOscillator();
-        const vol = audioCtx.createGain();
-        vol.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        osc.connect(vol); vol.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.001);
-    } catch(e) {}
+    // PASSO 1: Inicializar áudio DENTRO do gesto do usuário
+    await initAudio();
 
+    // PASSO 2: Abrir câmera
     try {
-        // Pedir câmera traseira
         state.stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: 'environment' },
@@ -558,7 +545,7 @@ async function openScanner() {
         video.srcObject = state.stream;
         await video.play();
 
-        setupScreen.style.display  = 'none';
+        setupScreen.style.display   = 'none';
         scannerScreen.style.display = 'flex';
 
         startDecoding();
@@ -574,30 +561,65 @@ function startDecoding() {
     state.reader = new ZXing.BrowserMultiFormatReader();
     state.scanning = true;
 
-    // decodeFromStream lê continuamente sem parar
     state.reader.decodeFromStream(state.stream, video, (result, err) => {
         if (!result) return;
         handleScan(result.getText());
     });
 }
 
-// ── Audio Context ──
-let audioCtx = null;
+// ── Sistema de Áudio com AudioBuffer pré-renderizado ──
+let audioCtx    = null;
+let bufOk       = null;   // beep de confirmação
+let bufDup      = null;   // beep de duplicado
 
-async function beep({ freq = 880, duration = 80, type = 'sine', gain = 0.35 } = {}) {
+async function initAudio() {
     try {
-        if (!audioCtx) return; // não inicializado ainda
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const vol = audioCtx.createGain();
-        osc.connect(vol);
-        vol.connect(audioCtx.destination);
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        vol.gain.setValueAtTime(gain, audioCtx.currentTime);
-        vol.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration / 1000);
-        osc.start(audioCtx.currentTime);
-        osc.stop(audioCtx.currentTime + duration / 1000);
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        await audioCtx.resume();
+
+        const sr = audioCtx.sampleRate;
+
+        // Buffer OK: 880 Hz, 100ms, com fade-out
+        bufOk = audioCtx.createBuffer(1, Math.floor(sr * 0.10), sr);
+        (function() {
+            const d = bufOk.getChannelData(0);
+            for (let i = 0; i < d.length; i++) {
+                const t  = i / sr;
+                const env = 1 - (t / 0.10);          // fade linear
+                d[i] = 0.4 * Math.sin(2 * Math.PI * 880 * t) * env;
+            }
+        })();
+
+        // Buffer DUP: 400Hz → 320Hz, 220ms, dois pulsos
+        bufDup = audioCtx.createBuffer(1, Math.floor(sr * 0.22), sr);
+        (function() {
+            const d = bufDup.getChannelData(0);
+            for (let i = 0; i < d.length; i++) {
+                const t   = i / sr;
+                const freq = t < 0.10 ? 400 : (t < 0.12 ? 0 : 320); // pausa entre pulsos
+                const env  = t < 0.10 ? (1 - t / 0.10) : (t < 0.12 ? 0 : 1 - (t - 0.12) / 0.10);
+                d[i] = freq > 0 ? 0.35 * Math.sin(2 * Math.PI * freq * t) * env : 0;
+            }
+        })();
+
+        // Toca buffer silencioso para desbloquear iOS completamente
+        const silent = audioCtx.createBuffer(1, 1, sr);
+        const src    = audioCtx.createBufferSource();
+        src.buffer   = silent;
+        src.connect(audioCtx.destination);
+        src.start(0);
+
+    } catch(e) { console.warn('Audio init failed:', e); }
+}
+
+function playBuffer(buf) {
+    if (!audioCtx || !buf) return;
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(audioCtx.destination);
+        src.start(0);
     } catch(e) {}
 }
 
@@ -621,14 +643,11 @@ function handleScan(code) {
     state.scanned.push({ codigo: code, at: now });
 
     if (isDup) {
-        // Duplicado: beep grave + vibração longa (aviso)
-        beep({ freq: 300, duration: 120, type: 'square', gain: 0.3 });
-        setTimeout(() => beep({ freq: 260, duration: 120, type: 'square', gain: 0.3 }), 150);
-        vibrate([80, 60, 150]);
+        playBuffer(bufDup);
+        vibrate([80, 60, 120]);
     } else {
-        // Leitura nova: beep agudo curto + vibração curta (confirmação)
-        beep({ freq: 1046, duration: 90, type: 'sine', gain: 0.35 });
-        vibrate(80);
+        playBuffer(bufOk);
+        vibrate(70);
     }
 
     // Feedback visual
@@ -641,6 +660,7 @@ function handleScan(code) {
         ? `⚠️ Repetido: <b>${code}</b>`
         : `✅ <b>${code}</b>`;
 }
+
 
 // ── Flash verde ──
 function flashGreen() {
