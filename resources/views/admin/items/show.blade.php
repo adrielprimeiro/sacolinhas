@@ -1,236 +1,193 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $item->nome_do_produto }} - Sacolinhas</title> {{-- Atualizado para nome_do_produto --}}
+@extends('layouts.app')
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+@section('title', $item->nome_do_produto)
 
-    <style>
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-        .item-image {
-            max-width: 100%;
-            height: 300px;
-            object-fit: cover;
-            border-radius: 15px;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #6c757d;
-        }
-        .price-display {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #28a745;
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 sidebar text-white p-0">
-                <div class="p-3">
-                    <h4>🛒 Admin</h4>
-                    <hr>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-white active" href="{{ route('items.index') }}">
-                                <i class="fas fa-box"></i> Itens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="/dashboard">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+@section('content')
+<div class="max-w-5xl mx-auto">
 
-            <!-- Main Content -->
-            <div class="col-md-10 p-4">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2>{{ $item->nome_do_produto }}</h2> {{-- Atualizado para nome_do_produto --}}
-                        <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb">
-                                <li class="breadcrumb-item">
-                                    <a href="{{ route('items.index') }}">Itens</a>
-                                </li>
-                                <li class="breadcrumb-item active">{{ $item->nome_do_produto }}</li> {{-- Atualizado para nome_do_produto --}}
-                            </ol>
-                        </nav>
-                    </div>
-                    <div>
-                        <a href="{{ route('items.edit', $item) }}" class="btn btn-warning me-2">
-                            <i class="fas fa-edit"></i> Editar
-                        </a>
-                        <a href="{{ route('items.index') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left"></i> Voltar
-                        </a>
-                    </div>
-                </div>
+    {{-- Breadcrumb --}}
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="{{ route('items.index') }}" class="hover:text-indigo-600 transition">
+            <i class="fas fa-box mr-1"></i>Itens
+        </a>
+        <i class="fas fa-chevron-right text-xs"></i>
+        <span class="text-gray-800 font-medium truncate max-w-xs">{{ $item->nome_do_produto }}</span>
+    </nav>
 
-                <div class="row">
-                    <!-- Imagem -->
-                    <div class="col-md-5 mb-4">
-                        <div class="card">
-                            <div class="card-body text-center">
-                                @if($item->image)
-                                    <img src="{{ asset('storage/' . $item->image) }}"
-                                         alt="{{ $item->nome_do_produto }}" {{-- Atualizado para nome_do_produto --}}
-                                         class="item-image">
-                                @else
-                                    <div class="d-flex align-items-center justify-content-center bg-light"
-                                         style="height: 300px; border-radius: 15px;">
-                                        <div class="text-center">
-                                            <i class="fas fa-image fa-4x text-muted mb-3"></i>
-                                            <p class="text-muted">Sem imagem</p>
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Informações -->
-                    <div class="col-md-7">
-                        <div class="card">
-                            <div class="card-body">
-                                <!-- Status e Categoria -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="badge bg-info fs-6">{{ $item->codigo ?? 'N/A' }}</span> {{-- Atualizado para codigo_da_categoria --}}
-                                    @if($item->status == 'indisponivel') {{-- Ajustado para os novos status --}}
-                                        <span class="badge bg-danger fs-6">Indisponível</span>
-									@elseif($item->status == 'disponivel')
-                                        <span class="badge bg-success text-dark fs-6">Disponível</span>	
-	                                @elseif($item->status == 'reservado')
-                                        <span class="badge bg-warning text-dark fs-6">Reservado</span>
-                                    @elseif($item->status == 'vendido')
-                                        <span class="badge bg-warning fs-6">Vendido</span>
-                                    @elseif($item->status == 'em_sacolinha')
-                                        <span class="badge bg-primary fs-6">Em Sacolinha</span>
-                                    @else
-                                        <span class="badge bg-secondary fs-6">{{ $item->status }}</span>
-                                    @endif
-                                </div>
-
-                                <!-- Preço -->
-                                <div class="mb-4">
-                                    <span class="info-label">Preço:</span>
-                                    <div class="price-display">{{ $item->formatted_price }}</div>
-                                </div>
-
-                                <!-- Descrição -->
-                                <div class="mb-4">
-                                    <span class="info-label">Descrição:</span>
-                                    <p class="mt-2">{{ $item->descricao }}</p> {{-- Atualizado para descricao --}}
-                                </div>
-
-                                <hr> {{-- Separador para os novos detalhes --}}
-
-                                <!-- Novos Detalhes do Item -->
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <span class="info-label">Código:</span>
-                                        <p>{{ $item->codigo }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <span class="info-label">Custo:</span>
-                                        <p>R\$ {{ number_format($item->custo, 2, ',', '.') }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <span class="info-label">Marca:</span>
-                                        <p>{{ $item->marca ?? 'Não informado' }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <span class="info-label">Modelo:</span>
-                                        <p>{{ $item->modelo ?? 'Não informado' }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <span class="info-label">Estado:</span>
-                                        <p>{{ ucfirst($item->estado ?? 'Não informado') }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <span class="info-label">Cor:</span>
-                                        <p>{{ $item->cor ?? 'Não informado' }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <span class="info-label">Tamanho:</span>
-                                        <p>{{ $item->tamanho ?? 'Não informado' }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <span class="info-label">Pedido:</span>
-                                        <p>{{ $item->pedido ?? 'Não informado' }}</p>
-                                    </div>
-                                </div>
-
-                                <hr> {{-- Separador --}}
-
-                                <!-- Informações de Tempo -->
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <span class="info-label">Criado em:</span>
-                                        <p>{{ $item->created_at->format('d/m/Y H:i') }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <span class="info-label">Atualizado em:</span>
-                                        <p>{{ $item->updated_at->format('d/m/Y H:i') }}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Ações -->
-                                <div class="d-flex gap-2 mt-4">
-                                    <a href="{{ route('items.edit', $item) }}" class="btn btn-warning">
-                                        <i class="fas fa-edit"></i> Editar Item
-                                    </a>
-                                    <form action="{{ route('items.destroy', $item) }}"
-                                          method="POST"
-                                          style="display: inline;"
-                                          onsubmit="return confirm('Tem certeza que deseja deletar este item?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-danger">
-                                            <i class="fas fa-trash"></i> Deletar Item
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $item->nome_do_produto }}</h1>
+            @if($item->codigo)
+                <p class="text-sm text-gray-500 mt-1">
+                    <i class="fas fa-barcode mr-1"></i>{{ $item->codigo }}
+                </p>
+            @endif
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="{{ route('items.edit', $item) }}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            <a href="{{ route('items.index') }}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+
+        {{-- ── Coluna Imagem ── --}}
+        <div class="md:col-span-2">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                @if($item->image)
+                    <img src="{{ asset('storage/' . $item->image) }}"
+                         alt="{{ $item->nome_do_produto }}"
+                         class="w-full object-cover"
+                         style="max-height: 380px;">
+                @else
+                    <div class="flex flex-col items-center justify-content-center py-20 text-gray-300">
+                        <i class="fas fa-image text-6xl mb-3"></i>
+                        <span class="text-sm">Sem imagem</span>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- ── Coluna Info ── --}}
+        <div class="md:col-span-3 flex flex-col gap-5">
+
+            {{-- Status + Preço --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    {{-- Status badge --}}
+                    @php
+                        $statusMap = [
+                            'disponivel'  => ['label' => 'Disponível',   'class' => 'bg-green-100 text-green-800'],
+                            'indisponivel'=> ['label' => 'Indisponível', 'class' => 'bg-red-100 text-red-800'],
+                            'reservado'   => ['label' => 'Reservado',    'class' => 'bg-yellow-100 text-yellow-800'],
+                            'vendido'     => ['label' => 'Vendido',      'class' => 'bg-gray-100 text-gray-700'],
+                            'em_sacolinha'=> ['label' => 'Em Sacolinha', 'class' => 'bg-purple-100 text-purple-800'],
+                            'estoque'     => ['label' => 'Estoque',      'class' => 'bg-blue-100 text-blue-800'],
+                            'loja'        => ['label' => 'Loja',         'class' => 'bg-cyan-100 text-cyan-800'],
+                            'live'        => ['label' => 'Live',         'class' => 'bg-pink-100 text-pink-800'],
+                        ];
+                        $s = $statusMap[$item->status] ?? ['label' => ucfirst($item->status), 'class' => 'bg-gray-100 text-gray-700'];
+                    @endphp
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold {{ $s['class'] }}">
+                        {{ $s['label'] }}
+                    </span>
+
+                    {{-- Localização --}}
+                    @if($item->localizacao)
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600">
+                            <i class="fas fa-map-marker-alt text-xs"></i>
+                            {{ $item->localizacao }}
+                        </span>
+                    @endif
+                </div>
+
+                <div class="flex items-end gap-3">
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Preço de Venda</p>
+                        <p class="text-3xl font-bold text-green-600">{{ $item->formatted_price }}</p>
+                    </div>
+                    @if($item->custo)
+                        <div class="pb-1">
+                            <p class="text-xs text-gray-400">Custo: R$ {{ number_format($item->custo, 2, ',', '.') }}</p>
+                            @php
+                                $margem = $item->custo > 0
+                                    ? (($item->preco - $item->custo) / $item->custo) * 100
+                                    : null;
+                            @endphp
+                            @if($margem !== null)
+                                <p class="text-xs {{ $margem >= 0 ? 'text-green-500' : 'text-red-500' }}">
+                                    Margem: {{ number_format($margem, 1) }}%
+                                </p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Detalhes --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Detalhes do Item</h2>
+
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <div>
+                        <dt class="text-gray-400 font-medium">Marca</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->marca ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Modelo</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->modelo ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Estado</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ ucfirst($item->estado ?? '—') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Cor</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->cor ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Tamanho</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->tamanho ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Categoria</dt>
+                        <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->codigo_da_categoria ?? '—' }}</dd>
+                    </div>
+                    @if($item->pedido)
+                        <div class="col-span-2">
+                            <dt class="text-gray-400 font-medium">Pedido</dt>
+                            <dd class="text-gray-800 font-semibold mt-0.5">{{ $item->pedido }}</dd>
+                        </div>
+                    @endif
+                </dl>
+
+                @if($item->descricao)
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <dt class="text-gray-400 font-medium text-sm mb-1">Descrição</dt>
+                        <dd class="text-gray-700 text-sm leading-relaxed">{{ $item->descricao }}</dd>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Datas --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <dl class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-gray-400 font-medium">Criado em</dt>
+                        <dd class="text-gray-700 mt-0.5">{{ $item->created_at->format('d/m/Y H:i') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-400 font-medium">Atualizado em</dt>
+                        <dd class="text-gray-700 mt-0.5">{{ $item->updated_at->format('d/m/Y H:i') }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            {{-- Ações destrutivas --}}
+            <div class="flex items-center gap-3">
+                <a href="{{ route('items.edit', $item) }}"
+                   class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    <i class="fas fa-edit"></i> Editar Item
+                </a>
+                <form action="{{ route('items.destroy', $item) }}" method="POST"
+                      onsubmit="return confirm('Tem certeza que deseja deletar este item? Esta ação não pode ser desfeita.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition">
+                        <i class="fas fa-trash"></i> Excluir
+                    </button>
+                </form>
+            </div>
+
+        </div>{{-- /col info --}}
+    </div>{{-- /grid --}}
+</div>
+@endsection
