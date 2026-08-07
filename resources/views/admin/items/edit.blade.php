@@ -320,7 +320,23 @@
             <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
           @enderror
         </div>
-		
+
+        {{-- Localização --}}
+        <div class="mt-4">
+          <label for="localizacao" class="block text-sm font-medium text-gray-700 mb-1">
+            <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>Localização
+          </label>
+          <input type="text"
+                 id="localizacao"
+                 name="localizacao"
+                 value="{{ old('localizacao', $item->localizacao) }}"
+                 placeholder="Ex: Prateleira A3, Caixa 07, Armário 2..."
+                 class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('localizacao') border-red-400 @enderror">
+          @error('localizacao')
+            <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+          @enderror
+        </div>
+
         {{-- Botões --}}
         <div class="mt-8 flex justify-end border-t border-gray-200 pt-6">
           <a href="{{ route('items.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition mr-3">

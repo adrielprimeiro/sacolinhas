@@ -141,7 +141,8 @@ class ItemController extends Controller
 			'cor' => 'nullable|string',
 			'tamanho' => 'nullable|string',
 			'pedido' => 'nullable|string',
-			'status' => 'required|in:indisponivel,disponivel,reservado,vendido,em_sacolinha,loja,estoque,live',
+			'status' => 'required|in:indisponivel,disponivel,reservado,vendido,em_sacolinha,loja,estoque,live,solicitado na loja,solicitado na live',
+			'localizacao' => 'nullable|string|max:255',
 			'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
 		]);
 
