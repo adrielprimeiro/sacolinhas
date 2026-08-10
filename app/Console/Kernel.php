@@ -11,6 +11,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('mp:sync')->hourly();
         $schedule->command('me:sync')->everyThreeHours();
+        $schedule->command('portal:cancelar-expirados')->hourly();
     }
 
     protected function commands(): void
