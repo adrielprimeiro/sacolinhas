@@ -138,53 +138,73 @@ class ConciliacaoService
     private function processarPayments(array $payments): int
     {
         $count = 0;
-        foreach ($payments as $payment) {
-            // Aceitar pagamentos approved ou accredited
-            $statusValidos = ['approved', 'accredited'];
-            if (!in_array($payment['status'], $statusValidos)) continue;
+        $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+        $contaBancariaId = $contaMp ? $contaMp->id : 2;
 
-            // Extrair e calcular taxas
-            $valorBruto = (float) $payment['transaction_amount'];
-            $valorTaxa = 0;
-            
+        foreach ($payments as $payment) {
+            $status       = $payment['status'] ?? '';
+            $paymentType  = $payment['payment_type_id'] ?? '';
+            $operationType = $payment['operation_type'] ?? '';
+
+            /*
+             * Regras de inclusão:
+             *  - 'approved' ou 'accredited' = recebimentos de clientes (entradas)
+             *  - 'authorized' + type='account_money' = pagamentos feitos PELO usuário
+             *    (compras em estabelecimentos via saldo MP) → saídas
+             */
+            $isEntrada = in_array($status, ['approved', 'accredited']);
+            $isSaida   = ($status === 'authorized' && $paymentType === 'account_money');
+
+            if (!$isEntrada && !$isSaida) {
+                continue;
+            }
+
+            $tipo        = $isSaida ? 'saida' : 'entrada';
+            $valorBruto  = (float) $payment['transaction_amount'];
+            $valorTaxa   = 0;
+
             if (isset($payment['fee_details']) && is_array($payment['fee_details'])) {
                 foreach ($payment['fee_details'] as $fee) {
                     $valorTaxa += (float) ($fee['amount'] ?? 0);
                 }
             }
-            
+
             $valorLiquido = $valorBruto - $valorTaxa;
+
+            // Descrição: usa o nome do estabelecimento / beneficiário quando disponível
+            $descricao = $payment['description']
+                ?? $payment['additional_info']['items'][0]['title']
+                ?? ($isSaida ? 'Pagamento via Mercado Pago' : 'Recebimento Mercado Pago');
 
             $transacao = TransacaoExtrato::updateOrCreate(
                 ['fitid' => (string) $payment['id']],
                 [
-                    'data' => Carbon::parse($payment['date_created'])->toDateString(),
-                    'descricao' => $payment['description'] ?? 'Pagamento Mercado Pago',
-                    'valor' => $valorBruto, // Mantemos o bruto no campo principal para compatibilidade com a conciliação do pedido
-                    'valor_bruto' => $valorBruto,
-                    'valor_taxa' => $valorTaxa,
-                    'valor_liquido' => $valorLiquido,
-                    'tipo' => 'entrada', // Pagamento recebido
-                    'origem' => 'mercadopago',
-                    'payload_original' => $payment
+                    'data'             => Carbon::parse($payment['date_created'])->toDateString(),
+                    'descricao'        => $descricao,
+                    'valor'            => $valorBruto,
+                    'valor_bruto'      => $valorBruto,
+                    'valor_taxa'       => $valorTaxa,
+                    'valor_liquido'    => $valorLiquido,
+                    'tipo'             => $tipo,
+                    'origem'           => 'mercadopago',
+                    'conta_bancaria_id'=> $contaBancariaId,
+                    'payload_original' => $payment,
                 ]
             );
 
-            // Auto-conciliação: Se o MP enviou o ID do pedido no external_reference
-            $pedidoId = $payment['external_reference'] ?? null;
-            if ($pedidoId && is_numeric($pedidoId)) {
-                $pedido = \App\Models\Pedido::find($pedidoId);
-                // Se o pedido existe, tentamos auto-conciliar (a transação do MP já está aprovada)
-                if ($pedido && $transacao->status === 'pendente') {
-                    // Garantimos que o pedido também seja marcado como aprovado, se já não estiver
-                    if ($pedido->status_pagamento !== 'aprovado') {
-                        $pedido->status_pagamento = 'aprovado';
-                        $pedido->status_pedido = 'pago';
-                        $pedido->save();
-                        
-                        // Opcional: chamar darBaixaEstoque se necessário, mas o webhook geralmente faz isso.
+            // Auto-conciliação apenas para entradas com external_reference de pedido
+            if ($isEntrada) {
+                $pedidoId = $payment['external_reference'] ?? null;
+                if ($pedidoId && is_numeric($pedidoId)) {
+                    $pedido = \App\Models\Pedido::find($pedidoId);
+                    if ($pedido && $transacao->status === 'pendente') {
+                        if ($pedido->status_pagamento !== 'aprovado') {
+                            $pedido->status_pagamento = 'aprovado';
+                            $pedido->status_pedido    = 'pago';
+                            $pedido->save();
+                        }
+                        $this->autoConciliarPedido($transacao, $pedido);
                     }
-                    $this->autoConciliarPedido($transacao, $pedido);
                 }
             }
 
@@ -193,6 +213,7 @@ class ConciliacaoService
 
         return $count;
     }
+
 
     /**
      * Tenta conciliar automaticamente uma transação com um pedido já aprovado
