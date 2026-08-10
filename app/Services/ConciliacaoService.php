@@ -114,12 +114,16 @@ class ConciliacaoService
         
         $count = $this->processarPayments($results);
 
-        // Sincronizar relatórios de extrato completo (incluindo saídas/tarifas)
+        // Sincronizar relatórios de extrato completo (bank_report: entradas/tarifas)
         $countReports = $this->sincronizarRelatoriosMercadoPago($startDate, $endDate);
 
+        // Sincronizar Account Money Report (settlement_report: saídas, compras ML, transferências)
+        $countMoney = $this->sincronizarAccountMoneyReport($startDate, $endDate);
+
         Log::info('Mercado Pago full sync completed', [
-            'payments' => $count,
-            'reports' => $countReports
+            'payments'       => $count,
+            'bank_reports'   => $countReports,
+            'money_reports'  => $countMoney,
         ]);
         
         try {
@@ -128,7 +132,7 @@ class ConciliacaoService
             Log::error("Erro na auto-conciliação pós-sincronização MP: " . $e->getMessage());
         }
         
-        return $count + $countReports;
+        return $count + $countReports + $countMoney;
     }
     
     private function processarPayments(array $payments): int
@@ -1000,6 +1004,115 @@ class ConciliacaoService
         }
 
         return false;
+    }
+
+    /**
+     * Sincroniza o Account Money Report do Mercado Pago.
+     * Esse relatório contém TODAS as movimentações da conta: entradas, saídas,
+     * compras no Mercado Livre, transferências, tarifas, etc.
+     * É a fonte correta para capturar débitos como "Compra - Mercado Livre".
+     */
+    public function sincronizarAccountMoneyReport(string $startDate, string $endDate): int
+    {
+        $accessToken = config('services.mercadopago.access_token');
+        if (empty($accessToken)) {
+            Log::warning('Token do Mercado Pago não configurado. Account Money Report ignorado.');
+            return 0;
+        }
+
+        $count = 0;
+
+        try {
+            // 1. Listar relatórios disponíveis do tipo settlement_report (Account Money)
+            $listUrl = 'https://api.mercadopago.com/v1/account/settlement_report/list';
+            $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
+
+            if (!$response->successful()) {
+                Log::warning('Account Money Report: não foi possível listar relatórios.', [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+                // Tenta solicitar a geração mesmo assim
+                $this->solicitarAccountMoneyReport($accessToken, $startDate, $endDate);
+                return 0;
+            }
+
+            $reports = $response->json();
+            if (!is_array($reports)) {
+                Log::warning('Account Money Report: resposta inesperada (não é array).', ['body' => $response->body()]);
+                return 0;
+            }
+
+            $reqStart = Carbon::parse($startDate)->startOfDay();
+            $reqEnd   = Carbon::parse($endDate)->endOfDay();
+
+            // 2. Filtrar relatórios que intersectam o período solicitado
+            $relevantes = array_filter($reports, function ($report) use ($reqStart, $reqEnd) {
+                $status = $report['status'] ?? '';
+                if (!in_array($status, ['processed', 'enabled', 'ready'])) {
+                    return false;
+                }
+                $repStart = !empty($report['begin_date']) ? Carbon::parse($report['begin_date']) : null;
+                $repEnd   = !empty($report['end_date'])   ? Carbon::parse($report['end_date'])   : null;
+
+                if ($repStart && $repEnd) {
+                    return $repStart->lte($reqEnd) && $repEnd->gte($reqStart);
+                }
+                return true; // Se não tiver datas, inclui por precaução
+            });
+
+            // Ordena por data de criação decrescente e pega os 5 mais recentes
+            usort($relevantes, fn($a, $b) => strcmp($b['date_created'] ?? '', $a['date_created'] ?? ''));
+            $relevantes = array_slice($relevantes, 0, 5);
+
+            foreach ($relevantes as $report) {
+                $fileName = $report['file_name'] ?? null;
+                if (!$fileName) continue;
+
+                Log::info("Account Money Report: baixando {$fileName}");
+                $downloadUrl = "https://api.mercadopago.com/v1/account/settlement_report/{$fileName}";
+                $download = Http::withoutVerifying()->withToken($accessToken)->get($downloadUrl);
+
+                if ($download->successful()) {
+                    // Reutiliza o mesmo parser de CSV que já existe
+                    $count += $this->processarCsvRelatorio($download->body());
+                } else {
+                    Log::error("Account Money Report: erro ao baixar {$fileName}", [
+                        'status' => $download->status(),
+                    ]);
+                }
+            }
+
+            // 3. Solicitar geração de um novo relatório para o período (assíncrono)
+            $this->solicitarAccountMoneyReport($accessToken, $startDate, $endDate);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao processar Account Money Report do Mercado Pago: ' . $e->getMessage());
+        }
+
+        return $count;
+    }
+
+    /**
+     * Solicita a geração assíncrona de um novo Account Money Report no MP
+     */
+    private function solicitarAccountMoneyReport(string $accessToken, string $startDate, string $endDate): void
+    {
+        $beginDate = Carbon::parse($startDate)->startOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+        $endDate   = Carbon::parse($endDate)->endOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+
+        $response = Http::withoutVerifying()
+            ->withToken($accessToken)
+            ->post('https://api.mercadopago.com/v1/account/settlement_report', [
+                'begin_date' => $beginDate,
+                'end_date'   => $endDate,
+            ]);
+
+        if ($response->successful()) {
+            Log::info("Account Money Report: geração solicitada para {$startDate} a {$endDate}.");
+        } else {
+            Log::info('Account Money Report: aviso ao solicitar geração (pode já existir): ' . $response->body());
+        }
     }
 
     /**
