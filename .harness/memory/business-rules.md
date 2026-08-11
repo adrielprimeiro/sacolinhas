@@ -42,6 +42,10 @@ O coração financeiro do sistema reside na sua capacidade de conciliação e no
 *   **Conciliação Automatizada:** O `ConciliacaoService` processa arquivos OFX (extratos bancários genéricos) e comunica-se com a API (e arquivos CSV) do Mercado Pago.
 *   **Auto-conciliação e Baixa de Lançamentos:** Quando o webhook ou a sincronização identifica um pagamento aprovado no Mercado Pago (buscando pela `external_reference` do pedido), o sistema auto-vincula a transação. Cria-se a `Movimentacao` de baixa de forma automatizada.
 *   **Tratamento de Taxas (Split Contábil):** Para origens como Mercado Pago, o sistema separa o `valor_bruto`, `valor_taxa` e o `valor_liquido`. Ele gera automaticamente uma Despesa Financeira vinculada a uma `ClassificacaoFinanceira` ("Taxas e Tarifas Bancárias") para manter a contabilidade correta.
+*   **Desmembramento em Múltiplos Lançamentos ("Dividir Pagamento"):** Quando um depósito/PIX no extrato bancário combina valores destinados a diferentes finalidades (ex: R$ 50 para Mensalidade do Clube + R$ 500 para Recarga de Carteira do cliente), o usuário pode utilizar a ação **Desmembrar em Partes** na Conciliação. O sistema gera lançamentos separados para cada fração da transação e concilia o extrato de forma unificada.
+*   **Sincronização com Clube e Carteira:**
+    *   Ao conciliar uma parte/lançamento como **Clube Mania** (ID 82 / código `1.03`), o sistema atualiza `clube_mensalidades` com a competência informada (status `pago`) e executa a procedure `CALL atualizar_pontuacoes_user` para atualizar a pontuação e nível de fidelidade da cliente.
+    *   Ao conciliar como **Recarga de Carteira** (ID 84 / código `1.04`), o `MovimentacaoObserver` registra o crédito correspondente na tabela `conta_corrente` e dispara o `RecalcularSaldosJob` para atualizar o saldo disponível na carteira da cliente.
 
 ---
 
