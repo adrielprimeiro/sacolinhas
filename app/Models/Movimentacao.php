@@ -259,7 +259,15 @@ class Movimentacao extends Model
             }
         });
 
-        // 3) Recalcular indicadores (Job assíncrono)
+        // 3) Recalcular pontos e nível no Clube do usuário
+        $mesAno = sprintf('%04d-%02d', $ano, $mes);
+        try {
+            \Illuminate\Support\Facades\DB::unprepared("CALL atualizar_pontuacoes_user({$userId}, '{$mesAno}')");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erro ao chamar atualizar_pontuacoes_user no sincronizarClube: " . $e->getMessage());
+        }
+
+        // 4) Recalcular indicadores (Job assíncrono)
         if (class_exists(\App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::class)) {
             \App\Domains\Clube\Jobs\RecalcularIndicadoresClienteJob::dispatch((int) $userId)->afterCommit();
         }
