@@ -61,6 +61,17 @@ class AvaliacaoController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->has('items_json')) {
+            $items = json_decode($request->input('items_json'), true);
+            // Filtrar itens vazios no backend
+            if (is_array($items)) {
+                $items = array_filter($items, function($item) {
+                    return !empty($item['nome']);
+                });
+                $request->merge(['items' => array_values($items)]);
+            }
+        }
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'tipo_compra' => 'required|in:avaliados,direta',
@@ -192,6 +203,17 @@ class AvaliacaoController extends Controller
     {
         if ($avaliacao->status !== 'rascunho') {
             return redirect()->route('admin.avaliacoes.index')->with('error', 'Apenas avaliações em status Rascunho podem ser editadas.');
+        }
+
+        if ($request->has('items_json')) {
+            $items = json_decode($request->input('items_json'), true);
+            // Filtrar itens vazios no backend
+            if (is_array($items)) {
+                $items = array_filter($items, function($item) {
+                    return !empty($item['nome']);
+                });
+                $request->merge(['items' => array_values($items)]);
+            }
         }
 
         $validated = $request->validate([

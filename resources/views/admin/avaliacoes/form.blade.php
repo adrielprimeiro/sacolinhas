@@ -159,7 +159,7 @@
                                              </div>
                                              
                                              <!-- Campo ID oculto -->
-                                             <input type="hidden" :name="`items[${index}][categoria_id]`" :value="item.categoria_id">
+                                             <input type="hidden"  :value="item.categoria_id">
 
                                              <!-- Dropdown flutuante de categorias -->
                                              <div 
@@ -185,7 +185,7 @@
                                          </div>
                                          
                                          <!-- Nome customizado do Item -->
-                                         <input type="text" :id="`item-nome-${index}`" :name="`items[${index}][nome]`" x-model="item.nome" required placeholder="Nome/Descrição do item..."
+                                         <input type="text" :id="`item-nome-${index}`"  x-model="item.nome" required placeholder="Nome/Descrição do item..."
                                                 @keydown.enter.prevent="document.getElementById('item-brand-search-' + index)?.focus()"
                                                 @blur="item.nome = capitalizeWords(item.nome)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
@@ -215,7 +215,7 @@
                                              </div>
                                              
                                              <!-- Campo ID oculto -->
-                                             <input type="hidden" :name="`items[${index}][marca_id]`" :value="item.marca_id">
+                                             <input type="hidden"  :value="item.marca_id">
 
                                              <!-- Dropdown flutuante de marcas -->
                                              <div 
@@ -244,14 +244,14 @@
                                          </div>
                                          
                                          <!-- Nome textual da Marca selecionada/customizada -->
-                                         <input type="text" :id="`item-marca-text-${index}`" :name="`items[${index}][marca]`" x-model="item.marca" required placeholder="Marca..."
+                                         <input type="text" :id="`item-marca-text-${index}`"  x-model="item.marca" required placeholder="Marca..."
                                                 readonly tabindex="-1"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 bg-gray-100 cursor-not-allowed text-xs">
                                      </td>
 
                                     {{-- Conservação --}}
                                     <td class="px-1 py-2 text-center align-top" style="width: 6%;" x-show="tipoCompra === 'avaliados'">
-                                        <select :name="`items[${index}][estado]`" x-model="item.estado" @change="recalculateItem(item)"
+                                        <select  x-model="item.estado" @change="recalculateItem(item)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <option value="Novo">Novo</option>
                                             <option value="Seminovo">Seminovo</option>
@@ -261,7 +261,7 @@
 
                                     {{-- Curadoria --}}
                                     <td class="px-1 py-2 text-center align-top" style="width: 3%;" x-show="tipoCompra === 'avaliados'">
-                                        <select :name="`items[${index}][nota_curadoria]`" x-model="item.nota_curadoria" 
+                                        <select  x-model="item.nota_curadoria" 
                                                 @change="recalculateItem(item)"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <template x-for="n in 10">
@@ -272,7 +272,7 @@
 
                                     {{-- Local --}}
                                     <td class="px-1 py-2 text-center align-top" style="width: 5%;" x-show="tipoCompra === 'avaliados'">
-                                        <select :name="`items[${index}][motivo_curadoria]`" x-model="item.motivo_curadoria"
+                                        <select  x-model="item.motivo_curadoria"
                                                 class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
                                             <option value="Cadastro">Cadastro</option>
                                             <option value="Lavação">Lavação</option>
@@ -283,10 +283,10 @@
 
                                     {{-- Cor / Tam --}}
                                     <td class="px-1 py-2 align-top" style="width: 9%;">
-                                        <input type="text" :name="`items[${index}][cor]`" x-model="item.cor" placeholder="Cor"
+                                        <input type="text"  x-model="item.cor" placeholder="Cor"
                                                @blur="item.cor = capitalizeWords(item.cor)"
                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs mb-2">
-                                        <input type="text" :name="`items[${index}][tamanho]`" x-model="item.tamanho" placeholder="Tam"
+                                        <input type="text"  x-model="item.tamanho" placeholder="Tam"
                                                @blur="item.tamanho = (item.tamanho || '').toUpperCase().trim()"
                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs">
                                     </td>
@@ -299,8 +299,8 @@
                                                @keydown="onPrecoBaseKeyDown($event)"
                                                required
                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2.5 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs text-center">
-                                        <input type="hidden" :name="`items[${index}][preco_base]`" :value="item.preco_base">
-                                        <input type="hidden" :name="`items[${index}][is_fixed_price]`" :value="item.is_fixed_price ? 1 : 0">
+                                        <input type="hidden"  :value="item.preco_base">
+                                        <input type="hidden"  :value="item.is_fixed_price ? 1 : 0">
                                     </td>
 
                                     {{-- Resultados --}}
@@ -635,16 +635,9 @@ function evaluationForm(config) {
                 const formData = new FormData(form);
                 formData.append('ajax', '1');
                 
-                // Remover itens que estão completamente vazios para não quebrar a validação do Laravel
-                for (let i = 0; i < this.items.length; i++) {
-                    if (!this.items[i].nome || !this.items[i].nome.trim()) {
-                        for (let key of Array.from(formData.keys())) {
-                            if (key.startsWith(`items[${i}][`)) {
-                                formData.delete(key);
-                            }
-                        }
-                    }
-                }
+                // Usar payload JSON em vez de dezenas de arrays para evitar limite max_input_vars do PHP
+                const validItems = this.items.filter(item => item.nome && item.nome.trim());
+                formData.append('items_json', JSON.stringify(validItems));
 
                 const res = await fetch(form.action, {
                     method: 'POST',
@@ -910,9 +903,22 @@ function evaluationForm(config) {
             return 'R$ ' + parseFloat(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },
 
-        onSubmit(e) {
+        onSubmit(event) {
+            this.isSaving = true;
+            this.updateTaxasOnSubmit();
+            
+            // Cria um campo hidden com todos os itens em formato JSON
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'items_json';
+            
+            const validItems = this.items.filter(item => item.nome && item.nome.trim());
+            hidden.value = JSON.stringify(validItems);
+            
+            event.target.appendChild(hidden);
+            
             if (!this.userId) {
-                e.preventDefault();
+                event.preventDefault();
                 alert('Por favor, selecione um Fornecedor / Cliente válido pesquisando pelo nome.');
                 return;
             }
