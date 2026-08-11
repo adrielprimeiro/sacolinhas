@@ -6,12 +6,12 @@ $kernel->bootstrap();
 
 use App\Models\TransacaoExtrato;
 use App\Models\Lancamento;
-use App\Models\Pessoa;
+use App\Models\Movimentacao;
 use App\Models\User;
 use App\Services\ConciliacaoService;
 use Illuminate\Support\Facades\DB;
 
-echo "=== Processando Conciliacao para Transacao #919 (R$ 550.00) ===\n";
+echo "=== Reprocessando Conciliacao para Transacao #919 (Lila Flavia) ===\n";
 
 $transacao = TransacaoExtrato::find(919);
 if (!$transacao) {
@@ -19,32 +19,46 @@ if (!$transacao) {
     exit;
 }
 
-$lanc5787 = Lancamento::find(5786) ?: Lancamento::find(5787); // R$ 50.00
-$lanc5788 = Lancamento::find(5788); // R$ 500.00
+// Resetar status da transacao se ja conciliada
+DB::table('transacoes_extrato')->where('id', 919)->update(['status' => 'pendente', 'movimentacao_id' => null]);
 
-if (!$lanc5788) {
-    echo "Lancamento #5788 nao encontrado.\n";
+// Excluir movimentacoes antigas da transacao 919
+$movsAntigas = Movimentacao::where('transacao_extrato_id', 919)->get();
+foreach ($movsAntigas as $m) {
+    $m->delete();
+}
+
+$lanc5787 = Lancamento::find(5787); // R$ 50.00 - Lila Flavia - Clube Mania
+$lanc5788 = Lancamento::find(5788); // R$ 500.00 - Lila Flavia - Recarga de Carteira
+
+if (!$lanc5787 || !$lanc5788) {
+    echo "Lancamentos #5787 ou #5788 nao encontrados.\n";
     exit;
 }
 
-// 1. Corrigir classificacao de Lanc #5788 para 84 (Recarga de Carteira)
-echo "1. Atualizando Lancamento #5788 para Classificacao #84 (Recarga de Carteira)...\n";
+// 1. Garantir classificacoes e pessoas corretas
+$lanc5787->update([
+    'classificacao_financeira_id' => 82, // Clube Mania
+    'pessoa_id' => 19, // Lila Flavia
+    'descricao' => 'Clube Mania - Lila Flavia'
+]);
+
 $lanc5788->update([
-    'classificacao_financeira_id' => 84,
+    'classificacao_financeira_id' => 84, // Recarga de Carteira
+    'pessoa_id' => 19, // Lila Flavia
     'referencia_tipo' => 'recarga_carteira',
-    'descricao' => 'Recarga de Carteira'
+    'descricao' => 'Recarga de Carteira - Lila Flavia'
 ]);
 
 // 2. Conciliar via ConciliacaoService::vincularMultiplos
-echo "2. Reconciliando Transacao #919 com Lanc #5787 (R$ 50.00) e Lanc #5788 (R$ 500.00)...\n";
-
+echo "Vincular Transacao 919 com Lanc 5787 (R$ 50) e Lanc 5788 (R$ 500)...\n";
 $service = app(ConciliacaoService::class);
 $service->vincularMultiplos(919, [
     ['lancamento_id' => $lanc5787->id, 'valor_vinculo' => 50.00],
     ['lancamento_id' => $lanc5788->id, 'valor_vinculo' => 500.00],
 ]);
 
-echo "Conciliacao realizada com sucesso!\n\n";
+echo "Conciliacao concluida com sucesso!\n\n";
 
 // 3. Verificar Mensalidade do Clube de Lila Flavia (User 4187)
 $mensalidade = DB::table('clube_mensalidades')
@@ -54,14 +68,14 @@ $mensalidade = DB::table('clube_mensalidades')
     ->first();
 
 if ($mensalidade) {
-    echo "Mensalidade Clube 08/2026: Status = {$mensalidade->status_pagamento} | Valor = R$ {$mensalidade->valor} | PagoEm = {$mensalidade->pago_em}\n";
+    echo "✅ Mensalidade Clube 08/2026: Status = {$mensalidade->status_pagamento} | Valor = R$ {$mensalidade->valor} | PagoEm = {$mensalidade->pago_em}\n";
 } else {
-    echo "ALERTA: Mensalidade Clube 08/2026 nao foi encontrada!\n";
+    echo "❌ Mensalidade Clube 08/2026 nao foi encontrada!\n";
 }
 
-// 4. Verificar Carteira (Conta Corrente) de Lila Flavia (User 4187)
+// 4. Verificar Carteira de Lila Flavia (User 4187)
 $user = User::find(4187);
-echo "Saldo da Carteira de Lila Flavia (User #4187): R$ {$user->saldo_carteira}\n";
+echo "✅ Saldo da Carteira de Lila Flavia (User #4187): R$ {$user->saldo_carteira}\n";
 
 $cc = DB::table('conta_corrente')
     ->where('user_id', 4187)
@@ -69,5 +83,5 @@ $cc = DB::table('conta_corrente')
     ->first();
 
 if ($cc) {
-    echo "Ultima movimentacao CC: Tipo = {$cc->tipo_movimentacao} | Valor = R$ {$cc->valor} | Desc = {$cc->descricao}\n";
+    echo "✅ Ultima movimentacao CC: Tipo = {$cc->tipo_movimentacao} | Valor = R$ {$cc->valor} | Desc = {$cc->descricao}\n";
 }
