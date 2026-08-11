@@ -469,7 +469,7 @@ class ConciliacaoController extends Controller
 
                 // Integração com o Clube
                 $classificacao = \App\Models\ClassificacaoFinanceira::find($request->classificacao_financeira_id);
-                if ($classificacao && trim($classificacao->codigo) === '1.03') {
+                if ($classificacao && (trim($classificacao->codigo_contabil) === '1.03' || strtolower($classificacao->nome) === 'clube mania' || $classificacao->id == 82)) {
                     $transacao = \App\Models\TransacaoExtrato::find($request->transacao_id);
                     
                     // Pegar o pessoa_id do lançamento gerado para garantir que seja o correto
@@ -526,6 +526,127 @@ class ConciliacaoController extends Controller
             });
 
             return back()->with('success', 'Lançamento criado e conciliado!');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Desmembrar uma transação do extrato em múltiplos lançamentos rápidos e conciliar.
+     */
+    public function desmembrarCriarRapido(Request $request)
+    {
+        $request->validate([
+            'transacao_id' => 'required|exists:transacoes_extrato,id',
+            'itens' => 'required|array|min:2',
+            'itens.*.valor' => 'required|numeric|min:0.01',
+            'itens.*.classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
+            'itens.*.pessoa_id' => 'nullable|exists:pessoas,id',
+        ]);
+
+        $transacao = TransacaoExtrato::findOrFail($request->transacao_id);
+        if ($transacao->status === 'conciliado') {
+            return back()->with('error', 'Esta transação já foi conciliada.');
+        }
+
+        $somaItens = 0;
+        foreach ($request->itens as $item) {
+            $somaItens += (float) $item['valor'];
+        }
+
+        $valorTransacao = (float) ($transacao->valor_bruto ?? $transacao->valor);
+        if (abs($somaItens - $valorTransacao) > 0.05) {
+            return back()->with('error', 'A soma das partes (R$ ' . number_format($somaItens, 2, ',', '.') . ') não bate com o valor total da transação (R$ ' . number_format($valorTransacao, 2, ',', '.') . ').');
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $transacao) {
+                $lancamentosVinculo = [];
+
+                foreach ($request->itens as $item) {
+                    $valorPart = (float) $item['valor'];
+                    $classificacaoId = (int) $item['classificacao_financeira_id'];
+                    $pessoaId = !empty($item['pessoa_id']) ? (int) $item['pessoa_id'] : null;
+                    $classificacao = \App\Models\ClassificacaoFinanceira::find($classificacaoId);
+                    
+                    $isClube = ($classificacao && (trim($classificacao->codigo_contabil) === '1.03' || strtolower($classificacao->nome) === 'clube mania' || $classificacao->id == 82));
+                    $isRecarga = ($classificacao && (trim($classificacao->codigo_contabil) === '1.04' || strtolower($classificacao->nome) === 'recarga de carteira' || $classificacao->id == 84));
+
+                    if ($isClube && !$pessoaId) {
+                        throw new \Exception('Para conciliar uma parte como Clube Mania, é obrigatório selecionar o Contato (Pessoa).');
+                    }
+
+                    $descricao = !empty($item['descricao'])
+                        ? $item['descricao']
+                        : ($isClube ? 'Clube Mania' : ($isRecarga ? 'Recarga de Carteira' : $transacao->descricao));
+
+                    $referenciaTipo = $isRecarga ? 'recarga_carteira' : null;
+
+                    // Criar o Lançamento da parte
+                    $lancamento = Lancamento::create([
+                        'tipo' => $transacao->tipo === 'entrada' ? 'receita' : 'despesa',
+                        'status' => 'pendente',
+                        'pessoa_id' => $pessoaId,
+                        'classificacao_financeira_id' => $classificacaoId,
+                        'data_emissao' => $transacao->data,
+                        'data_vencimento' => $transacao->data,
+                        'valor_total' => $valorPart,
+                        'descricao' => $descricao,
+                        'referencia_tipo' => $referenciaTipo,
+                    ]);
+
+                    // Se for Clube e houver competência informada no item
+                    if ($isClube && !empty($item['competencia']) && $pessoaId) {
+                        $pessoa = \App\Models\Pessoa::find($pessoaId);
+                        if ($pessoa && $pessoa->user_id) {
+                            $mesAno = $item['competencia'];
+                            [$ano, $mes] = array_map('intval', explode('-', $mesAno));
+                            
+                            $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                                ->where('user_id', $pessoa->user_id)
+                                ->value('id');
+
+                            if (!$assinaturaId) {
+                                $assinaturaId = \Illuminate\Support\Facades\DB::table('clube_assinaturas')->insertGetId([
+                                    'user_id' => $pessoa->user_id,
+                                    'status' => 'ativa',
+                                    'inicio_em' => now()->toDateString(),
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            } else {
+                                \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                                    ->where('id', $assinaturaId)
+                                    ->update(['status' => 'ativa', 'updated_at' => now()]);
+                            }
+
+                            \Illuminate\Support\Facades\DB::table('clube_mensalidades')->updateOrInsert(
+                                [
+                                    'user_id' => $pessoa->user_id,
+                                    'competencia_ano' => $ano,
+                                    'competencia_mes' => $mes
+                                ],
+                                [
+                                    'assinatura_id' => $assinaturaId,
+                                    'status_pagamento' => 'pago',
+                                    'pago_em' => $transacao->data ?? now()->toDateString(),
+                                    'valor' => $valorPart,
+                                ]
+                            );
+                        }
+                    }
+
+                    $lancamentosVinculo[] = [
+                        'lancamento_id' => $lancamento->id,
+                        'valor_vinculo' => $valorPart
+                    ];
+                }
+
+                // Conciliar a transação com todos os lançamentos criados de uma vez
+                $this->service->vincularMultiplos($transacao->id, $lancamentosVinculo);
+            });
+
+            return back()->with('success', 'Transação desmembrada e conciliada com sucesso!');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }

@@ -173,6 +173,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
         Route::post('/sincronizar-inter', [ConciliacaoController::class, 'sincronizarInter'])->name('sincronizar-inter');
         Route::post('/importar',       [ConciliacaoController::class, 'importarOfx'])->name('importar');
         Route::post('/criar-rapido',   [ConciliacaoController::class, 'criarRapido'])->name('criar-rapido');
+        Route::post('/desmembrar-criar-rapido', [ConciliacaoController::class, 'desmembrarCriarRapido'])->name('desmembrar-criar-rapido');
         Route::get('/buscar-pessoas',  [ConciliacaoController::class, 'buscarPessoas'])->name('buscar-pessoas');
         Route::get('/buscar-lancamentos', [ConciliacaoController::class, 'buscarLancamentos'])->name('buscar-lancamentos');
         Route::get('/get-sugestao-pessoa/{transacao}', [ConciliacaoController::class, 'getSugestaoPessoa'])->name('get-sugestao-pessoa');
@@ -838,4 +839,15 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('equipe.index');
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
     Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
+
+    // Base de Conhecimento RAG (IA)
+    Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');
+    Route::post('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseStore'])->name('knowledge-base.store');
+    Route::delete('knowledge-base/{id}', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseDestroy'])->name('knowledge-base.destroy');
 });
+
+// ===== ROTAS DO ASSISTENTE VIRTUAL DE IA (RAG) =====
+Route::post('/api/chat-ia/send', [\App\Http\Controllers\AiAssistantController::class, 'sendMessage'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+Route::get('/api/chat-ia/history', [\App\Http\Controllers\AiAssistantController::class, 'getHistory']);
+Route::get('/portal/ajuda', [\App\Http\Controllers\AiAssistantController::class, 'portalChat'])->middleware('auth')->name('portal.ajuda');

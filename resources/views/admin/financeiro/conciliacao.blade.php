@@ -100,6 +100,11 @@
                                     title="Criar lançamento rápido e conciliar">
                                 <i class="fas fa-plus"></i> <span class="hidden sm:inline">Criar Novo</span>
                             </button>
+                            <button @click='openDesmembrarModal({{ $t->id }}, {{ json_encode($t->descricao) }}, {{ $t->valor_bruto ?? $t->valor }}, "{{ $t->tipo }}", "{{ $t->origem }}")' 
+                                    class="bg-white border border-gray-200 text-amber-600 hover:bg-amber-50 p-2.5 rounded-xl transition shadow-sm text-xs font-bold flex items-center gap-1.5"
+                                    title="Desmembrar transação em partes (ex: Clube + Recarga)">
+                                <i class="fas fa-columns"></i> <span class="hidden sm:inline">Desmembrar</span>
+                            </button>
                             <form action="{{ route('financeiro.conciliacao.ignorar', $t->id) }}" method="POST" onsubmit="return confirm('Ignorar esta transação?')">
                                 @csrf
                                 <button type="submit" 
@@ -681,6 +686,130 @@
             </div>
         </form>
     </div>
+
+    <!-- Modal Desmembrar Transação -->
+    <div x-show="showModalDesmembrar" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 overflow-y-auto" x-cloak>
+        <form action="{{ route('financeiro.conciliacao.desmembrar-criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-3xl overflow-visible shadow-2xl my-8" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
+            @csrf
+            <input type="hidden" name="transacao_id" x-model="desmembrarData.id">
+            
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl">
+                <div>
+                    <h3 class="font-black text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-columns text-amber-500"></i> Desmembrar Transação em Partes
+                    </h3>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="desmembrarData.descricao"></p>
+                </div>
+                <button type="button" @click="showModalDesmembrar = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <!-- Resumo financeiro -->
+                <div class="bg-amber-50/60 border border-amber-200/70 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-bold">
+                    <div>
+                        <span class="text-gray-500 uppercase tracking-widest text-[10px]">Valor da Transação</span>
+                        <div class="text-base font-black text-gray-800" x-text="'R$ ' + Number(desmembrarData.valorTotal).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></div>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 uppercase tracking-widest text-[10px]">Total das Partes</span>
+                        <div class="text-base font-black text-indigo-600" x-text="'R$ ' + desmembrarTotalPartes.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></div>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 uppercase tracking-widest text-[10px]">Diferença / Restante</span>
+                        <div class="text-base font-black" :class="Math.abs(desmembrarDiferenca) < 0.01 ? 'text-green-600' : 'text-red-600'" x-text="'R$ ' + desmembrarDiferenca.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></div>
+                    </div>
+                </div>
+
+                <!-- Lista de Partes -->
+                <div class="space-y-4">
+                    <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest">Partes do Desmembramento</h4>
+                    
+                    <template x-for="(parte, index) in desmembrarPartes" :key="index">
+                        <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3 relative">
+                            <div class="flex items-center justify-between border-b border-gray-200/60 pb-2">
+                                <span class="text-xs font-black text-indigo-600 uppercase tracking-wider" x-text="'Parte #' + (index + 1)"></span>
+                                <button type="button" @click="removerParteDesmembrar(index)" x-show="desmembrarPartes.length > 2" class="text-xs text-red-500 hover:text-red-700 font-bold flex items-center gap-1">
+                                    <i class="fas fa-trash"></i> Remover
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor (R$) <span class="text-red-500">*</span></label>
+                                    <input type="number" step="0.01" min="0.01" :name="'itens['+index+'][valor]'" x-model.number="parte.valor" class="w-full text-xs border border-gray-200 rounded-xl p-2 font-black text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                                </div>
+
+                                <div x-data="classificacaoParteSearch(parte)">
+                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Classificação <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <input type="text" 
+                                               x-model="search" 
+                                               @input.debounce.300ms="buscar()" 
+                                               @focus="buscar()"
+                                               placeholder="Ex: Clube Mania, Recarga..."
+                                               class="w-full text-xs border border-gray-200 rounded-xl p-2 font-bold transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                               :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
+                                               :readonly="selected" required>
+                                        <input type="hidden" :name="'itens['+index+'][classificacao_financeira_id]'" :value="selectedId" required>
+                                        <div x-show="results.length > 0" class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
+                                            <template x-for="item in results" :key="item.id">
+                                                <div @click="selecionar(item)" class="p-2 text-xs font-bold hover:bg-indigo-50 cursor-pointer border-b border-gray-100" x-text="item.text"></div>
+                                            </template>
+                                        </div>
+                                        <div x-show="selected" @click="limpar()" class="absolute right-2 top-2 cursor-pointer text-gray-400 hover:text-red-500">
+                                            <i class="fas fa-times-circle"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div x-data="pessoaParteSearch(parte)">
+                                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Contato (Pessoa)</label>
+                                    <div class="relative">
+                                        <input type="text" 
+                                               x-model="search" 
+                                               @input.debounce.300ms="buscar()" 
+                                               @focus="buscar()"
+                                               placeholder="Buscar por nome..."
+                                               class="w-full text-xs border border-gray-200 rounded-xl p-2 font-bold transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                               :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
+                                               :readonly="selected">
+                                        <input type="hidden" :name="'itens['+index+'][pessoa_id]'" :value="selectedId">
+                                        <div x-show="results.length > 0" class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
+                                            <template x-for="item in results" :key="item.id">
+                                                <div @click="selecionar(item)" class="p-2 text-xs font-bold hover:bg-indigo-50 cursor-pointer border-b border-gray-100" x-text="item.text"></div>
+                                            </template>
+                                        </div>
+                                        <div x-show="selected" @click="limpar()" class="absolute right-2 top-2 cursor-pointer text-gray-400 hover:text-red-500">
+                                            <i class="fas fa-times-circle"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1" x-show="parte.isClube">
+                                <div>
+                                    <label class="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Mês/Ano Competência Clube</label>
+                                    <input type="month" :name="'itens['+index+'][competencia]'" x-model="parte.competencia" class="w-full text-xs border border-indigo-200 rounded-xl p-2 bg-white font-bold text-indigo-700">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <button type="button" @click="adicionarParteDesmembrar()" class="w-full py-2.5 border-2 border-dashed border-gray-300 hover:border-indigo-400 hover:text-indigo-600 rounded-2xl text-xs font-bold text-gray-500 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-plus-circle"></i> Adicionar Mais Uma Parte
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-3xl flex justify-between items-center">
+                <button type="button" @click="showModalDesmembrar = false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-black px-6 py-2.5 rounded-xl transition shadow-md flex items-center gap-2" :disabled="Math.abs(desmembrarDiferenca) > 0.05">
+                    <i class="fas fa-check-circle"></i> Desmembrar e Conciliar
+                </button>
+            </div>
+        </form>
+    </div>
+
     <!-- Modal Transferência -->
     <div x-show="showModalTransferencia" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
         <form action="{{ route('financeiro.conciliacao.transferencia') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
@@ -810,6 +939,70 @@
             showModalQuick: false,
             showModalTransferencia: false,
             showModalIgnorados: false,
+            showModalDesmembrar: false,
+            desmembrarData: { id: null, descricao: '', valorTotal: 0, tipo: 'entrada' },
+            desmembrarPartes: [],
+
+            openDesmembrarModal(id, desc, valor, tipo, origem) {
+                const total = parseFloat(valor) || 0;
+                const metade = parseFloat((total / 2).toFixed(2));
+                const resto = parseFloat((total - metade).toFixed(2));
+
+                this.desmembrarData = {
+                    id: id,
+                    descricao: desc,
+                    valorTotal: total,
+                    tipo: tipo
+                };
+
+                const mesAtual = new Date().toISOString().slice(0, 7);
+
+                this.desmembrarPartes = [
+                    { valor: metade, classificacao_id: '', classificacao_nome: '', pessoa_id: '', pessoa_nome: '', competencia: mesAtual, isClube: false },
+                    { valor: resto, classificacao_id: '', classificacao_nome: '', pessoa_id: '', pessoa_nome: '', competencia: mesAtual, isClube: false }
+                ];
+
+                this.showModalDesmembrar = true;
+
+                fetch(`{{ url('admin/financeiro/conciliacao/get-sugestao-pessoa') }}/${id}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.pessoa) {
+                            this.desmembrarPartes.forEach(p => {
+                                p.pessoa_id = data.pessoa.id;
+                                p.pessoa_nome = data.pessoa.nome;
+                            });
+                        }
+                    });
+            },
+
+            adicionarParteDesmembrar() {
+                const mesAtual = new Date().toISOString().slice(0, 7);
+                const parteAnterior = this.desmembrarPartes[0];
+                this.desmembrarPartes.push({
+                    valor: 0,
+                    classificacao_id: '',
+                    classificacao_nome: '',
+                    pessoa_id: parteAnterior ? parteAnterior.pessoa_id : '',
+                    pessoa_nome: parteAnterior ? parteAnterior.pessoa_nome : '',
+                    competencia: mesAtual,
+                    isClube: false
+                });
+            },
+
+            removerParteDesmembrar(index) {
+                if (this.desmembrarPartes.length > 2) {
+                    this.desmembrarPartes.splice(index, 1);
+                }
+            },
+
+            get desmembrarTotalPartes() {
+                return this.desmembrarPartes.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+            },
+
+            get desmembrarDiferenca() {
+                return parseFloat((this.desmembrarData.valorTotal - this.desmembrarTotalPartes).toFixed(2));
+            },
 
             openTransferModal(id, tipo, desc, valor, origem) {
                 this.transferData = {
@@ -1089,6 +1282,111 @@
             limpar() {
                 this.vinculos = [];
                 this.search = '';
+                this.results = [];
+            }
+        }
+    }
+
+    function classificacaoParteSearch(parte) {
+        return {
+            search: parte.classificacao_nome || '',
+            results: [],
+            selected: !!parte.classificacao_id,
+            selectedId: parte.classificacao_id || '',
+            selectedNome: parte.classificacao_nome || '',
+            loading: false,
+            buscar() {
+                if (this.selected && this.search === this.selectedNome) {
+                    this.results = [];
+                    return;
+                }
+                if (this.search.length < 2) {
+                    this.results = [];
+                    return;
+                }
+                this.loading = true;
+                fetch('{{ route("financeiro.search.classificacoes") }}?q=' + encodeURIComponent(this.search))
+                    .then(r => r.json())
+                    .then(data => {
+                        this.results = data;
+                        this.loading = false;
+                    })
+                    .catch(() => {
+                        this.loading = false;
+                    });
+            },
+            selecionar(item) {
+                this.selected = item;
+                this.selectedId = item.id;
+                this.selectedNome = item.text;
+                this.search = item.text;
+                parte.classificacao_id = item.id;
+                parte.classificacao_nome = item.text;
+                const nomeLower = (item.text || '').toLowerCase();
+                parte.isClube = nomeLower.includes('clube') || item.id == 82;
+                this.results = [];
+            },
+            limpar() {
+                this.selected = null;
+                this.selectedId = '';
+                this.selectedNome = '';
+                this.search = '';
+                parte.classificacao_id = '';
+                parte.classificacao_nome = '';
+                parte.isClube = false;
+                this.results = [];
+            }
+        }
+    }
+
+    function pessoaParteSearch(parte) {
+        return {
+            search: parte.pessoa_nome || '',
+            results: [],
+            selected: !!parte.pessoa_id,
+            selectedId: parte.pessoa_id || '',
+            selectedNome: parte.pessoa_nome || '',
+            loading: false,
+            buscar() {
+                if (this.selected && this.search === this.selectedNome) {
+                    this.results = [];
+                    return;
+                }
+                if (this.search.length < 2) {
+                    this.results = [];
+                    return;
+                }
+                this.loading = true;
+                fetch('{{ route("financeiro.conciliacao.buscar-pessoas") }}?q=' + encodeURIComponent(this.search))
+                    .then(r => r.json())
+                    .then(data => {
+                        this.results = data.map(p => ({
+                            id: p.id,
+                            nome: p.nome,
+                            text: p.nome + (p.documento || p.cpf ? ' (' + (p.documento || p.cpf) + ')' : '')
+                        }));
+                        this.loading = false;
+                    })
+                    .catch(() => {
+                        this.loading = false;
+                    });
+            },
+            selecionar(item) {
+                this.selected = item;
+                this.selectedId = item.id;
+                this.selectedNome = item.nome;
+                this.search = item.nome;
+                parte.pessoa_id = item.id;
+                parte.pessoa_nome = item.nome;
+                this.results = [];
+            },
+            limpar() {
+                this.selected = null;
+                this.selectedId = '';
+                this.selectedNome = '';
+                this.search = '';
+                parte.pessoa_id = '';
+                parte.pessoa_nome = '';
                 this.results = [];
             }
         }
