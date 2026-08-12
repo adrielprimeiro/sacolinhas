@@ -87,6 +87,7 @@ class AvaliacaoController extends Controller
             'items.*.cor' => 'nullable|string|max:100',
             'items.*.tamanho' => 'nullable|string|max:50',
             'items.*.preco_base' => 'required|numeric|min:0',
+            'items.*.preco_venda' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -231,6 +232,7 @@ class AvaliacaoController extends Controller
             'items.*.cor' => 'nullable|string|max:100',
             'items.*.tamanho' => 'nullable|string|max:50',
             'items.*.preco_base' => 'required|numeric|min:0',
+            'items.*.preco_venda' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -269,14 +271,17 @@ class AvaliacaoController extends Controller
                     'cor' => $itemData['cor'] ?? null,
                     'tamanho' => $itemData['tamanho'] ?? null,
                     'preco_base' => $itemData['preco_base'],
+                    'preco_venda' => $itemData['preco_venda'] ?? null,
                     'is_fixed_price' => isset($itemData['is_fixed_price']) ? filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN) : false,
                 ]);
 
                 if ($avaliacao->tipo_compra === 'direta') {
-                    if (isset($itemData['is_fixed_price']) && filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN)) {
-                        $avItem->preco_venda = $itemData['preco_base'];
-                    } else {
-                        $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                    if (is_null($avItem->preco_venda) || $avItem->preco_venda <= 0) {
+                        if (isset($itemData['is_fixed_price']) && filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN)) {
+                            $avItem->preco_venda = $itemData['preco_base'];
+                        } else {
+                            $avItem->preco_venda = $itemData['preco_base'] * 2.023121387;
+                        }
                     }
                     $avItem->taxa_curadoria = 0.00;
                     $avItem->payout_credito = $itemData['preco_base'];

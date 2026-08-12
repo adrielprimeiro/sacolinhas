@@ -305,8 +305,12 @@
 
                                     {{-- Resultados --}}
                                     <td class="px-1 py-2 text-left pl-4 text-xs whitespace-nowrap align-top" style="width: 13%;">
-                                        <div class="font-bold text-gray-900">
-                                            Venda: <span x-text="formatCurrency(item.preco_venda)"></span>
+                                        <div class="font-bold text-gray-900 flex items-center h-5">
+                                            <span>Venda: R$&nbsp;</span>
+                                            <input type="number" step="0.01" min="0" 
+                                                   class="w-16 px-1 py-0 text-xs font-bold text-gray-900 border border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-right h-5" 
+                                                   x-model="item.preco_venda" 
+                                                   @input="recalculateItem(item, true)">
                                         </div>
                                         <div class="text-[10px] text-gray-500 mt-0.5" x-show="tipoCompra === 'avaliados'">
                                             Taxa Curad: <span x-text="formatCurrency(item.taxa_curadoria)"></span>
@@ -840,15 +844,17 @@ function evaluationForm(config) {
             return singularizedWords.join(' ');
         },
 
-        recalculateItem(item) {
+        recalculateItem(item, skipVendaCalc = false) {
             const numItems = this.items.length || 1;
             const freteUnitario = parseFloat(this.frete || 0) / numItems;
 
             if (this.tipoCompra === 'direta') {
-                if (item.is_fixed_price) {
-                    item.preco_venda = parseFloat(item.preco_base || 0);
-                } else {
-                    item.preco_venda = parseFloat(item.preco_base || 0) * 2.023121387;
+                if (!skipVendaCalc) {
+                    if (item.is_fixed_price) {
+                        item.preco_venda = parseFloat(item.preco_base || 0);
+                    } else {
+                        item.preco_venda = parseFloat(item.preco_base || 0) * 2.023121387;
+                    }
                 }
                 item.taxa_curadoria = 0.00;
                 item.payout_credito = parseFloat(item.preco_base || 0);
@@ -857,11 +863,13 @@ function evaluationForm(config) {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
 
-                if (item.is_fixed_price) {
-                    item.preco_venda = parseFloat(item.preco_base || 0);
-                } else {
-                    let calcVenda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
-                    item.preco_venda = Math.round(calcVenda / 5) * 5;
+                if (!skipVendaCalc) {
+                    if (item.is_fixed_price) {
+                        item.preco_venda = parseFloat(item.preco_base || 0);
+                    } else {
+                        let calcVenda = (parseFloat(item.preco_base || 0) * (brandPct / 100.00));
+                        item.preco_venda = Math.round(calcVenda / 5) * 5;
+                    }
                 }
 
                 const nota = parseInt(item.nota_curadoria) || 10;
