@@ -61,6 +61,10 @@ class AvaliacaoController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$request->has('items_json')) {
+            return redirect()->back()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente. Nenhuma alteração foi salva para proteger seus dados.');
+        }
+
         if ($request->has('items_json')) {
             $items = json_decode($request->input('items_json'), true);
             // Filtrar itens vazios no backend
@@ -204,6 +208,10 @@ class AvaliacaoController extends Controller
     {
         if ($avaliacao->status !== 'rascunho') {
             return redirect()->route('admin.avaliacoes.index')->with('error', 'Apenas avaliações em status Rascunho podem ser editadas.');
+        }
+
+        if (!$request->has('items_json')) {
+            return redirect()->back()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente. Nenhuma alteração foi salva para proteger seus dados.');
         }
 
         if ($request->has('items_json')) {
