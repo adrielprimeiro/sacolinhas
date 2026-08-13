@@ -754,17 +754,18 @@ class AvaliacaoController extends Controller
         // 1. Busca em Pessoas (Contatos do Financeiro)
         $pessoas = Pessoa::where(function($q) use ($term) {
                 $q->where('nome', 'like', "%{$term}%")
+                  ->orWhere('documento', 'like', "%{$term}%")
                   ->orWhere('id', $term);
             })
-            ->limit(20)
-            ->get(['id', 'nome', 'documento', 'user_id']);
+            ->limit(10)
+            ->get(['id', 'nome', 'documento']);
 
         // 2. Busca em Users (Clientes)
         $users = User::where(function($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                   ->orWhere('apelido', 'like', "%{$term}%")
-                  ->orWhere('nome_cliente', 'like', "%{$term}%") // Antigo tiktok
-                  ->orWhere('remember_token', 'like', "%{$term}%") // Antigo instagram
+                  ->orWhere('tiktok', 'like', "%{$term}%")
+                  ->orWhere('instagram', 'like', "%{$term}%")
                   ->orWhere('id', $term);
             })
             ->limit(20)
