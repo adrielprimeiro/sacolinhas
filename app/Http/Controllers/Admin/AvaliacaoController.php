@@ -209,7 +209,7 @@ class AvaliacaoController extends Controller
      */
     public function show(Avaliacao $avaliacao)
     {
-        $avaliacao->load(['user', 'items.categoria']);
+        $avaliacao->load(['user', 'items.categoria', 'items.item']);
         return view('admin.avaliacoes.show', compact('avaliacao'));
     }
 
