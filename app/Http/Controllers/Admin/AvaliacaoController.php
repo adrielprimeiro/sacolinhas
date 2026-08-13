@@ -763,8 +763,8 @@ class AvaliacaoController extends Controller
         $users = User::where(function($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                   ->orWhere('apelido', 'like', "%{$term}%")
-                  ->orWhere('tiktok', 'like', "%{$term}%")
-                  ->orWhere('instagram', 'like', "%{$term}%")
+                  ->orWhere('nome_cliente', 'like', "%{$term}%") // Antigo tiktok
+                  ->orWhere('remember_token', 'like', "%{$term}%") // Antigo instagram
                   ->orWhere('id', $term);
             })
             ->limit(20)
