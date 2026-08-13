@@ -26,7 +26,7 @@
         <div class="flex items-center gap-2">
             <button 
                 type="button"
-                onclick="window.print()"
+                onclick="printRecibo()"
                 class="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
             >
                 <i class="fas fa-print"></i> Imprimir Recibo
@@ -176,6 +176,7 @@
                             if (!empty($item->estado)) $detalhes[] = $item->estado;
                             if (!empty($item->nota_curadoria)) $detalhes[] = 'Cur: ' . $item->nota_curadoria . '/10';
                             if (!empty($item->motivo_curadoria)) $detalhes[] = 'Local: ' . $item->motivo_curadoria;
+                            if ($item->item && !empty($item->item->localizacao)) $detalhes[] = 'Loc. Peça: ' . $item->item->localizacao;
                             if (!empty($item->cor)) $detalhes[] = $item->cor;
                             if (!empty($item->tamanho)) $detalhes[] = 'Tam: ' . $item->tamanho;
                             $detalhesFormatados = implode(' • ', $detalhes);
@@ -612,5 +613,44 @@
         }
     }
 </script>
+
+<script>
+    function printRecibo() {
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        let anySelected = false;
+        
+        checkboxes.forEach(cb => {
+            if (cb.checked) anySelected = true;
+        });
+
+        if (anySelected) {
+            checkboxes.forEach(cb => {
+                const tr = cb.closest('tr');
+                if (!cb.checked && tr) {
+                    tr.classList.add('hide-on-print');
+                }
+            });
+        }
+
+        window.print();
+
+        if (anySelected) {
+            setTimeout(() => {
+                checkboxes.forEach(cb => {
+                    const tr = cb.closest('tr');
+                    if (tr) tr.classList.remove('hide-on-print');
+                });
+            }, 1000);
+        }
+    }
+</script>
+
+<style>
+    @media print {
+        .hide-on-print {
+            display: none !important;
+        }
+    }
+</style>
 
 @endsection
