@@ -16,6 +16,7 @@ class LiveMessage extends Model
         'plataforma',
         'username',
         'message',
+        'avatar_url',
         'captured_at'
     ];
 

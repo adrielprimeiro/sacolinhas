@@ -1,0 +1,25 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main # O deploy será acionado automaticamente ao atualizar a branch main
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute Deploy Script via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          # O script entra na pasta do projeto e roda o deploy.sh que criamos
+          script: |
+            cd ${{ secrets.SERVER_PROJECT_PATH }}
+            chmod +x deploy.sh
+            ./deploy.sh

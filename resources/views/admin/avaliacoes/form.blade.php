@@ -52,9 +52,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {{-- Fornecedor / Cliente (Busca Autocomplete idêntica a Pedidos) --}}
                 @php
-                    $oldUserText = isset($avaliacao) && $avaliacao->user
-                        ? ($avaliacao->user->name . (!empty($avaliacao->user->email) ? ' — ' . $avaliacao->user->email : ''))
-                        : '';
+                    $oldUserText = '';
+                    if (isset($avaliacao)) {
+                        if ($avaliacao->pessoa) {
+                            $oldUserText = '[FIN#' . $avaliacao->pessoa->id . '] ' . $avaliacao->pessoa->nome;
+                        } else if ($avaliacao->user) {
+                            $oldUserText = '[CLI#' . $avaliacao->user->id . '] ' . $avaliacao->user->name;
+                        }
+                    }
                 @endphp
                 <div class="relative">
                     <label for="user_search" class="block text-sm font-medium text-gray-700 mb-1">Fornecedor / Cliente <span class="text-red-500">*</span></label>
@@ -63,7 +68,7 @@
                            placeholder="Digite nome ou e-mail..."
                            autocomplete="off"
                            value="{{ $oldUserText }}">
-                    <input type="hidden" name="user_id" id="user_id_hidden" :value="userId">
+                    <input type="hidden" name="fornecedor_id" id="fornecedor_id_hidden" :value="fornecedorId">
                     <div id="user_list" class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg hidden overflow-auto" style="max-height: 260px; z-index: 9999;"></div>
                 </div>
 
@@ -310,7 +315,7 @@
                                             <input type="number" step="0.01" min="0" 
                                                    class="w-16 px-1 py-0 text-xs font-bold text-gray-900 border border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-right h-5" 
                                                    x-model="item.preco_venda" 
-                                                   @input="recalculateItem(item, true)">
+                                                   @input="item.venda_editada = true; recalculateItem(item, true)">
                                         </div>
                                         <div class="text-[10px] text-gray-500 mt-0.5" x-show="tipoCompra === 'avaliados'">
                                             Taxa Curad: <span x-text="formatCurrency(item.taxa_curadoria)"></span>
@@ -440,7 +445,7 @@ function evaluationForm(config) {
         frete: 0.00,
         freteRaw: '0,00',
         observacoes: '',
-        userId: '',
+        fornecedorId: '',
         tipoCliente: 'fora_clube',
         tipoCompra: 'avaliados',
         items: [],
@@ -460,7 +465,7 @@ function evaluationForm(config) {
                 this.frete = parseFloat(av.frete || 0);
                 this.freteRaw = this.frete.toFixed(2).replace('.', ',');
                 this.observacoes = av.observacoes || '';
-                this.userId = av.user_id;
+                this.fornecedorId = av.pessoa_id ? 'pessoa_' + av.pessoa_id : (av.user_id ? 'user_' + av.user_id : '');
                 this.tipoCliente = av.tipo_cliente;
                 this.tipoCompra = av.tipo_compra;
                 
@@ -503,6 +508,7 @@ function evaluationForm(config) {
                         preco_base_raw: parseFloat(item.preco_base).toFixed(2).replace('.', ','),
                         is_fixed_price: item.is_fixed_price || false,
                         preco_venda: parseFloat(item.preco_venda),
+                        venda_editada: true,
                         taxa_curadoria: parseFloat(item.taxa_curadoria),
                         payout_credito: parseFloat(item.payout_credito),
                         payout_dinheiro: parseFloat(item.payout_dinheiro)
@@ -516,7 +522,7 @@ function evaluationForm(config) {
         },
 
         onUserSelected(detail) {
-            this.userId = detail.id;
+            this.fornecedorId = detail.id;
             this.tipoCliente = detail.tipo_cliente || 'fora_clube';
             this.recalculateAll();
         },
@@ -555,6 +561,7 @@ function evaluationForm(config) {
                 preco_base_raw: '0,00',
                 is_fixed_price: false,
                 preco_venda: 0.00,
+                venda_editada: false,
                 taxa_curadoria: 0.00,
                 payout_credito: 0.00,
                 payout_dinheiro: 0.00
@@ -627,7 +634,7 @@ function evaluationForm(config) {
         },
 
         async saveSilently() {
-            if (!this.userId) return;
+            if (!this.fornecedorId) return;
             const validItems = this.items.filter(i => i.nome && i.nome.trim() !== '');
             if (validItems.length === 0) return;
             
@@ -700,6 +707,7 @@ function evaluationForm(config) {
             item.preco_base = parseFloat(cat.preco_base);
             item.preco_base_raw = parseFloat(cat.preco_base || 0).toFixed(2).replace('.', ',');
             item.is_fixed_price = false;
+            item.venda_editada = false;
             item.showCatDropdown = false;
             this.recalculateItem(item);
 
@@ -730,6 +738,7 @@ function evaluationForm(config) {
             const isSemMarca = brand && (brand.nome.toLowerCase() === 'sem marca' || brand.nome.toLowerCase() === 'sem_marca');
             item.brandSearch = isSemMarca ? '' : (brand.nome + ' (' + parseInt(brand.porcentagem_valor) + '%)');
             item.marca = isSemMarca ? '' : brand.nome;
+            item.venda_editada = false;
             item.showBrandDropdown = false;
             this.recalculateItem(item);
 
@@ -849,7 +858,7 @@ function evaluationForm(config) {
             const freteUnitario = parseFloat(this.frete || 0) / numItems;
 
             if (this.tipoCompra === 'direta') {
-                if (!skipVendaCalc) {
+                if (!skipVendaCalc && !item.venda_editada) {
                     if (item.is_fixed_price) {
                         item.preco_venda = parseFloat(item.preco_base || 0);
                     } else {
@@ -863,7 +872,7 @@ function evaluationForm(config) {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
 
-                if (!skipVendaCalc) {
+                if (!skipVendaCalc && !item.venda_editada) {
                     if (item.is_fixed_price) {
                         item.preco_venda = parseFloat(item.preco_base || 0);
                     } else {
@@ -925,7 +934,7 @@ function evaluationForm(config) {
             
             event.target.appendChild(hidden);
             
-            if (!this.userId) {
+            if (!this.fornecedorId) {
                 event.preventDefault();
                 alert('Por favor, selecione um Fornecedor / Cliente válido pesquisando pelo nome.');
                 return;
@@ -945,7 +954,7 @@ function evaluationForm(config) {
 // Autocomplete Usuário (Vanilla) - Idêntico ao de Pedidos
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.getElementById('user_search');
-  var hidden = document.getElementById('user_id_hidden');
+  var hidden = document.getElementById('fornecedor_id_hidden');
   var list = document.getElementById('user_list');
 
   if (!input || !hidden || !list) return;
@@ -1025,8 +1034,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function selectUser(user) {
-    var name = user && user.name ? String(user.name) : '';
-    input.value = name + (user.email ? ' — ' + user.email : '');
+    input.value = user && user.text ? String(user.text) : '';
     hidden.value = user && user.id ? user.id : '';
     
     // Dispara evento para o AlpineJS sincronizar
@@ -1060,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     showLoading();
 
-    fetch('/api/users/search?q=' + encodeURIComponent(query), {
+    fetch('/admin/avaliacoes/search-fornecedor-cliente?q=' + encodeURIComponent(query), {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: abortCtrl.signal
@@ -1100,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     for (var i = 0; i < users.length; i++) {
       var u = users[i] || {};
-      var rawName = (u.name === null || u.name === undefined) ? '' : String(u.name);
+      var rawName = (u.text === null || u.text === undefined) ? '' : String(u.text);
 
       var safeId = escapeHtml(u.id);
       var safeName = escapeHtml(rawName);
@@ -1120,7 +1128,6 @@ document.addEventListener('DOMContentLoaded', function () {
         + 'data-idx="' + i + '">'
         +   '<div class="flex items-center justify-between gap-3">'
         +     '<div class="font-medium text-gray-900">' + displayName + '</div>'
-        +     '<div class="text-xs text-gray-500 whitespace-nowrap">#' + safeId + '</div>'
         +   '</div>'
         + '</button>';
     }

@@ -694,13 +694,12 @@
 					display: flex;
 					flex-wrap: wrap;
 					flex-direction: row;
-					gap: 1px 1px;
 					font-family: Arial, sans-serif;
 					line-height: 1.05;
 				}
 				.label {
 					width: 60mm;
-					height: 30mm;
+					height: 29mm; /* Reduzido para 29mm para garantir que não passe para outra página */
 					display: flex;
 					flex-direction: row;
 					justify-content: space-between;
@@ -708,6 +707,7 @@
 					font-size: 12px;
 					padding: 1mm;
 					box-sizing: border-box;
+					overflow: hidden;
 				}
 				.left {
 					flex: 1.3;  /* Ligeiro ajuste pra dar espaço ao QR maior */

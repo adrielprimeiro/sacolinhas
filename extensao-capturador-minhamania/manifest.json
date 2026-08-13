@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Capturador de Live - Minha Mania",
-  "version": "1.3",
-  "description": "Extensão Oficial Minha Mania (v1.3 Automática) - Captura em tempo real no Instagram e TikTok para minhamania.net.",
+  "version": "1.7",
+  "description": "Extensão Oficial Minha Mania (v1.7 Automática) - Captura em tempo real no Instagram e TikTok para minhamania.net.",
   "permissions": [
     "declarativeNetRequest"
   ],

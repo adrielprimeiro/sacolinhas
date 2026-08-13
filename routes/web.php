@@ -282,6 +282,7 @@ Route::middleware('auth')->group(function () {
 
 
         // ===== ADMIN AVALIAÇÕES (ENTRADA DE MERCADORIA) =====
+        Route::get('avaliacoes/search-fornecedor-cliente', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'searchFornecedorCliente'])->name('admin.avaliacoes.search-fornecedor-cliente');
         Route::resource('avaliacoes', \App\Http\Controllers\Admin\AvaliacaoController::class)->parameters([
             'avaliacoes' => 'avaliacao'
         ])->names([

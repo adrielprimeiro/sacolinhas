@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Portal do Cliente')</title>
 	<link rel="icon" href="{{ asset('favicon.ico') }}">
 	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
@@ -143,6 +144,12 @@
 				   
 				   <span>Jogar</span>
 				</a>
+
+                <a href="{{ route('portal.ajuda') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-purple-50 text-purple-700 font-medium {{ request()->routeIs('portal.ajuda') ? 'bg-purple-100 font-semibold' : '' }}">
+                    <i class="fas fa-robot text-purple-600 w-5"></i>
+                    <span>Ajuda & IA</span>
+                </a>
                 <div class="my-4 border-t border-gray-200"></div>
 
                 @auth

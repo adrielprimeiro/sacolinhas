@@ -77,7 +77,7 @@ class AvaliacaoController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'fornecedor_id' => 'required|string',
             'tipo_compra' => 'required|in:avaliados,direta',
             'tipo_cliente' => 'required|in:clube,fora_clube',
             'frete' => 'nullable|numeric|min:0',
@@ -98,8 +98,37 @@ class AvaliacaoController extends Controller
         try {
             $frete = $request->input('frete', 0.00) ?: 0.00;
 
+            $fornecedorIdRaw = $validated['fornecedor_id'];
+            $userId = null;
+            $pessoaId = null;
+
+            if (str_starts_with($fornecedorIdRaw, 'user_')) {
+                $uid = str_replace('user_', '', $fornecedorIdRaw);
+                $user = User::find($uid);
+                if (!$user) throw new \Exception('Usuário não encontrado.');
+                
+                $pessoa = Pessoa::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nome' => $user->name,
+                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->email,
+                        'tipo' => 'cliente_circular'
+                    ]
+                );
+                $userId = $user->id;
+                $pessoaId = $pessoa->id;
+            } else if (str_starts_with($fornecedorIdRaw, 'pessoa_')) {
+                $pid = str_replace('pessoa_', '', $fornecedorIdRaw);
+                $pessoa = Pessoa::find($pid);
+                if (!$pessoa) throw new \Exception('Contato Financeiro não encontrado.');
+                
+                $pessoaId = $pessoa->id;
+                $userId = $pessoa->user_id;
+            }
+
             $avaliacao = Avaliacao::create([
-                'user_id' => $validated['user_id'],
+                'user_id' => $userId,
+                'pessoa_id' => $pessoaId,
                 'tipo_compra' => $validated['tipo_compra'],
                 'tipo_cliente' => $validated['tipo_cliente'],
                 'frete' => $frete,
@@ -226,7 +255,7 @@ class AvaliacaoController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'fornecedor_id' => 'required|string',
             'tipo_compra' => 'required|in:avaliados,direta',
             'tipo_cliente' => 'required|in:clube,fora_clube',
             'frete' => 'nullable|numeric|min:0',
@@ -247,8 +276,37 @@ class AvaliacaoController extends Controller
         try {
             $frete = $request->input('frete', 0.00) ?: 0.00;
 
+            $fornecedorIdRaw = $validated['fornecedor_id'];
+            $userId = null;
+            $pessoaId = null;
+
+            if (str_starts_with($fornecedorIdRaw, 'user_')) {
+                $uid = str_replace('user_', '', $fornecedorIdRaw);
+                $user = User::find($uid);
+                if (!$user) throw new \Exception('Usuário não encontrado.');
+                
+                $pessoa = Pessoa::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nome' => $user->name,
+                        'documento' => $user->cpf ?? $user->whatsapp ?? $user->email,
+                        'tipo' => 'cliente_circular'
+                    ]
+                );
+                $userId = $user->id;
+                $pessoaId = $pessoa->id;
+            } else if (str_starts_with($fornecedorIdRaw, 'pessoa_')) {
+                $pid = str_replace('pessoa_', '', $fornecedorIdRaw);
+                $pessoa = Pessoa::find($pid);
+                if (!$pessoa) throw new \Exception('Contato Financeiro não encontrado.');
+                
+                $pessoaId = $pessoa->id;
+                $userId = $pessoa->user_id;
+            }
+
             $avaliacao->update([
-                'user_id' => $validated['user_id'],
+                'user_id' => $userId,
+                'pessoa_id' => $pessoaId,
                 'tipo_compra' => $validated['tipo_compra'],
                 'tipo_cliente' => $validated['tipo_cliente'],
                 'frete' => $frete,
@@ -284,7 +342,7 @@ class AvaliacaoController extends Controller
                 ]);
 
                 if ($avaliacao->tipo_compra === 'direta') {
-                    if (is_null($avItem->preco_venda) || $avItem->preco_venda <= 0) {
+                    if (is_null($avItem->preco_venda) || $avItem->preco_venda < 0) {
                         if (isset($itemData['is_fixed_price']) && filter_var($itemData['is_fixed_price'], FILTER_VALIDATE_BOOLEAN)) {
                             $avItem->preco_venda = $itemData['preco_base'];
                         } else {
@@ -684,5 +742,77 @@ class AvaliacaoController extends Controller
         $buildTreeList($rootCats);
 
         return $categorias;
+    }
+    /**
+     * Busca Unificada de Clientes e Fornecedores (Contatos do Financeiro).
+     * Retorna resultados de ambas as tabelas para o Select2.
+     */
+    public function searchFornecedorCliente(Request $request)
+    {
+        $term = $request->get('q', '');
+
+        // 1. Busca em Pessoas (Contatos do Financeiro)
+        $pessoas = Pessoa::where(function($q) use ($term) {
+                $q->where('nome', 'like', "%{$term}%")
+                  ->orWhere('id', $term);
+            })
+            ->limit(20)
+            ->get(['id', 'nome', 'documento', 'user_id']);
+
+        // 2. Busca em Users (Clientes)
+        $users = User::where(function($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                  ->orWhere('apelido', 'like', "%{$term}%")
+                  ->orWhere('tiktok', 'like', "%{$term}%")
+                  ->orWhere('instagram', 'like', "%{$term}%")
+                  ->orWhere('id', $term);
+            })
+            ->limit(20)
+            ->get(['id', 'name', 'cpf', 'apelido']);
+
+        $results = collect();
+
+        // Adiciona as Pessoas aos resultados
+        foreach ($pessoas as $p) {
+            $text = "[FIN#{$p->id}] {$p->nome}";
+            if ($p->documento) {
+                $text .= " - {$p->documento}";
+            }
+            if ($p->user_id) {
+                $text .= " (Cliente vinculado)";
+            }
+            
+            $results->push([
+                'id' => "pessoa_{$p->id}",
+                'text' => $text,
+                'tipo' => 'pessoa',
+                'original_id' => $p->id
+            ]);
+        }
+
+        // Adiciona os Users aos resultados (apenas se a Pessoa correspondente ainda não foi trazida)
+        $pessoaUserIds = $pessoas->pluck('user_id')->filter()->toArray();
+        foreach ($users as $u) {
+            if (in_array($u->id, $pessoaUserIds)) {
+                continue; // Já foi retornado pela busca em Pessoas
+            }
+
+            $text = "[CLI#{$u->id}] {$u->name}";
+            if ($u->apelido) {
+                $text .= " '{$u->apelido}'";
+            }
+            if ($u->cpf) {
+                $text .= " - {$u->cpf}";
+            }
+
+            $results->push([
+                'id' => "user_{$u->id}",
+                'text' => $text,
+                'tipo' => 'user',
+                'original_id' => $u->id
+            ]);
+        }
+
+        return response()->json($results->take(30)->values());
     }
 }

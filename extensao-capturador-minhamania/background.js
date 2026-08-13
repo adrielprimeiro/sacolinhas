@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         };
 
         if (request.body && (request.method === "POST" || request.method === "PUT")) {
-            fetchOptions.body = JSON.stringify(request.body);
+            fetchOptions.body = typeof request.body === "string" ? request.body : JSON.stringify(request.body);
         }
 
         fetch(request.url, fetchOptions)
@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 });
             })
             .catch(error => {
-                console.error("Erro no fetch em background:", error);
+                console.warn("Erro no fetch em background:", error);
                 sendResponse({
                     success: false,
                     error: error.message

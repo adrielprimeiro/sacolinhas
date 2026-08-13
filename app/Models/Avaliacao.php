@@ -13,6 +13,7 @@ class Avaliacao extends Model
 
     protected $fillable = [
         'user_id',
+        'pessoa_id',
         'tipo_compra',
         'tipo_cliente',
         'frete',
@@ -37,6 +38,14 @@ class Avaliacao extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Relacionamento com a pessoa (contato financeiro).
+     */
+    public function pessoa()
+    {
+        return $this->belongsTo(Pessoa::class, 'pessoa_id');
     }
 
     /**

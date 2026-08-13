@@ -72,8 +72,8 @@
             </div>
         </div>
 
-        <!-- COLUNA 2: CHAT EM TEMPO REAL (LARGURA 9) -->
-        <div class="lg:col-span-9 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+        <!-- COLUNA 2: CHAT EM TEMPO REAL (LARGURA 6) -->
+        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
             <div class="bg-gray-800 px-5 py-4 flex items-center justify-between text-white">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-comment-alt"></i>
@@ -102,8 +102,8 @@
             </div>
         </div>
 
-        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (LARGURA 3) -->
-        <div class="lg:col-span-3 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (LARGURA 6) -->
+        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 bg-gray-50">
                 <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600">
@@ -189,13 +189,23 @@
                 </div>
 
                 <!-- Tab: Pessoas Online -->
-                <div id="tab-content-online" class="hidden space-y-3">
-                    <div class="flex items-center justify-between mb-2">
+                <div id="tab-content-online" class="hidden flex flex-col h-full">
+                    <!-- Busca de Cliente Avulso -->
+                    <div class="relative z-20 shrink-0 mb-4">
+                        <div class="relative">
+                            <input type="text" id="avulso-search-input" placeholder="Buscar cliente por nome, apelido, cel..." class="w-full p-3 pl-10 rounded-xl border-2 border-indigo-100 bg-indigo-50/30 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold text-gray-700 placeholder-indigo-300 transition-all">
+                            <i class="fas fa-search absolute left-3.5 top-3.5 text-indigo-400"></i>
+                        </div>
+                        <div id="avulso-search-results" class="absolute w-full mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden flex flex-col">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-3 shrink-0">
                         <h3 class="font-bold text-gray-700 text-sm">Participantes na Transmissão</h3>
                         <span id="online-users-count" class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
                     </div>
                     
-                    <div id="online-users-list" class="space-y-2.5">
+                    <div id="online-users-list" class="space-y-2.5 flex-1 overflow-y-auto relative z-10 pb-2">
                         <!-- Gerado dinamicamente -->
                         <p class="text-xs text-gray-400 text-center py-6">Nenhum participante detectado ainda.</p>
                     </div>
@@ -207,7 +217,7 @@
 </div>
 
 <!-- MODAL VINCULAR CLIENTE -->
-<div id="link-user-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+<div id="link-user-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden" style="z-index: 99999;">
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 max-w-md w-full p-6 mx-4 transform transition-all duration-300">
         <div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -241,11 +251,11 @@
 </div>
 
 <!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
-<div id="online-qr-modal" class="fixed inset-0 bg-gray-950 z-[100] flex flex-col hidden overflow-hidden">
+<div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
     <!-- Cabeçalho Fullscreen Elegante -->
-    <div class="bg-gray-900/95 border-b border-gray-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 shadow-2xl">
+    <div class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 shadow-2xl">
         <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-inner">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0 shadow-inner">
                 <i class="fas fa-qrcode text-indigo-400 text-2xl animate-pulse"></i>
             </div>
             <div>
@@ -253,9 +263,9 @@
                     <h3 class="text-lg sm:text-xl font-extrabold text-white tracking-wide">
                         Leitor de Etiqueta / QRCode
                     </h3>
-                    <span class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Tela Inteira</span>
+                    <span class="bg-indigo-100 text-indigo-600 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider" style="font-size: 11px;">Tela Inteira</span>
                 </div>
-                <p class="text-xs sm:text-sm text-gray-300 mt-0.5">Adicionando itens na sacola de: <strong id="online-qr-client-name" class="text-indigo-400 font-extrabold text-sm sm:text-base bg-gray-800/80 px-2.5 py-0.5 rounded-md border border-gray-700/60">@usuario</strong></p>
+                <p class="text-xs sm:text-sm text-gray-300 mt-0.5">Adicionando itens na sacola de: <strong id="online-qr-client-name" class="text-indigo-400 font-extrabold text-sm sm:text-base bg-gray-800 px-2.5 py-0.5 rounded-md border border-gray-700">@usuario</strong></p>
             </div>
         </div>
 
@@ -267,13 +277,13 @@
     </div>
 
     <!-- Corpo / Área da Câmera em Tela Inteira -->
-    <div class="flex-1 flex flex-col lg:flex-row gap-6 p-4 sm:p-6 overflow-hidden max-w-[1600px] mx-auto w-full">
+    <div class="flex-1 flex flex-col lg:flex-row gap-6 p-4 sm:p-6 overflow-hidden mx-auto w-full" style="max-width: 1600px;">
         <!-- Container da Câmera (Ocupa a maior parte da tela inteira) -->
-        <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden relative border-2 border-indigo-500/30 shadow-2xl min-h-[45vh] lg:min-h-0">
+        <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden relative border-2 border-indigo-500 shadow-2xl lg:min-h-0" style="min-height: 45vh;">
             <div id="online-qr-reader" class="w-full h-full flex-1"></div>
             
             <div class="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10">
-                <div class="bg-gray-900/85 backdrop-blur-md px-5 py-2.5 rounded-full border border-gray-700 text-gray-200 text-xs sm:text-sm font-semibold flex items-center gap-2.5 shadow-xl">
+                <div class="bg-gray-900 backdrop-blur-md px-5 py-2.5 rounded-full border border-gray-700 text-gray-200 text-xs sm:text-sm font-semibold flex items-center gap-2.5 shadow-xl">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
                     <i class="fas fa-camera text-indigo-400"></i>
                     <span>Aponte a câmera para o QR Code ou Código de Barras da etiqueta</span>
@@ -282,9 +292,9 @@
         </div>
 
         <!-- Painel Lateral de Controles e Entrada Manual / Feedback (Largura fixa em telas grandes) -->
-        <div class="w-full lg:w-[420px] flex flex-col gap-4 shrink-0 overflow-y-auto">
+        <div class="w-full flex flex-col gap-4 shrink-0 overflow-y-auto" style="width: 100%; max-width: 420px;">
             <!-- Box de Entrada Manual / Leitor USB -->
-            <div class="bg-gray-900/90 rounded-3xl p-6 border border-gray-800 shadow-xl flex flex-col gap-3">
+            <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800 shadow-xl flex flex-col gap-3">
                 <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
                     <i class="fas fa-keyboard text-indigo-400 text-base"></i>
                     <span>Bipador USB / Entrada Manual</span>
@@ -304,7 +314,7 @@
             <div id="online-qr-feedback" class="p-4 sm:p-5 rounded-3xl text-sm font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
 
             <!-- Instruções Rápidas -->
-            <div class="bg-gray-900/60 rounded-3xl p-5 border border-gray-800/80 text-xs text-gray-300 space-y-2.5 flex-1">
+            <div class="bg-gray-900 rounded-3xl p-5 border border-gray-800 text-xs text-gray-300 space-y-2.5 flex-1">
                 <p class="font-bold text-white flex items-center gap-2 text-sm"><i class="fas fa-info-circle text-indigo-400"></i> Como funciona em Tela Inteira:</p>
                 <ul class="list-disc pl-4 space-y-1.5 text-gray-300 leading-normal">
                     <li>A câmera permanece aberta continuamente em tela cheia para você bipar vários itens seguidos sem fechar a janela.</li>
@@ -597,18 +607,25 @@
         let html = '';
         messages.forEach(msg => {
             const isTikTok = msg.plataforma === 'tiktok';
-            const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500 mr-1.5"></i>' : '<i class="fab fa-instagram text-purple-500 mr-1.5"></i>';
+            const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500"></i>' : '<i class="fab fa-instagram text-purple-500"></i>';
             const time = new Date(msg.created_at).toLocaleTimeString();
+            const initials = msg.username.slice(0,2).toUpperCase();
+            const avatarHtml = msg.avatar_url
+                ? `<img src="${escapeHtml(msg.avatar_url)}" onerror="this.onerror=null;this.src=''" class="w-6 h-6 rounded-full object-cover shrink-0" />`
+                : `<div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-[9px] text-indigo-300 shrink-0">${initials}</div>`;
             
             html += `
                 <div class="hover:bg-gray-800/50 p-1.5 rounded transition duration-150">
-                    <div class="flex items-baseline justify-between mb-0.5">
-                        <span class="font-bold text-xs text-indigo-400 flex items-center">
-                            ${icon} @${msg.username}
-                        </span>
-                        <span class="text-[9px] text-gray-600 font-mono">${time}</span>
+                    <div class="flex items-center justify-between mb-0.5 gap-1.5">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            ${avatarHtml}
+                            <span class="font-bold text-xs text-indigo-400 flex items-center gap-1 truncate">
+                                ${icon} @${msg.username}
+                            </span>
+                        </div>
+                        <span class="text-[9px] text-gray-600 font-mono shrink-0">${time}</span>
                     </div>
-                    <p class="text-sm text-gray-200 leading-normal pl-4">${escapeHtml(msg.message)}</p>
+                    <p class="text-sm text-gray-200 leading-normal pl-7">${escapeHtml(msg.message)}</p>
                 </div>
             `;
         });
@@ -636,11 +653,20 @@
             const isTikTok = u.plataforma === 'tiktok';
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500 text-xs"></i>' : '<i class="fab fa-instagram text-purple-500 text-xs"></i>';
             const initials = u.username.slice(0,2).toUpperCase();
+
+            // Avatar: foto de perfil se disponível, fallback para iniciais
+            const avatarHtml = u.avatar_url
+                ? `<img src="${escapeHtml(u.avatar_url)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" /><div class="w-9 h-9 rounded-full bg-indigo-100 items-center justify-center font-bold text-xs text-indigo-700 hidden">${initials}</div>`
+                : `<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">${initials}</div>`;
             
+            let displayName = escapeHtml(u.user_name || '');
+            if (u.user_apelido) {
+                displayName = displayName ? `${displayName} (${escapeHtml(u.user_apelido)})` : escapeHtml(u.user_apelido);
+            }
+
             let subtitle = '';
             if (u.user_id) {
-                const clientName = escapeHtml(u.user_name || u.user_apelido || '');
-                subtitle = clientName ? `<span class="text-[8.5px] font-normal text-green-700 flex items-center gap-1 mt-0.5"><i class="fas fa-user text-[7.5px]"></i> ${clientName}</span>` : '';
+                subtitle = displayName ? `<span class="text-[8.5px] font-normal text-green-700 flex items-center gap-1 mt-0.5"><i class="fas fa-user text-[7.5px]"></i> ${displayName}</span>` : '';
             } else {
                 subtitle = `<span class="text-[9.5px] text-gray-400">Visto às ${u.last_seen}</span>`;
             }
@@ -650,12 +676,13 @@
                 <div ${u.user_id ? `onclick="openOnlineQrModal('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}')"` : `onclick="openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')"`} 
                      class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-150 hover:bg-indigo-50/70 hover:border-indigo-300 cursor-pointer transition duration-150 shadow-xs">
                     <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">
-                            ${initials}
+                        <div class="shrink-0 relative">
+                            ${avatarHtml}
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center text-[7px] shadow">${icon}</span>
                         </div>
                         <div>
                             <div class="flex items-center gap-1 text-xs font-semibold text-gray-800">
-                                ${icon} @${escapeHtml(u.username)}
+                                @${escapeHtml(u.username)}
                             </div>
                             ${subtitle}
                         </div>
@@ -845,7 +872,7 @@
             return;
         }
 
-        fetch(`/users/search?q=${encodeURIComponent(query)}`)
+        fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.data.length > 0) {
@@ -869,6 +896,74 @@
             })
             .catch(err => console.error("Erro na busca de usuários:", err));
     }
+
+    let currentAvulsoFocus = -1;
+
+    // Busca de Clientes Avulso (na aba Pessoas Online)
+    function searchAvulsoClients(query) {
+        const resultsContainer = document.getElementById("avulso-search-results");
+        if (query.trim().length < 2) {
+            resultsContainer.classList.add("hidden");
+            return;
+        }
+
+        resultsContainer.classList.remove("hidden");
+        resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando...</p>`;
+
+        fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    currentAvulsoFocus = -1; // Reset focus na nova busca
+                    let html = '';
+                    data.data.forEach(user => {
+                        const identifier = user.instagram || user.tiktok || user.whatsapp || user.id;
+                        html += `
+                            <div onclick="selectAvulsoClient('${user.id}', '${escapeHtml(user.name)}', '${escapeHtml(user.instagram || user.tiktok || '')}')" class="avulso-search-item p-3 border-b border-gray-100 bg-white hover:bg-indigo-50 cursor-pointer transition flex justify-between items-center group">
+                                <div>
+                                    <h4 class="font-bold text-sm text-gray-800 group-hover:text-indigo-700">${escapeHtml(user.name)}</h4>
+                                    <div class="text-[11px] text-gray-500 mt-1 flex flex-wrap gap-2">
+                                        ${user.instagram ? `<span class="text-pink-600"><i class="fab fa-instagram"></i> @${escapeHtml(user.instagram)}</span>` : ''}
+                                        ${user.tiktok ? `<span class="text-black"><i class="fab fa-tiktok"></i> @${escapeHtml(user.tiktok)}</span>` : ''}
+                                        ${user.whatsapp ? `<span class="text-green-600"><i class="fab fa-whatsapp"></i> ${escapeHtml(user.whatsapp)}</span>` : ''}
+                                        ${user.apelido ? `<span class="text-indigo-600"><i class="fas fa-tag"></i> ${escapeHtml(user.apelido)}</span>` : ''}
+                                    </div>
+                                </div>
+                                <button type="button" class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition shadow-sm flex items-center justify-center shrink-0">
+                                    <i class="fas fa-camera text-sm"></i>
+                                </button>
+                            </div>
+                        `;
+                    });
+                    resultsContainer.innerHTML = html;
+                } else {
+                    resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Nenhum cliente cadastrado encontrado.</p>`;
+                }
+            })
+            .catch(err => {
+                resultsContainer.innerHTML = `<p class="text-xs text-red-400 text-center py-4">Erro na busca de clientes.</p>`;
+                console.error("Erro na busca avulsa:", err);
+            });
+    }
+
+    function selectAvulsoClient(id, name, usernameFallback) {
+        const resultsContainer = document.getElementById("avulso-search-results");
+        const input = document.getElementById("avulso-search-input");
+        if (resultsContainer) resultsContainer.classList.add("hidden");
+        if (input) input.value = "";
+        
+        // Abre o modal de bipagem exatamente igual a clicar na lista
+        openOnlineQrModal(id, usernameFallback || name, name);
+    }
+    
+    // Esconder resultados ao clicar fora
+    document.addEventListener('click', function(e) {
+        const results = document.getElementById("avulso-search-results");
+        const input = document.getElementById("avulso-search-input");
+        if (results && input && !results.contains(e.target) && e.target !== input) {
+            results.classList.add("hidden");
+        }
+    });
 
     // Executar vinculação do cliente
     function linkUserToProfile(userId) {
@@ -1014,7 +1109,7 @@
         }
 
         try {
-            const response = await fetch(`/items/search?q=${encodeURIComponent(code)}`);
+            const response = await fetch(`/api/items/search?q=${encodeURIComponent(code)}`);
             const data = await response.json();
 
             if (!data.success || !data.data || data.data.length === 0) {
@@ -1184,6 +1279,59 @@
             btn.disabled = false;
             btn.innerHTML = oldText;
             alert("Erro na requisição: " + e.message);
+        }
+    }
+
+    // Busca de clientes (ignora setas e enter para não sobrepor a navegação)
+    let lastAvulsoQuery = "";
+    document.getElementById("avulso-search-input").addEventListener("keyup", function(e) {
+        if ([38, 40, 13].includes(e.keyCode)) return;
+        if (this.value === lastAvulsoQuery) return;
+        lastAvulsoQuery = this.value;
+        searchAvulsoClients(this.value);
+    });
+
+    // Navegação por teclado no input Avulso
+    document.getElementById("avulso-search-input").addEventListener("keydown", function(e) {
+        let x = document.getElementById("avulso-search-results");
+        if (!x || x.classList.contains('hidden')) return;
+        let items = x.querySelectorAll('.avulso-search-item');
+        if (!items || items.length === 0) return;
+
+        if (e.keyCode == 40) { // Seta para baixo
+            currentAvulsoFocus++;
+            addActiveAvulso(items);
+            e.preventDefault();
+        } else if (e.keyCode == 38) { // Seta para cima
+            currentAvulsoFocus--;
+            addActiveAvulso(items);
+            e.preventDefault();
+        } else if (e.keyCode == 13) { // Enter
+            e.preventDefault();
+            if (currentAvulsoFocus > -1) {
+                if (items[currentAvulsoFocus]) {
+                    items[currentAvulsoFocus].click();
+                }
+            } else if (items.length > 0) {
+                items[0].click();
+            }
+        }
+    });
+
+    function addActiveAvulso(x) {
+        if (!x) return false;
+        removeActiveAvulso(x);
+        if (currentAvulsoFocus >= x.length) currentAvulsoFocus = 0;
+        if (currentAvulsoFocus < 0) currentAvulsoFocus = (x.length - 1);
+        x[currentAvulsoFocus].classList.add("bg-indigo-100", "border-l-4", "border-indigo-500");
+        x[currentAvulsoFocus].classList.remove("bg-white");
+        x[currentAvulsoFocus].scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    function removeActiveAvulso(x) {
+        for (var i = 0; i < x.length; i++) {
+            x[i].classList.remove("bg-indigo-100", "border-l-4", "border-indigo-500");
+            x[i].classList.add("bg-white");
         }
     }
 </script>

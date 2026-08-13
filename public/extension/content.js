@@ -44,7 +44,7 @@
     let hasLoadedLivesOnce = false;
     let isCapturing = false;
     let observer = null;
-    let hasCalibrated = false;
+    let hasCalibrated = safeGetItem("live_capture_has_calibrated", "false") === "true";
     const sentMessages = new Set();
     
     // Seletores padrão
@@ -58,10 +58,18 @@
         instagram: {
             container: '[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]',
             message: '[role="log"] > *, div[class*="CommentRow"], div[class*="comment-row"], div[class*="LiveComment"]',
-            username: 'a[href*="/"], span[class*="username"], .username',
-            text: 'span[class*="comment"], span:last-child, span[class*="text"]'
+            username: 'span[class*="Username"], span[class*="username"], span[class*="Author"]',
+            text: 'span[class*="CommentText"], span[class*="text"], span[dir="auto"]'
         }
     }[platform];
+
+    if (hasCalibrated) {
+        const savedContainer = safeGetItem("live_capture_container", "");
+        if (savedContainer) {
+            selectors.container = savedContainer;
+            selectors.message = `${savedContainer} > *`;
+        }
+    }
 
     function sanitizeServerUrl(url) {
         if (!url) return "";
@@ -140,6 +148,9 @@
             let curClasses = Array.from(current.classList)
                 .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
                 .slice(0, 2)
+                .map(c => {
+                    try { return CSS.escape(c); } catch(e) { return c.replace(/[:\[\]]/g, '\\$&'); }
+                })
                 .join('.');
             path.unshift(tag + rolePart + (curClasses ? '.' + curClasses : ''));
             current = current.parentNode;
@@ -155,7 +166,10 @@
         }
         let classes = Array.from(el.classList)
             .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
-            .slice(0, 2);
+            .slice(0, 2)
+            .map(c => {
+                try { return CSS.escape(c); } catch(e) { return c.replace(/[:\[\]]/g, '\\$&'); }
+            });
         let classPart = classes.length > 0 ? `.${classes.join('.')}` : '';
         return `${containerSelector} ${tag}${classPart}`;
     }
@@ -526,46 +540,6 @@
         };
     }
 
-    // Calibração interativa de seletores inteligente (1 clique)
-    calibrateBtn.addEventListener("click", () => {
-        alert("Modo de calibração inteligente ativado!\nClique em QUALQUER COMENTÁRIO no chat da live.");
-        
-        const overlay = document.createElement("div");
-        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.1);z-index:2147483647;cursor:crosshair;";
-        document.body.appendChild(overlay);
-
-        overlay.addEventListener("click", (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            overlay.style.display = "none";
-            const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
-            overlay.style.display = "block";
-
-            if (!clickedElement) return;
-
-            // Tentar primeiro calibrar usando o contêiner detectado automaticamente
-            let containerElement = autoDetectContainer();
-
-            // Se a detecção automática falhou ou o clique foi fora do contêiner
-            if (!containerElement || !containerElement.contains(clickedElement)) {
-                const structure = detectChatStructure(clickedElement);
-                containerElement = structure.containerElement;
-            }
-            
-            const containerSel = getContainerSelector(containerElement);
-            selectors.container = containerSel;
-            selectors.message = `${containerSel} > *`; // Usar seletor filho direto universal
-            hasCalibrated = true;
-            
-            alert(`Calibração Inteligente Concluída!\n\n` +
-                  `1. Contêiner detectado: ${selectors.container}\n` +
-                  `2. Seletor de mensagens: ${selectors.message}`);
-                  
-            document.body.removeChild(overlay);
-        });
-    });
-
     function isValidUsername(val) {
         if (!val) return false;
         val = val.trim();
@@ -702,12 +676,21 @@
                 return;
             }
 
-            // 3. Extrair a mensagem (todos os leafs que vêm APÓS o username)
+            // 3. Extrair a mensagem
             let text = "";
-            if (user) {
+            if (selectors && selectors.text) {
+                const textEls = rowElement.querySelectorAll(selectors.text);
+                if (textEls.length > 0) {
+                    // Pega o último elemento que bate com o seletor de texto (geralmente é o comentário real)
+                    text = textEls[textEls.length - 1].textContent.trim();
+                }
+            }
+
+            if (!text && user) {
                 let userIdx = -1;
                 for (let i = 0; i < leafs.length; i++) {
-                    if (leafs[i].replace(/^@/, "").replace(/:$/, "").trim() === user) {
+                    const leafClean = leafs[i].replace(/^@/, "").replace(/:$/, "").trim();
+                    if (leafClean === user || user.includes(leafClean) || leafClean.includes(user)) {
                         userIdx = i;
                         break;
                     }
@@ -721,7 +704,6 @@
                         let val = leafs[i].trim();
                         let valLower = val.toLowerCase();
                         
-                        // Pular caracteres de separação e botões de controle comuns
                         if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") continue;
                         if (valLower === 'curtir' || valLower === 'like' || valLower === 'responder' || valLower === 'reply') continue;
                         if (timeRegex.test(val)) continue;
@@ -729,6 +711,9 @@
                         messageParts.push(leafs[i]);
                     }
                     text = messageParts.join(" ").trim();
+                } else if (leafs.length >= 2) {
+                    // Fallback extremo: pegar os elementos que sobraram depois de tirar o usuário (ou pelo menos o último)
+                    text = leafs[leafs.length - 1].trim();
                 }
             }
 
@@ -744,17 +729,20 @@
             console.log(`[Capturador] Tentando processar - Usuário: "${user}", Texto: "${text}"`);
 
             if (user && text) {
-                sendChatMessage(user, text);
+                // Tentar capturar o avatar (imagem de perfil) do nó de chat
+                const avatarImg = rowElement.querySelector('img[src]');
+                const avatarUrl = avatarImg ? avatarImg.src : null;
+                sendChatMessage(user, text, avatarUrl);
             } else {
                 console.warn("[Capturador] Não foi possível extrair usuário e texto válidos do elemento:", rowElement);
             }
         } catch (err) {
-            console.error("Erro ao ler nó de chat: ", err);
+            console.warn("Erro ao ler nó de chat: ", err);
         }
     }
 
     // Enviar mensagem para o Laravel
-    async function sendChatMessage(username, message) {
+    async function sendChatMessage(username, message, avatarUrl) {
         const msgKey = `${username}:${message}`;
         if (sentMessages.has(msgKey)) return; // Evitar duplicatas
         sentMessages.add(msgKey);
@@ -773,7 +761,8 @@
                     live_id: liveId,
                     platform: platform,
                     username: username,
-                    message: message
+                    message: message,
+                    avatar_url: avatarUrl || null
                 })
             });
             const data = await res.json();
@@ -784,7 +773,7 @@
                 log(`Erro Laravel: ${data.error || 'Rejeitado'}`, true);
             }
         } catch (e) {
-            console.error("Erro ao enviar mensagem para o Laravel:", e);
+            console.warn("Erro ao enviar mensagem para o Laravel:", e);
             log(`Erro de rede: ${e.message}`, true);
         }
     }
@@ -910,7 +899,19 @@
 
     function autoDetectContainer() {
         if (platform === "tiktok") {
-            return document.querySelector(selectors.container);
+            const chatMsg = document.querySelector('div[data-e2e="chat-message"], div[class*="DivChatMessage"], div[class*="chat-message"]');
+            if (chatMsg) {
+                let parent = chatMsg.parentElement;
+                while (parent && parent !== document.body) {
+                    const style = window.getComputedStyle(parent);
+                    if (style.overflowY === 'auto' || style.overflowY === 'scroll' || parent.scrollHeight > parent.clientHeight + 20) {
+                        console.log("[Capturador] Auto-detecção TikTok baseada em mensagem bem-sucedida!");
+                        return parent;
+                    }
+                    parent = parent.parentElement;
+                }
+                return chatMsg.parentElement;
+            }
         }
 
         // 1. Heurística de botões "Responder" / "Reply" (específica e super estável para Instagram)
@@ -1039,49 +1040,99 @@
         if (!chatContainer) {
             console.error("[Capturador] Contêiner do chat não pôde ser localizado pelo seletor:", selectors.container);
             log("Contêiner do chat não encontrado! Tente 'Calibrar'.", true);
-            alert("Aba de chat não localizada! Certifique-se de que a live está aberta e o painel de chat visível.");
-            return;
-        }
+            console.warn("[Capturador] Contêiner do chat não encontrado!");
+            log("Contêiner de chat não encontrado na auto-detecção.", true);
+            // Don't return, keep trying if calibration happens
+        } else {
+            console.log("[Capturador] Contêiner encontrado:", chatContainer.tagName, chatContainer.className);
+            console.log("[Capturador] Seletor de mensagens:", selectors.message);
 
-        console.log("[Capturador] Contêiner encontrado:", chatContainer.tagName, chatContainer.className);
-        console.log("[Capturador] Seletor de mensagens:", selectors.message);
+            isCapturing = true;
+            log("Captura iniciada com sucesso!");
 
-        isCapturing = true;
-        log("Captura iniciada com sucesso!");
+            // Processar mensagens que já estão na tela
+            let existingMessages = selectors.message ? Array.from(chatContainer.querySelectorAll(selectors.message)) : [];
+            if (existingMessages.length === 0) {
+                existingMessages = Array.from(chatContainer.children);
+            }
+            console.log(`[Capturador] Encontrados ${existingMessages.length} elementos de mensagem existentes.`);
+            existingMessages.forEach((msg, idx) => {
+                console.log(`[Capturador] Mensagem existente [${idx}]:`, msg.tagName, msg.className, "Texto:", msg.innerText);
+                processNewMessageNode(msg, chatContainer);
+            });
 
-        // Processar mensagens que já estão na tela
-        let existingMessages = selectors.message ? Array.from(chatContainer.querySelectorAll(selectors.message)) : [];
-        if (existingMessages.length === 0) {
-            existingMessages = Array.from(chatContainer.children);
-        }
-        console.log(`[Capturador] Encontrados ${existingMessages.length} elementos de mensagem existentes.`);
-        existingMessages.forEach((msg, idx) => {
-            console.log(`[Capturador] Mensagem existente [${idx}]:`, msg.tagName, msg.className, "Texto:", msg.innerText);
-            processNewMessageNode(msg, chatContainer);
-        });
-
-        // Observar novas mensagens
-        observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
-                    processNewMessageNode(node, chatContainer);
+            // Observar novas mensagens
+            observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        processNewMessageNode(node, chatContainer);
+                    });
                 });
             });
-        });
 
-        observer.observe(chatContainer, { childList: true, subtree: true });
+            observer.observe(chatContainer, { childList: true, subtree: true });
+        }
     }
 
     // Parar monitoramento
     function stopCapture() {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
-        }
         isCapturing = false;
-        log("Captura parada.");
+        if (observer) { observer.disconnect(); observer = null; }
+        if (typeof scanTimeout !== 'undefined') { clearTimeout(scanTimeout); }
     }
 
+    // Botão de Calibração de Emergência
+    const calibBtn = document.createElement("button");
+    calibBtn.innerText = "🎯 Calibrar Chat";
+    calibBtn.style.cssText = "position:fixed;bottom:20px;left:20px;z-index:999999;padding:10px 15px;background:#e91e63;color:white;border:none;border-radius:5px;font-weight:bold;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.3);";
+    document.body.appendChild(calibBtn);
+
+    calibBtn.addEventListener("click", () => {
+        alert("Modo de calibração ativado!\nClique em UM COMENTÁRIO DENTRO DO CHAT para a extensão aprender onde ele fica.");
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.2);z-index:9999999;cursor:crosshair;";
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener("click", (e) => {
+            e.stopPropagation(); e.preventDefault();
+            overlay.style.display = "none";
+            const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
+            overlay.style.display = "block";
+            if (!clickedElement) return;
+
+            let containerElement = clickedElement.parentElement;
+            while (containerElement && containerElement !== document.body) {
+                const style = window.getComputedStyle(containerElement);
+                if (style.overflowY === 'auto' || style.overflowY === 'scroll' || containerElement.scrollHeight > containerElement.clientHeight + 20) {
+                    break;
+                }
+                containerElement = containerElement.parentElement;
+            }
+            if (!containerElement || containerElement === document.body) containerElement = clickedElement.parentElement;
+
+            const containerSel = getContainerSelector(containerElement);
+            selectors.container = containerSel;
+            selectors.message = `${containerSel} > *`;
+            hasCalibrated = true;
+            // Assumindo que safeSetItem existe ou via localStorage
+            localStorage.setItem("live_capture_has_calibrated", "true");
+            localStorage.setItem("live_capture_container", containerSel);
+            
+            alert(`Calibração Concluída!\nA extensão vai reiniciar e capturar as mensagens dessa caixa.`);
+            document.body.removeChild(overlay);
+            
+            stopCapture();
+            setTimeout(startCapture, 1000);
+        }, { once: true });
+    });
+
     // Inicialização direta silenciosa
-    setTimeout(startCapture, 2000);
+    setTimeout(() => {
+        try {
+            startCapture();
+        } catch (e) {
+            console.warn("[Capturador] Erro fatal durante a inicialização:", e);
+            alert("ERRO FATAL NA EXTENSÃO: " + e.message + "\\nPor favor, tire print dessa mensagem!");
+        }
+    }, 2000);
 })();

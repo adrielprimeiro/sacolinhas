@@ -51,7 +51,7 @@ class LiveChatController extends Controller
             }
         }
 
-        $plat = strtolower((string) $request->input('platform', $request->input('source', 'instagram')));
+        $plat = strtolower((string) $request->input('platform', $request->input('source', $request->input('provider', $request->input('chatname', 'instagram')))));
         if (str_contains($plat, 'tiktok')) {
             $plat = 'tiktok';
         } else {
@@ -68,11 +68,13 @@ class LiveChatController extends Controller
         // Mapeamento nativo para payloads do Social Stream Ninja (author / chatname / chatmessage)
         $username = $request->input('username') ?? $request->input('author') ?? $request->input('chatname') ?? '';
         $message = $request->input('message') ?? $request->input('chatmessage') ?? $request->input('text') ?? '';
+        $avatarUrl = $request->input('avatar_url') ?? $request->input('chatpic') ?? null;
 
         $request->merge([
             'platform' => $plat,
             'username' => $username,
-            'message' => $message
+            'message' => $message,
+            'avatar_url' => $avatarUrl
         ]);
 
         $validated = $request->validate([
@@ -80,6 +82,7 @@ class LiveChatController extends Controller
             'platform' => 'required|in:instagram,tiktok',
             'username' => 'required|string',
             'message' => 'required|string',
+            'avatar_url' => 'nullable|string',
             'timestamp' => 'nullable|string'
         ]);
 
@@ -87,9 +90,10 @@ class LiveChatController extends Controller
         $messageText = trim($validated['message']);
         $platform = $validated['platform'];
         $liveId = $validated['live_id'];
+        $avatarUrl = $validated['avatar_url'] ?? null;
 
         try {
-            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $validated) {
+            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $avatarUrl, $validated) {
                 // Evitar duplicidade técnica de leitura do DOM (mesmo usuário e texto em menos de 2 segundos)
                 $existing = LiveMessage::where('live_id', $liveId)
                     ->where('plataforma', $platform)
@@ -107,6 +111,7 @@ class LiveChatController extends Controller
                     'plataforma' => $platform,
                     'username' => $cleanUsername,
                     'message' => $messageText,
+                    'avatar_url' => $avatarUrl,
                     'captured_at' => (isset($validated['timestamp']) && $validated['timestamp']) ? date('Y-m-d H:i:s', strtotime($validated['timestamp'])) : now()
                 ]);
 
@@ -250,6 +255,17 @@ class LiveChatController extends Controller
             ->orderByDesc('max_id')
             ->get();
 
+        // Buscar o avatar mais recente de cada username (subquery separada para evitar conflito com GROUP BY)
+        $avatarMap = LiveMessage::where('live_id', $liveId)
+            ->whereNotNull('avatar_url')
+            ->select('username', DB::raw('MAX(id) as max_avatar_id'))
+            ->groupBy('username')
+            ->get()
+            ->mapWithKeys(function($row) use ($liveId) {
+                $msg = LiveMessage::where('live_id', $liveId)->where('username', $row->username)->whereNotNull('avatar_url')->orderByDesc('id')->value('avatar_url');
+                return [$row->username => $msg];
+            });
+
         $allUsernames = $onlineRaw->pluck('username')->unique()->filter()->values()->toArray();
         $matchedUsersCollection = !empty($allUsernames) ? User::whereIn('tiktok', $allUsernames)
             ->orWhereIn('instagram', $allUsernames)
@@ -277,6 +293,7 @@ class LiveChatController extends Controller
                 'plataforma' => $online->plataforma,
                 'last_seen' => $online->last_seen ? date('H:i:s', strtotime($online->last_seen)) : '',
                 'max_id' => $online->max_id,
+                'avatar_url' => $avatarMap[$cleanUsername] ?? null,
                 'user_id' => $matchedUser ? $matchedUser->id : null,
                 'user_name' => $matchedUser ? $matchedUser->name : null,
                 'user_apelido' => $matchedUser ? $matchedUser->apelido : null,
@@ -469,6 +486,27 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'tiktok_active' => Cache::get('tiktok_capture_active', false) && !Cache::get('tiktok_capture_stopped', false)
+        ]);
+    }
+
+    public function getActiveTiktokLives(Request $request)
+    {
+        $isActive = Cache::get('tiktok_capture_active', false) && !Cache::get('tiktok_capture_stopped', false);
+        $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first();
+        
+        if ($isActive && $activeLive) {
+            return response()->json([
+                'success' => true,
+                'active_live' => [
+                    'username' => '_minhamania',
+                    'live_id' => $activeLive->id
+                ]
+            ]);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'active_live' => null
         ]);
     }
 }

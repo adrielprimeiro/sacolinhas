@@ -140,6 +140,9 @@
             let curClasses = Array.from(current.classList)
                 .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
                 .slice(0, 2)
+                .map(c => {
+                    try { return CSS.escape(c); } catch(e) { return c.replace(/[:\[\]]/g, '\\$&'); }
+                })
                 .join('.');
             path.unshift(tag + rolePart + (curClasses ? '.' + curClasses : ''));
             current = current.parentNode;
@@ -155,7 +158,10 @@
         }
         let classes = Array.from(el.classList)
             .filter(c => !/^(?:[0-9]|-[0-9]|--)/.test(c) && c.length > 2 && !c.includes('hover') && !c.includes('active'))
-            .slice(0, 2);
+            .slice(0, 2)
+            .map(c => {
+                try { return CSS.escape(c); } catch(e) { return c.replace(/[:\[\]]/g, '\\$&'); }
+            });
         let classPart = classes.length > 0 ? `.${classes.join('.')}` : '';
         return `${containerSelector} ${tag}${classPart}`;
     }
@@ -526,46 +532,6 @@
         };
     }
 
-    // Calibração interativa de seletores inteligente (1 clique)
-    calibrateBtn.addEventListener("click", () => {
-        alert("Modo de calibração inteligente ativado!\nClique em QUALQUER COMENTÁRIO no chat da live.");
-        
-        const overlay = document.createElement("div");
-        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.1);z-index:2147483647;cursor:crosshair;";
-        document.body.appendChild(overlay);
-
-        overlay.addEventListener("click", (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            overlay.style.display = "none";
-            const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
-            overlay.style.display = "block";
-
-            if (!clickedElement) return;
-
-            // Tentar primeiro calibrar usando o contêiner detectado automaticamente
-            let containerElement = autoDetectContainer();
-
-            // Se a detecção automática falhou ou o clique foi fora do contêiner
-            if (!containerElement || !containerElement.contains(clickedElement)) {
-                const structure = detectChatStructure(clickedElement);
-                containerElement = structure.containerElement;
-            }
-            
-            const containerSel = getContainerSelector(containerElement);
-            selectors.container = containerSel;
-            selectors.message = `${containerSel} > *`; // Usar seletor filho direto universal
-            hasCalibrated = true;
-            
-            alert(`Calibração Inteligente Concluída!\n\n` +
-                  `1. Contêiner detectado: ${selectors.container}\n` +
-                  `2. Seletor de mensagens: ${selectors.message}`);
-                  
-            document.body.removeChild(overlay);
-        });
-    });
-
     function isValidUsername(val) {
         if (!val) return false;
         val = val.trim();
@@ -702,12 +668,21 @@
                 return;
             }
 
-            // 3. Extrair a mensagem (todos os leafs que vêm APÓS o username)
+            // 3. Extrair a mensagem
             let text = "";
-            if (user) {
+            if (selectors && selectors.text) {
+                const textEls = rowElement.querySelectorAll(selectors.text);
+                if (textEls.length > 0) {
+                    // Pega o último elemento que bate com o seletor de texto (geralmente é o comentário real)
+                    text = textEls[textEls.length - 1].textContent.trim();
+                }
+            }
+
+            if (!text && user) {
                 let userIdx = -1;
                 for (let i = 0; i < leafs.length; i++) {
-                    if (leafs[i].replace(/^@/, "").replace(/:$/, "").trim() === user) {
+                    const leafClean = leafs[i].replace(/^@/, "").replace(/:$/, "").trim();
+                    if (leafClean === user || user.includes(leafClean) || leafClean.includes(user)) {
                         userIdx = i;
                         break;
                     }
@@ -721,7 +696,6 @@
                         let val = leafs[i].trim();
                         let valLower = val.toLowerCase();
                         
-                        // Pular caracteres de separação e botões de controle comuns
                         if (val === ":" || val === "-" || val === "：" || val === "·" || val === "•") continue;
                         if (valLower === 'curtir' || valLower === 'like' || valLower === 'responder' || valLower === 'reply') continue;
                         if (timeRegex.test(val)) continue;
@@ -729,6 +703,9 @@
                         messageParts.push(leafs[i]);
                     }
                     text = messageParts.join(" ").trim();
+                } else if (leafs.length >= 2) {
+                    // Fallback extremo: pegar os elementos que sobraram depois de tirar o usuário (ou pelo menos o último)
+                    text = leafs[leafs.length - 1].trim();
                 }
             }
 
@@ -749,7 +726,7 @@
                 console.warn("[Capturador] Não foi possível extrair usuário e texto válidos do elemento:", rowElement);
             }
         } catch (err) {
-            console.error("Erro ao ler nó de chat: ", err);
+            console.warn("Erro ao ler nó de chat: ", err);
         }
     }
 
@@ -784,7 +761,7 @@
                 log(`Erro Laravel: ${data.error || 'Rejeitado'}`, true);
             }
         } catch (e) {
-            console.error("Erro ao enviar mensagem para o Laravel:", e);
+            console.warn("Erro ao enviar mensagem para o Laravel:", e);
             log(`Erro de rede: ${e.message}`, true);
         }
     }
@@ -910,7 +887,19 @@
 
     function autoDetectContainer() {
         if (platform === "tiktok") {
-            return document.querySelector(selectors.container);
+            const chatMsg = document.querySelector('div[data-e2e="chat-message"], div[class*="DivChatMessage"], div[class*="chat-message"]');
+            if (chatMsg) {
+                let parent = chatMsg.parentElement;
+                while (parent && parent !== document.body) {
+                    const style = window.getComputedStyle(parent);
+                    if (style.overflowY === 'auto' || style.overflowY === 'scroll' || parent.scrollHeight > parent.clientHeight + 20) {
+                        console.log("[Capturador] Auto-detecção TikTok baseada em mensagem bem-sucedida!");
+                        return parent;
+                    }
+                    parent = parent.parentElement;
+                }
+                return chatMsg.parentElement;
+            }
         }
 
         // 1. Heurística de botões "Responder" / "Reply" (específica e super estável para Instagram)
@@ -1083,5 +1072,12 @@
     }
 
     // Inicialização direta silenciosa
-    setTimeout(startCapture, 2000);
+    setTimeout(() => {
+        try {
+            startCapture();
+        } catch (e) {
+            console.warn("[Capturador] Erro fatal durante a inicialização:", e);
+            alert("ERRO FATAL NA EXTENSÃO: " + e.message + "\\nPor favor, tire print dessa mensagem!");
+        }
+    }, 2000);
 })();

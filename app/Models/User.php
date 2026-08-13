@@ -31,6 +31,8 @@ class User extends Authenticatable
         'nome_cliente',     // TikTok
         'apelido',          // Apelido
         'remember_token',   // Instagram
+        'tiktok',           // TikTok real
+        'instagram',        // Instagram real
         'bloqueado',
         'needs_completion',
         'photo',
