@@ -102,6 +102,24 @@ class Movimentacao extends Model
         $pessoa = $lancamento->pessoa;
         if (!$pessoa->user_id) return;
 
+        // Despesas operacionais da empresa (Salários/Funcionários, Pró-labore, Logística, Cursos, Impostos, Taxas, etc.)
+        // NÃO devem ser lançadas como débito na carteira de compras do usuário.
+        if ($lancamento->tipo === 'despesa') {
+            $classificacao = $lancamento->classificacaoFinanceira;
+            $classId = $lancamento->classificacao_financeira_id;
+            $codigo = $classificacao?->codigo_contabil;
+
+            // Apenas despesas do tipo Fornecedor/Avaliados (ID 19 / 2.01.01) geram lançamento na carteira
+            $isFornecedorAvaliados = ($classId == 19 || $codigo === '2.01.01');
+            
+            if (!$isFornecedorAvaliados) {
+                \App\Models\ContaCorrente::where('referencia_tipo', 'movimentacao')
+                    ->where('referencia_id', $this->id)
+                    ->delete();
+                return;
+            }
+        }
+
         $tipoMov = ($lancamento->tipo === 'receita') ? 'credito' : 'debito';
         
         $data = [
