@@ -847,6 +847,11 @@ class ConciliacaoService
             $description = trim($row[$colIndex['description']] ?? 'Operação Mercado Pago');
             $externalReference = $colIndex['external_reference'] !== -1 ? trim($row[$colIndex['external_reference']] ?? '') : null;
 
+            // Ignorar lançamentos de retenção/reserva interna do Mercado Pago (ex: reserve_for_payment, reserve_for_payout)
+            if (str_contains(strtolower($description), 'reserve_for_')) {
+                continue;
+            }
+
             try {
                 // Tratar data no formato brasileiro DD-MM-YYYY ou DD/MM/YYYY
                 if (preg_match('/^(\d{2})[\/-](\d{2})[\/-](\d{4})(.*)$/', $dateStr, $matches)) {
