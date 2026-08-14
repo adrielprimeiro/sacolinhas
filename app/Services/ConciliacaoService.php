@@ -497,9 +497,9 @@ class ConciliacaoService
     /**
      * Criar um lançamento rápido e já vincular à transação
      */
-    public function vincularNovoLancamento(int $transacaoId, int $classificacaoId, ?int $pessoaId = null, ?int $contaBancariaId = null)
+    public function vincularNovoLancamento(int $transacaoId, int $classificacaoId, ?int $pessoaId = null, ?int $contaBancariaId = null, ?string $observacoes = null)
     {
-        return \DB::transaction(function () use ($transacaoId, $classificacaoId, $pessoaId, $contaBancariaId) {
+        return \DB::transaction(function () use ($transacaoId, $classificacaoId, $pessoaId, $contaBancariaId, $observacoes) {
             // Bloqueia a linha da transação para evitar conciliação concorrente
             $transacao = TransacaoExtrato::lockForUpdate()->findOrFail($transacaoId);
             if ($transacao->status === 'conciliado') {
@@ -536,6 +536,7 @@ class ConciliacaoService
                 'data_vencimento' => $transacao->data,
                 'valor_total' => $transacao->valor,
                 'descricao' => $transacao->descricao,
+                'observacoes' => $observacoes,
             ]);
 
             return $this->vincular($transacao->id, $lancamento->id);

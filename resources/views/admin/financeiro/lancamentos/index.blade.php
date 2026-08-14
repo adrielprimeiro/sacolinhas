@@ -159,6 +159,11 @@
                                         {{ $l->descricao ?: '—' }}
                                     </p>
                                     <p class="text-xs text-gray-400">{{ $l->pessoa->nome ?? '—' }}</p>
+                                    @if($l->observacoes)
+                                        <p class="text-[11px] text-amber-700 font-medium italic mt-0.5 max-w-xs truncate" title="{{ $l->observacoes }}">
+                                            <i class="fas fa-comment-alt text-[10px] text-amber-500 mr-1"></i>{{ $l->observacoes }}
+                                        </p>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -276,6 +281,7 @@ function abrirModalNovo(tipo) {
     document.getElementById('campo-id').value = '';
     document.getElementById('form-lancamento').reset();
     document.getElementById('campo-tipo').value = tipo;
+    document.getElementById('campo-observacoes').value = '';
     // Resetar campos bloqueados
     document.getElementById('campo-valor').disabled = false;
     document.getElementById('campo-valor').classList.remove('bg-gray-100', 'cursor-not-allowed');
@@ -301,6 +307,7 @@ function abrirModalEditar(data) {
     document.getElementById('campo-id').value            = data.id;
     document.getElementById('campo-tipo').value          = data.tipo;
     document.getElementById('campo-descricao').value     = data.descricao || '';
+    document.getElementById('campo-observacoes').value   = data.observacoes || '';
     document.getElementById('campo-valor').value         = data.valor_total;
     document.getElementById('campo-emissao').value       = data.data_emissao;
     document.getElementById('campo-vencimento').value    = data.data_vencimento;
@@ -349,6 +356,7 @@ document.getElementById('form-lancamento').addEventListener('submit', async func
     const body = {
         tipo:                        document.getElementById('campo-tipo').value,
         descricao:                   document.getElementById('campo-descricao').value,
+        observacoes:                 document.getElementById('campo-observacoes').value,
         valor_total:                 document.getElementById('campo-valor').value,
         data_emissao:                document.getElementById('campo-emissao').value,
         data_vencimento:             document.getElementById('campo-vencimento').value,
@@ -396,6 +404,7 @@ function abrirModalBaixa(id, valor, descricao) {
     document.getElementById('baixa-descricao').textContent = descricao || `Lançamento #${id}`;
     document.getElementById('baixa-valor').value           = parseFloat(valor).toFixed(2);
     document.getElementById('baixa-data').value            = new Date().toISOString().split('T')[0];
+    document.getElementById('baixa-observacoes').value      = '';
 }
 
 function fecharModalBaixa() { document.getElementById('modal-baixa').classList.add('hidden'); }
@@ -408,6 +417,7 @@ document.getElementById('form-baixa').addEventListener('submit', async function(
         valor_pago:        document.getElementById('baixa-valor').value,
         conta_bancaria_id: document.getElementById('baixa-conta').value,
         forma_pagamento:   document.getElementById('baixa-forma').value,
+        observacoes:       document.getElementById('baixa-observacoes').value,
     };
     const btn = this.querySelector('[type=submit]');
     btn.disabled = true; btn.textContent = 'Registrando...';

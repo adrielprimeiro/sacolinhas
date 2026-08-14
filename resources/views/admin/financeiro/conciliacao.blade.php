@@ -679,6 +679,11 @@
                         </div>
                     </div>
                 </div>
+
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Observações (Opcional)</label>
+                    <input type="text" name="observacoes" x-model="quickData.observacoes" placeholder="Anotações sobre este lançamento..." class="w-full text-sm border border-gray-200 rounded-xl p-2.5 bg-white font-medium">
+                </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
                 <button type="button" @click="showModalQuick = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>

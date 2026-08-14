@@ -25,6 +25,13 @@
                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
             </div>
 
+            {{-- Observações --}}
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Observações (Opcional)</label>
+                <textarea id="campo-observacoes" name="observacoes" rows="2" placeholder="Anotações internas, detalhes do lançamento..."
+                          class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none"></textarea>
+            </div>
+
             {{-- Pessoa --}}
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
@@ -191,6 +198,12 @@
                     <input type="number" id="baixa-valor" name="valor_pago" min="0.01" step="0.01"
                            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-300 focus:outline-none font-bold text-green-700">
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Observações da Baixa (Opcional)</label>
+                <input type="text" id="baixa-observacoes" name="observacoes" placeholder="Anotações da baixa..."
+                       class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 focus:outline-none">
             </div>
 
             <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">

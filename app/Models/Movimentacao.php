@@ -15,6 +15,7 @@ class Movimentacao extends Model
         'data_pagamento',
         'valor_pago',
         'forma_pagamento',
+        'observacoes',
         'transacao_extrato_id',
     ];
 

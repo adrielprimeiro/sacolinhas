@@ -464,7 +464,8 @@ class ConciliacaoController extends Controller
                     $request->transacao_id,
                     $request->classificacao_financeira_id,
                     $request->pessoa_id,
-                    $request->conta_bancaria_id
+                    $request->conta_bancaria_id,
+                    $request->observacoes
                 );
 
                 // Integração com o Clube

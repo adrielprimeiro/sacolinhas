@@ -54,6 +54,7 @@ class LancamentoController extends Controller
 
             $query->where(function ($q) use ($search, $cleanSearch) {
                 $q->where('descricao', 'like', "%{$search}%")
+                  ->orWhere('observacoes', 'like', "%{$search}%")
                   ->orWhere('valor_total', 'like', "%{$cleanSearch}%")
                   ->orWhereHas('pessoa', function ($qp) use ($search) {
                       $qp->where('nome', 'like', "%{$search}%");
@@ -109,6 +110,7 @@ class LancamentoController extends Controller
             'data_vencimento'            => ['required', 'date'],
             'valor_total'                => ['required', 'numeric', 'min:0.01'],
             'descricao'                  => ['nullable', 'string', 'max:255'],
+            'observacoes'                => ['nullable', 'string'],
             'parcelar'                   => ['nullable', 'boolean'],
             'numero_parcelas'            => ['nullable', 'integer', 'min:2', 'max:24'],
             'frequencia'                 => ['nullable', 'string', Rule::in(['mensal', 'semanal', 'quinzenal'])],
@@ -147,6 +149,7 @@ class LancamentoController extends Controller
                     'data_vencimento'            => $vencimento->toDateString(),
                     'valor_total'                => $valorFinal,
                     'descricao'                  => $descricaoFinal,
+                    'observacoes'                => $data['observacoes'] ?? null,
                 ]);
             }
             return response()->json(['success' => true, 'message' => "{$numParcelas} parcelas geradas com sucesso."]);
@@ -172,7 +175,7 @@ class LancamentoController extends Controller
     public function update(Request $request, Lancamento $lancamento)
     {
         if ($lancamento->status === 'pago') {
-            // Para lançamentos já pagos, permitimos editar a categoria, descrição, pessoa e datas,
+            // Para lançamentos já pagos, permitimos editar a categoria, descrição, observações, pessoa e datas,
             // mas mantemos o tipo e o valor inalterados por segurança.
             $data = $request->validate([
                 'pessoa_id'                  => ['nullable', 'exists:pessoas,id'],
@@ -180,6 +183,7 @@ class LancamentoController extends Controller
                 'data_emissao'               => ['required', 'date'],
                 'data_vencimento'            => ['required', 'date'],
                 'descricao'                  => ['nullable', 'string', 'max:255'],
+                'observacoes'                => ['nullable', 'string'],
             ]);
             
             $data['valor_total'] = $lancamento->valor_total;
@@ -193,6 +197,7 @@ class LancamentoController extends Controller
                 'data_vencimento'            => ['required', 'date'],
                 'valor_total'                => ['required', 'numeric', 'min:0.01'],
                 'descricao'                  => ['nullable', 'string', 'max:255'],
+                'observacoes'                => ['nullable', 'string'],
             ]);
         }
 
@@ -249,6 +254,7 @@ class LancamentoController extends Controller
             'valor_pago'       => ['required', 'numeric', 'min:0.01'],
             'conta_bancaria_id' => ['required', 'exists:contas_bancarias,id'],
             'forma_pagamento'  => ['required', Rule::in(['pix', 'boleto', 'cartao_credito', 'dinheiro', 'transferencia'])],
+            'observacoes'      => ['nullable', 'string'],
         ]);
 
         try {
@@ -258,6 +264,7 @@ class LancamentoController extends Controller
                 valorPago:       (float) $data['valor_pago'],
                 contaBancariaId: (int)   $data['conta_bancaria_id'],
                 formaPagamento:  $data['forma_pagamento'],
+                observacoes:     $data['observacoes'] ?? null,
             );
 
             return response()->json([

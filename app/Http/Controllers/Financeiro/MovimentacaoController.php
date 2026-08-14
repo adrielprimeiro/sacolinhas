@@ -80,8 +80,10 @@ class MovimentacaoController extends Controller
 
             $query->where(function ($q) use ($search, $cleanSearch) {
                 $q->where('valor_pago', 'like', "%{$cleanSearch}%")
+                  ->orWhere('observacoes', 'like', "%{$search}%")
                   ->orWhereHas('lancamento', function ($ql) use ($search, $cleanSearch) {
                       $ql->where('descricao', 'like', "%{$search}%")
+                        ->orWhere('observacoes', 'like', "%{$search}%")
                         ->orWhere('valor_total', 'like', "%{$cleanSearch}%")
                         ->orWhereHas('pessoa', function ($qp) use ($search) {
                             $qp->where('nome', 'like', "%{$search}%");
@@ -188,11 +190,13 @@ class MovimentacaoController extends Controller
             'conta_destino_id' => 'required|exists:contas_bancarias,id|different:conta_origem_id',
             'valor' => 'required|numeric|min:0.01',
             'data_pagamento' => 'required|date',
-            'descricao' => 'nullable|string'
+            'descricao' => 'nullable|string',
+            'observacoes' => 'nullable|string'
         ]);
 
         return \DB::transaction(function() use ($request) {
             $descricao = $request->descricao ?: "Transferência entre contas";
+            $obs = $request->observacoes;
             
             // 1. Lançamento e Movimentação de SAÍDA
             $saida = \App\Models\Lancamento::create([
@@ -204,6 +208,7 @@ class MovimentacaoController extends Controller
                 'data_vencimento' => $request->data_pagamento,
                 'valor_total' => $request->valor,
                 'descricao' => "[SAÍDA] $descricao",
+                'observacoes' => $obs,
             ]);
 
             Movimentacao::create([
@@ -212,6 +217,7 @@ class MovimentacaoController extends Controller
                 'data_pagamento' => $request->data_pagamento,
                 'valor_pago' => $request->valor,
                 'forma_pagamento' => 'transferencia',
+                'observacoes' => $obs,
             ]);
 
             // 2. Lançamento e Movimentação de ENTRADA
@@ -224,6 +230,7 @@ class MovimentacaoController extends Controller
                 'data_vencimento' => $request->data_pagamento,
                 'valor_total' => $request->valor,
                 'descricao' => "[ENTRADA] $descricao",
+                'observacoes' => $obs,
             ]);
 
             Movimentacao::create([
@@ -232,6 +239,7 @@ class MovimentacaoController extends Controller
                 'data_pagamento' => $request->data_pagamento,
                 'valor_pago' => $request->valor,
                 'forma_pagamento' => 'transferencia',
+                'observacoes' => $obs,
             ]);
 
             return back()->with('success', 'Transferência realizada com sucesso!');
@@ -245,6 +253,7 @@ class MovimentacaoController extends Controller
             'data_pagamento' => 'required|date',
             'valor_pago' => 'required|numeric|min:0',
             'forma_pagamento' => 'required|string',
+            'observacoes' => 'nullable|string',
         ];
 
         if ($movimentacao->lancamento) {
@@ -265,6 +274,7 @@ class MovimentacaoController extends Controller
                     'tipo',
                     'classificacao_financeira_id',
                     'descricao',
+                    'observacoes',
                     'pessoa_id'
                 ]);
 
@@ -282,7 +292,8 @@ class MovimentacaoController extends Controller
                 'conta_bancaria_id',
                 'data_pagamento',
                 'valor_pago',
-                'forma_pagamento'
+                'forma_pagamento',
+                'observacoes'
             ]));
 
             // 3. Recalcular e atualizar status do lançamento, e forçar sincronização da carteira com dados atualizados

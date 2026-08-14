@@ -25,7 +25,8 @@ class LancamentoBaixaService
         string $dataPagamento,
         float $valorPago,
         int $contaBancariaId,
-        string $formaPagamento
+        string $formaPagamento,
+        ?string $observacoes = null
     ): Movimentacao {
         if ($lancamento->status === 'cancelado') {
             throw new \Exception('Não é possível baixar um lançamento cancelado.');
@@ -35,7 +36,7 @@ class LancamentoBaixaService
             throw new \Exception('Este lançamento já foi integralmente liquidado.');
         }
 
-        return DB::transaction(function () use ($lancamento, $dataPagamento, $valorPago, $contaBancariaId, $formaPagamento) {
+        return DB::transaction(function () use ($lancamento, $dataPagamento, $valorPago, $contaBancariaId, $formaPagamento, $observacoes) {
             // 1. Registrar a movimentação de caixa
             $movimentacao = Movimentacao::create([
                 'lancamento_id'    => $lancamento->id,
@@ -43,6 +44,7 @@ class LancamentoBaixaService
                 'data_pagamento'   => $dataPagamento,
                 'valor_pago'       => $valorPago,
                 'forma_pagamento'  => $formaPagamento,
+                'observacoes'      => $observacoes ?: $lancamento->observacoes,
             ]);
 
             // 2. Recalcular total já pago (incluindo a nova movimentação)

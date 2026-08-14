@@ -19,6 +19,7 @@ class Lancamento extends Model
         'data_vencimento',
         'valor_total',
         'descricao',
+        'observacoes',
         'referencia_tipo',
         'referencia_id',
         'payment_token',

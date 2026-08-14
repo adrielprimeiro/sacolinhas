@@ -24,6 +24,7 @@ $currentRoute = Route::currentRouteName();
             tipo: mov.lancamento ? mov.lancamento.tipo : 'receita',
             classificacao_financeira_id: mov.lancamento ? (mov.lancamento.classificacao_financeira_id || '') : '',
             pessoa_id: mov.lancamento ? (mov.lancamento.pessoa_id || '') : '',
+            observacoes: mov.observacoes || (mov.lancamento ? (mov.lancamento.observacoes || '') : ''),
             has_lancamento: mov.lancamento ? true : false
         };
         this.showModalEdit = true;
@@ -172,6 +173,14 @@ $currentRoute = Route::currentRouteName();
                      </td>
                      <td class="px-5 py-4">
                          <div class="text-sm font-bold text-gray-800">{{ $m->lancamento->descricao ?? '---' }}</div>
+                         @php
+                             $obsText = $m->observacoes ?: ($m->lancamento->observacoes ?? null);
+                         @endphp
+                         @if($obsText)
+                             <div class="text-[11px] text-amber-700 font-medium italic mt-0.5 max-w-xs truncate" title="{{ $obsText }}">
+                                 <i class="fas fa-comment-alt text-[10px] text-amber-500 mr-1"></i>{{ $obsText }}
+                             </div>
+                         @endif
                      </td>
                      <td class="px-5 py-4 text-sm text-gray-600">{{ $m->lancamento->pessoa->nome ?? '---' }}</td>
                      <td class="px-5 py-4">
@@ -345,6 +354,11 @@ $currentRoute = Route::currentRouteName();
                         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Valor Pago</label>
                         <input type="number" name="valor_pago" x-model="editData.valor" step="0.01" min="0" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-black" required>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Observações (Opcional)</label>
+                    <textarea name="observacoes" x-model="editData.observacoes" rows="2" class="w-full text-sm border border-gray-200 rounded-xl p-3 font-medium" placeholder="Anotações internas..."></textarea>
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
