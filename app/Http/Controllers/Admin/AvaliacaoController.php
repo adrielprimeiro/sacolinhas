@@ -791,10 +791,18 @@ class AvaliacaoController extends Controller
                 $text .= " ({$u->apelido})";
             }
 
+            $hasAssinatura = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+                               ->where('user_id', $u->id)
+                               ->where('status', 'ativa')
+                               ->exists();
+            
+            $tipoCliente = $hasAssinatura ? 'clube' : 'fora_clube';
+
             $results->push([
                 'id' => "user_{$u->id}",
                 'text' => $text,
                 'tipo' => 'user',
+                'tipo_cliente' => $tipoCliente,
                 'original_id' => $u->id
             ]);
         }

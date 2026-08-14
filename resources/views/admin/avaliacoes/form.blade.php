@@ -75,11 +75,12 @@
                 {{-- Status de Adesão --}}
                 <div>
                     <label for="tipo_cliente" class="block text-sm font-medium text-gray-700 mb-1">Status de Adesão <span class="text-red-500">*</span></label>
-                    <select id="tipo_cliente" name="tipo_cliente" x-model="tipoCliente" @change="recalculateAll()"
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm">
+                    <select id="tipo_cliente" x-model="tipoCliente" disabled
+                            class="mt-1 block w-full border border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed rounded-md shadow-sm py-2 px-3 sm:text-sm">
                         <option value="fora_clube">Fora do Clube (Regra Geral)</option>
                         <option value="clube">Do Clube (Clube de Assinatura)</option>
                     </select>
+                    <input type="hidden" name="tipo_cliente" :value="tipoCliente">
                 </div>
 
                 {{-- Tipo de Entrada (Regime) --}}
