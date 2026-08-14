@@ -59,7 +59,7 @@ class ChatController extends Controller
 		// Se não for master, filtra pelas conversas atribuídas E com janela aberta
 		if (!$isMaster) {
 			$query->where('ca.assigned_admin_id', $authAdmin->id)
-				  ->where('ca.expires_at', '>', now());  // ✅ ALTERADO: Usa expires_at do banco (mais preciso)
+				  ->whereRaw('DATE_ADD(sub_inbound.last_inbound_at, INTERVAL 24 HOUR) > NOW()');
 		}
 
 		$conversations = $query->get();
@@ -72,10 +72,8 @@ class ChatController extends Controller
 				->where('status', '!=', 'read')
 				->count();
 
-			// Calcula o window_expires_at se não estiver explícito no ca.expires_at
-			if ($conv->expires_at) {
-				$conv->window_expires_at = $conv->expires_at;
-			} elseif ($conv->last_inbound_at) {
+			// A janela oficial do WhatsApp de 24h é baseada estritamente na última mensagem recebida
+			if ($conv->last_inbound_at) {
 				$conv->window_expires_at = Carbon::parse($conv->last_inbound_at)->addHours(24)->toDateTimeString();
 			} else {
 				$conv->window_expires_at = null;
