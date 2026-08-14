@@ -683,52 +683,107 @@ class ConciliacaoController extends Controller
     public function conciliarTransferencia(Request $request)
     {
         $request->validate([
-            'transacao_saida_id' => 'required|exists:transacoes_extrato,id',
-            'transacao_entrada_id' => 'required|exists:transacoes_extrato,id',
+            'transacao_id' => 'nullable|exists:transacoes_extrato,id',
+            'transacao_saida_id' => 'nullable|exists:transacoes_extrato,id',
+            'transacao_entrada_id' => 'nullable|exists:transacoes_extrato,id',
+            'conta_contrapartida_id' => 'nullable|exists:contas_bancarias,id',
         ]);
 
-        $saida = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_saida_id);
-        $entrada = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_entrada_id);
-
-        if ($saida->tipo !== 'saida' || $entrada->tipo !== 'entrada') {
-            return back()->with('error', 'Uma transação deve ser de saída e a outra de entrada.');
-        }
-
-        // Buscar categoria de transferência
         $catTransferencia = ClassificacaoFinanceira::where('nome', 'Transferência entre Contas')->first();
         if (!$catTransferencia) {
             return back()->with('error', 'Categoria "Transferência entre Contas" não encontrada.');
         }
 
-        \DB::transaction(function () use ($saida, $entrada, $catTransferencia) {
-            // Lançamento de Saída
-            $lancSaida = Lancamento::create([
-                'tipo' => 'despesa',
-                'status' => 'pago',
-                'pessoa_id' => null,
-                'classificacao_financeira_id' => $catTransferencia->id,
-                'data_emissao' => $saida->data,
-                'data_vencimento' => $saida->data,
-                'valor_total' => $saida->valor,
-                'descricao' => 'Transferência enviada - ' . $saida->descricao,
-            ]);
-            $this->service->vincular($saida->id, $lancSaida->id);
+        // Cenário 1: Duas transações do extrato (Saída + Entrada)
+        if ($request->filled('transacao_saida_id') && $request->filled('transacao_entrada_id')) {
+            $saida = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_saida_id);
+            $entrada = TransacaoExtrato::where('status', 'pendente')->findOrFail($request->transacao_entrada_id);
 
-            // Lançamento de Entrada
-            $lancEntrada = Lancamento::create([
-                'tipo' => 'receita',
-                'status' => 'pago',
-                'pessoa_id' => null,
-                'classificacao_financeira_id' => $catTransferencia->id,
-                'data_emissao' => $entrada->data,
-                'data_vencimento' => $entrada->data,
-                'valor_total' => $entrada->valor,
-                'descricao' => 'Transferência recebida - ' . $entrada->descricao,
-            ]);
-            $this->service->vincular($entrada->id, $lancEntrada->id);
-        });
+            if ($saida->tipo !== 'saida' || $entrada->tipo !== 'entrada') {
+                return back()->with('error', 'Uma transação deve ser de saída e a outra de entrada.');
+            }
 
-        return back()->with('success', 'Transferência conciliada com sucesso!');
+            \DB::transaction(function () use ($saida, $entrada, $catTransferencia) {
+                $lancSaida = Lancamento::create([
+                    'tipo' => 'despesa',
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $saida->data,
+                    'data_vencimento' => $saida->data,
+                    'valor_total' => $saida->valor,
+                    'descricao' => 'Transferência enviada - ' . $saida->descricao,
+                ]);
+                $this->service->vincular($saida->id, $lancSaida->id);
+
+                $lancEntrada = Lancamento::create([
+                    'tipo' => 'receita',
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $entrada->data,
+                    'data_vencimento' => $entrada->data,
+                    'valor_total' => $entrada->valor,
+                    'descricao' => 'Transferência recebida - ' . $entrada->descricao,
+                ]);
+                $this->service->vincular($entrada->id, $lancEntrada->id);
+            });
+
+            return back()->with('success', 'Transferência entre extratos conciliada com sucesso!');
+        }
+
+        // Cenário 2: Transferência Unilateral / Direta (Uma transação + Conta de Contrapartida)
+        $transId = $request->transacao_id ?? $request->transacao_saida_id ?? $request->transacao_entrada_id;
+        if ($transId && $request->filled('conta_contrapartida_id')) {
+            $trans = TransacaoExtrato::where('status', 'pendente')->findOrFail($transId);
+            $contaContrapartidaId = (int) $request->conta_contrapartida_id;
+
+            \DB::transaction(function () use ($trans, $contaContrapartidaId, $catTransferencia) {
+                // 1. Vincular a transação existente
+                $tipoLanc = $trans->tipo === 'entrada' ? 'receita' : 'despesa';
+                $descLanc = ($trans->tipo === 'entrada' ? 'Transferência recebida - ' : 'Transferência enviada - ') . $trans->descricao;
+
+                $lancPrincipal = Lancamento::create([
+                    'tipo' => $tipoLanc,
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $trans->data,
+                    'data_vencimento' => $trans->data,
+                    'valor_total' => $trans->valor,
+                    'descricao' => $descLanc,
+                ]);
+                $this->service->vincular($trans->id, $lancPrincipal->id);
+
+                // 2. Gerar a contrapartida na outra conta bancária
+                $tipoContra = $trans->tipo === 'entrada' ? 'despesa' : 'receita';
+                $descContra = ($trans->tipo === 'entrada' ? 'Transferência enviada - ' : 'Transferência recebida - ') . $trans->descricao;
+
+                $lancContra = Lancamento::create([
+                    'tipo' => $tipoContra,
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $trans->data,
+                    'data_vencimento' => $trans->data,
+                    'valor_total' => $trans->valor,
+                    'descricao' => $descContra,
+                ]);
+
+                // Criar Movimentação direta na conta de destino/origem
+                \App\Models\Movimentacao::create([
+                    'lancamento_id' => $lancContra->id,
+                    'conta_bancaria_id' => $contaContrapartidaId,
+                    'data_pagamento' => $trans->data,
+                    'valor_pago' => $trans->valor,
+                    'forma_pagamento' => 'transferencia',
+                ]);
+            });
+
+            return back()->with('success', 'Transferência registrada e conciliada com sucesso!');
+        }
+
+        return back()->with('error', 'Selecione uma transação correspondente ou a conta bancária de contrapartida para conciliar.');
     }
 
     public function getSugestaoPessoa(TransacaoExtrato $transacao)

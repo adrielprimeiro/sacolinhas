@@ -815,56 +815,89 @@
         <form action="{{ route('financeiro.conciliacao.transferencia') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             
-            <template x-if="transferData.tipo_origem === 'saida'">
-                <input type="hidden" name="transacao_saida_id" :value="transferData.id_origem">
-            </template>
-            <template x-if="transferData.tipo_origem === 'entrada'">
-                <input type="hidden" name="transacao_entrada_id" :value="transferData.id_origem">
+            <input type="hidden" name="transacao_id" :value="transferData.id_origem">
+
+            <template x-if="transferMode === 'existente'">
+                <div>
+                    <template x-if="transferData.tipo_origem === 'saida'">
+                        <input type="hidden" name="transacao_saida_id" :value="transferData.id_origem">
+                    </template>
+                    <template x-if="transferData.tipo_origem === 'entrada'">
+                        <input type="hidden" name="transacao_entrada_id" :value="transferData.id_origem">
+                    </template>
+                    <template x-if="transferData.tipo_origem === 'saida'">
+                        <input type="hidden" name="transacao_entrada_id" :value="transferData.id_destino">
+                    </template>
+                    <template x-if="transferData.tipo_origem === 'entrada'">
+                        <input type="hidden" name="transacao_saida_id" :value="transferData.id_destino">
+                    </template>
+                </div>
             </template>
 
-            <template x-if="transferData.tipo_origem === 'saida'">
-                <input type="hidden" name="transacao_entrada_id" :value="transferData.id_destino">
-            </template>
-            <template x-if="transferData.tipo_origem === 'entrada'">
-                <input type="hidden" name="transacao_saida_id" :value="transferData.id_destino">
-            </template>
-
-            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 class="font-black text-gray-800"><i class="fas fa-exchange-alt text-teal-600 mr-2"></i>Conciliar como Transferência</h3>
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl">
+                <h3 class="font-black text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-exchange-alt text-teal-600"></i> Conciliar como Transferência
+                </h3>
                 <button type="button" @click="showModalTransferencia = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
+
             <div class="p-6 space-y-5">
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
                     <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Transação Selecionada</p>
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-bold text-gray-700" x-text="transferData.descricao_origem"></span>
-                        <span class="text-sm font-black" :class="transferData.tipo_origem === 'entrada' ? 'text-green-600' : 'text-red-600'" x-text="(transferData.tipo_origem === 'entrada' ? '+' : '-') + ' R$ ' + transferData.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})"></span>
+                        <span class="text-sm font-black" :class="transferData.tipo_origem === 'entrada' ? 'text-green-600' : 'text-red-600'" x-text="(transferData.tipo_origem === 'entrada' ? '+' : '-') + ' R$ ' + Number(transferData.valor).toLocaleString('pt-BR', {minimumFractionDigits:2})"></span>
                     </div>
                 </div>
 
-                <div>
+                <!-- Modos de Transferência -->
+                <div class="flex border-b border-gray-200 gap-4 text-xs font-bold">
+                    <button type="button" @click="transferMode = 'existente'" class="pb-2 border-b-2 transition" :class="transferMode === 'existente' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
+                        Vincular no Extrato
+                    </button>
+                    <button type="button" @click="transferMode = 'direta'" class="pb-2 border-b-2 transition" :class="transferMode === 'direta' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
+                        Transferência Direta (Contrapartida)
+                    </button>
+                </div>
+
+                <div x-show="transferMode === 'existente'">
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                         Selecione a transação correspondente na outra conta:
                     </label>
-                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white" required>
+                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
                         <option value="">Selecione a transação correspondente...</option>
                         <template x-for="opcao in transferDestinosDisponiveis" :key="opcao.id">
-                            <option :value="opcao.id" x-text="opcao.data + ' - Conta ' + opcao.origem.toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
+                            <option :value="opcao.id" x-text="opcao.data + ' - Conta ' + (opcao.origem || '').toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
                         </template>
                     </select>
                     
-                    <p x-show="transferDestinosDisponiveis.length === 0" class="mt-2 text-xs text-red-500 font-bold">
-                        Não há transações pendentes de <span x-text="transferData.tipo_origem === 'saida' ? 'entrada' : 'saída'"></span> disponíveis para vincular.
+                    <p x-show="transferDestinosDisponiveis.length === 0" class="mt-2 text-xs text-amber-600 font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                        Nenhuma transação correspondente no extrato? Mude para a aba <strong>"Transferência Direta"</strong> para criar a contrapartida na conta desejada.
+                    </p>
+                </div>
+
+                <div x-show="transferMode === 'direta'" class="space-y-3">
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest">
+                        Conta Bancária de <span x-text="transferData.tipo_origem === 'entrada' ? 'Origem (de onde saiu)' : 'Destino (para onde foi)'"></span>:
+                    </label>
+                    <select name="conta_contrapartida_id" x-model="transferData.conta_contrapartida_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                        <option value="">Selecione a conta bancária...</option>
+                        @foreach($contas as $conta)
+                            <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-[11px] text-gray-400 font-medium leading-relaxed">
+                        O sistema registrará o lançamento de contrapartida automaticamente na conta selecionada e conciliará a transação.
                     </p>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-2">
-                <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-3xl flex justify-between items-center">
+                <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
                 <button type="submit" 
-                        class="px-8 py-2 rounded-xl text-sm font-black transition-all"
-                        :class="transferData.id_destino ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
-                        :disabled="!transferData.id_destino">
-                    Confirmar Transferência
+                        class="px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5"
+                        :class="podeSubmeterTransferencia ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                        :disabled="!podeSubmeterTransferencia">
+                    <i class="fas fa-check"></i> Conciliar Transferência
                 </button>
             </div>
         </form>
@@ -931,7 +964,8 @@
         return {
             pendentes: pendentes,
             quickData: { id: '', descricao: '', valor: '', tipo: '', conta_id: 1 },
-            transferData: { id_origem: '', tipo_origem: '', descricao_origem: '', valor: 0, id_destino: '', origem_origem: '' },
+            transferMode: 'existente',
+            transferData: { id_origem: '', tipo_origem: '', descricao_origem: '', valor: 0, id_destino: '', conta_contrapartida_id: '', origem_origem: '' },
             showModalOfx: false,
             showModalRegras: false,
             showModalMp: false,
@@ -1011,14 +1045,24 @@
                     descricao_origem: desc,
                     valor: valor,
                     id_destino: '',
+                    conta_contrapartida_id: '',
                     origem_origem: origem
                 };
+                this.transferMode = this.transferDestinosDisponiveis.length > 0 ? 'existente' : 'direta';
                 this.showModalTransferencia = true;
             },
 
             get transferDestinosDisponiveis() {
                 let oposto = this.transferData.tipo_origem === 'saida' ? 'entrada' : 'saida';
                 return this.pendentes.filter(p => p.tipo === oposto && p.id !== this.transferData.id_origem && p.origem !== this.transferData.origem_origem);
+            },
+
+            get podeSubmeterTransferencia() {
+                if (this.transferMode === 'existente') {
+                    return !!this.transferData.id_destino;
+                } else {
+                    return !!this.transferData.conta_contrapartida_id;
+                }
             },
 
             openQuickCreate(id, desc, valor, tipo, origem) {
