@@ -55,9 +55,12 @@
                     $oldUserText = '';
                     if (isset($avaliacao)) {
                         if ($avaliacao->pessoa) {
-                            $oldUserText = '[FIN#' . $avaliacao->pessoa->id . '] ' . $avaliacao->pessoa->nome;
+                            $oldUserText = $avaliacao->pessoa->nome . ' (Fornecedor)';
                         } else if ($avaliacao->user) {
-                            $oldUserText = '[CLI#' . $avaliacao->user->id . '] ' . $avaliacao->user->name;
+                            $oldUserText = $avaliacao->user->name;
+                            if ($avaliacao->user->apelido) {
+                                $oldUserText .= ' (' . $avaliacao->user->apelido . ')';
+                            }
                         }
                     }
                 @endphp
