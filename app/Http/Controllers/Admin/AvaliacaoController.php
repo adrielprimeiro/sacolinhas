@@ -762,7 +762,7 @@ class AvaliacaoController extends Controller
             ->limit(10)
             ->get(['id', 'nome', 'documento']);
 
-        // 2. Busca em Users (Clientes)
+        // 1. Busca em Users (Clientes) - Prioridade
         $users = User::where(function($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                   ->orWhere('apelido', 'like', "%{$term}%")
@@ -773,39 +773,22 @@ class AvaliacaoController extends Controller
             ->limit(20)
             ->get(['id', 'name', 'cpf', 'apelido']);
 
+        // 2. Busca em Pessoas (Fornecedores sem app)
+        $pessoas = Pessoa::whereNull('user_id')
+            ->where(function($q) use ($term) {
+                $q->where('nome', 'like', "%{$term}%")
+                  ->orWhere('id', $term);
+            })
+            ->limit(20)
+            ->get(['id', 'nome', 'documento']);
+
         $results = collect();
 
-        // Adiciona as Pessoas aos resultados
-        foreach ($pessoas as $p) {
-            $text = "[FIN#{$p->id}] {$p->nome}";
-            if ($p->documento) {
-                $text .= " - {$p->documento}";
-            }
-            if ($p->user_id) {
-                $text .= " (Cliente vinculado)";
-            }
-            
-            $results->push([
-                'id' => "pessoa_{$p->id}",
-                'text' => $text,
-                'tipo' => 'pessoa',
-                'original_id' => $p->id
-            ]);
-        }
-
-        // Adiciona os Users aos resultados (apenas se a Pessoa correspondente ainda não foi trazida)
-        $pessoaUserIds = $pessoas->pluck('user_id')->filter()->toArray();
+        // Adiciona os Users
         foreach ($users as $u) {
-            if (in_array($u->id, $pessoaUserIds)) {
-                continue; // Já foi retornado pela busca em Pessoas
-            }
-
-            $text = "[CLI#{$u->id}] {$u->name}";
+            $text = $u->name;
             if ($u->apelido) {
-                $text .= " '{$u->apelido}'";
-            }
-            if ($u->cpf) {
-                $text .= " - {$u->cpf}";
+                $text .= " ({$u->apelido})";
             }
 
             $results->push([
@@ -813,6 +796,18 @@ class AvaliacaoController extends Controller
                 'text' => $text,
                 'tipo' => 'user',
                 'original_id' => $u->id
+            ]);
+        }
+
+        // Adiciona as Pessoas sem vínculo
+        foreach ($pessoas as $p) {
+            $text = $p->nome . " (Fornecedor)";
+            
+            $results->push([
+                'id' => "pessoa_{$p->id}",
+                'text' => $text,
+                'tipo' => 'pessoa',
+                'original_id' => $p->id
             ]);
         }
 
