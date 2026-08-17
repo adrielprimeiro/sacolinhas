@@ -145,8 +145,8 @@
 				   <span>Jogar</span>
 				</a>
 
-                <a href="{{ route('curadoria') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-emerald-50 text-emerald-700 font-medium {{ request()->routeIs('curadoria') ? 'bg-emerald-100 font-semibold' : '' }}">
+                <a href="{{ route('portal.curadoria') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-emerald-50 text-emerald-700 font-medium {{ request()->routeIs('portal.curadoria') ? 'bg-emerald-100 font-semibold' : '' }}">
                     <i class="fas fa-gem text-emerald-600 w-5"></i>
                     <span>Curadoria</span>
                 </a>
