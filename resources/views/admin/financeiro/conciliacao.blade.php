@@ -869,10 +869,12 @@
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                         Selecione a transação correspondente na outra conta:
                     </label>
-                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    <select x-model="transferData.id_destino" 
+                            @change="transferData.id_destino = $event.target.value"
+                            class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         <option value="">Selecione a transação correspondente...</option>
                         <template x-for="opcao in transferDestinosDisponiveis" :key="opcao.id">
-                            <option :value="String(opcao.id)" x-text="(opcao.data ? opcao.data.substring(0, 10).split('-').reverse().join('/') : '') + ' - Conta ' + (opcao.origem || '').toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
+                            <option :value="opcao.id" x-text="(opcao.data ? opcao.data.substring(0, 10).split('-').reverse().join('/') : '') + ' - Conta ' + (opcao.origem || '').toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
                         </template>
                     </select>
                     
@@ -885,7 +887,10 @@
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest">
                         Conta Bancária de <span x-text="transferData.tipo_origem === 'entrada' ? 'Origem (de onde saiu)' : 'Destino (para onde foi)'"></span>:
                     </label>
-                    <select name="conta_contrapartida_id" x-model="transferData.conta_contrapartida_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                    <select name="conta_contrapartida_id" 
+                            x-model="transferData.conta_contrapartida_id" 
+                            @change="transferData.conta_contrapartida_id = $event.target.value"
+                            class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         <option value="">Selecione a conta bancária...</option>
                         @foreach($contas as $conta)
                             <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
