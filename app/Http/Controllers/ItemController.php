@@ -23,6 +23,10 @@ class ItemController extends Controller
 			$query->where('codigo', 'like', '%' . $request->codigo . '%');
 		}
 
+		if ($request->filled('localizacao')) {
+			$query->where('localizacao', 'like', '%' . $request->localizacao . '%');
+		}
+
 		if ($request->filled('status')) {
 			$query->where('status', $request->status);
 		}
