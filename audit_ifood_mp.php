@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 echo "=== Searching transacoes_extrato for 'ifood' or recent MP transactions ===\n\n";
 
 $ifoodTrans = TransacaoExtrato::where('descricao', 'like', '%ifood%')
-    ->orWhere('payload', 'like', '%ifood%')
+    ->orWhere('payload_json', 'like', '%ifood%')
     ->get();
 
 echo "Transações encontradas com 'ifood' no extrato: " . $ifoodTrans->count() . "\n";
@@ -18,11 +18,11 @@ foreach ($ifoodTrans as $t) {
     echo "ID: {$t->id} | Data: {$t->data} | Origem: {$t->origem} | Tipo: {$t->tipo} | Valor: R$ {$t->valor} | Status: {$t->status} | Desc: {$t->descricao}\n";
 }
 
-echo "\n=== Ultimas 20 transacoes do Mercado Pago no banco ===\n";
+echo "\n=== Ultimas 25 transacoes do Mercado Pago no banco ===\n";
 $latestMp = TransacaoExtrato::where('origem', 'mercadopago')
     ->orderByDesc('data')
     ->orderByDesc('id')
-    ->limit(20)
+    ->limit(25)
     ->get();
 
 foreach ($latestMp as $t) {
