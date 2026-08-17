@@ -857,10 +857,10 @@
 
                 <!-- Modos de Transferência -->
                 <div class="flex border-b border-gray-200 gap-4 text-xs font-bold">
-                    <button type="button" @click="transferMode = 'existente'" class="pb-2 border-b-2 transition" :class="transferMode === 'existente' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
+                    <button type="button" @click="transferMode = 'existente'" class="pb-2 border-b-2 transition-all cursor-pointer" :class="transferMode === 'existente' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
                         Vincular no Extrato
                     </button>
-                    <button type="button" @click="transferMode = 'direta'" class="pb-2 border-b-2 transition" :class="transferMode === 'direta' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
+                    <button type="button" @click="transferMode = 'direta'" class="pb-2 border-b-2 transition-all cursor-pointer" :class="transferMode === 'direta' ? 'border-teal-600 text-teal-700 font-black' : 'border-transparent text-gray-400 hover:text-gray-600'">
                         Transferência Direta (Contrapartida)
                     </button>
                 </div>
@@ -869,10 +869,10 @@
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                         Selecione a transação correspondente na outra conta:
                     </label>
-                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                    <select x-model="transferData.id_destino" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         <option value="">Selecione a transação correspondente...</option>
                         <template x-for="opcao in transferDestinosDisponiveis" :key="opcao.id">
-                            <option :value="opcao.id" x-text="opcao.data + ' - Conta ' + (opcao.origem || '').toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
+                            <option :value="String(opcao.id)" x-text="(opcao.data ? opcao.data.substring(0, 10).split('-').reverse().join('/') : '') + ' - Conta ' + (opcao.origem || '').toUpperCase() + ' - ' + opcao.descricao + ' (R$ ' + parseFloat(opcao.valor).toLocaleString('pt-BR', {minimumFractionDigits:2}) + ')'"></option>
                         </template>
                     </select>
                     
@@ -885,7 +885,7 @@
                     <label class="block text-xs font-black text-gray-400 uppercase tracking-widest">
                         Conta Bancária de <span x-text="transferData.tipo_origem === 'entrada' ? 'Origem (de onde saiu)' : 'Destino (para onde foi)'"></span>:
                     </label>
-                    <select name="conta_contrapartida_id" x-model="transferData.conta_contrapartida_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold">
+                    <select name="conta_contrapartida_id" x-model="transferData.conta_contrapartida_id" class="w-full text-sm border border-gray-200 rounded-xl p-3 bg-white font-bold text-gray-800 focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         <option value="">Selecione a conta bancária...</option>
                         @foreach($contas as $conta)
                             <option value="{{ $conta->id }}">{{ $conta->nome }}</option>
@@ -900,7 +900,7 @@
                 <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
                 <button type="submit" 
                         class="px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5"
-                        :class="podeSubmeterTransferencia ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-100' : 'bg-gray-200 text-gray-600 cursor-not-allowed'"
+                        :class="podeSubmeterTransferencia ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-100 cursor-pointer' : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'"
                         :disabled="!podeSubmeterTransferencia">
                     <i class="fas fa-check"></i> Conciliar Transferência
                 </button>
