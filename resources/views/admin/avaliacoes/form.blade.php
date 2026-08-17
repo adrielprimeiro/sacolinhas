@@ -894,13 +894,13 @@ function evaluationForm(config) {
                 }
 
                 if (this.tipoCliente === 'clube') {
-                    const payCredit = (item.preco_venda * 0.60) - freteUnitario - item.taxa_curadoria;
-                    const payCash = (item.preco_venda * 0.40) - freteUnitario - item.taxa_curadoria;
+                    const payCredit = (item.preco_venda * 0.50) - freteUnitario - item.taxa_curadoria;
+                    const payCash = (item.preco_venda * 0.30) - freteUnitario - item.taxa_curadoria;
                     item.payout_credito = Math.max(0.00, payCredit);
                     item.payout_dinheiro = Math.max(0.00, payCash);
                 } else {
-                    const payCredit = (item.preco_venda * 0.50) - freteUnitario - item.taxa_curadoria;
-                    const payCash = (item.preco_venda * 0.30) - freteUnitario - item.taxa_curadoria;
+                    const payCredit = (item.preco_venda * 0.40) - freteUnitario - item.taxa_curadoria;
+                    const payCash = (item.preco_venda * 0.20) - freteUnitario - item.taxa_curadoria;
                     item.payout_credito = Math.max(0.00, payCredit);
                     item.payout_dinheiro = Math.max(0.00, payCash);
                 }

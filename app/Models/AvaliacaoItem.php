@@ -116,16 +116,16 @@ class AvaliacaoItem extends Model
 
         // 4. Repasses (Payout)
         if ($tipoCliente === 'clube') {
-            // Clube: 60% credito, 40% dinheiro
-            $payoutCredito = ($this->preco_venda * 0.60) - $fretePorItem - $this->taxa_curadoria;
-            $payoutDinheiro = ($this->preco_venda * 0.40) - $fretePorItem - $this->taxa_curadoria;
+            // Clube: 50% credito, 30% dinheiro
+            $payoutCredito = ($this->preco_venda * 0.50) - $fretePorItem - $this->taxa_curadoria;
+            $payoutDinheiro = ($this->preco_venda * 0.30) - $fretePorItem - $this->taxa_curadoria;
 
             $this->payout_credito = max(0.00, $payoutCredito);
             $this->payout_dinheiro = max(0.00, $payoutDinheiro);
         } else {
-            // Fora do clube: 50% credito, 30% dinheiro
-            $payoutCredito = ($this->preco_venda * 0.50) - $fretePorItem - $this->taxa_curadoria;
-            $payoutDinheiro = ($this->preco_venda * 0.30) - $fretePorItem - $this->taxa_curadoria;
+            // Fora do clube: 40% credito, 20% dinheiro
+            $payoutCredito = ($this->preco_venda * 0.40) - $fretePorItem - $this->taxa_curadoria;
+            $payoutDinheiro = ($this->preco_venda * 0.20) - $fretePorItem - $this->taxa_curadoria;
 
             $this->payout_credito = max(0.00, $payoutCredito);
             $this->payout_dinheiro = max(0.00, $payoutDinheiro);
