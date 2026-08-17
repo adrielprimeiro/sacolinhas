@@ -189,6 +189,7 @@
                             if ($cor) $detalhesParts[] = $cor;
                             if ($tamanho) $detalhesParts[] = 'Tam: ' . $tamanho;
                             if ($estado) $detalhesParts[] = $estado;
+                            if (!empty($item->localizacao)) $detalhesParts[] = 'Local: ' . $item->localizacao;
 
                             $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '—';
                         @endphp
