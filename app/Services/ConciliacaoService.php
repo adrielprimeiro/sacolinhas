@@ -698,9 +698,7 @@ class ConciliacaoService
                             $desc = $p['point_of_interaction']['transaction_data']['bank_info']['collector']['account_holder_name'] ?? '';
                         }
                         if (empty($desc) || in_array(strtolower($desc), ['payout', 'payouts'])) {
-                            $extRef = $p['external_reference'] ?? '';
-                            $refStr = ($extRef && strlen($extRef) > 5) ? " (Ref: " . substr($extRef, 0, 12) . ")" : '';
-                            $desc = 'Transferência / Retirada Mercado Pago' . $refStr;
+                            $desc = 'Pagamento com Pix';
                         }
 
                         $netReceived = $p['transaction_details']['net_received_amount'] ?? $amount;
@@ -911,7 +909,7 @@ class ConciliacaoService
             }
 
             $dateStr = trim($row[$colIndex['date']] ?? '');
-            $description = trim($row[$colIndex['description']] ?? 'Operação Mercado Pago');
+            $description = trim($row[$colIndex['description']] ?? 'Pagamento com Pix');
             $externalReference = $colIndex['external_reference'] !== -1 ? trim($row[$colIndex['external_reference']] ?? '') : null;
 
             // Ignorar lançamentos de retenção/reserva interna do Mercado Pago (ex: reserve_for_payment, reserve_for_payout)
@@ -919,9 +917,8 @@ class ConciliacaoService
                 continue;
             }
 
-            if (in_array(strtolower($description), ['payout', 'payouts'])) {
-                $refStr = ($externalReference && strlen($externalReference) > 5) ? " (Ref: " . substr($externalReference, 0, 12) . ")" : '';
-                $description = "Transferência / Retirada Mercado Pago" . $refStr;
+            if (in_array(strtolower($description), ['payout', 'payouts', ''])) {
+                $description = "Pagamento com Pix";
             }
 
             try {
