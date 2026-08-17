@@ -900,7 +900,7 @@
                 <button type="button" @click="showModalTransferencia = false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
                 <button type="submit" 
                         class="px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5"
-                        :class="podeSubmeterTransferencia ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                        :class="podeSubmeterTransferencia ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-100' : 'bg-gray-200 text-gray-600 cursor-not-allowed'"
                         :disabled="!podeSubmeterTransferencia">
                     <i class="fas fa-check"></i> Conciliar Transferência
                 </button>
