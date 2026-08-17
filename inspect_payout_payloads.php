@@ -10,18 +10,16 @@ echo "=== Inspecting transactions with description 'payout' or 'PAYOUTS' ===\n\n
 
 $payouts = TransacaoExtrato::where('descricao', 'like', '%payout%')
     ->orWhere('descricao', 'like', '%PAYOUTS%')
+    ->orderByDesc('data')
+    ->limit(10)
     ->get();
 
-echo "Encontradas " . $payouts->count() . " transações de payout:\n\n";
+echo "Encontradas " . $payouts->count() . " transações de payout recentes:\n\n";
 
 foreach ($payouts as $p) {
     echo "ID: {$p->id} | Data: {$p->data->format('Y-m-d')} | FITID: {$p->fitid} | Valor: R$ {$p->valor} | Desc: '{$p->descricao}'\n";
     echo "   Payload original:\n";
-    $payload = json_decode($p->payload_original, true);
-    if (is_array($payload)) {
-        print_r($payload);
-    } else {
-        echo "   " . substr($p->payload_original, 0, 300) . "\n";
-    }
+    $payload = is_array($p->payload_original) ? $p->payload_original : json_decode($p->payload_original ?? '', true);
+    print_r($payload);
     echo "---------------------------------------------------------\n";
 }
