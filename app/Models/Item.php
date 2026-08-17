@@ -36,6 +36,15 @@ class Item extends Model
         'custo' => 'decimal:2'
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($item) {
+            if ($item->isDirty('status') && in_array($item->status, ['vendido', 'em_sacolinha'])) {
+                $item->localizacao = 'Sacolinha';
+            }
+        });
+    }
+
     // Accessor para nome
     public function getNameAttribute()
     {
