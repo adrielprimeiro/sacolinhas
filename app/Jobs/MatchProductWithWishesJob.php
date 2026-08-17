@@ -34,9 +34,9 @@ class MatchProductWithWishesJob implements ShouldQueue
 
         // Extrai categoria e tamanho do item (dependendo de como está na sua tabela Item)
         // Como não conheço 100% da sua tabela Item, assumo propriedades comuns:
-        $itemCategory = $this->item->categoria_id ?? $this->item->categoria ?? null; // Exemplo de ajuste necessário dependendo da model
+        $itemCategory = $this->item->codigo_da_categoria ?? null;
         $itemSize = $this->item->tamanho ?? null;
-        $itemPrice = $this->item->preco_venda ?? 0;
+        $itemPrice = $this->item->preco ?? 0;
 
         // Se faltar informação vital, não temos como fazer match exato.
         if (!$itemSize) {
