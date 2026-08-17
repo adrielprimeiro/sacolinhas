@@ -697,8 +697,10 @@ class ConciliacaoService
                         if (empty($desc)) {
                             $desc = $p['point_of_interaction']['transaction_data']['bank_info']['collector']['account_holder_name'] ?? '';
                         }
-                        if (empty($desc)) {
-                            $desc = 'Pagamento Mercado Pago';
+                        if (empty($desc) || in_array(strtolower($desc), ['payout', 'payouts'])) {
+                            $extRef = $p['external_reference'] ?? '';
+                            $refStr = ($extRef && strlen($extRef) > 5) ? " (Ref: " . substr($extRef, 0, 12) . ")" : '';
+                            $desc = 'Transferência / Retirada Mercado Pago' . $refStr;
                         }
 
                         $netReceived = $p['transaction_details']['net_received_amount'] ?? $amount;
@@ -915,6 +917,11 @@ class ConciliacaoService
             // Ignorar lançamentos de retenção/reserva interna do Mercado Pago (ex: reserve_for_payment, reserve_for_payout)
             if (str_contains(strtolower($description), 'reserve_for_')) {
                 continue;
+            }
+
+            if (in_array(strtolower($description), ['payout', 'payouts'])) {
+                $refStr = ($externalReference && strlen($externalReference) > 5) ? " (Ref: " . substr($externalReference, 0, 12) . ")" : '';
+                $description = "Transferência / Retirada Mercado Pago" . $refStr;
             }
 
             try {
