@@ -654,7 +654,7 @@
                                @keydown.down="nextItem"
                                @keydown.up="prevItem"
                                @keydown.enter="selectHighlighted"
-                               placeholder="Buscar por nome, CPF ou email..."
+                               placeholder="Buscar por nome, apelido, IG (@instagram), CPF..."
                                class="w-full text-sm border border-gray-200 rounded-xl p-2 bg-white font-bold transition-all"
                                :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''"
                                :readonly="selected">
@@ -1146,7 +1146,8 @@
                             this.results = data.map(p => ({
                                 id: p.id,
                                 nome: p.nome,
-                                info: p.documento || p.cpf || ''
+                                info: p.info || p.documento || p.cpf || '',
+                                text: p.text || p.nome
                             }));
                             this.highlightedIndex = 0;
                             this.loading = false;
@@ -1412,7 +1413,7 @@
                         this.results = data.map(p => ({
                             id: p.id,
                             nome: p.nome,
-                            text: p.nome + (p.documento || p.cpf ? ' (' + (p.documento || p.cpf) + ')' : '')
+                            text: p.text || (p.nome + (p.info ? ' (' + p.info + ')' : (p.documento || p.cpf ? ' (' + (p.documento || p.cpf) + ')' : '')))
                         }));
                         this.loading = false;
                     })

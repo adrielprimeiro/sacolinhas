@@ -295,21 +295,54 @@ class LancamentoController extends Controller
      */
     public function searchPessoas(Request $request)
     {
-        $term = $request->get('q', '');
+        $term = trim($request->get('q', ''));
 
-        $pessoas = Pessoa::where(function($q) use ($term) {
-                $q->where('nome', 'like', "%{$term}%")
-                  ->orWhere('documento', 'like', "%{$term}%")
-                  ->orWhere('id', $term);
+        $pessoas = Pessoa::with('user')
+            ->when($term, function($q) use ($term) {
+                $q->where(function($sub) use ($term) {
+                    $sub->where('nome', 'like', "%{$term}%")
+                        ->orWhere('documento', 'like', "%{$term}%")
+                        ->orWhere('id', $term)
+                        ->orWhereHas('user', function($uQ) use ($term) {
+                            $uQ->where('apelido', 'like', "%{$term}%")
+                               ->orWhere('instagram', 'like', "%{$term}%")
+                               ->orWhere('tiktok', 'like', "%{$term}%")
+                               ->orWhere('name', 'like', "%{$term}%")
+                               ->orWhere('nome_cliente', 'like', "%{$term}%")
+                               ->orWhere('email', 'like', "%{$term}%")
+                               ->orWhere('cpf', 'like', "%{$term}%")
+                               ->orWhere('whatsapp', 'like', "%{$term}%")
+                               ->orWhere('phone', 'like', "%{$term}%");
+                        });
+                });
             })
+            ->orderBy('nome')
             ->limit(30)
-            ->get(['id', 'nome', 'tipo', 'documento']);
+            ->get();
 
-        return response()->json($pessoas->map(fn ($p) => [
-            'id'   => $p->id,
-            'text' => "[#{$p->id}] {$p->nome}" . ($p->documento ? " - {$p->documento}" : ''),
-            'tipo' => $p->tipo,
-        ]));
+        return response()->json($pessoas->map(function ($p) {
+            $infoParts = [];
+            if ($p->user?->apelido) {
+                $infoParts[] = "Apelido: " . $p->user->apelido;
+            }
+            if ($p->user?->instagram) {
+                $ig = $p->user->instagram;
+                $infoParts[] = "IG: " . (str_starts_with($ig, '@') ? $ig : '@' . $ig);
+            }
+            if ($p->documento) {
+                $infoParts[] = $p->documento;
+            } elseif ($p->user?->cpf) {
+                $infoParts[] = $p->user->cpf;
+            }
+
+            $infoStr = implode(' | ', $infoParts);
+
+            return [
+                'id'   => $p->id,
+                'text' => "[#{$p->id}] {$p->nome}" . ($infoStr ? " ({$infoStr})" : ''),
+                'tipo' => $p->tipo,
+            ];
+        }));
     }
 
     /**

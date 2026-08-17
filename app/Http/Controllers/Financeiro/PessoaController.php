@@ -15,11 +15,22 @@ class PessoaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Pessoa::orderBy('nome');
+        $query = Pessoa::with('user')->orderBy('nome');
 
         if ($request->filled('q')) {
-            $query->where('nome', 'like', '%' . $request->q . '%')
-                  ->orWhere('documento', 'like', '%' . $request->q . '%');
+            $search = trim($request->q);
+            $query->where(function($sub) use ($search) {
+                $sub->where('nome', 'like', '%' . $search . '%')
+                    ->orWhere('documento', 'like', '%' . $search . '%')
+                    ->orWhereHas('user', function($uQ) use ($search) {
+                        $uQ->where('apelido', 'like', '%' . $search . '%')
+                           ->orWhere('instagram', 'like', '%' . $search . '%')
+                           ->orWhere('tiktok', 'like', '%' . $search . '%')
+                           ->orWhere('name', 'like', '%' . $search . '%')
+                           ->orWhere('nome_cliente', 'like', '%' . $search . '%')
+                           ->orWhere('email', 'like', '%' . $search . '%');
+                    });
+            });
         }
 
         if ($request->filled('tipo')) {

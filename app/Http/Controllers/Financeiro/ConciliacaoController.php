@@ -824,18 +824,60 @@ class ConciliacaoController extends Controller
 
     public function buscarPessoas(Request $request)
     {
-        $search = $request->get('q', '');
+        $search = trim($request->get('q', ''));
         
-        $pessoas = \App\Models\Pessoa::when($search, function($q) use ($search) {
-                $q->where('nome', 'like', "%{$search}%")
-                  ->orWhere('documento', 'like', "%{$search}%")
-                  ->orWhere('id', $search);
+        $pessoas = \App\Models\Pessoa::with('user')
+            ->when($search, function($q) use ($search) {
+                $q->where(function($sub) use ($search) {
+                    $sub->where('nome', 'like', "%{$search}%")
+                        ->orWhere('documento', 'like', "%{$search}%")
+                        ->orWhere('id', $search)
+                        ->orWhereHas('user', function($uQ) use ($search) {
+                            $uQ->where('apelido', 'like', "%{$search}%")
+                               ->orWhere('instagram', 'like', "%{$search}%")
+                               ->orWhere('tiktok', 'like', "%{$search}%")
+                               ->orWhere('name', 'like', "%{$search}%")
+                               ->orWhere('nome_cliente', 'like', "%{$search}%")
+                               ->orWhere('email', 'like', "%{$search}%")
+                               ->orWhere('cpf', 'like', "%{$search}%")
+                               ->orWhere('whatsapp', 'like', "%{$search}%")
+                               ->orWhere('phone', 'like', "%{$search}%");
+                        });
+                });
             })
             ->orderBy('nome')
             ->limit(30)
-            ->get(['id', 'nome', 'documento']);
+            ->get();
             
-        return response()->json($pessoas);
+        $formatted = $pessoas->map(function($p) {
+            $infoParts = [];
+            if ($p->user?->apelido) {
+                $infoParts[] = "Apelido: " . $p->user->apelido;
+            }
+            if ($p->user?->instagram) {
+                $ig = $p->user->instagram;
+                $infoParts[] = "IG: " . (str_starts_with($ig, '@') ? $ig : '@' . $ig);
+            }
+            if ($p->documento) {
+                $infoParts[] = $p->documento;
+            } elseif ($p->user?->cpf) {
+                $infoParts[] = $p->user->cpf;
+            }
+
+            $infoStr = implode(' | ', $infoParts);
+
+            return [
+                'id' => $p->id,
+                'nome' => $p->nome,
+                'documento' => $p->documento,
+                'apelido' => $p->user?->apelido,
+                'instagram' => $p->user?->instagram,
+                'info' => $infoStr,
+                'text' => "[#{$p->id}] {$p->nome}" . ($infoStr ? " ({$infoStr})" : '')
+            ];
+        });
+
+        return response()->json($formatted);
     }
 
     public function sincronizarInter(Request $request)
