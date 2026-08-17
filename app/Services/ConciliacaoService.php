@@ -601,30 +601,36 @@ class ConciliacaoService
         $count = 0;
 
         try {
-            // 1. Listar relatórios existentes (Relatórios de Liberação / Bank Report)
-            $listUrl = "https://api.mercadopago.com/v1/account/bank_report/list";
-            $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
-
-            // Auto-configurar caso não exista a configuração de relatórios de liberação
-            if ($response->status() === 404 && str_contains($response->body(), 'config_not_found_for_user')) {
-                Log::info('Configuração de relatórios de liberação não encontrada no Mercado Pago. Criando...');
-                $this->criarConfiguracaoRelatorioMP($accessToken);
+            // 1. Listar relatórios existentes (Relatórios de Liquidação / Settlement Report & Bank Report)
+            $listUrls = [
+                "https://api.mercadopago.com/v1/account/settlement_report/list",
+                "https://api.mercadopago.com/v1/account/bank_report/list"
+            ];
+            
+            $reports = [];
+            foreach ($listUrls as $listUrl) {
                 $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
+
+                if ($response->status() === 404 && str_contains($response->body(), 'config_not_found_for_user')) {
+                    Log::info('Configuração de relatórios de liberação não encontrada no Mercado Pago. Criando...');
+                    $this->criarConfiguracaoRelatorioMP($accessToken);
+                    $response = Http::withoutVerifying()->withToken($accessToken)->get($listUrl);
+                }
+
+                if ($response->successful() && is_array($response->json())) {
+                    $reports = array_merge($reports, $response->json());
+                }
             }
 
-            if ($response->successful()) {
-                $reports = $response->json();
-                
+            if (!empty($reports)) {
                 $reqStart = Carbon::parse($startDate)->startOfDay();
                 $reqEnd = Carbon::parse($endDate)->endOfDay();
 
-                // Filtrar relatórios habilitados (enabled) ou processados (processed) que sobreponham o período solicitado
                 $processedReports = array_filter($reports, function ($report) use ($reqStart, $reqEnd) {
                     if (!isset($report['status']) || !in_array($report['status'], ['processed', 'enabled']) || !isset($report['file_name'])) {
                         return false;
                     }
                     
-                    // Verificar se o período do relatório sobrepõe o período solicitado
                     $repStart = isset($report['begin_date']) ? Carbon::parse($report['begin_date']) : null;
                     $repEnd = isset($report['end_date']) ? Carbon::parse($report['end_date']) : null;
                     
@@ -635,38 +641,97 @@ class ConciliacaoService
                     return true;
                 });
 
-                // Ordenar por data de criação decrescente (mais recentes primeiro)
                 usort($processedReports, function ($a, $b) {
                     return strcmp($b['date_created'] ?? '', $a['date_created'] ?? '');
                 });
 
-                // Processar no máximo os 5 relatórios de liberação mais recentes que sobrepõem o período
-                $processedReports = array_slice($processedReports, 0, 5);
+                $processedReports = array_slice($processedReports, 0, 10);
 
                 foreach ($processedReports as $report) {
                     $fileName = $report['file_name'];
                     Log::info("Processando relatório de extrato MP: {$fileName}");
                     
-                    $downloadUrl = "https://api.mercadopago.com/v1/account/bank_report/{$fileName}";
-                    $downloadResponse = Http::withoutVerifying()->withToken($accessToken)->get($downloadUrl);
-                    
-                    if ($downloadResponse->successful()) {
-                        $csvContent = $downloadResponse->body();
-                        $count += $this->processarCsvRelatorio($csvContent);
-                    } else {
-                        Log::error("Erro ao baixar relatório MP: {$fileName}", [
-                            'status' => $downloadResponse->status()
-                        ]);
+                    $downloadUrls = [
+                        "https://api.mercadopago.com/v1/account/settlement_report/{$fileName}",
+                        "https://api.mercadopago.com/v1/account/bank_report/{$fileName}"
+                    ];
+
+                    foreach ($downloadUrls as $downloadUrl) {
+                        $downloadResponse = Http::withoutVerifying()->withToken($accessToken)->get($downloadUrl);
+                        if ($downloadResponse->successful()) {
+                            $csvContent = $downloadResponse->body();
+                            $count += $this->processarCsvRelatorio($csvContent);
+                            break;
+                        }
                     }
                 }
-            } else {
-                Log::error('Erro ao listar relatórios do Mercado Pago', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
             }
 
-            // 2. Solicitar a geração de um novo relatório de liberação para o período (processamento assíncrono)
+            // 2. Sincronizar pagamentos em tempo real via API /v1/payments/search (para transações do dia / instantâneas)
+            try {
+                $searchUrl = "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=100";
+                $searchResponse = Http::withoutVerifying()->withToken($accessToken)->get($searchUrl);
+
+                if ($searchResponse->successful()) {
+                    $results = $searchResponse->json('results') ?? [];
+                    $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado%Pago%')->first();
+                    $contaMpId = $contaMp ? $contaMp->id : 2;
+
+                    foreach ($results as $p) {
+                        $status = $p['status'] ?? '';
+                        if (!in_array($status, ['approved', 'authorized'])) {
+                            continue;
+                        }
+
+                        $idStr = (string) ($p['id'] ?? '');
+                        if (empty($idStr)) continue;
+
+                        $dateCreated = isset($p['date_created']) ? Carbon::parse($p['date_created'])->toDateString() : now()->toDateString();
+                        $amount = (float) ($p['transaction_amount'] ?? 0);
+                        if ($amount <= 0) continue;
+
+                        $desc = $p['description'] ?? '';
+                        if (empty($desc)) {
+                            $desc = $p['statement_descriptor'] ?? '';
+                        }
+                        if (empty($desc)) {
+                            $desc = $p['point_of_interaction']['transaction_data']['bank_info']['collector']['account_holder_name'] ?? '';
+                        }
+                        if (empty($desc)) {
+                            $desc = 'Pagamento Mercado Pago';
+                        }
+
+                        $netReceived = $p['transaction_details']['net_received_amount'] ?? $amount;
+                        $tipo = 'entrada';
+                        if ($netReceived < 0 || str_contains(strtolower($desc), 'ifood') || str_contains(strtolower($desc), 'supermercado') || str_contains(strtolower($desc), 'farmacia')) {
+                            $tipo = 'saida';
+                        }
+
+                        $exists = TransacaoExtrato::where('fitid', $idStr)->exists();
+                        if (!$exists) {
+                            TransacaoExtrato::create([
+                                'fitid' => $idStr,
+                                'data' => $dateCreated,
+                                'descricao' => $desc,
+                                'valor_bruto' => $amount,
+                                'valor_taxa' => 0.00,
+                                'valor_liquido' => $amount,
+                                'valor' => $amount,
+                                'tipo' => $tipo,
+                                'status' => 'pendente',
+                                'origem' => 'mercadopago',
+                                'conta_bancaria_id' => $contaMpId,
+                                'payload_original' => json_encode($p),
+                            ]);
+                            $count++;
+                        }
+                    }
+                }
+            } catch (\Exception $eEx) {
+                Log::warning("Aviso na busca em tempo real de pagamentos MP: " . $eEx->getMessage());
+            }
+
+            // 3. Solicitar a geração de um novo relatório de liberação para o período (processamento assíncrono)
             $beginDate = Carbon::parse($startDate)->startOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
             $endDate = Carbon::parse($endDate)->endOfDay()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
 
