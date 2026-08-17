@@ -134,4 +134,29 @@ class WishController extends Controller
             'data' => $wishes
         ]);
     }
+
+    /**
+     * Exclui um desejo.
+     * DELETE /api/wishes/{id}
+     */
+    public function destroy($id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Não autenticado.'], 401);
+        }
+
+        $wish = ClientWish::where('id', $id)->where('user_id', $user->id)->first();
+        
+        if (!$wish) {
+            return response()->json(['success' => false, 'message' => 'Desejo não encontrado.'], 404);
+        }
+
+        $wish->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Desejo excluído com sucesso.'
+        ]);
+    }
 }

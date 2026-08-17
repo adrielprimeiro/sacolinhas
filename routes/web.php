@@ -535,6 +535,7 @@ Route::prefix('api')->middleware('auth')->group(function () {
     // Lista de Desejos (Wishes)
     Route::get('/wishes', [\App\Http\Controllers\Api\WishController::class, 'index'])->name('api.wishes.index');
     Route::post('/wishes', [\App\Http\Controllers\Api\WishController::class, 'store'])->name('api.wishes.store');
+    Route::delete('/wishes/{id}', [\App\Http\Controllers\Api\WishController::class, 'destroy'])->name('api.wishes.destroy');
 });
 
 // Rotas para exibir a página de consulta de sacolinhas
