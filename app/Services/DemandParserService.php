@@ -58,7 +58,7 @@ class DemandParserService
         ];
 
         try {
-            $url = "{$this->baseUrl}/models/gemini-2.0-flash:generateContent?key={$this->apiKey}";
+            $url = "{$this->baseUrl}/models/gemini-3.6-flash:generateContent?key={$this->apiKey}";
             $response = Http::timeout(20)->post($url, $payload);
 
             if ($response->successful()) {

@@ -146,8 +146,8 @@
 				</a>
 
                 <a href="{{ route('portal.curadoria') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-emerald-50 text-emerald-700 font-medium {{ request()->routeIs('portal.curadoria') ? 'bg-emerald-100 font-semibold' : '' }}">
-                    <i class="fas fa-gem text-emerald-600 w-5"></i>
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-green-50 text-green-700 font-medium {{ request()->routeIs('portal.curadoria') ? 'bg-green-100 font-semibold' : '' }}">
+                    <i class="fas fa-gem text-green-600 w-5"></i>
                     <span>Curadoria</span>
                 </a>
                 <div class="my-4 border-t border-gray-200"></div>

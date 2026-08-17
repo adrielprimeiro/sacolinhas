@@ -6,16 +6,16 @@
 <div class="max-w-3xl mx-auto space-y-6">
 
     <!-- Header / Hero da Curadoria -->
-    <div class="bg-gradient-to-r from-emerald-800 to-emerald-600 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+    <div class="bg-green-100 rounded-2xl p-6 md:p-8 text-green-900 shadow-sm border border-green-200 relative overflow-hidden">
         <!-- Detalhe decorativo -->
-        <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-        <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl"></div>
+        <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-green-200 opacity-20 rounded-full blur-2xl"></div>
+        <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-green-200 opacity-20 rounded-full blur-xl"></div>
         
         <div class="relative z-10">
             <h1 class="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
-                <i class="fas fa-gem text-emerald-200"></i> Curadoria Sob Medida
+                <i class="fas fa-gem text-green-600"></i> Curadoria Sob Medida
             </h1>
-            <p class="text-emerald-50 text-sm md:text-base max-w-xl">
+            <p class="text-green-800 text-sm md:text-base max-w-xl">
                 Diga o que você está procurando. Nosso acervo trabalha para encontrar a sua próxima peça favorita antes de todo mundo.
             </p>
         </div>
@@ -31,11 +31,11 @@
                     name="raw_prompt" 
                     rows="3" 
                     required
-                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-800 resize-none"
+                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-800 resize-none"
                     placeholder="Ex: Quero um vestido midi floral tamanho M, até R$ 90, para usar no fim de semana..."
                 ></textarea>
                 <p class="mt-2 text-xs text-gray-500 italic">
-                    <i class="fas fa-info-circle text-emerald-500 mr-1"></i>
+                    <i class="fas fa-info-circle text-green-500 mr-1"></i>
                     Pode falar do seu jeito: inclua tamanho, cor, estilo ou faixa de preço. Cuidamos do resto.
                 </p>
             </div>
@@ -44,7 +44,7 @@
                 <button 
                     type="submit" 
                     id="btnSubmit"
-                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+                    class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-md shadow-green-500/20 flex items-center gap-2 disabled:opacity-50"
                 >
                     <span id="btnText">Ativar Curadoria</span>
                     <i id="btnIcon" class="fas fa-magic"></i>
@@ -79,7 +79,7 @@
                                     <i class="fas fa-clock"></i>
                                 </div>
                             @else
-                                <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center border border-emerald-100">
+                                <div class="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center border border-green-100">
                                     <i class="fas fa-search animate-pulse"></i>
                                 </div>
                             @endif
@@ -113,7 +113,7 @@
                                     </span>
                                 @endif
                                 @if($wish->max_price)
-                                    <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-medium border border-emerald-100">
+                                    <span class="px-2 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-medium border border-green-100">
                                         Até R$ {{ number_format($wish->max_price, 2, ',', '.') }}
                                     </span>
                                 @endif
@@ -164,7 +164,7 @@
                 </div>
             </div>
             <div class="mt-5 sm:mt-6">
-                <button type="button" onclick="window.location.reload()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2.5 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:text-sm transition-colors">
+                <button type="button" onclick="window.location.reload()" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-4 py-2.5 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm transition-colors">
                     Entendido
                 </button>
             </div>
