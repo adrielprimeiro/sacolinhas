@@ -532,6 +532,9 @@ Route::prefix('api')->middleware('auth')->group(function () {
     // Simular Frete da Sacolinha
     Route::post('/frete/simular', [SacolinhaController::class, 'simularFrete'])->name('api.frete.simular');
 	
+    // Lista de Desejos (Wishes)
+    Route::get('/wishes', [\App\Http\Controllers\Api\WishController::class, 'index'])->name('api.wishes.index');
+    Route::post('/wishes', [\App\Http\Controllers\Api\WishController::class, 'store'])->name('api.wishes.store');
 });
 
 // Rotas para exibir a página de consulta de sacolinhas
@@ -628,6 +631,9 @@ Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('port
     // Dashboard do cliente
     Route::get('/dashboard', [PortalClienteController::class, 'dashboard'])->name('dashboard');
     
+    // Curadoria (Lista de Desejos)
+    Route::get('/curadoria', [PortalClienteController::class, 'curadoria'])->name('curadoria');
+
     // Perfil do cliente
     Route::get('/perfil', [PortalClienteController::class, 'perfil'])->name('perfil');
 	Route::put('/perfil', [PortalClienteController::class, 'perfilAtualizar'])->name('perfil.atualizar');

@@ -145,10 +145,10 @@
 				   <span>Jogar</span>
 				</a>
 
-                <a href="{{ route('portal.ajuda') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-purple-50 text-purple-700 font-medium {{ request()->routeIs('portal.ajuda') ? 'bg-purple-100 font-semibold' : '' }}">
-                    <i class="fas fa-robot text-purple-600 w-5"></i>
-                    <span>Ajuda & IA</span>
+                <a href="{{ route('curadoria') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-emerald-50 text-emerald-700 font-medium {{ request()->routeIs('curadoria') ? 'bg-emerald-100 font-semibold' : '' }}">
+                    <i class="fas fa-gem text-emerald-600 w-5"></i>
+                    <span>Curadoria</span>
                 </a>
                 <div class="my-4 border-t border-gray-200"></div>
 

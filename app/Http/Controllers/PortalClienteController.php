@@ -14,6 +14,15 @@ use Carbon\Carbon;
 
 class PortalClienteController extends Controller
 {
+    public function curadoria()
+    {
+        $user = Auth::user();
+        $wishes = \App\Models\ClientWish::where('user_id', $user->id)
+            ->orderBy('id', 'desc')
+            ->get();
+        return view('portal.cliente.curadoria', compact('user', 'wishes'));
+    }
+
 	public function dashboard()
 	{
 		$user = Auth::user();

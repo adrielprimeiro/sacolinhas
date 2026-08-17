@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
 	   });
 
        Pedido::observe(PedidoObserver::class);
+       \App\Models\Item::observe(\App\Observers\ItemObserver::class);
     }
 	public const HOME = '/dashboard';
 }
