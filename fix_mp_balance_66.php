@@ -8,7 +8,6 @@ use App\Models\TransacaoExtrato;
 use App\Models\Movimentacao;
 use App\Models\Lancamento;
 use App\Models\ContaBancaria;
-use App\Services\ConciliacaoService;
 
 echo "=== Fixing Mercado Pago Balance (R$ 66,08 Label Rolls Purchase Discrepancy) ===\n\n";
 
@@ -42,10 +41,6 @@ if ($mov5747) {
         'conta_bancaria_id' => $contaInterId
     ]);
 }
-
-// Recalcular saldos das contas
-$conciliacaoService = app(ConciliacaoService::class);
-$conciliacaoService->atualizarSaldosContas();
 
 echo "\n=== Verificação Final dos Saldos no Banco de Dados ===\n";
 $contaMp = ContaBancaria::find(2);
