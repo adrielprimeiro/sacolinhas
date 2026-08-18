@@ -422,6 +422,10 @@
                 <label>Localização <span style="color:var(--muted); font-weight:400;">(opcional)</span></label>
                 <input type="text" id="cfg-local" placeholder="Ex: Prateleira A3, Caixa 07…" autocomplete="off">
             </div>
+            <div class="field">
+                <label>Cor <span style="color:var(--muted); font-weight:400;">(opcional)</span></label>
+                <input type="text" id="cfg-cor" placeholder="Ex: Azul, Verde..." autocomplete="off">
+            </div>
         </div>
     </div>
 
@@ -451,7 +455,8 @@
     <form id="form-processar" method="POST" action="{{ route('inventario.processar') }}" style="display:none;">
         @csrf
         <input type="hidden" name="status"      id="form-status">
-        <input type="hidden" name="localizacao"  id="form-local">
+        <input type="hidden" name="localizacao" id="form-local">
+        <input type="hidden" name="cor"         id="form-cor">
         <div id="form-codigos"></div>
     </form>
 </div>
@@ -775,6 +780,7 @@ document.getElementById('btn-apply').addEventListener('click', () => {
     // Preencher form
     document.getElementById('form-status').value = document.getElementById('cfg-status').value;
     document.getElementById('form-local').value  = document.getElementById('cfg-local').value;
+    document.getElementById('form-cor').value    = document.getElementById('cfg-cor').value;
 
     const container = document.getElementById('form-codigos');
     container.innerHTML = '';

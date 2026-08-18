@@ -299,11 +299,13 @@ class ItemController extends Controller
             'codigos.*'   => 'required|string',
             'status'      => 'nullable|string',
             'localizacao' => 'nullable|string|max:255',
+            'cor'         => 'nullable|string|max:255',
         ]);
 
         $codigos     = array_unique(array_filter($request->codigos));
         $novoStatus  = $request->status;
         $localizacao = $request->localizacao;
+        $cor         = $request->cor;
 
         $resultados = [];
         $atualizados = 0;
@@ -323,6 +325,9 @@ class ItemController extends Controller
             }
             if ($localizacao !== null && $localizacao !== '') {
                 $dados['localizacao'] = $localizacao;
+            }
+            if ($cor !== null && $cor !== '') {
+                $dados['cor'] = $cor;
             }
 
             if (!empty($dados)) {
@@ -344,6 +349,7 @@ class ItemController extends Controller
         $msg = "✅ {$atualizados} item(ns) atualizado(s)";
         if ($novoStatus)  $msg .= " → status: {$statusLabel}";
         if ($localizacao) $msg .= " | local: {$localizacao}";
+        if ($cor)         $msg .= " | cor: {$cor}";
         if (count($naoEncontrados)) {
             $msg .= " | ⚠️ Não encontrados: " . implode(', ', $naoEncontrados);
         }
