@@ -7,12 +7,8 @@ $kernel->bootstrap();
 use App\Models\ContaBancaria;
 use App\Models\Movimentacao;
 use App\Models\TransacaoExtrato;
-use Illuminate\Support\Facades\Schema;
 
-echo "Colunas de movimentacoes:\n";
-print_r(Schema::getColumnListing('movimentacoes'));
-
-echo "\n=== Auditando Saldo do Mercado Pago ===\n\n";
+echo "=== Auditando Saldo do Mercado Pago ===\n\n";
 
 $contaMp = ContaBancaria::where('nome', 'like', '%Mercado%Pago%')->first();
 
@@ -23,17 +19,25 @@ if (!$contaMp) {
 
 echo "ID Conta: {$contaMp->id}\n";
 echo "Nome Conta: {$contaMp->nome}\n";
-echo "Saldo Inicial: R$ {$contaMp->saldo_inicial}\n";
+echo "Saldo Inicial no Banco de Dados: R$ {$contaMp->saldo_inicial}\n";
 
-$entradas = Movimentacao::where('conta_bancaria_id', $contaMp->id)->where('tipo', 'receita')->sum('valor_total');
-$saidas   = Movimentacao::where('conta_bancaria_id', $contaMp->id)->where('tipo', 'despesa')->sum('valor_total');
+$entradas = Movimentacao::join('lancamentos', 'movimentacoes.lancamento_id', '=', 'lancamentos.id')
+    ->where('movimentacoes.conta_bancaria_id', $contaMp->id)
+    ->where('lancamentos.tipo', 'receita')
+    ->sum('movimentacoes.valor_pago');
+
+$saidas = Movimentacao::join('lancamentos', 'movimentacoes.lancamento_id', '=', 'lancamentos.id')
+    ->where('movimentacoes.conta_bancaria_id', $contaMp->id)
+    ->where('lancamentos.tipo', 'despesa')
+    ->sum('movimentacoes.valor_pago');
+
 $saldoMov = $contaMp->saldo_inicial + $entradas - $saidas;
 
-echo "Total Receitas em movimentacoes: R$ {$entradas}\n";
-echo "Total Despesas em movimentacoes: R$ {$saidas}\n";
-echo "Saldo Calculado (Inicial + Entradas - Saídas): R$ {$saldoMov}\n\n";
+echo "Total Receitas Conciliadas (Entradas): R$ " . number_format($entradas, 2, ',', '.') . "\n";
+echo "Total Despesas Conciliadas (Saídas): R$ " . number_format($saidas, 2, ',', '.') . "\n";
+echo "Saldo Atual Calculado (Inicial + Receitas - Despesas): R$ " . number_format($saldoMov, 2, ',', '.') . "\n\n";
 
-echo "=== Procurando as 3 transações de 17/ago da imagem no extrato ===\n";
+echo "=== Procurando as 3 transações do Mercado Pago do dia 17/08 da imagem ===\n";
 $targetVals = [6.49, 14.63, 33.96];
 foreach ($targetVals as $v) {
     $t = TransacaoExtrato::where('origem', 'mercadopago')
@@ -43,4 +47,13 @@ foreach ($targetVals as $v) {
     foreach ($t as $item) {
         echo "   ID: {$item->id} | Data: {$item->data->format('Y-m-d')} | Desc: {$item->descricao} | Status: {$item->status}\n";
     }
+}
+
+echo "\n=== Verificando todas as transações pendentes no extrato do Mercado Pago ===\n";
+$pendentes = TransacaoExtrato::where('origem', 'mercadopago')
+    ->where('status', 'pendente')
+    ->get();
+echo "Pendentes no extrato Mercado Pago: " . $pendentes->count() . "\n";
+foreach ($pendentes as $p) {
+    echo "   ID: {$p->id} | Data: {$p->data->format('Y-m-d')} | Tipo: {$p->tipo} | Valor: R$ {$p->valor} | Desc: {$p->descricao}\n";
 }
