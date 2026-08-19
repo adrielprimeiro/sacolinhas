@@ -17,9 +17,9 @@ foreach ($tables as $tObj) {
     try {
         $cols = DB::getSchemaBuilder()->getColumnListing($t);
         foreach ($cols as $c) {
-            $count = DB::table($t)->whereRaw("CAST(`{$c}` AS CHAR) LIKE '%2818%'").count();
-            if ($count > 0) {
-                echo "Tabela '{$t}' | Coluna '{$c}' -> Encontrados {$count} registros com 2818!\n";
+            $cCount = DB::table($t)->whereRaw("CAST(`{$c}` AS CHAR) LIKE '%2818%'")->count();
+            if ($cCount > 0) {
+                echo "Tabela '{$t}' | Coluna '{$c}' -> Encontrados {$cCount} registros com 2818!\n";
                 $rows = DB::table($t)->whereRaw("CAST(`{$c}` AS CHAR) LIKE '%2818%'")->get();
                 foreach ($rows as $r) {
                     print_r($r);
@@ -27,7 +27,7 @@ foreach ($tables as $tObj) {
             }
         }
     } catch (\Exception $e) {
-        // Ignorar tabelas especiais se houver
+        // Ignorar
     }
 }
 
