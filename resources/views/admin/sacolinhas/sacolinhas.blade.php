@@ -452,7 +452,7 @@
                 const clientId = document.querySelector('input[name="client_id"]').value;
                 const itemId = document.querySelector('input[name="item_id"]').value;
 				const itemPrice = document.getElementById('item-price').value;
-                const itemPriceConverted = itemPrice.replace(',', '.');
+                const itemPriceConverted = itemPrice.replace(/\./g, '').replace(',', '.');
 
                 if (!clientId) {
                     mostrarAlert('Por favor, selecione um cliente primeiro!', 'warning');
@@ -642,12 +642,15 @@
 			let totalItens = 0;
 			
 			bagsToDisplay.forEach(bag => {
-				const valorNumerico = parseFloat(
-					bag.formatted_total
-						.replace('R$', '')
-						.replace(/\s/g, '')
-						.replace(',', '.')
-				);
+				const valorNumerico = typeof bag.total_value === 'number'
+					? bag.total_value
+					: parseFloat(
+						(bag.formatted_total || '0')
+							.replace('R$', '')
+							.replace(/\s/g, '')
+							.replace(/\./g, '')
+							.replace(',', '.')
+					);
 				
 				if (!isNaN(valorNumerico)) {
 					totalGeral += valorNumerico;
@@ -656,7 +659,7 @@
 				totalItens += bag.items.length;
 			});
 			
-			totalSacolas.textContent = `Total: R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+			totalSacolas.textContent = `Total: R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 			totalSacolas.style.display = 'block';
 			
 			contadorSacolas.textContent = `${bagsToDisplay.length} sacola(s) • ${totalItens} item(s)`;
