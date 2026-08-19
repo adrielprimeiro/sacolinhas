@@ -9,7 +9,7 @@ use App\Models\Movimentacao;
 use App\Models\Lancamento;
 use App\Models\ContaBancaria;
 
-echo "=== Corrigindo Saldo do Banco Inter (Duplicidade R$ 66,08 + Pix Pendente R$ 20,00) ===\n\n";
+echo "=== Corrigindo Saldo do Banco Inter ===\n\n";
 
 // 1. Remover movimentação duplicada 5747 e deletar transação 975
 $mov5747 = Movimentacao::find(5747);
@@ -31,17 +31,20 @@ if ($t975) {
     $t975->delete();
 }
 
+// Buscar uma classificação financeira padrão para receitas
+$classId = \DB::table('classificacoes_financeiras')->where('tipo', 'receita')->value('id') ?? 1;
+
 // 2. Conciliar transação pendente 1039 (Pix Recebido R$ 20,00)
 $t1039 = TransacaoExtrato::find(1039);
 if ($t1039 && $t1039->status === 'pendente') {
     echo "4. Conciliando transação pendente ID 1039 (Pix R$ 20,00 de MANIA DE MELISSA)...\n";
     
     $lanc = Lancamento::create([
-        'user_id' => 1,
         'descricao' => $t1039->descricao,
-        'valor' => $t1039->valor,
+        'valor_total' => $t1039->valor,
         'tipo' => 'receita',
         'status' => 'pago',
+        'classificacao_financeira_id' => $classId,
         'data_vencimento' => $t1039->data,
         'data_pagamento' => $t1039->data
     ]);
