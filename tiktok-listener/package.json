@@ -1,0 +1,1 @@
+{"name":"sacolinhas-tiktok-listener-local","version":"1.0.0","main":"index.cjs","type":"commonjs","scripts":{"start":"node index.cjs"},"dependencies":{"tiktok-live-connector":"^2.4.4","axios":"^1.7.0"}}
