@@ -983,6 +983,9 @@ class ConciliacaoService
                 $fitid = $sourceId . '_' . $seenIds[$sourceId];
             }
 
+            $existingExtrato = TransacaoExtrato::where('fitid', (string) $fitid)->first();
+            $statusToKeep = ($existingExtrato && in_array($existingExtrato->status, ['conciliado', 'ignorado'])) ? $existingExtrato->status : 'pendente';
+
             $transacao = TransacaoExtrato::updateOrCreate(
                 ['fitid' => (string) $fitid],
                 [
@@ -993,6 +996,7 @@ class ConciliacaoService
                     'valor_taxa' => 0,
                     'valor_liquido' => $valor,
                     'tipo' => $tipo,
+                    'status' => $statusToKeep,
                     'origem' => 'mercadopago',
                     'conta_bancaria_id' => $contaBancariaId,
                     'payload_original' => $payloadOriginal
