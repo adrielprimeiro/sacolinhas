@@ -72,22 +72,22 @@
             </div>
         </div>
 
-        <!-- COLUNA 2: CHAT EM TEMPO REAL (LARGURA 6) -->
-        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
-            <div class="bg-gray-800 px-5 py-4 flex items-center justify-between text-white">
+        <!-- COLUNA 1: CHAT EM TEMPO REAL (ESQUERDA - LARGURA 4) -->
+        <div class="lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
+            <div class="bg-gray-800 px-4 py-3.5 flex items-center justify-between text-white">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-comment-alt"></i>
-                    <h2 class="font-bold text-lg">Chat da Transmissão</h2>
+                    <i class="fas fa-comment-alt text-indigo-400"></i>
+                    <h2 class="font-bold text-sm">Chat da Transmissão</h2>
                 </div>
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center gap-1.5">
-                        <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping" id="chat-ping-dot"></span>
-                        <span class="text-xs text-gray-300" id="chat-status-text">Capturando</span>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 bg-gray-900/60 px-2 py-1 rounded-lg">
+                        <span class="inline-block w-2 h-2 bg-green-500 rounded-full animate-ping" id="chat-ping-dot"></span>
+                        <span class="text-[11px] text-gray-300 font-medium" id="chat-status-text">Capturando</span>
                     </div>
                 </div>
             </div>
             
-            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-900 text-gray-100 font-sans">
+            <div id="chat-messages-container" class="flex-1 p-3 overflow-y-auto space-y-2.5 bg-gray-900 text-gray-100 font-sans">
                 @if(!$activeLive)
                     <div class="flex flex-col items-center justify-center h-full text-gray-500">
                         <i class="fas fa-video-slash text-3xl mb-2"></i>
@@ -96,20 +96,76 @@
                 @else
                     <div class="flex flex-col items-center justify-center h-full text-gray-500">
                         <i class="fas fa-plug text-3xl mb-2"></i>
-                        <p class="text-xs text-center">Execute o Bookmarklet na aba da live para enviar mensagens para cá.</p>
+                        <p class="text-xs text-center">Aguardando mensagens do chat...</p>
                     </div>
                 @endif
             </div>
         </div>
 
-        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (LARGURA 6) -->
-        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 75vh;">
+        <!-- COLUNA 2: TRANSCRIÇÃO DE ÁUDIO / VOZ DA LIVE (MEIO - LARGURA 4) -->
+        <div class="lg:col-span-4 flex flex-col rounded-2xl shadow-md border border-gray-200 overflow-hidden" style="height: 78vh; background-color: #0f172a;">
+            <!-- Header da Coluna com Cores Vivas e Alto Contraste -->
+            <div class="px-4 py-3.5 flex items-center justify-between text-white shadow-sm" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); border-bottom: 1px solid #059669;">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background-color: rgba(255, 255, 255, 0.2);">
+                        <i class="fas fa-microphone-alt text-base text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm leading-tight text-white" style="color: #ffffff;">Áudio & Voz da Live</h2>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span id="audio-pulse-dot" class="w-2 h-2 rounded-full inline-block" style="background-color: #9ca3af;"></span>
+                            <span id="audio-status-label" class="text-[11px] font-medium" style="color: #d1fae5;">Microfone Desligado</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-toggle-audio-rec" onclick="toggleAudioRecording()" class="text-xs font-bold px-3.5 py-1.5 rounded-xl shadow transition duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95" style="background-color: #10b981; color: #ffffff; border: 1px solid #34d399;">
+                        <i class="fas fa-play" id="btn-audio-icon" style="color: #ffffff;"></i>
+                        <span id="btn-audio-text" style="color: #ffffff;">Gravar</span>
+                    </button>
+                    <button type="button" onclick="clearAudioTranscripts()" title="Limpar Transcrição" class="p-1.5 rounded-lg transition text-white hover:bg-emerald-700 cursor-pointer" style="background-color: rgba(255,255,255,0.15); color: #ffffff;">
+                        <i class="fas fa-trash-alt text-xs" style="color: #ffffff;"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Live Interim / Speech Feed -->
+            <div class="flex-1 flex flex-col p-3 overflow-hidden" style="background-color: #0f172a; color: #f8fafc;">
+                <!-- Preview fala em tempo real (Interim) -->
+                <div id="audio-interim-box" class="p-3 mb-2.5 rounded-xl shrink-0 min-h-[52px] flex items-center gap-2.5 transition-all shadow-inner" style="background-color: #1e293b; border: 1px solid #334155;">
+                    <div class="w-2.5 h-2.5 rounded-full shrink-0 hidden" id="audio-speaking-indicator" style="background-color: #10b981;"></div>
+                    <div class="flex-1 overflow-hidden">
+                        <p id="audio-interim-text" class="text-xs font-mono truncate" style="color: #94a3b8; font-style: italic;">Clique em "Gravar" e fale no microfone...</p>
+                    </div>
+                </div>
+
+                <!-- Histórico de Frases Transcritas (Apenas Matches de Venda) -->
+                <div id="audio-transcripts-stream" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <div id="audio-empty-placeholder" class="flex flex-col items-center justify-center h-full py-10" style="color: #64748b;">
+                        <i class="fas fa-shopping-bag text-3xl mb-2" style="color: #475569;"></i>
+                        <p class="text-xs text-center font-medium" style="color: #94a3b8;">Aguardando vendas faladas na live...</p>
+                        <p class="text-[11px] mt-1.5 font-semibold text-center" style="color: #34d399;">Fale: <em>"Ficou para [Nome]"</em> ou <em>"Vendido pra [Nome]"</em></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Informativo / Dica -->
+            <div class="px-3.5 py-2.5 text-[11px] flex items-center justify-between shadow-inner" style="background-color: #020617; border-top: 1px solid #1e293b; color: #94a3b8;">
+                <span class="flex items-center gap-1.5 font-medium" style="color: #34d399;">
+                    <i class="fas fa-check-double text-xs"></i> Filtro: <em>Apenas Vendas Detectadas</em>
+                </span>
+                <span id="audio-sentences-count" class="text-[10px] font-mono" style="color: #64748b;">0 vendas</span>
+            </div>
+        </div>
+
+        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (DIREITA - LARGURA 4) -->
+        <div class="lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 bg-gray-50">
-                <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-indigo-600 text-indigo-600">
+                <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-3 text-center font-semibold text-xs border-b-2 border-indigo-600 text-indigo-600">
                     Conectar Lives
                 </button>
-                <button id="tab-btn-online" onclick="switchTab('online')" class="flex-1 py-3 px-4 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                <button id="tab-btn-online" onclick="switchTab('online')" class="flex-1 py-3 px-3 text-center font-semibold text-xs border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Pessoas Online
                 </button>
             </div>
@@ -1332,6 +1388,287 @@
         for (var i = 0; i < x.length; i++) {
             x[i].classList.remove("bg-indigo-100", "border-l-4", "border-indigo-500");
             x[i].classList.add("bg-white");
+        }
+    }
+    // ==========================================
+    // RECONHECIMENTO DE VOZ / ÁUDIO DA LIVE
+    // ==========================================
+    let speechRecognizer = null;
+    let isAudioRecording = false;
+    let shouldKeepAudioRecording = false;
+    let audioSentencesCount = 0;
+
+    function initAudioSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Seu navegador não possui suporte ao reconhecimento de voz nativo. Por favor, utilize o Google Chrome ou Microsoft Edge no computador.");
+            return null;
+        }
+
+        const recognizer = new SpeechRecognition();
+        recognizer.continuous = true;
+        recognizer.interimResults = true;
+        recognizer.lang = 'pt-BR';
+        recognizer.maxAlternatives = 1;
+
+        recognizer.onstart = function() {
+            isAudioRecording = true;
+            updateAudioRecUI(true);
+        };
+
+        recognizer.onresult = function(event) {
+            let interimText = '';
+            let finalText = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalText += transcript;
+                } else {
+                    interimText += transcript;
+                }
+            }
+
+            const interimBox = document.getElementById("audio-interim-text");
+            const speakingDot = document.getElementById("audio-speaking-indicator");
+
+            if (interimText.trim().length > 0) {
+                interimBox.textContent = `"${interimText.trim()}"`;
+                interimBox.classList.remove("italic", "text-slate-300");
+                interimBox.classList.add("text-emerald-300", "font-medium");
+                speakingDot.classList.remove("hidden");
+            }
+
+            if (finalText.trim().length > 0) {
+                handleFinalTranscribedSentence(finalText.trim());
+                interimBox.textContent = 'Ouvindo microfone...';
+                interimBox.classList.add("italic", "text-slate-300");
+                interimBox.classList.remove("text-emerald-300", "font-medium");
+                speakingDot.classList.add("hidden");
+            }
+        };
+
+        recognizer.onerror = function(event) {
+            console.warn("[Voz Live] Erro de reconhecimento:", event.error);
+            if (event.error === 'not-allowed') {
+                alert("Permissão de microfone negada. Clique no ícone de cadeado na barra de endereços do navegador e permita o microfone.");
+                shouldKeepAudioRecording = false;
+                stopAudioRecording();
+            }
+        };
+
+        recognizer.onend = function() {
+            if (shouldKeepAudioRecording) {
+                // Auto-reiniciar imediatamente caso o Chrome pause após silêncio
+                setTimeout(() => {
+                    if (shouldKeepAudioRecording) {
+                        try {
+                            recognizer.start();
+                        } catch (e) {
+                            console.log("[Voz Live] Reiniciando escuta...");
+                        }
+                    }
+                }, 250);
+            } else {
+                isAudioRecording = false;
+                updateAudioRecUI(false);
+            }
+        };
+
+        return recognizer;
+    }
+
+    function toggleAudioRecording() {
+        if (!speechRecognizer) {
+            speechRecognizer = initAudioSpeechRecognition();
+            if (!speechRecognizer) return;
+        }
+
+        if (!isAudioRecording) {
+            startAudioRecording();
+        } else {
+            stopAudioRecording();
+        }
+    }
+
+    function startAudioRecording() {
+        try {
+            shouldKeepAudioRecording = true;
+            speechRecognizer.start();
+        } catch (e) {
+            console.warn("[Voz Live] Falha ao iniciar:", e);
+        }
+    }
+
+    function stopAudioRecording() {
+        shouldKeepAudioRecording = false;
+        if (speechRecognizer) {
+            try {
+                speechRecognizer.stop();
+            } catch(e) {}
+        }
+        isAudioRecording = false;
+        updateAudioRecUI(false);
+    }
+
+    function updateAudioRecUI(recording) {
+        const btn = document.getElementById("btn-toggle-audio-rec");
+        const btnText = document.getElementById("btn-audio-text");
+        const btnIcon = document.getElementById("btn-audio-icon");
+        const pulseDot = document.getElementById("audio-pulse-dot");
+        const statusLabel = document.getElementById("audio-status-label");
+        const interimBox = document.getElementById("audio-interim-text");
+        const speakingDot = document.getElementById("audio-speaking-indicator");
+
+        if (recording) {
+            btn.style.backgroundColor = "#dc2626";
+            btn.style.borderColor = "#ef4444";
+            btn.style.color = "#ffffff";
+            btn.classList.add("animate-pulse");
+            btnText.textContent = "Parar";
+            btnText.style.color = "#ffffff";
+            btnIcon.className = "fas fa-stop";
+            btnIcon.style.color = "#ffffff";
+
+            pulseDot.style.backgroundColor = "#10b981";
+            pulseDot.className = "w-2 h-2 rounded-full inline-block animate-ping";
+            statusLabel.textContent = "Gravando & Ouvindo...";
+            statusLabel.style.color = "#a7f3d0";
+            statusLabel.style.fontWeight = "bold";
+            interimBox.textContent = "Ouvindo microfone... Fale algo!";
+            interimBox.style.color = "#34d399";
+        } else {
+            btn.style.backgroundColor = "#10b981";
+            btn.style.borderColor = "#34d399";
+            btn.style.color = "#ffffff";
+            btn.classList.remove("animate-pulse");
+            btnText.textContent = "Gravar";
+            btnText.style.color = "#ffffff";
+            btnIcon.className = "fas fa-play";
+            btnIcon.style.color = "#ffffff";
+
+            pulseDot.style.backgroundColor = "#9ca3af";
+            pulseDot.className = "w-2 h-2 rounded-full inline-block";
+            statusLabel.textContent = "Microfone Desligado";
+            statusLabel.style.color = "#d1fae5";
+            statusLabel.style.fontWeight = "normal";
+            interimBox.textContent = "Clique em \"Gravar\" e fale no microfone...";
+            interimBox.style.color = "#94a3b8";
+            speakingDot.classList.add("hidden");
+        }
+    }
+
+    function clearAudioTranscripts() {
+        const stream = document.getElementById("audio-transcripts-stream");
+        stream.innerHTML = `
+            <div id="audio-empty-placeholder" class="flex flex-col items-center justify-center h-full py-10" style="color: #64748b;">
+                <i class="fas fa-broadcast-tower text-3xl mb-2" style="color: #475569;"></i>
+                <p class="text-xs text-center" style="color: #94a3b8;">As frases faladas aparecerão aqui em tempo real.</p>
+                <p class="text-[11px] mt-1.5 font-semibold" style="color: #34d399;">Exemplo: <em>"Ficou para Claudia"</em></p>
+            </div>
+        `;
+        audioSentencesCount = 0;
+        document.getElementById("audio-sentences-count").textContent = "0 frases";
+    }
+
+    function handleFinalTranscribedSentence(sentence) {
+        if (!sentence || sentence.trim().length === 0) return;
+
+        // Padrões de Venda ao Vivo:
+        // 1. "Ficou para [Nome]", "Ficou pra [Nome]", "Ficou com a [Nome]", "Vendido pra [Nome]", "Marca pra [Nome]", "É da [Nome]", etc.
+        // 2. "Peça [Código] para [Nome]", "Item [Código] pra [Nome]"
+        const patterns = [
+            /(?:ficou\s+(?:para|pra|pro|com\s+a|com\s+o|com)|vendid[ao]\s+(?:para|pra|pro|a|ao)|vendeu\s+(?:para|pra|pro)|marca(?:r)?\s+(?:para|pra|pro)|anota(?:r)?\s+(?:para|pra|pro)|passa(?:r|ou)?\s+(?:para|pra|pro)|vai\s+(?:para|pra|pro)|é\s+d[ao])\s+([a-zA-ZÀ-ÿ0-9_.\s]+)/i,
+            /(?:peça|peca|código|codigo|item)\s*#?([a-zA-Z0-9-]+)\s+(?:ficou\s+pra|ficou\s+para|para|pra|pro|com)\s+([a-zA-ZÀ-ÿ0-9_.\s]+)/i
+        ];
+
+        let isActionDetected = false;
+        let detectedTarget = '';
+        let detectedCode = '';
+
+        for (let p of patterns) {
+            const match = sentence.match(p);
+            if (match) {
+                if (match.length === 3) {
+                    detectedCode = match[1].trim();
+                    detectedTarget = match[2].trim();
+                } else if (match.length === 2) {
+                    detectedTarget = match[1].trim();
+                }
+                
+                // Limpeza do nome capturado
+                detectedTarget = detectedTarget.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?!]/g, "").trim();
+                
+                if (detectedTarget.length >= 2) {
+                    isActionDetected = true;
+                }
+                break;
+            }
+        }
+
+        // REGRA DE FILTRO: Se não houve match de venda, ignora a fala comum da live!
+        if (!isActionDetected || !detectedTarget) {
+            console.log("[Voz Live - Fala Ignorada (sem match de venda)]:", sentence);
+            return;
+        }
+
+        const stream = document.getElementById("audio-transcripts-stream");
+        const emptyPlaceholder = document.getElementById("audio-empty-placeholder");
+        if (emptyPlaceholder) {
+            emptyPlaceholder.remove();
+        }
+
+        audioSentencesCount++;
+        document.getElementById("audio-sentences-count").textContent = `${audioSentencesCount} venda${audioSentencesCount > 1 ? 's' : ''}`;
+
+        const time = new Date().toLocaleTimeString();
+
+        // Criar card de venda detectada com alto contraste
+        const card = document.createElement("div");
+        card.style.padding = "12px";
+        card.style.borderRadius = "12px";
+        card.style.marginBottom = "10px";
+        card.style.backgroundColor = "#064e3b";
+        card.style.border = "1.5px solid #10b981";
+        card.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.25)";
+        card.style.transition = "all 0.2s ease";
+
+        card.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #a7f3d0; margin-bottom: 6px; font-family: monospace;">
+                <span style="display: flex; align-items: center; gap: 5px; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fas fa-check-circle text-emerald-400"></i> Venda Detectada
+                </span>
+                <span style="color: #94a3b8;">${time}</span>
+            </div>
+            
+            <p style="font-size: 13px; color: #f8fafc; line-height: 1.4; margin: 0 0 10px 0; font-style: italic; font-weight: 400;">
+                "${escapeHtml(sentence)}"
+            </p>
+
+            <div style="padding-top: 8px; border-top: 1px solid rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                    <span style="font-size: 13px; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        👤 ${escapeHtml(detectedTarget)} ${detectedCode ? `<span style="color: #6ee7b7; font-weight: 600;">(Peça #${escapeHtml(detectedCode)})</span>` : ''}
+                    </span>
+                </div>
+                <button type="button" onclick="triggerVoiceQuickSearch('${escapeHtml(detectedTarget)}')" style="background-color: #10b981; color: #022c22; font-weight: 800; font-size: 11px; padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    <i class="fas fa-search"></i> Buscar Cliente
+                </button>
+            </div>
+        `;
+
+        stream.appendChild(card);
+        stream.scrollTop = stream.scrollHeight;
+    }
+
+    // Atalho quando clica no botão "Buscar" do áudio detectado
+    function triggerVoiceQuickSearch(targetName) {
+        switchTab('online');
+        const input = document.getElementById("avulso-search-input");
+        if (input) {
+            input.value = targetName;
+            input.focus();
+            searchAvulsoClients(targetName);
         }
     }
 </script>
