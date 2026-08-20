@@ -400,12 +400,12 @@
                             const discountedPrice = originalPrice * DISCOUNT_PERCENTAGE;
                             console.log('DEBUG: Preço com Desconto:', discountedPrice);
                             
-                            itemPriceInput.value = discountedPrice.toFixed(2);
+                            itemPriceInput.value = discountedPrice.toFixed(2).replace('.', ',');
                             originalPriceDisplay.textContent = `R$ ${originalPrice.toFixed(2).replace('.', ',')}`;
                             originalPriceDisplay.style.display = 'inline';
                         } else {
                             console.log('DEBUG: Não é live "precinho" ou liveAtiva não está definida. Usando preço original.');
-                            itemPriceInput.value = parseFloat(item.price).toFixed(2);
+                            itemPriceInput.value = parseFloat(item.price).toFixed(2).replace('.', ',');
                             originalPriceDisplay.style.display = 'none';
                         }
                     }
