@@ -708,7 +708,7 @@ class ConciliacaoService
                             $tipo = 'saida';
                         }
 
-                        $exists = TransacaoExtrato::where('fitid', $idStr)->exists();
+                        $exists = TransacaoExtrato::where('fitid', $idStr)->first();
                         if (!$exists) {
                             TransacaoExtrato::create([
                                 'fitid' => $idStr,
@@ -725,6 +725,13 @@ class ConciliacaoService
                                 'payload_original' => json_encode($p),
                             ]);
                             $count++;
+                        } else {
+                            if ($exists->descricao === 'payment' || $exists->descricao === 'MERCADOPAGO payment' || $exists->tipo !== $tipo) {
+                                $exists->update([
+                                    'descricao' => $desc,
+                                    'tipo' => $tipo
+                                ]);
+                            }
                         }
                     }
                 }
