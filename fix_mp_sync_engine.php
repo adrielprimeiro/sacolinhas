@@ -19,8 +19,8 @@ $paymentsWithGenericDesc = TransacaoExtrato::where('origem', 'mercadopago')
 echo "Encontradas " . $paymentsWithGenericDesc->count() . " transações com descrição 'payment' para corrigir.\n";
 
 foreach ($paymentsWithGenericDesc as $t) {
-    if (!empty($t->payload_original)) {
-        $payload = json_decode($t->payload_original, true);
+    $payload = is_array($t->payload_original) ? $t->payload_original : json_decode($t->payload_original ?? '[]', true);
+    if (!empty($payload)) {
         $payerBank = $payload['point_of_interaction']['transaction_data']['bank_info']['payer']['long_name'] ?? '';
         $desc = $payload['description'] ?? '';
         
