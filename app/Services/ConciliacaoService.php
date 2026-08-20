@@ -690,20 +690,21 @@ class ConciliacaoService
                         $amount = (float) ($p['transaction_amount'] ?? 0);
                         if ($amount <= 0) continue;
 
+                        $pointType = $p['point_of_interaction']['type'] ?? '';
+                        $method = $p['payment_method_id'] ?? '';
+                        $payerBank = $p['point_of_interaction']['transaction_data']['bank_info']['payer']['long_name'] ?? '';
+
                         $desc = $p['description'] ?? '';
-                        if (empty($desc)) {
-                            $desc = $p['statement_descriptor'] ?? '';
-                        }
-                        if (empty($desc)) {
-                            $desc = $p['point_of_interaction']['transaction_data']['bank_info']['collector']['account_holder_name'] ?? '';
-                        }
-                        if (empty($desc) || in_array(strtolower($desc), ['payout', 'payouts'])) {
+                        if (empty($desc)) $desc = $p['statement_descriptor'] ?? '';
+                        if (empty($desc) && !empty($payerBank)) $desc = $payerBank;
+                        if (empty($desc)) $desc = $p['point_of_interaction']['transaction_data']['bank_info']['collector']['account_holder_name'] ?? '';
+                        if (empty($desc) || in_array(strtolower($desc), ['payout', 'payouts', 'payment'])) {
                             $desc = 'Pagamento com Pix';
                         }
 
                         $netReceived = $p['transaction_details']['net_received_amount'] ?? $amount;
                         $tipo = 'entrada';
-                        if ($netReceived < 0 || str_contains(strtolower($desc), 'ifood') || str_contains(strtolower($desc), 'supermercado') || str_contains(strtolower($desc), 'farmacia')) {
+                        if ($pointType === 'MP_DEBIT_CARD' || $method === 'account_money' || $netReceived < 0 || str_contains(strtolower($desc), 'biguacu') || str_contains(strtolower($desc), 'mercocentr') || str_contains(strtolower($desc), 'fifo mania') || str_contains(strtolower($desc), 'ifood') || str_contains(strtolower($desc), 'supermercado') || str_contains(strtolower($desc), 'farmacia')) {
                             $tipo = 'saida';
                         }
 
