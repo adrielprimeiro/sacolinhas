@@ -14,7 +14,7 @@ class LojaController extends Controller
     public function index(Request $request)
     {
         $query = Item::query()
-            ->where('status', 'loja')
+            ->whereIn('status', ['loja', 'estoque'])
             ->whereHas('medias', function ($q) {
                 $q->where('media_type', 'image');
             });
@@ -197,7 +197,7 @@ class LojaController extends Controller
 
     public function show(Item $item)
     {
-        if ($item->status !== 'loja' || !$item->medias()->where('media_type', 'image')->exists()) {
+        if (!in_array($item->status, ['loja', 'estoque']) || !$item->medias()->where('media_type', 'image')->exists()) {
             abort(404);
         }
 
