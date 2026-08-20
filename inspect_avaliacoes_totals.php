@@ -19,46 +19,39 @@ $summary = DB::table('avaliacoes')
     )
     ->first();
 
-echo "--- 1. RESUMO DA TABELA 'avaliacoes' ---\n";
-echo "Total de Registros de Avaliações: " . number_format($summary->total_avaliacoes, 0, ',', '.') . "\n";
+echo "--- 1. REGISTROS DA TABELA 'avaliacoes' (Lotes Fechados) ---\n";
+echo "Total de Avaliações Cadastradas: " . number_format($summary->total_avaliacoes, 0, ',', '.') . "\n";
 echo "Custo Total Pago/Creditado (total_payout): R$ " . number_format($summary->total_payout_pago, 2, ',', '.') . "\n";
-echo "Valor Total Estimado de Venda (total_venda): R$ " . number_format($summary->total_venda_projetado, 2, ',', '.') . "\n";
+echo "Valor Total Projetado de Venda (total_venda): R$ " . number_format($summary->total_venda_projetado, 2, ',', '.') . "\n";
 echo "Total de Fretes das Avaliações: R$ " . number_format($summary->total_frete, 2, ',', '.') . "\n\n";
 
 // 2. Tabela avaliacao_items (quantidade total de itens e custos)
 if (Schema::hasTable('avaliacao_items')) {
-    echo "--- 2. RESUMO DA TABELA 'avaliacao_items' ---\n";
-    $colsAi = Schema::getColumnListing('avaliacao_items');
-    echo "Colunas: " . implode(', ', $colsAi) . "\n";
-
+    echo "--- 2. DETALHAMENTO DOS ITENS EM 'avaliacao_items' ---\n";
     $totalItens = DB::table('avaliacao_items')->count();
-    $somaCusto  = DB::table('avaliacao_items')->sum('valor_payout') ?? DB::table('avaliacao_items')->sum('custo') ?? 0;
-    $somaPreco  = DB::table('avaliacao_items')->sum('preco_venda') ?? DB::table('avaliacao_items')->sum('preco') ?? 0;
+    $somaPayoutCredito = DB::table('avaliacao_items')->sum('payout_credito');
+    $somaPayoutDinheiro = DB::table('avaliacao_items')->sum('payout_dinheiro');
+    $somaPrecoVenda = DB::table('avaliacao_items')->sum('preco_venda');
 
-    echo "Quantidade Total de Itens Avaliados em 'avaliacao_items': " . number_format($totalItens, 0, ',', '.') . " itens\n";
-    if ($somaCusto > 0) {
-        echo "Soma do Custo/Payout em 'avaliacao_items': R$ " . number_format($somaCusto, 2, ',', '.') . "\n";
-    }
-    if ($somaPreco > 0) {
-        echo "Soma do Preço de Venda em 'avaliacao_items': R$ " . number_format($somaPreco, 2, ',', '.') . "\n";
-    }
+    echo "Quantidade Total de Itens Avaliados: " . number_format($totalItens, 0, ',', '.') . " peças\n";
+    echo "Soma Payout em Crédito na Carteira: R$ " . number_format($somaPayoutCredito, 2, ',', '.') . "\n";
+    echo "Soma Payout em Dinheiro/Pix: R$ " . number_format($somaPayoutDinheiro, 2, ',', '.') . "\n";
+    echo "Soma Payout Total dos Itens: R$ " . number_format($somaPayoutCredito + $somaPayoutDinheiro, 2, ',', '.') . "\n";
+    echo "Soma Preço de Venda Projetado dos Itens: R$ " . number_format($somaPrecoVenda, 2, ',', '.') . "\n\n";
 }
 
-// 3. Verificação de itens cadastrados no estoque vinculados a avaliações (ou de lote)
-$itensAvaliacao = DB::table('items')
-    ->whereNotNull('custo')
-    ->where('custo', '>', 0)
+// 3. Extrato da Conta Corrente (Créditos por Avaliação concedidos às clientes)
+$ccAvaliacao = DB::table('conta_corrente')
+    ->where('descricao', 'like', '%Avalia%')
     ->select(
-        DB::raw('COUNT(*) as total_itens_com_custo'),
-        DB::raw('SUM(custo) as custo_total_estoque'),
-        DB::raw('SUM(preco) as preco_total_estoque')
+        DB::raw('COUNT(*) as qtd_lancamentos'),
+        DB::raw('SUM(valor) as total_credito_lancado')
     )
     ->first();
 
-echo "\n--- 3. VISÃO DO ESTOQUE COM CUSTO REGISTRADO ---\n";
-echo "Itens Cadastrados no Estoque com Custo Preenchido: " . number_format($itensAvaliacao->total_itens_com_custo, 0, ',', '.') . " itens\n";
-echo "Custo Total do Estoque: R$ " . number_format($itensAvaliacao->custo_total_estoque, 2, ',', '.') . "\n";
-echo "Preço de Venda Total do Estoque: R$ " . number_format($itensAvaliacao->preco_total_estoque, 2, ',', '.') . "\n";
+echo "--- 3. CRÉDITOS DE AVALIAÇÃO LANÇADOS NA CARTEIRA DAS CLIENTES (Histórico Completo) ---\n";
+echo "Total de Lançamentos na Carteira: " . number_format($ccAvaliacao->qtd_lancamentos, 0, ',', '.') . " lançamentos\n";
+echo "Total Creditado em Carteira por Avaliações: R$ " . number_format($ccAvaliacao->total_credito_lancado, 2, ',', '.') . "\n\n";
 
 // 4. Detalhamento por Status das Avaliações
 $porStatusAval = DB::table('avaliacoes')
@@ -66,7 +59,7 @@ $porStatusAval = DB::table('avaliacoes')
     ->groupBy('status')
     ->get();
 
-echo "\n--- 4. DETALHAMENTO POR STATUS DA AVALIAÇÃO ---\n";
+echo "--- 4. DETALHAMENTO POR STATUS DA AVALIAÇÃO ---\n";
 foreach ($porStatusAval as $sa) {
-    echo "Status '" . ($sa->status ?: 'N/A') . "': {$sa->qtd} avaliações | Custo Payout: R$ " . number_format($sa->total_payout, 2, ',', '.') . " | Venda Prevista: R$ " . number_format($sa->total_venda, 2, ',', '.') . "\n";
+    echo "Status '" . ($sa->status ?: 'Sem Status') . "': {$sa->qtd} avaliações | Custo Payout: R$ " . number_format($sa->total_payout, 2, ',', '.') . " | Venda Prevista: R$ " . number_format($sa->total_venda, 2, ',', '.') . "\n";
 }
