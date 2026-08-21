@@ -144,7 +144,7 @@
                     <div id="audio-empty-placeholder" class="flex flex-col items-center justify-center h-full py-10" style="color: #64748b;">
                         <i class="fas fa-shopping-bag text-3xl mb-2" style="color: #475569;"></i>
                         <p class="text-xs text-center font-medium" style="color: #94a3b8;">Aguardando vendas faladas na live...</p>
-                        <p class="text-[11px] mt-1.5 font-semibold text-center" style="color: #34d399;">Fale: <em>"Ficou para [Nome]"</em> ou <em>"Vendido pra [Nome]"</em></p>
+                        <p class="text-[11px] mt-1.5 font-semibold text-center" style="color: #34d399;">Fale: <em>"Saiu para [Nome]"</em>, <em>"Foi para [Nome]"</em> ou <em>"Foi pra [Nome]"</em></p>
                     </div>
                 </div>
             </div>
@@ -1574,41 +1574,38 @@
     function handleFinalTranscribedSentence(sentence) {
         if (!sentence || sentence.trim().length === 0) return;
 
-        // Padrões de Venda ao Vivo:
-        // 1. "Ficou para [Nome]", "Ficou pra [Nome]", "Ficou com a [Nome]", "Vendido pra [Nome]", "Marca pra [Nome]", "É da [Nome]", etc.
-        // 2. "Peça [Código] para [Nome]", "Item [Código] pra [Nome]"
-        const patterns = [
-            /(?:ficou\s+(?:para|pra|pro|com\s+a|com\s+o|com)|vendid[ao]\s+(?:para|pra|pro|a|ao)|vendeu\s+(?:para|pra|pro)|marca(?:r)?\s+(?:para|pra|pro)|anota(?:r)?\s+(?:para|pra|pro)|passa(?:r|ou)?\s+(?:para|pra|pro)|vai\s+(?:para|pra|pro)|é\s+d[ao])\s+([a-zA-ZÀ-ÿ0-9_.\s]+)/i,
-            /(?:peça|peca|código|codigo|item)\s*#?([a-zA-Z0-9-]+)\s+(?:ficou\s+pra|ficou\s+para|para|pra|pro|com)\s+([a-zA-ZÀ-ÿ0-9_.\s]+)/i
+        const cleanSentence = sentence.trim();
+        const lower = cleanSentence.toLowerCase();
+
+        // Gatilhos de Venda Prioritários: "saiu para", "saiu pra", "foi para", "foi pra", e variações
+        const matchTriggers = [
+            'saiu para', 'saiu pra', 'saiu pro',
+            'foi para', 'foi pra', 'foi pro',
+            'ficou para', 'ficou pra', 'ficou pro',
+            'vai para', 'vai pra', 'vai pro',
+            'vendido para', 'vendido pra', 'vendida para', 'vendida pra',
+            'marca para', 'marca pra', 'anota para', 'anota pra'
         ];
 
-        let isActionDetected = false;
+        let hasMatch = false;
+        let triggerFound = '';
         let detectedTarget = '';
-        let detectedCode = '';
 
-        for (let p of patterns) {
-            const match = sentence.match(p);
-            if (match) {
-                if (match.length === 3) {
-                    detectedCode = match[1].trim();
-                    detectedTarget = match[2].trim();
-                } else if (match.length === 2) {
-                    detectedTarget = match[1].trim();
-                }
-                
-                // Limpeza do nome capturado
-                detectedTarget = detectedTarget.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?!]/g, "").trim();
-                
-                if (detectedTarget.length >= 2) {
-                    isActionDetected = true;
-                }
+        for (let t of matchTriggers) {
+            const idx = lower.indexOf(t);
+            if (idx !== -1) {
+                hasMatch = true;
+                triggerFound = t;
+                // Extrai o nome/texto após o gatilho
+                const after = cleanSentence.substring(idx + t.length).trim();
+                detectedTarget = after.replace(/^(?:a|o|as|os|da|do|de|uma|um)\s+/i, '').replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?!]/g, '').trim();
                 break;
             }
         }
 
-        // REGRA DE FILTRO: Se não houve match de venda, ignora a fala comum da live!
-        if (!isActionDetected || !detectedTarget) {
-            console.log("[Voz Live - Fala Ignorada (sem match de venda)]:", sentence);
+        // Se não tiver o gatilho, ignora a fala comum
+        if (!hasMatch) {
+            console.log("[Voz Live - Ignorado (sem gatilho)]:", cleanSentence);
             return;
         }
 
@@ -1623,7 +1620,14 @@
 
         const time = new Date().toLocaleTimeString();
 
-        // Criar card de venda detectada com alto contraste
+        // Destacar o gatilho ("foi para", "foi pra") dentro da frase
+        let formattedSentence = escapeHtml(cleanSentence);
+        if (triggerFound) {
+            const regExp = new RegExp(`(${triggerFound})`, 'gi');
+            formattedSentence = formattedSentence.replace(regExp, '<span style="color: #34d399; font-weight: 800; text-decoration: underline;">$1</span>');
+        }
+
+        // Criar card de venda detectada com a frase inteira
         const card = document.createElement("div");
         card.style.padding = "12px";
         card.style.borderRadius = "12px";
@@ -1633,6 +1637,15 @@
         card.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.25)";
         card.style.transition = "all 0.2s ease";
 
+        let searchButtonHtml = '';
+        if (detectedTarget && detectedTarget.length >= 2) {
+            searchButtonHtml = `
+                <button type="button" onclick="triggerVoiceQuickSearch('${escapeHtml(detectedTarget)}')" style="background-color: #10b981; color: #022c22; font-weight: 800; font-size: 11px; padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); shrink-0;">
+                    <i class="fas fa-search"></i> Buscar Cliente
+                </button>
+            `;
+        }
+
         card.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #a7f3d0; margin-bottom: 6px; font-family: monospace;">
                 <span style="display: flex; align-items: center; gap: 5px; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -1641,19 +1654,17 @@
                 <span style="color: #94a3b8;">${time}</span>
             </div>
             
-            <p style="font-size: 13px; color: #f8fafc; line-height: 1.4; margin: 0 0 10px 0; font-style: italic; font-weight: 400;">
-                "${escapeHtml(sentence)}"
+            <p style="font-size: 14px; color: #f8fafc; line-height: 1.5; margin: 0 0 10px 0; font-weight: 500;">
+                "${formattedSentence}"
             </p>
 
             <div style="padding-top: 8px; border-top: 1px solid rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
                     <span style="font-size: 13px; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        👤 ${escapeHtml(detectedTarget)} ${detectedCode ? `<span style="color: #6ee7b7; font-weight: 600;">(Peça #${escapeHtml(detectedCode)})</span>` : ''}
+                        👤 ${detectedTarget ? escapeHtml(detectedTarget) : 'Cliente'}
                     </span>
                 </div>
-                <button type="button" onclick="triggerVoiceQuickSearch('${escapeHtml(detectedTarget)}')" style="background-color: #10b981; color: #022c22; font-weight: 800; font-size: 11px; padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                    <i class="fas fa-search"></i> Buscar Cliente
-                </button>
+                ${searchButtonHtml}
             </div>
         `;
 
