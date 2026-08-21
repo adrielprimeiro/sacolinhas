@@ -78,35 +78,16 @@
                     </div>
                 </div>
 
-                <div class="mt-4 space-y-3">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500">Quantidade</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
-                            {{ number_format($estoqueInfo['quantidade'] ?? 0, 0, ',', '.') }} itens
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500">Valor Total</span>
-                        <span class="font-bold text-green-600">
-                            R$ {{ number_format($estoqueInfo['valor_total'] ?? 0, 2, ',', '.') }}
-                        </span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
-                        <span class="text-gray-500">Valor Médio</span>
-                        <span class="font-bold text-yellow-600">
-                            R$ {{ number_format($estoqueInfo['valor_medio'] ?? 0, 2, ',', '.') }}
-                        </span>
-                    </div>
-
+                <div class="mt-4">
                     <!-- Tabela / Quadro de Locais Físicos do Estoque -->
                     @if(isset($locaisEstoque) && count($locaisEstoque) > 0)
-                        <div class="mt-4 pt-3 border-t border-gray-100">
+                        <div>
                             <p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
                                 <span><i class="fas fa-map-marker-alt text-blue-500 mr-1"></i> Locais Físicos</span>
                                 <span class="text-[10px] font-normal text-gray-400">({{ count($locaisEstoque) }} cadastrados)</span>
                             </p>
 
-                            <div class="max-h-44 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
+                            <div class="max-h-60 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
                                 @foreach($locaisEstoque as $loc)
                                     <a href="{{ route('inventario') }}?localizacao={{ urlencode($loc->localizacao) }}" class="flex items-center justify-between bg-blue-50/60 hover:bg-blue-100/80 px-2.5 py-1.5 rounded-lg border border-blue-100 text-xs transition duration-150 group">
                                         <div class="flex items-center gap-2">
@@ -122,6 +103,8 @@
                                 @endforeach
                             </div>
                         </div>
+                    @else
+                        <p class="text-xs text-gray-400 mt-2">Nenhum local físico cadastrado no estoque.</p>
                     @endif
                 </div>
             </div>
