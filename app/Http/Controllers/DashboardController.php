@@ -37,6 +37,17 @@ class DashboardController extends Controller
                 ->groupBy('localizacao')
                 ->orderBy('localizacao', 'asc')
                 ->get();
+
+            $semLocalizacaoCount = Item::where(function($q) {
+                $q->whereNull('localizacao')->orWhere('localizacao', '');
+            })->count();
+
+            $estoqueResumoLocais = [
+                'locais_cadastrados' => $locaisEstoque->count(),
+                'pecas_enderecadas'  => $locaisEstoque->sum('qtd_pecas'),
+                'valor_prateleiras'  => $locaisEstoque->sum('valor_total_venda'),
+                'sem_localizacao'    => $semLocalizacaoCount,
+            ];
             
             // Calcular informações das Sacolas (NOVAS ESTATÍSTICAS AQUI)
             $sacolasInfo = [
@@ -125,7 +136,7 @@ class DashboardController extends Controller
 			];
 
 
-            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento', 'locaisEstoque'));
+            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento', 'locaisEstoque', 'estoqueResumoLocais'));
             
         } catch (\Exception $e) {
             // Em caso de erro, log e valores padrão

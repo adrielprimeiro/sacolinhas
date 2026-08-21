@@ -334,6 +334,69 @@ class ItemController extends Controller
         return view('admin.items.inventario');
     }
 
+    // OBTER LISTA DETALHADA DE ITENS DO LOCAL FÍSICO (AJAX)
+    public function inventarioItensLocal(Request $request)
+    {
+        $localizacao = trim($request->input('localizacao', ''));
+
+        if (empty($localizacao)) {
+            return response()->json(['error' => 'Localização não informada.'], 400);
+        }
+
+        $itens = Item::where('localizacao', $localizacao)
+            ->orderBy('codigo', 'asc')
+            ->get([
+                'id',
+                'codigo',
+                'nome_do_produto',
+                'descricao',
+                'tamanho',
+                'cor',
+                'marca',
+                'modelo',
+                'estado',
+                'status',
+                'preco',
+                'custo',
+                'localizacao',
+                'updated_at'
+            ]);
+
+        $statusLabels = [
+            'disponivel' => 'Disponível',
+            'vendido'    => 'Vendido',
+            'reservado'  => 'Reservado',
+            'estoque'    => 'Em Estoque',
+        ];
+
+        $itensFormatados = $itens->map(function($item) use ($statusLabels) {
+            return [
+                'id'              => $item->id,
+                'codigo'          => $item->codigo,
+                'nome_do_produto' => $item->nome_do_produto ?: 'Sem Nome',
+                'tamanho'         => $item->tamanho ?: '-',
+                'cor'             => $item->cor ?: '-',
+                'marca'           => $item->marca ?: '-',
+                'modelo'          => $item->modelo ?: '-',
+                'estado'          => $item->estado ?: '-',
+                'status'          => $item->status,
+                'status_label'    => $statusLabels[$item->status] ?? ucfirst($item->status),
+                'preco'           => number_format($item->preco ?? 0, 2, ',', '.'),
+                'custo'           => number_format($item->custo ?? 0, 2, ',', '.'),
+                'edit_url'        => route('items.edit', $item->id),
+                'show_url'        => route('items.show', $item->id),
+            ];
+        });
+
+        return response()->json([
+            'localizacao'   => $localizacao,
+            'total_itens'   => $itens->count(),
+            'valor_total'   => number_format($itens->sum('preco'), 2, ',', '.'),
+            'valor_custo'   => number_format($itens->sum('custo'), 2, ',', '.'),
+            'itens'         => $itensFormatados,
+        ]);
+    }
+
     public function inventarioProcessar(Request $request)
     {
         $request->validate([

@@ -65,7 +65,7 @@
             </div>
         </div>
 
-        <!-- Card 2: Estoque Físico & Locais -->
+        <!-- Card 2: Físico Estoque (Resumo dos Locais) -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-blue-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
@@ -78,34 +78,34 @@
                     </div>
                 </div>
 
-                <div class="mt-4">
-                    <!-- Tabela / Quadro de Locais Físicos do Estoque -->
-                    @if(isset($locaisEstoque) && count($locaisEstoque) > 0)
-                        <div>
-                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                                <span><i class="fas fa-map-marker-alt text-blue-500 mr-1"></i> Locais Físicos</span>
-                                <span class="text-[10px] font-normal text-gray-400">({{ count($locaisEstoque) }} cadastrados)</span>
-                            </p>
+                <div class="mt-4 space-y-2.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-map-marker-alt text-blue-500 text-xs"></i> Locais cadastrados</span>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
+                            {{ number_format($estoqueResumoLocais['locais_cadastrados'] ?? 0, 0, ',', '.') }}
+                        </span>
+                    </div>
 
-                            <div class="max-h-60 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
-                                @foreach($locaisEstoque as $loc)
-                                    <a href="{{ route('inventario') }}?localizacao={{ urlencode($loc->localizacao) }}" class="flex items-center justify-between bg-blue-50/60 hover:bg-blue-100/80 px-2.5 py-1.5 rounded-lg border border-blue-100 text-xs transition duration-150 group">
-                                        <div class="flex items-center gap-2">
-                                            <span class="px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white text-[11px] group-hover:bg-blue-700">
-                                                {{ $loc->localizacao }}
-                                            </span>
-                                            <span class="text-gray-600 font-medium">{{ number_format($loc->qtd_pecas, 0, ',', '.') }} pcs</span>
-                                        </div>
-                                        <span class="font-bold text-green-700">
-                                            R$ {{ number_format($loc->valor_total_venda, 2, ',', '.') }}
-                                        </span>
-                                    </a>
-                                @endforeach
-                            </div>
-                        </div>
-                    @else
-                        <p class="text-xs text-gray-400 mt-2">Nenhum local físico cadastrado no estoque.</p>
-                    @endif
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tshirt text-indigo-500 text-xs"></i> Peças endereçadas</span>
+                        <span class="font-bold text-indigo-700">
+                            {{ number_format($estoqueResumoLocais['pecas_enderecadas'] ?? 0, 0, ',', '.') }} itens
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tag text-green-500 text-xs"></i> Valor em prateleiras</span>
+                        <span class="font-bold text-green-600">
+                            R$ {{ number_format($estoqueResumoLocais['valor_prateleiras'] ?? 0, 2, ',', '.') }}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
+                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-question-circle text-yellow-500 text-xs"></i> Sem localização</span>
+                        <span class="font-bold text-yellow-600">
+                            {{ number_format($estoqueResumoLocais['sem_localizacao'] ?? 0, 0, ',', '.') }} itens
+                        </span>
+                    </div>
                 </div>
             </div>
 

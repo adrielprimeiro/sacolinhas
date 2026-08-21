@@ -239,6 +239,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('items', ItemController::class);
 	Route::get('/inventario', [ItemController::class, 'inventario'])->name('inventario');
 	Route::get('/inventario/scanner', [ItemController::class, 'inventarioScanner'])->name('inventario.scanner');
+	Route::get('/inventario/itens-local', [ItemController::class, 'inventarioItensLocal'])->name('inventario.itens-local');
 	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
 
 
