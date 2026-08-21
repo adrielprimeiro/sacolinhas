@@ -1525,6 +1525,31 @@ class ConciliacaoService
                     }
                 }
 
+                // 3. Regra Solicitada pelo Usuário: Sempre que houver APENAS UMA opção de sugestão e ela estiver como padrão
+                $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
+                $regras = json_decode($regrasRaw, true) ?: [];
+
+                if (!empty($regras)) {
+                    $sugestoes = $this->obterSugestoesParaTransacao($tLock, null, $regras);
+                    if ($sugestoes->count() === 1) {
+                        $sug = $sugestoes->first();
+                        if (isset($sug->score) && $sug->score >= 140) {
+                            if (!empty($sug->is_virtual)) {
+                                $this->vincularNovoLancamento(
+                                    $tLock->id,
+                                    $sug->classificacao_financeira_id,
+                                    $sug->pessoa_id,
+                                    $tLock->conta_bancaria_id
+                                );
+                            } elseif (!empty($sug->id)) {
+                                $this->vincular($tLock->id, $sug->id);
+                            }
+                            Log::info("Auto-conciliação por Regra Padrão Única realizada: Transação #{$tLock->id} ({$tLock->descricao}) -> Pessoa #{$sug->pessoa_id}, Classificação #{$sug->classificacao_financeira_id}");
+                            return true;
+                        }
+                    }
+                }
+
                 return false;
             });
 
@@ -1534,5 +1559,138 @@ class ConciliacaoService
         }
 
         return $count;
+    }
+
+    /**
+     * Obtém todas as sugestões para uma transação de extrato pendente (usado para auto-conciliação de regra única)
+     */
+    public function obterSugestoesParaTransacao(TransacaoExtrato $t, $lancamentos = null, ?array $regras = null)
+    {
+        if ($lancamentos === null) {
+            $lancamentos = Lancamento::with(['pessoa', 'classificacaoFinanceira'])
+                ->where(function ($q) {
+                    $q->where('status', 'pendente')
+                        ->orWhere(function ($q2) {
+                            $q2->where('status', 'pago')
+                                ->whereDoesntHave('movimentacoes', function ($q3) {
+                                    $q3->whereHas('transacaoExtrato');
+                                });
+                        });
+                })
+                ->orderBy('data_vencimento', 'asc')
+                ->get();
+        }
+
+        if ($regras === null) {
+            $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
+            $regras = json_decode($regrasRaw, true) ?: [];
+        }
+
+        $regraCorrespondente = null;
+        $tDescLower = mb_strtolower($t->descricao, 'UTF-8');
+        foreach ($regras as $r) {
+            if (($r['tipo'] ?? 'sugestao') === 'sugestao') {
+                $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                if (str_contains($tDescLower, $ruleDescLower)) {
+                    $regraCorrespondente = $r;
+                    break;
+                }
+            }
+        }
+
+        $exclusoes = [];
+        foreach ($regras as $r) {
+            if (($r['tipo'] ?? 'sugestao') === 'exclusao') {
+                $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                if (str_contains($tDescLower, $ruleDescLower)) {
+                    $exclusoes[] = [
+                        'pessoa_id' => (int) $r['pessoa_id'],
+                        'classificacao_financeira_id' => (int) $r['classificacao_financeira_id']
+                    ];
+                }
+            }
+        }
+
+        $sugestoesFinal = collect();
+
+        if ($regraCorrespondente) {
+            $matchedRuleOpen = $lancamentos->filter(function ($l) use ($regraCorrespondente, $t) {
+                $tTipoMapped = ($t->tipo === 'entrada') ? 'receita' : 'despesa';
+                if ($l->tipo !== $tTipoMapped 
+                    || $l->pessoa_id != $regraCorrespondente['pessoa_id'] 
+                    || $l->classificacao_financeira_id != $regraCorrespondente['classificacao_financeira_id']) {
+                    return false;
+                }
+                
+                if ($l->status === 'pago') {
+                    $diferencaDias = abs(Carbon::parse($t->data)->diffInDays(Carbon::parse($l->data_vencimento)));
+                    if ($diferencaDias > 10) return false;
+                }
+                
+                $valorPagoTotal = (float) $l->movimentacoes->sum('valor_pago');
+                $saldoRestante = max(0.00, (float) $l->valor_total - $valorPagoTotal);
+                $valMatch = abs((float)$t->valor - (float)$l->valor_total) < 0.05;
+                $saldoMatch = abs((float)$t->valor - $saldoRestante) < 0.05;
+                return $valMatch || $saldoMatch;
+            });
+
+            foreach ($matchedRuleOpen as $l) {
+                $lClone = clone $l;
+                $lClone->score = 150;
+                $lClone->motivos_match = ['Regra padrão de conciliação'];
+                $lClone->is_valid_suggestion = true;
+                $sugestoesFinal->push($lClone);
+            }
+
+            $pessoaModel = \App\Models\Pessoa::find($regraCorrespondente['pessoa_id']);
+            $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($regraCorrespondente['classificacao_financeira_id']);
+            
+            if ($pessoaModel && $classificacaoModel) {
+                $virtualRule = (object) [
+                    'id' => null,
+                    'is_virtual' => true,
+                    'descricao' => 'Criar Lançamento Rápido',
+                    'tipo' => ($t->tipo === 'entrada') ? 'receita' : 'despesa',
+                    'valor_total' => $t->valor,
+                    'pessoa_id' => $pessoaModel->id,
+                    'pessoa' => $pessoaModel,
+                    'classificacao_financeira_id' => $classificacaoModel->id,
+                    'classificacaoFinanceira' => $classificacaoModel,
+                    'score' => 140,
+                    'motivos_match' => ['Regra padrão'],
+                    'is_valid_suggestion' => true
+                ];
+                $sugestoesFinal->push($virtualRule);
+            }
+        }
+
+        $sugestoesFinal = $sugestoesFinal->reject(function ($sug) use ($exclusoes) {
+            foreach ($exclusoes as $exc) {
+                if ($exc['pessoa_id'] == $sug->pessoa_id && $exc['classificacao_financeira_id'] == $sug->classificacao_financeira_id) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        $sugestoesUnicas = collect();
+        foreach ($sugestoesFinal as $sug) {
+            if ($sug->id !== null) {
+                if (!$sugestoesUnicas->contains('id', $sug->id)) {
+                    $sugestoesUnicas->push($sug);
+                }
+            } else {
+                $exists = $sugestoesUnicas->contains(function ($value) use ($sug) {
+                    return $value->id === null 
+                        && $value->pessoa_id == $sug->pessoa_id 
+                        && $value->classificacao_financeira_id == $sug->classificacao_financeira_id;
+                });
+                if (!$exists) {
+                    $sugestoesUnicas->push($sug);
+                }
+            }
+        }
+
+        return $sugestoesUnicas->sortByDesc('score');
     }
 }

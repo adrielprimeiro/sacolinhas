@@ -1146,6 +1146,9 @@ class ConciliacaoController extends Controller
                 );
             });
 
+            // Executar auto-conciliação automática para aplicar a nova regra imediatamente nas transações pendentes
+            $this->service->autoConciliarTransacoesPendentes();
+
             $mensagem = $tipo === 'exclusao' 
                 ? 'Sugestão bloqueada com sucesso!' 
                 : 'Regra de conciliação padrão salva com sucesso!';
