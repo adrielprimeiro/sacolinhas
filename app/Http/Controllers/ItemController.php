@@ -334,6 +334,44 @@ class ItemController extends Controller
         return view('admin.items.inventario');
     }
 
+    // PÁGINA DE DETALHES DE UM LOCAL FÍSICO ESPECÍFICO
+    public function inventarioLocalDetalhes($localizacao, Request $request)
+    {
+        $localizacao = trim(urldecode($localizacao));
+        $search = trim($request->input('q', ''));
+        $statusFiltro = $request->input('status');
+
+        $query = Item::where('localizacao', $localizacao);
+
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('codigo', 'like', "%{$search}%")
+                  ->orWhere('nome_do_produto', 'like', "%{$search}%")
+                  ->orWhere('marca', 'like', "%{$search}%")
+                  ->orWhere('tamanho', 'like', "%{$search}%")
+                  ->orWhere('cor', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($statusFiltro)) {
+            $query->where('status', $statusFiltro);
+        }
+
+        $itens = $query->orderBy('codigo', 'asc')->paginate(50)->withQueryString();
+
+        // Estatísticas do Local
+        $todosDoLocal = Item::where('localizacao', $localizacao)->get();
+        $statsLocal = [
+            'localizacao' => $localizacao,
+            'total_itens' => $todosDoLocal->count(),
+            'valor_total' => $todosDoLocal->sum('preco'),
+            'valor_custo' => $todosDoLocal->sum('custo'),
+            'valor_medio' => $todosDoLocal->count() > 0 ? round($todosDoLocal->sum('preco') / $todosDoLocal->count(), 2) : 0,
+        ];
+
+        return view('admin.items.inventario_local_detalhes', compact('localizacao', 'itens', 'statsLocal', 'search', 'statusFiltro'));
+    }
+
     // OBTER LISTA DETALHADA DE ITENS DO LOCAL FÍSICO (AJAX)
     public function inventarioItensLocal(Request $request)
     {
