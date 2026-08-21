@@ -394,7 +394,12 @@
             const clientId = document.querySelector('input[name="client_id"]').value;
             const itemId = document.querySelector('input[name="item_id"]').value;
             const itemPrice = document.getElementById('item-price').value;
-            const itemPriceConverted = itemPrice.replace(/\./g, '').replace(',', '.');
+            let itemPriceConverted = itemPrice;
+            if (itemPrice.includes(',') && itemPrice.includes('.')) {
+                itemPriceConverted = itemPrice.replace(/\./g, '').replace(',', '.');
+            } else if (itemPrice.includes(',')) {
+                itemPriceConverted = itemPrice.replace(',', '.');
+            }
 
             if (!clientId) {
                 mostrarAlert('Por favor, selecione um cliente primeiro!', 'warning');
@@ -1000,12 +1005,12 @@
                 const discountedPrice = originalPrice * DISCOUNT_PERCENTAGE;
                 console.log('DEBUG: Preço com Desconto:', discountedPrice);
                 
-                priceInput.value = discountedPrice.toFixed(2);
+                priceInput.value = discountedPrice.toFixed(2).replace('.', ',');
                 originalPriceDisplay.textContent = item.formatted_price;
                 originalPriceDisplay.classList.remove('hidden');
             } else {
                 console.log('DEBUG: Não é live "precinho" ou liveAtiva não está definida. Usando preço original.'); 
-                priceInput.value = parseFloat(item.price).toFixed(2);
+                priceInput.value = parseFloat(item.price).toFixed(2).replace('.', ',');
                 originalPriceDisplay.classList.add('hidden');
             }
         }
