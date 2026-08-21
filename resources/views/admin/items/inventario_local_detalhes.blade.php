@@ -22,11 +22,11 @@
             <p class="text-gray-500 mt-1">Listagem detalhada de todos os produtos armazenados na prateleira/local <strong>{{ $localizacao }}</strong>.</p>
         </div>
         
-        <!-- Botão Destaque para abrir o Scanner -->
+        <!-- Botão Destaque para abrir o Scanner pré-configurado para este local -->
         <div class="flex items-center gap-3">
-            <a href="{{ route('inventario.scanner') }}" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition duration-200 text-sm">
+            <a href="{{ route('inventario.scanner') }}?localizacao={{ urlencode($localizacao) }}&status=estoque" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition duration-200 text-sm">
                 <i class="fas fa-qrcode text-lg"></i>
-                <span>Inventário Scanner</span>
+                <span>Scanner neste Local ({{ $localizacao }})</span>
             </a>
         </div>
     </div>

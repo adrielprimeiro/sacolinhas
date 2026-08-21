@@ -150,6 +150,9 @@
                             <a href="{{ route('inventario') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-clipboard-list mr-1"></i> Inventário
                             </a>
+                            <a href="{{ route('inventario.conferencias.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario.conferencias.*') ? 'font-semibold text-indigo-600' : '' }}">
+                                <i class="fas fa-check-double mr-1"></i> Conferências de Estoque
+                            </a>
                             <a href="{{ route('upload.batch.form') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('upload.batch.form') ? 'font-semibold text-indigo-600' : '' }}">
                                 <i class="fas fa-download mr-1"></i> Download Imagens
                             </a>

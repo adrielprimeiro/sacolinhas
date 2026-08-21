@@ -331,7 +331,26 @@ class ItemController extends Controller
     // INVENTÁRIO SCANNER (Interface de Escaneamento / Bipagem)
     public function inventarioScanner(Request $request)
     {
-        return view('admin.items.inventario');
+        $defaultLocal  = trim($request->input('localizacao', ''));
+        $defaultStatus = trim($request->input('status', ''));
+        $defaultCor    = trim($request->input('cor', ''));
+
+        if (!empty($defaultLocal) && empty($defaultStatus)) {
+            $defaultStatus = 'estoque';
+        }
+
+        $coresDisponiveis = [];
+        if (!empty($defaultLocal)) {
+            $coresDisponiveis = Item::where('localizacao', $defaultLocal)
+                ->whereNotNull('cor')
+                ->where('cor', '!=', '')
+                ->distinct()
+                ->pluck('cor')
+                ->values()
+                ->toArray();
+        }
+
+        return view('admin.items.inventario', compact('defaultLocal', 'defaultStatus', 'defaultCor', 'coresDisponiveis'));
     }
 
     // PÁGINA DE DETALHES DE UM LOCAL FÍSICO ESPECÍFICO
@@ -445,31 +464,39 @@ class ItemController extends Controller
             'cor'         => 'nullable|string|max:255',
         ]);
 
-        $codigos     = array_unique(array_filter($request->codigos));
-        $novoStatus  = $request->status;
-        $localizacao = $request->localizacao;
-        $cor         = $request->cor;
+        $codigosLidos = array_values(array_unique(array_filter(array_map('trim', $request->codigos))));
+        $novoStatus   = $request->status;
+        $localizacao  = trim($request->localizacao ?? '');
+        $cor          = trim($request->cor ?? '');
 
-        $resultados = [];
+        // 1. Carregar itens esperados no local antes da atualização
+        $itensEsperados = collect();
+        if (!empty($localizacao)) {
+            $itensEsperados = Item::where('localizacao', $localizacao)->get();
+        }
+
+        $encontrados = [];
+        $sobrando    = [];
+        $naoEncontradosBanco = [];
         $atualizados = 0;
-        $naoEncontrados = [];
 
-        foreach ($codigos as $codigo) {
+        foreach ($codigosLidos as $codigo) {
             $item = Item::where('codigo', $codigo)->first();
             if (!$item) {
-                $naoEncontrados[] = $codigo;
-                $resultados[] = ['codigo' => $codigo, 'ok' => false, 'msg' => 'Não encontrado'];
+                $naoEncontradosBanco[] = $codigo;
                 continue;
             }
 
+            $localAnterior = $item->localizacao;
             $dados = [];
+
             if ($novoStatus && $item->status !== $novoStatus) {
                 $dados['status'] = $novoStatus;
             }
-            if ($localizacao !== null && $localizacao !== '') {
+            if (!empty($localizacao)) {
                 $dados['localizacao'] = $localizacao;
             }
-            if ($cor !== null && $cor !== '') {
+            if (!empty($cor)) {
                 $dados['cor'] = $cor;
             }
 
@@ -479,25 +506,115 @@ class ItemController extends Controller
                 $atualizados++;
             }
 
-            $resultados[] = [
-                'codigo' => $codigo,
-                'ok'     => true,
-                'nome'   => $item->nome_do_produto,
-                'status' => $item->fresh()->status,
+            $itemInfo = [
+                'id'              => $item->id,
+                'codigo'          => $item->codigo,
+                'nome_do_produto' => $item->nome_do_produto ?: 'Sem Nome',
+                'tamanho'         => $item->tamanho ?: '-',
+                'cor'             => $item->cor ?: '-',
+                'marca'           => $item->marca ?: '-',
+                'preco'           => number_format($item->preco ?? 0, 2, ',', '.'),
+                'local_anterior'  => $localAnterior ?: 'Sem Local',
             ];
+
+            if (!empty($localizacao) && $localAnterior === $localizacao) {
+                $encontrados[] = $itemInfo;
+            } else {
+                $sobrando[] = $itemInfo;
+            }
+        }
+
+        // 2. Identificar faltantes (itens esperados no local que NÃO foram lidos no scanner)
+        $faltantes = [];
+        if (!empty($localizacao)) {
+            foreach ($itensEsperados as $itemExp) {
+                if (!in_array($itemExp->codigo, $codigosLidos)) {
+                    $faltantes[] = [
+                        'id'              => $itemExp->id,
+                        'codigo'          => $itemExp->codigo,
+                        'nome_do_produto' => $itemExp->nome_do_produto ?: 'Sem Nome',
+                        'tamanho'         => $itemExp->tamanho ?: '-',
+                        'cor'             => $itemExp->cor ?: '-',
+                        'marca'           => $itemExp->marca ?: '-',
+                        'preco'           => number_format($itemExp->preco ?? 0, 2, ',', '.'),
+                        'status'          => $itemExp->status,
+                    ];
+                }
+            }
+        }
+
+        // 3. Criar registro oficial de conferência de inventário se houver localização
+        if (!empty($localizacao)) {
+            $totalEsperado    = count($itensEsperados);
+            $totalLido        = count($codigosLidos);
+            $totalEncontrados = count($encontrados);
+            $totalFaltantes   = count($faltantes);
+            $totalSobrando    = count($sobrando);
+
+            $acuracia = $totalEsperado > 0 
+                ? round(($totalEncontrados / $totalEsperado) * 100, 2) 
+                : 100.00;
+
+            $conferencia = \App\Models\ConferenciaInventario::create([
+                'user_id'             => auth()->id(),
+                'localizacao'         => $localizacao,
+                'status_aplicado'     => $novoStatus,
+                'cor_aplicada'        => $cor,
+                'total_esperado'      => $totalEsperado,
+                'total_lido'          => $totalLido,
+                'total_encontrados'   => $totalEncontrados,
+                'total_faltantes'     => $totalFaltantes,
+                'total_sobrando'      => $totalSobrando,
+                'acuracia_percentual' => $acuracia,
+                'detalhes_json'       => [
+                    'encontrados'           => $encontrados,
+                    'faltantes'             => $faltantes,
+                    'sobrando'              => $sobrando,
+                    'nao_encontrados_banco' => $naoEncontradosBanco,
+                ]
+            ]);
+
+            return redirect()->route('inventario.conferencias.show', $conferencia->id)
+                ->with('success', "✅ Conferência do Local {$localizacao} realizada com sucesso! Acurácia: {$acuracia}%");
         }
 
         $statusLabel = $this->getStatusLabel($novoStatus ?? '');
-
         $msg = "✅ {$atualizados} item(ns) atualizado(s)";
         if ($novoStatus)  $msg .= " → status: {$statusLabel}";
         if ($localizacao) $msg .= " | local: {$localizacao}";
         if ($cor)         $msg .= " | cor: {$cor}";
-        if (count($naoEncontrados)) {
-            $msg .= " | ⚠️ Não encontrados: " . implode(', ', $naoEncontrados);
-        }
 
         return redirect()->route('inventario.scanner')->with('success', $msg);
+    }
+
+    // LISTAGEM DE HISTÓRICO DE CONFERÊNCIAS DE ESTOQUE
+    public function inventarioConferenciasIndex(Request $request)
+    {
+        $localFiltro = trim($request->input('localizacao', ''));
+
+        $query = \App\Models\ConferenciaInventario::with('user');
+
+        if (!empty($localFiltro)) {
+            $query->where('localizacao', 'like', "%{$localFiltro}%");
+        }
+
+        $conferencias = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
+        $statsGerais = [
+            'total_conferencias' => \App\Models\ConferenciaInventario::count(),
+            'media_acuracia'     => round(\App\Models\ConferenciaInventario::avg('acuracia_percentual') ?? 0, 1),
+            'total_faltantes'    => \App\Models\ConferenciaInventario::sum('total_faltantes'),
+        ];
+
+        return view('admin.items.inventario_conferencias_index', compact('conferencias', 'statsGerais', 'localFiltro'));
+    }
+
+    // RELATÓRIO DETALHADO DE UMA CONFERÊNCIA ESPECÍFICA
+    public function inventarioConferenciaShow($id)
+    {
+        $conferencia = \App\Models\ConferenciaInventario::with('user')->findOrFail($id);
+
+        return view('admin.items.inventario_conferencia_show', compact('conferencia'));
     }
 
 

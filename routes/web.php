@@ -241,6 +241,8 @@ Route::middleware('auth')->group(function () {
 	Route::get('/inventario/scanner', [ItemController::class, 'inventarioScanner'])->name('inventario.scanner');
 	Route::get('/inventario/local/{localizacao}', [ItemController::class, 'inventarioLocalDetalhes'])->name('inventario.local');
 	Route::get('/inventario/itens-local', [ItemController::class, 'inventarioItensLocal'])->name('inventario.itens-local');
+	Route::get('/inventario/conferencias', [ItemController::class, 'inventarioConferenciasIndex'])->name('inventario.conferencias.index');
+	Route::get('/inventario/conferencias/{id}', [ItemController::class, 'inventarioConferenciaShow'])->name('inventario.conferencias.show');
 	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
 
 

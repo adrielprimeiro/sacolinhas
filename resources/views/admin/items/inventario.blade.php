@@ -408,23 +408,32 @@
                 <label>Novo Status <span style="color:var(--muted); font-weight:400;">(opcional)</span></label>
                 <select id="cfg-status">
                     <option value="">— Apenas registrar código —</option>
-                    <option value="indisponivel">Indisponível</option>
-                    <option value="disponivel">Disponível</option>
-                    <option value="reservado">Reservado</option>
-                    <option value="vendido">Vendido</option>
-                    <option value="em_sacolinha">Em Sacolinha</option>
-                    <option value="loja">Loja</option>
-                    <option value="estoque">Estoque</option>
-                    <option value="live">Live</option>
+                    <option value="indisponivel" {{ ($defaultStatus ?? '') == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
+                    <option value="disponivel" {{ ($defaultStatus ?? '') == 'disponivel' ? 'selected' : '' }}>Disponível</option>
+                    <option value="reservado" {{ ($defaultStatus ?? '') == 'reservado' ? 'selected' : '' }}>Reservado</option>
+                    <option value="vendido" {{ ($defaultStatus ?? '') == 'vendido' ? 'selected' : '' }}>Vendido</option>
+                    <option value="em_sacolinha" {{ ($defaultStatus ?? '') == 'em_sacolinha' ? 'selected' : '' }}>Em Sacolinha</option>
+                    <option value="loja" {{ ($defaultStatus ?? '') == 'loja' ? 'selected' : '' }}>Loja</option>
+                    <option value="estoque" {{ ($defaultStatus ?? '') == 'estoque' || empty($defaultStatus) && !empty($defaultLocal) ? 'selected' : '' }}>Estoque</option>
+                    <option value="live" {{ ($defaultStatus ?? '') == 'live' ? 'selected' : '' }}>Live</option>
                 </select>
             </div>
             <div class="field">
                 <label>Localização <span style="color:var(--muted); font-weight:400;">(opcional)</span></label>
-                <input type="text" id="cfg-local" placeholder="Ex: Prateleira A3, Caixa 07…" autocomplete="off">
+                <input type="text" id="cfg-local" value="{{ $defaultLocal ?? '' }}" placeholder="Ex: Prateleira A3, Caixa 07…" autocomplete="off">
             </div>
             <div class="field">
                 <label>Cor <span style="color:var(--muted); font-weight:400;">(opcional)</span></label>
-                <input type="text" id="cfg-cor" placeholder="Ex: Azul, Verde..." autocomplete="off">
+                @if(!empty($coresDisponiveis) && count($coresDisponiveis) > 0)
+                    <select id="cfg-cor">
+                        <option value="">— Todas as Cores do Setor —</option>
+                        @foreach($coresDisponiveis as $c)
+                            <option value="{{ $c }}" {{ ($defaultCor ?? '') == $c ? 'selected' : '' }}>{{ $c }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <input type="text" id="cfg-cor" value="{{ $defaultCor ?? '' }}" placeholder="Ex: Azul, Verde..." autocomplete="off">
+                @endif
             </div>
         </div>
     </div>

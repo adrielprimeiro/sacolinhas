@@ -14,8 +14,12 @@
             <p class="text-gray-500 mt-1">Clique em qualquer local físico para abrir a lista detalhada de todos os itens guardados nele.</p>
         </div>
         
-        <!-- Botão Destaque para abrir a interface do Inventário Scanner -->
+        <!-- Botões de Ação -->
         <div class="flex items-center gap-3">
+            <a href="{{ route('inventario.conferencias.index') }}" class="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-4 rounded-xl shadow-sm border border-gray-200 transition duration-200 text-sm">
+                <i class="fas fa-history text-indigo-600"></i>
+                <span>Histórico de Conferências</span>
+            </a>
             <a href="{{ route('inventario.scanner') }}" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition duration-200 text-sm">
                 <i class="fas fa-qrcode text-lg"></i>
                 <span>Inventário Scanner</span>
