@@ -32,6 +32,29 @@ class DashboardController extends Controller
                 'valor_total' => Sacolinhas::sum('price'),
             ];
 
+            // Movimentação do Mês Atual (Entradas por Avaliação e Saídas por Pedidos)
+            $inicioMes = Carbon::now()->startOfMonth()->toDateTimeString();
+            $fimMes    = Carbon::now()->endOfMonth()->toDateTimeString();
+
+            $entradasMesAvaliacao = (int) DB::table('avaliacao_items')
+                ->whereBetween('created_at', [$inicioMes, $fimMes])
+                ->count();
+
+            if ($entradasMesAvaliacao === 0) {
+                $entradasMesAvaliacao = (int) Item::whereBetween('created_at', [$inicioMes, $fimMes])->count();
+            }
+
+            $itensVendidosMes = (int) Item::where('status', 'vendido')
+                ->whereBetween('updated_at', [$inicioMes, $fimMes])
+                ->count();
+
+            $sacolasVendidasMes = (int) DB::table('sacolinhas')
+                ->whereIn('status', ['pedido', 'vendido', 'fechado'])
+                ->whereBetween('updated_at', [$inicioMes, $fimMes])
+                ->sum('quantity');
+
+            $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
+
             // Outras estatísticas úteis (opcional)
             $estatisticas = [
                 'total_clientes' => Cliente::count(),
@@ -40,6 +63,9 @@ class DashboardController extends Controller
                 'itens_vendidos' => Item::where('status', 'vendido')->count(),
                 'itens_reservados' => Item::where('status', 'reservado')->count(),
                 'itens_estoque' => $estoqueInfo['quantidade'],
+                'entradas_mes_avaliacao' => $entradasMesAvaliacao,
+                'saidas_mes_pedidos' => $saidasMesPedidos,
+                'nome_mes' => Carbon::now()->locale('pt_BR')->translatedFormat('F/Y'),
             ];
             
             // Log para debug (remover depois)

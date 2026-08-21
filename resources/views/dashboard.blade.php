@@ -201,28 +201,51 @@
             </div>
         </div>
 
-        <!-- Card 6: Vendidos -->
+        <!-- Card 6: Vendidos / Movimentação do Mês -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-red-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Histórico</p>
-                        <h3 class="text-lg font-bold text-gray-800 mt-1">Vendidos</h3>
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Histórico & Mês Vigente</p>
+                        <h3 class="text-lg font-bold text-gray-800 mt-1">Vendidos & Fluxo</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-red-50 text-red-500">
-                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <i class="fas fa-exchange-alt text-xl"></i>
                     </div>
                 </div>
 
                 <div class="mt-4">
-                    <p class="text-3xl font-extrabold text-gray-800">{{ $estatisticas['itens_vendidos'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-400 mt-2">Volume total de produtos vendidos e processados pelo sistema.</p>
+                    <div class="flex items-baseline justify-between">
+                        <p class="text-3xl font-extrabold text-gray-800">{{ number_format($estatisticas['itens_vendidos'] ?? 0, 0, ',', '.') }}</p>
+                        <span class="text-xs font-semibold text-gray-500">Total Vendidos</span>
+                    </div>
+
+                    <!-- Relatório de Movimentação do Mês Atual -->
+                    <div class="mt-4 pt-3 border-t border-gray-100 space-y-2">
+                        <p class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center justify-between">
+                            <span><i class="fas fa-calendar-alt text-red-500 mr-1"></i> {{ ucfirst($estatisticas['nome_mes'] ?? 'Mês Atual') }}</span>
+                        </p>
+                        
+                        <div class="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100">
+                            <span class="text-xs font-medium text-emerald-800 flex items-center">
+                                <i class="fas fa-arrow-down text-emerald-600 mr-1.5"></i> Entraram (Avaliação):
+                            </span>
+                            <span class="text-sm font-bold text-emerald-700">+{{ number_format($estatisticas['entradas_mes_avaliacao'] ?? 0, 0, ',', '.') }} pcs</span>
+                        </div>
+
+                        <div class="flex items-center justify-between bg-rose-50 px-3 py-2 rounded-lg border border-rose-100">
+                            <span class="text-xs font-medium text-rose-800 flex items-center">
+                                <i class="fas fa-arrow-up text-rose-600 mr-1.5"></i> Saíram (Pedidos):
+                            </span>
+                            <span class="text-sm font-bold text-rose-700">-{{ number_format($estatisticas['saidas_mes_pedidos'] ?? 0, 0, ',', '.') }} pcs</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="mt-6">
+            <div class="mt-5">
                 <a href="{{ route('inventario') }}?status=vendido" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Ver Itens
+                    Ver Itens Vendidos
                 </a>
             </div>
         </div>
