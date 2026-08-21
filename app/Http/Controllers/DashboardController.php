@@ -24,6 +24,19 @@ class DashboardController extends Controller
                 'valor_medio' => $itensEstoque->count() > 0 ? 
                     round($itensEstoque->sum('preco') / $itensEstoque->count(), 2) : 0
             ];
+
+            // Locais Físicos do Estoque (Agrupados por localizacao)
+            $locaisEstoque = DB::table('items')
+                ->whereNotNull('localizacao')
+                ->where('localizacao', '!=', '')
+                ->select(
+                    'localizacao',
+                    DB::raw('COUNT(*) as qtd_pecas'),
+                    DB::raw('SUM(preco) as valor_total_venda')
+                )
+                ->groupBy('localizacao')
+                ->orderBy('localizacao', 'asc')
+                ->get();
             
             // Calcular informações das Sacolas (NOVAS ESTATÍSTICAS AQUI)
             $sacolasInfo = [
@@ -112,7 +125,7 @@ class DashboardController extends Controller
 			];
 
 
-            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento'));
+            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento', 'locaisEstoque'));
             
         } catch (\Exception $e) {
             // Em caso de erro, log e valores padrão

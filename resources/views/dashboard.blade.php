@@ -65,7 +65,7 @@
             </div>
         </div>
 
-        <!-- Card 2: Estoque -->
+        <!-- Card 2: Estoque Físico & Locais -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-blue-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
@@ -82,7 +82,7 @@
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-500">Quantidade</span>
                         <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
-                            {{ $estoqueInfo['quantidade'] ?? 0 }} itens
+                            {{ number_format($estoqueInfo['quantidade'] ?? 0, 0, ',', '.') }} itens
                         </span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
@@ -97,6 +97,32 @@
                             R$ {{ number_format($estoqueInfo['valor_medio'] ?? 0, 2, ',', '.') }}
                         </span>
                     </div>
+
+                    <!-- Tabela / Quadro de Locais Físicos do Estoque -->
+                    @if(isset($locaisEstoque) && count($locaisEstoque) > 0)
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span><i class="fas fa-map-marker-alt text-blue-500 mr-1"></i> Locais Físicos</span>
+                                <span class="text-[10px] font-normal text-gray-400">({{ count($locaisEstoque) }} cadastrados)</span>
+                            </p>
+
+                            <div class="max-h-44 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
+                                @foreach($locaisEstoque as $loc)
+                                    <a href="{{ route('inventario') }}?localizacao={{ urlencode($loc->localizacao) }}" class="flex items-center justify-between bg-blue-50/60 hover:bg-blue-100/80 px-2.5 py-1.5 rounded-lg border border-blue-100 text-xs transition duration-150 group">
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-1.5 py-0.5 font-bold rounded bg-blue-600 text-white text-[11px] group-hover:bg-blue-700">
+                                                {{ $loc->localizacao }}
+                                            </span>
+                                            <span class="text-gray-600 font-medium">{{ number_format($loc->qtd_pecas, 0, ',', '.') }} pcs</span>
+                                        </div>
+                                        <span class="font-bold text-green-700">
+                                            R$ {{ number_format($loc->valor_total_venda, 2, ',', '.') }}
+                                        </span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 
