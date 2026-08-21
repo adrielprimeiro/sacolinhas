@@ -33,7 +33,8 @@ use App\Http\Controllers\ItemMediaController;
 //use App\Http\Controllers\GeminiBatchImageEditController;
 //use App\Http\Controllers\ImagemBatchController;
 use App\Http\Controllers\PontuacoesController;
-use App\Http\Controllers\Admin\GruposController;  
+use App\Http\Controllers\Admin\GruposController;
+use App\Http\Controllers\Admin\LiveMovimentacaoController;
 
 // Webhook MercadoPago
 Route::post('/mercadopago/webhook', [\App\Http\Controllers\MercadoPagoController::class, 'webhook'])
@@ -244,6 +245,11 @@ Route::middleware('auth')->group(function () {
 	Route::get('/inventario/conferencias', [ItemController::class, 'inventarioConferenciasIndex'])->name('inventario.conferencias.index');
 	Route::get('/inventario/conferencias/{id}', [ItemController::class, 'inventarioConferenciaShow'])->name('inventario.conferencias.show');
 	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
+
+    // Movimentação Live Scanner
+    Route::get('/live/movimentacao/scanner', [LiveMovimentacaoController::class, 'scanner'])->name('live.scanner');
+    Route::post('/live/movimentacao/scanner/ida', [LiveMovimentacaoController::class, 'processarIda'])->name('live.scanner.ida');
+    Route::post('/live/movimentacao/scanner/volta', [LiveMovimentacaoController::class, 'processarVolta'])->name('live.scanner.volta');
 
 
 

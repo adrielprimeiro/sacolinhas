@@ -109,9 +109,12 @@
                 </div>
             </div>
 
-            <div class="mt-6">
+            <div class="mt-6 flex flex-col gap-2">
                 <a href="{{ route('inventario') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Ver Estoque
+                </a>
+                <a href="{{ route('live.scanner') }}" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                    Scanner Live
                 </a>
             </div>
         </div>
