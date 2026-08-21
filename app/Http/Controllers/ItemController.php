@@ -286,8 +286,49 @@ class ItemController extends Controller
     }
 	
 	
-    // INVENTÁRIO SCANNER
+    // INVENTÁRIO (Relatório de Locais Físicos e Resumo de Estoque)
     public function inventario(Request $request)
+    {
+        $buscaLocal = trim($request->input('localizacao', ''));
+
+        // Query de Locais Físicos do Estoque (Agrupados por localizacao)
+        $queryLocais = DB::table('items')
+            ->whereNotNull('localizacao')
+            ->where('localizacao', '!=', '');
+
+        if (!empty($buscaLocal)) {
+            $queryLocais->where('localizacao', 'like', '%' . $buscaLocal . '%');
+        }
+
+        $locaisEstoque = $queryLocais
+            ->select(
+                'localizacao',
+                DB::raw('COUNT(*) as qtd_pecas'),
+                DB::raw('SUM(preco) as valor_total_venda'),
+                DB::raw('AVG(preco) as valor_medio_venda')
+            )
+            ->groupBy('localizacao')
+            ->orderBy('localizacao', 'asc')
+            ->get();
+
+        // Resumo Geral do Estoque
+        $itensEstoque = Item::where('status', 'estoque')->get();
+        $estoqueInfo = [
+            'quantidade' => $itensEstoque->count(),
+            'valor_total' => $itensEstoque->sum('preco'),
+            'valor_medio' => $itensEstoque->count() > 0 ? round($itensEstoque->sum('preco') / $itensEstoque->count(), 2) : 0
+        ];
+
+        // Itens sem localização
+        $itensSemLocal = Item::where(function($q) {
+            $q->whereNull('localizacao')->orWhere('localizacao', '');
+        })->count();
+
+        return view('admin.items.inventario_report', compact('locaisEstoque', 'estoqueInfo', 'buscaLocal', 'itensSemLocal'));
+    }
+
+    // INVENTÁRIO SCANNER (Interface de Escaneamento / Bipagem)
+    public function inventarioScanner(Request $request)
     {
         return view('admin.items.inventario');
     }
@@ -354,7 +395,7 @@ class ItemController extends Controller
             $msg .= " | ⚠️ Não encontrados: " . implode(', ', $naoEncontrados);
         }
 
-        return redirect()->route('inventario')->with('success', $msg);
+        return redirect()->route('inventario.scanner')->with('success', $msg);
     }
 
 

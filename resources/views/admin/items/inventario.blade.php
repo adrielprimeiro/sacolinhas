@@ -382,7 +382,7 @@
 <div id="setup-screen">
     {{-- Header --}}
     <div class="setup-header">
-        <a href="{{ route('dashboard') }}"><i class="fas fa-arrow-left"></i></a>
+        <a href="{{ route('inventario') }}" title="Voltar ao Inventário"><i class="fas fa-arrow-left"></i></a>
         <h1>Inventário <span>Scanner</span></h1>
     </div>
 

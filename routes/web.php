@@ -238,6 +238,7 @@ Route::middleware('auth')->group(function () {
     // ===== ITEMS =====
     Route::resource('items', ItemController::class);
 	Route::get('/inventario', [ItemController::class, 'inventario'])->name('inventario');
+	Route::get('/inventario/scanner', [ItemController::class, 'inventarioScanner'])->name('inventario.scanner');
 	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
 
 
