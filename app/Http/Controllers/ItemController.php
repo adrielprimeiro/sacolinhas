@@ -21,7 +21,18 @@ class ItemController extends Controller
 		$query = Item::query();
 
 		if ($request->filled('codigo')) {
-			$query->where('codigo', 'like', '%' . $request->codigo . '%');
+            $codigoPesquisa = trim($request->codigo);
+            if (preg_match('/^AV(\d+)$/i', $codigoPesquisa, $matches)) {
+                $avItemId = $matches[1];
+                $avItem = \App\Models\AvaliacaoItem::find($avItemId);
+                if ($avItem && $avItem->item_id) {
+                    $query->where('id', $avItem->item_id);
+                } else {
+                    $query->where('id', -1);
+                }
+            } else {
+			    $query->where('codigo', 'like', '%' . $codigoPesquisa . '%');
+            }
 		}
 
 		if ($request->filled('localizacao')) {
@@ -256,15 +267,29 @@ class ItemController extends Controller
      */
     public function search(Request $request)
     {
-        $query = $request->get('q');
-      
-       
-        $items = Item::where('nome_do_produto', 'like', "%{$query}%")
-                     ->orWhere('codigo', 'like', "%{$query}%")
-                     ->orWhere('descricao', 'like', "%{$query}%")
-                     ->where('status', 'disponivel')
-                     ->limit(10)
-                     ->get();
+        $query = trim($request->get('q'));
+        
+        $itemBuilder = Item::query();
+
+        if (preg_match('/^AV(\d+)$/i', $query, $matches)) {
+            $avItemId = $matches[1];
+            $avItem = \App\Models\AvaliacaoItem::find($avItemId);
+            if ($avItem && $avItem->item_id) {
+                $itemBuilder->where('id', $avItem->item_id);
+            } else {
+                $itemBuilder->where('id', -1);
+            }
+        } else {
+            $itemBuilder->where(function($q) use ($query) {
+                $q->where('nome_do_produto', 'like', "%{$query}%")
+                  ->orWhere('codigo', 'like', "%{$query}%")
+                  ->orWhere('descricao', 'like', "%{$query}%");
+            });
+        }
+        
+        $items = $itemBuilder->where('status', 'disponivel')
+                             ->limit(10)
+                             ->get();
         
         // Formatar dados para o component
         $formattedItems = $items->map(function($item) {
@@ -363,13 +388,23 @@ class ItemController extends Controller
         $query = Item::where('localizacao', $localizacao);
 
         if (!empty($search)) {
-            $query->where(function($q) use ($search) {
-                $q->where('codigo', 'like', "%{$search}%")
-                  ->orWhere('nome_do_produto', 'like', "%{$search}%")
-                  ->orWhere('marca', 'like', "%{$search}%")
-                  ->orWhere('tamanho', 'like', "%{$search}%")
-                  ->orWhere('cor', 'like', "%{$search}%");
-            });
+            if (preg_match('/^AV(\d+)$/i', $search, $matches)) {
+                $avItemId = $matches[1];
+                $avItem = \App\Models\AvaliacaoItem::find($avItemId);
+                if ($avItem && $avItem->item_id) {
+                    $query->where('id', $avItem->item_id);
+                } else {
+                    $query->where('id', -1);
+                }
+            } else {
+                $query->where(function($q) use ($search) {
+                    $q->where('codigo', 'like', "%{$search}%")
+                      ->orWhere('nome_do_produto', 'like', "%{$search}%")
+                      ->orWhere('marca', 'like', "%{$search}%")
+                      ->orWhere('tamanho', 'like', "%{$search}%")
+                      ->orWhere('cor', 'like', "%{$search}%");
+                });
+            }
         }
 
         if (!empty($statusFiltro)) {
@@ -811,15 +846,26 @@ class ItemController extends Controller
 
 	public function buscarPorCodigo(Request $request)
 	{
-		$codigo = $request->get('codigo');
-
-		// Carrega mídias, a sacolinha e o usuário dono da sacolinha
-		$item = \App\Models\Item::with([
+		$codigo = trim($request->get('codigo'));
+		
+		$itemBuilder = \App\Models\Item::with([
 			'medias' => function($q) {
 				$q->where('media_type', 'image');
 			}, 
 			'sacolinha.user' // Relacionamento aninhado
-		])->where('codigo', $codigo)->first();
+		]);
+
+		if (preg_match('/^AV(\d+)$/i', $codigo, $matches)) {
+			$avItemId = $matches[1];
+			$avItem = \App\Models\AvaliacaoItem::find($avItemId);
+			if ($avItem && $avItem->item_id) {
+				$item = $itemBuilder->where('id', $avItem->item_id)->first();
+			} else {
+				$item = null;
+			}
+		} else {
+			$item = $itemBuilder->where('codigo', $codigo)->first();
+		}
 
 		if (!$item) {
 			return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
