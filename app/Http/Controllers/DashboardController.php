@@ -55,6 +55,8 @@ class DashboardController extends Controller
 
             $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
 
+            $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
+
             // Outras estatísticas úteis (opcional)
             $estatisticas = [
                 'total_clientes' => Cliente::count(),
@@ -65,6 +67,7 @@ class DashboardController extends Controller
                 'itens_estoque' => $estoqueInfo['quantidade'],
                 'entradas_mes_avaliacao' => $entradasMesAvaliacao,
                 'saidas_mes_pedidos' => $saidasMesPedidos,
+                'diferenca_mes' => $diferencaMes,
                 'nome_mes' => Carbon::now()->locale('pt_BR')->translatedFormat('F/Y'),
             ];
             

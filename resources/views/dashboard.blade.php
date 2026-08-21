@@ -201,13 +201,13 @@
             </div>
         </div>
 
-        <!-- Card 6: Vendidos / Movimentação do Mês -->
+        <!-- Card 6: Fluxo de Peças Do Mês -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-red-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Histórico & Mês Vigente</p>
-                        <h3 class="text-lg font-bold text-gray-800 mt-1">Vendidos & Fluxo</h3>
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider">Do Mês</p>
+                        <h3 class="text-lg font-bold text-gray-800 mt-1">Fluxo de Peças</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-red-50 text-red-500">
                         <i class="fas fa-exchange-alt text-xl"></i>
@@ -216,8 +216,10 @@
 
                 <div class="mt-4">
                     <div class="flex items-baseline justify-between">
-                        <p class="text-3xl font-extrabold text-gray-800">{{ number_format($estatisticas['itens_vendidos'] ?? 0, 0, ',', '.') }}</p>
-                        <span class="text-xs font-semibold text-gray-500">Total Vendidos</span>
+                        <p class="text-3xl font-extrabold text-gray-800">
+                            {{ ($estatisticas['diferenca_mes'] ?? 0) >= 0 ? '+' : '' }}{{ number_format($estatisticas['diferenca_mes'] ?? 0, 0, ',', '.') }}
+                        </p>
+                        <span class="text-xs font-semibold text-gray-500">Diferença</span>
                     </div>
 
                     <!-- Relatório de Movimentação do Mês Atual -->
