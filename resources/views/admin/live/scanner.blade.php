@@ -30,7 +30,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
 
-        /* Setup Screen */
         #setup-screen { padding: 16px; max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; min-height: 100vh; }
         
         .setup-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -62,6 +61,11 @@
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--surface2); border-radius: 8px; font-size: 13px; }
         .item-row strong { color: var(--text); }
         .item-row span { color: var(--muted); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .stat-box { background: var(--surface2); border-radius: 12px; padding: 12px; text-align: center; }
+        .stat-box .num { font-size: 24px; font-weight: 800; color: var(--primary); }
+        .stat-box .label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
 
         /* Scanner Screen */
         #scanner-screen { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; }
@@ -97,6 +101,23 @@
         </div>
     @endif
 
+    <div class="card">
+        <form id="live-select-form" method="GET" action="{{ route('live.scanner') }}">
+            <div class="field">
+                <label>Selecione a Live Atual</label>
+                <select name="live_id" id="cfg-live-id" onchange="document.getElementById('live-select-form').submit()">
+                    <option value="">-- Escolha uma Live --</option>
+                    @foreach($lives as $live)
+                        <option value="{{ $live->id }}" {{ ($liveAtual && $liveAtual->id == $live->id) ? 'selected' : '' }}>
+                            {{ $live->data->format('d/m/Y') }} - {{ $live->tipo_live_formatado }} (ID: {{ $live->id }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </form>
+    </div>
+
+    @if($liveAtual)
     <div class="tabs">
         <div class="tab active" onclick="setMode('ida')" id="tab-ida">Ida para Live</div>
         <div class="tab" onclick="setMode('volta')" id="tab-volta">Volta ao Estoque</div>
@@ -105,7 +126,7 @@
     <div class="card" id="card-ida">
         <h2><i class="fas fa-sign-out-alt text-primary"></i> Enviar itens para a Live</h2>
         <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">
-            Ao bipar, os itens terão sua localização salva na memória e movida para <strong>Live</strong>.
+            Ao bipar, os itens entrarão no dossiê desta Live.
         </p>
         <button class="btn btn-primary" onclick="openScanner('ida')" style="font-size:16px; padding: 16px;">
             <i class="fas fa-qrcode"></i> Abrir Scanner (Ida)
@@ -138,40 +159,52 @@
     </div>
 
     <div class="card" id="card-relatorio">
-        <h2><i class="fas fa-clipboard-list"></i> Relatório de Conferência</h2>
-        <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">
-            Atualmente há <strong>{{ $itensNaLive->count() }}</strong> itens na Live.
-        </p>
+        <h2><i class="fas fa-chart-pie"></i> Dossiê da Live</h2>
         
-        @if($itensNaLive->count() > 0)
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="num">{{ $itensEnviados->count() }}</div>
+                <div class="label">Total Oferecido</div>
+            </div>
+            <div class="stat-box">
+                <div class="num" style="color:var(--success);">{{ $itensVendidos->count() }}</div>
+                <div class="label">Total Vendido</div>
+            </div>
+            <div class="stat-box">
+                <div class="num" style="color:var(--muted);">{{ $itensRetornados->count() }}</div>
+                <div class="label">Devolvido ao Estoque</div>
+            </div>
+            <div class="stat-box">
+                <div class="num" style="color:var(--danger);">{{ $itensPerdidos->count() }}</div>
+                <div class="label">Pendente (No Cenário)</div>
+            </div>
+        </div>
+        
+        @if($itensPerdidos->count() > 0)
+        <h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: var(--danger);">Pendentes (Ainda não voltaram)</h3>
         <div class="item-list">
-            @foreach($itensNaLive as $item)
-            <div class="item-row">
+            @foreach($itensPerdidos as $item)
+            <div class="item-row" style="border-left: 3px solid var(--danger);">
                 <div>
                     <strong>{{ $item->codigo }}</strong><br>
                     <span style="font-size:11px;">{{ Str::limit($item->nome_do_produto, 25) }}</span>
                 </div>
                 <div style="text-align:right;">
-                    <span style="font-size:11px; display:block;">Origem: {{ $item->localizacao_anterior ?? '?' }}</span>
-                    <span class="badge" style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">Pendente de volta</span>
+                    <span style="font-size:11px; display:block;">Origem: {{ $item->localizacao_origem ?? '?' }}</span>
                 </div>
             </div>
             @endforeach
         </div>
         @endif
 
-        @if($itensVendidosOuPerdidos->count() > 0)
-        <h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: var(--text);">Itens que foram para Live e ganharam outro destino (Ex: Vendidos)</h3>
+        @if($itensVendidos->count() > 0)
+        <h3 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: var(--success);">Vendidos</h3>
         <div class="item-list">
-            @foreach($itensVendidosOuPerdidos as $item)
-            <div class="item-row">
+            @foreach($itensVendidos as $item)
+            <div class="item-row" style="border-left: 3px solid var(--success);">
                 <div>
                     <strong>{{ $item->codigo }}</strong><br>
                     <span style="font-size:11px;">{{ Str::limit($item->nome_do_produto, 25) }}</span>
-                </div>
-                <div style="text-align:right;">
-                    <span style="font-size:11px; display:block;">Agora: {{ $item->localizacao }}</span>
-                    <span class="badge" style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">Justificado</span>
                 </div>
             </div>
             @endforeach
@@ -181,14 +214,22 @@
 
     <form id="form-ida" method="POST" action="{{ route('live.scanner.ida') }}" style="display:none;">
         @csrf
+        <input type="hidden" name="live_id" value="{{ $liveAtual->id }}">
         <div id="form-ida-codigos"></div>
     </form>
     
     <form id="form-volta" method="POST" action="{{ route('live.scanner.volta') }}" style="display:none;">
         @csrf
+        <input type="hidden" name="live_id" value="{{ $liveAtual->id }}">
         <input type="hidden" name="local_destino" id="form-local-destino">
         <div id="form-volta-codigos"></div>
     </form>
+    @else
+    <div class="card" style="text-align:center; padding: 40px 20px;">
+        <i class="fas fa-video" style="font-size: 40px; color: var(--muted); margin-bottom: 16px;"></i>
+        <h3 style="color: var(--muted);">Selecione uma Live acima para começar a movimentação e gerar o dossiê.</h3>
+    </div>
+    @endif
 </div>
 
 <div id="scanner-screen">
