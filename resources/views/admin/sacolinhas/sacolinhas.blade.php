@@ -452,7 +452,12 @@
                 const clientId = document.querySelector('input[name="client_id"]').value;
                 const itemId = document.querySelector('input[name="item_id"]').value;
 				const itemPrice = document.getElementById('item-price').value;
-                const itemPriceConverted = itemPrice.replace(/\./g, '').replace(',', '.');
+                let itemPriceConverted = itemPrice;
+                if (itemPrice.includes(',') && itemPrice.includes('.')) {
+                    itemPriceConverted = itemPrice.replace(/\./g, '').replace(',', '.');
+                } else if (itemPrice.includes(',')) {
+                    itemPriceConverted = itemPrice.replace(',', '.');
+                }
 
                 if (!clientId) {
                     mostrarAlert('Por favor, selecione um cliente primeiro!', 'warning');
