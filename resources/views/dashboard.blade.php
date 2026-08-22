@@ -161,28 +161,69 @@
             </div>
         </div>
 
-        <!-- Card 4: Clientes -->
+        <!-- Card 4: Faturamento por Origem de Cliente (Clube vs Outros) -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-indigo-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Base</p>
-                        <h3 class="text-lg font-bold text-gray-800 mt-1">Clientes</h3>
+                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Faturamento</p>
+                        <h3 class="text-lg font-bold text-gray-800 mt-1">Clientes do Clube</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
-                        <i class="fas fa-users text-xl"></i>
+                        <i class="fas fa-chart-pie text-xl"></i>
                     </div>
                 </div>
 
                 <div class="mt-4">
-                    <p class="text-3xl font-extrabold text-gray-800">{{ $estatisticas['total_clientes'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-400 mt-2">Clientes cadastrados na plataforma e ativos no clube de pontos.</p>
+                    <!-- Número Destaque do Faturamento do Clube -->
+                    <div class="flex items-baseline justify-between">
+                        <p class="text-2xl font-extrabold text-indigo-700">
+                            R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}
+                        </p>
+                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-100 text-indigo-800">
+                            {{ number_format($faturamentoClubeInfo['pct_clube'] ?? 100, 1, ',', '.') }}%
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Faturamento vindo de clientes participantes do Clube do Desapego.</p>
+
+                    <!-- Gráfico Visual de Distribuição / Progresso -->
+                    <div class="mt-4 space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="font-medium text-gray-600 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
+                                    Clientes do Clube
+                                </span>
+                                <span class="font-bold text-indigo-700">
+                                    {{ number_format($faturamentoClubeInfo['pct_clube'] ?? 100, 1, ',', '.') }}%
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: {{ min(100, max(0, $faturamentoClubeInfo['pct_clube'] ?? 100)) }}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="font-medium text-gray-600 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block"></span>
+                                    Outros Clientes
+                                </span>
+                                <span class="font-bold text-gray-600">
+                                    {{ number_format($faturamentoClubeInfo['pct_outros'] ?? 0, 1, ',', '.') }}%
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div class="bg-gray-400 h-2 rounded-full transition-all duration-500" style="width: {{ min(100, max(0, $faturamentoClubeInfo['pct_outros'] ?? 0)) }}%"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('clientes.index') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Ver Todos
+                <a href="{{ route('admin.avaliacoes.index') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                    Ver Clube de Avaliações
                 </a>
             </div>
         </div>

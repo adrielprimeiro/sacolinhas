@@ -77,9 +77,48 @@ class DashboardController extends Controller
                 ->whereBetween('updated_at', [$inicioMes, $fimMes])
                 ->sum('quantity');
 
-            $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
-
             $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
+
+            // Faturamento por Clientes do Clube vs Outros no Mês Vigente
+            $usersClubeIds = DB::table('avaliacoes')->whereNotNull('user_id')->pluck('user_id')->toArray();
+            $usersCCIds    = DB::table('conta_corrente')->whereNotNull('user_id')->pluck('user_id')->toArray();
+            $clubeUserIds  = array_unique(array_merge($usersClubeIds, $usersCCIds));
+
+            $fatClubeMes = (float) DB::table('pedidos')
+                ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
+                ->whereBetween('created_at', [$inicioMes, $fimMes])
+                ->whereIn('user_id', $clubeUserIds)
+                ->sum('valor_total');
+
+            $fatOutrosMes = (float) DB::table('pedidos')
+                ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
+                ->whereBetween('created_at', [$inicioMes, $fimMes])
+                ->whereNotIn('user_id', $clubeUserIds)
+                ->sum('valor_total');
+
+            $fatTotalMes = $fatClubeMes + $fatOutrosMes;
+            if ($fatTotalMes == 0) {
+                $fatClubeMes = (float) DB::table('pedidos')
+                    ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
+                    ->whereIn('user_id', $clubeUserIds)
+                    ->sum('valor_total');
+                $fatOutrosMes = (float) DB::table('pedidos')
+                    ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
+                    ->whereNotIn('user_id', $clubeUserIds)
+                    ->sum('valor_total');
+                $fatTotalMes = $fatClubeMes + $fatOutrosMes;
+            }
+
+            $pctClube  = $fatTotalMes > 0 ? round(($fatClubeMes / $fatTotalMes) * 100, 1) : 100.0;
+            $pctOutros = $fatTotalMes > 0 ? round(($fatOutrosMes / $fatTotalMes) * 100, 1) : 0.0;
+
+            $faturamentoClubeInfo = [
+                'fat_clube_mes'  => $fatClubeMes,
+                'fat_outros_mes' => $fatOutrosMes,
+                'fat_total_mes'  => $fatTotalMes,
+                'pct_clube'      => $pctClube,
+                'pct_outros'     => $pctOutros,
+            ];
 
             // Outras estatísticas úteis (opcional)
             $estatisticas = [
@@ -136,7 +175,7 @@ class DashboardController extends Controller
 			];
 
 
-            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento', 'locaisEstoque', 'estoqueResumoLocais'));
+            return view('dashboard', compact('estoqueInfo', 'estatisticas', 'sacolasInfo', 'alertasVencimento', 'locaisEstoque', 'estoqueResumoLocais', 'faturamentoClubeInfo'));
             
         } catch (\Exception $e) {
             // Em caso de erro, log e valores padrão
