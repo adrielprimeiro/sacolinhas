@@ -76,7 +76,7 @@
 
 		{{-- Drawer --}}
 		<aside id="adminDrawer"
-			   class="fixed top-0 left-0 h-full w-72 bg-white shadow-xl hidden"
+			   class="fixed top-0 left-0 h-full w-72 bg-white shadow-xl hidden overflow-y-auto"
 			   style="z-index: 9999;">
 			<div class="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
 				<div class="font-semibold text-gray-800">
@@ -90,266 +90,221 @@
 				</button>
 			</div>
 
-			<nav class="p-4 space-y-4">
+			<nav class="p-3 space-y-1 text-sm">
+				{{-- 1. Dashboard --}}
 				<a href="{{ route('dashboard') }}"
-				   class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
-					<i class="fas fa-home text-gray-500 w-5"></i>
+				   class="flex items-center gap-3 px-3 py-2 rounded-lg transition duration-150 hover:bg-indigo-50 hover:text-indigo-600 {{ request()->routeIs('dashboard') ? 'bg-indigo-50 font-bold text-indigo-600' : 'text-gray-700' }}">
+					<i class="fas fa-home w-5 text-center text-indigo-500"></i>
 					<span>Dashboard</span>
 				</a>
 
-                {{-- Grupo: Cadastro --}}
-                <div class="space-y-1">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Cadastro</p>
-                    
-                    {{-- Clientes Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard') ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-users text-gray-500 w-5"></i>
-                                <span>Clientes</span>
-                            </div>
-                            <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
-                            <a href="{{ route('clientes.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('clientes.index') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-list mr-1"></i> Lista de Clientes
-                            </a>
-                            <a href="{{ route('admin.chat.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.chat.index') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-comments mr-1"></i> Chat
-                            </a>
-                            <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-chart-pie mr-1"></i> Chat Dashboard
-                            </a>
+                {{-- 2. Comercial & Captação --}}
+                <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-shopping-cart w-5 text-center text-indigo-500"></i>
+                            <span>Comercial & Captação</span>
                         </div>
-                    </div>
-                    
-                    {{-- Itens Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*', 'admin.avaliacoes.*') ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('items.*', 'inventario', 'upload.batch.form', 'image-groups.*', 'admin.categorias.*', 'admin.marcas.*', 'admin.avaliacoes.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-box text-gray-500 w-5"></i>
-                                <span>Itens</span>
-                            </div>
-                            <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
-                            <a href="{{ route('items.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('items.index') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-list mr-1"></i> Lista de Itens
-                            </a>
-                            <a href="{{ route('admin.categorias.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.categorias.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-tags mr-1"></i> Categorias
-                            </a>
-                            <a href="{{ route('admin.marcas.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.marcas.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-copyright mr-1"></i> Marcas
-                            </a>
-                            <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.avaliacoes.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-hand-holding-usd mr-1"></i> Avaliação Desapegos
-                            </a>
-                            <a href="{{ route('inventario') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-clipboard-list mr-1"></i> Inventário
-                            </a>
-                            <a href="{{ route('inventario.conferencias.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('inventario.conferencias.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-check-double mr-1"></i> Conferências de Estoque
-                            </a>
-                            <a href="{{ route('upload.batch.form') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('upload.batch.form') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-download mr-1"></i> Download Imagens
-                            </a>
-                            <a href="{{ route('image-groups.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('image-groups.index') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-image mr-1"></i> Imagens->Item
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Grupo: Financeiro --}}
-                <div x-data="{ 
-                    openAnalises: {{ (request()->routeIs('financeiro.dashboard') || request()->routeIs('financeiro.fluxodecaixa') || request()->routeIs('financeiro.relatoriogerencial') || request()->routeIs('financeiro.dre') || request()->routeIs('financeiro.orcamento.*')) ? 'true' : 'false' }},
-                    openOperacoes: {{ (request()->routeIs('financeiro.lancamentos.*') || request()->routeIs('financeiro.conciliacao.*') || request()->routeIs('financeiro.movimentacoes.*')) ? 'true' : 'false' }},
-                    openCadastros: {{ (request()->routeIs('classificacao_financeira.*') || request()->routeIs('admin.conta_corrente.*') || request()->routeIs('financeiro.contas.*') || request()->routeIs('financeiro.pessoas.*')) ? 'true' : 'false' }}
-                }">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Financeiro</p>
-                    
-                    {{-- Subgrupo: Análises --}}
-                    <div class="mb-1">
-                        <button @click="openAnalises = !openAnalises" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-chart-bar text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Análise</span>
-                            </div>
-                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openAnalises ? 'rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="openAnalises" x-cloak class="pl-11 pr-3 py-1 space-y-1">
-                            <a href="{{ route('financeiro.dashboard') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dashboard') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-home mr-1"></i> Dashboard
-                            </a>
-                            <a href="{{ route('financeiro.fluxodecaixa') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.fluxodecaixa') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-funnel-dollar mr-1"></i> Fluxo de Caixa
-                            </a>
-                            <a href="{{ route('financeiro.dre') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dre') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-file-invoice mr-1"></i> DRE Contábil
-                            </a>
-                            <a href="{{ route('financeiro.relatoriogerencial') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.relatoriogerencial') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-chart-pie mr-1"></i> Relatório Gerencial
-                            </a>
-                            <a href="{{ route('financeiro.orcamento.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.orcamento.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-chart-line mr-1"></i> Orçamento
-                            </a>
-                        </div>
-                    </div>
-
-                    {{-- Subgrupo: Operações --}}
-                    <div class="mb-1">
-                        <button @click="openOperacoes = !openOperacoes" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-exchange-alt text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Operações</span>
-                            </div>
-                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openOperacoes ? 'rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="openOperacoes" x-cloak class="pl-11 pr-3 py-1 space-y-1">
-                            <a href="{{ route('financeiro.lancamentos.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.lancamentos.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-file-invoice-dollar mr-1"></i> Lançamentos
-                            </a>
-                            <a href="{{ route('financeiro.conciliacao.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.conciliacao.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-balance-scale mr-1"></i> Conciliação
-                            </a>
-                            <a href="{{ route('financeiro.movimentacoes.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.movimentacoes.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-history mr-1"></i> Movimentações
-                            </a>
-                        </div>
-                    </div>
-
-                    {{-- Subgrupo: Cadastros --}}
-                    <div class="mb-1">
-                        <button @click="openCadastros = !openCadastros" class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-cogs text-gray-500 w-5 text-center"></i>
-                                <span class="text-sm font-medium">Cadastro</span>
-                            </div>
-                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openCadastros ? 'rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="openCadastros" x-cloak class="pl-11 pr-3 py-1 space-y-1">
-                            <a href="{{ route('financeiro.contas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.contas.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-university mr-1"></i> Contas Bancárias
-                            </a>
-                            <a href="{{ route('classificacao_financeira.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('classificacao_financeira.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-list-ul mr-1"></i> Plano de Contas
-                            </a>
-                            <a href="{{ route('financeiro.pessoas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.pessoas.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-users mr-1"></i> Contatos
-                            </a>
-                        </div>
-                    </div>
-
-                    {{-- Item Separado: Carteira Cliente --}}
-                    <div class="mt-2 pt-2 border-t border-gray-100/50">
-                        <a href="{{ route('admin.conta_corrente.index') }}"
-                           class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 text-gray-700 {{ request()->routeIs('admin.conta_corrente.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
-                            <i class="fas fa-wallet text-gray-500 w-5 text-center"></i>
-                            <span class="text-sm font-medium">Carteira Cliente</span>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('bags.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('bags.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-broadcast-tower mr-1.5 text-indigo-400"></i> Live
+                        </a>
+                        <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live
+                        </a>
+                        <a href="{{ route('admin.sacolinha.gestao') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinha.gestao', 'admin.sacolinha.show') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-user-tag mr-1.5 text-indigo-400"></i> Sacolas por Cliente
+                        </a>
+                        <a href="{{ route('admin.sacolinhas.qrcode.scanner') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-qrcode mr-1.5 text-indigo-400"></i> Bipar Sacolinha
+                        </a>
+                        <a href="{{ route('admin.pedido.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.pedido.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
+                        </a>
+                        <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos
                         </a>
                     </div>
                 </div>
 
-                {{-- Grupo: Comercial --}}
-                <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Comercial</p>
-                    <a href="{{ route('bags.index') }}"
-                       class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('bags.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-broadcast-tower text-gray-500 w-5"></i>
-                        <span>Live</span>
-                    </a>
+                {{-- 3. Produtos & Estoque --}}
+                <div x-data="{ open: {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-box w-5 text-center text-indigo-500"></i>
+                            <span>Produtos & Estoque</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('items.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('items.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-tshirt mr-1.5 text-indigo-400"></i> Lista de Produtos
+                        </a>
+                        <a href="{{ route('admin.categorias.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.categorias.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-tags mr-1.5 text-indigo-400"></i> Categorias
+                        </a>
+                        <a href="{{ route('admin.marcas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.marcas.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-copyright mr-1.5 text-indigo-400"></i> Marcas
+                        </a>
+                        <a href="{{ route('inventario') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('inventario') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-warehouse mr-1.5 text-indigo-400"></i> Inventário Físico
+                        </a>
+                        <a href="{{ route('inventario.conferencias.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('inventario.conferencias.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-check-double mr-1.5 text-indigo-400"></i> Conferências de Estoque
+                        </a>
+                        <a href="{{ route('upload.batch.form') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('upload.batch.form') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-download mr-1.5 text-indigo-400"></i> Download de Imagens
+                        </a>
+                        <a href="{{ route('image-groups.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('image-groups.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-image mr-1.5 text-indigo-400"></i> Vincular Fotos a Itens
+                        </a>
+                    </div>
+                </div>
+
+                {{-- 4. Clientes & Atendimento --}}
+                <div x-data="{ open: {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users w-5 text-center text-indigo-500"></i>
+                            <span>Clientes & Atendimento</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('clientes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('clientes.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-address-book mr-1.5 text-indigo-400"></i> Lista de Clientes
+                        </a>
+                        <a href="{{ route('admin.chat.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.chat.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-comments mr-1.5 text-indigo-400"></i> Chat ao Vivo
+                        </a>
+                        <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fab fa-whatsapp mr-1.5 text-emerald-500"></i> WhatsApp Dashboard
+                        </a>
+                        <a href="{{ route('admin.conta_corrente.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.conta_corrente.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-wallet mr-1.5 text-indigo-400"></i> Carteira do Cliente
+                        </a>
+                    </div>
+                </div>
+
+                {{-- 5. Financeiro --}}
+                <div x-data="{ 
+                    open: {{ (request()->routeIs('financeiro.*') || request()->routeIs('classificacao_financeira.*')) ? 'true' : 'false' }},
+                    openAnalises: {{ (request()->routeIs('financeiro.dashboard') || request()->routeIs('financeiro.fluxodecaixa') || request()->routeIs('financeiro.relatoriogerencial') || request()->routeIs('financeiro.dre') || request()->routeIs('financeiro.orcamento.*')) ? 'true' : 'false' }},
+                    openOperacoes: {{ (request()->routeIs('financeiro.lancamentos.*') || request()->routeIs('financeiro.conciliacao.*') || request()->routeIs('financeiro.movimentacoes.*')) ? 'true' : 'false' }},
+                    openCadastros: {{ (request()->routeIs('classificacao_financeira.*') || request()->routeIs('financeiro.contas.*') || request()->routeIs('financeiro.pessoas.*')) ? 'true' : 'false' }}
+                }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ (request()->routeIs('financeiro.*') || request()->routeIs('classificacao_financeira.*')) ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-dollar-sign w-5 text-center text-indigo-500"></i>
+                            <span>Financeiro</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
                     
-                    {{-- Sacolinhas Collapsible Submenu --}}
-                    <div x-data="{ open: {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*') ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
-                                <span>Sacolas</span>
+                    <div x-show="open" x-cloak class="pl-6 pr-2 py-1 space-y-1.5 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        {{-- Subgrupo: Análises --}}
+                        <div>
+                            <button @click="openAnalises = !openAnalises" class="w-full flex items-center justify-between py-1 px-2 rounded text-xs font-semibold text-gray-700 hover:text-indigo-600">
+                                <span><i class="fas fa-chart-line mr-1.5 text-indigo-400"></i> Análises</span>
+                                <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openAnalises ? 'rotate-180' : ''"></i>
+                            </button>
+                            <div x-show="openAnalises" x-cloak class="pl-5 space-y-0.5 mt-0.5">
+                                <a href="{{ route('financeiro.dashboard') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dashboard') ? 'font-bold text-indigo-600' : '' }}">Dashboard</a>
+                                <a href="{{ route('financeiro.fluxodecaixa') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.fluxodecaixa') ? 'font-bold text-indigo-600' : '' }}">Fluxo de Caixa</a>
+                                <a href="{{ route('financeiro.dre') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.dre') ? 'font-bold text-indigo-600' : '' }}">DRE Contábil</a>
+                                <a href="{{ route('financeiro.relatoriogerencial') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.relatoriogerencial') ? 'font-bold text-indigo-600' : '' }}">Relatório Gerencial</a>
+                                <a href="{{ route('financeiro.orcamento.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.orcamento.*') ? 'font-bold text-indigo-600' : '' }}">Orçamento</a>
                             </div>
-                            <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
-                            <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinhas.index') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-broadcast-tower mr-1"></i> Da Live
-                            </a>
-                            <a href="{{ route('admin.sacolinha.gestao') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinha.gestao', 'admin.sacolinha.show') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-user mr-1"></i> Por Cliente
-                            </a>
-                            <a href="{{ route('admin.sacolinhas.qrcode.scanner') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-qrcode mr-1"></i> Item->Sacolinha
-                            </a>
                         </div>
-                    </div>
 
-                    <a href="{{ route('admin.pedido.index') }}"
-                       class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.pedido.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-receipt text-gray-500 w-5"></i>
-                        <span>Pedidos</span>
-                    </a>
-                </div>
-
-                {{-- Grupo: Clube --}}
-                <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Clube</p>
-                    <a href="{{ route('admin.clube.dashboard') }}"
-                        class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-crown text-gray-500 w-5"></i>
-                        <span>Painel do Clube</span>
-                    </a>
-                    <a href="{{ route('admin.clube.desafios.index') }}"
-                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clube.desafios.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-trophy text-gray-500 w-5"></i>
-                        <span>Desafios</span>
-                    </a>
-                    <a href="{{ route('admin.grupos.index') }}"
-                        class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.grupos.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                        <i class="fas fa-users text-gray-500 w-5"></i>
-                        <span>Grupos</span>
-                    </a>
-                </div>
-
-                {{-- Grupo: Relatórios --}}
-                <div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Relatórios</p>
-                    <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'bg-gray-100 font-semibold' : '' }}">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-chart-bar text-gray-500 w-5"></i>
-                                <span>Relatórios</span>
+                        {{-- Subgrupo: Operações --}}
+                        <div>
+                            <button @click="openOperacoes = !openOperacoes" class="w-full flex items-center justify-between py-1 px-2 rounded text-xs font-semibold text-gray-700 hover:text-indigo-600">
+                                <span><i class="fas fa-exchange-alt mr-1.5 text-indigo-400"></i> Operações</span>
+                                <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openOperacoes ? 'rotate-180' : ''"></i>
+                            </button>
+                            <div x-show="openOperacoes" x-cloak class="pl-5 space-y-0.5 mt-0.5">
+                                <a href="{{ route('financeiro.lancamentos.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.lancamentos.*') ? 'font-bold text-indigo-600' : '' }}">Lançamentos</a>
+                                <a href="{{ route('financeiro.conciliacao.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.conciliacao.*') ? 'font-bold text-indigo-600' : '' }}">Conciliação</a>
+                                <a href="{{ route('financeiro.movimentacoes.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.movimentacoes.*') ? 'font-bold text-indigo-600' : '' }}">Movimentações</a>
                             </div>
-                            <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
-                        </button>
-                        <div x-show="open" x-cloak class="pl-8 pr-3 py-1.5 space-y-1 bg-gray-50/50 rounded-lg mt-0.5 border border-gray-100/50">
-                            <a href="{{ route('admin.clientes.relatorios') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.clientes.relatorios') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-chart-line mr-1"></i> Clientes
-                            </a>
-                            <a href="{{ route('admin.portal-acessos.index') }}" class="block py-1 text-sm text-gray-600 hover:text-indigo-600 {{ request()->routeIs('admin.portal-acessos.*') ? 'font-semibold text-indigo-600' : '' }}">
-                                <i class="fas fa-history mr-1"></i> Acessos Portal
-                            </a>
-                            <a href="#" class="block py-1 text-sm text-gray-600 hover:text-indigo-600">
-                                <i class="fas fa-shopping-cart mr-1"></i> Vendas
-                            </a>
+                        </div>
+
+                        {{-- Subgrupo: Cadastros --}}
+                        <div>
+                            <button @click="openCadastros = !openCadastros" class="w-full flex items-center justify-between py-1 px-2 rounded text-xs font-semibold text-gray-700 hover:text-indigo-600">
+                                <span><i class="fas fa-cogs mr-1.5 text-indigo-400"></i> Cadastros</span>
+                                <i class="fas fa-chevron-down text-[10px] transition-transform duration-200" :class="openCadastros ? 'rotate-180' : ''"></i>
+                            </button>
+                            <div x-show="openCadastros" x-cloak class="pl-5 space-y-0.5 mt-0.5">
+                                <a href="{{ route('financeiro.contas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.contas.*') ? 'font-bold text-indigo-600' : '' }}">Contas Bancárias</a>
+                                <a href="{{ route('classificacao_financeira.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('classificacao_financeira.*') ? 'font-bold text-indigo-600' : '' }}">Plano de Contas</a>
+                                <a href="{{ route('financeiro.pessoas.index') }}" class="block py-1 text-xs text-gray-600 hover:text-indigo-600 {{ request()->routeIs('financeiro.pessoas.*') ? 'font-bold text-indigo-600' : '' }}">Contatos</a>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-				<div class="my-4 border-t border-gray-200"></div>
+                {{-- 6. Clube & Engajamento --}}
+                <div x-data="{ open: {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-crown w-5 text-center text-indigo-500"></i>
+                            <span>Clube & Engajamento</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('admin.clube.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.clube.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-tachometer-alt mr-1.5 text-indigo-400"></i> Painel do Clube
+                        </a>
+                        <a href="{{ route('admin.clube.desafios.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.clube.desafios.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-trophy mr-1.5 text-indigo-400"></i> Desafios
+                        </a>
+                        <a href="{{ route('admin.grupos.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.grupos.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-users mr-1.5 text-indigo-400"></i> Grupos
+                        </a>
+                    </div>
+                </div>
+
+                {{-- 7. Relatórios --}}
+                <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-chart-pie w-5 text-center text-indigo-500"></i>
+                            <span>Relatórios</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('admin.clientes.relatorios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.clientes.relatorios') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-chart-line mr-1.5 text-indigo-400"></i> Relatório de Clientes
+                        </a>
+                        <a href="{{ route('admin.portal-acessos.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.portal-acessos.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-history mr-1.5 text-indigo-400"></i> Acessos ao Portal
+                        </a>
+                    </div>
+                </div>
+
+				<div class="my-2 border-t border-gray-200"></div>
 
 				@if(auth()->check() && auth()->user()->role === 'admin_master')
 					<div>
-						<p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-1">Configurações</p>
 						<a href="{{ route('admin.equipe.index') }}"
-							class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('admin.equipe.*') ? 'bg-gray-100 font-semibold' : '' }}">
-							<i class="fas fa-user-shield text-gray-500 w-5"></i>
-							<span>Equipe</span>
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.equipe.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
+							<i class="fas fa-user-shield w-5 text-center text-indigo-500"></i>
+							<span>Gestão de Equipe</span>
 						</a>
 					</div>
-					<div class="my-4 border-t border-gray-200"></div>
+					<div class="my-2 border-t border-gray-200"></div>
 				@endif
 
 				@auth
