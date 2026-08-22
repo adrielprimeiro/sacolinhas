@@ -9,30 +9,87 @@
 @include('admin.financeiro._subnav')
 
 <div x-data="conciliacaoApp({{ $extratoComSugestoes->map(fn($item) => ['id' => $item['transacao']->id, 'tipo' => $item['transacao']->tipo, 'descricao' => $item['transacao']->descricao, 'valor' => $item['transacao']->valor_bruto ?? $item['transacao']->valor, 'origem' => $item['transacao']->origem, 'data' => $item['transacao']->data->format('d/m/Y')])->toJson() }})">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
-        <div class="flex gap-2 flex-wrap">
-            <form method="POST" action="{{ route('financeiro.conciliacao.auto-conciliar-transferencias') }}" class="inline">
-                @csrf
-                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-2">
-                    <i class="fas fa-sync-alt"></i>Auto-Conciliar Transferências
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
+            <p class="text-xs text-gray-500 mt-0.5">{{ $extratoComSugestoes->count() }} transação(ões) de extrato pendente(s)</p>
+        </div>
+
+        <div class="flex items-center gap-3 flex-wrap">
+            {{-- Dropdown 1: Sincronização & Extratos --}}
+            <div x-data="{ open: false }" class="relative inline-block text-left" @click.outside="open = false">
+                <button @click="open = !open" type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Sincronizar & Extratos</span>
+                    <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
                 </button>
-            </form>
-            <button @click="showModalRegras = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #d97706;">
-                <i class="fas fa-cog"></i>Regras Padrão
-            </button>
-            <button @click="showModalIgnorados = true" class="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-200 transition shadow-sm flex items-center gap-2">
-                <i class="fas fa-trash-restore"></i>Ignorados ({{ $ignorados->count() }})
-            </button>
-            <button @click="showModalOfx = true" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition shadow-sm">
-                <i class="fas fa-file-upload mr-2"></i>Importar Extrato (OFX/CSV)
-            </button>
-            <button @click="showModalMp = true" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-md">
-                <i class="fab fa-amazon-pay mr-2"></i>Sincronizar Mercado Pago
-            </button>
-            <button @click="showModalInter = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #FF6200;">
-                <i class="fas fa-university"></i>Sincronizar Banco Inter
-            </button>
+
+                <div x-show="open" x-cloak
+                     x-transition:enter="transition ease-out duration-100"
+                     x-transition:enter-start="transform opacity-0 scale-95"
+                     x-transition:enter-end="transform opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="transform opacity-100 scale-100"
+                     x-transition:leave-end="transform opacity-0 scale-95"
+                     class="origin-top-right absolute right-0 mt-2 w-56 rounded-2xl shadow-xl bg-white border border-gray-100 z-50 overflow-hidden py-1.5">
+                    
+                    <button @click="open = false; showModalMp = true" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2.5">
+                        <i class="fab fa-amazon-pay text-indigo-500 w-4 text-center"></i>
+                        <span>Mercado Pago</span>
+                    </button>
+
+                    <button @click="open = false; showModalInter = true" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition flex items-center gap-2.5">
+                        <i class="fas fa-university text-orange-500 w-4 text-center"></i>
+                        <span>Banco Inter</span>
+                    </button>
+
+                    <div class="border-t border-gray-100 my-1"></div>
+
+                    <button @click="open = false; showModalOfx = true" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition flex items-center gap-2.5">
+                        <i class="fas fa-file-upload text-gray-500 w-4 text-center"></i>
+                        <span>Importar Arquivo (OFX / CSV)</span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Dropdown 2: Ferramentas & Regras --}}
+            <div x-data="{ open: false }" class="relative inline-block text-left" @click.outside="open = false">
+                <button @click="open = !open" type="button" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition flex items-center gap-2">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Ferramentas & Regras</span>
+                    <i class="fas fa-chevron-down text-xs transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
+                </button>
+
+                <div x-show="open" x-cloak
+                     x-transition:enter="transition ease-out duration-100"
+                     x-transition:enter-start="transform opacity-0 scale-95"
+                     x-transition:enter-end="transform opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="transform opacity-100 scale-100"
+                     x-transition:leave-end="transform opacity-0 scale-95"
+                     class="origin-top-right absolute right-0 mt-2 w-64 rounded-2xl shadow-xl bg-white border border-gray-100 z-50 overflow-hidden py-1.5">
+
+                    <form method="POST" action="{{ route('financeiro.conciliacao.auto-conciliar-transferencias') }}" @submit="open = false">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition flex items-center gap-2.5">
+                            <i class="fas fa-exchange-alt text-emerald-600 w-4 text-center"></i>
+                            <span>Auto-Conciliar Transferências</span>
+                        </button>
+                    </form>
+
+                    <button @click="open = false; showModalRegras = true" class="w-full text-left px-4 py-2.5 text-xs font-bold text-amber-700 hover:bg-amber-50 transition flex items-center gap-2.5">
+                        <i class="fas fa-cog text-amber-600 w-4 text-center"></i>
+                        <span>Regras Padrão de Conciliação</span>
+                    </button>
+
+                    <div class="border-t border-gray-100 my-1"></div>
+
+                    <button @click="open = false; showModalIgnorados = true" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition flex items-center gap-2.5">
+                        <i class="fas fa-trash-restore text-gray-500 w-4 text-center"></i>
+                        <span>Transações Ignoradas ({{ $ignorados->count() }})</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
