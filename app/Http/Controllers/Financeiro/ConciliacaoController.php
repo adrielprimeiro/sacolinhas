@@ -20,6 +20,20 @@ class ConciliacaoController extends Controller
         $this->service = $service;
     }
 
+    public function autoConciliarTransferencias()
+    {
+        try {
+            $qtd = $this->service->autoConciliarTransferenciasEntreContas();
+            if ($qtd > 0) {
+                return back()->with('success', "✅ {$qtd} transferência(s) entre contas identificada(s) e conciliada(s) automaticamente!");
+            }
+            return back()->with('info', "Nenhuma nova transferência entre contas pendente foi identificada no momento.");
+        } catch (\Exception $e) {
+            Log::error("Erro ao conciliar transferências: " . $e->getMessage());
+            return back()->with('error', "Erro ao conciliar transferências: " . $e->getMessage());
+        }
+    }
+
     public function index()
     {
         try {

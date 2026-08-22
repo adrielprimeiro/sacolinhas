@@ -1446,13 +1446,21 @@ class ConciliacaoService
      */
     public function autoConciliarTransacoesPendentes(?int $contaBancariaId = null): int
     {
+        // 0. Auto-conciliar pares de transferências entre contas bancárias da empresa primeiro
+        $countTransferencias = 0;
+        try {
+            $countTransferencias = $this->autoConciliarTransferenciasEntreContas($contaBancariaId);
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação de transferências entre contas: " . $e->getMessage());
+        }
+
         $query = TransacaoExtrato::where('status', 'pendente');
         if ($contaBancariaId) {
             $query->where('conta_bancaria_id', $contaBancariaId);
         }
         $transacoes = $query->get();
 
-        $count = 0;
+        $count = $countTransferencias;
         foreach ($transacoes as $transacao) {
             $matched = \DB::transaction(function () use ($transacao) {
                 // Lock row
@@ -1692,5 +1700,146 @@ class ConciliacaoService
         }
 
         return $sugestoesUnicas->sortByDesc('score');
+    }
+
+    /**
+     * Identifica e concilia automaticamente transferências entre contas bancárias da empresa.
+     */
+    public function autoConciliarTransferenciasEntreContas(?int $contaBancariaId = null): int
+    {
+        $query = TransacaoExtrato::where('status', 'pendente')->where('tipo', 'saida');
+        if ($contaBancariaId) {
+            $query->where('conta_bancaria_id', $contaBancariaId);
+        }
+        $saidasPendentes = $query->get();
+
+        $catTransferencia = \App\Models\ClassificacaoFinanceira::where(function ($q) {
+                $q->where('nome', 'like', '%Transfer%')
+                  ->orWhere('codigo_contabil', '9.99');
+            })
+            ->first();
+
+        if (!$catTransferencia) {
+            $catTransferencia = \App\Models\ClassificacaoFinanceira::create([
+                'user_id' => 1,
+                'nome' => 'Transferência entre Contas',
+                'codigo_contabil' => '9.99',
+                'tipo_natureza' => 'despesa',
+                'nivel' => 'sintetico',
+                'area_finalidade' => 'geral',
+            ]);
+        }
+
+        $count = 0;
+
+        foreach ($saidasPendentes as $saida) {
+            $matched = \DB::transaction(function () use ($saida, $catTransferencia) {
+                $saidaLock = TransacaoExtrato::lockForUpdate()->find($saida->id);
+                if (!$saidaLock || $saidaLock->status === 'conciliado') {
+                    return false;
+                }
+
+                $valor = (float) ($saidaLock->valor_bruto ?? $saidaLock->valor);
+                $dataMin = Carbon::parse($saidaLock->data)->subDays(3)->toDateString();
+                $dataMax = Carbon::parse($saidaLock->data)->addDays(3)->toDateString();
+
+                // Buscar uma entrada pendente correspondente em OUTRA conta bancária
+                $entradaQuery = TransacaoExtrato::lockForUpdate()
+                    ->where('status', 'pendente')
+                    ->where('tipo', 'entrada')
+                    ->where('conta_bancaria_id', '!=', $saidaLock->conta_bancaria_id)
+                    ->whereBetween('data', [$dataMin, $dataMax])
+                    ->whereRaw('ABS(valor - ?) < 0.05', [$valor]);
+
+                $entradasCandidatas = $entradaQuery->get();
+
+                if ($entradasCandidatas->isEmpty()) {
+                    return false;
+                }
+
+                $entradaMatched = null;
+                if ($entradasCandidatas->count() === 1) {
+                    $entradaMatched = $entradasCandidatas->first();
+                } else {
+                    foreach ($entradasCandidatas as $cand) {
+                        $descLower = mb_strtolower($cand->descricao, 'UTF-8');
+                        if (str_contains($descLower, 'inter') || str_contains($descLower, 'mercado') || str_contains($descLower, 'mania de melissa') || str_contains($descLower, 'transf')) {
+                            $entradaMatched = $cand;
+                            break;
+                        }
+                    }
+                    if (!$entradaMatched) {
+                        $entradaMatched = $entradasCandidatas->first();
+                    }
+                }
+
+                if (!$entradaMatched || $entradaMatched->status === 'conciliado') {
+                    return false;
+                }
+
+                // Conciliar Par de Extratos de Transferência entre Contas Próprias
+                $lancSaida = Lancamento::create([
+                    'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                    'tipo' => 'despesa',
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $saidaLock->data,
+                    'data_vencimento' => $saidaLock->data,
+                    'valor_total' => $valor,
+                    'descricao' => 'Transferência enviada - ' . $saidaLock->descricao,
+                ]);
+
+                $movSaida = \App\Models\Movimentacao::create([
+                    'lancamento_id' => $lancSaida->id,
+                    'conta_bancaria_id' => $saidaLock->conta_bancaria_id,
+                    'data_pagamento' => $saidaLock->data,
+                    'valor_pago' => $valor,
+                    'forma_pagamento' => 'transferencia',
+                    'transacao_extrato_id' => $saidaLock->id,
+                ]);
+
+                $saidaLock->update([
+                    'status' => 'conciliado',
+                    'movimentacao_id' => $movSaida->id
+                ]);
+
+                $lancEntrada = Lancamento::create([
+                    'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                    'tipo' => 'receita',
+                    'status' => 'pago',
+                    'pessoa_id' => null,
+                    'classificacao_financeira_id' => $catTransferencia->id,
+                    'data_emissao' => $entradaMatched->data,
+                    'data_vencimento' => $entradaMatched->data,
+                    'valor_total' => $valor,
+                    'descricao' => 'Transferência recebida - ' . $entradaMatched->descricao,
+                ]);
+
+                $movEntrada = \App\Models\Movimentacao::create([
+                    'lancamento_id' => $lancEntrada->id,
+                    'conta_bancaria_id' => $entradaMatched->conta_bancaria_id,
+                    'data_pagamento' => $entradaMatched->data,
+                    'valor_pago' => $valor,
+                    'forma_pagamento' => 'transferencia',
+                    'transacao_extrato_id' => $entradaMatched->id,
+                ]);
+
+                $entradaMatched->update([
+                    'status' => 'conciliado',
+                    'movimentacao_id' => $movEntrada->id
+                ]);
+
+                Log::info("Auto-conciliação de Transferência entre Contas realizada: Saída #{$saidaLock->id} (Conta {$saidaLock->conta_bancaria_id}) <-> Entrada #{$entradaMatched->id} (Conta {$entradaMatched->conta_bancaria_id}) | Valor: R$ {$valor}");
+
+                return true;
+            });
+
+            if ($matched) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 }

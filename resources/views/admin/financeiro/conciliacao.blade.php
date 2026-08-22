@@ -12,6 +12,12 @@
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-black text-gray-800">Conciliação Financeira</h2>
         <div class="flex gap-2 flex-wrap">
+            <form method="POST" action="{{ route('financeiro.conciliacao.auto-conciliar-transferencias') }}" class="inline">
+                @csrf
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i>Auto-Conciliar Transferências
+                </button>
+            </form>
             <button @click="showModalRegras = true" class="text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition hover:opacity-90 flex items-center gap-2" style="background-color: #d97706;">
                 <i class="fas fa-cog"></i>Regras Padrão
             </button>

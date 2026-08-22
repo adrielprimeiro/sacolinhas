@@ -181,6 +181,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
         Route::post('/{transacao}/ignorar', [ConciliacaoController::class, 'ignorar'])->name('ignorar');
         Route::post('/{transacao}/restaurar', [ConciliacaoController::class, 'restaurarTransacao'])->name('restaurar');
         Route::post('/transferencia', [ConciliacaoController::class, 'conciliarTransferencia'])->name('transferencia');
+        Route::post('/auto-conciliar-transferencias', [ConciliacaoController::class, 'autoConciliarTransferencias'])->name('auto-conciliar-transferencias');
         Route::post('/regras',         [ConciliacaoController::class, 'salvarRegra'])->name('regras.salvar');
         Route::delete('/regras/{id}',  [ConciliacaoController::class, 'excluirRegra'])->name('regras.excluir');
     });
