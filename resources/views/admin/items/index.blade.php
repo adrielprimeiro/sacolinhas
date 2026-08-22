@@ -209,7 +209,7 @@
 
                         <tr class="border-b border-gray-200 hover:bg-gray-100 align-top">
                             <td class="py-3 px-6 text-center whitespace-nowrap">
-                                <input type="checkbox" class="item-checkbox rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" value="{{ htmlspecialchars(json_encode($etiquetaData)) }}">
+                                <input type="checkbox" class="item-checkbox rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" value="{{ json_encode($etiquetaData) }}">
                             </td>
                             <td class="py-3 px-6 text-left whitespace-nowrap">
                                 @if ($img)
