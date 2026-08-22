@@ -77,6 +77,8 @@ class DashboardController extends Controller
                 ->whereBetween('updated_at', [$inicioMes, $fimMes])
                 ->sum('quantity');
 
+            $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
+
             $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
 
             // Faturamento por Clientes do Clube vs Outros no Mês Vigente
