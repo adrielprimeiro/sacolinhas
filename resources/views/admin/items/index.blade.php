@@ -139,36 +139,42 @@
     </div>
 
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="p-4 bg-gray-50 flex items-center justify-between border-b border-gray-200">
+            <h2 class="text-gray-700 font-semibold flex items-center">
+                <i class="fas fa-list mr-2"></i> Listagem de Itens ({{ $items->total() }})
+            </h2>
+            <button type="button" id="btnPrintSelected" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded shadow-sm text-sm transition hidden flex items-center">
+                <i class="fas fa-print mr-2"></i> Imprimir Etiquetas Selecionadas
+            </button>
+        </div>
+
         <div class="overflow-x-auto">
-            <table class="min-w-full leading-normal">
+            <table class="min-w-full w-full bg-white">
                 <thead>
-                    <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                        <th class="py-3 px-6 text-left">Imagem</th>
-                        <th class="py-3 px-6 text-left">Código</th>
-                        <th class="py-3 px-6 text-left">Produto</th>
-                        <th class="py-3 px-6 text-left">Detalhes</th>
+                    <tr class="bg-gray-100 text-gray-600 uppercase text-xs leading-normal">
+                        <th class="py-3 px-6 text-center w-10">
+                            <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </th>
+                        <th class="py-3 px-6 text-left w-16">Foto</th>
+                        <th class="py-3 px-6 text-left">Cód / SKU</th>
+                        <th class="py-3 px-6 text-left">Nome</th>
+                        <th class="py-3 px-6 text-left">Detalhes (Marca/Cor/Tam/Est/Local)</th>
                         <th class="py-3 px-6 text-left">Status</th>
                         <th class="py-3 px-6 text-left">Preço</th>
                         <th class="py-3 px-6 text-center">Ações</th>
                     </tr>
                 </thead>
-
-                <tbody class="text-gray-700 text-sm">
+                <tbody class="text-gray-600 text-sm font-light">
                     @forelse ($items as $item)
                         @php
-                            $codigo = $item->codigo ?? $item->code ?? null;
-                            $nome = $item->nome_do_produto
-                                ?? $item->nome
-                                ?? $item->name
-                                ?? $item->produto
-                                ?? '—';
-
-                            $marca = $item->marca ?? null;
-                            $cor = $item->cor ?? null;
-                            $tamanho = $item->tamanho ?? $item->tam ?? null;
+                            $nome   = $item->nome_do_produto ?? $item->nome ?? $item->title ?? $item->titulo ?? 'N/A';
+                            $codigo = $item->codigo ?? $item->sku ?? null;
+                            $marca  = $item->marca ?? null;
+                            $cor    = $item->cor ?? null;
+                            $tamanho= $item->tamanho ?? null;
                             $estado = $item->estado ?? null;
-
-                            $statusRaw = $item->status ?? $item->situacao ?? '—';
+                            
+                            $statusRaw = $item->status ?? 'Desconhecido';
                             $status = strtolower((string) $statusRaw);
 
                             $pill = 'bg-gray-200 text-gray-800';
@@ -176,13 +182,13 @@
                             if (in_array($status, ['reservado','reserved'])) $pill = 'bg-yellow-200 text-yellow-800';
                             if (in_array($status, ['vendido','sold','inativo','indisponivel','indisponível'])) $pill = 'bg-red-200 text-red-800';
 
-                            $preco = $item->preco ?? $item->price ?? null;
+                            $preco = $item->preco ?? $item->price ?? 0;
 
-                            $img = $item->imagem_url
-                                ?? $item->imagem
-                                ?? $item->foto
-                                ?? $item->foto_url
-                                ?? null;
+                            $img = $item->imagem_url ?? $item->imagem ?? $item->foto ?? $item->foto_url ?? null;
+                            if (!$img && isset($item->medias) && $item->medias->count() > 0) {
+                                $media = $item->medias->first();
+                                $img = asset('storage/' . $media->url);
+                            }
 
                             $detalhesParts = [];
                             if ($marca) $detalhesParts[] = $marca;
@@ -191,10 +197,20 @@
                             if ($estado) $detalhesParts[] = $estado;
                             if (!empty($item->localizacao)) $detalhesParts[] = 'Local: ' . $item->localizacao;
 
-                            $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '—';
+                            $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '-';
+
+                            $etiquetaData = [
+                                'codigo' => (string)$codigo,
+                                'produto' => strtoupper($marca ?: '') . '   ' . \Illuminate\Support\Str::title($nome) . ' ' . \Illuminate\Support\Str::title($cor ?: '') . ' [' . strtolower($estado ?: '') . ']',
+                                'tamanho' => (string)$tamanho,
+                                'preco' => number_format((float)$preco, 2, ',', '')
+                            ];
                         @endphp
 
                         <tr class="border-b border-gray-200 hover:bg-gray-100 align-top">
+                            <td class="py-3 px-6 text-center whitespace-nowrap">
+                                <input type="checkbox" class="item-checkbox rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" value="{{ htmlspecialchars(json_encode($etiquetaData)) }}">
+                            </td>
                             <td class="py-3 px-6 text-left whitespace-nowrap">
                                 @if ($img)
                                     <img src="{{ $img }}" alt="Imagem do item"
@@ -333,5 +349,190 @@
 
             window.addEventListener('beforeunload', () => { stopScanner(); });
         })();
+
+        // ====== Lógica de Seleção e Impressão de Etiquetas ======
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAllBtn = document.getElementById('selectAll');
+            const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+            const printBtn = document.getElementById('btnPrintSelected');
+
+            function updatePrintButtonVisibility() {
+                const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+                if (checkedCount > 0) {
+                    printBtn.classList.remove('hidden');
+                } else {
+                    printBtn.classList.add('hidden');
+                }
+            }
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('change', function() {
+                    itemCheckboxes.forEach(cb => {
+                        cb.checked = selectAllBtn.checked;
+                    });
+                    updatePrintButtonVisibility();
+                });
+            }
+
+            itemCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (!this.checked) selectAllBtn.checked = false;
+                    updatePrintButtonVisibility();
+                });
+            });
+
+            if (printBtn) {
+                printBtn.addEventListener('click', function() {
+                    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+                    if (checkedBoxes.length === 0) {
+                        alert('Nenhum item selecionado!');
+                        return;
+                    }
+
+                    const etiquetas = [];
+                    checkedBoxes.forEach(cb => {
+                        try {
+                            etiquetas.push(JSON.parse(cb.value));
+                        } catch (e) {
+                            console.error('Erro ao ler dados da etiqueta', e);
+                        }
+                    });
+
+                    printLabelsMultiplas(etiquetas);
+                });
+            }
+        });
+
+        function printLabelsMultiplas(etiquetas) {
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                    @page {
+                        size: 60mm 30mm;
+                        margin: 0;
+                    }
+                    body {
+                        margin: 0.5mm;
+                        padding: 0;
+                        display: flex;
+                        flex-wrap: wrap;
+                        flex-direction: row;
+                        font-family: Arial, sans-serif;
+                        line-height: 1.05;
+                    }
+                    .label {
+                        width: 60mm;
+                        height: 29mm;
+                        display: flex;
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        font-size: 12px;
+                        padding: 1mm;
+                        box-sizing: border-box;
+                        overflow: hidden;
+                    }
+                    .left {
+                        flex: 1.3;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: flex-start;
+                        align-items: flex-start;
+                        height: 100%;
+                        gap: 0.1mm;
+                        overflow: hidden;
+                    }
+                    .produto {
+                        font-weight: normal;
+                        font-size: 9px;
+                        text-align: left;
+                        word-wrap: break-word;
+                        white-space: normal;
+                        margin: 0;
+                        line-height: 1.1;
+                    }
+                    .tamanho {
+                        font-weight: bold;
+                        font-size: 22px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                        margin-bottom: 0;
+                        line-height: 1;
+                    }
+                    .preco {
+                        font-weight: bold;
+                        font-size: 11px;
+                        margin-top: 0 !important;
+                        white-space: nowrap;
+                    }
+                    .valor {
+                        font-weight: normal;
+                        font-size: 11px;
+                        margin-top: 0 !important;
+                        margin-left: 0.5mm;
+                    }
+                    .right {
+                        flex: 0 0 22.5mm;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-end;
+                        height: 100%;
+                        gap: 0.1mm;
+                    }
+                    .barcode {
+                        width: 22.5mm;
+                        height: 22.5mm;
+                    }
+                    .codigoBarra {
+                        font-weight: normal;
+                        font-size: 10px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    }
+                    </style>
+                </head>
+                <body>
+                    ${etiquetas.map(etiqueta => `
+                        <div class="label">
+                            <div class="left">
+                                <div>
+                                    <span class="produto">- ${etiqueta.produto.replace(/'/g, "\\'")}</span>
+                                </div>
+                                <div class="tamanho">${etiqueta.tamanho}</div>
+                                <div>
+                                    <span class="preco">Preço:  </span>
+                                    <span class="valor">${etiqueta.preco}</span>
+                                </div>
+                            </div>
+                            <div class="right">
+                            <img class="barcode" 
+                                 src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(etiqueta.codigo)}"
+                                 alt="QR Code ${etiqueta.codigo}" 
+                                 onload="this.style.opacity=1;" 
+                                 style="opacity:0.5;" />
+                                <div class="codigoBarra">${etiqueta.codigo}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', 'EtiquetasLote', 'width=1000,height=700,scrollbars=yes,resizable=yes');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        }
     </script>
 @endpush
