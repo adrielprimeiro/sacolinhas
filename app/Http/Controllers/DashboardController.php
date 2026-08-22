@@ -81,10 +81,11 @@ class DashboardController extends Controller
 
             $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
 
-            // Faturamento por Clientes do Clube vs Outros no Mês Vigente
-            $usersClubeIds = DB::table('avaliacoes')->whereNotNull('user_id')->pluck('user_id')->toArray();
-            $usersCCIds    = DB::table('conta_corrente')->whereNotNull('user_id')->pluck('user_id')->toArray();
-            $clubeUserIds  = array_unique(array_merge($usersClubeIds, $usersCCIds));
+            // Faturamento por Clientes do Clube vs Outros no Mês Vigente (Membros em clube_assinaturas)
+            $clubeUserIds = DB::table('clube_assinaturas')
+                ->where('status', 'ativa')
+                ->pluck('user_id')
+                ->toArray();
 
             $fatClubeMes = (float) DB::table('pedidos')
                 ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
@@ -99,19 +100,8 @@ class DashboardController extends Controller
                 ->sum('valor_total');
 
             $fatTotalMes = $fatClubeMes + $fatOutrosMes;
-            if ($fatTotalMes == 0) {
-                $fatClubeMes = (float) DB::table('pedidos')
-                    ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
-                    ->whereIn('user_id', $clubeUserIds)
-                    ->sum('valor_total');
-                $fatOutrosMes = (float) DB::table('pedidos')
-                    ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
-                    ->whereNotIn('user_id', $clubeUserIds)
-                    ->sum('valor_total');
-                $fatTotalMes = $fatClubeMes + $fatOutrosMes;
-            }
 
-            $pctClube  = $fatTotalMes > 0 ? round(($fatClubeMes / $fatTotalMes) * 100, 1) : 100.0;
+            $pctClube  = $fatTotalMes > 0 ? round(($fatClubeMes / $fatTotalMes) * 100, 1) : 0.0;
             $pctOutros = $fatTotalMes > 0 ? round(($fatOutrosMes / $fatTotalMes) * 100, 1) : 0.0;
 
             $faturamentoClubeInfo = [

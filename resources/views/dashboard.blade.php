@@ -166,8 +166,8 @@
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Faturamento</p>
-                        <h3 class="text-lg font-bold text-gray-800 mt-1">Clientes do Clube</h3>
+                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Do Mês Vigente</p>
+                        <h3 class="text-lg font-bold text-gray-800 mt-1">Faturamento Clube</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
                         <i class="fas fa-chart-pie text-xl"></i>
@@ -187,7 +187,7 @@
                             />
                             <path
                                 class="text-indigo-600 transition-all duration-1000 ease-out"
-                                stroke-dasharray="{{ min(100, max(0, $faturamentoClubeInfo['pct_clube'] ?? 100)) }}, 100"
+                                stroke-dasharray="{{ min(100, max(0, $faturamentoClubeInfo['pct_clube'] ?? 0)) }}, 100"
                                 stroke-width="4"
                                 stroke-linecap="round"
                                 stroke="currentColor"
@@ -196,7 +196,7 @@
                             />
                         </svg>
                         <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <span class="text-xs font-extrabold text-gray-800">{{ number_format($faturamentoClubeInfo['pct_clube'] ?? 100, 0) }}%</span>
+                            <span class="text-xs font-extrabold text-gray-800">{{ number_format($faturamentoClubeInfo['pct_clube'] ?? 0, 1) }}%</span>
                             <span class="text-[8px] text-indigo-600 font-bold uppercase tracking-tighter">Clube</span>
                         </div>
                     </div>
@@ -207,20 +207,20 @@
                             <p class="text-lg font-extrabold text-indigo-700 leading-tight">
                                 R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}
                             </p>
-                            <p class="text-[11px] text-gray-500 font-medium">Faturamento Clube</p>
+                            <p class="text-[11px] text-gray-500 font-medium">Vendas para Membros</p>
                         </div>
                         <div class="pt-1.5 border-t border-gray-100 space-y-1 text-xs">
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-600 flex items-center gap-1.5 text-[11px]">
                                     <span class="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span> Clube:
                                 </span>
-                                <span class="font-bold text-indigo-700 text-[11px]">{{ number_format($faturamentoClubeInfo['pct_clube'] ?? 100, 1, ',', '.') }}%</span>
+                                <span class="font-bold text-indigo-700 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-500 flex items-center gap-1.5 text-[11px]">
                                     <span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span> Outros:
                                 </span>
-                                <span class="font-semibold text-gray-600 text-[11px]">{{ number_format($faturamentoClubeInfo['pct_outros'] ?? 0, 1, ',', '.') }}%</span>
+                                <span class="font-semibold text-gray-600 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_outros_mes'] ?? 0, 2, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>
@@ -228,8 +228,8 @@
             </div>
 
             <div class="mt-5">
-                <a href="{{ route('admin.avaliacoes.index') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Ver Clube de Avaliações
+                <a href="{{ route('admin.clube.dashboard') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                    Painel do Clube
                 </a>
             </div>
         </div>
