@@ -51,7 +51,18 @@ class AiAssistantController extends Controller
         $user = Auth::user();
         $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
 
-        $prompt = "A cliente acabou de abrir o chat. Dê as boas-vindas curtas de forma extremamente carismática. Se ela não tiver apelido cadastrado, faça uma pergunta curiosa para descobrir como ela gosta de ser chamada. Se já tiver apelido e perfil, faça um comentário gentil baseado nos itens da sacolinha dela ou pergunte como pode ajudar hoje.";
+        $prompts = [
+            "A cliente acabou de abrir o chat. Dê boas-vindas curtas e carismáticas. Pergunte como foi o dia dela e o que ela está buscando hoje (sem focar apenas na sacolinha).",
+            "A cliente abriu o chat. Dê um 'Oie' bem animado! Fale brevemente sobre como a moda circular (brechó) é incrível e pergunte o que ela quer garimpar hoje.",
+            "A cliente abriu o chat. Dê boas-vindas curtas. Se ela tiver itens na sacolinha, você PODE mencioná-los sutilmente, mas foque em perguntar qual estilo de look ela quer montar.",
+            "A cliente abriu o chat. Dê as boas-vindas curtas e seja curiosa: pergunte qual a ocasião especial que ela está planejando (trabalho, festa, passeio) para você ajudar a escolher peças.",
+            "A cliente acabou de abrir o chat. Dê boas-vindas curtas, elogie a energia dela e pergunte simplesmente: 'Como posso te ajudar a ficar ainda mais linda hoje?'"
+        ];
+        
+        $promptBase = $prompts[array_rand($prompts)];
+        $prompt = "ATENÇÃO: ESTA É A PRIMEIRA MENSAGEM DO CHAT. \n" . 
+                  $promptBase . 
+                  "\nIMPORTANTE: Se a cliente não tiver o 'Apelido' cadastrado, sempre dê um jeito de perguntar no final da mensagem como ela gosta de ser chamada para você anotar!";
         
         $result = $this->ragService->ask($prompt, $user, null, $maniMode);
 
