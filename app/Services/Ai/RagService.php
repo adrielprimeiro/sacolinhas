@@ -197,7 +197,7 @@ class RagService
     /**
      * Processa a pergunta do usuário e retorna a resposta da IA com base no RAG.
      */
-    public function ask(string $userMessage, ?User $user = null, ?string $sessionId = null): array
+    public function ask(string $userMessage, ?User $user = null, ?string $sessionId = null, bool $maniMode = false): array
     {
         $sessionId = $sessionId ?: (string) Str::uuid();
 
@@ -218,16 +218,28 @@ class RagService
         $liveContextText = $this->getLiveSystemContext($user, $userMessage);
 
         // 3. Monta o Prompt de Sistema
-        $systemInstruction = "Você é o assistente virtual oficial do sistema Sacolinhas (Mania de Melissa).\n" .
-            "Seu objetivo é ser atencioso, rápido e preciso. Responda sempre em Português do Brasil.\n\n" .
-            "DIRETRIZES DE RESPOSTA:\n" .
-            "1. Utilize as informações de regras da empresa e os dados do sistema fornecidos no contexto abaixo para responder.\n" .
-            "2. Se a dúvida for sobre status de sacolinha, pedidos ou saldo, consulte diretamente os 'DADOS EM TEMPO REAL DO CLIENTE'.\n" .
-            "3. Se as informações fornecidas não forem suficientes para responder à pergunta com certeza, seja honesto e diga que não encontrou os detalhes específicos e oriente o cliente a falar com o suporte humano.\n" .
-            "4. Nunca invente status de pedidos ou valores que não estão no contexto.\n\n" .
-            "CONTEXTO ATUALIZADO DO SISTEMA:\n" .
-            $knowledgeText . "\n" .
-            $liveContextText;
+        if ($maniMode) {
+            $systemInstruction = "Você é a Mani, a capivara mascote e Personal Stylist super fashion da Mania de Melissa.\n" .
+                "Você é carismática, usa emojis fofos (🐹✨💅) e entende tudo de moda.\n" .
+                "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
+                "1. Olhe os itens que a cliente já tem na sacolinha (disponíveis nos DADOS EM TEMPO REAL) e sugira looks criativos com eles.\n" .
+                "2. Se a cliente perguntar por sugestões gerais, pesquise mentalmente combinações lógicas para as peças que ela tem e cite categorias que combinem.\n" .
+                "3. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
+                "CONTEXTO DO SISTEMA E ESTOQUE:\n" .
+                $knowledgeText . "\n" .
+                $liveContextText;
+        } else {
+            $systemInstruction = "Você é o assistente virtual oficial do sistema Sacolinhas (Mania de Melissa).\n" .
+                "Seu objetivo é ser atencioso, rápido e preciso. Responda sempre em Português do Brasil.\n\n" .
+                "DIRETRIZES DE RESPOSTA:\n" .
+                "1. Utilize as informações de regras da empresa e os dados do sistema fornecidos no contexto abaixo para responder.\n" .
+                "2. Se a dúvida for sobre status de sacolinha, pedidos ou saldo, consulte diretamente os 'DADOS EM TEMPO REAL DO CLIENTE'.\n" .
+                "3. Se as informações fornecidas não forem suficientes para responder à pergunta com certeza, seja honesto e diga que não encontrou os detalhes específicos e oriente o cliente a falar com o suporte humano.\n" .
+                "4. Nunca invente status de pedidos ou valores que não estão no contexto.\n\n" .
+                "CONTEXTO ATUALIZADO DO SISTEMA:\n" .
+                $knowledgeText . "\n" .
+                $liveContextText;
+        }
 
         // 4. Carrega histórico recente da sessão (últimas 6 mensagens)
         $recentMessages = ChatMessage::where('session_id', $sessionId)

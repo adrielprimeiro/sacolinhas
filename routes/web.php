@@ -646,6 +646,9 @@ Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('port
     
     // Curadoria (Lista de Desejos)
     Route::get('/curadoria', [PortalClienteController::class, 'curadoria'])->name('curadoria');
+    
+    // IA Stylist (Mani)
+    Route::get('/mani', [PortalClienteController::class, 'mani'])->name('mani');
 
     // Perfil do cliente
     Route::get('/perfil', [PortalClienteController::class, 'perfil'])->name('perfil');

@@ -145,11 +145,19 @@
 				   <span>Jogar</span>
 				</a>
 
+                <a href="{{ route('portal.mani') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-pink-50 text-pink-700 font-medium {{ request()->routeIs('portal.mani') ? 'bg-pink-100 font-semibold' : '' }}">
+                    <i class="fas fa-magic text-pink-500 w-5 text-center"></i>
+                    <span>Mani Stylist <span class="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold">IA</span></span>
+                </a>
+
+                {{-- 
                 <a href="{{ route('portal.curadoria') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-green-50 text-green-700 font-medium {{ request()->routeIs('portal.curadoria') ? 'bg-green-100 font-semibold' : '' }}">
                     <i class="fas fa-gem text-green-600 w-5"></i>
                     <span>Curadoria</span>
                 </a>
+                --}}
                 <div class="my-4 border-t border-gray-200"></div>
 
                 @auth

@@ -23,6 +23,12 @@ class PortalClienteController extends Controller
         return view('portal.cliente.curadoria', compact('user', 'wishes'));
     }
 
+    public function mani()
+    {
+        $user = Auth::user();
+        return view('portal.cliente.mani', compact('user'));
+    }
+
 	public function dashboard()
 	{
 		$user = Auth::user();

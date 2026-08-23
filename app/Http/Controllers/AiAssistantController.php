@@ -31,8 +31,9 @@ class AiAssistantController extends Controller
         $user = Auth::user();
         $message = trim($request->input('message'));
         $sessionId = $request->input('session_id');
+        $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
 
-        $result = $this->ragService->ask($message, $user, $sessionId);
+        $result = $this->ragService->ask($message, $user, $sessionId, $maniMode);
 
         return response()->json([
             'success' => true,
