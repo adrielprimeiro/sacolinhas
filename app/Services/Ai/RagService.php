@@ -148,9 +148,11 @@ class RagService
                     $contextLines[] = "Últimos pedidos do cliente:";
                     foreach ($pedidos as $ped) {
                         $dataPed = $ped->created_at ? $ped->created_at->format('d/m/Y') : 'N/A';
-                        $valorPed = number_format($ped->total ?? 0, 2, ',', '.');
-                        $rastreio = $ped->codigo_rastreio ? "Rastreio: {$ped->codigo_rastreio}" : "";
-                        $contextLines[] = "- Pedido #{$ped->id} em {$dataPed} - Status: {$ped->status} - Total: R$ {$valorPed} {$rastreio}";
+                        $valorPed = number_format($ped->valor_total ?? 0, 2, ',', '.');
+                        $rastreio = $ped->codigo_rastreamento ? "Rastreio: {$ped->codigo_rastreamento}" : "";
+                        $statusPedido = $ped->status_pedido ?: 'desconhecido';
+                        $statusPagto = $ped->status_pagamento ?: 'desconhecido';
+                        $contextLines[] = "- Pedido #{$ped->id} em {$dataPed} - Status do Pedido: {$statusPedido} - Status do Pagamento: {$statusPagto} - Total: R$ {$valorPed} {$rastreio}";
                     }
                 }
             } catch (\Exception $e) {
