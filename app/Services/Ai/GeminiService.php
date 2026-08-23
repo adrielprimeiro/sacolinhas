@@ -30,12 +30,12 @@ class GeminiService
         }
 
         try {
-            $url = "{$this->baseUrl}/models/text-embedding-004:embedContent?key={$this->apiKey}";
+            $url = "{$this->baseUrl}/models/text-embedding-005:embedContent?key={$this->apiKey}";
             
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
             ])->post($url, [
-                'model' => 'models/text-embedding-004',
+                'model' => 'models/text-embedding-005',
                 'content' => [
                     'parts' => [
                         ['text' => mb_substr($text, 0, 8000)]
@@ -70,7 +70,7 @@ class GeminiService
             return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
         }
 
-        $modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+        $modelsToTry = ['gemini-3.6-flash'];
 
         $contents = [];
         foreach ($history as $msg) {

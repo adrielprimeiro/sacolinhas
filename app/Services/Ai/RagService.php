@@ -125,8 +125,8 @@ class RagService
                     $totalItens = $sacolinhas->count();
                     $contextLines[] = "O cliente possui {$totalItens} item(ns) na sacolinha aberta no momento:";
                     foreach ($sacolinhas as $sacola) {
-                        $nomeItem = $sacola->item->nome ?? $sacola->item->descricao ?? "Item #{$sacola->item_id}";
-                        $valor = isset($sacola->item->preco_venda) ? "R$ " . number_format($sacola->item->preco_venda, 2, ',', '.') : '';
+                        $nomeItem = $sacola->item->nome_do_produto ?? $sacola->item->descricao ?? "Item #{$sacola->item_id}";
+                        $valor = isset($sacola->item->preco) ? "R$ " . number_format($sacola->item->preco, 2, ',', '.') : '';
                         $contextLines[] = "- {$nomeItem} (Status: {$sacola->status}) {$valor}";
                     }
                 } else {
@@ -172,7 +172,7 @@ class RagService
             try {
                 $itemsQuery = Item::query();
                 foreach ($keywords as $kw) {
-                    $itemsQuery->orWhere('nome', 'LIKE', "%{$kw}%")
+                    $itemsQuery->orWhere('nome_do_produto', 'LIKE', "%{$kw}%")
                                ->orWhere('codigo', 'LIKE', "%{$kw}%")
                                ->orWhere('descricao', 'LIKE', "%{$kw}%");
                 }
@@ -181,9 +181,9 @@ class RagService
                 if ($produtosEncontrados->isNotEmpty()) {
                     $contextLines[] = "--- PRODUTOS DISPONÍVEIS NO ESTOQUE CORRESPONDENTES À BUSCA ---";
                     foreach ($produtosEncontrados as $prod) {
-                        $preco = number_format($prod->preco_venda ?? 0, 2, ',', '.');
+                        $preco = number_format($prod->preco ?? 0, 2, ',', '.');
                         $tamanho = $prod->tamanho ? "Tamanho: {$prod->tamanho}" : "";
-                        $contextLines[] = "- Cod: {$prod->codigo} | {$prod->nome} {$tamanho} | R$ {$preco}";
+                        $contextLines[] = "- Cod: {$prod->codigo} | {$prod->nome_do_produto} {$tamanho} | R$ {$preco}";
                     }
                 }
             } catch (\Exception $e) {
