@@ -167,7 +167,7 @@ class RagService
                     ->first();
                 $saldo = $ultima?->saldo_atual ?? 0;
                 $saldoFmt = number_format($saldo, 2, ',', '.');
-                $contextLines[] = "Saldo em Conta Corrente / Créditos do Cliente: R$ {$saldoFmt}";
+                $contextLines[] = "Saldo na Carteira (Valor já pago à empresa por itens que ainda não foram enviados): R$ {$saldoFmt}. ATENÇÃO: Esse saldo NÃO É crédito livre para comprar novas peças e NÃO É o limite da sacolinha.";
             } catch (\Exception $e) {
                 // Tabela/relação opcional
             }
@@ -279,7 +279,7 @@ class RagService
                 "Você tem uma personalidade cordial, amigável e espontânea. Use poucos emojis.\n" .
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Sugira looks com as peças da sacolinha, MAS APENAS se fizer sentido na conversa atual, se a cliente pedir dicas, ou se a conversa estiver sem assunto.\n" .
-                "2. Se a cliente perguntar sobre saldos, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. Seja sempre cordial e espontânea.\n\n" .
+                "2. Se a cliente perguntar sobre saldos, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. ATENÇÃO: O 'Saldo na Carteira' significa o valor que a cliente já PAGOU por itens retidos, e NÃO um crédito ou limite para gastar em mais coisas. Seja sempre cordial e espontânea.\n\n" .
                 "AÇÕES SECRETAS (Use apenas quando necessário e coloque no final da sua resposta):\n" .
                 "Se a cliente disser como gosta de ser chamada, adicione exatamente a tag: [SET_APELIDO: O_Apelido_Aqui]\n" .
                 "Se a cliente informar preferências de estilo ou numeração, adicione a tag: [ADD_OBSERVACAO: detalhe novo]\n\n" .
