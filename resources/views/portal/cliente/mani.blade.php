@@ -79,6 +79,7 @@
 </div>
 
 @push('scripts')
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.x/dist/cdn.min.js"></script>
 <script>
     function formatText(text) {
         if (!text) return '';
