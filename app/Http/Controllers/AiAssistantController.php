@@ -52,17 +52,17 @@ class AiAssistantController extends Controller
         $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
 
         $prompts = [
-            "A cliente acabou de abrir o chat. Dê boas-vindas curtas e carismáticas. Pergunte como foi o dia dela e o que ela está buscando hoje (sem focar apenas na sacolinha).",
-            "A cliente abriu o chat. Dê um 'Oie' bem animado! Fale brevemente sobre como a moda circular (brechó) é incrível e pergunte o que ela quer garimpar hoje.",
-            "A cliente abriu o chat. Dê boas-vindas curtas. Se ela tiver itens na sacolinha, você PODE mencioná-los sutilmente, mas foque em perguntar qual estilo de look ela quer montar.",
-            "A cliente abriu o chat. Dê as boas-vindas curtas e seja curiosa: pergunte qual a ocasião especial que ela está planejando (trabalho, festa, passeio) para você ajudar a escolher peças.",
-            "A cliente acabou de abrir o chat. Dê boas-vindas curtas, elogie a energia dela e pergunte simplesmente: 'Como posso te ajudar a ficar ainda mais linda hoje?'"
+            "A cliente abriu o chat. Dê um oi rápido, cordial e espontâneo (máximo de 2 linhas). Pergunte casualmente o que ela busca ou como pode ajudar.",
+            "A cliente abriu o chat. Seja breve e amigável (máximo de 2 linhas). Dê as boas-vindas e pergunte de forma natural se ela procura algo específico hoje.",
+            "A cliente abriu o chat. Dê um oi casual e espontâneo (máximo de 2 linhas). Se quiser, faça um comentário bem sutil sobre moda circular e pergunte como pode ajudar.",
+            "A cliente abriu o chat. Seja direta, cordial e natural (máximo de 2 linhas). Pergunte que tipo de look ela tem em mente para hoje.",
+            "A cliente abriu o chat. Dê um oi amigável e rápido (máximo de 2 linhas). Pergunte de forma espontânea como você pode ajudá-la a garimpar peças."
         ];
         
         $promptBase = $prompts[array_rand($prompts)];
         $prompt = "ATENÇÃO: ESTA É A PRIMEIRA MENSAGEM DO CHAT. \n" . 
                   $promptBase . 
-                  "\nIMPORTANTE: Se a cliente não tiver o 'Apelido' cadastrado, sempre dê um jeito de perguntar no final da mensagem como ela gosta de ser chamada para você anotar!";
+                  "\nIMPORTANTE: Mantenha a resposta extremamente curta (1 ou 2 parágrafos pequenos no máximo). Se a cliente não tiver o 'Apelido' cadastrado, pergunte no final, de forma sutil, como ela prefere ser chamada.";
         
         $result = $this->ragService->ask($prompt, $user, null, $maniMode);
 
