@@ -196,7 +196,13 @@ class RagService
                     ->where('user_id', $user->id)
                     ->where('mes_ano', $mesAtual)
                     ->value('total') ?? 0;
-                $contextLines[] = "Pontuação atual da cliente no Jogo/Ranking deste mês: {$pontuacao} pontos.";
+                
+                $posicao = \Illuminate\Support\Facades\DB::table('pontuacoes_clientes')
+                    ->where('mes_ano', $mesAtual)
+                    ->where('total', '>', $pontuacao)
+                    ->count() + 1;
+
+                $contextLines[] = "Pontuação atual da cliente no Jogo/Ranking deste mês: {$pontuacao} pontos. (Posição atual: {$posicao}º lugar)";
             } catch (\Exception $e) {
                 // Ignore se não tiver tabela
             }
