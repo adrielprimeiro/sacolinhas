@@ -240,7 +240,7 @@ class RagService
         
         if (!empty($keywords)) {
             try {
-                $itemsQuery = Item::query()->where('status', 'disponivel');
+                $itemsQuery = Item::query()->whereIn('status', ['disponivel', 'estoque', 'loja']);
                 
                 foreach ($keywords as $kw) {
                     $itemsQuery->where(function ($q) use ($kw) {
