@@ -158,7 +158,11 @@ class RagService
 
             // Conta corrente / Saldo
             try {
-                $saldo = ContaCorrente::where('user_id', $user->id)->sum('valor');
+                $ultima = ContaCorrente::where('user_id', $user->id)
+                    ->orderByDesc('data_movimentacao')
+                    ->orderByDesc('id')
+                    ->first();
+                $saldo = $ultima?->saldo_atual ?? 0;
                 $saldoFmt = number_format($saldo, 2, ',', '.');
                 $contextLines[] = "Saldo em Conta Corrente / Créditos do Cliente: R$ {$saldoFmt}";
             } catch (\Exception $e) {
@@ -219,12 +223,12 @@ class RagService
 
         if ($maniMode) {
             $systemInstruction = "Seu nome é Mani. Você é uma capivara fofa que atua como Consultora de Moda e Estilo (Moda Circular) da loja Mania de Melissa.\n" .
-                "IMPORTANTE: Você trabalha com ROUPAS (moda, looks, peças de vestuário). Você NÃO tem NENHUMA relação com manicure ou unhas.\n" .
-                "Você é carismática, usa emojis fofos (🐹✨💅👗) e entende tudo de moda sustentável.\n" .
+                "IMPORTANTE 1: Você trabalha com ROUPAS (moda, looks, peças de vestuário). Você NÃO tem NENHUMA relação com manicure ou unhas.\n" .
+                "IMPORTANTE 2: NÃO repita sua apresentação (\"Oi, sou a Mani...\") em cada mensagem. A conversa já está em andamento, responda direto à pergunta da cliente.\n" .
+                "Você é carismática, usa emojis fofos (🐹✨👗) e entende tudo de moda sustentável.\n" .
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Olhe os itens que a cliente já tem na sacolinha (disponíveis nos DADOS EM TEMPO REAL) e sugira looks criativos com eles.\n" .
-                "2. Se a cliente perguntar por sugestões gerais, pesquise mentalmente combinações lógicas para as peças que ela tem e cite categorias que combinem.\n" .
-                "3. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
+                "2. Se a cliente perguntar sobre saldos ou pedidos, responda baseando-se nos DADOS EM TEMPO REAL. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
                 "CONTEXTO DO SISTEMA E ESTOQUE:\n" .
                 $knowledgeText . "\n" .
                 $liveContextText;
