@@ -74,8 +74,22 @@ class LiveMovimentacaoController extends Controller
         $atualizados = 0;
         $naoEncontrados = [];
 
-        foreach ($codigos as $codigo) {
-            $item = Item::where('codigo', $codigo)->first();
+        foreach ($codigos as $rawCodigo) {
+            $codigo = trim($rawCodigo);
+
+            if (filter_var($codigo, FILTER_VALIDATE_URL)) {
+                $path = parse_url($codigo, PHP_URL_PATH);
+                $parts = array_filter(explode('/', (string)$path));
+                if (!empty($parts)) {
+                    $codigo = end($parts);
+                }
+            }
+
+            $item = Item::where('codigo', $codigo)
+                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+                ->first();
+
             if (!$item) {
                 $naoEncontrados[] = $codigo;
                 continue;
@@ -125,8 +139,22 @@ class LiveMovimentacaoController extends Controller
         $atualizados = 0;
         $naoEncontrados = [];
 
-        foreach ($codigos as $codigo) {
-            $item = Item::where('codigo', $codigo)->first();
+        foreach ($codigos as $rawCodigo) {
+            $codigo = trim($rawCodigo);
+
+            if (filter_var($codigo, FILTER_VALIDATE_URL)) {
+                $path = parse_url($codigo, PHP_URL_PATH);
+                $parts = array_filter(explode('/', (string)$path));
+                if (!empty($parts)) {
+                    $codigo = end($parts);
+                }
+            }
+
+            $item = Item::where('codigo', $codigo)
+                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+                ->first();
+
             if (!$item) {
                 $naoEncontrados[] = $codigo;
                 continue;

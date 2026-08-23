@@ -245,6 +245,10 @@
     </div>
     <div class="scanner-bottom">
         <div id="last-scan">Aguardando leitura…</div>
+        <div style="display:flex; gap:8px; width:100%; max-width:340px; margin: 0 auto 10px;">
+            <input type="text" id="manual-live-input" placeholder="Ou digite o código..." style="flex:1; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(0,0,0,0.5); color:#fff; font-size:14px; outline:none;" autocomplete="off">
+            <button type="button" id="btn-manual-live-add" class="btn btn-primary" style="width:auto; padding:10px 14px; min-height:42px; font-size:13px;">+ Add</button>
+        </div>
         <button class="btn btn-primary" onclick="closeScanner()" style="min-height:52px;"><i class="fas fa-stop-circle"></i> Fechar e revisar</button>
     </div>
 </div>
@@ -288,6 +292,30 @@ function cleanCode(rawCode) {
 
 let isScanningLive = false;
 
+let onCodeFoundGlobal = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnLiveAdd = document.getElementById('btn-manual-live-add');
+    const inputLive  = document.getElementById('manual-live-input');
+    if (btnLiveAdd && inputLive) {
+        const processManual = () => {
+            const val = inputLive.value.trim();
+            if (val && typeof onCodeFoundGlobal === 'function') {
+                onCodeFoundGlobal(val);
+                inputLive.value = '';
+                inputLive.focus();
+            }
+        };
+        btnLiveAdd.addEventListener('click', processManual);
+        inputLive.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                processManual();
+            }
+        });
+    }
+});
+
 function openScanner(mode) {
     currentMode = mode;
     scannedCodes = [];
@@ -312,6 +340,7 @@ function openScanner(mode) {
             }
         }
     };
+    onCodeFoundGlobal = onCodeFound;
 
     // 1. Tentar BarcodeDetector Nativo (Hardware 60 FPS)
     if ('BarcodeDetector' in window) {
