@@ -276,8 +276,32 @@ class RagService
     {
         $sessionId = $sessionId ?: (string) Str::uuid();
 
-        // 1. Busca na base de conhecimento (Vector RAG)
-        $knowledgeBaseMatches = $this->searchKnowledgeBase($userMessage);
+        // 1. Carrega histórico recente da sessão (últimas 6 mensagens)
+        $recentMessages = ChatMessage::where('session_id', $sessionId)
+            ->orderBy('id', 'desc')
+            ->limit(6)
+            ->get()
+            ->reverse()
+            ->values();
+
+        $historyFormatted = [];
+        $recentUserTexts = [];
+        foreach ($recentMessages as $msg) {
+            $historyFormatted[] = [
+                'role' => $msg->role,
+                'text' => $msg->message,
+            ];
+            if ($msg->role === 'user') {
+                $recentUserTexts[] = $msg->message;
+            }
+        }
+        $recentUserTexts[] = $userMessage;
+        
+        // Combina as últimas mensagens do usuário para não perder contexto na busca (ex: "calça 42" -> "tem?")
+        $combinedSearchQuery = implode(" ", $recentUserTexts);
+
+        // 2. Busca na base de conhecimento (Vector RAG)
+        $knowledgeBaseMatches = $this->searchKnowledgeBase($combinedSearchQuery);
         
         $knowledgeText = "";
         $sourcesUsed = [];
@@ -289,8 +313,8 @@ class RagService
             }
         }
 
-        // 2. Coleta dados ao vivo do sistema
-        $liveContextText = $this->getLiveSystemContext($user, $userMessage);
+        // 3. Coleta dados ao vivo do sistema
+        $liveContextText = $this->getLiveSystemContext($user, $combinedSearchQuery);
 
         if ($maniMode) {
             $systemInstruction = "Seu nome é Mani. Você é uma capivara fofa que atua como Consultora de Moda e Estilo (Moda Circular) da loja Mania de Melissa.\n" .
@@ -319,22 +343,6 @@ class RagService
                 "CONTEXTO ATUALIZADO DO SISTEMA:\n" .
                 $knowledgeText . "\n" .
                 $liveContextText;
-        }
-
-        // 4. Carrega histórico recente da sessão (últimas 6 mensagens)
-        $recentMessages = ChatMessage::where('session_id', $sessionId)
-            ->orderBy('id', 'desc')
-            ->limit(6)
-            ->get()
-            ->reverse()
-            ->values();
-
-        $historyFormatted = [];
-        foreach ($recentMessages as $msg) {
-            $historyFormatted[] = [
-                'role' => $msg->role,
-                'text' => $msg->message,
-            ];
         }
 
         // 5. Salva mensagem do usuário
