@@ -10,7 +10,7 @@
                 <i class="fas fa-magic"></i> Consultora Mani
             </h1>
             <p class="mt-2 text-pink-100 max-w-xl">
-                Olá, eu sou a Mani! 💅 Sou a capivara mascote da Mania de Melissa e sua Consultora de Moda. Peça dicas de looks combinando com o que você já tem na sacolinha!
+                Olá, eu sou a Mani! ✨ Sou a capivara mascote da Mania de Melissa e sua Consultora de Moda. Peça dicas de looks combinando com o que você já tem na sacolinha!
             </p>
         </div>
         <div class="hidden sm:block">
@@ -88,8 +88,8 @@
         return text;
     }
 
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('chatMani', () => ({
+    function chatMani() {
+        return {
             input: '',
             loading: false,
             messages: [],
@@ -128,6 +128,7 @@
                         this.messages.push({ role: 'assistant', text: 'Ops, tive um probleminha para pensar agora. Tente de novo!' });
                     }
                 } catch (e) {
+                    console.error(e);
                     this.messages.push({ role: 'assistant', text: 'Ops, minha internet capivara caiu! Tente novamente.' });
                 }
 
@@ -138,11 +139,13 @@
             scrollToBottom() {
                 setTimeout(() => {
                     const container = document.getElementById('mani-chat-messages');
-                    container.scrollTop = container.scrollHeight;
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
                 }, 100);
             }
-        }));
-    });
+        };
+    }
 </script>
 @endpush
 @endsection
