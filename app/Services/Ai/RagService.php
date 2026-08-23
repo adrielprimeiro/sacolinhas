@@ -169,6 +169,37 @@ class RagService
             } catch (\Exception $e) {
                 // Tabela/relação opcional
             }
+
+            // Minhas Avaliações
+            try {
+                $avaliacoes = \Illuminate\Support\Facades\DB::table('avaliacoes')
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('id')
+                    ->limit(2)
+                    ->get();
+                if ($avaliacoes->isNotEmpty()) {
+                    $contextLines[] = "Últimas Avaliações (Roupas enviadas pela cliente para avaliação da loja):";
+                    foreach ($avaliacoes as $av) {
+                        $dataAv = $av->created_at ? date('d/m/Y', strtotime($av->created_at)) : 'N/A';
+                        $valorOferecido = number_format($av->valor_total ?? 0, 2, ',', '.');
+                        $contextLines[] = "- Avaliação #{$av->id} em {$dataAv} - Status: {$av->status} - Valor Oferecido: R$ {$valorOferecido}";
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore
+            }
+
+            // Jogar / Pontuação (Ranking)
+            try {
+                $mesAtual = date('Y-m');
+                $pontuacao = \Illuminate\Support\Facades\DB::table('pontuacoes_clientes')
+                    ->where('user_id', $user->id)
+                    ->where('mes_ano', $mesAtual)
+                    ->value('total') ?? 0;
+                $contextLines[] = "Pontuação atual da cliente no Jogo/Ranking deste mês: {$pontuacao} pontos.";
+            } catch (\Exception $e) {
+                // Ignore se não tiver tabela
+            }
         }
 
         // 2. Busca de produtos no estoque se a pergunta parecer sobre produtos
@@ -229,7 +260,7 @@ class RagService
                 "Você é carismática, usa emojis fofos (🐹✨👗) e entende tudo de moda sustentável.\n" .
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Sugira looks com as peças da sacolinha, MAS APENAS se fizer sentido na conversa atual, se a cliente pedir dicas, ou se a conversa estiver sem assunto.\n" .
-                "2. Se a cliente perguntar sobre saldos ou pedidos, responda baseando-se nos DADOS EM TEMPO REAL. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
+                "2. Se a cliente perguntar sobre saldos, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
                 "AÇÕES SECRETAS (Use apenas quando necessário e coloque no final da sua resposta):\n" .
                 "Se a cliente disser como gosta de ser chamada, adicione exatamente a tag: [SET_APELIDO: O_Apelido_Aqui]\n" .
                 "Se a cliente informar preferências de estilo ou numeração, adicione a tag: [ADD_OBSERVACAO: detalhe novo]\n\n" .
