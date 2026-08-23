@@ -1,5 +1,5 @@
 @extends('layouts.portal-cliente')
-@section('title', 'Mani - Sua Personal Stylist')
+@section('title', 'Mani - Consultora de Moda')
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">
@@ -7,10 +7,10 @@
     <div class="bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl p-6 text-white shadow-lg flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold flex items-center gap-3">
-                <i class="fas fa-magic"></i> Mani Stylist
+                <i class="fas fa-magic"></i> Consultora Mani
             </h1>
             <p class="mt-2 text-pink-100 max-w-xl">
-                Olá, eu sou a Mani! 💅 Sou a capivara mascote da Mania de Melissa e sua Personal Stylist. Peça dicas de looks combinando com o que você já tem na sacolinha!
+                Olá, eu sou a Mani! 💅 Sou a capivara mascote da Mania de Melissa e sua Consultora de Moda. Peça dicas de looks combinando com o que você já tem na sacolinha!
             </p>
         </div>
         <div class="hidden sm:block">

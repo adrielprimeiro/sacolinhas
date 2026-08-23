@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,7 +148,7 @@
                 <a href="{{ route('portal.mani') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-pink-50 text-pink-700 font-medium {{ request()->routeIs('portal.mani') ? 'bg-pink-100 font-semibold' : '' }}">
                     <i class="fas fa-magic text-pink-500 w-5 text-center"></i>
-                    <span>Mani Stylist <span class="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold">IA</span></span>
+                    <span>Consultora Mani <span class="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold">IA</span></span>
                 </a>
 
                 {{-- 
