@@ -26,16 +26,6 @@
         
         <!-- Messages Area -->
         <div id="mani-chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50 rounded-t-xl">
-            <!-- Initial Message -->
-            <div class="flex items-end gap-2">
-                <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-xl flex-shrink-0">
-                    🐹
-                </div>
-                <div class="bg-white px-4 py-3 rounded-2xl rounded-bl-none shadow-sm border border-gray-100 max-w-[80%] text-gray-700 text-sm">
-                    Oie {{ $user->name }}! ✨ Acabei de dar uma espiadinha na sua sacolinha. Como posso te ajudar a montar um look incrível hoje?
-                </div>
-            </div>
-            
             <!-- Dynamic Messages -->
             <template x-for="(msg, index) in messages" :key="index">
                 <div class="flex items-end gap-2" :class="msg.role === 'user' ? 'flex-row-reverse' : ''">
@@ -93,9 +83,34 @@
             input: '',
             loading: false,
             messages: [],
+            sessionId: null,
             
             formatMessage(text) {
                 return formatText(text);
+            },
+
+            async init() {
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/chat-ia/greeting', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ mani_mode: true })
+                    });
+                    const data = await response.json();
+                    if(data.answer) {
+                        this.messages.push({ role: 'assistant', text: data.answer });
+                        this.sessionId = data.session_id;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.messages.push({ role: 'assistant', text: 'Oie! Tive um probleminha de conexão, mas já estou aqui para te ajudar!' });
+                }
+                this.loading = false;
+                this.scrollToBottom();
             },
 
             async sendMessage() {
@@ -116,7 +131,8 @@
                         },
                         body: JSON.stringify({ 
                             message: userText,
-                            mani_mode: true 
+                            mani_mode: true,
+                            session_id: this.sessionId 
                         })
                     });
 
@@ -124,6 +140,7 @@
                     
                     if(data.answer) {
                         this.messages.push({ role: 'assistant', text: data.answer });
+                        this.sessionId = data.session_id;
                     } else {
                         this.messages.push({ role: 'assistant', text: 'Ops, tive um probleminha para pensar agora. Tente de novo!' });
                     }

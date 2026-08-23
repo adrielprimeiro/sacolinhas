@@ -44,6 +44,25 @@ class AiAssistantController extends Controller
     }
 
     /**
+     * Endpoint API para buscar a saudação inicial dinâmica da IA.
+     */
+    public function getGreeting(Request $request)
+    {
+        $user = Auth::user();
+        $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
+
+        $prompt = "A cliente acabou de abrir o chat. Dê as boas-vindas curtas de forma extremamente carismática. Se ela não tiver apelido cadastrado, faça uma pergunta curiosa para descobrir como ela gosta de ser chamada. Se já tiver apelido e perfil, faça um comentário gentil baseado nos itens da sacolinha dela ou pergunte como pode ajudar hoje.";
+        
+        $result = $this->ragService->ask($prompt, $user, null, $maniMode);
+
+        return response()->json([
+            'success' => true,
+            'answer' => $result['answer'],
+            'session_id' => $result['session_id'],
+        ]);
+    }
+
+    /**
      * Retorna o histórico de mensagens de uma sessão.
      */
     public function getHistory(Request $request)

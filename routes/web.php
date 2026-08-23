@@ -873,5 +873,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
 // ===== ROTAS DO ASSISTENTE VIRTUAL DE IA (RAG) =====
 Route::post('/api/chat-ia/send', [\App\Http\Controllers\AiAssistantController::class, 'sendMessage'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+Route::post('/api/chat-ia/greeting', [\App\Http\Controllers\AiAssistantController::class, 'getGreeting'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 Route::get('/api/chat-ia/history', [\App\Http\Controllers\AiAssistantController::class, 'getHistory']);
 Route::get('/portal/ajuda', [\App\Http\Controllers\AiAssistantController::class, 'portalChat'])->middleware('auth')->name('portal.ajuda');

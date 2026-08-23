@@ -112,8 +112,9 @@ class RagService
         // 1. Dados do Cliente logado (Sacolinhas e Pedidos)
         if ($user) {
             $contextLines[] = "--- DADOS EM TEMPO REAL DO CLIENTE ---";
-            $contextLines[] = "Nome do Cliente: {$user->name}";
-            $contextLines[] = "Email: {$user->email}";
+            $contextLines[] = "Nome Completo: {$user->name}";
+            $contextLines[] = "Apelido (como prefere ser chamada): " . ($user->apelido ?: "NÃO CADASTRADO");
+            $contextLines[] = "Perfil de Estilo/Preferências: " . ($user->observacao_cliente ?: "NÃO CADASTRADO");
 
             // Sacolinhas do cliente
             try {
@@ -229,6 +230,9 @@ class RagService
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Olhe os itens que a cliente já tem na sacolinha (disponíveis nos DADOS EM TEMPO REAL) e sugira looks criativos com eles.\n" .
                 "2. Se a cliente perguntar sobre saldos ou pedidos, responda baseando-se nos DADOS EM TEMPO REAL. Seja sempre muito simpática e motivadora. Você é a melhor amiga estilosa dela.\n\n" .
+                "AÇÕES SECRETAS (Use apenas quando necessário e coloque no final da sua resposta):\n" .
+                "Se a cliente disser como gosta de ser chamada, adicione exatamente a tag: [SET_APELIDO: O_Apelido_Aqui]\n" .
+                "Se a cliente informar preferências de estilo ou numeração, adicione a tag: [ADD_OBSERVACAO: detalhe novo]\n\n" .
                 "CONTEXTO DO SISTEMA E ESTOQUE:\n" .
                 $knowledgeText . "\n" .
                 $liveContextText;
@@ -271,6 +275,26 @@ class RagService
 
         // 6. Chama a API do Gemini
         $assistantAnswer = $this->gemini->generateAnswer($userMessage, $systemInstruction, $historyFormatted);
+
+        // Processa ações secretas
+        if ($user) {
+            if (preg_match('/\[SET_APELIDO:\s*(.+?)\]/', $assistantAnswer, $matches)) {
+                $apelido = trim($matches[1]);
+                $user->apelido = $apelido;
+                $user->save();
+                $assistantAnswer = str_replace($matches[0], '', $assistantAnswer);
+            }
+            if (preg_match_all('/\[ADD_OBSERVACAO:\s*(.+?)\]/', $assistantAnswer, $matches)) {
+                $obsAdicionais = implode(', ', $matches[1]);
+                $obsAtual = $user->observacao_cliente ? $user->observacao_cliente . " | " : "";
+                $user->observacao_cliente = $obsAtual . trim($obsAdicionais);
+                $user->save();
+                foreach ($matches[0] as $matchTag) {
+                    $assistantAnswer = str_replace($matchTag, '', $assistantAnswer);
+                }
+            }
+            $assistantAnswer = trim($assistantAnswer);
+        }
 
         // 7. Salva a resposta da IA
         ChatMessage::create([
