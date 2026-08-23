@@ -211,16 +211,27 @@ class RagService
         }
 
         // 2. Busca de produtos no estoque se a pergunta parecer sobre produtos
-        $keywords = array_filter(explode(' ', mb_strtolower($query)), fn($w) => mb_strlen($w) > 2);
+        // Aceitar palavras curtas para não perder tamanhos como "M", "P", "G", "48". Filtrar stop words.
+        $stopWords = ['a', 'o', 'e', 'é', 'de', 'do', 'da', 'em', 'no', 'na', 'com', 'para', 'pra', 'um', 'uma', 'os', 'as'];
+        $keywords = array_filter(explode(' ', mb_strtolower($query)), function($w) use ($stopWords) {
+            $w = trim(preg_replace('/[^a-z0-9]/i', '', $w));
+            return mb_strlen($w) > 0 && !in_array($w, $stopWords);
+        });
+        
         if (!empty($keywords)) {
             try {
-                $itemsQuery = Item::query();
+                $itemsQuery = Item::query()->where('status', 'disponivel');
+                
                 foreach ($keywords as $kw) {
-                    $itemsQuery->orWhere('nome_do_produto', 'LIKE', "%{$kw}%")
-                               ->orWhere('codigo', 'LIKE', "%{$kw}%")
-                               ->orWhere('descricao', 'LIKE', "%{$kw}%");
+                    $itemsQuery->where(function ($q) use ($kw) {
+                        $q->where('nome_do_produto', 'LIKE', "%{$kw}%")
+                          ->orWhere('codigo', 'LIKE', "%{$kw}%")
+                          ->orWhere('descricao', 'LIKE', "%{$kw}%")
+                          ->orWhere('tamanho', 'LIKE', "%{$kw}%")
+                          ->orWhere('cor', 'LIKE', "%{$kw}%");
+                    });
                 }
-                $produtosEncontrados = $itemsQuery->where('status', 'disponivel')->limit(5)->get();
+                $produtosEncontrados = $itemsQuery->limit(5)->get();
 
                 if ($produtosEncontrados->isNotEmpty()) {
                     $contextLines[] = "--- PRODUTOS DISPONÍVEIS NO ESTOQUE CORRESPONDENTES À BUSCA ---";
