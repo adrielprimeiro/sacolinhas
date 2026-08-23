@@ -52,17 +52,17 @@ class AiAssistantController extends Controller
         $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
 
         $prompts = [
-            "A cliente abriu o chat. Dê um oi rápido, cordial e espontâneo (máximo de 2 linhas). Pergunte casualmente o que ela busca ou como pode ajudar.",
-            "A cliente abriu o chat. Seja breve e amigável (máximo de 2 linhas). Dê as boas-vindas e pergunte de forma natural se ela procura algo específico hoje.",
-            "A cliente abriu o chat. Dê um oi casual e espontâneo (máximo de 2 linhas). Se quiser, faça um comentário bem sutil sobre moda circular e pergunte como pode ajudar.",
-            "A cliente abriu o chat. Seja direta, cordial e natural (máximo de 2 linhas). Pergunte que tipo de look ela tem em mente para hoje.",
-            "A cliente abriu o chat. Dê um oi amigável e rápido (máximo de 2 linhas). Pergunte de forma espontânea como você pode ajudá-la a garimpar peças."
+            "A cliente abriu o chat. Dê um 'Oi [nome/apelido]! Que bom te ver por aqui.' e pergunte o que ela busca. Seja muito direta. Um parágrafo curto apenas. SEM apresentações.",
+            "A cliente abriu o chat. Dê um 'Oie!' e vá direto ao ponto, perguntando de forma casual se ela procura algo específico hoje. Apenas 1 parágrafo curto. SEM apresentações.",
+            "A cliente abriu o chat. Diga 'Oi [nome/apelido], como posso te ajudar hoje?' e mais nada. Seja bem direta e curta. SEM apresentações.",
+            "A cliente abriu o chat. Dê um oi simples e pergunte que tipo de look ela tem em mente. Um parágrafo curto, sem frases longas de boas vindas.",
+            "A cliente abriu o chat. Diga algo como 'Oi [nome/apelido]! Pronta pra garimpar hoje?' e aguarde. Seja extremamente curta e direta."
         ];
         
         $promptBase = $prompts[array_rand($prompts)];
         $prompt = "ATENÇÃO: ESTA É A PRIMEIRA MENSAGEM DO CHAT. \n" . 
                   $promptBase . 
-                  "\nIMPORTANTE: Mantenha a resposta extremamente curta (1 ou 2 parágrafos pequenos no máximo). Se a cliente não tiver o 'Apelido' cadastrado, pergunte no final, de forma sutil, como ela prefere ser chamada.";
+                  "\nIMPORTANTE: A resposta deve ter APENAS 1 parágrafo bem curto, direto ao ponto. NUNCA diga 'Eu sou a Mani' (ela já sabe). Sem frases longas de boas vindas. Se a cliente não tiver o 'Apelido' cadastrado, substitua a pergunta final por uma pergunta curta perguntando como ela gosta de ser chamada.";
         
         $result = $this->ragService->ask($prompt, $user, null, $maniMode);
 
