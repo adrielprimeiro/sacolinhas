@@ -172,6 +172,26 @@ class RagService
                 // Tabela/relação opcional
             }
 
+            // Limite Sacolinha
+            try {
+                $limitesRow = \Illuminate\Support\Facades\DB::table('cliente_limites')
+                    ->where('user_id', $user->id)
+                    ->first();
+                
+                $valorLimite = (float) ($limitesRow->limite_credito ?? 0);
+                $utilizado   = (float) ($limitesRow->limite_utilizado ?? 0);
+                $valorPago   = (float) ($saldo ?? 0); // Saldo calculado na rotina de Conta Corrente
+
+                $disponivel = max(0, $valorLimite + $valorPago - $utilizado);
+                $disponivelFmt = number_format($disponivel, 2, ',', '.');
+                $utilizadoFmt = number_format($utilizado, 2, ',', '.');
+                $limiteOriginalFmt = number_format($valorLimite, 2, ',', '.');
+
+                $contextLines[] = "LIMITE DA SACOLINHA: A cliente tem um limite de R$ {$disponivelFmt} disponíveis para adicionar novas peças na sacolinha antes de precisar pagar/fechar o pedido. (Limite Original: R$ {$limiteOriginalFmt} | Já utilizado: R$ {$utilizadoFmt}).";
+            } catch (\Exception $e) {
+                // Tabela/relação opcional
+            }
+
             // Minhas Avaliações
             try {
                 $avaliacoes = \Illuminate\Support\Facades\DB::table('avaliacoes')
@@ -279,7 +299,7 @@ class RagService
                 "Você tem uma personalidade cordial, amigável e espontânea. Use poucos emojis.\n" .
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Sugira looks com as peças da sacolinha, MAS APENAS se fizer sentido na conversa atual, se a cliente pedir dicas, ou se a conversa estiver sem assunto.\n" .
-                "2. Se a cliente perguntar sobre saldos, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. ATENÇÃO: O 'Saldo na Carteira' significa o valor que a cliente já PAGOU por itens retidos, e NÃO um crédito ou limite para gastar em mais coisas. Seja sempre cordial e espontânea.\n\n" .
+                "2. Se a cliente perguntar sobre saldos, limite, limite da sacolinha, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. ATENÇÃO: O 'Saldo na Carteira' significa o valor que a cliente já PAGOU por itens retidos, e NÃO um crédito para comprar mais. Para saber quanto ela pode comprar, use os dados de 'LIMITE DA SACOLINHA'. Seja sempre cordial e espontânea.\n\n" .
                 "AÇÕES SECRETAS (Use apenas quando necessário e coloque no final da sua resposta):\n" .
                 "Se a cliente disser como gosta de ser chamada, adicione exatamente a tag: [SET_APELIDO: O_Apelido_Aqui]\n" .
                 "Se a cliente informar preferências de estilo ou numeração, adicione a tag: [ADD_OBSERVACAO: detalhe novo]\n\n" .
