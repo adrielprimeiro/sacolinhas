@@ -515,8 +515,24 @@ class ItemController extends Controller
         $naoEncontradosBanco = [];
         $atualizados = 0;
 
-        foreach ($codigosLidos as $codigo) {
-            $item = Item::where('codigo', $codigo)->first();
+        foreach ($codigosLidos as $rawCodigo) {
+            $codigo = trim($rawCodigo);
+
+            // Limpar URLs caso venha uma URL completa do QR Code
+            if (filter_var($codigo, FILTER_VALIDATE_URL)) {
+                $path = parse_url($codigo, PHP_URL_PATH);
+                $parts = array_filter(explode('/', (string)$path));
+                if (!empty($parts)) {
+                    $codigo = end($parts);
+                }
+            }
+
+            // Busca por código exato, maiúsculo ou minúsculo
+            $item = Item::where('codigo', $codigo)
+                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+                ->first();
+
             if (!$item) {
                 $naoEncontradosBanco[] = $codigo;
                 continue;

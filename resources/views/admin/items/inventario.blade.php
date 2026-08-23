@@ -500,6 +500,10 @@
     <!-- Bottom -->
     <div class="scanner-bottom">
         <div id="last-scan">Aguardando leitura…</div>
+        <div style="display:flex; gap:8px; width:100%; max-width:340px; margin: 0 auto 10px;">
+            <input type="text" id="manual-scan-input" placeholder="Ou digite o código..." style="flex:1; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.3); background:rgba(0,0,0,0.5); color:#fff; font-size:14px; outline:none;" autocomplete="off">
+            <button type="button" id="btn-manual-scan-add" class="btn btn-primary" style="width:auto; padding:10px 14px; min-height:42px; font-size:13px;">+ Add</button>
+        </div>
         <button class="btn btn-danger" id="btn-done-scanning" style="max-width:340px; margin: 0 auto; min-height:52px;">
             <i class="fas fa-stop-circle"></i>
             Fechar e revisar
@@ -550,8 +554,9 @@ async function openScanner() {
         state.stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: 'environment' },
-                width:  { ideal: 1280 },
-                height: { ideal: 720 },
+                width:  { ideal: 1920 },
+                height: { ideal: 1080 },
+                advanced: [{ focusMode: 'continuous' }]
             },
             audio: false
         });
@@ -568,17 +573,64 @@ async function openScanner() {
     }
 }
 
-// ── Decodificação contínua com ZXing ──
+// ── Decodificação contínua (Native BarcodeDetector + Fallback ZXing MultiFormat) ──
 function startDecoding() {
-    if (!window.ZXing) { console.error('ZXing não carregado'); return; }
-
-    state.reader = new ZXing.BrowserMultiFormatReader();
     state.scanning = true;
 
-    state.reader.decodeFromStream(state.stream, video, (result, err) => {
-        if (!result) return;
-        handleScan(result.getText());
-    });
+    // 1. Tentar BarcodeDetector Nativo (Aceleração por Hardware / 60 FPS)
+    if ('BarcodeDetector' in window) {
+        try {
+            const detector = new BarcodeDetector({
+                formats: ['qr_code', 'code_128', 'code_39', 'code_93', 'ean_13', 'ean_8', 'itf', 'data_matrix']
+            });
+
+            const nativeScanLoop = async () => {
+                if (!state.scanning) return;
+                try {
+                    const barcodes = await detector.detect(video);
+                    if (barcodes && barcodes.length > 0) {
+                        for (const b of barcodes) {
+                            if (b.rawValue) handleScan(b.rawValue);
+                        }
+                    }
+                } catch (e) {}
+                if (state.scanning) {
+                    requestAnimationFrame(nativeScanLoop);
+                }
+            };
+            nativeScanLoop();
+            return;
+        } catch (e) {
+            console.warn('BarcodeDetector nativo falhou, usando fallback ZXing:', e);
+        }
+    }
+
+    // 2. Fallback ZXing com formatos explícitos de código de barras e QR Code
+    if (!window.ZXing) { console.error('ZXing não carregado'); return; }
+
+    try {
+        const hints = new Map();
+        if (ZXing.DecodeHintType && ZXing.BarcodeFormat) {
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                ZXing.BarcodeFormat.QR_CODE,
+                ZXing.BarcodeFormat.CODE_128,
+                ZXing.BarcodeFormat.CODE_39,
+                ZXing.BarcodeFormat.EAN_13,
+                ZXing.BarcodeFormat.EAN_8,
+                ZXing.BarcodeFormat.ITF,
+                ZXing.BarcodeFormat.DATA_MATRIX
+            ]);
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        }
+
+        state.reader = new ZXing.BrowserMultiFormatReader(hints);
+        state.reader.decodeFromStream(state.stream, video, (result, err) => {
+            if (!result) return;
+            handleScan(result.getText());
+        });
+    } catch(e) {
+        console.error('Erro ao iniciar ZXing:', e);
+    }
 }
 
 // ── Sistema de Áudio via HTML Audio + WAV gerado em memória ──
@@ -649,8 +701,54 @@ function vibrate(ms) {
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
 }
 
+// ── Limpeza e Normalização de Código (Extrai código limpo de URLs) ──
+function cleanCode(rawCode) {
+    if (!rawCode) return '';
+    let code = rawCode.trim();
+
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+        try {
+            const url = new URL(code);
+            const param = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item');
+            if (param) return param.trim();
+
+            const segs = url.pathname.split('/').filter(Boolean);
+            if (segs.length > 0) {
+                return segs[segs.length - 1].trim();
+            }
+        } catch(e) {}
+    }
+    return code;
+}
+
+// ── Entrada Manual no Scanner ──
+const btnManualAdd = document.getElementById('btn-manual-scan-add');
+const inputManual  = document.getElementById('manual-scan-input');
+if (btnManualAdd && inputManual) {
+    btnManualAdd.addEventListener('click', addManualScanCode);
+    inputManual.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addManualScanCode();
+        }
+    });
+}
+
+function addManualScanCode() {
+    if (!inputManual) return;
+    const val = inputManual.value.trim();
+    if (val) {
+        handleScan(val);
+        inputManual.value = '';
+        inputManual.focus();
+    }
+}
+
 // ── Processar código lido ──
-function handleScan(code) {
+function handleScan(rawCode) {
+    const code = cleanCode(rawCode);
+    if (!code) return;
+
     const now = Date.now();
 
     // Debounce: evita re-leitura do mesmo código rápido

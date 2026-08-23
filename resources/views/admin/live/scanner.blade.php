@@ -271,37 +271,104 @@ function setMode(mode) {
     clearList();
 }
 
+function cleanCode(rawCode) {
+    if (!rawCode) return '';
+    let code = rawCode.trim();
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+        try {
+            const url = new URL(code);
+            const param = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item');
+            if (param) return param.trim();
+            const segs = url.pathname.split('/').filter(Boolean);
+            if (segs.length > 0) return segs[segs.length - 1].trim();
+        } catch(e) {}
+    }
+    return code;
+}
+
+let isScanningLive = false;
+
 function openScanner(mode) {
     currentMode = mode;
     scannedCodes = [];
     updatePreview();
+    isScanningLive = true;
     
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('scanner-screen').style.display = 'block';
     
-    if(!reader) reader = new ZXing.BrowserMultiFormatReader();
-    
-    reader.decodeFromConstraints({ video: { facingMode: "environment" } }, 'video', (result, err) => {
-        if(result) {
-            const code = result.getText().trim();
-            const now = Date.now();
-            if(now - debounceTimer > 2000 || !scannedCodes.includes(code)) {
-                debounceTimer = now;
-                if(!scannedCodes.includes(code)) {
-                    scannedCodes.push(code);
-                    document.getElementById('scan-count').innerText = scannedCodes.length;
-                    document.getElementById('last-scan').innerText = "✅ Lido: " + code;
-                    showToast("Lido: " + code);
-                    
-                    if(navigator.vibrate) navigator.vibrate(50);
-                }
+    const onCodeFound = (rawText) => {
+        const code = cleanCode(rawText);
+        if (!code) return;
+        const now = Date.now();
+        if (now - debounceTimer > 2000 || !scannedCodes.includes(code)) {
+            debounceTimer = now;
+            if (!scannedCodes.includes(code)) {
+                scannedCodes.push(code);
+                document.getElementById('scan-count').innerText = scannedCodes.length;
+                document.getElementById('last-scan').innerText = "✅ Lido: " + code;
+                showToast("Lido: " + code);
+                if (navigator.vibrate) navigator.vibrate(50);
             }
         }
-    });
+    };
+
+    // 1. Tentar BarcodeDetector Nativo (Hardware 60 FPS)
+    if ('BarcodeDetector' in window) {
+        try {
+            const videoEl = document.getElementById('video');
+            const detector = new BarcodeDetector({
+                formats: ['qr_code', 'code_128', 'code_39', 'code_93', 'ean_13', 'ean_8', 'itf', 'data_matrix']
+            });
+            const nativeLoop = async () => {
+                if (!isScanningLive) return;
+                try {
+                    const barcodes = await detector.detect(videoEl);
+                    if (barcodes && barcodes.length > 0) {
+                        for (const b of barcodes) {
+                            if (b.rawValue) onCodeFound(b.rawValue);
+                        }
+                    }
+                } catch(e) {}
+                if (isScanningLive) requestAnimationFrame(nativeLoop);
+            };
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+            }).then(stream => {
+                videoEl.srcObject = stream;
+                videoEl.play();
+                nativeLoop();
+            }).catch(e => {
+                console.warn('Câmera nativa erro:', e);
+            });
+            return;
+        } catch (e) {}
+    }
+
+    // 2. Fallback ZXing
+    if (!reader && window.ZXing) {
+        const hints = new Map();
+        if (ZXing.DecodeHintType && ZXing.BarcodeFormat) {
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.CODE_128,
+                ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13,
+                ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.ITF
+            ]);
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        }
+        reader = new ZXing.BrowserMultiFormatReader(hints);
+    }
+    
+    if (reader) {
+        reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, 'video', (result, err) => {
+            if (result) onCodeFound(result.getText());
+        });
+    }
 }
 
 function closeScanner() {
-    if(reader) reader.reset();
+    isScanningLive = false;
+    if (reader) reader.reset();
     document.getElementById('scanner-screen').style.display = 'none';
     document.getElementById('setup-screen').style.display = 'flex';
     
