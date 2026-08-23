@@ -606,7 +606,8 @@
             .then(data => {
                 if (data.success) {
                     if (typeof updatePauseState === 'function') updatePauseState(data.is_paused);
-                    if (typeof updateInstagramState === 'function') updateInstagramState(data.insta_active);
+                    updateInstagramState(data.insta_active);
+                    updateTikTokState(data.tiktok_active);
                     renderChatMessages(data.messages);
                     renderOnlineUsers(data.online_users);
                     renderCodeRequests(data.code_requests);

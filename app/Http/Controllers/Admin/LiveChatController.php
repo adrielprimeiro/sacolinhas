@@ -338,10 +338,22 @@ class LiveChatController extends Controller
         // Reindexar o array agrupado para JSON
         $groupedRequests = array_values($groupedRequests);
 
+        $tiktokActive = Cache::get('tiktok_capture_active', true) && !Cache::get('tiktok_capture_stopped', false);
+
+        // Se a captura do TikTok estiver ativa mas o serviço desconectou, envia um ping de reconexão em background
+        if ($tiktokActive && rand(1, 4) === 1) {
+            try {
+                \Illuminate\Support\Facades\Http::timeout(1)->post('http://127.0.0.1:3001/connect', [
+                    'username' => '_minhamania'
+                ]);
+            } catch (\Exception $e) {}
+        }
+
         return response()->json([
             'success' => true,
             'is_paused' => Cache::get('live_capture_paused', false),
             'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false),
+            'tiktok_active' => $tiktokActive,
             'messages' => $messages,
             'online_users' => $onlineUsers,
             'code_requests' => $groupedRequests
@@ -482,13 +494,24 @@ class LiveChatController extends Controller
     public function toggleTiktok(Request $request)
     {
         $action = $request->input('action');
+        $username = $request->input('username', '_minhamania');
+
         if ($action === 'stop') {
             Cache::put('tiktok_capture_stopped', true, 86400);
             Cache::put('tiktok_capture_active', false);
+            try {
+                \Illuminate\Support\Facades\Http::timeout(3)->post('http://127.0.0.1:3001/disconnect');
+            } catch (\Exception $e) {}
         } else {
             Cache::forget('tiktok_capture_stopped');
             Cache::put('tiktok_capture_active', true, 86400);
+            try {
+                \Illuminate\Support\Facades\Http::timeout(5)->post('http://127.0.0.1:3001/connect', [
+                    'username' => $username
+                ]);
+            } catch (\Exception $e) {}
         }
+
         return response()->json([
             'success' => true,
             'tiktok_active' => Cache::get('tiktok_capture_active', false) && !Cache::get('tiktok_capture_stopped', false)
