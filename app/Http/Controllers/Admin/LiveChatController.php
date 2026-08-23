@@ -363,6 +363,12 @@ class LiveChatController extends Controller
         try {
             DB::transaction(function () use ($validated) {
                 $item = Item::findOrFail($validated['item_id']);
+                $live = \App\Models\Live::findOrFail($validated['live_id']);
+
+                $price = $item->preco;
+                if ($live->tipo_live === 'precinho') {
+                    $price = $price * 0.5;
+                }
 
                 // 1. Criar ou atualizar a sacolinha do cliente nesta live
                 Sacolinhas::updateOrCreate(
@@ -372,7 +378,7 @@ class LiveChatController extends Controller
                         'live_id' => $validated['live_id']
                     ],
                     [
-                        'price' => $item->preco,
+                        'price' => $price,
                         'add_at' => now(),
                         'quantity' => 1,
                         'status' => 'live'
