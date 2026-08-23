@@ -73,17 +73,38 @@ class GeminiService
         $modelsToTry = ['gemini-3.6-flash'];
 
         $contents = [];
+        $lastRole = null;
         foreach ($history as $msg) {
+            $role = $msg['role'] === 'assistant' ? 'model' : $msg['role'];
+            $text = $msg['text'] ?? $msg['message'] ?? '';
+            
+            if ($lastRole === $role) {
+                // Junta mensagens do mesmo role para evitar erro da API do Gemini
+                $contents[count($contents) - 1]['parts'][0]['text'] .= "\n" . $text;
+            } else {
+                $contents[] = [
+                    'role' => $role,
+                    'parts' => [['text' => $text]]
+                ];
+                $lastRole = $role;
+            }
+        }
+        
+        // Se a última mensagem do histórico for user, a próxima seria user (o prompt). 
+        // Vamos forçar que a última do histórico seja model, ou juntar o prompt.
+        if ($lastRole === 'user') {
+            $contents[count($contents) - 1]['parts'][0]['text'] .= "\n" . $userPrompt;
+        } else {
             $contents[] = [
-                'role' => $msg['role'] === 'assistant' ? 'model' : $msg['role'],
-                'parts' => [['text' => $msg['text'] ?? $msg['message'] ?? '']]
+                'role' => 'user',
+                'parts' => [['text' => $userPrompt]]
             ];
         }
 
-        $contents[] = [
-            'role' => 'user',
-            'parts' => [['text' => $userPrompt]]
-        ];
+        // A primeira mensagem DEVE ser 'user' para o Gemini
+        if (!empty($contents) && $contents[0]['role'] === 'model') {
+            array_shift($contents);
+        }
 
         $payload = [
             'contents' => $contents,
@@ -102,7 +123,7 @@ class GeminiService
         foreach ($modelsToTry as $model) {
             try {
                 $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
-                $response = Http::timeout(25)->post($url, $payload);
+                $response = Http::timeout(45)->post($url, $payload);
 
                 if ($response->successful()) {
                     $data = $response->json();
