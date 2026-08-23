@@ -1153,7 +1153,24 @@
 
     async function handleOnlineQrScan(decodedText) {
         if (!decodedText || !decodedText.trim() || !currentOnlineQrUser) return;
-        const code = decodedText.trim();
+        
+        let code = decodedText.trim();
+
+        // Extrair código limpo se for URL
+        if (code.startsWith('http://') || code.startsWith('https://')) {
+            try {
+                const url = new URL(code);
+                const p = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item');
+                if (p) {
+                    code = p.trim();
+                } else {
+                    const segs = url.pathname.split('/').filter(Boolean);
+                    if (segs.length > 0) {
+                        code = segs[segs.length - 1].trim();
+                    }
+                }
+            } catch(e) {}
+        }
 
         const manualInput = document.getElementById("online-qr-manual-input");
         if (manualInput) manualInput.value = "";
@@ -1176,7 +1193,11 @@
                 return;
             }
 
-            let matchedItem = data.data.find(item => item.sku === code || String(item.id) === code) || data.data[0];
+            let matchedItem = data.data.find(item => 
+                (item.sku && item.sku.toLowerCase() === code.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === code.toLowerCase()) || 
+                String(item.id) === code
+            ) || data.data[0];
 
             const addResponse = await fetch('/admin/live-chat/add-to-bag', {
                 method: 'POST',

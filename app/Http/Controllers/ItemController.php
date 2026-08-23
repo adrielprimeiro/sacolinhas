@@ -267,7 +267,17 @@ class ItemController extends Controller
      */
     public function search(Request $request)
     {
-        $query = trim($request->get('q'));
+        $rawQuery = trim($request->get('q', ''));
+        $query = $rawQuery;
+
+        // Limpar URLs caso venha uma URL completa do QR Code
+        if (filter_var($query, FILTER_VALIDATE_URL)) {
+            $path = parse_url($query, PHP_URL_PATH);
+            $parts = array_filter(explode('/', (string)$path));
+            if (!empty($parts)) {
+                $query = end($parts);
+            }
+        }
         
         $itemBuilder = Item::query();
 
@@ -281,26 +291,30 @@ class ItemController extends Controller
             }
         } else {
             $itemBuilder->where(function($q) use ($query) {
-                $q->where('nome_do_produto', 'like', "%{$query}%")
+                $q->where('codigo', $query)
+                  ->orWhere('codigo', mb_strtoupper($query, 'UTF-8'))
+                  ->orWhere('codigo', mb_strtolower($query, 'UTF-8'))
                   ->orWhere('codigo', 'like', "%{$query}%")
+                  ->orWhere('nome_do_produto', 'like', "%{$query}%")
                   ->orWhere('descricao', 'like', "%{$query}%");
             });
         }
         
-        $items = $itemBuilder->where('status', 'disponivel')
-                             ->limit(10)
-                             ->get();
+        // Permite buscar itens tanto em estoque quanto disponíveis
+        $items = $itemBuilder->limit(15)->get();
         
         // Formatar dados para o component
         $formattedItems = $items->map(function($item) {
             return [
                 'id' => $item->id,
-                'name' => $item->nome_do_produto,
+                'name' => $item->nome_do_produto ?: 'Sem Nome',
                 'sku' => $item->codigo,
+                'codigo' => $item->codigo,
                 'price' => $item->preco,
-                'formatted_price' => 'R$ ' . number_format($item->preco, 2, ',', '.'),
+                'formatted_price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
                 'image_url' => $item->image ? asset('storage/' . $item->image) : asset('images/no-image.png'),
-                'stock' => 'Disponível',
+                'stock' => ucfirst($item->status ?? 'Estoque'),
+                'localizacao' => $item->localizacao ?? '-',
                 'description' => $item->descricao ?? ''
             ];
         });
