@@ -9,9 +9,14 @@
             <h1 class="h4 font-bold text-gray-800 m-0">🤖 Base de Conhecimento RAG (IA)</h1>
             <p class="text-muted text-sm m-0">Cadastre e edite regras de negócio, FAQs e instruções que a Inteligência Artificial utilizará para responder aos clientes.</p>
         </div>
-        <button type="button" class="btn btn-primary" onclick="openModal()">
-            <i class="fas fa-plus mr-1"></i> Novo Artigo
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success mr-2" onclick="openWhatsappModal()">
+                <i class="fab fa-whatsapp mr-1"></i> Treinar via WhatsApp
+            </button>
+            <button type="button" class="btn btn-primary" onclick="openModal()">
+                <i class="fas fa-plus mr-1"></i> Novo Artigo
+            </button>
+        </div>
     </div>
 
     @if(session('success'))
@@ -127,6 +132,36 @@
     </div>
 </div>
 
+<!-- Modal Treinamento WhatsApp -->
+<div class="modal fade" id="whatsappModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <form action="{{ route('admin.knowledge-base.import-whatsapp') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fab fa-whatsapp"></i> Treinar IA via WhatsApp</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body space-y-3">
+                    <p class="text-sm text-gray-600">
+                        Exporte uma conversa de atendimento direto do seu aplicativo do WhatsApp (formato .txt) e faça o upload aqui. A Inteligência Artificial vai analisar o histórico, extrair o tom de voz e as dúvidas mais frequentes para gerar regras automaticamente.
+                    </p>
+                    <div class="form-group">
+                        <label class="font-bold">Arquivo Exportado do WhatsApp (.txt)</label>
+                        <input type="file" name="whatsapp_file" class="form-control-file" accept=".txt" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Analisando...'; this.disabled=true; this.form.submit();">Iniciar Análise Mágica</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function openModal() {
     document.getElementById('modal_id').value = '';
@@ -135,6 +170,10 @@ function openModal() {
     document.getElementById('modal_content').value = '';
     document.getElementById('modalTitle').innerText = 'Cadastrar Artigo RAG';
     $('#articleModal').modal('show');
+}
+
+function openWhatsappModal() {
+    $('#whatsappModal').modal('show');
 }
 
 function editArticle(art) {

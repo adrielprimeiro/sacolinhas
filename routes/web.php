@@ -863,6 +863,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');
     Route::post('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseStore'])->name('knowledge-base.store');
+    Route::post('knowledge-base/import-whatsapp', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseImportWhatsApp'])->name('knowledge-base.import-whatsapp');
     Route::delete('knowledge-base/{id}', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseDestroy'])->name('knowledge-base.destroy');
 });
 
