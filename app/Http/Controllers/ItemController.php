@@ -35,8 +35,14 @@ class ItemController extends Controller
             if (preg_match('/^AV(\d+)$/i', $codigoPesquisa, $matches)) {
                 $avItemId = $matches[1];
                 $avItem = \App\Models\AvaliacaoItem::find($avItemId);
-                if ($avItem && $avItem->item_id) {
-                    $query->where('id', $avItem->item_id);
+                if ($avItem) {
+                    if ($avItem->item_id) {
+                        $query->where('id', $avItem->item_id);
+                    } else {
+                        // Se encontrou na avaliação mas não virou item, redireciona
+                        return redirect()->route('admin.avaliacoes.show', $avItem->avaliacao_id)
+                            ->with('error', 'O item AV'.$avItemId.' ainda está em fase de avaliação e não foi transferido para o estoque.');
+                    }
                 } else {
                     $query->where('id', -1);
                 }
