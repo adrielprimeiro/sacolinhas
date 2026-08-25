@@ -22,6 +22,16 @@ class ItemController extends Controller
 
 		if ($request->filled('codigo')) {
             $codigoPesquisa = trim($request->codigo);
+            
+            // Limpar URLs caso venha uma URL completa do QR Code
+            if (filter_var($codigoPesquisa, FILTER_VALIDATE_URL)) {
+                $path = parse_url($codigoPesquisa, PHP_URL_PATH);
+                $parts = array_filter(explode('/', (string)$path));
+                if (!empty($parts)) {
+                    $codigoPesquisa = end($parts);
+                }
+            }
+
             if (preg_match('/^AV(\d+)$/i', $codigoPesquisa, $matches)) {
                 $avItemId = $matches[1];
                 $avItem = \App\Models\AvaliacaoItem::find($avItemId);
@@ -31,7 +41,11 @@ class ItemController extends Controller
                     $query->where('id', -1);
                 }
             } else {
-			    $query->where('codigo', 'like', '%' . $codigoPesquisa . '%');
+			    $query->where(function($q) use ($codigoPesquisa) {
+                    $q->where('codigo', 'like', '%' . $codigoPesquisa . '%')
+                      ->orWhere('nome_do_produto', 'like', '%' . $codigoPesquisa . '%')
+                      ->orWhere('descricao', 'like', '%' . $codigoPesquisa . '%');
+                });
             }
 		}
 
@@ -541,11 +555,22 @@ class ItemController extends Controller
                 }
             }
 
-            // Busca por código exato, maiúsculo ou minúsculo
-            $item = Item::where('codigo', $codigo)
-                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
-                ->first();
+            // Verifica se é código de avaliação (AV)
+            if (preg_match('/^AV(\d+)$/i', $codigo, $matches)) {
+                $avItemId = $matches[1];
+                $avItem = \App\Models\AvaliacaoItem::find($avItemId);
+                if ($avItem && $avItem->item_id) {
+                    $item = Item::find($avItem->item_id);
+                } else {
+                    $item = null;
+                }
+            } else {
+                // Busca por código exato, maiúsculo ou minúsculo
+                $item = Item::where('codigo', $codigo)
+                    ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                    ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+                    ->first();
+            }
 
             if (!$item) {
                 $naoEncontradosBanco[] = $codigo;
