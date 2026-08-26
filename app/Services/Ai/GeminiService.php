@@ -70,7 +70,7 @@ class GeminiService
             return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
         }
 
-        $modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
+        $modelsToTry = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.7-flash'];
 
         $contents = [];
         $lastRole = null;
@@ -123,7 +123,7 @@ class GeminiService
         foreach ($modelsToTry as $model) {
             try {
                 $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
-                $response = Http::timeout(45)->post($url, $payload);
+                $response = Http::timeout(15)->post($url, $payload);
 
                 if ($response->successful()) {
                     $data = $response->json();
