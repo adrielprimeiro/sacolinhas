@@ -636,7 +636,7 @@
     <div x-show="showModalQuick" 
          x-effect="if (showModalQuick) { $nextTick(() => { document.getElementById('quick-classificacao-input')?.focus(); }); }"
          class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" x-cloak>
-        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
+        <form action="{{ route('financeiro.conciliacao.criar-rapido') }}" method="POST" class="bg-white rounded-3xl w-full max-w-lg overflow-visible shadow-2xl" onsubmit="const classId = this.querySelector('input[name=classificacao_financeira_id]').value; if(!classId){ alert('Por favor, selecione uma Classificação Financeira da lista de sugestões.'); return false; } const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Processando...';">
             @csrf
             <input type="hidden" name="transacao_id" x-model="quickData.id">
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -686,7 +686,7 @@
                                :class="selected ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : ''" 
                                :readonly="selected"
                                required>
-                        <input type="hidden" name="classificacao_financeira_id" :value="selectedId" required>
+                        <input type="hidden" name="classificacao_financeira_id" :value="selectedId">
                         
                         <div x-show="loading" class="absolute right-9 top-3"><i class="fas fa-spinner fa-spin text-gray-400"></i></div>
                         
