@@ -198,4 +198,20 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Solicita à IA que prepare a próxima saudação de forma assíncrona, para que seja instantânea quando o chat abrir.
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(() => {
+            fetch('{{ route("chat-ia.prefetch-greeting") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            }).catch(e => console.error("Prefetch greeting failed", e));
+        }, 1000); // 1 segundo de atraso para não atrapalhar o carregamento inicial da página
+    });
+</script>
+
 @endsection

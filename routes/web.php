@@ -875,5 +875,7 @@ Route::post('/api/chat-ia/send', [\App\Http\Controllers\AiAssistantController::c
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 Route::post('/api/chat-ia/greeting', [\App\Http\Controllers\AiAssistantController::class, 'getGreeting'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+Route::post('/api/chat-ia/prefetch-greeting', [\App\Http\Controllers\AiAssistantController::class, 'prefetchGreeting'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 Route::get('/api/chat-ia/history', [\App\Http\Controllers\AiAssistantController::class, 'getHistory']);
 Route::get('/portal/ajuda', [\App\Http\Controllers\AiAssistantController::class, 'portalChat'])->middleware('auth')->name('portal.ajuda');

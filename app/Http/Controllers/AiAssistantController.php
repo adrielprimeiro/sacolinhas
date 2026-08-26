@@ -51,27 +51,39 @@ class AiAssistantController extends Controller
         $user = Auth::user();
         $sessionId = (string) \Illuminate\Support\Str::uuid();
         
-        $nome = $user->apelido ?? $user->name ?? 'amiga';
-        $firstName = explode(' ', trim($nome))[0];
+        $ragService = app(\App\Services\Ai\RagService::class);
+        $liveContextText = $ragService->getLiveSystemContext($user, '');
+        $currentHash = md5($liveContextText);
 
-        if (empty($user->apelido)) {
-            $greetings = [
-                "Oi, {$firstName}! Que bom te ver por aqui. ✨ Eu adoro conhecer mais as minhas clientes... Como você prefere ser chamada?",
-                "Oie! Tudo bem, {$firstName}? 🥰 Quero te conhecer melhor... Me conta, qual é o seu estilo de roupa favorito e como gosta de ser chamada?",
-                "Olá, {$firstName}! Pronta para garimpar? 🌿 Pra gente ficar mais íntimas, qual apelido você prefere que eu use?"
-            ];
+        $answer = "";
+
+        // 1. Verifica se temos um greeting pré-computado e atualizado!
+        if ($user->next_ai_greeting_hash === $currentHash && !empty($user->next_ai_greeting)) {
+            $answer = $user->next_ai_greeting;
+            // Limpa após o uso para não repetir na próxima vez caso o hash não mude (se bem que o hash não muda, ela receberia a mesma, o que é OK se recarregar a tela, mas idealmente seria bom gerar uma nova após a conversa)
         } else {
-            $greetings = [
-                "Oi, {$firstName}! Que bom te ver por aqui. ✨ Conta pra mim: que tipo de peça você mais gosta de garimpar para o seu guarda-roupa?",
-                "Oie, {$firstName}! Tudo bem? 🥰 Pra eu ir conhecendo seu gosto... você tem um estilo mais casual, elegante ou despojado?",
-                "Olá, {$firstName}! Pronta pra garimpar hoje? 🌿 O que você está buscando no momento, algo para o dia a dia ou pra sair?",
-                "Oi, {$firstName}! ✨ Para eu te ajudar a achar as peças perfeitas, qual cor de roupa não pode faltar no seu armário?",
-                "Oie, {$firstName}! 🐹 Quais são as marcas de roupa que você mais gosta de usar?"
-            ];
+            // 2. Fallback Instantâneo de PHP (Caso o hash mudou nas últimas horas ou não existe)
+            $nome = $user->apelido ?? $user->name ?? 'amiga';
+            $firstName = explode(' ', trim($nome))[0];
+
+            if (empty($user->apelido)) {
+                $greetings = [
+                    "Oi, {$firstName}! Que bom te ver por aqui. ✨ Eu adoro conhecer mais as minhas clientes... Como você prefere ser chamada?",
+                    "Oie! Tudo bem, {$firstName}? 🥰 Quero te conhecer melhor... Me conta, qual é o seu estilo de roupa favorito e como gosta de ser chamada?",
+                    "Olá, {$firstName}! Pronta para garimpar? 🌿 Pra gente ficar mais íntimas, qual apelido você prefere que eu use?"
+                ];
+            } else {
+                $greetings = [
+                    "Oi, {$firstName}! Que bom te ver por aqui. ✨ Conta pra mim: que tipo de peça você mais gosta de garimpar para o seu guarda-roupa?",
+                    "Oie, {$firstName}! Tudo bem? 🥰 Pra eu ir conhecendo seu gosto... você tem um estilo mais casual, elegante ou despojado?",
+                    "Olá, {$firstName}! Pronta pra garimpar hoje? 🌿 O que você está buscando no momento, algo para o dia a dia ou pra sair?",
+                    "Oi, {$firstName}! ✨ Para eu te ajudar a achar as peças perfeitas, qual cor de roupa não pode faltar no seu armário?",
+                    "Oie, {$firstName}! 🐹 Quais são as marcas de roupa que você mais gosta de usar?"
+                ];
+            }
+            $answer = $greetings[array_rand($greetings)];
         }
         
-        $answer = $greetings[array_rand($greetings)];
-
         // Salvar a saudação no banco de dados para a IA lembrar depois
         \App\Models\ChatMessage::create([
             'user_id' => $user?->id,
@@ -85,6 +97,15 @@ class AiAssistantController extends Controller
             'answer' => $answer,
             'session_id' => $sessionId,
         ]);
+    }
+
+    public function prefetchGreeting(Request $request)
+    {
+        $user = Auth::user();
+        if ($user) {
+            \App\Jobs\GenerateAiGreetingJob::dispatch($user);
+        }
+        return response()->json(['success' => true]);
     }
 
     /**
