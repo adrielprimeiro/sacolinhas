@@ -49,27 +49,41 @@ class AiAssistantController extends Controller
     public function getGreeting(Request $request)
     {
         $user = Auth::user();
-        $maniMode = filter_var($request->input('mani_mode', false), FILTER_VALIDATE_BOOLEAN);
+        $sessionId = (string) \Illuminate\Support\Str::uuid();
+        
+        $nome = $user->apelido ?? $user->name ?? 'amiga';
+        $firstName = explode(' ', trim($nome))[0];
 
-        $prompts = [
-            "A cliente abriu o chat. Dê um 'Oi [nome/apelido]! Que bom te ver por aqui.' e pergunte o que ela busca. Seja muito direta. Um parágrafo curto apenas. SEM apresentações.",
-            "A cliente abriu o chat. Dê um 'Oie!' e vá direto ao ponto, perguntando de forma casual se ela procura algo específico hoje. Apenas 1 parágrafo curto. SEM apresentações.",
-            "A cliente abriu o chat. Diga 'Oi [nome/apelido], como posso te ajudar hoje?' e mais nada. Seja bem direta e curta. SEM apresentações.",
-            "A cliente abriu o chat. Dê um oi simples e pergunte que tipo de look ela tem em mente. Um parágrafo curto, sem frases longas de boas vindas.",
-            "A cliente abriu o chat. Diga algo como 'Oi [nome/apelido]! Pronta pra garimpar hoje?' e aguarde. Seja extremamente curta e direta."
-        ];
+        if (empty($user->apelido)) {
+            $greetings = [
+                "Oi, {$firstName}! Que bom te ver por aqui. ✨ Eu adoro conhecer mais as minhas clientes... Como você prefere ser chamada?",
+                "Oie! Tudo bem, {$firstName}? 🥰 Quero te conhecer melhor... Me conta, qual é o seu estilo de roupa favorito e como gosta de ser chamada?",
+                "Olá, {$firstName}! Pronta para garimpar? 🌿 Pra gente ficar mais íntimas, qual apelido você prefere que eu use?"
+            ];
+        } else {
+            $greetings = [
+                "Oi, {$firstName}! Que bom te ver por aqui. ✨ Conta pra mim: que tipo de peça você mais gosta de garimpar para o seu guarda-roupa?",
+                "Oie, {$firstName}! Tudo bem? 🥰 Pra eu ir conhecendo seu gosto... você tem um estilo mais casual, elegante ou despojado?",
+                "Olá, {$firstName}! Pronta pra garimpar hoje? 🌿 O que você está buscando no momento, algo para o dia a dia ou pra sair?",
+                "Oi, {$firstName}! ✨ Para eu te ajudar a achar as peças perfeitas, qual cor de roupa não pode faltar no seu armário?",
+                "Oie, {$firstName}! 🐹 Quais são as marcas de roupa que você mais gosta de usar?"
+            ];
+        }
         
-        $promptBase = $prompts[array_rand($prompts)];
-        $prompt = "ATENÇÃO: ESTA É A PRIMEIRA MENSAGEM DO CHAT. \n" . 
-                  $promptBase . 
-                  "\nIMPORTANTE: A resposta deve ter APENAS 1 parágrafo bem curto, direto ao ponto. NUNCA diga 'Eu sou a Mani' (ela já sabe). Sem frases longas de boas vindas. Se a cliente não tiver o 'Apelido' cadastrado, substitua a pergunta final por uma pergunta curta perguntando como ela gosta de ser chamada.";
-        
-        $result = $this->ragService->ask($prompt, $user, null, $maniMode);
+        $answer = $greetings[array_rand($greetings)];
+
+        // Salvar a saudação no banco de dados para a IA lembrar depois
+        \App\Models\ChatMessage::create([
+            'user_id' => $user?->id,
+            'session_id' => $sessionId,
+            'role' => 'assistant',
+            'message' => $answer,
+        ]);
 
         return response()->json([
             'success' => true,
-            'answer' => $result['answer'],
-            'session_id' => $result['session_id'],
+            'answer' => $answer,
+            'session_id' => $sessionId,
         ]);
     }
 

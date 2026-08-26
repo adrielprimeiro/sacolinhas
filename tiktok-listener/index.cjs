@@ -96,3 +96,42 @@ console.log("=== TikTok Live Listener LOCAL Iniciado ===");
 console.log("Consultando API a cada " + (POLL_INTERVAL_MS/1000) + "s...");
 checkActiveLives();
 setInterval(checkActiveLives, POLL_INTERVAL_MS);
+
+// Micro-servidor HTTP local para comandos instantâneos vindos do painel web
+const http = require("http");
+const localServer = http.createServer((req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
+    if (req.url === "/status" || req.url === "/ping") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+            running: true,
+            connected: !!tiktokConnection,
+            username: currentUsername,
+            live_id: currentLiveId
+        }));
+        return;
+    }
+
+    if (req.url === "/check-now" || req.url === "/trigger") {
+        checkActiveLives();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, message: "Checagem executada" }));
+        return;
+    }
+
+    res.writeHead(404);
+    res.end();
+});
+
+localServer.listen(3002, "127.0.0.1", () => {
+    console.log("[Servidor Local] Pronto para comandos do painel em http://127.0.0.1:3002");
+});

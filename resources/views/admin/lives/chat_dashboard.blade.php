@@ -570,6 +570,8 @@
             if (data.success) {
                 updateTikTokState(data.tiktok_active);
                 showToast(data.tiktok_active ? "Gravação do TikTok Iniciada!" : "Gravação do TikTok Parada!");
+                // Notificar listener local instantaneamente
+                fetch("http://127.0.0.1:3002/check-now", { mode: "cors" }).catch(() => {});
             }
         } catch (e) {
             console.error("Erro ao alternar captura do TikTok:", e);
