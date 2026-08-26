@@ -167,7 +167,7 @@ class RagService
                     ->first();
                 $saldo = $ultima?->saldo_atual ?? 0;
                 $saldoFmt = number_format($saldo, 2, ',', '.');
-                $contextLines[] = "Saldo na Carteira (Valor já pago à empresa por itens que ainda não foram enviados): R$ {$saldoFmt}. ATENÇÃO: Esse saldo NÃO É crédito livre para comprar novas peças e NÃO É o limite da sacolinha.";
+                $contextLines[] = "Saldo na Carteira: R$ {$saldoFmt}. (Definição: é a diferença de tudo que a cliente já pagou do que ela já recebeu da Mania).";
             } catch (\Exception $e) {
                 // Tabela/relação opcional
             }
@@ -187,7 +187,7 @@ class RagService
                 $utilizadoFmt = number_format($utilizado, 2, ',', '.');
                 $limiteOriginalFmt = number_format($valorLimite, 2, ',', '.');
 
-                $contextLines[] = "LIMITE DA SACOLINHA: A cliente tem um limite de R$ {$disponivelFmt} disponíveis para adicionar novas peças na sacolinha antes de precisar pagar/fechar o pedido. (Limite Original: R$ {$limiteOriginalFmt} | Já utilizado: R$ {$utilizadoFmt}).";
+                $contextLines[] = "LIMITE DA SACOLINHA: R$ {$disponivelFmt}. (Definição: é o valor do limite de crédito que a Mania concede mais o valor do saldo em carteira da cliente. Esse é o valor que ela pode utilizar para selecionar itens para a sacolinha).";
             } catch (\Exception $e) {
                 // Tabela/relação opcional
             }
@@ -323,7 +323,7 @@ class RagService
                 "Você tem uma personalidade cordial, amigável e espontânea. Use poucos emojis.\n" .
                 "Seu objetivo é ajudar as clientes a montar looks. Ao responder:\n" .
                 "1. Sugira looks com as peças da sacolinha, MAS APENAS se fizer sentido na conversa atual, se a cliente pedir dicas, ou se a conversa estiver sem assunto.\n" .
-                "2. Se a cliente perguntar sobre saldos, limite, limite da sacolinha, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. ATENÇÃO: O 'Saldo na Carteira' significa o valor que a cliente já PAGOU por itens retidos, e NÃO um crédito para comprar mais. Para saber quanto ela pode comprar, use os dados de 'LIMITE DA SACOLINHA'. Seja sempre cordial e espontânea.\n" .
+                "2. Se a cliente perguntar sobre saldos, limite, limite da sacolinha, pedidos, avaliações de roupas ou pontos no jogo, responda baseando-se nos DADOS EM TEMPO REAL. ATENÇÃO: O 'Saldo na Carteira' é apenas a diferença entre o que ela pagou e recebeu. O valor que ela realmente pode utilizar para comprar ou selecionar mais peças é o 'LIMITE DA SACOLINHA'. Seja sempre cordial e espontânea.\n" .
                 "3. Se a cliente quiser falar com a Grasi, com o suporte, atendimento, ou com um humano, informe que você ainda está aprendendo e peça para ela mandar mensagem no WhatsApp (21) 99673-3703 para falar com a Grasi.\n" .
                 "4. Sobre AVALIAÇÕES (desapegos): QUEM FINALIZA AS AVALIAÇÕES É A GRASI. Se houver avaliações pendentes/rascunho ou a cliente quiser finalizar uma avaliação, NUNCA diga para ela fazer no app. Peça para ela mandar mensagem no WhatsApp (21) 99673-3703 e falar com a Grasi para finalizar a avaliação.\n\n" .
                 "AÇÕES SECRETAS (Use apenas quando necessário e coloque no final da sua resposta):\n" .
