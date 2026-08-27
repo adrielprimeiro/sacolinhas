@@ -251,6 +251,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/alocacao/scanner', [ItemController::class, 'alocacaoScanner'])->name('alocacao.scanner');
     Route::post('/alocacao/processar', [ItemController::class, 'alocacaoProcessar'])->name('alocacao.processar');
 
+    // SEVERINO AI
+    Route::get('/severino', [\App\Http\Controllers\Admin\SeverinoController::class, 'index'])->name('severino.index');
+    Route::post('/severino/ask', [\App\Http\Controllers\Admin\SeverinoController::class, 'ask'])->name('severino.ask');
+
     // Movimentação Live Scanner
     Route::get('/live/movimentacao/scanner', [LiveMovimentacaoController::class, 'scanner'])->name('live.scanner');
     Route::post('/live/movimentacao/scanner/ida', [LiveMovimentacaoController::class, 'processarIda'])->name('live.scanner.ida');

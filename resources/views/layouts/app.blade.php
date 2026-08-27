@@ -303,6 +303,11 @@
 							<i class="fas fa-user-shield w-5 text-center text-indigo-500"></i>
 							<span>Gestão de Equipe</span>
 						</a>
+						<a href="{{ route('severino.index') }}"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('severino.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
+							<i class="fas fa-robot w-5 text-center text-indigo-500"></i>
+							<span>Severino AI</span>
+						</a>
 						<a href="{{ route('admin.knowledge-base.index') ?? '#' }}"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.knowledge-base.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
 							<i class="fas fa-brain w-5 text-center text-indigo-500"></i>
