@@ -387,6 +387,90 @@ class ItemController extends Controller
         return view('admin.items.inventario_report', compact('locaisEstoque', 'estoqueInfo', 'buscaLocal', 'itensSemLocal'));
     }
 
+    // ALOCAÇÃO (ENDEREÇAMENTO) SCANNER
+    public function alocacaoScanner(Request $request)
+    {
+        return view('admin.items.alocacao');
+    }
+
+    public function alocacaoProcessar(Request $request)
+    {
+        $request->validate([
+            'localizacao' => 'required|string',
+            'codigos' => 'required|string'
+        ]);
+
+        $localizacao = $request->input('localizacao');
+        $rawCodigos = explode("\n", $request->input('codigos'));
+        
+        $processados = 0;
+        $naoEncontrados = [];
+
+        foreach ($rawCodigos as $rawCodigo) {
+            $codigo = trim($rawCodigo);
+            if (empty($codigo)) continue;
+
+            // Limpar URLs caso venha uma URL completa do QR Code
+            if (filter_var($codigo, FILTER_VALIDATE_URL)) {
+                $path = parse_url($codigo, PHP_URL_PATH);
+                $parts = array_filter(explode('/', (string)$path));
+                if (!empty($parts)) {
+                    $codigo = end($parts);
+                }
+            }
+
+            // Verifica se é código de avaliação (AV)
+            if (preg_match('/^AV(\d+)$/i', $codigo, $matches)) {
+                $avItemId = $matches[1];
+                $avItem = \App\Models\AvaliacaoItem::find($avItemId);
+                if ($avItem && $avItem->item_id) {
+                    $item = Item::find($avItem->item_id);
+                } else {
+                    $item = null;
+                }
+            } else {
+                // Busca por código exato, maiúsculo ou minúsculo
+                $item = Item::where('codigo', $codigo)
+                    ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                    ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+                    ->first();
+            }
+
+            if (!$item) {
+                $naoEncontrados[] = $codigo;
+                continue;
+            }
+
+            // Atualizar o item
+            $item->localizacao = $localizacao;
+            $item->status = 'estoque'; // Volta pro estoque oficialmente
+            $item->save();
+
+            // Se o item estava na live (enviado), marcar como retornado para não ficar perdido no relatório
+            \DB::table('live_items')
+                ->where('item_id', $item->id)
+                ->where('status', 'enviado')
+                ->update([
+                    'status' => 'retornado', 
+                    'updated_at' => now()
+                ]);
+
+            $processados++;
+        }
+
+        if (count($naoEncontrados) > 0) {
+            return response()->json([
+                'success' => true, // partially success
+                'message' => "Processados: $processados. Não encontrados: " . implode(", ", $naoEncontrados)
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Sucesso! $processados itens alocados em $localizacao."
+        ]);
+    }
+
     // INVENTÁRIO SCANNER (Interface de Escaneamento / Bipagem)
     public function inventarioScanner(Request $request)
     {

@@ -7,10 +7,16 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-semibold text-gray-800">Itens</h1>
 
-        <a href="{{ route('items.create') }}"
-           class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300">
-            <i class="fas fa-plus-circle mr-2"></i> Novo Item
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('alocacao.scanner') }}"
+               class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300">
+                <i class="fas fa-box-open mr-2"></i> Endereçar / Alocar
+            </a>
+            <a href="{{ route('items.create') }}"
+               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300">
+                <i class="fas fa-plus-circle mr-2"></i> Novo Item
+            </a>
+        </div>
     </div>
 
     @if (session('success'))

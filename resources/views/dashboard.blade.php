@@ -116,6 +116,9 @@
                 <a href="{{ route('live.scanner') }}" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
                     Scanner Live
                 </a>
+                <a href="{{ route('alocacao.scanner') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                    Endereçar / Alocar
+                </a>
             </div>
         </div>
 

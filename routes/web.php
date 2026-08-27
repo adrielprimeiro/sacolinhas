@@ -247,6 +247,10 @@ Route::middleware('auth')->group(function () {
 	Route::get('/inventario/conferencias/{id}', [ItemController::class, 'inventarioConferenciaShow'])->name('inventario.conferencias.show');
 	Route::post('/inventario/processar', [ItemController::class, 'inventarioProcessar'])->name('inventario.processar');
 
+    // ALOCAÇÃO (ENDEREÇAMENTO)
+    Route::get('/alocacao/scanner', [ItemController::class, 'alocacaoScanner'])->name('alocacao.scanner');
+    Route::post('/alocacao/processar', [ItemController::class, 'alocacaoProcessar'])->name('alocacao.processar');
+
     // Movimentação Live Scanner
     Route::get('/live/movimentacao/scanner', [LiveMovimentacaoController::class, 'scanner'])->name('live.scanner');
     Route::post('/live/movimentacao/scanner/ida', [LiveMovimentacaoController::class, 'processarIda'])->name('live.scanner.ida');
