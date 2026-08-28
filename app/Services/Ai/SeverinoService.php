@@ -21,7 +21,7 @@ class SeverinoService
     {
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
-            "REGRA DE OURO PARA BANCO DE DADOS: Antes de tentar inventar tabelas, use a ferramenta 'mapear_modulo_sistema' (ex: financeiro, clube, lives, estoque, clientes) para aprender quais tabelas usar. Depois, chame 'executar_query_select' com o SQL correto.\n" .
+            "REGRA DE OURO PARA BANCO DE DADOS: Para perguntas comuns (lives e clube), use ferramentas nativas (resumo_live, status_clube_mensalidades) se existirem. Para perguntas não cobertas, use a ferramenta 'mapear_modulo_sistema' (ex: financeiro, clube, lives, estoque, clientes) para aprender o esquema e depois chame 'executar_query_select'. USE SEMPRE SINTAXE MYSQL (ex: CURDATE(), DATE_SUB), NUNCA SQLite.\n" .
             "Nunca execute nenhuma alteração, apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
         $tools = [
@@ -57,6 +57,24 @@ class SeverinoService
                             "properties" => [
                                 "status" => ["type" => "STRING", "description" => "Status: disponivel, loja, sacolinha, vendido, etc"]
                             ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_live",
+                        "description" => "Retorna o resultado final de uma live (total de itens vendidos/separados, faturamento, total de clientes), buscando pela data (Y-m-d) ou pegando a mais recente.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, pega a última live."]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "status_clube_mensalidades",
+                        "description" => "Retorna a lista de assinantes do Clube Mania que já pagaram e os que ainda não pagaram a mensalidade do mês atual.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
                         ]
                     ],
                     [
@@ -266,6 +284,69 @@ class SeverinoService
                     return [
                         "total_itens" => count($itens),
                         "itens" => $itens
+                    ];
+
+                case "resumo_live":
+                    $data = $args["data"] ?? null;
+                    if ($data) {
+                        $live = \App\Models\Live::whereDate("data", $data)->first();
+                    } else {
+                        $live = \App\Models\Live::orderBy("data", "desc")->first();
+                    }
+
+                    if (!$live) {
+                        return ["erro" => "Nenhuma live encontrada na data informada."];
+                    }
+
+                    // Calcula o faturamento usando a tabela sacolinhas baseada no live_id
+                    $stats = DB::table("sacolinhas")
+                        ->where("live_id", $live->id)
+                        ->selectRaw("COUNT(id) as total_itens, SUM(price * quantity) as faturamento, COUNT(DISTINCT user_id) as total_clientes")
+                        ->first();
+
+                    return [
+                        "live_id" => $live->id,
+                        "data_live" => $live->data->format("d/m/Y"),
+                        "tipo" => $live->tipo_live,
+                        "total_itens_separados" => (int)$stats->total_itens,
+                        "faturamento_bruto" => (float)$stats->faturamento,
+                        "clientes_distintos" => (int)$stats->total_clientes
+                    ];
+
+                case "status_clube_mensalidades":
+                    // Busca todos os assinantes ativos
+                    $assinaturas = DB::table('clube_assinaturas')
+                        ->where('status', 'ativa')
+                        ->get();
+
+                    $primeiroDiaMesRef = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+
+                    $pagos = [];
+                    $pendentes = [];
+
+                    foreach ($assinaturas as $assinatura) {
+                        $user = \App\Models\User::find($assinatura->user_id);
+                        $nome = $user ? $user->name : "User ID: " . $assinatura->user_id;
+
+                        // Verifica se pagou a mensalidade do mês atual
+                        $mensalidade = DB::table('clube_mensalidades')
+                            ->where('user_id', $assinatura->user_id)
+                            ->where('mes_referencia', $primeiroDiaMesRef)
+                            ->where('status_pagamento', 'pago')
+                            ->first();
+
+                        if ($mensalidade) {
+                            $pagos[] = $nome;
+                        } else {
+                            $pendentes[] = $nome;
+                        }
+                    }
+
+                    return [
+                        "total_pagos" => count($pagos),
+                        "total_pendentes" => count($pendentes),
+                        "pagos" => $pagos,
+                        "pendentes" => $pendentes
                     ];
 
                 case "mapear_modulo_sistema":
