@@ -137,30 +137,35 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-3-flash-preview"]; // Usando apenas o que responde
+        $modelsToTry = ["gemini-3-flash-preview"];
 
-        for ($i = 0; $i < 12; $i++) {
+        for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;
-            foreach ($modelsToTry as $modelName) {
-                try {
-                    $response = Http::timeout(10)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
-                    if ($response->successful()) {
-                        break;
+            
+            // Loop de tentativas de API (retry de rate limit)
+            for ($attempt = 0; $attempt < 10; $attempt++) {
+                foreach ($modelsToTry as $modelName) {
+                    try {
+                        $response = Http::timeout(10)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                        if ($response->successful()) {
+                            break 2; // Sai do foreach models e do for attempts
+                        }
+                        if ($response->status() == 429) {
+                            Log::warning("Severino falhou no modelo {$modelName} (429 Rate Limit). Aguardando 4s (Tentativa {$attempt})...");
+                            sleep(4); 
+                            continue 2; // Pula pro próximo attempt
+                        }
+                        Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
+                    } catch (\Exception $e) {
+                        Log::warning("Severino timeout/erro no modelo {$modelName}: " . $e->getMessage());
+                        $response = null;
                     }
-                    if ($response->status() == 429) {
-                        Log::warning("Severino falhou no modelo {$modelName} (429 Rate Limit). Aguardando...");
-                        sleep(3); // Rate limit, aguarda 3s
-                        continue 2; // Tenta o próximo loop principal do i
-                    }
-                    Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
-                } catch (\Exception $e) {
-                    Log::warning("Severino timeout/erro no modelo {$modelName}: " . $e->getMessage());
-                    $response = null;
                 }
+                sleep(2); // Espera um pouco se todos os modelos falharam antes de tentar o attempt de novo
             }
 
             if (!$response || !$response->successful()) {
-                return "Erro na API do Gemini. Todos os modelos falharam. Verifique os logs.";
+                return "Erro na API do Gemini após várias tentativas. Verifique os logs.";
             }
 
             $data = $response->json();
