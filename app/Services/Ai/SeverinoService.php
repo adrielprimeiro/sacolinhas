@@ -71,6 +71,16 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "resumo_live",
+                        "description" => "Retorna o resultado final de uma live (total de itens vendidos/separados, faturamento, total de clientes), buscando pela data (Y-m-d) ou pegando a mais recente.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, pega a última live."]
+                            ]
+                        ]
+                    ],
+                    [
                         "name" => "consultar_esquema_banco",
                         "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
                         "parameters" => [
@@ -263,6 +273,33 @@ class SeverinoService
                     return [
                         "total_itens" => count($itens),
                         "itens" => $itens
+                    ];
+
+                case "resumo_live":
+                    $data = $args["data"] ?? null;
+                    if ($data) {
+                        $live = \App\Models\Live::whereDate("data", $data)->first();
+                    } else {
+                        $live = \App\Models\Live::orderBy("data", "desc")->first();
+                    }
+
+                    if (!$live) {
+                        return ["erro" => "Nenhuma live encontrada na data informada."];
+                    }
+
+                    // Calcula o faturamento usando a tabela sacolinhas baseada no live_id
+                    $stats = DB::table("sacolinhas")
+                        ->where("live_id", $live->id)
+                        ->selectRaw("COUNT(id) as total_itens, SUM(price * quantity) as faturamento, COUNT(DISTINCT user_id) as total_clientes")
+                        ->first();
+
+                    return [
+                        "live_id" => $live->id,
+                        "data_live" => $live->data->format("d/m/Y"),
+                        "tipo" => $live->tipo_live,
+                        "total_itens_separados" => (int)$stats->total_itens,
+                        "faturamento_bruto" => (float)$stats->faturamento,
+                        "clientes_distintos" => (int)$stats->total_clientes
                     ];
 
                 case "consultar_esquema_banco":
