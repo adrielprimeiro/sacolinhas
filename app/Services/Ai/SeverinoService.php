@@ -29,7 +29,7 @@ class SeverinoService
                 "functionDeclarations" => [
                     [
                         "name" => "buscar_cliente",
-                        "description" => "Busca o ID e dados básicos de um cliente pelo nome, email, apelido ou telefone. Se retornar vários, pergunte ao usuário qual é o correto.",
+                        "description" => "Busca o ID e dados básicos de um cliente pelo nome, email, apelido, instagram, tiktok ou telefone. Se retornar vários, pergunte ao usuário qual é o correto.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
@@ -161,7 +161,10 @@ class SeverinoService
                     $users = User::where("name", "like", "%{$termo}%")
                         ->orWhere("email", "like", "%{$termo}%")
                         ->orWhere("apelido", "like", "%{$termo}%")
-                        ->select("id", "name", "email", "phone", "apelido")
+                        ->orWhere("instagram", "like", "%{$termo}%")
+                        ->orWhere("tiktok", "like", "%{$termo}%")
+                        ->orWhere("nome_cliente", "like", "%{$termo}%")
+                        ->select("id", "name", "email", "phone", "apelido", "instagram", "tiktok")
                         ->limit(10)
                         ->get();
                     return ["clientes_encontrados" => $users->toArray()];
