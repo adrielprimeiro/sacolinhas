@@ -272,32 +272,32 @@ class SeverinoService
                     $modulo = strtolower($args["modulo"] ?? "");
                     switch ($modulo) {
                         case "financeiro":
-                            return "MÓDULO FINANCEIRO:
+                            return ["mapa" => "MÓDULO FINANCEIRO:
 - Tabelas principais: `contas_bancarias` (id, nome, tipo, saldo_atual), `movimentacoes` (id, conta_bancaria_id, valor_pago, data_pagamento, lancamento_id), `lancamentos` (id, tipo='receita'/'despesa', status='pendente'/'pago', pessoa_id).
 - Regra de Saldo: O 'saldo_atual' da tabela `contas_bancarias` é o valor oficial e real do dinheiro da empresa (ex: Inter, Carteira Cliente).
 - Regra de Movimentações: Tudo que entra ou sai de verdade do banco passa por `movimentacoes`.
-- Tabela `transacoes_extrato`: Apenas extrato importado cru, NÃO use para calcular saldo oficial da empresa.";
+- Tabela `transacoes_extrato`: Apenas extrato importado cru, NÃO use para calcular saldo oficial da empresa."];
                         case "clube":
-                            return "MÓDULO CLUBE MANIA:
+                            return ["mapa" => "MÓDULO CLUBE MANIA:
 - Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
 - Regra Ativos: Um cliente é assinante ativo se existe em `clube_assinaturas` com `status = 'ativa'`.
-- Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'.";
+- Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'."];
                         case "lives":
-                            return "MÓDULO LIVES E VENDAS:
+                            return ["mapa" => "MÓDULO LIVES E VENDAS:
 - Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
 - Tabela de Itens Separados: `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at).
 - Regra Resultado Live: Para saber o faturamento de uma live, faça SUM(price * quantity) na tabela `sacolinhas` filtrando pelo `live_id` correspondente à tabela `lives`.
-- Tabela de Pedidos Pagos: `pedidos` (id, user_id, valor_total, live_id, pago).";
+- Tabela de Pedidos Pagos: `pedidos` (id, user_id, valor_total, live_id, pago)."];
                         case "estoque":
-                            return "MÓDULO ESTOQUE:
+                            return ["mapa" => "MÓDULO ESTOQUE:
 - Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao).
-- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.";
+- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'."];
                         case "clientes":
-                            return "MÓDULO CLIENTES:
+                            return ["mapa" => "MÓDULO CLIENTES:
 - Tabelas principais: `users` (id, name, email, instagram, tiktok, telefone), `pessoas` (id, nome, cpf_cnpj, telefone).
-- Regra: Usuários do sistema e do app são `users`. Entidades financeiras/fornecedores no financeiro são `pessoas`.";
+- Regra: Usuários do sistema e do app são `users`. Entidades financeiras/fornecedores no financeiro são `pessoas`."];
                         default:
-                            return "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, estoque, clientes.";
+                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, estoque, clientes."];
                     }
 
                 case "executar_query_select":
