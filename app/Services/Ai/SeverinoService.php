@@ -89,6 +89,14 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "status_clube_mensalidades",
+                        "description" => "Retorna a lista de assinantes do Clube Mania que já pagaram e os que ainda não pagaram a mensalidade do mês atual.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
                         "name" => "consultar_esquema_banco",
                         "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
                         "parameters" => [
@@ -322,6 +330,42 @@ class SeverinoService
                         ];
                     }
                     return $resultado;
+
+                case "status_clube_mensalidades":
+                    // Busca todos os assinantes ativos
+                    $assinaturas = DB::table('clube_assinaturas')
+                        ->where('status', 'ativa')
+                        ->get();
+
+                    $primeiroDiaMesRef = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+
+                    $pagos = [];
+                    $pendentes = [];
+
+                    foreach ($assinaturas as $assinatura) {
+                        $user = \App\Models\User::find($assinatura->user_id);
+                        $nome = $user ? $user->name : "User ID: " . $assinatura->user_id;
+
+                        // Verifica se pagou a mensalidade do mês atual
+                        $mensalidade = DB::table('clube_mensalidades')
+                            ->where('user_id', $assinatura->user_id)
+                            ->where('mes_referencia', $primeiroDiaMesRef)
+                            ->where('status_pagamento', 'pago')
+                            ->first();
+
+                        if ($mensalidade) {
+                            $pagos[] = $nome;
+                        } else {
+                            $pendentes[] = $nome;
+                        }
+                    }
+
+                    return [
+                        "total_pagos" => count($pagos),
+                        "total_pendentes" => count($pendentes),
+                        "pagos" => $pagos,
+                        "pendentes" => $pendentes
+                    ];
 
                 case "consultar_esquema_banco":
                     $tabelas = DB::select("SHOW TABLES");
