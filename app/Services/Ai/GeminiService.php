@@ -70,7 +70,7 @@ class GeminiService
             return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
         }
 
-        $modelsToTry = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+        $modelsToTry = ['gemini-3-flash-preview'];
 
         $contents = [];
         $lastRole = null;
@@ -120,26 +120,29 @@ class GeminiService
             ];
         }
 
-        foreach ($modelsToTry as $model) {
-            try {
-                $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
-                $response = Http::timeout(15)->post($url, $payload);
+        for ($i = 0; $i < 3; $i++) {
+            foreach ($modelsToTry as $model) {
+                try {
+                    $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
+                    $response = Http::timeout(10)->post($url, $payload);
 
-                if ($response->successful()) {
-                    $data = $response->json();
-                    $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                    if ($text) {
-                        return trim($text);
+                    if ($response->successful()) {
+                        $data = $response->json();
+                        $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                        if ($text) {
+                            return trim($text);
+                        }
                     }
-                }
 
-                if ($response->status() == 429) {
-                    sleep(2);
-                }
+                    if ($response->status() == 429) {
+                        sleep(2);
+                        continue 2; // Volta pro for do $i
+                    }
 
-                Log::warning("Gemini model {$model} falhou ({$response->status()}): {$response->body()}");
-            } catch (Exception $e) {
-                Log::warning("Exceção chamando Gemini modelo {$model}: " . $e->getMessage());
+                    Log::warning("Gemini model {$model} falhou ({$response->status()}): {$response->body()}");
+                } catch (Exception $e) {
+                    Log::warning("Exceção chamando Gemini modelo {$model}: " . $e->getMessage());
+                }
             }
         }
 
