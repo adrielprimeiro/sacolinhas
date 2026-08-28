@@ -3,71 +3,77 @@
 @section('title', 'Severino AI')
 
 @section('content')
-<div class="container-fluid" x-data="severinoChat()">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="mb-0"><i class="fas fa-robot text-primary me-2"></i>Severino AI</h2>
-            <p class="text-muted">Seu assistente administrativo integrado ao banco de dados.</p>
-        </div>
+<div class="container mx-auto px-4 py-6" x-data="severinoChat()">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+            <i class="fas fa-robot text-indigo-600 mr-3"></i> Severino AI
+        </h2>
+        <p class="text-gray-500 mt-1">Seu assistente administrativo integrado ao banco de dados.</p>
     </div>
 
-    <div class="row">
-        <div class="col-12 col-md-8 mx-auto">
-            <div class="card shadow-sm border-0 d-flex flex-column" style="height: 600px;">
-                <!-- Chat Messages -->
-                <div class="card-body overflow-auto bg-light p-4" id="chat-box" style="flex: 1;">
-                    <template x-for="(msg, index) in messages" :key="index">
-                        <div :class="msg.role === 'user' ? 'd-flex justify-content-end mb-3' : 'd-flex justify-content-start mb-3'">
-                            <!-- Avatar Severino -->
-                            <div x-show="msg.role === 'assistant'" class="me-2 mt-1">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; font-size: 14px;">
-                                    <i class="fas fa-robot"></i>
-                                </div>
-                            </div>
-                            
-                            <!-- Bubble -->
-                            <div :class="msg.role === 'user' ? 'bg-primary text-white p-3 rounded-4 shadow-sm' : 'bg-white text-dark p-3 rounded-4 shadow-sm border'" style="max-width: 80%; border-bottom-right-radius: 4px;">
-                                <div x-html="formatMessage(msg.text)" style="word-wrap: break-word; font-size: 14px;"></div>
-                            </div>
-                            
-                            <!-- Avatar User -->
-                            <div x-show="msg.role === 'user'" class="ms-2 mt-1">
-                                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; font-size: 14px;">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                    
-                    <div x-show="loading" class="d-flex justify-content-start mb-3">
-                        <div class="me-2 mt-1">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 35px; height: 35px; font-size: 14px;">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow-md flex flex-col overflow-hidden border border-gray-200" style="height: 650px;">
+            <!-- Chat Messages -->
+            <div class="flex-1 overflow-y-auto bg-gray-50 p-6 space-y-6" id="chat-box">
+                <template x-for="(msg, index) in messages" :key="index">
+                    <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                        
+                        <!-- Avatar Severino -->
+                        <div x-show="msg.role === 'assistant'" class="flex-shrink-0 mr-3 mt-1">
+                            <div class="bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-sm w-10 h-10">
                                 <i class="fas fa-robot"></i>
                             </div>
                         </div>
-                        <div class="bg-white text-dark p-3 rounded-4 shadow-sm border text-muted">
-                            <i class="fas fa-circle-notch fa-spin me-2"></i> Consultando dados no sistema...
+                        
+                        <!-- Bubble -->
+                        <div :class="msg.role === 'user' 
+                                ? 'bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]' 
+                                : 'bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-200 max-w-[80%]'" 
+                             style="word-wrap: break-word;">
+                            <div class="prose prose-sm max-w-none" :class="msg.role === 'user' ? 'prose-invert' : ''" x-html="formatMessage(msg.text)"></div>
+                        </div>
+                        
+                        <!-- Avatar User -->
+                        <div x-show="msg.role === 'user'" class="flex-shrink-0 ml-3 mt-1">
+                            <div class="bg-gray-500 text-white rounded-full flex items-center justify-center shadow-sm w-10 h-10">
+                                <i class="fas fa-user"></i>
+                            </div>
                         </div>
                     </div>
+                </template>
+                
+                <div x-show="loading" class="flex justify-start">
+                    <div class="flex-shrink-0 mr-3 mt-1">
+                        <div class="bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-sm w-10 h-10">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white text-gray-500 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-200 flex items-center">
+                        <i class="fas fa-circle-notch fa-spin mr-3 text-indigo-500"></i> Consultando dados no sistema...
+                    </div>
                 </div>
+            </div>
 
-                <!-- Chat Input -->
-                <div class="card-footer bg-white border-top-0 p-3">
-                    <form @submit.prevent="sendMessage" class="d-flex align-items-center">
-                        <input type="text" x-model="input" class="form-control rounded-pill border-0 bg-light me-2 px-4 py-2" placeholder="Pergunte ao Severino..." :disabled="loading" autofocus>
-                        <button type="submit" class="btn btn-primary rounded-circle shadow-sm" style="width: 45px; height: 45px;" :disabled="loading || input.trim() === ''">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
-                </div>
+            <!-- Chat Input -->
+            <div class="bg-white border-t border-gray-200 p-4">
+                <form @submit.prevent="sendMessage" class="flex items-center gap-3">
+                    <input type="text" x-model="input" 
+                           class="flex-1 rounded-full border border-gray-300 bg-gray-50 px-6 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                           placeholder="Pergunte ao Severino..." 
+                           :disabled="loading" autofocus>
+                    
+                    <button type="submit" 
+                            class="bg-indigo-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed" 
+                            :disabled="loading || input.trim() === ''">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Usando Marked.js para renderizar Markdown do Gemini de forma segura e rápida -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
 <script>
 function severinoChat() {
     return {
@@ -79,7 +85,6 @@ function severinoChat() {
 
         formatMessage(text) {
             if(!text) return '';
-            // Converte Markdown para HTML
             return marked.parse(text);
         },
 
@@ -99,7 +104,6 @@ function severinoChat() {
             this.loading = true;
             this.scrollToBottom();
 
-            // Pega as últimas 10 mensagens para contexto
             const history = this.messages.slice(-10).map(m => ({ role: m.role, text: m.text }));
 
             try {
@@ -109,7 +113,7 @@ function severinoChat() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ message: userText, history: history.slice(0, -1) }) // exclui a última que é o prompt atual
+                    body: JSON.stringify({ message: userText, history: history.slice(0, -1) })
                 });
 
                 const data = await response.json();
@@ -130,9 +134,10 @@ function severinoChat() {
 }
 </script>
 <style>
-/* Ajustes para o Marked renderizar bonitinho dentro do bubble */
-#chat-box p:last-child { margin-bottom: 0; }
-#chat-box ul { margin-bottom: 0; padding-left: 20px; }
-#chat-box code { background-color: #f8f9fa; padding: 2px 4px; border-radius: 4px; color: #d63384; }
+/* Adjusts standard markdown tags inside the chat bubbles to look good */
+.prose p:last-child { margin-bottom: 0; }
+.prose ul { margin-bottom: 0; padding-left: 1.5em; list-style-type: disc; }
+.prose code { background-color: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.875em; color: #db2777; }
+.prose-invert code { background-color: rgba(255,255,255,0.2); color: #fff; }
 </style>
 @endsection

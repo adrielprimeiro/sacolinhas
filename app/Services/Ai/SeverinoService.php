@@ -55,7 +55,7 @@ class SeverinoService
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "status" => ["type" => "STRING", "description" => "Status: disponivel, loja, sacolinha, vendido, etc"]
+                                "status" => \"type\" => \"STRING\", \"description\" => \"Status: disponivel, loja, sacolinha, vendido, etc\"]
                             ]
                         ]
                     ]
@@ -84,12 +84,20 @@ class SeverinoService
             ]
         ];
 
-        for ($i = 0; $i < 4; $i++) {
-            $response = Http::timeout(20)->post("{$this->baseUrl}/models/gemini-2.5-flash:generateContent?key={$this->apiKey}", $payload);
+        $modelsToTry = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.5-flash", "gemini-3.7-flash"];
 
-            if (!$response->successful()) {
-                Log::error("Severino API Error: " . $response->body());
-                return "Erro na API do Gemini: " . $response->status();
+        for ($i = 0; $i < 4; $i++) {
+            $response = null;
+            foreach ($modelsToTry as $modelName) {
+                $response = Http::timeout(20)->post("zthis->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                if ($response->successful()) {
+                    break;
+                }
+                Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
+            }
+
+            if (!$response || !$response->successful()) {
+                return "Erro na API do Gemini. Todos os modelos falharam. Verifique os logs.";
             }
 
             $data = $response->json();
@@ -127,6 +135,9 @@ class SeverinoService
 
             if ($hasFunctionCall) {
                 $payload["contents"][] = $candidate["content"];
+                $payload["tools"] = null; // drop of tools in response?
+                $payload["model"] = $gemini-wherever? // nope
+                $payload["contents"][] = [unset? ]otherwise
                 $payload["contents"][] = [
                     "role" => "user",
                     "parts" => $toolResponses
@@ -167,10 +178,10 @@ class SeverinoService
                     $disponivel = max(0, $valorLimite + $saldo - $utilizado);
 
                     return [
-                        "saldo_carteira" => $saldo,
-                        "limite_concedido_empresa" => $valorLimite,
-                        "limite_utilizado" => $utilizado,
-                        "limite_sacolinha_disponivel" => $disponivel
+                       "saldo_carteira" => $saldo,
+                       "limite_concedido_empresa" => $valorLimite,
+                       "limite_utilizado" => $utilizado,
+                       "limite_sacolinha_disponivel" => $disponivel
                     ];
 
                 case "contagem_estoque":
@@ -188,7 +199,7 @@ class SeverinoService
                     return ["erro" => "Ferramenta {$name} não existe."];
             }
         } catch (\Exception $e) {
-            return ["erro" => "Exceção interna: " . $e->getMessage()];
+            return ["erro" => "Exceção interna: " . $e->GetMessage()];
         }
     }
 }
