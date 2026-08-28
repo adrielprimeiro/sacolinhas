@@ -75,7 +75,7 @@ class SeverinoService
                         "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
                         "parameters" => [
                             "type" => "OBJECT",
-                            "properties" => []
+                            "properties" => (object)[]
                         ]
                     ],
                     [
