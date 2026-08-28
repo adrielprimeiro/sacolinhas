@@ -116,7 +116,7 @@ class SeverinoService
 
         $modelsToTry = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
 
-        for ($i = 0; $i < 4; $i++) {
+        for ($i = 0; $i < 8; $i++) {
             $response = null;
             foreach ($modelsToTry as $modelName) {
                 try {
@@ -160,6 +160,7 @@ class SeverinoService
                     $name = $call["name"];
                     $args = $call["args"] ?? [];
                     
+                    Log::info("Severino chamando ferramenta: {$name}", $args);
                     $result = $this->executeTool($name, $args);
 
                     $toolResponses[] = [
