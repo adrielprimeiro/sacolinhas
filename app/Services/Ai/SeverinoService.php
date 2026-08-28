@@ -84,13 +84,13 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-2.5-flash", "gemini-flash-latest"];
+        $modelsToTry = ["gemini-1.5-flash", "gemini-2.5-flash"];
 
         for ($i = 0; $i < 4; $i++) {
             $response = null;
             foreach ($modelsToTry as $modelName) {
                 try {
-                    $response = Http::timeout(12)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                    $response = Http::timeout(30)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
                     if ($response->successful()) {
                         break;
                     }
