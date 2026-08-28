@@ -70,7 +70,6 @@ class SeverinoService
                             "required" => ["user_id"]
                         ]
                     ],
-                    ],
                     [
                         "name" => "mapear_modulo_sistema",
                         "description" => "Quando precisar fazer consultas SQL no banco, chame esta ferramenta primeiro informando o módulo (financeiro, clube, lives, estoque, clientes). Ela retorna as regras de negócio, tabelas principais, colunas e relacionamentos daquele setor para você não errar a query.",
