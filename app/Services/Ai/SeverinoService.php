@@ -81,6 +81,14 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "saldo_contas",
+                        "description" => "Retorna o saldo bancário de todas as contas da empresa (ex: Inter, Carteira Cliente, etc). Use para ver o dinheiro da empresa.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
                         "name" => "consultar_esquema_banco",
                         "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
                         "parameters" => [
@@ -301,6 +309,19 @@ class SeverinoService
                         "faturamento_bruto" => (float)$stats->faturamento,
                         "clientes_distintos" => (int)$stats->total_clientes
                     ];
+
+                case "saldo_contas":
+                    $contas = \App\Models\ContaBancaria::all();
+                    $resultado = [];
+                    foreach ($contas as $conta) {
+                        $resultado[] = [
+                            "id" => $conta->id,
+                            "nome_conta" => $conta->nome,
+                            "tipo" => $conta->tipo,
+                            "saldo_calculado" => $conta->saldo_atual
+                        ];
+                    }
+                    return $resultado;
 
                 case "consultar_esquema_banco":
                     $tabelas = DB::select("SHOW TABLES");
