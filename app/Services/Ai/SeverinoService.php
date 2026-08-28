@@ -137,7 +137,7 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-3-flash-preview"];
+        $modelsToTry = ["gemini-3-flash-preview", "gemini-1.5-flash", "gemini-1.5-pro"];
 
         for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;

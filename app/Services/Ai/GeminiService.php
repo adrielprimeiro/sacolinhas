@@ -70,7 +70,7 @@ class GeminiService
             return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
         }
 
-        $modelsToTry = ['gemini-3-flash-preview'];
+        $modelsToTry = ['gemini-3-flash-preview', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
         $contents = [];
         $lastRole = null;
