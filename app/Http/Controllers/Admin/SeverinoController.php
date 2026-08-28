@@ -15,6 +15,7 @@ class SeverinoController extends Controller
 
     public function ask(Request $request, SeverinoService $severinoService)
     {
+        set_time_limit(120);
         $message = $request->input('message');
         $history = $request->input('history', []);
 
