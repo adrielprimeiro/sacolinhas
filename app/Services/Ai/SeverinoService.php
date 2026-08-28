@@ -19,7 +19,9 @@ class SeverinoService
 
     public function askSeverino(string $userPrompt, array $history = []): string
     {
+        $dataAtual = date('Y-m-d H:i:s');
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
+            "Hoje é: {$dataAtual}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Para perguntas comuns (lives e clube), use ferramentas nativas (resumo_live, status_clube_mensalidades) se existirem. Para perguntas não cobertas, use a ferramenta 'mapear_modulo_sistema' (ex: financeiro, clube, lives, estoque, clientes) para aprender o esquema e depois chame 'executar_query_select'. USE SEMPRE SINTAXE MYSQL (ex: CURDATE(), DATE_SUB), NUNCA SQLite.\n" .
             "Nunca execute nenhuma alteração, apenas consulte e informe. Responda em Markdown claro e objetivo.";
@@ -135,18 +137,20 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
+        $modelsToTry = ["gemini-3-flash-preview"]; // Usando apenas o que responde
 
         for ($i = 0; $i < 12; $i++) {
             $response = null;
             foreach ($modelsToTry as $modelName) {
                 try {
-                    $response = Http::timeout(30)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                    $response = Http::timeout(10)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
                     if ($response->successful()) {
                         break;
                     }
                     if ($response->status() == 429) {
-                        sleep(2); // Rate limit, aguarda 2s antes de tentar de novo
+                        Log::warning("Severino falhou no modelo {$modelName} (429 Rate Limit). Aguardando...");
+                        sleep(3); // Rate limit, aguarda 3s
+                        continue 2; // Tenta o próximo loop principal do i
                     }
                     Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
                 } catch (\Exception $e) {
