@@ -70,7 +70,7 @@ class GeminiService
             return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
         }
 
-        $modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+        $modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash', 'gemini-2.5-flash'];
 
         $contents = [];
         $lastRole = null;
@@ -131,6 +131,10 @@ class GeminiService
                     if ($text) {
                         return trim($text);
                     }
+                }
+
+                if ($response->status() == 429) {
+                    sleep(2);
                 }
 
                 Log::warning("Gemini model {$model} falhou ({$response->status()}): {$response->body()}");

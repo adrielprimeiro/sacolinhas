@@ -84,7 +84,7 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"];
+        $modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-2.5-flash"];
 
         for ($i = 0; $i < 4; $i++) {
             $response = null;
@@ -93,6 +93,9 @@ class SeverinoService
                     $response = Http::timeout(30)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
                     if ($response->successful()) {
                         break;
+                    }
+                    if ($response->status() == 429) {
+                        sleep(2); // Rate limit, aguarda 2s antes de tentar de novo
                     }
                     Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
                 } catch (\Exception $e) {
