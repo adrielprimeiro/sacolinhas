@@ -58,6 +58,17 @@ class SeverinoService
                                 "status" => ["type" => "STRING", "description" => "Status: disponivel, loja, sacolinha, vendido, etc"]
                             ]
                         ]
+                    ],
+                    [
+                        "name" => "itens_sacolinha",
+                        "description" => "Lista os itens atualmente na sacolinha de um cliente (pelo ID numérico), incluindo a data que foram adicionados e quantos dias estão parados.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "user_id" => ["type" => "INTEGER", "description" => "ID numérico do cliente"]
+                            ],
+                            "required" => ["user_id"]
+                        ]
                     ]
                 ]
             ]
@@ -203,6 +214,26 @@ class SeverinoService
                     }
                     $count = $query->count();
                     return ["quantidade" => $count, "status_pesquisado" => $status ?? "disponivel, loja e sacolinha"];
+
+                case "itens_sacolinha":
+                    $userId = $args["user_id"] ?? 0;
+                    $sacolinhas = \App\Models\Sacolinhas::with("item")->where("user_id", $userId)->get();
+                    $agora = \Carbon\Carbon::now();
+                    $itens = [];
+                    foreach ($sacolinhas as $s) {
+                        $dias = $s->add_at ? $agora->diffInDays($s->add_at) : 0;
+                        $itens[] = [
+                            "item_id" => $s->item_id,
+                            "nome" => $s->item ? $s->item->nome_do_produto : "Desconhecido",
+                            "preco" => $s->price,
+                            "adicionado_em" => $s->add_at ? $s->add_at->format("d/m/Y") : "Desconhecida",
+                            "dias_na_sacolinha" => $dias
+                        ];
+                    }
+                    return [
+                        "total_itens" => count($itens),
+                        "itens" => $itens
+                    ];
 
                 default:
                     return ["erro" => "Ferramenta {$name} não existe."];
