@@ -89,7 +89,7 @@ class SeverinoService
         for ($i = 0; $i < 4; $i++) {
             $response = null;
             foreach ($modelsToTry as $modelName) {
-                $response = Http::timeout(20)->post("zthis->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                $response = Http::timeout(20)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
                 if ($response->successful()) {
                     break;
                 }
