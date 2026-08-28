@@ -55,7 +55,7 @@ class SeverinoService
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "status" => \"type\" => \"STRING\", \"description\" => \"Status: disponivel, loja, sacolinha, vendido, etc\"]
+                                "status" => ["type" => "STRING", "description" => "Status: disponivel, loja, sacolinha, vendido, etc"]
                             ]
                         ]
                     ]
