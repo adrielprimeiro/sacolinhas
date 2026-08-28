@@ -172,6 +172,16 @@ class SeverinoService
             }
 
             if ($hasFunctionCall) {
+                // Fix: empty args [] becomes a list when json_encoded. Gemini expects an object.
+                foreach ($candidate["content"]["parts"] as &$p) {
+                    if (isset($p["functionCall"]) && isset($p["functionCall"]["args"])) {
+                        if (empty($p["functionCall"]["args"])) {
+                            $p["functionCall"]["args"] = (object)[];
+                        }
+                    }
+                }
+                unset($p);
+
                 $payload["contents"][] = $candidate["content"];
                 $payload["contents"][] = [
                     "role" => "user",
