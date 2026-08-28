@@ -69,6 +69,25 @@ class SeverinoService
                             ],
                             "required" => ["user_id"]
                         ]
+                    ],
+                    [
+                        "name" => "consultar_esquema_banco",
+                        "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => []
+                        ]
+                    ],
+                    [
+                        "name" => "executar_query_select",
+                        "description" => "Executa uma query SQL SELECT no banco de dados da empresa. Útil para consultar vendas, lives, totalizadores, cadastros, etc. ATENÇÃO: Nunca limite a resposta se precisar somar (ex: use SUM).",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "query" => ["type" => "STRING", "description" => "A query SQL (ex: SELECT * FROM lives ORDER BY data DESC LIMIT 1)"]
+                            ],
+                            "required" => ["query"]
+                        ]
                     ]
                 ]
             ]
@@ -234,6 +253,34 @@ class SeverinoService
                         "total_itens" => count($itens),
                         "itens" => $itens
                     ];
+
+                case "consultar_esquema_banco":
+                    $tabelas = DB::select("SHOW TABLES");
+                    $esquema = [];
+                    foreach($tabelas as $t) {
+                        $tabela = array_values((array)$t)[0];
+                        // Ignora algumas tabelas grandes demais ou de sistema
+                        if (in_array($tabela, ['migrations', 'failed_jobs', 'personal_access_tokens', 'password_reset_tokens'])) continue;
+                        $colunas = DB::select("SHOW COLUMNS FROM `{$tabela}`");
+                        $esquema[$tabela] = array_map(function($c) { return $c->Field . " (" . $c->Type . ")"; }, $colunas);
+                    }
+                    return $esquema;
+
+                case "executar_query_select":
+                    $query = $args["query"] ?? "";
+                    if (!preg_match("/^\s*SELECT/i", $query)) {
+                        return ["erro" => "Por questões de segurança, apenas queries SELECT são permitidas."];
+                    }
+                    try {
+                        // Limitar o retorno a 100 linhas para não explodir o token
+                        if (!preg_match("/LIMIT/i", $query) && !preg_match("/COUNT\(/i", $query) && !preg_match("/SUM\(/i", $query)) {
+                            $query .= " LIMIT 100";
+                        }
+                        $resultado = DB::select($query);
+                        return ["resultados" => $resultado];
+                    } catch (\Exception $e) {
+                        return ["erro" => "Erro na sintaxe SQL: " . $e->getMessage()];
+                    }
 
                 default:
                     return ["erro" => "Ferramenta {$name} não existe."];
