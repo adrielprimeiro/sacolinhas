@@ -160,7 +160,7 @@ class SeverinoService
                     $termo = $args["termo"] ?? "";
                     $users = User::where("name", "like", "%{$termo}%")
                         ->orWhere("email", "like", "%{$termo}%")
-                        ->select("id", "name", "email", "telefone")
+                        ->select("id", "name", "email", "phone")
                         ->limit(5)
                         ->get();
                     return ["clientes_encontrados" => $users->toArray()];
