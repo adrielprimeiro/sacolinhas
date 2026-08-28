@@ -19,10 +19,10 @@ class SeverinoService
 
     public function askSeverino(string $userPrompt, array $history = []): string
     {
-        $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania de Melissa.\n" .
+        $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
-            "Seja direto, técnico e proativo. Nunca execute nenhuma alteração, apenas consulte e informe.\n" .
-            "Responda em formato Markdown, com listas ou negrito quando ajudar na visualização.";
+            "REGRA DE OURO PARA BANCO DE DADOS: Antes de tentar inventar tabelas, use a ferramenta 'mapear_modulo_sistema' (ex: financeiro, clube, lives, estoque, clientes) para aprender quais tabelas usar. Depois, chame 'executar_query_select' com o SQL correto.\n" .
+            "Nunca execute nenhuma alteração, apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
         $tools = [
             [
@@ -70,43 +70,21 @@ class SeverinoService
                             "required" => ["user_id"]
                         ]
                     ],
+                    ],
                     [
-                        "name" => "resumo_live",
-                        "description" => "Retorna o resultado final de uma live (total de itens vendidos/separados, faturamento, total de clientes), buscando pela data (Y-m-d) ou pegando a mais recente.",
+                        "name" => "mapear_modulo_sistema",
+                        "description" => "Quando precisar fazer consultas SQL no banco, chame esta ferramenta primeiro informando o módulo (financeiro, clube, lives, estoque, clientes). Ela retorna as regras de negócio, tabelas principais, colunas e relacionamentos daquele setor para você não errar a query.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, pega a última live."]
-                            ]
-                        ]
-                    ],
-                    [
-                        "name" => "saldo_contas",
-                        "description" => "Retorna o saldo bancário de todas as contas da empresa (ex: Inter, Carteira Cliente, etc). Use para ver o dinheiro da empresa.",
-                        "parameters" => [
-                            "type" => "OBJECT",
-                            "properties" => (object)[]
-                        ]
-                    ],
-                    [
-                        "name" => "status_clube_mensalidades",
-                        "description" => "Retorna a lista de assinantes do Clube Mania que já pagaram e os que ainda não pagaram a mensalidade do mês atual.",
-                        "parameters" => [
-                            "type" => "OBJECT",
-                            "properties" => (object)[]
-                        ]
-                    ],
-                    [
-                        "name" => "consultar_esquema_banco",
-                        "description" => "Retorna a estrutura (tabelas e colunas) do banco de dados da empresa para você saber como montar suas queries SQL.",
-                        "parameters" => [
-                            "type" => "OBJECT",
-                            "properties" => (object)[]
+                                "modulo" => ["type" => "STRING", "description" => "Nome do módulo: financeiro, clube, lives, estoque, clientes"]
+                            ],
+                            "required" => ["modulo"]
                         ]
                     ],
                     [
                         "name" => "executar_query_select",
-                        "description" => "Executa uma query SQL SELECT no banco de dados da empresa. Útil para consultar vendas, lives, totalizadores, cadastros, etc. ATENÇÃO: Nunca limite a resposta se precisar somar (ex: use SUM).",
+                        "description" => "Executa uma query SQL SELECT no banco de dados da empresa. IMPORTANTE: Antes de tentar inventar tabelas, use a ferramenta mapear_modulo_sistema para aprender a arquitetura do setor.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
@@ -291,93 +269,37 @@ class SeverinoService
                         "itens" => $itens
                     ];
 
-                case "resumo_live":
-                    $data = $args["data"] ?? null;
-                    if ($data) {
-                        $live = \App\Models\Live::whereDate("data", $data)->first();
-                    } else {
-                        $live = \App\Models\Live::orderBy("data", "desc")->first();
+                case "mapear_modulo_sistema":
+                    $modulo = strtolower($args["modulo"] ?? "");
+                    switch ($modulo) {
+                        case "financeiro":
+                            return "MÓDULO FINANCEIRO:
+- Tabelas principais: `contas_bancarias` (id, nome, tipo, saldo_atual), `movimentacoes` (id, conta_bancaria_id, valor_pago, data_pagamento, lancamento_id), `lancamentos` (id, tipo='receita'/'despesa', status='pendente'/'pago', pessoa_id).
+- Regra de Saldo: O 'saldo_atual' da tabela `contas_bancarias` é o valor oficial e real do dinheiro da empresa (ex: Inter, Carteira Cliente).
+- Regra de Movimentações: Tudo que entra ou sai de verdade do banco passa por `movimentacoes`.
+- Tabela `transacoes_extrato`: Apenas extrato importado cru, NÃO use para calcular saldo oficial da empresa.";
+                        case "clube":
+                            return "MÓDULO CLUBE MANIA:
+- Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
+- Regra Ativos: Um cliente é assinante ativo se existe em `clube_assinaturas` com `status = 'ativa'`.
+- Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'.";
+                        case "lives":
+                            return "MÓDULO LIVES E VENDAS:
+- Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
+- Tabela de Itens Separados: `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at).
+- Regra Resultado Live: Para saber o faturamento de uma live, faça SUM(price * quantity) na tabela `sacolinhas` filtrando pelo `live_id` correspondente à tabela `lives`.
+- Tabela de Pedidos Pagos: `pedidos` (id, user_id, valor_total, live_id, pago).";
+                        case "estoque":
+                            return "MÓDULO ESTOQUE:
+- Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao).
+- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.";
+                        case "clientes":
+                            return "MÓDULO CLIENTES:
+- Tabelas principais: `users` (id, name, email, instagram, tiktok, telefone), `pessoas` (id, nome, cpf_cnpj, telefone).
+- Regra: Usuários do sistema e do app são `users`. Entidades financeiras/fornecedores no financeiro são `pessoas`.";
+                        default:
+                            return "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, estoque, clientes.";
                     }
-
-                    if (!$live) {
-                        return ["erro" => "Nenhuma live encontrada na data informada."];
-                    }
-
-                    // Calcula o faturamento usando a tabela sacolinhas baseada no live_id
-                    $stats = DB::table("sacolinhas")
-                        ->where("live_id", $live->id)
-                        ->selectRaw("COUNT(id) as total_itens, SUM(price * quantity) as faturamento, COUNT(DISTINCT user_id) as total_clientes")
-                        ->first();
-
-                    return [
-                        "live_id" => $live->id,
-                        "data_live" => $live->data->format("d/m/Y"),
-                        "tipo" => $live->tipo_live,
-                        "total_itens_separados" => (int)$stats->total_itens,
-                        "faturamento_bruto" => (float)$stats->faturamento,
-                        "clientes_distintos" => (int)$stats->total_clientes
-                    ];
-
-                case "saldo_contas":
-                    $contas = \App\Models\ContaBancaria::all();
-                    $resultado = [];
-                    foreach ($contas as $conta) {
-                        $resultado[] = [
-                            "id" => $conta->id,
-                            "nome_conta" => $conta->nome,
-                            "tipo" => $conta->tipo,
-                            "saldo_calculado" => $conta->saldo_atual
-                        ];
-                    }
-                    return $resultado;
-
-                case "status_clube_mensalidades":
-                    // Busca todos os assinantes ativos
-                    $assinaturas = DB::table('clube_assinaturas')
-                        ->where('status', 'ativa')
-                        ->get();
-
-                    $primeiroDiaMesRef = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
-
-                    $pagos = [];
-                    $pendentes = [];
-
-                    foreach ($assinaturas as $assinatura) {
-                        $user = \App\Models\User::find($assinatura->user_id);
-                        $nome = $user ? $user->name : "User ID: " . $assinatura->user_id;
-
-                        // Verifica se pagou a mensalidade do mês atual
-                        $mensalidade = DB::table('clube_mensalidades')
-                            ->where('user_id', $assinatura->user_id)
-                            ->where('mes_referencia', $primeiroDiaMesRef)
-                            ->where('status_pagamento', 'pago')
-                            ->first();
-
-                        if ($mensalidade) {
-                            $pagos[] = $nome;
-                        } else {
-                            $pendentes[] = $nome;
-                        }
-                    }
-
-                    return [
-                        "total_pagos" => count($pagos),
-                        "total_pendentes" => count($pendentes),
-                        "pagos" => $pagos,
-                        "pendentes" => $pendentes
-                    ];
-
-                case "consultar_esquema_banco":
-                    $tabelas = DB::select("SHOW TABLES");
-                    $esquema = [];
-                    foreach($tabelas as $t) {
-                        $tabela = array_values((array)$t)[0];
-                        // Ignora algumas tabelas grandes demais ou de sistema
-                        if (in_array($tabela, ['migrations', 'failed_jobs', 'personal_access_tokens', 'password_reset_tokens'])) continue;
-                        $colunas = DB::select("SHOW COLUMNS FROM `{$tabela}`");
-                        $esquema[$tabela] = array_map(function($c) { return $c->Field . " (" . $c->Type . ")"; }, $colunas);
-                    }
-                    return $esquema;
 
                 case "executar_query_select":
                     $query = $args["query"] ?? "";
