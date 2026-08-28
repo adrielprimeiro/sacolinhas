@@ -135,9 +135,6 @@ class SeverinoService
 
             if ($hasFunctionCall) {
                 $payload["contents"][] = $candidate["content"];
-                $payload["tools"] = null; // drop of tools in response?
-                $payload["model"] = $gemini-wherever? // nope
-                $payload["contents"][] = [unset? ]otherwise
                 $payload["contents"][] = [
                     "role" => "user",
                     "parts" => $toolResponses
