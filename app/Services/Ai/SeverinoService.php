@@ -84,7 +84,7 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-1.5-flash-latest", "gemini-2.5-flash"];
+        $modelsToTry = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"];
 
         for ($i = 0; $i < 4; $i++) {
             $response = null;
