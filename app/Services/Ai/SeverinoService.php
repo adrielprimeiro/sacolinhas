@@ -185,7 +185,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "llama3-70b-8192", // Groq Llama 3
+            "model" => "llama-3.1-70b-versatile", // Groq Llama 3.1
             "messages" => $messages,
             "tools" => $groqTools,
             "tool_choice" => "auto",

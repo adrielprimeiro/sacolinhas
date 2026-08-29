@@ -95,7 +95,7 @@ class GeminiService
         ];
 
         $payload = [
-            'model' => 'llama3-70b-8192', // Groq Llama 3
+            'model' => 'llama-3.1-70b-versatile', // Groq Llama 3.1
             'messages' => $messages,
             'temperature' => 0.4,
             'max_tokens' => 1024,
