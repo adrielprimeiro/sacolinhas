@@ -205,23 +205,32 @@ class SeverinoService
         for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;
             
-            try {
-                $response = Http::withToken($groqKey)
-                    ->timeout(20)
-                    ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+            for ($attempt = 0; $attempt < 10; $attempt++) {
+                try {
+                    $response = Http::withToken($groqKey)
+                        ->timeout(20)
+                        ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
-                if (!$response->successful()) {
+                    if ($response->successful()) {
+                        break; // Sucesso, sai do loop de tentativas
+                    }
+
                     if ($response->status() == 429) {
-                        Log::warning("Groq Rate Limit. Aguardando 2s...");
-                        sleep(2);
+                        Log::warning("Groq Rate Limit. Aguardando 3s... (Tentativa $attempt)");
+                        sleep(3);
                         continue;
                     }
+                    
                     Log::warning("Groq falhou ({$response->status()}): {$response->body()}");
                     return "Erro na API da Groq. Verifique os logs.";
+                } catch (\Exception $e) {
+                    Log::warning("Groq timeout/erro: " . $e->getMessage());
+                    return "Erro de conexão com a IA Groq.";
                 }
-            } catch (\Exception $e) {
-                Log::warning("Groq timeout/erro: " . $e->getMessage());
-                return "Erro de conexão com a IA Groq.";
+            }
+
+            if (!$response || !$response->successful()) {
+                return "A API da Groq atingiu o limite de tentativas (Rate Limit).";
             }
 
             $data = $response->json();
