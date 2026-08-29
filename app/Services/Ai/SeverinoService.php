@@ -234,7 +234,7 @@ class SeverinoService
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemma-4-31b-it:free",
+                "model" => "nvidia/nemotron-3.5-lightning:free",
                 "name" => "OpenRouter Llama 3.1"
             ],
             [
@@ -273,9 +273,11 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
-                            Log::warning("Rate Limit/Too Large no provedor {$provider['name']}. Tentando o próximo...");
+                            Log::warning("Rate Limit/Too Large no provedor {$provider['name']} ({$response->status()}): {$response->body()}");
                             continue; // Tenta o PRÓXIMO provedor imediatamente
                         }
+                        
+                        Log::error("Provedor {$provider['name']} falhou com status {$response->status()}: {$response->body()}");
                     } catch (\Exception $e) {
                         Log::error("Erro no provedor {$provider['name']}: " . $e->getMessage());
                     }
@@ -559,7 +561,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "google/gemma-4-31b-it:free",
+            "model" => "nvidia/nemotron-3.5-lightning:free",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -602,7 +604,7 @@ class SeverinoService
                     "HTTP-Referer" => "https://minhamania.net",
                     "X-Title" => "Controle Sacolinhas"
                 ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "google/gemma-4-31b-it:free",
+                    "model" => "nvidia/nemotron-3.5-lightning:free",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
