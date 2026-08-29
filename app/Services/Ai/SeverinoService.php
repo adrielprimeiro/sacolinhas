@@ -241,13 +241,37 @@ class SeverinoService
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
                 "model" => "nvidia/nemotron-3.5-lightning:free",
-                "name" => "OpenRouter Nemotron"
+                "name" => "OR Nemotron 3.5"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
                 "model" => "google/gemma-4-31b-it:free",
-                "name" => "OpenRouter Gemma 4"
+                "name" => "OR Gemma 4 31B"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nvidia/nemotron-3-super-120b-a12b:free",
+                "name" => "OR Nemotron 120B"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "google/gemma-4-26b-a4b-it:free",
+                "name" => "OR Gemma 4 26B"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "z-ai/glm-5.2:free",
+                "name" => "OR GLM 5.2"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "minimax/minimax-m3:free",
+                "name" => "OR Minimax M3"
             ],
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
