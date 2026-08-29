@@ -217,56 +217,76 @@ class SeverinoService
             "role" => "user",
             "content" => $userPrompt
         ];
-
         $payload = [
-            "model" => "qwen/qwen3.8-27b", // Qwen 3.8 27B on Groq
             "messages" => $messages,
             "tools" => $groqTools,
             "tool_choice" => "auto",
             "temperature" => 0.2
         ];
 
-        $modelsToTry = ["qwen/qwen3.8-27b", "llama3-groq-70b-8192-tool-use-preview"];
+        $providersToTry = [
+            [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "meta-llama/llama-3.1-70b-instruct:free",
+                "name" => "OpenRouter Llama 3.1"
+            ],
+            [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "llama3-groq-70b-8192-tool-use-preview",
+                "name" => "Groq Llama Tool"
+            ]
+        ];
 
         for ($i = 0; $i < 5; $i++) { // Loop das ferramentas limitado a 5 para evitar timeout do Nginx
-            $response = null;
-            $data = null;
             $choice = null;
             
-            for ($attempt = 0; $attempt < 3; $attempt++) {
-                foreach ($modelsToTry as $modelName) {
-                    $payload["model"] = $modelName;
+            for ($attempt = 0; $attempt < 2; $attempt++) {
+                foreach ($providersToTry as $provider) {
+                    $payload["model"] = $provider["model"];
 
                     try {
-                        $response = Http::withToken($groqKey)
+                        $headers = [
+                            "Authorization" => "Bearer " . $provider["key"],
+                            "Content-Type" => "application/json",
+                            "HTTP-Referer" => "https://minhamania.net",
+                            "X-Title" => "Controle Sacolinhas"
+                        ];
+
+                        $response = Http::withHeaders($headers)
                             ->timeout(20)
-                            ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+                            ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
                             $data = $response->json();
                             $choice = $data["choices"][0] ?? null;
                             if ($choice) {
-                                break 2; // Sucesso, sai do loop models e do loop attempts
+                                break 2; // Sucesso, sai do loop provedores e attempts
                             }
                         }
 
-                        if ($response->status() == 429) {
-                            Log::warning("Groq Rate Limit no modelo {$modelName}. Tentando o próximo modelo...");
-                            continue; // Tenta o PRÓXIMO modelo no array imediatamente
+                        if ($response->status() == 429 || $response->status() == 413) {
+                            Log::warning("Rate Limit/Too Large no provedor {$provider['name']}. Tentando o próximo...");
+                            continue; // Tenta o PRÓXIMO provedor imediatamente
                         }
-                        
-                        Log::warning("Groq modelo {$modelName} falhou ({$response->status()}): {$response->body()}");
                     } catch (\Exception $e) {
-                        Log::warning("Groq timeout/erro no modelo {$modelName}: " . $e->getMessage());
+                        Log::error("Erro no provedor {$provider['name']}: " . $e->getMessage());
                     }
                 }
                 
-                // Se rodou todos os modelos e todos deram rate limit/erro, aí sim esperamos antes de tentar de novo
-                sleep(3);
+                // Se rodou todos os provedores e deram rate limit/erro, aí sim esperamos antes de tentar de novo
+                sleep(2);
             }
 
             if (!$choice) {
-                return "Todos os modelos da Groq falharam ou atingimos o limite de tentativas (Rate Limit).";
+                return "Todos os provedores configurados falharam ou atingimos o limite de tentativas (Rate Limit).";
             }
 
             $message = $choice["message"] ?? [];
@@ -539,7 +559,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "qwen/qwen3.8-27b",
+            "model" => "meta-llama/llama-3.1-70b-instruct:free",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -547,9 +567,11 @@ class SeverinoService
 
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
-                "Authorization" => "Bearer " . $this->apiKey,
-                "Content-Type" => "application/json"
-            ])->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+                "Authorization" => "Bearer " . env("OPENROUTER_API_KEY", ""),
+                "Content-Type" => "application/json",
+                "HTTP-Referer" => "https://minhamania.net",
+                "X-Title" => "Controle Sacolinhas"
+            ])->post("https://openrouter.ai/api/v1/chat/completions", $payload);
 
             $json = $response->json();
             return $json['choices'][0]['message']['content'] ?? $currentSummary;
@@ -575,10 +597,12 @@ class SeverinoService
             
             try {
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
-                    "Authorization" => "Bearer " . $this->apiKey,
-                    "Content-Type" => "application/json"
-                ])->post("https://api.groq.com/openai/v1/chat/completions", [
-                    "model" => "qwen/qwen3.8-27b",
+                    "Authorization" => "Bearer " . env("OPENROUTER_API_KEY", ""),
+                    "Content-Type" => "application/json",
+                    "HTTP-Referer" => "https://minhamania.net",
+                    "X-Title" => "Controle Sacolinhas"
+                ])->post("https://openrouter.ai/api/v1/chat/completions", [
+                    "model" => "meta-llama/llama-3.1-70b-instruct:free",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
