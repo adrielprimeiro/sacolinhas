@@ -286,7 +286,7 @@ class SeverinoService
                         ];
 
                         $response = Http::withHeaders($headers)
-                            ->timeout(20)
+                            ->timeout(8)
                             ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
@@ -333,8 +333,17 @@ class SeverinoService
 
             $message = $choice["message"] ?? [];
 
+            // Limpa campos não padrão (como 'reasoning' do Nemotron) para não quebrar outros modelos na próxima iteração
+            $sanitizedMessage = [
+                "role" => $message["role"] ?? "assistant",
+                "content" => $message["content"] ?? ""
+            ];
+            if (!empty($message["tool_calls"])) {
+                $sanitizedMessage["tool_calls"] = $message["tool_calls"];
+            }
+
             // Adiciona a resposta da IA no histórico para o próximo round
-            $payload["messages"][] = $message;
+            $payload["messages"][] = $sanitizedMessage;
 
             if (!empty($message["tool_calls"])) {
                 foreach ($message["tool_calls"] as $toolCall) {
