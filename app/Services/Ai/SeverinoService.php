@@ -220,7 +220,8 @@ class SeverinoService
             if ($msg["role"] === "assistant" || $msg["role"] === "model") {
                 if (str_contains($rawText, "Todos os provedores configurados falharam") || 
                     str_contains($rawText, "Operei ferramentas demais. Parando loop.") ||
-                    str_contains($rawText, "Erro de conexão com o servidor.")) {
+                    str_contains($rawText, "Erro de conexão com o servidor.") ||
+                    str_contains($rawText, "Pausa técnica!")) {
                     continue; // Pula essa mensagem
                 }
             }
