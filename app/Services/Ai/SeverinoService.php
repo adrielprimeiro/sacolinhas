@@ -524,4 +524,84 @@ class SeverinoService
             return ["erro" => "Exceção interna: " . $e->GetMessage()];
         }
     }
+
+    public function summarizeChat(string $currentSummary, string $userMsg, string $aiMsg): string
+    {
+        $messages = [
+            [
+                "role" => "system",
+                "content" => "Você é um sumarizador especialista. Você vai receber o Resumo Atual de uma conversa, e a última interação (Pergunta do usuário e Resposta do assistente). Sua única função é atualizar o Resumo Atual, integrando a nova informação de forma ultra-concisa e direta (apenas os fatos relevantes). Não responda à pergunta, apenas devolva o NOVO RESUMO."
+            ],
+            [
+                "role" => "user",
+                "content" => "RESUMO ATUAL: " . ($currentSummary ?: "Nenhum") . "\n\nNOVA INTERAÇÃO:\nUsuário: $userMsg\nAssistente: $aiMsg\n\nMe dê apenas o NOVO RESUMO atualizado:"
+            ]
+        ];
+
+        $payload = [
+            "model" => "qwen/qwen3.8-27b",
+            "messages" => $messages,
+            "temperature" => 0.0,
+            "max_tokens" => 500
+        ];
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                "Authorization" => "Bearer " . $this->apiKey,
+                "Content-Type" => "application/json"
+            ])->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+
+            $json = $response->json();
+            return $json['choices'][0]['message']['content'] ?? $currentSummary;
+        } catch (\Exception $e) {
+            return $currentSummary;
+        }
+    }
+
+    protected function prepareToolContent(string $toolName, $result, string $userPrompt): string
+    {
+        $content = is_string($result) ? $result : json_encode($result, JSON_UNESCAPED_UNICODE);
+        
+        // Se a resposta da ferramenta for maior que 1500 caracteres, orquestramos um resumo para não estourar tokens
+        if (mb_strlen($content) > 1500) {
+            // Cortamos pra 12000 chars pra não explodir o próprio resumidor se for bizarro de grande
+            $chunk = mb_substr($content, 0, 12000); 
+            
+            $sys = "Você é um orquestrador de dados. A ferramenta '$toolName' retornou uma carga de dados gigantesca. " .
+                   "Sua tarefa é analisar esses dados crus e extrair/resumir APENAS a informação que responde a intenção do usuário. " .
+                   "Devolva um resumo ultra-conciso (fatos, números, contagens). Não explique o que você fez.";
+                   
+            $userMsg = "Intenção do usuário: '$userPrompt'\n\nDados crus da ferramenta:\n" . $chunk;
+            
+            try {
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    "Authorization" => "Bearer " . $this->apiKey,
+                    "Content-Type" => "application/json"
+                ])->post("https://api.groq.com/openai/v1/chat/completions", [
+                    "model" => "qwen/qwen3.8-27b",
+                    "messages" => [
+                        ["role" => "system", "content" => $sys],
+                        ["role" => "user", "content" => $userMsg]
+                    ],
+                    "temperature" => 0.0,
+                    "max_tokens" => 800
+                ]);
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $resumo = $json['choices'][0]['message']['content'] ?? "";
+                    if (!empty($resumo)) {
+                        return "[DADOS RESUMIDOS PELO ORQUESTRADOR]: " . $resumo;
+                    }
+                }
+            } catch (\Exception $e) {
+                // fallthrough
+            }
+            
+            // Se falhar a sumarização, trunca brutalmente para proteger o loop principal
+            return "[DADOS TRUNCADOS POR TAMANHO]: " . mb_substr($content, 0, 1500);
+        }
+        
+        return $content;
+    }
 }
