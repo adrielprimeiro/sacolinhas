@@ -252,8 +252,8 @@ class SeverinoService
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama3-groq-70b-8192-tool-use-preview",
-                "name" => "Groq Llama Tool"
+                "model" => "llama-3.1-70b-versatile",
+                "name" => "Groq Llama 3.1"
             ]
         ];
 
@@ -262,8 +262,17 @@ class SeverinoService
             $p['score'] = \Illuminate\Support\Facades\Cache::get("ai_score_" . md5($p['name']), 10);
         }
         unset($p);
+        
+        $startTime = microtime(true);
 
         for ($i = 0; $i < 10; $i++) { // Loop das ferramentas aumentado para 10 porque agora é super rápido com o cache
+            
+            // Controle anti-timeout do Nginx (60s). Se já passaram 40 segundos, forçamos a pausa amigável!
+            if (microtime(true) - $startTime > 40) {
+                Log::warning("Tempo de execução limite atingido (40s). Forçando pausa técnica para evitar Nginx 504.");
+                break;
+            }
+
             $choice = null;
             
             for ($attempt = 0; $attempt < 2; $attempt++) {
@@ -286,7 +295,7 @@ class SeverinoService
                         ];
 
                         $response = Http::withHeaders($headers)
-                            ->timeout(8)
+                            ->timeout(12)
                             ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
