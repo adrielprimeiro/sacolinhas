@@ -257,7 +257,7 @@ class SeverinoService
         }
         unset($p);
 
-        for ($i = 0; $i < 5; $i++) { // Loop das ferramentas limitado a 5 para evitar timeout do Nginx
+        for ($i = 0; $i < 10; $i++) { // Loop das ferramentas aumentado para 10 porque agora é super rápido com o cache
             $choice = null;
             
             for ($attempt = 0; $attempt < 2; $attempt++) {
