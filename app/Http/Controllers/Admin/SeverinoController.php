@@ -24,8 +24,21 @@ class SeverinoController extends Controller
         }
 
         try {
-            $answer = $severinoService->askSeverino($message, $history);
+            $sessionId = session()->getId();
+            $answer = $severinoService->askSeverino($message, $history, $sessionId);
             
+            // Dispara job assíncrono após o envio da resposta (FastCGI Finish)
+            app()->terminating(function () use ($sessionId, $message, $answer) {
+                try {
+                    $svc = new \App\Services\Ai\SeverinoService();
+                    $current = \Illuminate\Support\Facades\Cache::get('severino_summary_' . $sessionId, '');
+                    $newSummary = $svc->summarizeChat($current, $message, $answer);
+                    \Illuminate\Support\Facades\Cache::put('severino_summary_' . $sessionId, $newSummary, now()->addHours(24));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Erro ao gerar resumo: ' . $e->getMessage());
+                }
+            });
+
             // Grava mensagem do usuário
             \App\Models\ChatMessage::create([
                 'user_id' => auth()->id(),

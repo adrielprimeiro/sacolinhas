@@ -17,11 +17,31 @@ class SeverinoService
         $this->apiKey = config("services.gemini.paid_api_key") ?: (config("services.gemini.api_key") ?: env("GEMINI_API_KEY", ""));
     }
 
-    public function askSeverino(string $userPrompt, array $history = []): string
+    public function askSeverino(string $userPrompt, array $history = [], ?string $sessionId = null): string
     {
         $dataAtual = date('Y-m-d H:i:s');
+        
+        $regrasStr = "";
+        try {
+            $regras = \App\Models\KnowledgeBase::where('is_active', 1)->get();
+            if ($regras->isNotEmpty()) {
+                $regrasStr = "\nREGRAS DE NEGÓCIO DA EMPRESA:\n";
+                foreach ($regras as $r) {
+                    $regrasStr .= "- {$r->title}: {$r->content}\n";
+                }
+            }
+        } catch (\Exception $e) {}
+        
+        $summaryStr = "";
+        if ($sessionId) {
+            $summary = \Illuminate\Support\Facades\Cache::get('severino_summary_' . $sessionId);
+            if ($summary) {
+                $summaryStr = "\nRESUMO DA CONVERSA ATÉ AGORA: " . $summary . "\n";
+            }
+        }
+
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
-            "Hoje é: {$dataAtual}\n" .
+            "Hoje é: {$dataAtual}{$regrasStr}{$summaryStr}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Sempre chame 'consultar_memoria_sql' primeiro para ver se você já tem a query salva para a pergunta. Se não tiver e não houver ferramenta específica, chame 'mapear_modulo_sistema' para aprender o esquema e depois 'executar_query_select'. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
