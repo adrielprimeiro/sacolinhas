@@ -185,10 +185,12 @@ class SeverinoService
             "content" => $systemInstruction
         ];
 
-        foreach ($history as $msg) {
+        $recent = array_slice($history, max(0, count($history) - 3)); foreach ($recent as $msg) {
+            $rawText = $msg["text"] ?? $msg["message"] ?? "";
+            $truncatedText = mb_strlen($rawText) > 500 ? mb_substr($rawText, 0, 500) . "..." : $rawText;
             $messages[] = [
                 "role" => $msg["role"] === "assistant" || $msg["role"] === "model" ? "assistant" : "user",
-                "content" => $msg["text"] ?? $msg["message"] ?? ""
+                "content" => $truncatedText
             ];
         }
         $messages[] = [
