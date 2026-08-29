@@ -234,7 +234,7 @@ class SeverinoService
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.1-70b-instruct:free",
+                "model" => "google/gemma-4-31b-it:free",
                 "name" => "OpenRouter Llama 3.1"
             ],
             [
@@ -559,7 +559,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "meta-llama/llama-3.1-70b-instruct:free",
+            "model" => "google/gemma-4-31b-it:free",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -602,7 +602,7 @@ class SeverinoService
                     "HTTP-Referer" => "https://minhamania.net",
                     "X-Title" => "Controle Sacolinhas"
                 ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "meta-llama/llama-3.1-70b-instruct:free",
+                    "model" => "google/gemma-4-31b-it:free",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
