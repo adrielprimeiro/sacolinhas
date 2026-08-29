@@ -91,6 +91,14 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "resumo_pedidos_mes",
+                        "description" => "Retorna a quantidade de pedidos fechados no mês atual e o valor médio, total, etc.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
                         "name" => "mapear_modulo_sistema",
                         "description" => "Quando precisar fazer consultas SQL no banco, chame esta ferramenta primeiro informando o módulo (financeiro, clube, lives, estoque, clientes). Ela retorna as regras de negócio, tabelas principais, colunas e relacionamentos daquele setor para você não errar a query.",
                         "parameters" => [
@@ -137,16 +145,16 @@ class SeverinoService
             ]
         ];
 
-        $modelsToTry = ["gemini-3-flash-preview", "gemini-1.5-flash", "gemini-1.5-pro"];
+        $modelsToTry = ["gemini-3-flash-preview"];
 
         for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;
             
             // Loop de tentativas de API (retry de rate limit)
-            for ($attempt = 0; $attempt < 10; $attempt++) {
+            for ($attempt = 0; $attempt < 5; $attempt++) {
                 foreach ($modelsToTry as $modelName) {
                     try {
-                        $response = Http::timeout(10)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
+                        $response = Http::timeout(30)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
                         if ($response->successful()) {
                             break 2; // Sai do foreach models e do for attempts
                         }
@@ -356,6 +364,21 @@ class SeverinoService
                         "total_pendentes" => count($pendentes),
                         "pagos" => $pagos,
                         "pendentes" => $pendentes
+                    ];
+
+                case "resumo_pedidos_mes":
+                    $stats = DB::table('pedidos')
+                        ->whereMonth('created_at', date('m'))
+                        ->whereYear('created_at', date('Y'))
+                        ->where('pago', 1)
+                        ->selectRaw('COUNT(*) as total_pedidos, SUM(valor_total) as faturamento, AVG(valor_total) as valor_medio')
+                        ->first();
+
+                    return [
+                        "mes" => date('m/Y'),
+                        "total_pedidos" => (int) $stats->total_pedidos,
+                        "faturamento" => (float) $stats->faturamento,
+                        "valor_medio" => (float) $stats->valor_medio
                     ];
 
                 case "mapear_modulo_sistema":
