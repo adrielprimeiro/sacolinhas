@@ -340,20 +340,34 @@ class SeverinoService
                 foreach ($message["tool_calls"] as $toolCall) {
                     $name = $toolCall["function"]["name"];
                     $args = json_decode($toolCall["function"]["arguments"], true) ?? [];
-                    
                     Log::info("Severino chamando ferramenta Groq: {$name}", $args);
-                    $result = $this->executeTool($name, $args);
+                    
+                    $resultado = $this->executeTool($name, $args);
+                    $resumoDoResultado = $this->prepareToolContent($name, $resultado, $userPrompt);
+                    
+                    // Salva na memória de rascunho caso o loop seja interrompido (timeout/limite)
+                    if ($sessionId) {
+                        $scratchpad = \Illuminate\Support\Facades\Cache::get('severino_scratchpad_' . $sessionId, "");
+                        $scratchpad .= "\n- Ferramenta '{$name}' chamada com argumentos: " . json_encode($args, JSON_UNESCAPED_UNICODE) . "\nResultado: {$resumoDoResultado}\n";
+                        \Illuminate\Support\Facades\Cache::put('severino_scratchpad_' . $sessionId, $scratchpad, now()->addMinutes(60));
+                    }
 
                     $payload["messages"][] = [
                         "role" => "tool",
                         "tool_call_id" => $toolCall["id"],
                         "name" => $name,
-                        "content" => $this->prepareToolContent($name, $result, $userPrompt)
+                        "content" => $resumoDoResultado
                     ];
                 }
-            } else {
-                return $message["content"] ?? "Resposta processada mas sem texto legível.";
+                // Como houve chamada de ferramenta, o loop $i continua para enviar o resultado
+                continue;
             }
+
+            // Se não chamou ferramenta, é a resposta final. Limpamos o scratchpad pois a tarefa foi concluída!
+            if ($sessionId) {
+                \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+            }
+            return $message["content"] ?? "Resposta processada mas sem texto legível.";
         }
 
         return "Operei ferramentas demais. Parando loop.";
