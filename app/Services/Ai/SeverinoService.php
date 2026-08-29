@@ -251,12 +251,25 @@ class SeverinoService
             ]
         ];
 
+        // Carrega pontuação do cache (inicia em 10)
+        foreach ($providersToTry as &$p) {
+            $p['score'] = \Illuminate\Support\Facades\Cache::get("ai_score_" . md5($p['name']), 10);
+        }
+        unset($p);
+
         for ($i = 0; $i < 5; $i++) { // Loop das ferramentas limitado a 5 para evitar timeout do Nginx
             $choice = null;
             
             for ($attempt = 0; $attempt < 2; $attempt++) {
-                foreach ($providersToTry as $provider) {
+                
+                // Ordena os provedores pelo score (do maior para o menor)
+                usort($providersToTry, function ($a, $b) {
+                    return $b['score'] <=> $a['score'];
+                });
+                
+                foreach ($providersToTry as &$provider) {
                     $payload["model"] = $provider["model"];
+                    $cacheKey = "ai_score_" . md5($provider['name']);
 
                     try {
                         $headers = [
@@ -271,6 +284,10 @@ class SeverinoService
                             ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
+                            // SUCESSO: Aumenta a pontuação em 1 (máximo 10)
+                            $provider['score'] = min($provider['score'] + 1, 10);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                            
                             $data = $response->json();
                             $choice = $data["choices"][0] ?? null;
                             if ($choice) {
@@ -279,15 +296,26 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
-                            Log::warning("Rate Limit/Too Large no provedor {$provider['name']} ({$response->status()}): {$response->body()}");
+                            // RATE LIMIT: Punição severa, perde 5 pontos (mínimo -50)
+                            $provider['score'] = max($provider['score'] - 5, -50);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                            
+                            Log::warning("Rate Limit/Too Large no provedor {$provider['name']} ({$response->status()}). Novo score: {$provider['score']} | Erro: {$response->body()}");
                             continue; // Tenta o PRÓXIMO provedor imediatamente
                         }
                         
-                        Log::error("Provedor {$provider['name']} falhou com status {$response->status()}: {$response->body()}");
+                        // OUTRO ERRO
+                        $provider['score'] = max($provider['score'] - 2, -50);
+                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                        Log::error("Provedor {$provider['name']} falhou com status {$response->status()}. Novo score: {$provider['score']} | Erro: {$response->body()}");
                     } catch (\Exception $e) {
+                        // TIMEOUT OU FALHA DE REDE
+                        $provider['score'] = max($provider['score'] - 3, -50);
+                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
                         Log::error("Erro no provedor {$provider['name']}: " . $e->getMessage());
                     }
                 }
+                unset($provider);
                 
                 // Se rodou todos os provedores e deram rate limit/erro, aí sim esperamos antes de tentar de novo
                 sleep(2);
