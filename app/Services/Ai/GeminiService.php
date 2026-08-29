@@ -95,7 +95,7 @@ class GeminiService
         ];
 
         $payload = [
-            'model' => 'openai/gpt-oss-120b', // GPT OSS 120B on Groq
+            'model' => 'qwen/qwen3.8-27b', // Qwen 3.8 27B on Groq
             'messages' => $messages,
             'temperature' => 0.4,
             'max_tokens' => 1024,

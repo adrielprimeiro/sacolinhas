@@ -195,7 +195,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "openai/gpt-oss-120b", // GPT OSS 120B on Groq
+            "model" => "qwen/qwen3.8-27b", // Qwen 3.8 27B on Groq
             "messages" => $messages,
             "tools" => $groqTools,
             "tool_choice" => "auto",
