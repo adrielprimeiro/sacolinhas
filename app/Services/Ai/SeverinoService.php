@@ -235,7 +235,13 @@ class SeverinoService
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
                 "model" => "nvidia/nemotron-3.5-lightning:free",
-                "name" => "OpenRouter Llama 3.1"
+                "name" => "OpenRouter Nemotron"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "google/gemma-4-31b-it:free",
+                "name" => "OpenRouter Gemma 4"
             ],
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
