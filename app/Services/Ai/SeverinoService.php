@@ -23,7 +23,7 @@ class SeverinoService
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
             "Hoje é: {$dataAtual}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
-            "REGRA DE OURO PARA BANCO DE DADOS: Para perguntas comuns (lives e clube), use ferramentas nativas (resumo_live, status_clube_mensalidades) se existirem. Para perguntas não cobertas, use a ferramenta 'mapear_modulo_sistema' (ex: financeiro, clube, lives, estoque, clientes) para aprender o esquema e depois chame 'executar_query_select'. USE SEMPRE SINTAXE MYSQL (ex: CURDATE(), DATE_SUB), NUNCA SQLite.\n" .
+            "REGRA DE OURO PARA BANCO DE DADOS: Sempre chame 'consultar_memoria_sql' primeiro para ver se você já tem a query salva para a pergunta. Se não tiver e não houver ferramenta específica (ex: resumo_live), chame 'mapear_modulo_sistema' para aprender o esquema e depois 'executar_query_select'. USE SEMPRE SINTAXE MYSQL.\n" .
             "Nunca execute nenhuma alteração, apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
         $tools = [
@@ -96,6 +96,26 @@ class SeverinoService
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
+                        ]
+                    ],
+                    [
+                        "name" => "consultar_memoria_sql",
+                        "description" => "Busca na sua memória de longo prazo se você já aprendeu alguma query SQL para um assunto específico. Sempre chame isso antes de tentar adivinhar tabelas.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
+                        "name" => "salvar_memoria_sql",
+                        "description" => "Salva uma query SQL validada na sua memória para uso futuro.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "assunto" => ["type" => "STRING", "description" => "O que essa query resolve? Ex: ticket medio do mes, total de assinantes, etc"],
+                                "query_sql" => ["type" => "STRING", "description" => "A query SQL exata e funcional"]
+                            ],
+                            "required" => ["assunto", "query_sql"]
                         ]
                     ],
                     [
@@ -380,6 +400,30 @@ class SeverinoService
                         "faturamento" => (float) $stats->faturamento,
                         "valor_medio" => (float) $stats->valor_medio
                     ];
+
+                case "consultar_memoria_sql":
+                    $filePath = storage_path('app/severino_memoria.json');
+                    if (!file_exists($filePath)) {
+                        return ["memoria" => "A memória está vazia. Nenhuma query salva ainda."];
+                    }
+                    $json = file_get_contents($filePath);
+                    return ["memoria" => json_decode($json, true)];
+
+                case "salvar_memoria_sql":
+                    $assunto = $args["assunto"] ?? "Sem assunto";
+                    $query_sql = $args["query_sql"] ?? "";
+                    
+                    $filePath = storage_path('app/severino_memoria.json');
+                    $memoria = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+                    
+                    $memoria[] = [
+                        "assunto" => $assunto,
+                        "query_sql" => $query_sql,
+                        "data" => date('Y-m-d H:i:s')
+                    ];
+                    
+                    file_put_contents($filePath, json_encode($memoria, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    return ["sucesso" => "Memória gravada com sucesso! Na próxima vez, você lembrará disso."];
 
                 case "mapear_modulo_sistema":
                     $modulo = strtolower($args["modulo"] ?? "");
