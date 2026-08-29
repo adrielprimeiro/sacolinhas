@@ -303,13 +303,14 @@ class SeverinoService
                     $limitesRow = DB::table("cliente_limites")->where("user_id", $userId)->first();
                     $valorLimite = $limitesRow ? (float) $limitesRow->limite_credito : 0.0;
                     $utilizado = $limitesRow ? (float) $limitesRow->limite_utilizado : 0.0;
-                    $disponivel = max(0, $valorLimite + $saldo - $utilizado);
+                    $disponivel = $valorLimite + $saldo - $utilizado;
 
                     return [
-                       "saldo_carteira" => $saldo,
+                       "saldo_na_carteira" => $saldo,
                        "limite_concedido_empresa" => $valorLimite,
-                       "limite_utilizado" => $utilizado,
-                       "limite_sacolinha_disponivel" => $disponivel
+                       "limite_utilizado_na_sacolinha_atualmente" => $utilizado,
+                       "limite_disponivel" => $disponivel,
+                       "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
                     ];
 
                 case "contagem_estoque":
