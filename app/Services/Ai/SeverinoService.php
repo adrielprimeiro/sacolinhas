@@ -144,110 +144,104 @@ class SeverinoService
             ]
         ];
 
-        $contents = [];
-        foreach ($history as $msg) {
-            $contents[] = [
-                "role" => $msg["role"] === "assistant" ? "model" : "user",
-                "parts" => [["text" => $msg["text"] ?? $msg["message"] ?? ""]]
+        $groqKey = env('GROQ_API_KEY');
+        if (empty($groqKey)) {
+            return "Chave da API da Groq não configurada.";
+        }
+
+        // Converte as ferramentas do formato Gemini para o formato OpenAI/Groq
+        $groqTools = [];
+        foreach ($tools[0]["functionDeclarations"] as $func) {
+            $groqTools[] = [
+                "type" => "function",
+                "function" => [
+                    "name" => $func["name"],
+                    "description" => $func["description"],
+                    "parameters" => [
+                        "type" => "object",
+                        "properties" => $func["parameters"]["properties"] ?? (object)[],
+                        "required" => $func["parameters"]["required"] ?? []
+                    ]
+                ]
             ];
         }
-        $contents[] = [
+
+        $messages = [];
+        $messages[] = [
+            "role" => "system",
+            "content" => $systemInstruction
+        ];
+
+        foreach ($history as $msg) {
+            $messages[] = [
+                "role" => $msg["role"] === "assistant" || $msg["role"] === "model" ? "assistant" : "user",
+                "content" => $msg["text"] ?? $msg["message"] ?? ""
+            ];
+        }
+        $messages[] = [
             "role" => "user",
-            "parts" => [["text" => $userPrompt]]
+            "content" => $userPrompt
         ];
 
         $payload = [
-            "contents" => $contents,
-            "tools" => $tools,
-            "system_instruction" => ["parts" => [["text" => $systemInstruction]]],
-            "generationConfig" => [
-                "temperature" => 0.2
-            ]
+            "model" => "llama3-70b-8192", // Groq Llama 3
+            "messages" => $messages,
+            "tools" => $groqTools,
+            "tool_choice" => "auto",
+            "temperature" => 0.2
         ];
-
-        $modelsToTry = ["gemini-3-flash-preview"];
 
         for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;
             
-            // Loop de tentativas de API (retry de rate limit)
-            for ($attempt = 0; $attempt < 5; $attempt++) {
-                foreach ($modelsToTry as $modelName) {
-                    try {
-                        $response = Http::timeout(30)->post("{$this->baseUrl}/models/{$modelName}:generateContent?key={$this->apiKey}", $payload);
-                        if ($response->successful()) {
-                            break 2; // Sai do foreach models e do for attempts
-                        }
-                        if ($response->status() == 429) {
-                            Log::warning("Severino falhou no modelo {$modelName} (429 Rate Limit). Aguardando 4s (Tentativa {$attempt})...");
-                            sleep(4); 
-                            continue 2; // Pula pro próximo attempt
-                        }
-                        Log::warning("Severino falhou no modelo {$modelName} ({$response->status()}): {$response->body()}");
-                    } catch (\Exception $e) {
-                        Log::warning("Severino timeout/erro no modelo {$modelName}: " . $e->getMessage());
-                        $response = null;
-                    }
-                }
-                sleep(2); // Espera um pouco se todos os modelos falharam antes de tentar o attempt de novo
-            }
+            try {
+                $response = Http::withToken($groqKey)
+                    ->timeout(20)
+                    ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
-            if (!$response || !$response->successful()) {
-                return "Erro na API do Gemini após várias tentativas. Verifique os logs.";
+                if (!$response->successful()) {
+                    if ($response->status() == 429) {
+                        Log::warning("Groq Rate Limit. Aguardando 2s...");
+                        sleep(2);
+                        continue;
+                    }
+                    Log::warning("Groq falhou ({$response->status()}): {$response->body()}");
+                    return "Erro na API da Groq. Verifique os logs.";
+                }
+            } catch (\Exception $e) {
+                Log::warning("Groq timeout/erro: " . $e->getMessage());
+                return "Erro de conexão com a IA Groq.";
             }
 
             $data = $response->json();
-            $candidate = $data["candidates"][0] ?? null;
+            $choice = $data["choices"][0] ?? null;
 
-            if (!$candidate) {
+            if (!$choice) {
                 return "Não consegui formular uma resposta.";
             }
 
-            $parts = $candidate["content"]["parts"] ?? [];
-            $hasFunctionCall = false;
+            $message = $choice["message"] ?? [];
 
-            if (isset($parts[0]["text"]) && count($parts) === 1) {
-                return $parts[0]["text"];
-            }
+            // Adiciona a resposta da IA no histórico para o próximo round
+            $payload["messages"][] = $message;
 
-            $toolResponses = [];
-            foreach ($parts as $part) {
-                if (isset($part["functionCall"])) {
-                    $hasFunctionCall = true;
-                    $call = $part["functionCall"];
-                    $name = $call["name"];
-                    $args = $call["args"] ?? [];
+            if (!empty($message["tool_calls"])) {
+                foreach ($message["tool_calls"] as $toolCall) {
+                    $name = $toolCall["function"]["name"];
+                    $args = json_decode($toolCall["function"]["arguments"], true) ?? [];
                     
-                    Log::info("Severino chamando ferramenta: {$name}", $args);
+                    Log::info("Severino chamando ferramenta Groq: {$name}", $args);
                     $result = $this->executeTool($name, $args);
 
-                    $toolResponses[] = [
-                        "functionResponse" => [
-                            "name" => $name,
-                            "response" => ["name" => $name, "content" => $result]
-                        ]
+                    $payload["messages"][] = [
+                        "role" => "tool",
+                        "tool_call_id" => $toolCall["id"],
+                        "name" => $name,
+                        "content" => is_string($result) ? $result : json_encode($result)
                     ];
                 }
-            }
-
-            if ($hasFunctionCall) {
-                // Fix: empty args [] becomes a list when json_encoded. Gemini expects an object.
-                foreach ($candidate["content"]["parts"] as &$p) {
-                    if (isset($p["functionCall"]) && isset($p["functionCall"]["args"])) {
-                        if (empty($p["functionCall"]["args"])) {
-                            $p["functionCall"]["args"] = (object)[];
-                        }
-                    }
-                }
-                unset($p);
-
-                $payload["contents"][] = $candidate["content"];
-                $payload["contents"][] = [
-                    "role" => "user",
-                    "parts" => $toolResponses
-                ];
             } else {
-                return $parts[0]["text"] ?? "Resposta processada mas sem texto legível.";
+                return $message["content"] ?? "Resposta processada mas sem texto legível.";
             }
         }
 

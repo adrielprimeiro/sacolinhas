@@ -66,84 +66,57 @@ class GeminiService
      */
     public function generateAnswer(string $userPrompt, ?string $systemInstruction = null, array $history = []): string
     {
-        if (empty($this->apiKey)) {
-            return "Desculpe, a chave da API do Gemini não está configurada no servidor.";
+        $groqKey = env('GROQ_API_KEY');
+        if (empty($groqKey)) {
+            return "Chave da API da Groq não configurada.";
         }
 
-        $modelsToTry = ['gemini-3-flash-preview', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-
-        $contents = [];
-        $lastRole = null;
-        foreach ($history as $msg) {
-            $role = $msg['role'] === 'assistant' ? 'model' : $msg['role'];
-            $text = $msg['text'] ?? $msg['message'] ?? '';
-            
-            if ($lastRole === $role) {
-                // Junta mensagens do mesmo role para evitar erro da API do Gemini
-                $contents[count($contents) - 1]['parts'][0]['text'] .= "\n" . $text;
-            } else {
-                $contents[] = [
-                    'role' => $role,
-                    'parts' => [['text' => $text]]
-                ];
-                $lastRole = $role;
-            }
-        }
+        $messages = [];
         
-        // Se a última mensagem do histórico for user, a próxima seria user (o prompt). 
-        // Vamos forçar que a última do histórico seja model, ou juntar o prompt.
-        if ($lastRole === 'user') {
-            $contents[count($contents) - 1]['parts'][0]['text'] .= "\n" . $userPrompt;
-        } else {
-            $contents[] = [
-                'role' => 'user',
-                'parts' => [['text' => $userPrompt]]
+        if ($systemInstruction) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => $systemInstruction
             ];
         }
 
-        // A primeira mensagem DEVE ser 'user' para o Gemini
-        if (!empty($contents) && $contents[0]['role'] === 'model') {
-            array_shift($contents);
+        foreach ($history as $msg) {
+            $role = $msg['role'] === 'model' || $msg['role'] === 'assistant' ? 'assistant' : 'user';
+            $text = $msg['text'] ?? $msg['message'] ?? '';
+            $messages[] = [
+                'role' => $role,
+                'content' => $text
+            ];
         }
 
-        $payload = [
-            'contents' => $contents,
-            'generationConfig' => [
-                'temperature' => 0.4,
-                'maxOutputTokens' => 1024,
-            ]
+        $messages[] = [
+            'role' => 'user',
+            'content' => $userPrompt
         ];
 
-        if ($systemInstruction) {
-            $payload['system_instruction'] = [
-                'parts' => [['text' => $systemInstruction]]
-            ];
-        }
+        $payload = [
+            'model' => 'llama3-70b-8192', // Groq Llama 3
+            'messages' => $messages,
+            'temperature' => 0.4,
+            'max_tokens' => 1024,
+        ];
 
-        for ($i = 0; $i < 3; $i++) {
-            foreach ($modelsToTry as $model) {
-                try {
-                    $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
-                    $response = Http::timeout(10)->post($url, $payload);
+        try {
+            $response = Http::withToken($groqKey)
+                ->timeout(10)
+                ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
-                    if ($response->successful()) {
-                        $data = $response->json();
-                        $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                        if ($text) {
-                            return trim($text);
-                        }
-                    }
-
-                    if ($response->status() == 429) {
-                        sleep(2);
-                        continue 2; // Volta pro for do $i
-                    }
-
-                    Log::warning("Gemini model {$model} falhou ({$response->status()}): {$response->body()}");
-                } catch (Exception $e) {
-                    Log::warning("Exceção chamando Gemini modelo {$model}: " . $e->getMessage());
+            if ($response->successful()) {
+                $data = $response->json();
+                $text = $data['choices'][0]['message']['content'] ?? null;
+                if ($text) {
+                    return trim($text);
                 }
             }
+
+            Log::warning("Groq model falhou ({$response->status()}): {$response->body()}");
+        } catch (Exception $e) {
+            Log::warning("Exceção chamando Groq: " . $e->getMessage());
         }
 
         return "Desculpe, tive um problema ao tentar responder sua pergunta no momento. Por favor, tente novamente em instantes.";
