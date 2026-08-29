@@ -153,6 +153,16 @@ class SeverinoService
         // Converte as ferramentas do formato Gemini para o formato OpenAI/Groq
         $groqTools = [];
         foreach ($tools[0]["functionDeclarations"] as $func) {
+            $properties = $func["parameters"]["properties"] ?? [];
+            $mappedProperties = [];
+            
+            foreach ($properties as $key => $prop) {
+                $mappedProperties[$key] = [
+                    "type" => strtolower($prop["type"]),
+                    "description" => $prop["description"] ?? ""
+                ];
+            }
+            
             $groqTools[] = [
                 "type" => "function",
                 "function" => [
@@ -160,7 +170,7 @@ class SeverinoService
                     "description" => $func["description"],
                     "parameters" => [
                         "type" => "object",
-                        "properties" => $func["parameters"]["properties"] ?? (object)[],
+                        "properties" => empty($mappedProperties) ? (object)[] : $mappedProperties,
                         "required" => $func["parameters"]["required"] ?? []
                     ]
                 ]
