@@ -307,6 +307,16 @@ class SeverinoService
                 });
                 
                 foreach ($providersToTry as &$provider) {
+                    
+                    // Checa anti-timeout dentro do loop de provedores também!
+                    if (microtime(true) - $startTime > 40) {
+                        \Illuminate\Support\Facades\Log::warning("Tempo limite 40s atingido dentro do loop de provedores. Forçando pausa amigável.");
+                        if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
+                            return "Pausa técnica! 😅 Fiz várias consultas pesadas no banco de dados e atingi o limite de segurança do servidor para não deixá-lo lento. Já salvei tudo o que descobri até agora na minha 'Prancheta'. Por favor, apenas digite **'continue'** para eu retomar a pesquisa exatamente de onde parei e te dar a resposta final!";
+                        }
+                        return "Operei ferramentas demais. Parando loop.";
+                    }
+
                     $payload["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
 
@@ -361,6 +371,7 @@ class SeverinoService
             }
 
             if (!$choice) {
+                \Illuminate\Support\Facades\Log::error("SEVERINO DEBUG: Todos os provedores falharam. Score Array: " . json_encode($providersToTry) . " | Payload: " . json_encode($payload));
                 return "Todos os provedores configurados falharam ou atingimos o limite de tentativas (Rate Limit).";
             }
 
