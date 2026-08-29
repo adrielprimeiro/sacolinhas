@@ -370,6 +370,10 @@ class SeverinoService
             return $message["content"] ?? "Resposta processada mas sem texto legível.";
         }
 
+        if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
+            return "Pausa técnica! 😅 Fiz várias consultas pesadas no banco de dados e atingi o limite de segurança do servidor para não deixá-lo lento. Já salvei tudo o que descobri até agora na minha 'Prancheta'. Por favor, apenas digite **'continue'** para eu retomar a pesquisa exatamente de onde parei e te dar a resposta final!";
+        }
+
         return "Operei ferramentas demais. Parando loop.";
     }
 
