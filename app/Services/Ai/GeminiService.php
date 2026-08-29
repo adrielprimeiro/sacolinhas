@@ -100,7 +100,7 @@ class GeminiService
             'max_tokens' => 1024,
         ];
 
-        $modelsToTry = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'groq/compound'];
+        $modelsToTry = ['qwen/qwen3.8-27b', 'llama3-groq-70b-8192-tool-use-preview'];
 
         try {
             foreach ($modelsToTry as $modelName) {

@@ -226,14 +226,14 @@ class SeverinoService
             "temperature" => 0.2
         ];
 
-        $modelsToTry = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "groq/compound"];
+        $modelsToTry = ["qwen/qwen3.8-27b", "llama3-groq-70b-8192-tool-use-preview"];
 
-        for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
+        for ($i = 0; $i < 5; $i++) { // Loop das ferramentas limitado a 5 para evitar timeout do Nginx
             $response = null;
             $data = null;
             $choice = null;
             
-            for ($attempt = 0; $attempt < 10; $attempt++) {
+            for ($attempt = 0; $attempt < 3; $attempt++) {
                 foreach ($modelsToTry as $modelName) {
                     $payload["model"] = $modelName;
 
