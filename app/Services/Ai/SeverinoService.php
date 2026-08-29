@@ -211,8 +211,20 @@ class SeverinoService
             "content" => $systemInstruction
         ];
 
-        $recent = array_slice($history, max(0, count($history) - 3)); foreach ($recent as $msg) {
+        $recent = array_slice($history, max(0, count($history) - 3)); 
+        foreach ($recent as $msg) {
             $rawText = $msg["text"] ?? $msg["message"] ?? "";
+            
+            // FILTRO DE ALUCINAÇÃO: Não envia mensagens de erro sistêmico do próprio Severino para a IA,
+            // senão a IA acha que é um padrão e começa a repetir o erro como se fosse a resposta dela!
+            if ($msg["role"] === "assistant" || $msg["role"] === "model") {
+                if (str_contains($rawText, "Todos os provedores configurados falharam") || 
+                    str_contains($rawText, "Operei ferramentas demais. Parando loop.") ||
+                    str_contains($rawText, "Erro de conexão com o servidor.")) {
+                    continue; // Pula essa mensagem
+                }
+            }
+            
             $truncatedText = mb_strlen($rawText) > 500 ? mb_substr($rawText, 0, 500) . "..." : $rawText;
             $messages[] = [
                 "role" => $msg["role"] === "assistant" || $msg["role"] === "model" ? "assistant" : "user",
