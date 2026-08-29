@@ -286,7 +286,7 @@ class SeverinoService
                         "role" => "tool",
                         "tool_call_id" => $toolCall["id"],
                         "name" => $name,
-                        "content" => is_string($result) ? $result : json_encode($result)
+                        "content" => $this->prepareToolContent($name, $result, $userPrompt)
                     ];
                 }
             } else {
