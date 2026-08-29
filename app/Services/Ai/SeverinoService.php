@@ -202,42 +202,46 @@ class SeverinoService
             "temperature" => 0.2
         ];
 
+        $modelsToTry = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "groq/compound"];
+
         for ($i = 0; $i < 12; $i++) { // Loop das ferramentas
             $response = null;
+            $data = null;
+            $choice = null;
             
             for ($attempt = 0; $attempt < 10; $attempt++) {
-                try {
-                    $response = Http::withToken($groqKey)
-                        ->timeout(20)
-                        ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+                foreach ($modelsToTry as $modelName) {
+                    $payload["model"] = $modelName;
 
-                    if ($response->successful()) {
-                        break; // Sucesso, sai do loop de tentativas
-                    }
+                    try {
+                        $response = Http::withToken($groqKey)
+                            ->timeout(20)
+                            ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
-                    if ($response->status() == 429) {
-                        Log::warning("Groq Rate Limit. Aguardando 3s... (Tentativa $attempt)");
-                        sleep(3);
-                        continue;
+                        if ($response->successful()) {
+                            $data = $response->json();
+                            $choice = $data["choices"][0] ?? null;
+                            if ($choice) {
+                                break 2; // Sucesso, sai do loop models e do loop attempts
+                            }
+                        }
+
+                        if ($response->status() == 429) {
+                            Log::warning("Groq Rate Limit no modelo {$modelName}. Aguardando 3s... (Tentativa $attempt)");
+                            sleep(3);
+                            continue 2; // Pula pro próximo attempt (tenta o primeiro modelo de novo depois de esperar)
+                        }
+                        
+                        Log::warning("Groq modelo {$modelName} falhou ({$response->status()}): {$response->body()}");
+                        // O foreach continua e tenta o PRÓXIMO modelo instantaneamente
+                    } catch (\Exception $e) {
+                        Log::warning("Groq timeout/erro no modelo {$modelName}: " . $e->getMessage());
                     }
-                    
-                    Log::warning("Groq falhou ({$response->status()}): {$response->body()}");
-                    return "Erro na API da Groq. Verifique os logs.";
-                } catch (\Exception $e) {
-                    Log::warning("Groq timeout/erro: " . $e->getMessage());
-                    return "Erro de conexão com a IA Groq.";
                 }
             }
 
-            if (!$response || !$response->successful()) {
-                return "A API da Groq atingiu o limite de tentativas (Rate Limit).";
-            }
-
-            $data = $response->json();
-            $choice = $data["choices"][0] ?? null;
-
             if (!$choice) {
-                return "Não consegui formular uma resposta.";
+                return "Todos os modelos da Groq falharam ou atingimos o limite de tentativas (Rate Limit).";
             }
 
             $message = $choice["message"] ?? [];

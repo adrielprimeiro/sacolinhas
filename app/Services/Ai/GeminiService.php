@@ -95,26 +95,31 @@ class GeminiService
         ];
 
         $payload = [
-            'model' => 'qwen/qwen3.8-27b', // Qwen 3.8 27B on Groq
             'messages' => $messages,
             'temperature' => 0.4,
             'max_tokens' => 1024,
         ];
 
+        $modelsToTry = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'groq/compound'];
+
         try {
-            $response = Http::withToken($groqKey)
-                ->timeout(10)
-                ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+            foreach ($modelsToTry as $modelName) {
+                $payload['model'] = $modelName;
+                
+                $response = Http::withToken($groqKey)
+                    ->timeout(10)
+                    ->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                $text = $data['choices'][0]['message']['content'] ?? null;
-                if ($text) {
-                    return trim($text);
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $text = $data['choices'][0]['message']['content'] ?? null;
+                    if ($text) {
+                        return trim($text);
+                    }
                 }
-            }
 
-            Log::warning("Groq model falhou ({$response->status()}): {$response->body()}");
+                Log::warning("Groq modelo {$modelName} falhou ({$response->status()}): {$response->body()}");
+            }
         } catch (Exception $e) {
             Log::warning("Exceção chamando Groq: " . $e->getMessage());
         }
