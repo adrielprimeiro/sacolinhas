@@ -185,7 +185,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "llama-3.1-70b-versatile", // Groq Llama 3.1
+            "model" => "openai/gpt-oss-120b", // GPT OSS 120B on Groq
             "messages" => $messages,
             "tools" => $groqTools,
             "tool_choice" => "auto",
