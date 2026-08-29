@@ -227,17 +227,18 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429) {
-                            Log::warning("Groq Rate Limit no modelo {$modelName}. Aguardando 3s... (Tentativa $attempt)");
-                            sleep(3);
-                            continue 2; // Pula pro próximo attempt (tenta o primeiro modelo de novo depois de esperar)
+                            Log::warning("Groq Rate Limit no modelo {$modelName}. Tentando o próximo modelo...");
+                            continue; // Tenta o PRÓXIMO modelo no array imediatamente
                         }
                         
                         Log::warning("Groq modelo {$modelName} falhou ({$response->status()}): {$response->body()}");
-                        // O foreach continua e tenta o PRÓXIMO modelo instantaneamente
                     } catch (\Exception $e) {
                         Log::warning("Groq timeout/erro no modelo {$modelName}: " . $e->getMessage());
                     }
                 }
+                
+                // Se rodou todos os modelos e todos deram rate limit/erro, aí sim esperamos antes de tentar de novo
+                sleep(3);
             }
 
             if (!$choice) {

@@ -118,6 +118,11 @@ class GeminiService
                     }
                 }
 
+                if ($response->status() == 429) {
+                    Log::warning("Groq Rate Limit no modelo {$modelName}. Tentando próximo...");
+                    continue; // Tenta o próximo
+                }
+
                 Log::warning("Groq modelo {$modelName} falhou ({$response->status()}): {$response->body()}");
             }
         } catch (Exception $e) {
