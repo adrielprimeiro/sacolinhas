@@ -164,7 +164,7 @@ class AiAssistantController extends Controller
                 'title' => $request->input('title'),
                 'category' => $request->input('category'),
                 'content' => $request->input('content'),
-                'is_active' => $request->has('is_active') ? true : false,
+                'is_active' => $request->has('is_active') ? true : true, // Sempre ativo por padrão, a view não tem checkbox
             ]
         );
 
