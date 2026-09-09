@@ -240,57 +240,46 @@ class SeverinoService
             "messages" => $messages,
             "tools" => $groqTools,
             "tool_choice" => "auto",
-            "temperature" => 0.2
+            "temperature" => 0.2,
+            "max_tokens" => 400
         ];
 
         $providersToTry = [
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen"
+                "model" => "llama-3.1-8b-instant",
+                "name" => "Groq Llama 8B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nvidia/nemotron-3.5-lightning:free",
-                "name" => "OR Nemotron 3.5"
+                "model" => "google/gemma-2-9b-it:free",
+                "name" => "OR Gemma 9B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemma-4-31b-it:free",
-                "name" => "OR Gemma 4 31B"
+                "model" => "meta-llama/llama-3.1-8b-instruct:free",
+                "name" => "OR Llama 3.1 8B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nvidia/nemotron-3-super-120b-a12b:free",
-                "name" => "OR Nemotron 120B"
+                "model" => "meta-llama/llama-3.2-3b-instruct:free",
+                "name" => "OR Llama 3.2 3B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemma-4-26b-a4b-it:free",
-                "name" => "OR Gemma 4 26B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "z-ai/glm-5.2:free",
-                "name" => "OR GLM 5.2"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "minimax/minimax-m3:free",
-                "name" => "OR Minimax M3"
+                "model" => "google/gemini-2.0-flash-exp:free",
+                "name" => "OR Gemini Flash"
             ],
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama-3.1-70b-versatile",
-                "name" => "Groq Llama 3.1"
+                "model" => "llama-3.3-70b-versatile",
+                "name" => "Groq Llama 3.3 70B"
             ]
         ];
 
@@ -685,7 +674,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "nvidia/nemotron-3.5-lightning:free",
+            "model" => "google/gemma-2-9b-it:free",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -728,7 +717,7 @@ class SeverinoService
                     "HTTP-Referer" => "https://minhamania.net",
                     "X-Title" => "Controle Sacolinhas"
                 ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "nvidia/nemotron-3.5-lightning:free",
+                    "model" => "google/gemma-2-9b-it:free",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
