@@ -275,50 +275,32 @@ class SeverinoService
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nex-agi/nex-n2.5-mini:free",
-                "name" => "OR Nex Mini"
+                "model" => "meta-llama/llama-3.3-70b-instruct",
+                "name" => "OR Llama 3.3 70B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nex-agi/nex-n2.5-pro:free",
-                "name" => "OR Nex Pro"
+                "model" => "google/gemini-2.5-flash",
+                "name" => "OR Gemini 2.5 Flash"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "thinkingmachines/inkling:free",
-                "name" => "OR Inkling"
+                "model" => "meta-llama/llama-3.1-8b-instruct",
+                "name" => "OR Llama 3.1 8B"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "poolside/laguna-s-2.1:free",
-                "name" => "OR Laguna"
+                "model" => "anthropic/claude-3.5-haiku",
+                "name" => "OR Claude 3.5 Haiku"
             ],
             [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "dots-studio/dots-3-note-preview:free",
-                "name" => "OR Dots Note"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-                "name" => "OR Nemotron Omni"
-            ],
-            [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "groq/compound",
-                "name" => "Groq Compound"
-            ],
-            [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "qwen/qwen3.6-27b",
-                "name" => "Groq Qwen 3.6"
+                "model" => "meta-llama/llama-3.2-3b-instruct",
+                "name" => "OR Llama 3.2 3B"
             ]
         ];
 
@@ -461,6 +443,7 @@ class SeverinoService
             if ($sessionId) {
                 \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
             }
+            \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
             return $message["content"] ?? "Resposta processada mas sem texto legível.";
         }
 
@@ -714,7 +697,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "nex-agi/nex-n2.5-mini:free",
+            "model" => "meta-llama/llama-3.1-8b-instruct",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -757,7 +740,7 @@ class SeverinoService
                     "HTTP-Referer" => "https://minhamania.net",
                     "X-Title" => "Controle Sacolinhas"
                 ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "nex-agi/nex-n2.5-mini:free",
+                    "model" => "meta-llama/llama-3.1-8b-instruct",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
