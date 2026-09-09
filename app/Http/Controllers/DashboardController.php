@@ -134,7 +134,7 @@ class DashboardController extends Controller
 
 			// =========================
 			// ALERTAS DE VENCIMENTO
-			// Regra: vence em add_at + 90 dias
+			// Regra: vence em add_at + 31 dias
 			// =========================
 			$hoje = Carbon::today()->toDateString();
 			$em3Dias = Carbon::today()->addDays(0)->toDateString();
@@ -142,21 +142,21 @@ class DashboardController extends Controller
 			$alertaBase = Sacolinhas::query()
 				->whereNotNull('add_at');
 
-			// 1) Sacolinhas com vencimento hoje (add_at + 90 = hoje)
+			// 1) Sacolinhas com vencimento hoje (add_at + 31 = hoje)
 			$sacolasVencemHoje = (clone $alertaBase)
-				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 90 DAY)) = ?', [$hoje])
+				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 31 DAY)) = ?', [$hoje])
 				->distinct('user_id')
 				->count('user_id');
 
 
 			// 3) Número de itens vencendo hoje (somatório de quantity)
 			$itensVencemHoje = (clone $alertaBase)
-				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 90 DAY)) = ?', [$hoje])
+				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 31 DAY)) = ?', [$hoje])
 				->sum('quantity');
 
 			// 4) Valor dos itens vencendo hoje (somatório de quantity * price)
 			$valorItensVencemHoje = (clone $alertaBase)
-				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 90 DAY)) = ?', [$hoje])
+				->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 31 DAY)) = ?', [$hoje])
 				->selectRaw('COALESCE(SUM(quantity * price),0) as total')
 				->value('total');
 

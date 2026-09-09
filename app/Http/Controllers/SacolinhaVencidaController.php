@@ -30,7 +30,7 @@ class SacolinhaVencidaController extends Controller
                 $q->whereNull('s.obs')
                   ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
             })
-            ->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY)) <= ?', [$hoje]);
+            ->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) <= ?', [$hoje]);
 
         // Se quiser excluir status (ajuste conforme seus valores reais):
         // $base->whereNotIn('s.status', ['cancelado', 'entregue', 'enviado']);
@@ -56,8 +56,8 @@ class SacolinhaVencidaController extends Controller
                 COUNT(*) as total_linhas_vencidas,
                 COALESCE(SUM(s.quantity),0) as total_itens_vencidos,
                 COALESCE(SUM(s.quantity * s.price),0) as valor_total_vencido,
-                MIN(DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY))) as primeiro_vencimento,
-                MAX(DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY))) as ultimo_vencimento
+                MIN(DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY))) as primeiro_vencimento,
+                MAX(DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY))) as ultimo_vencimento
             ')
             ->groupBy('u.id', 'u.nome_cliente', 'u.name', 'u.codigo_cliente', 'u.cpf', 'u.whatsapp')
             ->orderByDesc('valor_total_vencido')
@@ -74,7 +74,7 @@ class SacolinhaVencidaController extends Controller
             ')
             ->first();
 
-		$prazoDias = 90;
+		$prazoDias = 31;
 		$hoje = \Carbon\Carbon::today()->toDateString();
 
 		$userIds = $clientes->pluck('user_id')->all();
@@ -129,7 +129,7 @@ class SacolinhaVencidaController extends Controller
 		$base = DB::table('sacolinhas as s')
 			->where('s.user_id', $user->id)
 			->whereNotNull('s.add_at')
-			->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY)) <= ?', [$hoje]);
+			->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) <= ?', [$hoje]);
 
 		// (Opcional) se quiser excluir status específicos:
 		// $base->whereNotIn('s.status', ['cancelado', 'entregue', 'enviado']);
@@ -140,8 +140,8 @@ class SacolinhaVencidaController extends Controller
 				COUNT(*) as total_linhas_vencidas,
 				COALESCE(SUM(s.quantity),0) as total_itens_vencidos,
 				COALESCE(SUM(s.quantity * s.price),0) as valor_total_vencido,
-				MIN(DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY))) as primeiro_vencimento,
-				MAX(DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY))) as ultimo_vencimento
+				MIN(DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY))) as primeiro_vencimento,
+				MAX(DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY))) as ultimo_vencimento
 			')
 			->first();
 
@@ -158,7 +158,7 @@ class SacolinhaVencidaController extends Controller
 				's.status',
 				's.obs',
 				's.add_at',
-				DB::raw('DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY)) as vencimento'),
+				DB::raw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) as vencimento'),
 				// Mapeamento correto com seu schema de items:
 				'i.nome_do_produto as item_name',  // nome do produto
 				'i.codigo as item_sku',            // código/SKU
@@ -169,7 +169,7 @@ class SacolinhaVencidaController extends Controller
 				'i.preco as item_preco',           // preço original do item (opcional, para referência)
 				'i.estado as item_estado',         // estado (novo/usado)
 			])
-			->orderByRaw('DATE(DATE_ADD(s.add_at, INTERVAL 90 DAY)) asc')
+			->orderByRaw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) asc')
 			->orderBy('s.id', 'desc')
 			->paginate(50)
 			->withQueryString();
@@ -203,7 +203,7 @@ class SacolinhaVencidaController extends Controller
 		if ($primeiroNome === '') $primeiroNome = 'amiga(o)';
 
 		// 2) Dados de vencidos: vencimento mais antigo e soma total ({{2}} e {{3}})
-		$prazoDias = 90;
+		$prazoDias = 31;
 		$hoje = Carbon::today()->toDateString();
 
 		$resumo = DB::table('sacolinhas as s')
@@ -250,7 +250,7 @@ class SacolinhaVencidaController extends Controller
 			return back()->with('error', 'Cliente sem WhatsApp cadastrado.');
 		}
 
-		$prazoDias = 90;
+		$prazoDias = 31;
 		$hoje = Carbon::today()->toDateString();
 
 		$resumo = DB::table('sacolinhas as s')
@@ -325,7 +325,7 @@ class SacolinhaVencidaController extends Controller
 		}
 
 		/* Monta mensagem
-		$msg = "No dia {$vencimentoDia} os itens do anexo estarão vencendo 90 dias na sacolinha.\n\n"
+		$msg = "No dia {$vencimentoDia} os itens do anexo estarão vencendo 31 dias na sacolinha.\n\n"
 			 . "Você pode:\n"
 			 . "1. Fazer o envio total ou parcial da sacolinha. Condição: pagamento do que for enviado.\n"
 			 . "2. Manter os itens armazenados. Condição: pagamento do custo de armazenagem por mais 30 dias no valor de R$ {$custoArmazenagem}\n"
@@ -356,7 +356,7 @@ class SacolinhaVencidaController extends Controller
 		$cliente = User::findOrFail($clienteId);
 
 		// ✅ APENAS itens vencidos (igual ao seu método, mas sem live_id)
-		$prazoDias = 90;
+		$prazoDias = 31;
 		$hoje = now()->toDateString();
 
 		$itensVencidos = DB::table('sacolinhas as s')

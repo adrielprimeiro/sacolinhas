@@ -166,7 +166,7 @@ class WhatsappController extends Controller
 
 			// ✅ MENSAGEM COMPLETA (igual à que você quer)
 			// Precisamos calcular o custo armazenagem aqui também
-			$prazoDias = 90;
+			$prazoDias = 31;
 			$hoje = Carbon::today()->toDateString();
 			
 			/*$itensCount = DB::table('sacolinhas as s')
@@ -192,7 +192,7 @@ class WhatsappController extends Controller
 
 			// Mensagem completa   				 
 			//. "2. Manter os itens armazenados. Condição: pagamento do custo de armazenagem por mais 30 dias no valor de R$ {$custoArmazenagem}\n"
-			$msg = "No dia {$vencimentoDia} vence 90 dias dos items do anexo na sacolinha.\n\n"
+			$msg = "No dia {$vencimentoDia} vence em 31 dias dos items do anexo na sacolinha.\n\n"
 				 . "Você pode:\n"
 				 . "1. Fazer o envio total ou parcial da sacolinha. Condição: pagamento do que for enviado.\n"
 				 . "2. Liberar os itens para venda.\n\n"

@@ -11,7 +11,7 @@ class RelatorioVencimentosController extends Controller
 {
     /**
      * Mostra "Sacolas vencidas (por cliente)".
-     * Regra: vencimento = sacolinhas.add_at + 90 dias
+     * Regra: vencimento = sacolinhas.add_at + 31 dias
      * Mostra apenas vencidos.
      */
     public function index(Request $request)
@@ -29,7 +29,7 @@ class RelatorioVencimentosController extends Controller
                       ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('s.add_at')
-            ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()");
+            ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()");
 
         // Filtro por cliente (nome, email, id, whatsapp)
         if ($busca !== '') {
@@ -86,7 +86,7 @@ class RelatorioVencimentosController extends Controller
                           ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
                 })
                 ->whereNotNull('s.add_at')
-                ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
+                ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
                 ->select([
                     's.id',
                     's.user_id',
@@ -97,7 +97,7 @@ class RelatorioVencimentosController extends Controller
                     's.add_at',
                     's.status',
                     's.obs',
-                    DB::raw("DATE_ADD(s.add_at, INTERVAL 90 DAY) as vencimento"),
+                    DB::raw("DATE_ADD(s.add_at, INTERVAL 31 DAY) as vencimento"),
 
                     // Campos esperados no Blade (item_name, sku, brand, color, size)
                     DB::raw('i.name as item_name'),
@@ -149,10 +149,10 @@ class RelatorioVencimentosController extends Controller
                       ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('s.add_at')
-            ->whereRaw("DATE_ADD(s.add_at, INTERVAL 90 DAY) < NOW()")
+            ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
             ->select([
                 's.*',
-                DB::raw("DATE_ADD(s.add_at, INTERVAL 90 DAY) as vencimento"),
+                DB::raw("DATE_ADD(s.add_at, INTERVAL 31 DAY) as vencimento"),
                 DB::raw('i.name as item_name'),
             ])
             ->orderBy('vencimento', 'asc')
@@ -182,7 +182,7 @@ class RelatorioVencimentosController extends Controller
                       ->orWhereRaw("LOWER(obs) NOT LIKE '%ped-%'");
             })
             ->whereNotNull('add_at')
-            ->whereRaw("DATE_ADD(add_at, INTERVAL 90 DAY) < NOW()")
+            ->whereRaw("DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()")
             ->delete();
 
         return redirect()
