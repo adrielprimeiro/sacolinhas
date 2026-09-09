@@ -444,6 +444,26 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
+                            $body = $response->body();
+                            // Se for rate limit momentâneo (ex: Gemini pedindo 500ms), esperamos brevemente
+                            if (preg_match('/retry in (\d+(?:\.\d+)?)\s*(s|ms)/i', $body, $matches)) {
+                                $waitVal = (float) $matches[1];
+                                $unit = strtolower($matches[2]);
+                                $waitSec = ($unit === 'ms') ? ($waitVal / 1000.0) : $waitVal;
+                                if ($waitSec <= 1.5) {
+                                    usleep((int)($waitSec * 1000000) + 100000); // espera o tempo exato + 100ms
+                                    // Tenta mais uma vez o mesmo provedor
+                                    $retryResp = Http::withHeaders($headers)->timeout(12)->post($provider["url"], $payload);
+                                    if ($retryResp->successful()) {
+                                        $data = $retryResp->json();
+                                        $choice = $data["choices"][0] ?? null;
+                                        if ($choice) {
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            }
+
                             // RATE LIMIT: Punição moderada, perde 5 pontos (mínimo -30)
                             $provider['score'] = max($provider['score'] - 5, -30);
                             \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
