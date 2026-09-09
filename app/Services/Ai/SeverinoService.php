@@ -515,15 +515,24 @@ class SeverinoService
                 continue;
             }
 
-            // Se não chamou ferramenta, é a resposta final. Limpamos o scratchpad pois a tarefa foi concluída!
+            // Se não chamou ferramenta, é a resposta final.
+            $finalText = trim((string) ($message["content"] ?? ""));
+            
+            // Se o modelo só gerou "reasoning" (pensamento em voz alta) e esqueceu do content, forçamos um turno rápido
+            if ($finalText === "" && !empty($message["reasoning"])) {
+                if ($i < 8) {
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "Agora formule e entregue a resposta final completa e formatada em Markdown com base no que você concluiu."
+                    ];
+                    continue;
+                }
+            }
+
             if ($sessionId) {
                 \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
             }
             \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
-            $finalText = trim((string) ($message["content"] ?? ""));
-            if ($finalText === "" && !empty($message["reasoning"])) {
-                $finalText = $message["reasoning"];
-            }
             return $finalText !== "" ? $finalText : "Resposta processada mas sem texto legível.";
         }
 
@@ -756,9 +765,13 @@ class SeverinoService
                         ->orderBy('u.name', 'asc')
                         ->get();
 
+                    $listaTexto = $emDia->map(function ($c, $idx) {
+                        return ($idx + 1) . ". {$c->cliente} ({$c->total_itens} itens, mais antigo em " . date('d/m/Y', strtotime($c->item_mais_antigo)) . ")";
+                    })->implode("\n");
+
                     return [
                         "total_em_dia" => $emDia->count(),
-                        "clientes" => $emDia
+                        "lista_formatada" => $listaTexto
                     ];
 
                 case "consultar_memoria_sql":
@@ -889,10 +902,10 @@ class SeverinoService
     {
         $content = is_string($result) ? $result : json_encode($result, JSON_UNESCAPED_UNICODE);
         
-        // Se a resposta da ferramenta for maior que 1500 caracteres, orquestramos um resumo para não estourar tokens
-        if (mb_strlen($content) > 1500) {
-            // Cortamos pra 12000 chars pra não explodir o próprio resumidor se for bizarro de grande
-            $chunk = mb_substr($content, 0, 12000); 
+        // Se a resposta da ferramenta for maior que 4500 caracteres, orquestramos um resumo para não estourar tokens
+        if (mb_strlen($content) > 4500) {
+            // Cortamos pra 15000 chars pra não explodir o próprio resumidor se for bizarro de grande
+            $chunk = mb_substr($content, 0, 15000); 
             
             $sys = "Você é um orquestrador de dados. A ferramenta '$toolName' retornou uma carga de dados gigantesca. " .
                    "Sua tarefa é analisar esses dados crus e extrair/resumir APENAS a informação que responde a intenção do usuário. " .
