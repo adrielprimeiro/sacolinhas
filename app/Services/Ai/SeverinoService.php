@@ -648,7 +648,8 @@ class SeverinoService
                     switch ($modulo) {
                         case "financeiro":
                             return ["mapa" => "MÓDULO FINANCEIRO:
-- Tabelas principais: `contas_bancarias` (id, nome, tipo, saldo_atual), `movimentacoes` (id, conta_bancaria_id, valor_pago, data_pagamento, lancamento_id), `lancamentos` (id, tipo='receita'/'despesa', status='pendente'/'pago', pessoa_id).
+- Tabelas principais: `contas_bancarias` (id, nome, tipo, saldo_atual), `movimentacoes` (id, conta_bancaria_id, valor_pago, data_pagamento, lancamento_id), `lancamentos` (id, tipo='receita'/'despesa', status='pendente'/'pago', pessoa_id, descricao, valor_total, data_vencimento).
+- Regra de Pessoas (Clientes/Fornecedores): Se precisar buscar um lançamento ou movimentação por nome (ex: fornecedor 'Meias' ou 'Leandro'), você DEVE fazer um JOIN com a tabela `pessoas` (id, nome) usando o `pessoa_id` da tabela `lancamentos`.
 - Regra de Saldo: O 'saldo_atual' da tabela `contas_bancarias` é o valor oficial e real do dinheiro da empresa (ex: Inter, Carteira Cliente).
 - Regra de Movimentações: Tudo que entra ou sai de verdade do banco passa por `movimentacoes`.
 - Tabela `transacoes_extrato`: Apenas extrato importado cru, NÃO use para calcular saldo oficial da empresa."];
