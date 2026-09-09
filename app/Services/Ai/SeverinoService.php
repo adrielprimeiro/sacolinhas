@@ -273,40 +273,52 @@ class SeverinoService
 
         $providersToTry = [
             [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nex-agi/nex-n2.5-mini:free",
+                "name" => "OR Nex Mini"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nex-agi/nex-n2.5-pro:free",
+                "name" => "OR Nex Pro"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "thinkingmachines/inkling:free",
+                "name" => "OR Inkling"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "poolside/laguna-s-2.1:free",
+                "name" => "OR Laguna"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "dots-studio/dots-3-note-preview:free",
+                "name" => "OR Dots Note"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+                "name" => "OR Nemotron Omni"
+            ],
+            [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama-3.1-8b-instant",
-                "name" => "Groq Llama 8B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemma-2-9b-it:free",
-                "name" => "OR Gemma 9B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.1-8b-instruct:free",
-                "name" => "OR Llama 3.1 8B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.2-3b-instruct:free",
-                "name" => "OR Llama 3.2 3B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemini-2.0-flash-exp:free",
-                "name" => "OR Gemini Flash"
+                "model" => "groq/compound",
+                "name" => "Groq Compound"
             ],
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama-3.3-70b-versatile",
-                "name" => "Groq Llama 3.3 70B"
+                "model" => "qwen/qwen3.6-27b",
+                "name" => "Groq Qwen 3.6"
             ]
         ];
 
@@ -701,7 +713,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "google/gemma-2-9b-it:free",
+            "model" => "nex-agi/nex-n2.5-mini:free",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -744,7 +756,7 @@ class SeverinoService
                     "HTTP-Referer" => "https://minhamania.net",
                     "X-Title" => "Controle Sacolinhas"
                 ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "google/gemma-2-9b-it:free",
+                    "model" => "nex-agi/nex-n2.5-mini:free",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
