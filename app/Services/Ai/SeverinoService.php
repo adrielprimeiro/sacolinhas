@@ -275,8 +275,8 @@ class SeverinoService
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B"
+                "model" => "openai/gpt-oss-20b",
+                "name" => "Groq GPT OSS 20B"
             ],
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
@@ -287,14 +287,32 @@ class SeverinoService
             [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "groq/compound",
-                "name" => "Groq Compound"
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B"
             ],
             [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "canopylabs/orpheus-v1-english",
-                "name" => "Groq Orpheus"
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "poolside/laguna-s-2.1:free",
+                "name" => "OR Laguna"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+                "name" => "OR Nemotron Omni"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nex-agi/nex-n2.5-mini:free",
+                "name" => "OR Nex Mini"
+            ],
+            [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => env("OPENROUTER_API_KEY", ""),
+                "model" => "nex-agi/nex-n2.5-pro:free",
+                "name" => "OR Nex Pro"
             ]
         ];
 
@@ -691,7 +709,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "openai/gpt-oss-120b",
+            "model" => "openai/gpt-oss-20b",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -730,7 +748,7 @@ class SeverinoService
                     "Authorization" => "Bearer " . env("GROQ_API_KEY", ""),
                     "Content-Type" => "application/json"
                 ])->post("https://api.groq.com/openai/v1/chat/completions", [
-                    "model" => "openai/gpt-oss-120b",
+                    "model" => "openai/gpt-oss-20b",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
