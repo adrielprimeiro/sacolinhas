@@ -348,7 +348,7 @@ class SeverinoService
                         if ($response->successful()) {
                             // SUCESSO: Aumenta a pontuação em 1 (máximo 10)
                             $provider['score'] = min($provider['score'] + 1, 10);
-                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                             
                             $data = $response->json();
                             $choice = $data["choices"][0] ?? null;
@@ -358,22 +358,22 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
-                            // RATE LIMIT: Punição severa, perde 5 pontos (mínimo -50)
-                            $provider['score'] = max($provider['score'] - 5, -50);
-                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                            // RATE LIMIT: Punição severa, perde 10 pontos (mínimo -50)
+                            $provider['score'] = max($provider['score'] - 10, -50);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                             
                             Log::warning("Rate Limit/Too Large no provedor {$provider['name']} ({$response->status()}). Novo score: {$provider['score']} | Erro: {$response->body()}");
                             continue; // Tenta o PRÓXIMO provedor imediatamente
                         }
                         
                         // OUTRO ERRO
-                        $provider['score'] = max($provider['score'] - 2, -50);
-                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                        $provider['score'] = max($provider['score'] - 5, -50);
+                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                         Log::error("Provedor {$provider['name']} falhou com status {$response->status()}. Novo score: {$provider['score']} | Erro: {$response->body()}");
                     } catch (\Exception $e) {
-                        // TIMEOUT OU FALHA DE REDE
-                        $provider['score'] = max($provider['score'] - 3, -50);
-                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score']);
+                        // TIMEOUT OU FALHA DE REDE (Pior cenário, gasta o tempo do usuário!)
+                        $provider['score'] = max($provider['score'] - 20, -50);
+                        \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                         Log::error("Erro no provedor {$provider['name']}: " . $e->getMessage());
                     }
                 }
