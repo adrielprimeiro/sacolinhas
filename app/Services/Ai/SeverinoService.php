@@ -273,34 +273,28 @@ class SeverinoService
 
         $providersToTry = [
             [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.3-70b-instruct",
-                "name" => "OR Llama 3.3 70B"
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B"
             ],
             [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "google/gemini-2.5-flash",
-                "name" => "OR Gemini 2.5 Flash"
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen 3.8"
             ],
             [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.1-8b-instruct",
-                "name" => "OR Llama 3.1 8B"
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "groq/compound",
+                "name" => "Groq Compound"
             ],
             [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "anthropic/claude-3.5-haiku",
-                "name" => "OR Claude 3.5 Haiku"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "meta-llama/llama-3.2-3b-instruct",
-                "name" => "OR Llama 3.2 3B"
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "canopylabs/orpheus-v1-english",
+                "name" => "Groq Orpheus"
             ]
         ];
 
@@ -697,7 +691,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "meta-llama/llama-3.1-8b-instruct",
+            "model" => "openai/gpt-oss-120b",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -705,11 +699,9 @@ class SeverinoService
 
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
-                "Authorization" => "Bearer " . env("OPENROUTER_API_KEY", ""),
-                "Content-Type" => "application/json",
-                "HTTP-Referer" => "https://minhamania.net",
-                "X-Title" => "Controle Sacolinhas"
-            ])->post("https://openrouter.ai/api/v1/chat/completions", $payload);
+                "Authorization" => "Bearer " . env("GROQ_API_KEY", ""),
+                "Content-Type" => "application/json"
+            ])->post("https://api.groq.com/openai/v1/chat/completions", $payload);
 
             $json = $response->json();
             return $json['choices'][0]['message']['content'] ?? $currentSummary;
@@ -735,12 +727,10 @@ class SeverinoService
             
             try {
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
-                    "Authorization" => "Bearer " . env("OPENROUTER_API_KEY", ""),
-                    "Content-Type" => "application/json",
-                    "HTTP-Referer" => "https://minhamania.net",
-                    "X-Title" => "Controle Sacolinhas"
-                ])->post("https://openrouter.ai/api/v1/chat/completions", [
-                    "model" => "meta-llama/llama-3.1-8b-instruct",
+                    "Authorization" => "Bearer " . env("GROQ_API_KEY", ""),
+                    "Content-Type" => "application/json"
+                ])->post("https://api.groq.com/openai/v1/chat/completions", [
+                    "model" => "openai/gpt-oss-120b",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
