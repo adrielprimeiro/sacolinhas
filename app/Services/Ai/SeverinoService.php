@@ -111,8 +111,10 @@ class SeverinoService
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
             "Hoje é: {$dataAtual}{$regrasStr}{$summaryStr}{$memoriaTrabalhoStr}{$estatisticasBasicas}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
-            "DEFINIÇÕES OFICIAIS DE SACOLINHA:\n" .
-            "- Sacolinha Aberta: Cliente com itens guardados na sacolinha (`sacolinhas`), sem número de pedido gerado (`status != 'pedido'`). Cada cliente único (`user_id`) é UMA sacolinha.\n" .
+            "DEFINIÇÕES E REGRAS OBRIGATÓRIAS DE SACOLINHA:\n" .
+            "- Identificação do Cliente: Ao citar qualquer sacolinha individual ou listar clientes, USE SEMPRE O NOME DO CLIENTE (exemplo: 'A sacolinha da Aline'). NUNCA responda apenas com o ID numérico (`user_id`). Sempre faça JOIN ou busque o `name` na tabela `users`!\n" .
+            "- Escopo Padrão: Se o usuário não especificar um período ou status, 'sacolinha' refere-se SEMPRE E EXCLUSIVAMENTE às SACOLINHAS ATIVAS/ABERTAS (sacolinhas que contêm pelo menos 1 item e que ainda NÃO viraram pedido: `status != 'pedido'` e sem `obs` de pedido).\n" .
+            "- Sacolinha Aberta / Ativa: Cliente com itens guardados na sacolinha (`sacolinhas`), sem número de pedido gerado (`status != 'pedido'`). Cada cliente único (`user_id`) é UMA sacolinha.\n" .
             "- Sacolinha Vencida: Sacolinha aberta que contém pelo menos um item inserido há mais de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()`).\n" .
             "- Sacolinha Sem Itens Vencidos (Em Dia): (Total de Sacolinhas Abertas) - (Sacolinhas Vencidas). NUNCA invente números diferentes!\n" .
             "- Sacolinha Fechada: Pedido finalizado na tabela `pedidos`.\n" .
@@ -755,11 +757,13 @@ class SeverinoService
                         case "vendas":
                             return ["mapa" => "MÓDULO LIVES E VENDAS:
 - Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
-- Tabela de Itens Separados (Sacolinhas): `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at).
+- Tabela de Itens Separados (Sacolinhas): `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at, obs).
 - Regras de Sacolinhas: 
-  1. Contagem de Sacolas: 'Uma sacola' = um cliente. Para contar quantas sacolas abertas existem, faça COUNT(DISTINCT user_id) na tabela `sacolinhas`.
-  2. Itens x Sacolas: Se a pergunta for sobre 'quantos itens tem', conte as linhas de `sacolinhas`. Se for sobre 'quantas sacolas', conte os `user_id` únicos.
-  3. Vencimento: O prazo máximo é 31 dias. Use `DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()` para itens vencidos, e `>= NOW()` para os NÃO vencidos.
+  1. Identificação do Cliente: NUNCA mostre apenas o ID numérico do cliente! Sempre faça `JOIN users u ON u.id = sacolinhas.user_id` para trazer `u.name` e responder com o nome do cliente (ex: 'A sacolinha da Aline').
+  2. Escopo Ativo: Se o usuário não especificar período ou data, filtre SEMPRE apenas sacolinhas abertas/ativas (`sacolinhas.status != 'pedido'` e `(sacolinhas.obs IS NULL OR LOWER(sacolinhas.obs) NOT LIKE '%ped-%')`).
+  3. Contagem de Sacolas: 'Uma sacola' = um cliente. Para contar quantas sacolas abertas existem, faça COUNT(DISTINCT user_id) na tabela `sacolinhas`.
+  4. Itens x Sacolas: Se a pergunta for sobre 'quantos itens tem', conte as linhas de `sacolinhas`. Se for sobre 'quantas sacolas', conte os `user_id` únicos.
+  5. Vencimento: O prazo máximo é 31 dias. Use `DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()` para itens vencidos, e `>= NOW()` para os NÃO vencidos.
 - Regra Resultado Live: Para saber o faturamento de uma live, faça SUM(price * quantity) na tabela `sacolinhas` filtrando pelo `live_id` correspondente à tabela `lives`.
 - Tabela de Pedidos: `pedidos` (id, user_id, valor_total, live_id, status_pedido, status_pagamento). Para faturamento aprovado, use sempre `status_pagamento = 'aprovado'`. O `status_pedido` reflete a logística (ex: enviado, entregue)."];
                         case "estoque":
