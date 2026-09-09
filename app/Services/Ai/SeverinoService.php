@@ -60,7 +60,14 @@ class SeverinoService
                     ->count();
                     
                 $totalClientes = \Illuminate\Support\Facades\DB::table('users')->count();
-                $totalSacolinhas = \Illuminate\Support\Facades\DB::table('sacolinhas')->distinct('user_id')->count('user_id');
+                $totalSacolinhas = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
+                    ->where('s.status', '!=', 'pedido')
+                    ->where(function ($query) {
+                        $query->whereNull('s.obs')
+                              ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                    })
+                    ->distinct('s.user_id')
+                    ->count('s.user_id');
                 
                 // Sacolinhas vencidas (add_at + 31 dias < agora)
                 $sacolinhasVencidas = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
@@ -73,6 +80,8 @@ class SeverinoService
                     ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
                     ->distinct('s.user_id')
                     ->count('s.user_id');
+
+                $sacolinhasEmDia = max(0, $totalSacolinhas - $sacolinhasVencidas);
 
                 $itensVencidos = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
                     ->where('s.status', '!=', 'pedido')
@@ -90,7 +99,8 @@ class SeverinoService
                        "- Total de Pedidos Aprovados Deste Mês: " . $totalPedidos . "\n" .
                        "- Total de Clientes Cadastrados: " . $totalClientes . "\n" .
                        "- Total de Sacolinhas em Aberto: " . $totalSacolinhas . "\n" .
-                       "- Sacolinhas (Clientes) com Itens Vencidos (> 31 dias): " . $sacolinhasVencidas . "\n" .
+                       "- Sacolinhas Vencidas (com itens > 31 dias): " . $sacolinhasVencidas . "\n" .
+                       "- Sacolinhas Sem Itens Vencidos (Em Dia): " . $sacolinhasEmDia . "\n" .
                        "- Total de Peças/Itens Vencidos nas Sacolinhas: " . (int)$itensVencidos . "\n" .
                        "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n";
             } catch (\Exception $e) {
@@ -101,7 +111,12 @@ class SeverinoService
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
             "Hoje é: {$dataAtual}{$regrasStr}{$summaryStr}{$memoriaTrabalhoStr}{$estatisticasBasicas}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
-            "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), sempre chame 'consultar_memoria_sql' primeiro. SE JÁ HOUVER MEMÓRIA DE TRABALHO, VOCÊ ESTÁ CONTINUANDO UMA TAREFA: NÃO chame 'consultar_memoria_sql' novamente! Leia os resultados que já estão na memória e avance direto para o próximo passo lógico (como 'mapear_modulo_sistema', 'executar_query_select' ou dar a resposta final). USE SEMPRE SINTAXE MYSQL.\n" .
+            "DEFINIÇÕES OFICIAIS DE SACOLINHA:\n" .
+            "- Sacolinha Aberta: Cliente com itens guardados na sacolinha (`sacolinhas`), sem número de pedido gerado (`status != 'pedido'`). Cada cliente único (`user_id`) é UMA sacolinha.\n" .
+            "- Sacolinha Vencida: Sacolinha aberta que contém pelo menos um item inserido há mais de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()`).\n" .
+            "- Sacolinha Sem Itens Vencidos (Em Dia): (Total de Sacolinhas Abertas) - (Sacolinhas Vencidas). NUNCA invente números diferentes!\n" .
+            "- Sacolinha Fechada: Pedido finalizado na tabela `pedidos`.\n" .
+            "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), use as ferramentas dedicadas (como 'resumo_sacolinhas' ou 'resumo_pedidos_mes') ou 'consultar_memoria_sql'. SE JÁ HOUVER MEMÓRIA DE TRABALHO, avance direto para o próximo passo lógico. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
             "AUTO-APRENDIZADO: Sempre que você usar o mapa para deduzir uma query SQL inédita e ela funcionar com sucesso, chame 'salvar_memoria_sql' automaticamente ANTES de dar a resposta final ao usuário para guardar esse conhecimento. O 'assunto' deve ser a intenção original do usuário.\n" .
@@ -654,7 +669,14 @@ class SeverinoService
                     ];
 
                 case "resumo_sacolinhas":
-                    $totalSacolinhas = DB::table('sacolinhas')->distinct('user_id')->count('user_id');
+                    $totalSacolinhas = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->distinct('s.user_id')
+                        ->count('s.user_id');
 
                     $sacolinhasVencidas = DB::table('sacolinhas as s')
                         ->where('s.status', '!=', 'pedido')
