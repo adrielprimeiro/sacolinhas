@@ -273,6 +273,12 @@ class SeverinoService
 
         $providersToTry = [
             [
+                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "key" => env("GEMINI_API_KEY", ""),
+                "model" => "gemini-2.5-flash",
+                "name" => "Google Gemini 2.5 Flash"
+            ],
+            [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-20b",
@@ -713,7 +719,7 @@ class SeverinoService
         ];
 
         $payload = [
-            "model" => "openai/gpt-oss-20b",
+            "model" => "gemini-2.5-flash",
             "messages" => $messages,
             "temperature" => 0.0,
             "max_tokens" => 500
@@ -721,9 +727,9 @@ class SeverinoService
 
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
-                "Authorization" => "Bearer " . env("GROQ_API_KEY", ""),
+                "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
                 "Content-Type" => "application/json"
-            ])->post("https://api.groq.com/openai/v1/chat/completions", $payload);
+            ])->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", $payload);
 
             $json = $response->json();
             return $json['choices'][0]['message']['content'] ?? $currentSummary;
@@ -749,10 +755,10 @@ class SeverinoService
             
             try {
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
-                    "Authorization" => "Bearer " . env("GROQ_API_KEY", ""),
+                    "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
                     "Content-Type" => "application/json"
-                ])->post("https://api.groq.com/openai/v1/chat/completions", [
-                    "model" => "openai/gpt-oss-20b",
+                ])->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
+                    "model" => "gemini-2.5-flash",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
                         ["role" => "user", "content" => $userMsg]
