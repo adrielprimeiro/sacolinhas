@@ -61,12 +61,37 @@ class SeverinoService
                     
                 $totalClientes = \Illuminate\Support\Facades\DB::table('users')->count();
                 $totalSacolinhas = \Illuminate\Support\Facades\DB::table('sacolinhas')->distinct('user_id')->count('user_id');
+                
+                // Sacolinhas vencidas (add_at + 31 dias < agora)
+                $sacolinhasVencidas = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
+                    ->where('s.status', '!=', 'pedido')
+                    ->where(function ($query) {
+                        $query->whereNull('s.obs')
+                              ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                    })
+                    ->whereNotNull('s.add_at')
+                    ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                    ->distinct('s.user_id')
+                    ->count('s.user_id');
+
+                $itensVencidos = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
+                    ->where('s.status', '!=', 'pedido')
+                    ->where(function ($query) {
+                        $query->whereNull('s.obs')
+                              ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                    })
+                    ->whereNotNull('s.add_at')
+                    ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                    ->sum('s.quantity');
+
                 $itensDisponiveis = \Illuminate\Support\Facades\DB::table('items')->where('status', 'disponivel')->count();
                 
                 return "\n[ESTATÍSTICAS BÁSICAS DO SISTEMA (MEMÓRIA IMEDIATA)]\n- Faturamento Aprovado Deste Mês: R$ " . number_format($faturamento, 2, ',', '.') . "\n" .
                        "- Total de Pedidos Aprovados Deste Mês: " . $totalPedidos . "\n" .
                        "- Total de Clientes Cadastrados: " . $totalClientes . "\n" .
                        "- Total de Sacolinhas em Aberto: " . $totalSacolinhas . "\n" .
+                       "- Sacolinhas (Clientes) com Itens Vencidos (> 31 dias): " . $sacolinhasVencidas . "\n" .
+                       "- Total de Peças/Itens Vencidos nas Sacolinhas: " . (int)$itensVencidos . "\n" .
                        "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n";
             } catch (\Exception $e) {
                 return "";
@@ -149,6 +174,14 @@ class SeverinoService
                     [
                         "name" => "resumo_pedidos_mes",
                         "description" => "Retorna a quantidade de pedidos fechados no mês atual e o valor médio, total, etc.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_sacolinhas",
+                        "description" => "Retorna o resumo completo de sacolinhas do sistema: total de clientes com sacolinhas abertas, quantas estão vencidas (> 31 dias), total de peças nas sacolinhas e total de peças vencidas.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
@@ -340,7 +373,7 @@ class SeverinoService
 
             $choice = null;
             
-            for ($attempt = 0; $attempt < 2; $attempt++) {
+            for ($attempt = 0; $attempt < 3; $attempt++) {
                 
                 // Ordena os provedores pelo score (do maior para o menor)
                 usort($providersToTry, function ($a, $b) {
@@ -386,8 +419,8 @@ class SeverinoService
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
-                            // RATE LIMIT: Punição severa, perde 10 pontos (mínimo -50)
-                            $provider['score'] = max($provider['score'] - 10, -50);
+                            // RATE LIMIT: Punição moderada, perde 5 pontos (mínimo -30)
+                            $provider['score'] = max($provider['score'] - 5, -30);
                             \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                             
                             Log::warning("Rate Limit/Too Large no provedor {$provider['name']} ({$response->status()}). Novo score: {$provider['score']} | Erro: {$response->body()}");
@@ -395,20 +428,20 @@ class SeverinoService
                         }
                         
                         // OUTRO ERRO
-                        $provider['score'] = max($provider['score'] - 5, -50);
+                        $provider['score'] = max($provider['score'] - 5, -30);
                         \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                         Log::error("Provedor {$provider['name']} falhou com status {$response->status()}. Novo score: {$provider['score']} | Erro: {$response->body()}");
                     } catch (\Exception $e) {
                         // TIMEOUT OU FALHA DE REDE (Pior cenário, gasta o tempo do usuário!)
-                        $provider['score'] = max($provider['score'] - 20, -50);
+                        $provider['score'] = max($provider['score'] - 10, -30);
                         \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                         Log::error("Erro no provedor {$provider['name']}: " . $e->getMessage());
                     }
                 }
                 unset($provider);
                 
-                // Se rodou todos os provedores e deram rate limit/erro, aí sim esperamos antes de tentar de novo
-                sleep(2);
+                // Se rodou todos os provedores e deram rate limit/erro, esperamos 4s para a janela de tokens (Groq TPM) reabrir
+                sleep(4);
             }
 
             if (!$choice) {
@@ -609,15 +642,50 @@ class SeverinoService
                     $stats = DB::table('pedidos')
                         ->whereMonth('created_at', date('m'))
                         ->whereYear('created_at', date('Y'))
-                        ->where('pago', 1)
+                        ->where('status_pagamento', 'aprovado')
                         ->selectRaw('COUNT(*) as total_pedidos, SUM(valor_total) as faturamento, AVG(valor_total) as valor_medio')
                         ->first();
 
                     return [
                         "mes" => date('m/Y'),
-                        "total_pedidos" => (int) $stats->total_pedidos,
-                        "faturamento" => (float) $stats->faturamento,
-                        "valor_medio" => (float) $stats->valor_medio
+                        "total_pedidos" => (int) ($stats->total_pedidos ?? 0),
+                        "faturamento" => (float) ($stats->faturamento ?? 0),
+                        "valor_medio" => (float) ($stats->valor_medio ?? 0)
+                    ];
+
+                case "resumo_sacolinhas":
+                    $totalSacolinhas = DB::table('sacolinhas')->distinct('user_id')->count('user_id');
+
+                    $sacolinhasVencidas = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotNull('s.add_at')
+                        ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                        ->distinct('s.user_id')
+                        ->count('s.user_id');
+
+                    $itensVencidos = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotNull('s.add_at')
+                        ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                        ->sum('s.quantity');
+
+                    $totalItens = DB::table('sacolinhas')->sum('quantity');
+
+                    return [
+                        "total_sacolinhas_abertas" => (int) $totalSacolinhas,
+                        "sacolinhas_vencidas" => (int) $sacolinhasVencidas,
+                        "sacolinhas_em_dia" => (int) ($totalSacolinhas - $sacolinhasVencidas),
+                        "total_pecas_nas_sacolinhas" => (int) $totalItens,
+                        "total_pecas_vencidas" => (int) $itensVencidos,
+                        "regra_vencimento" => "Item adicionado ha mais de 31 dias (add_at + 31 dias < agora)"
                     ];
 
                 case "consultar_memoria_sql":
@@ -660,6 +728,9 @@ class SeverinoService
 - Regra Ativos: Um cliente é assinante ativo se existe em `clube_assinaturas` com `status = 'ativa'`.
 - Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'."];
                         case "lives":
+                        case "sacolinhas":
+                        case "sacolinha":
+                        case "vendas":
                             return ["mapa" => "MÓDULO LIVES E VENDAS:
 - Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
 - Tabela de Itens Separados (Sacolinhas): `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at).
@@ -672,13 +743,14 @@ class SeverinoService
                         case "estoque":
                             return ["mapa" => "MÓDULO ESTOQUE:
 - Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao).
-- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'."];
+- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.
+- NOTA: Para informações sobre sacolinhas de clientes, use o módulo 'sacolinhas' (tabela `sacolinhas`)."];
                         case "clientes":
                             return ["mapa" => "MÓDULO CLIENTES:
 - Tabelas principais: `users` (id, name, email, instagram, tiktok, telefone), `pessoas` (id, nome, cpf_cnpj, telefone).
 - Regra: Usuários do sistema e do app são `users`. Entidades financeiras/fornecedores no financeiro são `pessoas`."];
                         default:
-                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, estoque, clientes."];
+                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, sacolinhas, estoque, clientes."];
                     }
 
                 case "executar_query_select":
