@@ -3,7 +3,7 @@
 @section('title', 'Severino AI')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="severinoChat()">
+<div class="container mx-auto px-4 py-6" x-data="severinoChat()" x-init="init()">
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
             <i class="fas fa-robot text-indigo-600 mr-3"></i> Severino AI
@@ -30,7 +30,7 @@
                                 ? 'bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]' 
                                 : 'bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-200 max-w-[80%]'" 
                              style="word-wrap: break-word;">
-                            <div class="prose prose-sm max-w-none" :class="msg.role === 'user' ? 'prose-invert' : ''" x-html="formatMessage(msg.text)"></div>
+                            <div class="prose prose-sm max-w-none" :class="msg.role === 'user' ? 'prose-invert' : ''" x-html="msg.html || formatMessage(msg.text)"></div>
                         </div>
                         
                         <!-- Avatar User -->
@@ -57,8 +57,8 @@
             <!-- Chat Input -->
             <div class="bg-white border-t border-gray-200 p-4">
                 <form @submit.prevent="sendMessage" class="flex items-center gap-3">
-                    <input type="text" x-model="input" 
-                           class="flex-1 rounded-full border border-gray-300 bg-gray-50 px-6 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                    <input type="text" id="severino-input" x-model="input" 
+                           class="flex-1 rounded-full border border-gray-300 bg-gray-50 px-6 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400" 
                            placeholder="Pergunte ao Severino..." 
                            :disabled="loading" autofocus>
                     
@@ -78,33 +78,65 @@
 function severinoChat() {
     return {
         messages: [
-            { role: 'assistant', text: 'Olá, chefe! Sou o Severino. Você pode me perguntar coisas como:\n\n- "Busque a cliente Maria Silva"\n- "Qual o saldo da cliente ID 123?"\n- "Temos quantas peças em loja hoje?"' }
+            { 
+                role: 'assistant', 
+                text: 'Olá, chefe! Sou o Severino. Você pode me perguntar coisas como:\n\n- "Busque a cliente Maria Silva"\n- "Qual o saldo da cliente ID 123?"\n- "Temos quantas peças em loja hoje?"',
+                html: ''
+            }
         ],
         input: '',
         loading: false,
 
+        init() {
+            this.messages.forEach(m => {
+                if (!m.html) {
+                    m.html = this.formatMessage(m.text);
+                }
+            });
+        },
+
         formatMessage(text) {
-            if(!text) return '';
-            return marked.parse(text);
+            if (!text) return '';
+            try {
+                if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                    return marked.parse(text);
+                }
+            } catch (e) {
+                console.error("Erro ao renderizar markdown:", e);
+            }
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        },
+
+        addMessage(role, text) {
+            const html = this.formatMessage(text);
+            this.messages.push({ role, text, html });
+            this.scrollToBottom();
         },
 
         scrollToBottom() {
             setTimeout(() => {
                 const box = document.getElementById('chat-box');
-                box.scrollTop = box.scrollHeight;
-            }, 100);
+                if (box) {
+                    box.scrollTop = box.scrollHeight;
+                }
+            }, 50);
         },
 
         async sendMessage() {
-            if (this.input.trim() === '') return;
+            if (this.input.trim() === '' || this.loading) return;
 
-            const userText = this.input;
-            this.messages.push({ role: 'user', text: userText });
+            const userText = this.input.trim();
             this.input = '';
+            this.addMessage('user', userText);
             this.loading = true;
-            this.scrollToBottom();
 
             const history = this.messages.slice(-10).map(m => ({ role: m.role, text: m.text }));
+
+            // Timeout de segurança no cliente (45 segundos)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000);
 
             try {
                 const response = await fetch('{{ route("severino.ask") }}', {
@@ -113,21 +145,37 @@ function severinoChat() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ message: userText, history: history.slice(0, -1) })
+                    body: JSON.stringify({ message: userText, history: history.slice(0, -1) }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error('Servidor retornou status ' + response.status);
+                }
 
                 const data = await response.json();
 
                 if (data.answer) {
-                    this.messages.push({ role: 'assistant', text: data.answer });
+                    this.addMessage('assistant', data.answer);
                 } else {
-                    this.messages.push({ role: 'assistant', text: 'Ops, deu um erro: ' + (data.error || 'Erro desconhecido') });
+                    this.addMessage('assistant', 'Ops, deu um erro: ' + (data.error || 'Erro desconhecido'));
                 }
             } catch (error) {
-                this.messages.push({ role: 'assistant', text: 'Erro de conexão com o servidor.' });
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    this.addMessage('assistant', '⏱️ A consulta demorou mais que o esperado. Por favor, digite **continue** para eu retomar.');
+                } else {
+                    this.addMessage('assistant', '⚠️ Erro de conexão com o servidor. Por favor, tente novamente em instantes.');
+                }
             } finally {
                 this.loading = false;
                 this.scrollToBottom();
+                setTimeout(() => {
+                    const inputEl = document.getElementById('severino-input');
+                    if (inputEl) inputEl.focus();
+                }, 100);
             }
         }
     }
@@ -137,7 +185,9 @@ function severinoChat() {
 /* Adjusts standard markdown tags inside the chat bubbles to look good */
 .prose p:last-child { margin-bottom: 0; }
 .prose ul { margin-bottom: 0; padding-left: 1.5em; list-style-type: disc; }
+.prose ol { margin-bottom: 0; padding-left: 1.5em; list-style-type: decimal; }
 .prose code { background-color: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.875em; color: #db2777; }
 .prose-invert code { background-color: rgba(255,255,255,0.2); color: #fff; }
 </style>
 @endsection
+
