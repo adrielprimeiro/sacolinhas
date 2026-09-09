@@ -45,9 +45,36 @@ class SeverinoService
                 $memoriaTrabalhoStr = "\n\n[MEMÓRIA DE TRABALHO DA TENTATIVA ANTERIOR]:\nVocê foi interrompido antes de terminar. Aqui estão os dados que você já puxou do banco na tentativa passada para que você NÃO precise rodar essas ferramentas de novo. Continue a partir daqui:\n" . $memoria . "\n";
             }
         }
+        $estatisticasBasicas = \Illuminate\Support\Facades\Cache::remember('severino_estatisticas_basicas', 3600, function () {
+            try {
+                $faturamento = \Illuminate\Support\Facades\DB::table('pedidos')
+                    ->whereMonth('created_at', date('m'))
+                    ->whereYear('created_at', date('Y'))
+                    ->where('status_pagamento', 'aprovado')
+                    ->sum('valor_total');
+                
+                $totalPedidos = \Illuminate\Support\Facades\DB::table('pedidos')
+                    ->whereMonth('created_at', date('m'))
+                    ->whereYear('created_at', date('Y'))
+                    ->where('status_pagamento', 'aprovado')
+                    ->count();
+                    
+                $totalClientes = \Illuminate\Support\Facades\DB::table('users')->count();
+                $totalSacolinhas = \Illuminate\Support\Facades\DB::table('sacolinhas')->distinct('user_id')->count('user_id');
+                $itensDisponiveis = \Illuminate\Support\Facades\DB::table('items')->where('status', 'disponivel')->count();
+                
+                return "\n[ESTATÍSTICAS BÁSICAS DO SISTEMA (MEMÓRIA IMEDIATA)]\n- Faturamento Aprovado Deste Mês: R$ " . number_format($faturamento, 2, ',', '.') . "\n" .
+                       "- Total de Pedidos Aprovados Deste Mês: " . $totalPedidos . "\n" .
+                       "- Total de Clientes Cadastrados: " . $totalClientes . "\n" .
+                       "- Total de Sacolinhas em Aberto: " . $totalSacolinhas . "\n" .
+                       "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n";
+            } catch (\Exception $e) {
+                return "";
+            }
+        });
 
         $systemInstruction = "Seu nome é Severino, um assistente de IA focado na administração do sistema Mania.\n" .
-            "Hoje é: {$dataAtual}{$regrasStr}{$summaryStr}{$memoriaTrabalhoStr}\n" .
+            "Hoje é: {$dataAtual}{$regrasStr}{$summaryStr}{$memoriaTrabalhoStr}{$estatisticasBasicas}\n" .
             "Você ajuda os administradores consultando informações internas através de suas ferramentas.\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), sempre chame 'consultar_memoria_sql' primeiro. SE JÁ HOUVER MEMÓRIA DE TRABALHO, VOCÊ ESTÁ CONTINUANDO UMA TAREFA: NÃO chame 'consultar_memoria_sql' novamente! Leia os resultados que já estão na memória e avance direto para o próximo passo lógico (como 'mapear_modulo_sistema', 'executar_query_select' ou dar a resposta final). USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
