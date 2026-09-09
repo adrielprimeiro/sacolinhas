@@ -205,6 +205,14 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "listar_sacolinhas_em_dia",
+                        "description" => "Retorna a lista completa com nome e dados de todos os clientes cujas sacolinhas estão em dia (sem nenhuma peça com mais de 31 dias).",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
                         "name" => "consultar_memoria_sql",
                         "description" => "Busca na sua memória de longo prazo se você já aprendeu alguma query SQL para um assunto específico. Sempre chame isso antes de tentar adivinhar tabelas.",
                         "parameters" => [
@@ -512,7 +520,11 @@ class SeverinoService
                 \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
             }
             \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
-            return $message["content"] ?? "Resposta processada mas sem texto legível.";
+            $finalText = trim((string) ($message["content"] ?? ""));
+            if ($finalText === "" && !empty($message["reasoning"])) {
+                $finalText = $message["reasoning"];
+            }
+            return $finalText !== "" ? $finalText : "Resposta processada mas sem texto legível.";
         }
 
         if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
@@ -710,6 +722,43 @@ class SeverinoService
                         "total_pecas_nas_sacolinhas" => (int) $totalItens,
                         "total_pecas_vencidas" => (int) $itensVencidos,
                         "regra_vencimento" => "Item adicionado ha mais de 31 dias (add_at + 31 dias < agora)"
+                    ];
+
+                case "listar_sacolinhas_em_dia":
+                    // 1. IDs dos usuários que tem pelo menos um item vencido
+                    $usuariosVencidos = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotNull('s.add_at')
+                        ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                        ->distinct()
+                        ->pluck('s.user_id')
+                        ->toArray();
+
+                    // 2. Clientes com sacolinhas abertas que NÃO estão na lista dos vencidos
+                    $emDia = DB::table('sacolinhas as s')
+                        ->join('users as u', 'u.id', '=', 's.user_id')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotIn('s.user_id', $usuariosVencidos)
+                        ->select(
+                            'u.name as cliente',
+                            DB::raw('COUNT(s.id) as total_itens'),
+                            DB::raw('MIN(s.add_at) as item_mais_antigo')
+                        )
+                        ->groupBy('s.user_id', 'u.name')
+                        ->orderBy('u.name', 'asc')
+                        ->get();
+
+                    return [
+                        "total_em_dia" => $emDia->count(),
+                        "clientes" => $emDia
                     ];
 
                 case "consultar_memoria_sql":
