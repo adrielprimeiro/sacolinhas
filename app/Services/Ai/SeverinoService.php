@@ -658,7 +658,7 @@ class SeverinoService
 - Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
 - Tabela de Itens Separados: `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at).
 - Regra Resultado Live: Para saber o faturamento de uma live, faça SUM(price * quantity) na tabela `sacolinhas` filtrando pelo `live_id` correspondente à tabela `lives`.
-- Tabela de Pedidos Pagos: `pedidos` (id, user_id, valor_total, live_id, pago)."];
+- Tabela de Pedidos: `pedidos` (id, user_id, valor_total, live_id, status_pedido, status_pagamento). Para faturamento aprovado, use sempre `status_pagamento = 'aprovado'`. O `status_pedido` reflete a logística (ex: enviado, entregue)."];
                         case "estoque":
                             return ["mapa" => "MÓDULO ESTOQUE:
 - Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao).
