@@ -326,7 +326,7 @@ class SeverinoService
             "tools" => $groqTools,
             "tool_choice" => "auto",
             "temperature" => 0.2,
-            "max_tokens" => 400
+            "max_tokens" => 2000
         ];
 
         $providersToTry = [

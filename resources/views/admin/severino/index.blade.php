@@ -11,8 +11,8 @@
         <p class="text-gray-500 mt-1">Seu assistente administrativo integrado ao banco de dados.</p>
     </div>
 
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-xl shadow-md flex flex-col overflow-hidden border border-gray-200" style="height: 650px;">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-xl shadow-md flex flex-col overflow-hidden border border-gray-200" style="height: 700px;">
             <!-- Chat Messages -->
             <div class="flex-1 overflow-y-auto bg-gray-50 p-6 space-y-6" id="chat-box">
                 <template x-for="(msg, index) in messages" :key="index">
@@ -27,8 +27,8 @@
                         
                         <!-- Bubble -->
                         <div :class="msg.role === 'user' 
-                                ? 'bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]' 
-                                : 'bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-200 max-w-[80%]'" 
+                                ? 'bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[85%]' 
+                                : 'bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-200 max-w-[95%] w-fit overflow-x-auto'" 
                              style="word-wrap: break-word;">
                             <div class="prose prose-sm max-w-none" :class="msg.role === 'user' ? 'prose-invert' : ''" x-html="msg.html || formatMessage(msg.text)"></div>
                         </div>
@@ -184,10 +184,54 @@ function severinoChat() {
 <style>
 /* Adjusts standard markdown tags inside the chat bubbles to look good */
 .prose p:last-child { margin-bottom: 0; }
-.prose ul { margin-bottom: 0; padding-left: 1.5em; list-style-type: disc; }
-.prose ol { margin-bottom: 0; padding-left: 1.5em; list-style-type: decimal; }
+.prose ul { margin-bottom: 0.5em; padding-left: 1.5em; list-style-type: disc; }
+.prose ol { margin-bottom: 0.5em; padding-left: 1.5em; list-style-type: decimal; }
 .prose code { background-color: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.875em; color: #db2777; }
 .prose-invert code { background-color: rgba(255,255,255,0.2); color: #fff; }
+
+/* Beautiful Markdown Tables */
+.prose table {
+    width: 100%;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    text-align: left;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+.prose thead th {
+    background-color: #f3f4f6;
+    color: #374151;
+    font-weight: 600;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 2px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+.prose thead th:last-child {
+    border-right: none;
+}
+.prose tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    transition: background-color 0.15s;
+}
+.prose tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+.prose tbody tr:hover {
+    background-color: #f3f4f6;
+}
+.prose tbody td {
+    padding: 0.5rem 0.85rem;
+    border-right: 1px solid #e5e7eb;
+    color: #1f2937;
+    white-space: nowrap;
+}
+.prose tbody td:last-child {
+    border-right: none;
+}
 </style>
 @endsection
 
