@@ -1458,7 +1458,8 @@ class ConciliacaoService
         if ($contaBancariaId) {
             $query->where('conta_bancaria_id', $contaBancariaId);
         }
-        $transacoes = $query->get();
+        $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
+        $regras = json_decode($regrasRaw, true) ?: [];
 
         $count = $countTransferencias;
         foreach ($transacoes as $transacao) {
@@ -1473,7 +1474,28 @@ class ConciliacaoService
                 ->whereBetween('data_pagamento', [$dataMinCheck, $dataMaxCheck])
                 ->exists();
 
-            if (!$hasCandidateMovs) {
+            $hasMatchingRule = false;
+            if (!empty($regras)) {
+                $tDescLower = mb_strtolower($transacao->descricao, 'UTF-8');
+                foreach ($regras as $r) {
+                    if (($r['tipo'] ?? 'sugestao') === 'sugestao') {
+                        $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
+                        if (str_contains($tDescLower, $ruleDescLower)) {
+                            if (isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null) {
+                                if (abs((float)$r['valor'] - (float)$valorCheck) < 0.05) {
+                                    $hasMatchingRule = true;
+                                    break;
+                                }
+                            } else {
+                                $hasMatchingRule = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!$hasCandidateMovs && !$hasMatchingRule) {
                 continue;
             }
 

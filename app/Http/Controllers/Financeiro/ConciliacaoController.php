@@ -51,14 +51,11 @@ class ConciliacaoController extends Controller
             }
         }
 
-        // Auto-conciliação throttled: roda manualmente (?sync=1) ou no máximo a cada 3 minutos
-        if (request()->has('sync') || !\Illuminate\Support\Facades\Cache::has('last_auto_conciliacao_at')) {
-            try {
-                $this->service->autoConciliarTransacoesPendentes();
-                \Illuminate\Support\Facades\Cache::put('last_auto_conciliacao_at', now(), 180);
-            } catch (\Exception $e) {
-                Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
-            }
+        // Auto-conciliação automática para transações pendentes
+        try {
+            $this->service->autoConciliarTransacoesPendentes();
+        } catch (\Exception $e) {
+            Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
         }
 
         $extrato = TransacaoExtrato::where('status', 'pendente')
