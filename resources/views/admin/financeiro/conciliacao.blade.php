@@ -224,7 +224,10 @@
                                                 </span>
                                                 <div class="flex items-center gap-2">
                                                     @php
-                                                        $isDefault = $item['regra_correspondente'] && $item['regra_correspondente']['classificacao_financeira_id'] == $s->classificacao_financeira_id && $item['regra_correspondente']['pessoa_id'] == $s->pessoa_id;
+                                                        $regraComp = $item['regra_correspondente'] ?? null;
+                                                        $isDefault = $regraComp 
+                                                            && ($regraComp['classificacao_financeira_id'] ?? null) == $s->classificacao_financeira_id 
+                                                            && (empty($regraComp['pessoa_id']) || $regraComp['pessoa_id'] == $s->pessoa_id);
                                                     @endphp
                                                     @if($isDefault)
                                                         <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1" title="Esta é a regra padrão configurada para esta descrição">

@@ -1548,13 +1548,13 @@ class ConciliacaoService
                     }
                 }
 
-                // 3. Regra Solicitada pelo Usuário: Sempre que houver APENAS UMA opção de sugestão e ela estiver como padrão
+                // 3. Regra Solicitada pelo Usuário: Aplica a sugestão padrão de maior pontuação (Score >= 140)
                 $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
                 $regras = json_decode($regrasRaw, true) ?: [];
 
                 if (!empty($regras)) {
                     $sugestoes = $this->obterSugestoesParaTransacao($tLock, null, $regras);
-                    if ($sugestoes->count() === 1) {
+                    if ($sugestoes->isNotEmpty()) {
                         $sug = $sugestoes->first();
                         if (isset($sug->score) && $sug->score >= 140) {
                             if (!empty($sug->is_virtual)) {
@@ -1567,7 +1567,7 @@ class ConciliacaoService
                             } elseif (!empty($sug->id)) {
                                 $this->vincular($tLock->id, $sug->id);
                             }
-                            Log::info("Auto-conciliação por Regra Padrão Única realizada: Transação #{$tLock->id} ({$tLock->descricao}) -> Pessoa #{$sug->pessoa_id}, Classificação #{$sug->classificacao_financeira_id}");
+                            Log::info("Auto-conciliação por Regra Padrão realizada: Transação #{$tLock->id} ({$tLock->descricao}) -> Pessoa #{$sug->pessoa_id}, Classificação #{$sug->classificacao_financeira_id}");
                             return true;
                         }
                     }

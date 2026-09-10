@@ -232,17 +232,17 @@ class ConciliacaoController extends Controller
 
             // C. Adicionar Sugestões Virtuais de Criação Rápida por Regra (Score 140)
             if ($regraCorrespondente) {
-                $pessoaModel = \App\Models\Pessoa::find($regraCorrespondente['pessoa_id']);
-                $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($regraCorrespondente['classificacao_financeira_id']);
+                $pessoaModel = !empty($regraCorrespondente['pessoa_id']) ? \App\Models\Pessoa::find($regraCorrespondente['pessoa_id']) : null;
+                $classificacaoModel = !empty($regraCorrespondente['classificacao_financeira_id']) ? \App\Models\ClassificacaoFinanceira::find($regraCorrespondente['classificacao_financeira_id']) : null;
                 
-                if ($pessoaModel && $classificacaoModel) {
+                if ($classificacaoModel) {
                     $virtualRule = (object) [
                         'id' => null,
                         'is_virtual' => true,
                         'descricao' => 'Criar Lançamento Rápido',
                         'tipo' => ($t->tipo === 'entrada') ? 'receita' : 'despesa',
                         'valor_total' => $t->valor,
-                        'pessoa_id' => $pessoaModel->id,
+                        'pessoa_id' => $pessoaModel?->id,
                         'pessoa' => $pessoaModel,
                         'classificacao_financeira_id' => $classificacaoModel->id,
                         'classificacaoFinanceira' => $classificacaoModel,
@@ -1128,7 +1128,7 @@ class ConciliacaoController extends Controller
         $request->validate([
             'descricao_banco' => 'required|string',
             'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
-            'pessoa_id' => 'required|exists:pessoas,id',
+            'pessoa_id' => 'nullable|exists:pessoas,id',
             'tipo' => 'nullable|string|in:sugestao,exclusao',
         ]);
 
@@ -1143,15 +1143,17 @@ class ConciliacaoController extends Controller
                 }
 
                 $descricaoBanco = trim($request->descricao_banco);
+                $pessoaId = $request->pessoa_id ? (int) $request->pessoa_id : null;
+                $classificacaoId = (int) $request->classificacao_financeira_id;
 
                 $updated = false;
                 foreach ($regras as &$r) {
                     if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')
                         && ($r['tipo'] ?? 'sugestao') === $tipo
-                        && ($tipo === 'sugestao' || ( $r['pessoa_id'] == $request->pessoa_id && $r['classificacao_financeira_id'] == $request->classificacao_financeira_id ))
+                        && ($tipo === 'sugestao' || ( ($r['pessoa_id'] ?? null) == $pessoaId && ($r['classificacao_financeira_id'] ?? null) == $classificacaoId ))
                     ) {
-                        $r['classificacao_financeira_id'] = (int) $request->classificacao_financeira_id;
-                        $r['pessoa_id'] = (int) $request->pessoa_id;
+                        $r['classificacao_financeira_id'] = $classificacaoId;
+                        $r['pessoa_id'] = $pessoaId;
                         $updated = true;
                         break;
                     }
@@ -1162,8 +1164,8 @@ class ConciliacaoController extends Controller
                         'id' => uniqid(),
                         'tipo' => $tipo,
                         'descricao_banco' => $descricaoBanco,
-                        'classificacao_financeira_id' => (int) $request->classificacao_financeira_id,
-                        'pessoa_id' => (int) $request->pessoa_id,
+                        'classificacao_financeira_id' => $classificacaoId,
+                        'pessoa_id' => $pessoaId,
                     ];
                 }
 
@@ -1173,7 +1175,8 @@ class ConciliacaoController extends Controller
                 );
             });
 
-            // Executar auto-conciliação automática para aplicar a nova regra imediatamente nas transações pendentes
+            // Limpa o cache para que a auto-conciliação aplique a nova regra imediatamente
+            \Illuminate\Support\Facades\Cache::forget('last_auto_conciliacao_at');
             $this->service->autoConciliarTransacoesPendentes();
 
             $mensagem = $tipo === 'exclusao' 
