@@ -129,11 +129,11 @@ class SeverinoService
                 "functionDeclarations" => [
                     [
                         "name" => "buscar_cliente",
-                        "description" => "Busca o ID e dados básicos de um cliente pelo nome, email, apelido, instagram, tiktok ou telefone. Se retornar vários, pergunte ao usuário qual é o correto.",
+                        "description" => "Busca o cadastro completo de um cliente pelo nome, cidade, bairro, endereço, email, apelido, instagram ou telefone. Retorna nome, cidade, endereço e ID para identificar e diferenciar clientes com mesmo nome.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "termo" => ["type" => "STRING", "description" => "Nome, email ou parte do nome do cliente"]
+                                "termo" => ["type" => "STRING", "description" => "Nome, cidade, email ou qualquer parte do cadastro do cliente"]
                             ],
                             "required" => ["termo"]
                         ]
@@ -568,15 +568,34 @@ class SeverinoService
         try {
             switch ($name) {
                 case "buscar_cliente":
-                    $termo = $args["termo"] ?? "";
-                    $users = User::where("name", "like", "%{$termo}%")
-                        ->orWhere("email", "like", "%{$termo}%")
-                        ->orWhere("apelido", "like", "%{$termo}%")
-                        ->orWhere("instagram", "like", "%{$termo}%")
-                        ->orWhere("tiktok", "like", "%{$termo}%")
-                        ->orWhere("nome_cliente", "like", "%{$termo}%")
-                        ->select("id", "name", "email", "phone", "apelido", "instagram", "tiktok")
-                        ->limit(10)
+                    $termo = trim($args["termo"] ?? "");
+                    if (empty($termo)) {
+                        return ["clientes_encontrados" => []];
+                    }
+                    $words = array_filter(preg_split('/\s+/', $termo));
+                    $query = User::query();
+                    foreach ($words as $word) {
+                        $query->where(function($q) use ($word) {
+                            $q->where("name", "like", "%{$word}%")
+                                ->orWhere("cidade", "like", "%{$word}%")
+                                ->orWhere("bairro", "like", "%{$word}%")
+                                ->orWhere("endereco", "like", "%{$word}%")
+                                ->orWhere("email", "like", "%{$word}%")
+                                ->orWhere("apelido", "like", "%{$word}%")
+                                ->orWhere("instagram", "like", "%{$word}%")
+                                ->orWhere("tiktok", "like", "%{$word}%")
+                                ->orWhere("nome_cliente", "like", "%{$word}%")
+                                ->orWhere("phone", "like", "%{$word}%")
+                                ->orWhere("whatsapp", "like", "%{$word}%")
+                                ->orWhere("telefone_principal", "like", "%{$word}%");
+                        });
+                    }
+                    $users = $query->select(
+                            "id", "name", "email", "cidade", "estado", 
+                            "bairro", "endereco", "numero_endereco", 
+                            "phone", "whatsapp", "apelido", "instagram"
+                        )
+                        ->limit(15)
                         ->get();
                     return ["clientes_encontrados" => $users->toArray()];
 
@@ -854,9 +873,13 @@ class SeverinoService
 - Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.
 - NOTA: Para informações sobre sacolinhas de clientes, use o módulo 'sacolinhas' (tabela `sacolinhas`)."];
                         case "clientes":
-                            return ["mapa" => "MÓDULO CLIENTES:
-- Tabelas principais: `users` (id, name, email, instagram, tiktok, telefone), `pessoas` (id, nome, cpf_cnpj, telefone).
-- Regra: Usuários do sistema e do app são `users`. Entidades financeiras/fornecedores no financeiro são `pessoas`."];
+                        case "cliente":
+                        case "enderecos":
+                        case "endereco":
+                            return ["mapa" => "MÓDULO CLIENTES E ENDEREÇOS:
+- Tabela principal: `users` (id, name, email, cidade, estado, bairro, endereco, numero_endereco, complemento, cep, phone, whatsapp, telefone_principal, apelido, instagram, tiktok).
+- Regra de Endereço e Cidade: O endereço, cidade, estado, CEP e bairro ficam DIRETAMENTE nas colunas da tabela `users` (NÃO existe tabela separada de endereços!).
+- Tabela `pessoas`: Fornecedores, funcionários e pessoas externas do módulo financeiro. Usuários e clientes do sistema são SEMPRE `users`."];
                         default:
                             return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, sacolinhas, estoque, clientes."];
                     }
