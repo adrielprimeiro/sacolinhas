@@ -1611,10 +1611,30 @@ class ConciliacaoService
 
         $regraCorrespondente = null;
         $tDescLower = mb_strtolower($t->descricao, 'UTF-8');
+        $candidateRules = [];
         foreach ($regras as $r) {
             if (($r['tipo'] ?? 'sugestao') === 'sugestao') {
                 $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
                 if (str_contains($tDescLower, $ruleDescLower)) {
+                    $candidateRules[] = $r;
+                }
+            }
+        }
+
+        // 1. Tentar regra com valor específico primeiro
+        foreach ($candidateRules as $r) {
+            if (isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null) {
+                if (abs((float)$r['valor'] - (float)$t->valor) < 0.05) {
+                    $regraCorrespondente = $r;
+                    break;
+                }
+            }
+        }
+
+        // 2. Fallback para regra geral (sem valor)
+        if (!$regraCorrespondente) {
+            foreach ($candidateRules as $r) {
+                if (!isset($r['valor']) || $r['valor'] === '' || $r['valor'] === null) {
                     $regraCorrespondente = $r;
                     break;
                 }
@@ -1626,6 +1646,11 @@ class ConciliacaoService
             if (($r['tipo'] ?? 'sugestao') === 'exclusao') {
                 $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
                 if (str_contains($tDescLower, $ruleDescLower)) {
+                    if (isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null) {
+                        if (abs((float)$r['valor'] - (float)$t->valor) >= 0.05) {
+                            continue;
+                        }
+                    }
                     $exclusoes[] = [
                         'pessoa_id' => (int) $r['pessoa_id'],
                         'classificacao_financeira_id' => (int) $r['classificacao_financeira_id']

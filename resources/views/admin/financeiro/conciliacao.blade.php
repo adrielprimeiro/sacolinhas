@@ -422,10 +422,14 @@
                         </div>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Descrição Procurada (banco)</label>
                             <input type="text" name="descricao_banco" placeholder="Ex: VINDI PAGAMENTOS" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Valor R$ (Opcional)</label>
+                            <input type="text" name="valor" placeholder="Ex: 50,00 (Vazio = Qualquer)" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white">
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Contato</label>
@@ -479,8 +483,17 @@
                                     @endphp
                                     <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
                                         <div class="space-y-1">
-                                            <div class="text-xs font-bold text-gray-805">
-                                                Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                                            <div class="text-xs font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+                                                <span>Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span></span>
+                                                @if(isset($regra['valor']) && $regra['valor'] !== '' && $regra['valor'] !== null)
+                                                    <span class="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                                                        Valor: R$ {{ number_format((float)$regra['valor'], 2, ',', '.') }}
+                                                    </span>
+                                                @else
+                                                    <span class="bg-gray-50 text-gray-500 font-normal px-2 py-0.5 rounded border border-gray-200 text-[10px]">
+                                                        Qualquer valor
+                                                    </span>
+                                                @endif
                                             </div>
                                             <div class="text-[10px] text-gray-500 flex items-center gap-3">
                                                 <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>
@@ -521,8 +534,17 @@
                                     @endphp
                                     <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
                                         <div class="space-y-1">
-                                            <div class="text-xs font-bold text-gray-805">
-                                                Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span>
+                                            <div class="text-xs font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+                                                <span>Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span></span>
+                                                @if(isset($regra['valor']) && $regra['valor'] !== '' && $regra['valor'] !== null)
+                                                    <span class="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                                                        Valor: R$ {{ number_format((float)$regra['valor'], 2, ',', '.') }}
+                                                    </span>
+                                                @else
+                                                    <span class="bg-gray-50 text-gray-500 font-normal px-2 py-0.5 rounded border border-gray-200 text-[10px]">
+                                                        Qualquer valor
+                                                    </span>
+                                                @endif
                                             </div>
                                             <div class="text-[10px] text-gray-500 flex items-center gap-3">
                                                 <span><i class="far fa-user mr-1 text-gray-400"></i>{{ $pModel->nome ?? 'Desconhecido' }}</span>

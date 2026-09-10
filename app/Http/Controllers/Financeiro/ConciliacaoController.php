@@ -108,25 +108,50 @@ class ConciliacaoController extends Controller
         $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras, $historicosGrouped, $transacoesConciliadasGrouped) {
             $pedidoIdRef = $t->getPedidoId();
             
-            // 1. Procurar regra correspondente para a descrição
+            // 1. Procurar regra correspondente para a descrição (priorizando match de valor exato)
             $regraCorrespondente = null;
             $tDescLower = mb_strtolower($t->descricao, 'UTF-8');
+            $candidateRules = [];
             foreach ($regras as $r) {
                 if (($r['tipo'] ?? 'sugestao') === 'sugestao') {
                     $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
                     if (str_contains($tDescLower, $ruleDescLower)) {
+                        $candidateRules[] = $r;
+                    }
+                }
+            }
+
+            // 1.1 Tentar regra com valor específico primeiro
+            foreach ($candidateRules as $r) {
+                if (isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null) {
+                    if (abs((float)$r['valor'] - (float)$t->valor) < 0.05) {
                         $regraCorrespondente = $r;
                         break;
                     }
                 }
             }
 
-            // 1.2. Filtrar regras de exclusão correspondentes para esta descrição
+            // 1.2 Fallback para regra geral (sem valor)
+            if (!$regraCorrespondente) {
+                foreach ($candidateRules as $r) {
+                    if (!isset($r['valor']) || $r['valor'] === '' || $r['valor'] === null) {
+                        $regraCorrespondente = $r;
+                        break;
+                    }
+                }
+            }
+
+            // 1.3. Filtrar regras de exclusão correspondentes para esta descrição
             $exclusoes = [];
             foreach ($regras as $r) {
                 if (($r['tipo'] ?? 'sugestao') === 'exclusao') {
                     $ruleDescLower = mb_strtolower($r['descricao_banco'], 'UTF-8');
                     if (str_contains($tDescLower, $ruleDescLower)) {
+                        if (isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null) {
+                            if (abs((float)$r['valor'] - (float)$t->valor) >= 0.05) {
+                                continue;
+                            }
+                        }
                         $exclusoes[] = [
                             'pessoa_id' => (int) $r['pessoa_id'],
                             'classificacao_financeira_id' => (int) $r['classificacao_financeira_id']
@@ -1145,12 +1170,31 @@ class ConciliacaoController extends Controller
             'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
             'pessoa_id' => 'nullable|exists:pessoas,id',
             'tipo' => 'nullable|string|in:sugestao,exclusao',
+            'valor' => 'nullable',
         ]);
 
         $tipo = $request->input('tipo', 'sugestao');
 
+        $valorInput = $request->input('valor');
+        $valorFinal = null;
+        if ($valorInput !== null && $valorInput !== '') {
+            if (is_numeric($valorInput)) {
+                $valorFinal = (float) $valorInput;
+            } else {
+                $cleanValor = str_replace('R$', '', (string) $valorInput);
+                $cleanValor = trim($cleanValor);
+                if (str_contains($cleanValor, ',')) {
+                    $cleanValor = str_replace('.', '', $cleanValor);
+                    $cleanValor = str_replace(',', '.', $cleanValor);
+                }
+                if (is_numeric($cleanValor)) {
+                    $valorFinal = (float) $cleanValor;
+                }
+            }
+        }
+
         try {
-            \DB::transaction(function() use ($request, $tipo) {
+            \DB::transaction(function() use ($request, $tipo, $valorFinal) {
                 $config = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->first();
                 $regras = $config ? json_decode($config->valor, true) : [];
                 if (!is_array($regras)) {
@@ -1163,12 +1207,17 @@ class ConciliacaoController extends Controller
 
                 $updated = false;
                 foreach ($regras as &$r) {
+                    $rValor = isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null ? (float)$r['valor'] : null;
+                    $sameValor = ($rValor === null && $valorFinal === null) || ($rValor !== null && $valorFinal !== null && abs($rValor - $valorFinal) < 0.001);
+
                     if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')
                         && ($r['tipo'] ?? 'sugestao') === $tipo
+                        && $sameValor
                         && ($tipo === 'sugestao' || ( ($r['pessoa_id'] ?? null) == $pessoaId && ($r['classificacao_financeira_id'] ?? null) == $classificacaoId ))
                     ) {
                         $r['classificacao_financeira_id'] = $classificacaoId;
                         $r['pessoa_id'] = $pessoaId;
+                        $r['valor'] = $valorFinal;
                         $updated = true;
                         break;
                     }
@@ -1181,6 +1230,7 @@ class ConciliacaoController extends Controller
                         'descricao_banco' => $descricaoBanco,
                         'classificacao_financeira_id' => $classificacaoId,
                         'pessoa_id' => $pessoaId,
+                        'valor' => $valorFinal,
                     ];
                 }
 
