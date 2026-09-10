@@ -134,9 +134,9 @@ function severinoChat() {
 
             const history = this.messages.slice(-10).map(m => ({ role: m.role, text: m.text }));
 
-            // Timeout de segurança no cliente (45 segundos)
+            // Timeout de segurança no cliente (60 segundos)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 45000);
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
             try {
                 const response = await fetch('{{ route("severino.ask") }}', {

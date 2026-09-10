@@ -21,6 +21,22 @@ class SeverinoService
     {
         $dataAtual = date('Y-m-d H:i:s');
         
+        // Se o usuário digitou apenas 'continue' ou similar, resgata a pergunta anterior do histórico
+        if (in_array(strtolower(trim($userPrompt)), ['continue', 'continuar', 'prossiga', 'retomar'])) {
+            $lastUserPrompt = null;
+            for ($k = count($history) - 1; $k >= 0; $k--) {
+                $role = $history[$k]['role'] ?? '';
+                $txt = trim($history[$k]['text'] ?? $history[$k]['message'] ?? '');
+                if ($role === 'user' && !in_array(strtolower($txt), ['continue', 'continuar', 'prossiga', 'retomar'])) {
+                    $lastUserPrompt = $txt;
+                    break;
+                }
+            }
+            if ($lastUserPrompt) {
+                $userPrompt = "Por favor, continue a pesquisa e responda de forma direta e completa à minha pergunta anterior: '{$lastUserPrompt}'";
+            }
+        }
+        
         $regrasStr = "";
         try {
             $regras = \App\Models\KnowledgeBase::where('is_active', 1)->get();
@@ -306,6 +322,8 @@ class SeverinoService
                 if (str_contains($rawText, "Todos os provedores configurados falharam") || 
                     str_contains($rawText, "Operei ferramentas demais. Parando loop.") ||
                     str_contains($rawText, "Erro de conexão com o servidor.") ||
+                    str_contains($rawText, "demorou mais que o esperado") ||
+                    str_contains($rawText, "não há uma consulta pendente") ||
                     str_contains($rawText, "Pausa técnica!")) {
                     continue; // Pula essa mensagem
                 }
@@ -841,12 +859,24 @@ class SeverinoService
                     $modulo = strtolower($args["modulo"] ?? "");
                     switch ($modulo) {
                         case "financeiro":
-                            return ["mapa" => "MÓDULO FINANCEIRO:
-- Tabelas principais: `contas_bancarias` (id, nome, tipo, saldo_atual), `movimentacoes` (id, conta_bancaria_id, valor_pago, data_pagamento, lancamento_id), `lancamentos` (id, tipo='receita'/'despesa', status='pendente'/'pago', pessoa_id, descricao, valor_total, data_vencimento).
+                        case "extrato":
+                        case "extratos":
+                        case "conciliacao":
+                        case "banco":
+                        case "bancos":
+                            return ["mapa" => "MÓDULO FINANCEIRO E BANCÁRIO:
+- Tabelas principais:
+  1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas da empresa: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'. (Atenção: NÃO existe a coluna 'saldo_atual' nessa tabela).
+  2. `transacoes_extrato` (id, fitid, data, descricao, valor, valor_bruto, valor_liquido, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id). É onde ficam os extratos bancários importados/sincronizados do Inter e Mercado Pago!
+  3. `lancamentos` (id, tipo ['receita','despesa'], status ['pendente','pago_parcial','pago','cancelado'], pessoa_id, classificacao_financeira_id, data_emissao, data_vencimento, valor_total, descricao).
+  4. `movimentacoes` (id, lancamento_id, conta_bancaria_id, data_pagamento, valor_pago, forma_pagamento, transacao_extrato_id).
+- Regra de Conciliação e Lançamentos Faltantes:
+  * Uma transação bancária no extrato (`transacoes_extrato`) só gera um `lancamento` e `movimentacao` no sistema quando é CONCILIADA (`status = 'conciliado'`).
+  * Se o usuário perguntar por que está faltando um lançamento de uma transferência, PIX ou pagamento que ocorreu no banco, consulte `transacoes_extrato`! Se estiver `status = 'pendente'`, o lançamento ainda NÃO existe no financeiro porque a transação ainda está pendente de conciliação bancária na tela de Conciliação.
+  * Em transferências entre contas próprias (ex: Inter -> Mercado Pago), existem duas pontas no extrato: saída no Inter e entrada no Mercado Pago. Se uma das pontas foi conciliada individualmente e a outra ficou com status 'pendente', o lançamento da ponta pendente estará faltando no financeiro até que seja conciliado!
 - Regra de Pessoas (Clientes/Fornecedores): Se precisar buscar um lançamento ou movimentação por nome (ex: fornecedor 'Meias' ou 'Leandro'), você DEVE fazer um JOIN com a tabela `pessoas` (id, nome) usando o `pessoa_id` da tabela `lancamentos`.
-- Regra de Saldo: O 'saldo_atual' da tabela `contas_bancarias` é o valor oficial e real do dinheiro da empresa (ex: Inter, Carteira Cliente).
-- Regra de Movimentações: Tudo que entra ou sai de verdade do banco passa por `movimentacoes`.
-- Tabela `transacoes_extrato`: Apenas extrato importado cru, NÃO use para calcular saldo oficial da empresa."];
+- Regra de Saldo: O saldo real da empresa é a soma do saldo_inicial das contas + movimentações de entrada - saídas.
+- Regra de Movimentações: Tudo que entra ou sai de verdade do caixa/banco da empresa passa por `movimentacoes`."];
                         case "clube":
                             return ["mapa" => "MÓDULO CLUBE MANIA:
 - Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
