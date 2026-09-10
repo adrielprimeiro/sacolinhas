@@ -36,6 +36,21 @@ class ConciliacaoController extends Controller
 
     public function index()
     {
+        // 0. Auto-sincronização automática do extrato bancário (Banco Inter e Mercado Pago) a cada 15 minutos ao abrir a tela ou via ?sync=1
+        if (request()->has('sync') || !\Illuminate\Support\Facades\Cache::has('last_extrato_auto_synced_at')) {
+            try {
+                $startDate = now()->subDays(7)->toDateString();
+                $endDate = now()->toDateString();
+
+                $this->service->sincronizarBancoInter($startDate, $endDate);
+                $this->service->sincronizarMercadoPago($startDate, $endDate);
+                
+                \Illuminate\Support\Facades\Cache::put('last_extrato_auto_synced_at', now(), 900); // 15 minutos
+            } catch (\Exception $e) {
+                Log::warning("Aviso na sincronização automática de extratos bancários: " . $e->getMessage());
+            }
+        }
+
         // Auto-conciliação throttled: roda manualmente (?sync=1) ou no máximo a cada 3 minutos
         if (request()->has('sync') || !\Illuminate\Support\Facades\Cache::has('last_auto_conciliacao_at')) {
             try {
