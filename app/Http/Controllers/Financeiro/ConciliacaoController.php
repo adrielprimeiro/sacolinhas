@@ -36,22 +36,49 @@ class ConciliacaoController extends Controller
 
     public function index()
     {
-        try {
-            $this->service->autoConciliarTransacoesPendentes();
-        } catch (\Exception $e) {
-            Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
+        // Auto-conciliação throttled: roda manualmente (?sync=1) ou no máximo a cada 3 minutos
+        if (request()->has('sync') || !\Illuminate\Support\Facades\Cache::has('last_auto_conciliacao_at')) {
+            try {
+                $this->service->autoConciliarTransacoesPendentes();
+                \Illuminate\Support\Facades\Cache::put('last_auto_conciliacao_at', now(), 180);
+            } catch (\Exception $e) {
+                Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
+            }
         }
 
         $extrato = TransacaoExtrato::where('status', 'pendente')
             ->orderBy('data', 'desc')
             ->get();
 
-        $lancamentos = Lancamento::with(['pessoa', 'classificacaoFinanceira'])
+        $descricoes = $extrato->pluck('descricao')->filter()->unique()->values();
+
+        // Batch Query 1: Histórico de lançamentos por descrição
+        $historicosGrouped = Lancamento::whereIn('descricao', $descricoes)
+            ->whereNotNull('classificacao_financeira_id')
             ->where(function ($q) {
+                $q->whereIn('status', ['pago', 'pago_parcial'])
+                  ->orWhereHas('movimentacoes');
+            })
+            ->get(['descricao', 'pessoa_id', 'classificacao_financeira_id'])
+            ->groupBy('descricao');
+
+        // Batch Query 2: Transações conciliadas passadas por descrição
+        $transacoesConciliadasGrouped = TransacaoExtrato::where('status', 'conciliado')
+            ->whereIn('descricao', $descricoes)
+            ->whereHas('movimentacao.lancamento')
+            ->with('movimentacao.lancamento:id,pessoa_id,classificacao_financeira_id')
+            ->get(['id', 'descricao', 'movimentacao_id'])
+            ->groupBy('descricao');
+
+        // Janela de datas para filtrar lançamentos de candidatos (últimos 90 dias ou pendentes)
+        $minDataExtrato = $extrato->min('data') ? \Carbon\Carbon::parse($extrato->min('data'))->subDays(30) : now()->subDays(90);
+
+        $lancamentos = Lancamento::with(['pessoa:id,nome', 'classificacaoFinanceira:id,nome'])
+            ->where(function ($q) use ($minDataExtrato) {
                 $q->where('status', 'pendente')
-                    ->orWhere(function ($q2) {
-                        // Também mostra os pagos que ainda não foram vinculados a nenhuma transação do extrato
+                    ->orWhere(function ($q2) use ($minDataExtrato) {
                         $q2->where('status', 'pago')
+                            ->where('data_vencimento', '>=', $minDataExtrato)
                             ->whereDoesntHave('movimentacoes', function ($q3) {
                                 $q3->whereHas('transacaoExtrato');
                             });
@@ -63,7 +90,7 @@ class ConciliacaoController extends Controller
         $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
         $regras = json_decode($regrasRaw, true) ?: [];
 
-        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras) {
+        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras, $historicosGrouped, $transacoesConciliadasGrouped) {
             $pedidoIdRef = $t->getPedidoId();
             
             // 1. Procurar regra correspondente para a descrição
@@ -93,18 +120,10 @@ class ConciliacaoController extends Controller
                 }
             }
 
-            // 2. Buscar histórico para a descrição exata do banco
+            // 2. Buscar histórico utilizando as coleções pré-carregadas (sem N+1 queries)
             $paresHistoricos = [];
             
-            // Lançamentos pagos/com movimentação no passado com essa descrição
-            $historicos = \App\Models\Lancamento::where('descricao', $t->descricao)
-                ->whereNotNull('classificacao_financeira_id')
-                ->where(function ($q) {
-                    $q->whereIn('status', ['pago', 'pago_parcial'])
-                      ->orWhereHas('movimentacoes');
-                })
-                ->get(['pessoa_id', 'classificacao_financeira_id']);
-                
+            $historicos = $historicosGrouped->get($t->descricao) ?? collect();
             foreach ($historicos as $h) {
                 if ($h->pessoa_id && $h->classificacao_financeira_id) {
                     $key = $h->pessoa_id . '-' . $h->classificacao_financeira_id;
@@ -115,15 +134,9 @@ class ConciliacaoController extends Controller
                 }
             }
 
-            // Transações já conciliadas no passado com essa descrição
-            $transacoesConciliadas = \App\Models\TransacaoExtrato::where('status', 'conciliado')
-                ->where('descricao', $t->descricao)
-                ->whereHas('movimentacao.lancamento')
-                ->with('movimentacao.lancamento')
-                ->get();
-                
+            $transacoesConciliadas = $transacoesConciliadasGrouped->get($t->descricao) ?? collect();
             foreach ($transacoesConciliadas as $tc) {
-                $l = $tc->movimentacao->lancamento;
+                $l = $tc->movimentacao?->lancamento;
                 if ($l && $l->pessoa_id && $l->classificacao_financeira_id) {
                     $key = $l->pessoa_id . '-' . $l->classificacao_financeira_id;
                     $paresHistoricos[$key] = [

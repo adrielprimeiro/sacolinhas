@@ -1462,6 +1462,21 @@ class ConciliacaoService
 
         $count = $countTransferencias;
         foreach ($transacoes as $transacao) {
+            $valorCheck = $transacao->valor_bruto ?? $transacao->valor;
+            $dataMinCheck = Carbon::parse($transacao->data)->subDays(3)->toDateString();
+            $dataMaxCheck = Carbon::parse($transacao->data)->addDays(3)->toDateString();
+
+            // Pré-checagem rápida sem lock para evitar transações de BD desnecessárias
+            $hasCandidateMovs = \App\Models\Movimentacao::where('valor_pago', $valorCheck)
+                ->where('conta_bancaria_id', $transacao->conta_bancaria_id)
+                ->whereDoesntHave('transacaoExtrato')
+                ->whereBetween('data_pagamento', [$dataMinCheck, $dataMaxCheck])
+                ->exists();
+
+            if (!$hasCandidateMovs) {
+                continue;
+            }
+
             $matched = \DB::transaction(function () use ($transacao) {
                 // Lock row
                 $tLock = TransacaoExtrato::lockForUpdate()->find($transacao->id);
@@ -1733,6 +1748,21 @@ class ConciliacaoService
         $count = 0;
 
         foreach ($saidasPendentes as $saida) {
+            $valorCheck = (float) ($saida->valor_bruto ?? $saida->valor);
+            $dataMinCheck = Carbon::parse($saida->data)->subDays(3)->toDateString();
+            $dataMaxCheck = Carbon::parse($saida->data)->addDays(3)->toDateString();
+
+            $hasEntradaCandidate = TransacaoExtrato::where('status', 'pendente')
+                ->where('tipo', 'entrada')
+                ->where('conta_bancaria_id', '!=', $saida->conta_bancaria_id)
+                ->whereBetween('data', [$dataMinCheck, $dataMaxCheck])
+                ->whereRaw('ABS(COALESCE(valor_bruto, valor) - ?) < 0.05', [$valorCheck])
+                ->exists();
+
+            if (!$hasEntradaCandidate) {
+                continue;
+            }
+
             $matched = \DB::transaction(function () use ($saida, $catTransferencia) {
                 $saidaLock = TransacaoExtrato::lockForUpdate()->find($saida->id);
                 if (!$saidaLock || $saidaLock->status === 'conciliado') {
