@@ -230,20 +230,51 @@
                                                             && (empty($regraComp['pessoa_id']) || $regraComp['pessoa_id'] == $s->pessoa_id);
                                                     @endphp
                                                     @if($isDefault)
-                                                        <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1" title="Esta é a regra padrão configurada para esta descrição">
-                                                            <i class="fas fa-star text-amber-500"></i> Padrão
+                                                        <span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1" title="Esta transação encaixa na regra padrão configurada">
+                                                            <i class="fas fa-star text-amber-500"></i> Padrão @if(!empty($regraComp['valor'])) (R$ {{ number_format((float)$regraComp['valor'], 2, ',', '.') }}) @endif
                                                         </span>
                                                     @else
-                                                        <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Salvando...';">
-                                                            @csrf
-                                                            <input type="hidden" name="transacao_id" value="{{ $t->id }}">
-                                                            <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
-                                                            <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
-                                                            <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
-                                                            <button type="submit" class="bg-white border border-gray-200 hover:bg-amber-50 hover:text-amber-700 text-gray-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1" title="Definir esta regra como padrão e conciliar esta transação agora">
-                                                                <i class="far fa-star text-amber-500"></i> Tornar Padrão & Conciliar
+                                                        <div class="relative inline-block text-left" x-data="{ openPadrao: false }" @click.outside="openPadrao = false">
+                                                            <button type="button" @click="openPadrao = !openPadrao" class="bg-white border border-gray-200 hover:bg-amber-50 hover:text-amber-700 text-gray-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1.5" title="Opções de Regra Padrão">
+                                                                <i class="far fa-star text-amber-500"></i> Tornar Padrão <i class="fas fa-chevron-down text-[9px] text-gray-400"></i>
                                                             </button>
-                                                        </form>
+
+                                                            <div x-show="openPadrao" x-cloak class="origin-top-right absolute right-0 mt-1 w-64 rounded-2xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-[70] p-1.5 space-y-1 divide-y divide-gray-100 border border-gray-100">
+                                                                <!-- Opção 1: Salvar com Valor Específico -->
+                                                                <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Salvando...';">
+                                                                    @csrf
+                                                                    <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                                    <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
+                                                                    <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                                    <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                                    <input type="hidden" name="valor" value="{{ number_format($t->valor, 2, ',', '.') }}">
+                                                                    <button type="submit" class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl transition font-medium flex items-center justify-between gap-2">
+                                                                        <div>
+                                                                            <div class="font-bold text-gray-800 flex items-center gap-1"><i class="fas fa-tag text-emerald-500 text-[10px]"></i> Padrão para este valor</div>
+                                                                            <div class="text-[10px] text-gray-400">Só aplica em transações deste valor</div>
+                                                                        </div>
+                                                                        <span class="font-bold text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">R$ {{ number_format($t->valor, 2, ',', '.') }}</span>
+                                                                    </button>
+                                                                </form>
+
+                                                                <!-- Opção 2: Salvar Geral (Sem Valor) -->
+                                                                <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Salvando...';">
+                                                                    @csrf
+                                                                    <input type="hidden" name="transacao_id" value="{{ $t->id }}">
+                                                                    <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
+                                                                    <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
+                                                                    <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
+                                                                    <input type="hidden" name="valor" value="">
+                                                                    <button type="submit" class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 rounded-xl transition font-medium flex items-center justify-between gap-2">
+                                                                        <div>
+                                                                            <div class="font-bold text-gray-800 flex items-center gap-1"><i class="fas fa-globe text-indigo-500 text-[10px]"></i> Padrão Geral</div>
+                                                                            <div class="text-[10px] text-gray-400">Aplica para qualquer outro valor</div>
+                                                                        </div>
+                                                                        <span class="font-normal text-[10px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">Qualquer</span>
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
 
                                                         <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline" onsubmit="return confirm('Deseja realmente ocultar esta sugestão para esta descrição de banco no futuro?');">
                                                             @csrf
