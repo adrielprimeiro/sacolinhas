@@ -234,13 +234,14 @@
                                                             <i class="fas fa-star text-amber-500"></i> Padrão
                                                         </span>
                                                     @else
-                                                        <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline">
+                                                        <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="inline" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled=true; btn.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Salvando...';">
                                                             @csrf
+                                                            <input type="hidden" name="transacao_id" value="{{ $t->id }}">
                                                             <input type="hidden" name="descricao_banco" value="{{ $t->descricao }}">
                                                             <input type="hidden" name="classificacao_financeira_id" value="{{ $s->classificacao_financeira_id }}">
                                                             <input type="hidden" name="pessoa_id" value="{{ $s->pessoa_id }}">
-                                                            <button type="submit" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1" title="Definir esta classificação e contato como regra padrão para esta descrição de extrato">
-                                                                <i class="far fa-star text-gray-400"></i> Tornar Padrão
+                                                            <button type="submit" class="bg-white border border-gray-200 hover:bg-amber-50 hover:text-amber-700 text-gray-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1" title="Definir esta regra como padrão e conciliar esta transação agora">
+                                                                <i class="far fa-star text-amber-500"></i> Tornar Padrão & Conciliar
                                                             </button>
                                                         </form>
 

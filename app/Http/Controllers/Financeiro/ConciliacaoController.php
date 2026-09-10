@@ -1179,9 +1179,28 @@ class ConciliacaoController extends Controller
             \Illuminate\Support\Facades\Cache::forget('last_auto_conciliacao_at');
             $this->service->autoConciliarTransacoesPendentes();
 
-            $mensagem = $tipo === 'exclusao' 
-                ? 'Sugestão bloqueada com sucesso!' 
-                : 'Regra de conciliação padrão salva com sucesso!';
+            // Se um ID de transação foi enviado, concilia ela diretamente agora caso ainda esteja pendente
+            $conciliadaAgora = false;
+            if ($request->filled('transacao_id') && $tipo !== 'exclusao') {
+                $trans = TransacaoExtrato::find($request->transacao_id);
+                if ($trans && $trans->status === 'pendente') {
+                    $this->service->vincularNovoLancamento(
+                        $trans->id,
+                        (int) $request->classificacao_financeira_id,
+                        $request->pessoa_id ? (int) $request->pessoa_id : null,
+                        $trans->conta_bancaria_id
+                    );
+                    $conciliadaAgora = true;
+                }
+            }
+
+            if ($tipo === 'exclusao') {
+                $mensagem = 'Sugestão bloqueada com sucesso!';
+            } elseif ($conciliadaAgora) {
+                $mensagem = '✅ Regra salva como Padrão e transação conciliada com sucesso!';
+            } else {
+                $mensagem = 'Regra de conciliação padrão salva com sucesso!';
+            }
 
             return back()->with('success', $mensagem);
         } catch (\Exception $e) {
