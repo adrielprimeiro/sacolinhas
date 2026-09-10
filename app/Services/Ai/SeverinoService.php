@@ -111,6 +111,9 @@ class SeverinoService
 
                 $itensDisponiveis = \Illuminate\Support\Facades\DB::table('items')->where('status', 'disponivel')->count();
                 
+                $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%Carteira%')->first();
+                $saldoCarteira = $contaCarteira ? (float) $contaCarteira->saldo_atual : 0.0;
+                
                 return "\n[ESTATÍSTICAS BÁSICAS DO SISTEMA (MEMÓRIA IMEDIATA)]\n- Faturamento Aprovado Deste Mês: R$ " . number_format($faturamento, 2, ',', '.') . "\n" .
                        "- Total de Pedidos Aprovados Deste Mês: " . $totalPedidos . "\n" .
                        "- Total de Clientes Cadastrados: " . $totalClientes . "\n" .
@@ -118,7 +121,8 @@ class SeverinoService
                        "- Sacolinhas Vencidas (com itens > 31 dias): " . $sacolinhasVencidas . "\n" .
                        "- Sacolinhas Sem Itens Vencidos (Em Dia): " . $sacolinhasEmDia . "\n" .
                        "- Total de Peças/Itens Vencidos nas Sacolinhas: " . (int)$itensVencidos . "\n" .
-                       "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n";
+                       "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n" .
+                       "- Saldo Consolidado da Carteira Cliente (Painel): R$ " . number_format($saldoCarteira, 2, ',', '.') . "\n";
             } catch (\Exception $e) {
                 return "";
             }
@@ -134,6 +138,10 @@ class SeverinoService
             "- Sacolinha Vencida: Sacolinha aberta que contém pelo menos um item inserido há mais de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()`).\n" .
             "- Sacolinha Sem Itens Vencidos (Em Dia): (Total de Sacolinhas Abertas) - (Sacolinhas Vencidas). NUNCA invente números diferentes!\n" .
             "- Sacolinha Fechada: Pedido finalizado na tabela `pedidos`.\n" .
+            "REGRA OBRIGATÓRIA DA CARTEIRA DE CLIENTES (CONTA_CORRENTE):\n" .
+            "- A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (várias linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.\n" .
+            "- NUNCA faça SUM(saldo_atual) ou COUNT(*) direto em conta_corrente para calcular clientes negativos ou saldos, pois isso somará centenas de linhas antigas do mesmo cliente!\n" .
+            "- Para perguntas sobre a Carteira de Clientes (saldo consolidado da carteira, total de clientes com saldo negativo ou positivo, valor total das dívidas ou créditos em carteira), USE SEMPRE a ferramenta dedicada `resumo_carteira_clientes`.\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), use as ferramentas dedicadas (como 'resumo_sacolinhas' ou 'resumo_pedidos_mes') ou 'consultar_memoria_sql'. SE JÁ HOUVER MEMÓRIA DE TRABALHO, avance direto para o próximo passo lógico. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
@@ -223,6 +231,14 @@ class SeverinoService
                     [
                         "name" => "listar_sacolinhas_em_dia",
                         "description" => "Retorna a lista completa com nome e dados de todos os clientes cujas sacolinhas estão em dia (sem nenhuma peça com mais de 31 dias).",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_carteira_clientes",
+                        "description" => "Retorna os dados consolidados da Carteira de Clientes: o saldo líquido total da carteira (como no painel), quantidade de clientes com saldo negativo (devedores) e a soma total das dívidas, quantidade com saldo positivo (crédito) e soma dos créditos, e clientes zerados.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
@@ -632,11 +648,50 @@ class SeverinoService
                     $disponivel = $valorLimite + $saldo - $utilizado;
 
                     return [
-                       "saldo_na_carteira" => $saldo,
-                       "limite_concedido_empresa" => $valorLimite,
-                       "limite_utilizado_na_sacolinha_atualmente" => $utilizado,
-                       "limite_disponivel" => $disponivel,
-                       "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
+                        "saldo_na_carteira" => $saldo,
+                        "limite_concedido_empresa" => $valorLimite,
+                        "limite_utilizado_na_sacolinha_atualmente" => $utilizado,
+                        "limite_disponivel" => $disponivel,
+                        "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
+                    ];
+
+                case "resumo_carteira_clientes":
+                    $subQueryMaxDate = DB::table('conta_corrente')
+                        ->select('user_id', DB::raw('MAX(data_movimentacao) as max_date'))
+                        ->groupBy('user_id');
+
+                    $subQueryMaxId = DB::table('conta_corrente as cc')
+                        ->joinSub($subQueryMaxDate, 'tm', function($join) {
+                            $join->on('cc.user_id', '=', 'tm.user_id')
+                                 ->on('cc.data_movimentacao', '=', 'tm.max_date');
+                        })
+                        ->select('cc.user_id', DB::raw('MAX(cc.id) as max_id'))
+                        ->groupBy('cc.user_id');
+
+                    $ultimosSaldos = DB::table('conta_corrente as cc')
+                        ->joinSub($subQueryMaxId, 'mi', function($join) {
+                            $join->on('cc.id', '=', 'mi.max_id');
+                        })
+                        ->select('cc.user_id', 'cc.saldo_atual')
+                        ->get();
+
+                    $negativos = $ultimosSaldos->where('saldo_atual', '<', 0);
+                    $positivos = $ultimosSaldos->where('saldo_atual', '>', 0);
+                    $zerados = $ultimosSaldos->where('saldo_atual', '==', 0);
+
+                    return [
+                        "saldo_consolidado_carteira_painel" => round($ultimosSaldos->sum('saldo_atual'), 2),
+                        "total_clientes_com_carteira" => $ultimosSaldos->count(),
+                        "clientes_com_saldo_negativo_devedores" => [
+                            "quantidade" => $negativos->count(),
+                            "soma_total_dividas" => round($negativos->sum('saldo_atual'), 2)
+                        ],
+                        "clientes_com_saldo_positivo_credito" => [
+                            "quantidade" => $positivos->count(),
+                            "soma_total_creditos" => round($positivos->sum('saldo_atual'), 2)
+                        ],
+                        "clientes_zerados" => $zerados->count(),
+                        "explicacao_importante" => "Estes são os saldos REAIS e ATUAIS dos clientes (pegando a última movimentação de cada um). O saldo consolidado bate exatamente com o valor exibido na conta bancária 'Carteira Cliente' no painel."
                     ];
 
                 case "contagem_estoque":
@@ -870,6 +925,10 @@ class SeverinoService
   2. `transacoes_extrato` (id, fitid, data, descricao, valor, valor_bruto, valor_liquido, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id). É onde ficam os extratos bancários importados/sincronizados do Inter e Mercado Pago!
   3. `lancamentos` (id, tipo ['receita','despesa'], status ['pendente','pago_parcial','pago','cancelado'], pessoa_id, classificacao_financeira_id, data_emissao, data_vencimento, valor_total, descricao).
   4. `movimentacoes` (id, lancamento_id, conta_bancaria_id, data_pagamento, valor_pago, forma_pagamento, transacao_extrato_id).
+  5. `conta_corrente` (id, user_id, valor, tipo_movimentacao, saldo_atual, data_movimentacao).
+     ATENÇÃO CRÍTICA: A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (muitas linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.
+     NUNCA faça `SUM(saldo_atual)` ou `COUNT(*) WHERE saldo_atual < 0` diretamente em `conta_corrente`! Isso somará dezenas de linhas antigas do mesmo cliente.
+     Para perguntas sobre a Carteira de Clientes (saldo consolidado da carteira, quantidade de clientes negativos/devedores ou positivos, soma das dívidas ou créditos), USE SEMPRE a ferramenta dedicada `resumo_carteira_clientes`!
 - Regra de Conciliação e Lançamentos Faltantes:
   * Uma transação bancária no extrato (`transacoes_extrato`) só gera um `lancamento` e `movimentacao` no sistema quando é CONCILIADA (`status = 'conciliado'`).
   * Se o usuário perguntar por que está faltando um lançamento de uma transferência, PIX ou pagamento que ocorreu no banco, consulte `transacoes_extrato`! Se estiver `status = 'pendente'`, o lançamento ainda NÃO existe no financeiro porque a transação ainda está pendente de conciliação bancária na tela de Conciliação.
