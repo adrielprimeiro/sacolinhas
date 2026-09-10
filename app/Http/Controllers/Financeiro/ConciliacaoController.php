@@ -1166,6 +1166,7 @@ class ConciliacaoController extends Controller
     public function salvarRegra(Request $request)
     {
         $request->validate([
+            'id' => 'nullable|string',
             'descricao_banco' => 'required|string',
             'classificacao_financeira_id' => 'required|exists:classificacao_financeira,id',
             'pessoa_id' => 'nullable|exists:pessoas,id',
@@ -1201,31 +1202,49 @@ class ConciliacaoController extends Controller
                     $regras = [];
                 }
 
+                $ruleId = $request->input('id');
                 $descricaoBanco = trim($request->descricao_banco);
                 $pessoaId = $request->pessoa_id ? (int) $request->pessoa_id : null;
                 $classificacaoId = (int) $request->classificacao_financeira_id;
 
                 $updated = false;
-                foreach ($regras as &$r) {
-                    $rValor = isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null ? (float)$r['valor'] : null;
-                    $sameValor = ($rValor === null && $valorFinal === null) || ($rValor !== null && $valorFinal !== null && abs($rValor - $valorFinal) < 0.001);
 
-                    if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')
-                        && ($r['tipo'] ?? 'sugestao') === $tipo
-                        && $sameValor
-                        && ($tipo === 'sugestao' || ( ($r['pessoa_id'] ?? null) == $pessoaId && ($r['classificacao_financeira_id'] ?? null) == $classificacaoId ))
-                    ) {
-                        $r['classificacao_financeira_id'] = $classificacaoId;
-                        $r['pessoa_id'] = $pessoaId;
-                        $r['valor'] = $valorFinal;
-                        $updated = true;
-                        break;
+                if (!empty($ruleId)) {
+                    foreach ($regras as &$r) {
+                        if (($r['id'] ?? null) === $ruleId) {
+                            $r['descricao_banco'] = $descricaoBanco;
+                            $r['classificacao_financeira_id'] = $classificacaoId;
+                            $r['pessoa_id'] = $pessoaId;
+                            $r['tipo'] = $tipo;
+                            $r['valor'] = $valorFinal;
+                            $updated = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$updated) {
+                    foreach ($regras as &$r) {
+                        $rValor = isset($r['valor']) && $r['valor'] !== '' && $r['valor'] !== null ? (float)$r['valor'] : null;
+                        $sameValor = ($rValor === null && $valorFinal === null) || ($rValor !== null && $valorFinal !== null && abs($rValor - $valorFinal) < 0.001);
+
+                        if (mb_strtolower($r['descricao_banco'], 'UTF-8') === mb_strtolower($descricaoBanco, 'UTF-8')
+                            && ($r['tipo'] ?? 'sugestao') === $tipo
+                            && $sameValor
+                            && ($tipo === 'sugestao' || ( ($r['pessoa_id'] ?? null) == $pessoaId && ($r['classificacao_financeira_id'] ?? null) == $classificacaoId ))
+                        ) {
+                            $r['classificacao_financeira_id'] = $classificacaoId;
+                            $r['pessoa_id'] = $pessoaId;
+                            $r['valor'] = $valorFinal;
+                            $updated = true;
+                            break;
+                        }
                     }
                 }
 
                 if (!$updated) {
                     $regras[] = [
-                        'id' => uniqid(),
+                        'id' => $ruleId ?: uniqid(),
                         'tipo' => $tipo,
                         'descricao_banco' => $descricaoBanco,
                         'classificacao_financeira_id' => $classificacaoId,

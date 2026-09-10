@@ -405,18 +405,22 @@
                     Aqui você pode gerenciar os padrões de conciliação. Quando uma transação do extrato contiver o termo pesquisado na descrição, o sistema sugerirá automaticamente o Contato e a Classificação configurados.
                 </p>
 
-                <!-- Nova Regra Form -->
-                <form action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="bg-gray-50 p-4 rounded-2xl border border-gray-150 space-y-3">
+                <!-- Nova / Editar Regra Form -->
+                <form id="formRegraConciliacao" action="{{ route('financeiro.conciliacao.regras.salvar') }}" method="POST" class="bg-gray-50 p-4 rounded-2xl border border-gray-150 space-y-3">
                     @csrf
+                    <input type="hidden" name="id" x-model="regraForm.id">
                     <div class="flex justify-between items-center flex-wrap gap-2">
-                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider">Adicionar Nova Regra</h4>
+                        <h4 class="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" :class="regraForm.id ? 'text-amber-700' : 'text-gray-700'">
+                            <i :class="regraForm.id ? 'fas fa-edit text-amber-500' : 'fas fa-plus text-indigo-500'"></i>
+                            <span x-text="regraForm.id ? 'Editar Regra Existente' : 'Adicionar Nova Regra'"></span>
+                        </h4>
                         <div class="flex items-center gap-3">
                             <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
-                                <input type="radio" name="tipo" value="sugestao" checked class="text-indigo-600 focus:ring-indigo-500">
+                                <input type="radio" name="tipo" value="sugestao" x-model="regraForm.tipo" class="text-indigo-600 focus:ring-indigo-500">
                                 Sugerir Padrão
                             </label>
                             <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
-                                <input type="radio" name="tipo" value="exclusao" class="text-red-600 focus:ring-red-500">
+                                <input type="radio" name="tipo" value="exclusao" x-model="regraForm.tipo" class="text-red-600 focus:ring-red-500">
                                 Bloquear/Ocultar
                             </label>
                         </div>
@@ -425,15 +429,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Descrição Procurada (banco)</label>
-                            <input type="text" name="descricao_banco" placeholder="Ex: VINDI PAGAMENTOS" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                            <input type="text" name="descricao_banco" x-model="regraForm.descricao_banco" placeholder="Ex: VINDI PAGAMENTOS" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Valor R$ (Opcional)</label>
-                            <input type="text" name="valor" placeholder="Ex: 50,00 (Vazio = Qualquer)" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white">
+                            <input type="text" name="valor" x-model="regraForm.valor" placeholder="Ex: 50,00 (Vazio = Qualquer)" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white">
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Contato</label>
-                            <select name="pessoa_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                            <select name="pessoa_id" x-model="regraForm.pessoa_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                                 <option value="">Selecione...</option>
                                 @foreach($pessoas as $p)
                                     <option value="{{ $p->id }}">{{ $p->nome }}</option>
@@ -442,7 +446,7 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Classificação</label>
-                            <select name="classificacao_financeira_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
+                            <select name="classificacao_financeira_id" x-model="regraForm.classificacao_financeira_id" class="w-full text-xs border border-gray-200 rounded-lg p-2 bg-white" required>
                                 <option value="">Selecione...</option>
                                 @foreach($classificacoes as $c)
                                     <option value="{{ $c->id }}">{{ $c->codigo }} - {{ $c->nome }}</option>
@@ -451,9 +455,13 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-end pt-1">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
-                            <i class="fas fa-plus mr-1"></i> Salvar Regra
+                    <div class="flex justify-end items-center gap-2 pt-1">
+                        <button type="button" x-show="regraForm.id" @click="resetRegraForm()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl transition">
+                            Cancelar Edição
+                        </button>
+                        <button type="submit" class="text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm" :class="regraForm.id ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'">
+                            <i :class="regraForm.id ? 'fas fa-save mr-1' : 'fas fa-plus mr-1'"></i>
+                            <span x-text="regraForm.id ? 'Atualizar Regra' : 'Salvar Regra'"></span>
                         </button>
                     </div>
                 </form>
@@ -465,6 +473,15 @@
                         $sugestoesAtivas = array_filter($regrasAtivas, function($r) { return ($r['tipo'] ?? 'sugestao') === 'sugestao'; });
                         $exclusoesAtivas = array_filter($regrasAtivas, function($r) { return ($r['tipo'] ?? 'sugestao') === 'exclusao'; });
                     @endphp
+
+                    <!-- Campo de Pesquisa em Regras -->
+                    <div class="relative">
+                        <input type="text" x-model="searchRegras" placeholder="🔍 Buscar regras por termo, contato, categoria ou valor..." class="w-full text-xs border border-gray-200 rounded-xl p-2.5 pl-9 pr-8 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                        <button type="button" x-show="searchRegras" @click="searchRegras = ''" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    </div>
 
                     <!-- 1. Regras de Sugestão -->
                     <div class="space-y-2">
@@ -480,8 +497,13 @@
                                     @php
                                         $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
                                         $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
+                                        $pNome = mb_strtolower($pModel->nome ?? '', 'UTF-8');
+                                        $cNome = mb_strtolower($cModel->nome ?? '', 'UTF-8');
+                                        $dTermo = mb_strtolower($regra['descricao_banco'] ?? '', 'UTF-8');
+                                        $vTermo = isset($regra['valor']) ? (string)$regra['valor'] : '';
+                                        $searchHaystack = addslashes(mb_strtolower($dTermo . ' ' . $pNome . ' ' . $cNome . ' ' . $vTermo, 'UTF-8'));
                                     @endphp
-                                    <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
+                                    <div x-show="!searchRegras || '{{ $searchHaystack }}'.includes(searchRegras.toLowerCase().trim())" class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
                                         <div class="space-y-1">
                                             <div class="text-xs font-bold text-gray-800 flex items-center gap-2 flex-wrap">
                                                 <span>Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span></span>
@@ -504,13 +526,18 @@
                                             </div>
                                         </div>
                                         
-                                        <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja realmente excluir esta regra padrão?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition" title="Excluir Regra">
-                                                <i class="far fa-trash-alt"></i>
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" @click="editRegra({{ json_encode($regra) }})" class="text-indigo-600 hover:text-indigo-800 p-2 hover:bg-indigo-50 rounded-lg transition" title="Editar Regra">
+                                                <i class="far fa-edit"></i>
                                             </button>
-                                        </form>
+                                            <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja realmente excluir esta regra padrão?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition" title="Excluir Regra">
+                                                    <i class="far fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
@@ -531,8 +558,13 @@
                                     @php
                                         $pModel = \App\Models\Pessoa::find($regra['pessoa_id']);
                                         $cModel = \App\Models\ClassificacaoFinanceira::find($regra['classificacao_financeira_id']);
+                                        $pNome = mb_strtolower($pModel->nome ?? '', 'UTF-8');
+                                        $cNome = mb_strtolower($cModel->nome ?? '', 'UTF-8');
+                                        $dTermo = mb_strtolower($regra['descricao_banco'] ?? '', 'UTF-8');
+                                        $vTermo = isset($regra['valor']) ? (string)$regra['valor'] : '';
+                                        $searchHaystack = addslashes(mb_strtolower($dTermo . ' ' . $pNome . ' ' . $cNome . ' ' . $vTermo, 'UTF-8'));
                                     @endphp
-                                    <div class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
+                                    <div x-show="!searchRegras || '{{ $searchHaystack }}'.includes(searchRegras.toLowerCase().trim())" class="p-3 bg-white hover:bg-gray-50 flex items-center justify-between gap-4 transition font-normal text-gray-800">
                                         <div class="space-y-1">
                                             <div class="text-xs font-bold text-gray-800 flex items-center gap-2 flex-wrap">
                                                 <span>Termo: <span class="bg-gray-100 text-gray-700 font-mono px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">"{{ $regra['descricao_banco'] }}"</span></span>
@@ -555,13 +587,18 @@
                                             </div>
                                         </div>
                                         
-                                        <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja reativar esta sugestão?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-55 rounded-lg transition text-xs font-bold flex items-center gap-1" title="Reativar Sugestão">
-                                                <i class="fas fa-undo"></i> Reativar
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" @click="editRegra({{ json_encode($regra) }})" class="text-indigo-600 hover:text-indigo-800 p-2 hover:bg-indigo-50 rounded-lg transition" title="Editar Regra">
+                                                <i class="far fa-edit"></i>
                                             </button>
-                                        </form>
+                                            <form action="{{ route('financeiro.conciliacao.regras.excluir', $regra['id']) }}" method="POST" onsubmit="return confirm('Deseja reativar esta sugestão?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition text-xs font-bold flex items-center gap-1" title="Reativar Sugestão">
+                                                    <i class="fas fa-undo"></i> Reativar
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
@@ -1075,6 +1112,41 @@
             showModalDesmembrar: false,
             desmembrarData: { id: null, descricao: '', valorTotal: 0, tipo: 'entrada' },
             desmembrarPartes: [],
+            searchRegras: '',
+            regraForm: {
+                id: '',
+                descricao_banco: '',
+                pessoa_id: '',
+                classificacao_financeira_id: '',
+                tipo: 'sugestao',
+                valor: ''
+            },
+
+            editRegra(r) {
+                this.regraForm = {
+                    id: r.id || '',
+                    descricao_banco: r.descricao_banco || '',
+                    pessoa_id: r.pessoa_id || '',
+                    classificacao_financeira_id: r.classificacao_financeira_id || '',
+                    tipo: r.tipo || 'sugestao',
+                    valor: (r.valor !== null && r.valor !== undefined && r.valor !== '') ? r.valor : ''
+                };
+                const formEl = document.getElementById('formRegraConciliacao');
+                if (formEl) {
+                    formEl.scrollIntoView({ behavior: 'smooth' });
+                }
+            },
+
+            resetRegraForm() {
+                this.regraForm = {
+                    id: '',
+                    descricao_banco: '',
+                    pessoa_id: '',
+                    classificacao_financeira_id: '',
+                    tipo: 'sugestao',
+                    valor: ''
+                };
+            },
 
             openDesmembrarModal(id, desc, valor, tipo, origem) {
                 const total = parseFloat(valor) || 0;
