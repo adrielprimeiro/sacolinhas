@@ -1458,6 +1458,7 @@ class ConciliacaoService
         if ($contaBancariaId) {
             $query->where('conta_bancaria_id', $contaBancariaId);
         }
+        $transacoes = $query->get();
         $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
         $regras = json_decode($regrasRaw, true) ?: [];
 
