@@ -146,6 +146,9 @@ class SeverinoService
             "- O sistema possui o módulo de Orçamento Financeiro (Previsto x Realizado).\n" .
             "- A tabela `orcamentos` guarda o valor previsto (`valor_previsto`) por categoria para cada mês. O valor REALIZADO é apurado a partir dos lançamentos pagos no mês correspondente.\n" .
             "- Para qualquer pergunta sobre itens fora do previsto, orçamento estourado, previsto x realizado ou metas financeiras, USE SEMPRE a ferramenta dedicada `relatorio_orcamento_previsto_realizado`!\n" .
+            "REGRA DE INTROSPECÇÃO DE CONTROLLERS (REGRAS E FÓRMULAS DO SISTEMA):\n" .
+            "- Toda a inteligência de negócios do sistema (fórmulas do DRE, Fluxo de Caixa, Orçamento, Avaliações de desapego, Conciliação, etc.) está codificada nos Controllers da pasta `app/Http/Controllers/`.\n" .
+            "- Você possui a ferramenta `consultar_codigo_controller`. Sempre que você precisar saber como qualquer tela do sistema calcula um indicador, relatório ou métrica, consulte o código do Controller correspondente para aprender as fórmulas e filtros exatos antes de consultar o banco!\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), use as ferramentas dedicadas (como 'resumo_sacolinhas' ou 'resumo_pedidos_mes') ou 'consultar_memoria_sql'. SE JÁ HOUVER MEMÓRIA DE TRABALHO, avance direto para o próximo passo lógico. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
@@ -259,6 +262,20 @@ class SeverinoService
                                     "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-09). Se vazio, usa o mês atual."
                                 ]
                             ]
+                        ]
+                    ],
+                    [
+                        "name" => "consultar_codigo_controller",
+                        "description" => "Lê e analisa o código-fonte PHP real de qualquer Controller ou Service do sistema (ex: 'DreController', 'FluxoCaixaController', 'AvaliacaoController', 'OrcamentoController', 'ConciliacaoController', 'SacolinhaVencidaController', etc.). USE SEMPRE que o usuário perguntar sobre indicadores, relatórios, cálculos ou regras de qualquer tela do sistema, para ver as fórmulas, filtros (WHERE) e regras exatas que o sistema utiliza antes de consultar o banco.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "controller_ou_termo" => [
+                                    "type" => "STRING",
+                                    "description" => "Nome do controller ou assunto (ex: 'DreController', 'fluxo_caixa', 'avaliacao', 'conciliacao', 'orcamento', 'vencimento', 'carteira', 'pedidos')"
+                                ]
+                            ],
+                            "required" => ["controller_ou_termo"]
                         ]
                     ],
                     [
@@ -830,6 +847,51 @@ class SeverinoService
                         "despesas_em_dia" => $despesasEmDia
                     ];
 
+                case "consultar_codigo_controller":
+                    $termo = trim($args["controller_ou_termo"] ?? "");
+                    if (empty($termo)) {
+                        return ["erro" => "Informe o nome do controller ou termo a ser consultado."];
+                    }
+
+                    $basePaths = [
+                        app_path('Http/Controllers'),
+                        app_path('Services')
+                    ];
+
+                    $arquivosEncontrados = [];
+                    foreach ($basePaths as $bp) {
+                        if (!is_dir($bp)) continue;
+                        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($bp));
+                        foreach ($iterator as $file) {
+                            if ($file->isFile() && $file->getExtension() === 'php') {
+                                $fn = $file->getFilename();
+                                if (stripos($fn, $termo) !== false) {
+                                    $arquivosEncontrados[] = $file->getPathname();
+                                }
+                            }
+                        }
+                    }
+
+                    if (empty($arquivosEncontrados)) {
+                        return ["aviso" => "Nenhum controller ou service encontrado com o termo '{$termo}'."];
+                    }
+
+                    $arquivoAlvo = $arquivosEncontrados[0];
+                    $conteudo = file_get_contents($arquivoAlvo);
+
+                    // Truncamento inteligente se o arquivo for muito longo
+                    if (mb_strlen($conteudo) > 7000) {
+                        $conteudoTruncado = mb_substr($conteudo, 0, 7000) . "\n... [continuação do arquivo truncada para economizar tokens]";
+                    } else {
+                        $conteudoTruncado = $conteudo;
+                    }
+
+                    return [
+                        "controller_identificado" => basename($arquivoAlvo),
+                        "caminho" => str_replace(base_path(), '', $arquivoAlvo),
+                        "codigo_fonte_regras" => $conteudoTruncado
+                    ];
+
                 case "contagem_estoque":
                     $status = $args["status"] ?? null;
                     $query = DB::table("items");
@@ -1060,7 +1122,11 @@ class SeverinoService
                         case "previsao":
                         case "previsoes":
                         case "previsto_realizado":
+                        case "dre":
+                        case "fluxo_caixa":
+                        case "fluxocaixa":
                             return ["mapa" => "MÓDULO FINANCEIRO E BANCÁRIO:
+- Controllers principais: `DreController`, `FluxoCaixaController`, `OrcamentoController`, `ConciliacaoController`, `ContaBancariaController`, `ContaCorrenteController`, `LancamentoController`, `MovimentacaoController`.
 - Tabelas principais:
   1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas da empresa: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'. (Atenção: NÃO existe a coluna 'saldo_atual' nessa tabela).
   2. `transacoes_extrato` (id, fitid, data, descricao, valor, valor_bruto, valor_liquido, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id). É onde ficam os extratos bancários importados/sincronizados do Inter e Mercado Pago!
@@ -1115,8 +1181,41 @@ class SeverinoService
 - Tabela principal: `users` (id, name, email, cidade, estado, bairro, endereco, numero_endereco, complemento, cep, phone, whatsapp, telefone_principal, apelido, instagram, tiktok).
 - Regra de Endereço e Cidade: O endereço, cidade, estado, CEP e bairro ficam DIRETAMENTE nas colunas da tabela `users` (NÃO existe tabela separada de endereços!).
 - Tabela `pessoas`: Fornecedores, funcionários e pessoas externas do módulo financeiro. Usuários e clientes do sistema são SEMPRE `users`."];
+                        case "avaliacao":
+                        case "avaliacoes":
+                        case "desapego":
+                        case "desapegos":
+                            return ["mapa" => "MÓDULO AVALIAÇÕES E DESAPEGOS:
+- Controller principal: `AvaliacaoController` (`app/Http/Controllers/Admin/AvaliacaoController.php`).
+- Tabelas principais: `avaliacoes` (id, user_id, status, tipo_compra, valor_total_aprovado, valor_frete, created_at), `avaliacao_itens` (id, avaliacao_id, categoria_id, marca_id, tamanho, valor_sugerido, status).
+- Regra: Peças enviadas por clientes para desapego. Se aprovadas, podem virar crédito na carteira do cliente (`conta_corrente`) ou pagamento via PIX/banco."];
+                        case "controllers":
+                        case "controller":
+                        case "rotas":
+                        case "sistema":
+                        case "modulos":
+                            return ["mapa" => "ÍNDICE COMPLETO DE CONTROLLERS E TELAS DO SISTEMA:
+- MÓDULO FINANCEIRO:
+  * `DreController`: DRE Contábil e Gerencial (Receita Bruta, Deduções, Receita Líquida, CMV, Despesas Operacionais, EBITDA, Lucro Líquido).
+  * `FluxoCaixaController`: Fluxo de Caixa real (entradas e saídas por contas bancárias).
+  * `OrcamentoController`: Orçamento Previsto x Realizado por categoria.
+  * `ContaCorrenteController` / `ContaBancariaController`: Carteira de Clientes e Saldos Bancários.
+  * `ConciliacaoController`: Extratos bancários importados e conciliação.
+  * `LancamentoController` / `MovimentacaoController`: Contas a pagar e a receber.
+- MÓDULO SACOLINHAS E PEDIDOS:
+  * `SacolinhaController` / `AdminSacolinhaController` / `SacolinhaVencidaController`: Sacolinhas abertas, itens reservados, contagem de clientes e prazo de 31 dias.
+  * `RelatorioVencimentosController`: Monitoramento de vencimentos de sacolinhas.
+  * `PedidoController` / `AdminPedidoController`: Pedidos finalizados e faturamento.
+- MÓDULO VENDAS E LIVES:
+  * `LiveController` / `LiveMovimentacaoController`: Lives, vendas e separação em tempo real.
+- MÓDULO ESTOQUE E DESAPEGOS:
+  * `ItemController` / `InventarioController`: Peças e estoque.
+  * `AvaliacaoController`: Avaliação de desapegos de clientes e conversão em crédito.
+- MÓDULO CLUBE:
+  * `ClubeDashboardController` / `ClubeMensalidadesController`: Assinaturas ativas e mensalidades.
+DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras exatas de qualquer controller, chame a ferramenta `consultar_codigo_controller`!"];
                         default:
-                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, clube, lives, sacolinhas, estoque, clientes."];
+                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, orcamento, dre, fluxo_caixa, sacolinhas, lives, avaliacoes, estoque, clube, clientes, controllers."];
                     }
 
                 case "executar_query_select":
