@@ -142,6 +142,10 @@ class SeverinoService
             "- A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (várias linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.\n" .
             "- NUNCA faça SUM(saldo_atual) ou COUNT(*) direto em conta_corrente para calcular clientes negativos ou saldos, pois isso somará centenas de linhas antigas do mesmo cliente!\n" .
             "- Para perguntas sobre a Carteira de Clientes (saldo consolidado da carteira, total de clientes com saldo negativo ou positivo, valor total das dívidas ou créditos em carteira), USE SEMPRE a ferramenta dedicada `resumo_carteira_clientes`.\n" .
+            "REGRA DE ORÇAMENTO (PREVISTO X REALIZADO):\n" .
+            "- O sistema possui o módulo de Orçamento Financeiro (Previsto x Realizado).\n" .
+            "- A tabela `orcamentos` guarda o valor previsto (`valor_previsto`) por categoria para cada mês. O valor REALIZADO é apurado a partir dos lançamentos pagos no mês correspondente.\n" .
+            "- Para qualquer pergunta sobre itens fora do previsto, orçamento estourado, previsto x realizado ou metas financeiras, USE SEMPRE a ferramenta dedicada `relatorio_orcamento_previsto_realizado`!\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), use as ferramentas dedicadas (como 'resumo_sacolinhas' ou 'resumo_pedidos_mes') ou 'consultar_memoria_sql'. SE JÁ HOUVER MEMÓRIA DE TRABALHO, avance direto para o próximo passo lógico. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
@@ -242,6 +246,19 @@ class SeverinoService
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
+                        ]
+                    ],
+                    [
+                        "name" => "relatorio_orcamento_previsto_realizado",
+                        "description" => "Retorna o relatório comparativo de Orçamento Financeiro (Previsto x Realizado) por categoria de receita e despesa para um determinado mês (ex: 2026-09 ou o mês atual se omitido). Identifica com precisão quais itens estouraram o orçamento (despesas fora do previsto), despesas não orçadas realizadas, e receitas abaixo ou acima da meta.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-09). Se vazio, usa o mês atual."
+                                ]
+                            ]
                         ]
                     ],
                     [
@@ -694,6 +711,125 @@ class SeverinoService
                         "explicacao_importante" => "Estes são os saldos REAIS e ATUAIS dos clientes (pegando a última movimentação de cada um). O saldo consolidado bate exatamente com o valor exibido na conta bancária 'Carteira Cliente' no painel."
                     ];
 
+                case "relatorio_orcamento_previsto_realizado":
+                    $periodoInput = $args["periodo"] ?? null;
+                    $periodo = $periodoInput 
+                        ? \Carbon\Carbon::parse($periodoInput)->startOfMonth()
+                        : \Carbon\Carbon::now()->startOfMonth();
+                    
+                    $inicioPeriodo = $periodo->copy()->startOfMonth()->toDateString();
+                    $fimPeriodo = $periodo->copy()->endOfMonth()->toDateString();
+                    $periodoDate = $periodo->copy()->startOfMonth()->toDateString();
+
+                    $classificacoes = \App\Models\ClassificacaoFinanceira::select(
+                            'classificacao_financeira.*',
+                            DB::raw("(
+                                SELECT COALESCE(SUM(
+                                    CASE 
+                                        WHEN l.tipo = classificacao_financeira.tipo_natureza COLLATE utf8mb4_unicode_ci THEN l.valor_total 
+                                        ELSE -l.valor_total 
+                                    END
+                                ), 0)
+                                FROM lancamentos l
+                                WHERE l.classificacao_financeira_id = classificacao_financeira.id
+                                  AND l.status = 'pago'
+                                  AND l.data_vencimento BETWEEN '{$inicioPeriodo}' AND '{$fimPeriodo}'
+                                  AND (classificacao_financeira.id NOT IN (15, 17) OR l.referencia_tipo = 'pedido')
+                            ) AS realizado")
+                        )
+                        ->whereNotIn('classificacao_financeira.nome', ['Recarga de Carteira', 'Aporte de Carteira'])
+                        ->with(['orcamentos' => function ($q) use ($periodoDate) {
+                            $q->where('periodo', $periodoDate);
+                        }])
+                        ->orderBy('tipo_natureza')
+                        ->orderBy('codigo_contabil')
+                        ->get();
+
+                    $despesasEstouradas = [];
+                    $despesasNaoOrcadas = [];
+                    $despesasEmDia = [];
+                    $receitasAbaixoMeta = [];
+                    $receitasAcimaMeta = [];
+                    $totalPrevistoDespesa = 0;
+                    $totalRealizadoDespesa = 0;
+                    $totalPrevistoReceita = 0;
+                    $totalRealizadoReceita = 0;
+
+                    foreach ($classificacoes as $c) {
+                        $orc = $c->orcamentos->first();
+                        $previsto = $orc ? (float) $orc->valor_previsto : 0.0;
+                        $realizado = (float) $c->realizado;
+                        $diferenca = $previsto - $realizado;
+                        $percentual = $previsto > 0 ? round(($realizado / $previsto) * 100, 1) : 0;
+
+                        if ($c->tipo_natureza === 'despesa') {
+                            $totalPrevistoDespesa += $previsto;
+                            $totalRealizadoDespesa += $realizado;
+
+                            if ($previsto > 0 && $realizado > $previsto) {
+                                $despesasEstouradas[] = [
+                                    "codigo" => $c->codigo_contabil,
+                                    "categoria" => $c->nome,
+                                    "valor_previsto" => $previsto,
+                                    "valor_realizado" => $realizado,
+                                    "estouro" => round($realizado - $previsto, 2),
+                                    "percentual_gasto" => $percentual . "%"
+                                ];
+                            } elseif ($previsto == 0 && $realizado > 0) {
+                                $despesasNaoOrcadas[] = [
+                                    "codigo" => $c->codigo_contabil,
+                                    "categoria" => $c->nome,
+                                    "valor_realizado" => $realizado
+                                ];
+                            } elseif ($previsto > 0) {
+                                $despesasEmDia[] = [
+                                    "codigo" => $c->codigo_contabil,
+                                    "categoria" => $c->nome,
+                                    "valor_previsto" => $previsto,
+                                    "valor_realizado" => $realizado,
+                                    "saldo_restante" => round($diferenca, 2),
+                                    "percentual_gasto" => $percentual . "%"
+                                ];
+                            }
+                        } else {
+                            $totalPrevistoReceita += $previsto;
+                            $totalRealizadoReceita += $realizado;
+
+                            if ($previsto > 0 && $realizado < $previsto) {
+                                $receitasAbaixoMeta[] = [
+                                    "codigo" => $c->codigo_contabil,
+                                    "categoria" => $c->nome,
+                                    "valor_previsto" => $previsto,
+                                    "valor_realizado" => $realizado,
+                                    "faltante" => round($previsto - $realizado, 2),
+                                    "atingido" => $percentual . "%"
+                                ];
+                            } elseif ($realizado > 0) {
+                                $receitasAcimaMeta[] = [
+                                    "codigo" => $c->codigo_contabil,
+                                    "categoria" => $c->nome,
+                                    "valor_previsto" => $previsto,
+                                    "valor_realizado" => $realizado,
+                                    "atingido" => $percentual . "%"
+                                ];
+                            }
+                        }
+                    }
+
+                    return [
+                        "periodo_analisado" => $periodo->format('m/Y'),
+                        "resumo_geral" => [
+                            "total_despesas_previstas" => round($totalPrevistoDespesa, 2),
+                            "total_despesas_realizadas" => round($totalRealizadoDespesa, 2),
+                            "total_receitas_previstas" => round($totalPrevistoReceita, 2),
+                            "total_receitas_realizadas" => round($totalRealizadoReceita, 2)
+                        ],
+                        "despesas_estouradas_fora_do_previsto" => $despesasEstouradas,
+                        "despesas_nao_orcadas_realizadas" => $despesasNaoOrcadas,
+                        "receitas_abaixo_da_meta" => $receitasAbaixoMeta,
+                        "despesas_em_dia" => $despesasEmDia
+                    ];
+
                 case "contagem_estoque":
                     $status = $args["status"] ?? null;
                     $query = DB::table("items");
@@ -919,6 +1055,11 @@ class SeverinoService
                         case "conciliacao":
                         case "banco":
                         case "bancos":
+                        case "orcamento":
+                        case "orcamentos":
+                        case "previsao":
+                        case "previsoes":
+                        case "previsto_realizado":
                             return ["mapa" => "MÓDULO FINANCEIRO E BANCÁRIO:
 - Tabelas principais:
   1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas da empresa: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'. (Atenção: NÃO existe a coluna 'saldo_atual' nessa tabela).
@@ -929,6 +1070,11 @@ class SeverinoService
      ATENÇÃO CRÍTICA: A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (muitas linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.
      NUNCA faça `SUM(saldo_atual)` ou `COUNT(*) WHERE saldo_atual < 0` diretamente em `conta_corrente`! Isso somará dezenas de linhas antigas do mesmo cliente.
      Para perguntas sobre a Carteira de Clientes (saldo consolidado da carteira, quantidade de clientes negativos/devedores ou positivos, soma das dívidas ou créditos), USE SEMPRE a ferramenta dedicada `resumo_carteira_clientes`!
+  6. `orcamentos` (id, classificacao_financeira_id, periodo, valor_previsto).
+     ATENÇÃO CRÍTICA SOBRE ORÇAMENTO (PREVISTO X REALIZADO):
+     A tabela `orcamentos` guarda o valor previsto planejado por categoria em cada mês (dia 1 do mês, ex: '2026-09-01').
+     O valor REALIZADO NÃO é uma coluna estática; ele é calculado dinamicamente somando `lancamentos` onde `status = 'pago'` e `data_vencimento` está no mês daquele período para a mesma categoria!
+     Para qualquer pergunta sobre itens fora do previsto, orçamento estourado, previsto x realizado ou metas, USE SEMPRE a ferramenta dedicada `relatorio_orcamento_previsto_realizado`!
 - Regra de Conciliação e Lançamentos Faltantes:
   * Uma transação bancária no extrato (`transacoes_extrato`) só gera um `lancamento` e `movimentacao` no sistema quando é CONCILIADA (`status = 'conciliado'`).
   * Se o usuário perguntar por que está faltando um lançamento de uma transferência, PIX ou pagamento que ocorreu no banco, consulte `transacoes_extrato`! Se estiver `status = 'pendente'`, o lançamento ainda NÃO existe no financeiro porque a transação ainda está pendente de conciliação bancária na tela de Conciliação.
