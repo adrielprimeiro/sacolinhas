@@ -146,6 +146,12 @@ class SeverinoService
             "- O sistema possui o módulo de Orçamento Financeiro (Previsto x Realizado).\n" .
             "- A tabela `orcamentos` guarda o valor previsto (`valor_previsto`) por categoria para cada mês. O valor REALIZADO é apurado a partir dos lançamentos pagos no mês correspondente.\n" .
             "- Para qualquer pergunta sobre itens fora do previsto, orçamento estourado, previsto x realizado ou metas financeiras, USE SEMPRE a ferramenta dedicada `relatorio_orcamento_previsto_realizado`!\n" .
+            "REGRA DO ATALHO DO PRÓ-LABORE:\n" .
+            "- Quando o usuário perguntar 'Como tá o prolabore?' (ou 'como está o pro-labore', 'ritmo do prolabore', etc.), USE IMEDIATAMENTE a ferramenta `resumo_orcamento_proporcional` com a categoria 'Pro labore'.\n" .
+            "- Responda com um resumo direto, dinâmico e básico contendo: o dia e mês atual, pró-labore orçado no mês, proporcional esperado até hoje, valor já gasto realizado, diferença em relação ao ritmo esperado (se está abaixo/economizando ou acima) e a conclusão objetiva.\n" .
+            "REGRA DE MEMORIZAÇÃO E ATALHOS:\n" .
+            "- Quando o usuário pedir para você 'gravar', 'memorizar', 'salvar na memória' ou criar um atalho ('Grava aí Severino: Quando eu perguntar X responda Y', etc.), você DEVE OBRIGATORIAMENTE chamar a ferramenta `memorizar_regra_ou_preferencia`.\n" .
+            "- NUNCA responda que gravou ou registrou apenas em texto se você não chamou a ferramenta `memorizar_regra_ou_preferencia`, pois somente essa ferramenta grava no banco de dados definitivo (`KnowledgeBase`) para ficar ativo para sempre em todas as conversas futuras!\n" .
             "REGRA DE INTROSPECÇÃO DE CONTROLLERS (REGRAS E FÓRMULAS DO SISTEMA):\n" .
             "- Toda a inteligência de negócios do sistema (fórmulas do DRE, Fluxo de Caixa, Orçamento, Avaliações de desapego, Conciliação, etc.) está codificada nos Controllers da pasta `app/Http/Controllers/`.\n" .
             "- Você possui a ferramenta `consultar_codigo_controller`. Sempre que você precisar saber como qualquer tela do sistema calcula um indicador, relatório ou métrica, consulte o código do Controller correspondente para aprender as fórmulas e filtros exatos antes de consultar o banco!\n" .
@@ -262,6 +268,53 @@ class SeverinoService
                                     "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-09). Se vazio, usa o mês atual."
                                 ]
                             ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_orcamento_proporcional",
+                        "description" => "Calcula instantaneamente o gasto proporcional de uma categoria de despesa (especialmente 'Pro labore' / Pró-labore) em relação ao dia atual do mês. Retorna o valor orçado para o mês, o dia atual, percentual decorrido do mês, valor que deveria ter sido gasto proporcionalmente até hoje, valor real pago até o momento, diferença (se está economizando ou estourando o ritmo) e saldo restante.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "categoria" => [
+                                    "type" => "STRING",
+                                    "description" => "Nome ou termo da categoria de despesa (ex: 'Pro labore', padrão é 'Pro labore')"
+                                ],
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-09). Padrão é o mês atual."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "memorizar_regra_ou_preferencia",
+                        "description" => "Grava permanentemente uma nova regra de negócio, preferência do usuário ou atalho na base de conhecimento (KnowledgeBase) do sistema. O conhecimento salvo aqui fica gravado no banco de dados e ativo para sempre no prompt do sistema em todas as conversas futuras. Chame SEMPRE que o usuário disser 'grava aí', 'memorize', 'quando eu perguntar X responda Y', etc.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "titulo" => [
+                                    "type" => "STRING",
+                                    "description" => "Título descritivo da regra, preferência ou atalho (ex: 'Atalho: Como tá o prolabore?')"
+                                ],
+                                "conteudo" => [
+                                    "type" => "STRING",
+                                    "description" => "O texto ou instrução detalhada que o usuário pediu para memorizar"
+                                ],
+                                "categoria" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Categoria (ex: 'atalhos', 'preferencias', 'regras_negocio')"
+                                ]
+                            ],
+                            "required" => ["titulo", "conteudo"]
+                        ]
+                    ],
+                    [
+                        "name" => "consultar_regras_memorizadas",
+                        "description" => "Consulta todas as regras, atalhos e preferências ativas gravadas na base de conhecimento (KnowledgeBase) permanente do sistema.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
                         ]
                     ],
                     [
@@ -847,6 +900,75 @@ class SeverinoService
                         "despesas_em_dia" => $despesasEmDia
                     ];
 
+                case "resumo_orcamento_proporcional":
+                    $categoriaNome = trim($args["categoria"] ?? "Pro labore");
+                    $periodoInput = $args["periodo"] ?? null;
+                    $agora = \Carbon\Carbon::now();
+                    $dataRef = $periodoInput 
+                        ? \Carbon\Carbon::parse($periodoInput)->startOfMonth()
+                        : $agora->copy();
+                    
+                    $diasNoMes = $dataRef->daysInMonth;
+                    $isMesCorrente = ($dataRef->format('Y-m') === $agora->format('Y-m'));
+                    $diaAtual = $isMesCorrente ? $agora->day : $diasNoMes;
+                    $percentualMesDecorrido = round(($diaAtual / $diasNoMes) * 100, 1);
+                    
+                    $queryClass = \App\Models\ClassificacaoFinanceira::query();
+                    if (stripos($categoriaNome, 'labore') !== false) {
+                        $classificacao = $queryClass->where(function($q) {
+                            $q->where('nome', 'like', '%Pro labore%')
+                              ->orWhere('id', 40);
+                        })->first();
+                    } else {
+                        $classificacao = $queryClass->where('nome', 'like', "%{$categoriaNome}%")->first();
+                    }
+
+                    if (!$classificacao) {
+                        return ["erro" => "Categoria financeira '{$categoriaNome}' não foi encontrada."];
+                    }
+
+                    $periodoDate = $dataRef->copy()->startOfMonth()->toDateString();
+                    $orcamento = \App\Models\Orcamento::where('classificacao_financeira_id', $classificacao->id)
+                        ->whereDate('periodo', $periodoDate)
+                        ->first();
+                    
+                    $valorPrevistoMes = $orcamento ? (float) $orcamento->valor_previsto : 0.0;
+                    $proporcionalEsperado = round(($valorPrevistoMes * $diaAtual) / $diasNoMes, 2);
+                    
+                    $inicioMes = $dataRef->copy()->startOfMonth()->toDateString();
+                    $fimMes = $dataRef->copy()->endOfMonth()->toDateString();
+                    
+                    $valorGastoRealizado = (float) \App\Models\Lancamento::where('classificacao_financeira_id', $classificacao->id)
+                        ->where('status', 'pago')
+                        ->whereBetween('data_vencimento', [$inicioMes, $fimMes])
+                        ->sum('valor_total');
+                        
+                    $diferencaProporcional = round($proporcionalEsperado - $valorGastoRealizado, 2);
+                    $saldoRestanteOrcamento = round($valorPrevistoMes - $valorGastoRealizado, 2);
+                    $percentualGastoDoTotal = $valorPrevistoMes > 0 ? round(($valorGastoRealizado / $valorPrevistoMes) * 100, 1) : 0;
+                    
+                    $dentroDoRitmo = $valorGastoRealizado <= $proporcionalEsperado;
+                    
+                    return [
+                        "categoria" => $classificacao->nome . " ({$classificacao->codigo_contabil})",
+                        "mes_referencia" => $dataRef->format('m/Y'),
+                        "dias_totais_no_mes" => $diasNoMes,
+                        "dia_analisado" => $diaAtual,
+                        "percentual_mes_decorrido" => "{$percentualMesDecorrido}%",
+                        "prolabore_orcado_no_mes" => $valorPrevistoMes,
+                        "proporcional_esperado_ate_hoje" => $proporcionalEsperado,
+                        "valor_ja_gasto_realizado" => $valorGastoRealizado,
+                        "diferenca_em_relacao_ao_proporcional" => abs($diferencaProporcional),
+                        "situacao_ritmo" => $dentroDoRitmo 
+                            ? "R$ " . number_format(abs($diferencaProporcional), 2, ',', '.') . " abaixo do esperado (ritmo controlado)"
+                            : "R$ " . number_format(abs($diferencaProporcional), 2, ',', '.') . " acima do esperado (ritmo acelerado)",
+                        "percentual_gasto_do_orcamento_total" => "{$percentualGastoDoTotal}%",
+                        "saldo_restante_do_orcamento_mensal" => $saldoRestanteOrcamento,
+                        "conclusao" => $dentroDoRitmo
+                            ? "O gasto está dentro do ritmo previsto para o período, restando R$ " . number_format($saldoRestanteOrcamento, 2, ',', '.') . " do orçamento mensal."
+                            : "O gasto está acima do proporcional previsto para o dia de hoje em R$ " . number_format(abs($diferencaProporcional), 2, ',', '.') . "."
+                    ];
+
                 case "consultar_codigo_controller":
                     $termo = trim($args["controller_ou_termo"] ?? "");
                     if (empty($termo)) {
@@ -1107,6 +1229,35 @@ class SeverinoService
                     
                     file_put_contents($filePath, json_encode($memoria, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
                     return ["sucesso" => "Memória gravada com sucesso! Na próxima vez, você lembrará disso."];
+
+                case "memorizar_regra_ou_preferencia":
+                    $titulo = trim($args["titulo"] ?? "Regra / Atalho");
+                    $conteudo = trim($args["conteudo"] ?? "");
+                    $categoria = trim($args["categoria"] ?? "preferencias_usuario");
+                    if (empty($conteudo)) {
+                        return ["erro" => "O conteúdo da regra/atalho não pode ser vazio."];
+                    }
+                    $kb = \App\Models\KnowledgeBase::updateOrCreate(
+                        ["title" => $titulo],
+                        [
+                            "category" => $categoria,
+                            "content" => $conteudo,
+                            "is_active" => true
+                        ]
+                    );
+                    return [
+                        "sucesso" => true,
+                        "id" => $kb->id,
+                        "titulo" => $kb->title,
+                        "mensagem" => "Regra/preferência gravada com sucesso no banco de dados definitivo do sistema (KnowledgeBase)! Agora você lembrará disso em todas as conversas futuras."
+                    ];
+
+                case "consultar_regras_memorizadas":
+                    $regras = \App\Models\KnowledgeBase::where('is_active', 1)->get(['id', 'title', 'category', 'content']);
+                    return [
+                        "total_regras" => $regras->count(),
+                        "regras" => $regras->toArray()
+                    ];
 
                 case "mapear_modulo_sistema":
                     $modulo = strtolower($args["modulo"] ?? "");
