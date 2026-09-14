@@ -486,30 +486,6 @@ class SeverinoService
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-120b",
                 "name" => "Groq GPT OSS 120B"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "poolside/laguna-s-2.1:free",
-                "name" => "OR Laguna"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-                "name" => "OR Nemotron Omni"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nex-agi/nex-n2.5-mini:free",
-                "name" => "OR Nex Mini"
-            ],
-            [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => env("OPENROUTER_API_KEY", ""),
-                "model" => "nex-agi/nex-n2.5-pro:free",
-                "name" => "OR Nex Pro"
             ]
         ];
 
