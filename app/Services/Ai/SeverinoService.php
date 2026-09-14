@@ -152,14 +152,14 @@ class SeverinoService
             "REGRA DE MEMORIZAÇÃO E ATALHOS:\n" .
             "- Quando o usuário pedir para você 'gravar', 'memorizar', 'salvar na memória' ou criar um atalho ('Grava aí Severino: Quando eu perguntar X responda Y', etc.), você DEVE OBRIGATORIAMENTE chamar a ferramenta `memorizar_regra_ou_preferencia`.\n" .
             "- NUNCA responda que gravou ou registrou apenas em texto se você não chamou a ferramenta `memorizar_regra_ou_preferencia`, pois somente essa ferramenta grava no banco de dados definitivo (`KnowledgeBase`) para ficar ativo para sempre em todas as conversas futuras!\n" .
-            "REGRA DE CONCILIAÇÃO BANCÁRIA (EXTRATO E LANÇAMENTOS):\n" .
-            "- Quando o usuário perguntar 'quantos lançamentos para conciliar?', 'o que tem para conciliar?', 'pendências de conciliação' ou sobre a tela de Conciliação, NUNCA faça perguntas de volta perguntando qual status ele quer!\n" .
-            "- Chame IMEDIATAMENTE a ferramenta `resumo_conciliacao_pendente`.\n" .
-            "- Apresente os dados com clareza: primeiro as transações do extrato bancário pendentes (que é exatamente o que a tela de Conciliação resolve, separadas por Banco Inter e Mercado Pago com valores e descrições), e mencione também quantos lançamentos estão em aberto no contas a pagar/receber do sistema.\n" .
-            "REGRA DE INTROSPECÇÃO DE CONTROLLERS (REGRAS E FÓRMULAS DO SISTEMA):\n" .
-            "- Toda a inteligência de negócios do sistema (fórmulas do DRE, Fluxo de Caixa, Orçamento, Avaliações de desapego, Conciliação, etc.) está codificada nos Controllers da pasta `app/Http/Controllers/`.\n" .
-            "- Você possui a ferramenta `consultar_codigo_controller`. Sempre que você precisar saber como qualquer tela do sistema calcula um indicador, relatório ou métrica, consulte o código do Controller correspondente para aprender as fórmulas e filtros exatos antes de consultar o banco!\n" .
-            "REGRA DE OURO PARA BANCO DE DADOS: Se você estiver começando agora (sem Memória de Trabalho), use as ferramentas dedicadas (como 'resumo_sacolinhas' ou 'resumo_pedidos_mes') ou 'consultar_memoria_sql'. SE JÁ HOUVER MEMÓRIA DE TRABALHO, avance direto para o próximo passo lógico. USE SEMPRE SINTAXE MYSQL.\n" .
+            "AUTONOMIA OBRIGATÓRIA E VIÉS PARA AÇÃO INVESTIGATIVA (REGRA SUPREMA):\n" .
+            "- É TERMINANTEMENTE PROIBIDO responder com 'Para saber X preciso consultar o banco de dados. Qual status você gostaria de verificar?' ou qualquer pergunta passiva! Se você precisa consultar o código ou o banco, CONSULTE-OS IMEDIATAMENTE usando suas ferramentas!\n" .
+            "- Você tem acesso ao código PHP do sistema através de `consultar_codigo_controller` e ao banco via `executar_query_select` e `mapear_modulo_sistema` justamente para APRENDER SOZINHO as regras de negócio de qualquer tela ou módulo, sem depender de ferramentas pré-moldadas.\n" .
+            "- Sempre que o usuário perguntar sobre qualquer relatório, tela, processo ou cálculo do sistema (ex: Conciliação, DRE, Fluxo de Caixa, Estoque, Devoluções, Vendas, Comissões, etc.):\n" .
+            "  1. CHAME `consultar_codigo_controller` (ex: 'ConciliacaoController', 'DreController', 'AvaliacaoController', etc.) para inspecionar os controllers e services e ver quais models, filtros e regras a tela do sistema usa.\n" .
+            "  2. CHAME `executar_query_select` para rodar os SELECTs no banco de dados baseados nas regras do controller.\n" .
+            "  3. Se a pergunta do usuário admitir mais de um critério (ex: 'lançamentos para conciliar' refere-se às transações pendentes no extrato bancário E/OU aos lançamentos em aberto no financeiro), NÃO pergunte ao usuário! Consulte AMBOS no banco e entregue ambos claramente estruturados na sua resposta final!\n" .
+            "REGRA DE OURO PARA BANCO DE DADOS: Para responder às perguntas do usuário, consulte sempre o banco via `executar_query_select` ou utilize o código do controller correspondente (`consultar_codigo_controller`) para descobrir as tabelas e colunas certas. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
             "AUTO-APRENDIZADO: Sempre que você usar o mapa para deduzir uma query SQL inédita e ela funcionar com sucesso, chame 'salvar_memoria_sql' automaticamente ANTES de dar a resposta final ao usuário para guardar esse conhecimento. O 'assunto' deve ser a intenção original do usuário.\n" .
@@ -256,14 +256,6 @@ class SeverinoService
                     [
                         "name" => "resumo_carteira_clientes",
                         "description" => "Retorna os dados consolidados da Carteira de Clientes: o saldo líquido total da carteira (como no painel), quantidade de clientes com saldo negativo (devedores) e a soma total das dívidas, quantidade com saldo positivo (crédito) e soma dos créditos, e clientes zerados.",
-                        "parameters" => [
-                            "type" => "OBJECT",
-                            "properties" => (object)[]
-                        ]
-                    ],
-                    [
-                        "name" => "resumo_conciliacao_pendente",
-                        "description" => "Retorna o status completo e detalhado da Conciliação Bancária e Financeira: quantas transações bancárias do extrato (Banco Inter, Mercado Pago, etc.) estão aguardando conciliação na tela de Conciliação, a lista das transações pendentes (valores, descrições, datas e bancos), e a quantidade de lançamentos em aberto no sistema financeiro.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
@@ -791,68 +783,6 @@ class SeverinoService
                         ],
                         "clientes_zerados" => $zerados->count(),
                         "explicacao_importante" => "Estes são os saldos REAIS e ATUAIS dos clientes (pegando a última movimentação de cada um). O saldo consolidado bate exatamente com o valor exibido na conta bancária 'Carteira Cliente' no painel."
-                    ];
-
-                case "resumo_conciliacao_pendente":
-                    $transacoes = \App\Models\TransacaoExtrato::where('status', 'pendente')
-                        ->orderBy('data', 'desc')
-                        ->get();
-                    
-                    $porOrigem = [];
-                    foreach ($transacoes->groupBy('origem') as $origem => $itens) {
-                        $nomeBanco = match(strtolower($origem)) {
-                            'bancointer', 'inter' => 'Banco Inter',
-                            'mercadopago', 'mp' => 'Mercado Pago',
-                            default => ucfirst($origem)
-                        };
-                        $entradas = $itens->where('tipo', 'entrada')->sum('valor');
-                        $saidas = $itens->where('tipo', 'saida')->sum('valor');
-                        $porOrigem[$nomeBanco] = [
-                            "quantidade" => $itens->count(),
-                            "entradas" => round((float)$entradas, 2),
-                            "saidas" => round((float)$saidas, 2),
-                            "saldo_liquido" => round((float)($entradas - $saidas), 2)
-                        ];
-                    }
-
-                    $listaTransacoes = $transacoes->map(function ($t) {
-                        $banco = match(strtolower($t->origem)) {
-                            'bancointer', 'inter' => 'Banco Inter',
-                            'mercadopago', 'mp' => 'Mercado Pago',
-                            default => ucfirst($t->origem)
-                        };
-                        return [
-                            "id" => $t->id,
-                            "banco" => $banco,
-                            "data" => $t->data ? $t->data->format('d/m/Y') : 'Sem data',
-                            "tipo" => $t->tipo,
-                            "valor" => (float) ($t->valor_bruto ?? $t->valor),
-                            "descricao" => $t->descricao
-                        ];
-                    })->toArray();
-
-                    $lancamentosPendentesDespesa = \App\Models\Lancamento::where('status', 'pendente')->where('tipo', 'despesa')->count();
-                    $somaDespesasPendentes = (float) \App\Models\Lancamento::where('status', 'pendente')->where('tipo', 'despesa')->sum('valor_total');
-                    $lancamentosPendentesReceita = \App\Models\Lancamento::where('status', 'pendente')->where('tipo', 'receita')->count();
-                    $somaReceitasPendentes = (float) \App\Models\Lancamento::where('status', 'pendente')->where('tipo', 'receita')->sum('valor_total');
-
-                    return [
-                        "tela_de_conciliacao_extrato_bancario" => [
-                            "total_transacoes_aguardando_conciliacao" => $transacoes->count(),
-                            "resumo_por_banco" => $porOrigem,
-                            "lista_transacoes_pendentes" => $listaTransacoes
-                        ],
-                        "modulo_financeiro_contas_abertas" => [
-                            "despesas_a_pagar_pendentes" => [
-                                "quantidade" => $lancamentosPendentesDespesa,
-                                "valor_total" => round($somaDespesasPendentes, 2)
-                            ],
-                            "receitas_a_receber_pendentes" => [
-                                "quantidade" => $lancamentosPendentesReceita,
-                                "valor_total" => round($somaReceitasPendentes, 2)
-                            ]
-                        ],
-                        "orientacao_para_o_severino" => "Responda de forma direta e objetiva. Na tela 'Conciliação Financeira' há {$transacoes->count()} transações do extrato bancário pendentes de conciliação. No sistema financeiro geral (contas a pagar/receber), há {$lancamentosPendentesDespesa} contas a pagar pendentes. Apresente os dois lados com clareza para o usuário não ter dúvidas."
                     ];
 
                 case "relatorio_orcamento_previsto_realizado":
