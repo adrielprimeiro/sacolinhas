@@ -22,8 +22,9 @@ class SeverinoService
         $dataAtual = date('Y-m-d H:i:s');
         
         // Se o usuário digitou apenas 'continue' ou similar, resgata a pergunta anterior do histórico
-        if (in_array(strtolower(trim($userPrompt)), ['continue', 'continuar', 'prossiga', 'retomar'])) {
-            $lastUserPrompt = null;
+        $isContinue = in_array(strtolower(trim($userPrompt)), ['continue', 'continuar', 'prossiga', 'retomar']);
+        $lastUserPrompt = null;
+        if ($isContinue) {
             for ($k = count($history) - 1; $k >= 0; $k--) {
                 $role = $history[$k]['role'] ?? '';
                 $txt = trim($history[$k]['text'] ?? $history[$k]['message'] ?? '');
@@ -33,7 +34,7 @@ class SeverinoService
                 }
             }
             if ($lastUserPrompt) {
-                $userPrompt = "Por favor, continue a pesquisa e responda de forma direta e completa à minha pergunta anterior: '{$lastUserPrompt}'";
+                $userPrompt = "Você já consultou dados na tentativa anterior e eles estão registrados abaixo na sua prancheta. NÃO continue chamando ferramentas indefinidamente! Sintetize os dados já coletados e ENTREGUE A RESPOSTA FINAL COMPLETA E FORMATADA à pergunta: '{$lastUserPrompt}'";
             }
         }
         
@@ -159,6 +160,13 @@ class SeverinoService
             "  1. CHAME `consultar_codigo_controller` (ex: 'ConciliacaoController', 'DreController', 'AvaliacaoController', etc.) para inspecionar os controllers e services e ver quais models, filtros e regras a tela do sistema usa.\n" .
             "  2. CHAME `executar_query_select` para rodar os SELECTs no banco de dados baseados nas regras do controller.\n" .
             "  3. Se a pergunta do usuário admitir mais de um critério (ex: 'lançamentos para conciliar' refere-se às transações pendentes no extrato bancário E/OU aos lançamentos em aberto no financeiro), NÃO pergunte ao usuário! Consulte AMBOS no banco e entregue ambos claramente estruturados na sua resposta final!\n" .
+            "ANTI-PAGINAÇÃO E ANTI-LOOP (REGRA CRÍTICA DE DESEMPENHO):\n" .
+            "- NUNCA execute queries em loop paginado (ex: LIMIT 10 OFFSET 10, OFFSET 20, OFFSET 30...) para varrer tabelas inteiras ou tentar listar dezenas de itens! Isso esgota o tempo do servidor e trava o sistema em loop!\n" .
+            "- Se houver muitos registros, use agregações (`COUNT(*)`, `SUM()`, `GROUP BY`) ou traga no máximo os 10 mais recentes/relevantes (`ORDER BY ... DESC LIMIT 10`).\n" .
+            "RESOLUÇÃO DE PERGUNTAS CONTEXTUAIS ('QUAIS FORAM?', 'QUEM?'):\n" .
+            "- Quando o usuário fizer uma pergunta de continuidade curta como 'Quais foram?', 'Quem?', 'Quais são eles?':\n" .
+            "  1. Identifique o TEMA CENTRAL da conversa. Por exemplo, se a conversa era sobre conciliações automáticas recentes, 'Quais foram?' refere-se às transações que foram conciliadas (tabela `transacoes_extrato` com `status = 'conciliado'` ordenadas por `updated_at DESC LIMIT 10`).\n" .
+            "  2. NUNCA tente puxar listas gigantes de contas pendentes quando a pergunta era sobre o que foi conciliado!\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Para responder às perguntas do usuário, consulte sempre o banco via `executar_query_select` ou utilize o código do controller correspondente (`consultar_codigo_controller`) para descobrir as tabelas e colunas certas. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
@@ -515,6 +523,11 @@ class SeverinoService
 
         for ($i = 0; $i < 10; $i++) { // Loop das ferramentas aumentado para 10 porque agora é super rápido com o cache
             
+            // Se estiver em modo continue e já rodou 2 ferramentas, force tool_choice = 'none' para obrigar a síntese final
+            if ($isContinue && $i >= 2) {
+                $payload["tool_choice"] = "none";
+            }
+
             // Controle anti-timeout do Nginx (60s). Se já passaram 40 segundos, forçamos a pausa amigável!
             if (microtime(true) - $startTime > 40) {
                 Log::warning("Tempo de execução limite atingido (40s). Forçando pausa técnica para evitar Nginx 504.");
@@ -536,6 +549,14 @@ class SeverinoService
                     if (microtime(true) - $startTime > 40) {
                         \Illuminate\Support\Facades\Log::warning("Tempo limite 40s atingido dentro do loop de provedores. Forçando pausa amigável.");
                         if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
+                            $pauseCount = (int) \Illuminate\Support\Facades\Cache::get('severino_pause_count_' . $sessionId, 0) + 1;
+                            if ($pauseCount >= 2 || $isContinue) {
+                                $scratch = \Illuminate\Support\Facades\Cache::get('severino_scratchpad_' . $sessionId, '');
+                                \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+                                \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                                return $this->forceFinalAnswerFromScratchpad($scratch, $lastUserPrompt ?? $userPrompt);
+                            }
+                            \Illuminate\Support\Facades\Cache::put('severino_pause_count_' . $sessionId, $pauseCount, now()->addMinutes(15));
                             return "Pausa técnica! 😅 Fiz várias consultas pesadas no banco de dados e atingi o limite de segurança do servidor para não deixá-lo lento. Já salvei tudo o que descobri até agora na minha 'Prancheta'. Por favor, apenas digite **'continue'** para eu retomar a pesquisa exatamente de onde parei e te dar a resposta final!";
                         }
                         return "Operei ferramentas demais. Parando loop.";
@@ -676,16 +697,62 @@ class SeverinoService
 
             if ($sessionId) {
                 \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+                \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
             }
             \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
             return $finalText !== "" ? $finalText : "Resposta processada mas sem texto legível.";
         }
 
         if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
+            $pauseCount = (int) \Illuminate\Support\Facades\Cache::get('severino_pause_count_' . $sessionId, 0) + 1;
+            if ($pauseCount >= 2 || $isContinue) {
+                $scratch = \Illuminate\Support\Facades\Cache::get('severino_scratchpad_' . $sessionId, '');
+                \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+                \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                return $this->forceFinalAnswerFromScratchpad($scratch, $lastUserPrompt ?? $userPrompt);
+            }
+            \Illuminate\Support\Facades\Cache::put('severino_pause_count_' . $sessionId, $pauseCount, now()->addMinutes(15));
             return "Pausa técnica! 😅 Fiz várias consultas pesadas no banco de dados e atingi o limite de segurança do servidor para não deixá-lo lento. Já salvei tudo o que descobri até agora na minha 'Prancheta'. Por favor, apenas digite **'continue'** para eu retomar a pesquisa exatamente de onde parei e te dar a resposta final!";
         }
 
         return "Operei ferramentas demais. Parando loop.";
+    }
+
+    protected function forceFinalAnswerFromScratchpad(string $scratchpad, string $userPrompt): string
+    {
+        $sys = "Você é o Severino, assistente de IA da empresa. " .
+               "O servidor atingiu o tempo limite de consultas pesadas, mas você já reuniu os dados na sua prancheta. " .
+               "Sua tarefa é formular e entregar uma resposta final direta, clara e formatada em Markdown com base no que foi apurado na prancheta. " .
+               "Não diga que precisa pesquisar mais: responda com as informações disponíveis de forma objetiva.";
+               
+        $messages = [
+            ["role" => "system", "content" => $sys],
+            ["role" => "user", "content" => "Pergunta original: '{$userPrompt}'\n\nDados da prancheta:\n" . mb_substr($scratchpad, 0, 8000)]
+        ];
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
+                "Content-Type" => "application/json"
+            ])->timeout(15)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
+                "model" => "gemini-2.5-flash",
+                "messages" => $messages,
+                "temperature" => 0.1,
+                "max_tokens" => 1000
+            ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $text = trim($json['choices'][0]['message']['content'] ?? "");
+                if (!empty($text)) {
+                    return $text;
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erro na finalização forçada do scratchpad: " . $e->getMessage());
+        }
+
+        return "Aqui está o resumo do que foi apurado na consulta:\n" . mb_substr($scratchpad, 0, 1500);
     }
 
     protected function executeTool(string $name, array $args): array
