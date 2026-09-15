@@ -49,12 +49,20 @@ return new class extends Migration
             ]);
         }
 
-        // 2. Adiciona brecho_id na tabela users
-        if (Schema::hasTable('users') && !Schema::hasColumn('users', 'brecho_id')) {
-            Schema::table('users', function (Blueprint $table) {
-                $table->unsignedBigInteger('brecho_id')->nullable()->after('role');
-                $table->foreign('brecho_id')->references('id')->on('brechos')->nullOnDelete();
-            });
+        // 2. Adiciona brecho_id na tabela users e expande o enum de role
+        if (Schema::hasTable('users')) {
+            try {
+                DB::statement("ALTER TABLE `users` MODIFY COLUMN `role` ENUM('client', 'admin', 'admin_master', 'brecho_admin') NOT NULL DEFAULT 'client'");
+            } catch (\Exception $e) {
+                // Silently continue se já estiver atualizado
+            }
+
+            if (!Schema::hasColumn('users', 'brecho_id')) {
+                Schema::table('users', function (Blueprint $table) {
+                    $table->unsignedBigInteger('brecho_id')->nullable()->after('role');
+                    $table->foreign('brecho_id')->references('id')->on('brechos')->nullOnDelete();
+                });
+            }
         }
 
         // 3. Adiciona brecho_id na tabela items
