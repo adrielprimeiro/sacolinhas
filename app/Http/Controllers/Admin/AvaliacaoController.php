@@ -477,6 +477,10 @@ class AvaliacaoController extends Controller
             // 2. Realiza o lançamento contábil/carteira do repasse
             if ($totalPayout > 0) {
                 if ($pagamento === 'credito') {
+                    if (!$avaliacao->user_id) {
+                        throw new \Exception("Apenas fornecedores do tipo 'Cliente do App' podem receber créditos na loja. Como este fornecedor é do tipo 'Pessoa do Financeiro', selecione a opção 'Dinheiro/PIX' para gerar o contas a pagar.");
+                    }
+
                     // Obter último saldo do usuário para calcular saldo_anterior e saldo_atual
                     $ultimoMovimento = \Illuminate\Support\Facades\DB::table('conta_corrente')
                         ->where('user_id', $avaliacao->user_id)
@@ -504,24 +508,30 @@ class AvaliacaoController extends Controller
                     // Dispatch o job para recalcular qualquer movimentação posterior se houver
                     \App\Jobs\RecalcularSaldosJob::dispatch($avaliacao->user_id, $mov->data_movimentacao->toDateString());
                 } else {
-                    $userName = $avaliacao->user ? $avaliacao->user->name : 'Fornecedor #' . $avaliacao->user_id;
-                    $userDoc = $avaliacao->user 
-                        ? ($avaliacao->user->cpf ?? $avaliacao->user->whatsapp ?? $avaliacao->user->email)
-                        : 'FORN-' . $avaliacao->user_id;
-
-                    $pessoa = Pessoa::firstOrCreate(
-                        ['user_id' => $avaliacao->user_id],
-                        [
-                            'nome' => $userName,
-                            'documento' => $userDoc ?? 'FORN-' . $avaliacao->user_id,
-                            'tipo' => 'cliente_circular',
-                        ]
-                    );
+                    
+                    if ($avaliacao->pessoa_id) {
+                        $pessoaId = $avaliacao->pessoa_id;
+                    } else {
+                        $userName = $avaliacao->user ? $avaliacao->user->name : 'Fornecedor #' . $avaliacao->user_id;
+                        $userDoc = $avaliacao->user 
+                            ? ($avaliacao->user->cpf ?? $avaliacao->user->whatsapp ?? $avaliacao->user->email)
+                            : 'FORN-' . $avaliacao->user_id;
+    
+                        $pessoa = Pessoa::firstOrCreate(
+                            ['user_id' => $avaliacao->user_id],
+                            [
+                                'nome' => $userName,
+                                'documento' => $userDoc ?? 'FORN-' . $avaliacao->user_id,
+                                'tipo' => 'cliente_circular',
+                            ]
+                        );
+                        $pessoaId = $pessoa->id;
+                    }
 
                     $lancamento = Lancamento::create([
                         'tipo' => 'despesa',
                         'status' => 'pendente', // Mantido como 'pendente' (em aberto) para o financeiro liquidar/conciliar depois
-                        'pessoa_id' => $pessoa->id,
+                        'pessoa_id' => $pessoaId,
                         'classificacao_financeira_id' => 19, // Classificação de Avaliação
                         'data_emissao' => now(),
                         'data_vencimento' => now(),
