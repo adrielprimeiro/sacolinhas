@@ -3,7 +3,7 @@
 @section('title', 'Avaliação de Desapegos')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" x-data="{ activeFinalizeId: null, activeFinalizeClube: false, activeFinalizeIsUser: true, pagamentoSelecionado: 'credito' }">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" x-data="{ activeFinalizeId: null, activeFinalizeClube: false, activeFinalizeIsUser: true, activeFinalizeTipoCompra: 'avaliados', pagamentoSelecionado: 'credito' }">
 
     {{-- Cabeçalho --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -186,7 +186,7 @@
                                         {{-- Botão para Efetivar/Finalizar --}}
                                         <button 
                                             type="button" 
-                                            @click="activeFinalizeId = {{ $av->id }}; activeFinalizeClube = {{ $av->tipo_cliente === 'clube' ? 'true' : 'false' }}; activeFinalizeIsUser = {{ $av->user_id ? 'true' : 'false' }}; pagamentoSelecionado = activeFinalizeIsUser ? 'credito' : 'dinheiro';"
+                                            @click="activeFinalizeId = {{ $av->id }}; activeFinalizeClube = {{ $av->tipo_cliente === 'clube' ? 'true' : 'false' }}; activeFinalizeIsUser = {{ $av->user_id ? 'true' : 'false' }}; activeFinalizeTipoCompra = '{{ $av->tipo_compra }}'; pagamentoSelecionado = activeFinalizeIsUser ? 'credito' : 'dinheiro';"
                                             class="inline-flex items-center justify-center px-2 py-1 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs transition-colors"
                                             title="Finalizar e Lançar no Estoque"
                                         >
@@ -263,7 +263,9 @@
                             <input type="radio" name="pagamento_escolhido" value="credito" x-model="pagamentoSelecionado" class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="block text-sm font-semibold text-gray-900">
-                                    Créditos na Loja (<span x-text="activeFinalizeClube ? '60%' : '50%'"></span> do valor de venda)
+                                    Créditos na Loja 
+                                    <span x-show="activeFinalizeTipoCompra === 'avaliados'">(<span x-text="activeFinalizeClube ? '60%' : '50%'"></span> do valor de venda)</span>
+                                    <span x-show="activeFinalizeTipoCompra === 'direta'">(Valor integral negociado)</span>
                                 </span>
                                 <span class="block text-xs text-gray-500">Creditado automaticamente na carteira digital do cliente.</span>
                             </div>
@@ -273,7 +275,9 @@
                             <input type="radio" name="pagamento_escolhido" value="dinheiro" x-model="pagamentoSelecionado" class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="block text-sm font-semibold text-gray-900">
-                                    Dinheiro/PIX imediato (<span x-text="activeFinalizeClube ? '40%' : '30%'"></span> do valor de venda)
+                                    Dinheiro/PIX imediato 
+                                    <span x-show="activeFinalizeTipoCompra === 'avaliados'">(<span x-text="activeFinalizeClube ? '40%' : '30%'"></span> do valor de venda)</span>
+                                    <span x-show="activeFinalizeTipoCompra === 'direta'">(Valor integral negociado)</span>
                                 </span>
                                 <span class="block text-xs text-gray-500">Lança uma despesa paga no caixa do sistema financeiro.</span>
                             </div>
