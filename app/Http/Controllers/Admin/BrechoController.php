@@ -29,6 +29,9 @@ class BrechoController extends Controller
             'whatsapp' => 'nullable|string|max:20',
             'chave_pix' => 'nullable|string|max:255',
             'tipo_chave_pix' => 'nullable|string|in:cpf,cnpj,email,telefone,aleatoria',
+            'operador_nome' => 'nullable|string|max:255',
+            'operador_email' => 'nullable|email|max:255|unique:users,email',
+            'operador_password' => 'nullable|string|min:6',
         ]);
 
         $slug = Str::slug($validated['nome']);
@@ -39,12 +42,35 @@ class BrechoController extends Controller
             $slug = "{$originalSlug}-{$count}";
             $count++;
         }
-        $validated['slug'] = $slug;
-        $validated['ativo'] = true;
 
-        Brecho::create($validated);
+        $brechoData = [
+            'nome' => $validated['nome'],
+            'documento' => $validated['documento'] ?? null,
+            'telefone' => $validated['telefone'] ?? null,
+            'whatsapp' => $validated['whatsapp'] ?? null,
+            'chave_pix' => $validated['chave_pix'] ?? null,
+            'tipo_chave_pix' => $validated['tipo_chave_pix'] ?? null,
+            'slug' => $slug,
+            'ativo' => true,
+        ];
 
-        return redirect()->back()->with('success', "Brechó '{$validated['nome']}' cadastrado com sucesso!");
+        $brecho = Brecho::create($brechoData);
+
+        if (!empty($validated['operador_email']) && !empty($validated['operador_password'])) {
+            $operador = \App\Models\User::create([
+                'name' => $validated['operador_nome'] ?: $validated['nome'],
+                'email' => $validated['operador_email'],
+                'password' => \Illuminate\Support\Facades\Hash::make($validated['operador_password']),
+                'whatsapp' => $validated['whatsapp'] ?? null,
+                'role' => 'brecho_admin',
+                'brecho_id' => $brecho->id,
+                'is_admin' => 0,
+            ]);
+
+            return redirect()->back()->with('success', "Brechó '{$brecho->nome}' e usuário de acesso '{$operador->email}' criados com sucesso!");
+        }
+
+        return redirect()->back()->with('success', "Brechó '{$brecho->nome}' cadastrado com sucesso! Crie o acesso de login clicando em '+ Operador'.");
     }
 
     public function update(Request $request, Brecho $brecho)

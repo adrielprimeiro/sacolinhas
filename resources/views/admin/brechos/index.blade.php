@@ -161,6 +161,31 @@
                                     </select>
                                 </div>
                             </div>
+
+                            <hr class="border-gray-200 my-4">
+                            <div class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100">
+                                <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                    <i class="fas fa-user-lock text-indigo-600"></i> Acesso do Operador (Login Inicial)
+                                </h4>
+                                <p class="text-xs text-gray-500 mb-3">Defina o e-mail e a senha para o brechó acessar a plataforma.</p>
+                                
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700">Nome do Operador / Responsável</label>
+                                        <input type="text" name="operador_nome" placeholder="Ex: Maria (opcional, padrão é o nome do brechó)" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700">E-mail de Login *</label>
+                                            <input type="email" name="operador_email" placeholder="login@brecho.com" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700">Senha de Acesso *</label>
+                                            <input type="password" name="operador_password" minlength="6" placeholder="Mínimo 6 caracteres" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="bg-gray-50 px-6 py-3 flex justify-end gap-2">
