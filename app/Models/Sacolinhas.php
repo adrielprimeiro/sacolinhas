@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToBrecho;
 
 class Sacolinhas extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToBrecho;
 
     protected $table = 'sacolinhas';
 
     protected $fillable = [
+        'brecho_id',
         'user_id',
         'item_id', 
         'live_id',

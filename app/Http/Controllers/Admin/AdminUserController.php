@@ -28,7 +28,9 @@ class AdminUserController extends Controller
                        ->orderBy('name', 'asc')
                        ->paginate(50);
 
-        return view('admin.users.permissions', compact('users'));
+        $brechos = \App\Models\Brecho::where('ativo', true)->get();
+
+        return view('admin.users.permissions', compact('users', 'brechos'));
     }
 
     public function updateRole(Request $request, $id)
@@ -38,7 +40,8 @@ class AdminUserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'role' => 'required|in:client,admin,admin_master',
+            'role' => 'required|in:client,admin,admin_master,brecho_admin',
+            'brecho_id' => 'nullable|exists:brechos,id',
         ]);
 
         $role = $request->input('role');
@@ -49,6 +52,10 @@ class AdminUserController extends Controller
             $user->is_admin = 1;
         } else {
             $user->is_admin = 0;
+        }
+
+        if ($request->has('brecho_id')) {
+            $user->brecho_id = $request->input('brecho_id');
         }
 
         $user->save();

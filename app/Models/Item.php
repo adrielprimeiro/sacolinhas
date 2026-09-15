@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Sacolinhas;
 use App\Models\ItemMedia;
+use App\Models\Traits\BelongsToBrecho;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToBrecho;
 	
 	protected $table = 'items';
 
     protected $fillable = [
+        'brecho_id',
         'codigo',
         'nome_do_produto',
         'descricao',

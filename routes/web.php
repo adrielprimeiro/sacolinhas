@@ -871,6 +871,11 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
     Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
 
+    // Gestão de Brechós Parceiros
+    Route::get('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'index'])->name('brechos.index');
+    Route::post('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'store'])->name('brechos.store');
+    Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
+
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');
     Route::post('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseStore'])->name('knowledge-base.store');

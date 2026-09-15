@@ -29,7 +29,7 @@ class LoginController extends Controller
 			$user = Auth::user();
 			
 			// 🔴 FORÇAR REDIRECIONAMENTO (sem intended)
-			if (in_array($user->role, ['admin', 'admin_master']) || $user->is_admin) {
+			if (in_array($user->role, ['admin', 'admin_master', 'brecho_admin']) || $user->is_admin) {
 				return redirect('/dashboard'); // Sistema interno admin
 			}
 			

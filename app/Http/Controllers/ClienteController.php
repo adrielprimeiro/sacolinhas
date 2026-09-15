@@ -14,6 +14,17 @@ class ClienteController extends Controller
     {
         $query = Cliente::clientes()->with(['limite']); // ✅ USAR SCOPE E CARREGAR LIMITE
         
+        // Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $brechoId = auth()->user()->brecho_id;
+            $query->whereExists(function ($sub) use ($brechoId) {
+                $sub->select(DB::raw(1))
+                    ->from('brecho_clientes')
+                    ->whereColumn('brecho_clientes.user_id', 'users.id')
+                    ->where('brecho_clientes.brecho_id', $brechoId);
+            });
+        }
+
         if ($request->filled('user_id')) {
             $query->where('id', $request->user_id);
         } elseif ($request->filled('search')) {
@@ -128,6 +139,17 @@ class ClienteController extends Controller
 				'limite_disponivel' => $limiteCredito,
 				'ativo' => true,
 			]);
+
+			// Vincular ao brechó caso seja parceiro
+			if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+				DB::table('brecho_clientes')->insertOrIgnore([
+					'brecho_id' => auth()->user()->brecho_id,
+					'user_id' => $cliente->id,
+					'origem' => 'manual',
+					'created_at' => now(),
+					'updated_at' => now(),
+				]);
+			}
 
 			DB::commit();
 

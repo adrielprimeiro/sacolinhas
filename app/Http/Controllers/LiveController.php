@@ -21,10 +21,13 @@ class LiveController extends Controller
     public function index()
     {
         try {
-            $live = DB::table('lives')
-                      ->where('ativo', 1)
-                      ->orderBy('created_at', 'desc')
-                      ->first();
+            $query = DB::table('lives')->where('ativo', 1);
+
+            if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+                $query->where('brecho_id', auth()->user()->brecho_id);
+            }
+
+            $live = $query->orderBy('created_at', 'desc')->first();
             
             if (!$live) {
                 return response()->json([
@@ -64,18 +67,24 @@ class LiveController extends Controller
                 'plataformas.*' => 'string|in:instagram,tiktok,youtube,facebook'
             ]);
 
-            // Verificar se já existe uma live ativa
-            $liveAtiva = DB::table('lives')->where('ativo', 1)->first();
+            $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1;
+
+            // Verificar se já existe uma live ativa para este brechó
+            $liveAtiva = DB::table('lives')
+                ->where('ativo', 1)
+                ->where('brecho_id', $brechoId)
+                ->first();
             
             if ($liveAtiva) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Já existe uma live ativa. Encerre-a antes de criar uma nova.'
+                    'message' => 'Já existe uma live ativa para este brechó. Encerre-a antes de criar uma nova.'
                 ], 400);
             }
 
             // Criar nova live
             $liveId = DB::table('lives')->insertGetId([
+                'brecho_id' => $brechoId,
                 'data' => now()->format('Y-m-d'),
                 'tipo_live' => $request->tipo_live,
                 'plataformas' => implode(',', $request->plataformas),
@@ -397,6 +406,12 @@ class LiveController extends Controller
 		$valorTotal = (float) $itensSacolinha->sum('price');
 		$totalItens = (int) $itensSacolinha->count();
 
+		$liveRow = DB::table('lives')->where('id', $liveId)->first();
+		$brechoNome = 'Sacolinha Mania';
+		if ($liveRow && !empty($liveRow->brecho_id)) {
+			$brechoNome = DB::table('brechos')->where('id', $liveRow->brecho_id)->value('nome') ?? $brechoNome;
+		}
+
 		// Logo (igual)
 		$logoPath = public_path('images/LogoColorida sem fundo.png');
 		$logoDataUri = null;
@@ -441,7 +456,7 @@ class LiveController extends Controller
 					' . ($logoDataUri ? '<img class="logo" src="' . $logoDataUri . '" />' : '') . '
 				  </td>
 				  <td class="title-cell">
-					<h1>Sacolinha Mania</h1>
+					<h1>' . htmlspecialchars($brechoNome) . '</h1>
 					<p><strong>Cliente:</strong> ' . htmlspecialchars($cliente->name) . '</p>
 					<p><strong>Live:</strong> #' . (int)$liveId . '</p>
 					<p><strong>Data:</strong> ' . date('d/m/Y H:i:s') . '</p>

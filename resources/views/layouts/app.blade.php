@@ -51,6 +51,11 @@
 
 			<div class="flex items-center space-x-4">
 				@auth
+					@if(auth()->user()->isBrechoParceiro())
+						<span class="inline-flex items-center text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-200">
+							<i class="fas fa-store mr-1.5 text-indigo-500"></i>{{ auth()->user()->brecho->nome ?? 'Brechó Parceiro' }}
+						</span>
+					@endif
 					<a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-blue-600 transition duration-300" title="Dashboard">
 						<i class="fas fa-home text-lg"></i>
 					</a>
@@ -91,6 +96,10 @@
 			</div>
 
 			<nav class="p-3 space-y-1 text-sm">
+				@php
+					$isBrecho = auth()->check() && auth()->user()->isBrechoParceiro();
+				@endphp
+
 				{{-- 1. Dashboard --}}
 				<a href="{{ route('dashboard') }}"
 				   class="flex items-center gap-3 px-3 py-2 rounded-lg transition duration-150 hover:bg-indigo-50 hover:text-indigo-600 {{ request()->routeIs('dashboard') ? 'bg-indigo-50 font-bold text-indigo-600' : 'text-gray-700' }}">
@@ -124,9 +133,11 @@
                         <a href="{{ route('admin.pedido.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.pedido.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos
                         </a>
+						@endif
                     </div>
                 </div>
 
@@ -147,6 +158,7 @@
                         <a href="{{ route('admin.categorias.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.categorias.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-tags mr-1.5 text-indigo-400"></i> Categorias
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.marcas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.marcas.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-copyright mr-1.5 text-indigo-400"></i> Marcas
                         </a>
@@ -162,6 +174,7 @@
                         <a href="{{ route('image-groups.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('image-groups.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-image mr-1.5 text-indigo-400"></i> Vincular Fotos a Itens
                         </a>
+						@endif
                     </div>
                 </div>
 
@@ -179,6 +192,7 @@
                         <a href="{{ route('clientes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('clientes.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-address-book mr-1.5 text-indigo-400"></i> Lista de Clientes
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.chat.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.chat.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-comments mr-1.5 text-indigo-400"></i> Chat ao Vivo
                         </a>
@@ -188,9 +202,11 @@
                         <a href="{{ route('admin.conta_corrente.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.conta_corrente.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-wallet mr-1.5 text-indigo-400"></i> Carteira do Cliente
                         </a>
+						@endif
                     </div>
                 </div>
 
+				@if(!$isBrecho)
                 {{-- 5. Financeiro --}}
                 <div x-data="{ 
                     open: {{ (request()->routeIs('financeiro.*') || request()->routeIs('classificacao_financeira.*')) ? 'true' : 'false' }},
@@ -293,11 +309,17 @@
                         </a>
                     </div>
                 </div>
+				@endif
 
 				<div class="my-2 border-t border-gray-200"></div>
 
 				@if(auth()->check() && auth()->user()->role === 'admin_master')
 					<div>
+						<a href="{{ route('admin.brechos.index') }}"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.brechos.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
+							<i class="fas fa-store w-5 text-center text-indigo-500"></i>
+							<span>Brechós Parceiros</span>
+						</a>
 						<a href="{{ route('admin.equipe.index') }}"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.equipe.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
 							<i class="fas fa-user-shield w-5 text-center text-indigo-500"></i>

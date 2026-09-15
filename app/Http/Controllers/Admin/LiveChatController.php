@@ -382,6 +382,8 @@ class LiveChatController extends Controller
                     $price = $price * 0.5;
                 }
 
+                $brechoId = $live->brecho_id ?? 1;
+
                 // 1. Criar ou atualizar a sacolinha do cliente nesta live
                 Sacolinhas::updateOrCreate(
                     [
@@ -390,6 +392,7 @@ class LiveChatController extends Controller
                         'live_id' => $validated['live_id']
                     ],
                     [
+                        'brecho_id' => $brechoId,
                         'price' => $price,
                         'add_at' => now(),
                         'quantity' => 1,
@@ -397,10 +400,22 @@ class LiveChatController extends Controller
                     ]
                 );
 
-                // 2. Atualizar status do item
+                // 2. Vincular cliente a este brechó
+                DB::table('brecho_clientes')->updateOrInsert(
+                    [
+                        'brecho_id' => $brechoId,
+                        'user_id' => $validated['user_id']
+                    ],
+                    [
+                        'origem' => 'live',
+                        'updated_at' => now(),
+                    ]
+                );
+
+                // 3. Atualizar status do item
                 $item->update(['status' => 'sacolinha']);
 
-                // 3. Atualizar status do pedido de código se informado
+                // 4. Atualizar status do pedido de código se informado
                 if (!empty($validated['code_request_id'])) {
                     LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
                 }

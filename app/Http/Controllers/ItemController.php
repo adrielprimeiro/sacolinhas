@@ -95,8 +95,14 @@ class ItemController extends Controller
 
     public function store(Request $request)
     {
+        $brechoId = auth()->user()->brecho_id ?? 1;
+
         $validated = $request->validate([
-            'codigo' => 'required|string|unique:items,codigo',
+            'codigo' => [
+                'required',
+                'string',
+                \Illuminate\Validation\Rule::unique('items', 'codigo')->where(fn ($query) => $query->where('brecho_id', $brechoId)),
+            ],
             'nome_do_produto' => 'required|string|max:255',
             'descricao' => 'nullable|string',
             'custo' => 'nullable|numeric|min:0',
@@ -164,8 +170,14 @@ class ItemController extends Controller
 	
 	public function update(Request $request, Item $item)
 	{
+		$brechoId = $item->brecho_id ?? (auth()->user()->brecho_id ?? 1);
+
 		$validated = $request->validate([
-			'codigo' => 'required|string|unique:items,codigo,' . $item->id,
+			'codigo' => [
+				'required',
+				'string',
+				\Illuminate\Validation\Rule::unique('items', 'codigo')->ignore($item->id)->where(fn ($query) => $query->where('brecho_id', $brechoId)),
+			],
 			'nome_do_produto' => 'required|string|max:255',
 			'descricao' => 'nullable|string',
 			'custo' => 'nullable|numeric|min:0',
