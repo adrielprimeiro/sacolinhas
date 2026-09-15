@@ -37,6 +37,16 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        } else {
+            // Se a tabela já existia, garante que o ID 1 esteja cadastrado
+            DB::table('brechos')->insertOrIgnore([
+                'id' => 1,
+                'nome' => 'Brechó Matriz',
+                'slug' => 'matriz',
+                'ativo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
         // 2. Adiciona brecho_id na tabela users
@@ -101,8 +111,10 @@ return new class extends Migration
                 $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
                 $table->unique(['brecho_id', 'user_id']);
             });
+        }
 
-            // Popula automaticamente com os clientes existentes vinculando à Matriz
+        // Popula automaticamente com os clientes existentes vinculando à Matriz
+        if (Schema::hasTable('brecho_clientes') && Schema::hasTable('users')) {
             $existingClients = DB::table('users')->where('role', 'client')->pluck('id');
             $now = now();
             $clientInserts = [];
