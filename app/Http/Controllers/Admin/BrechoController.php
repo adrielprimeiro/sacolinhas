@@ -13,7 +13,7 @@ class BrechoController extends Controller
     {
         abort_if(!auth()->user() || auth()->user()->role !== 'admin_master', 403, 'Acesso restrito ao Master.');
 
-        $brechos = Brecho::withCount(['items', 'lives', 'users'])->orderBy('id', 'asc')->get();
+        $brechos = Brecho::withCount(['items', 'lives', 'users'])->with('users')->orderBy('id', 'asc')->get();
 
         return view('admin.brechos.index', compact('brechos'));
     }
@@ -64,5 +64,29 @@ class BrechoController extends Controller
         $brecho->update($validated);
 
         return redirect()->back()->with('success', "Brechó '{$brecho->nome}' atualizado com sucesso!");
+    }
+
+    public function createOperator(Request $request, Brecho $brecho)
+    {
+        abort_if(!auth()->user() || auth()->user()->role !== 'admin_master', 403, 'Acesso restrito ao Master.');
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:6',
+            'whatsapp' => 'nullable|string|max:20',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'whatsapp' => $validated['whatsapp'] ?? null,
+            'role' => 'brecho_admin',
+            'brecho_id' => $brecho->id,
+            'is_admin' => 0,
+        ]);
+
+        return redirect()->back()->with('success', "Usuário '{$user->name}' ({$user->email}) criado com sucesso para o brechó '{$brecho->nome}'!");
     }
 }

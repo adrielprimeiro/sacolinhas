@@ -25,11 +25,19 @@ class DashboardController extends Controller
                     round($itensEstoque->sum('preco') / $itensEstoque->count(), 2) : 0
             ];
 
+            $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+            $brechoId = $isParceiro ? auth()->user()->brecho_id : null;
+
             // Locais Físicos do Estoque (Agrupados por localizacao)
-            $locaisEstoque = DB::table('items')
+            $locaisQuery = DB::table('items')
                 ->whereNotNull('localizacao')
-                ->where('localizacao', '!=', '')
-                ->select(
+                ->where('localizacao', '!=', '');
+
+            if ($brechoId) {
+                $locaisQuery->where('brecho_id', $brechoId);
+            }
+
+            $locaisEstoque = $locaisQuery->select(
                     'localizacao',
                     DB::raw('COUNT(*) as qtd_pecas'),
                     DB::raw('SUM(preco) as valor_total_venda')
@@ -60,9 +68,12 @@ class DashboardController extends Controller
             $inicioMes = Carbon::now()->startOfMonth()->toDateTimeString();
             $fimMes    = Carbon::now()->endOfMonth()->toDateTimeString();
 
-            $entradasMesAvaliacao = (int) DB::table('avaliacao_items')
-                ->whereBetween('created_at', [$inicioMes, $fimMes])
-                ->count();
+            $entradasMesAvaliacao = 0;
+            if (!$isParceiro) {
+                $entradasMesAvaliacao = (int) DB::table('avaliacao_items')
+                    ->whereBetween('created_at', [$inicioMes, $fimMes])
+                    ->count();
+            }
 
             if ($entradasMesAvaliacao === 0) {
                 $entradasMesAvaliacao = (int) Item::whereBetween('created_at', [$inicioMes, $fimMes])->count();
@@ -72,33 +83,39 @@ class DashboardController extends Controller
                 ->whereBetween('updated_at', [$inicioMes, $fimMes])
                 ->count();
 
-            $sacolasVendidasMes = (int) DB::table('sacolinhas')
+            $sacolasVendidasQuery = DB::table('sacolinhas')
                 ->whereIn('status', ['pedido', 'vendido', 'fechado'])
-                ->whereBetween('updated_at', [$inicioMes, $fimMes])
-                ->sum('quantity');
+                ->whereBetween('updated_at', [$inicioMes, $fimMes]);
+
+            if ($brechoId) {
+                $sacolasVendidasQuery->where('brecho_id', $brechoId);
+            }
+
+            $sacolasVendidasMes = (int) $sacolasVendidasQuery->sum('quantity');
 
             $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
 
             $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
 
-            // Faturamento por Clientes do Clube vs Outros no Mês Vigente (Membros em clube_assinaturas)
-            $clubeUserIds = DB::table('clube_assinaturas')
-                ->where('status', 'ativa')
-                ->pluck('user_id')
-                ->toArray();
+            // Faturamento por Clientes do Clube vs Outros no Mês Vigente
+            $clubeUserIds = [];
+            if (!$isParceiro) {
+                $clubeUserIds = DB::table('clube_assinaturas')
+                    ->where('status', 'ativa')
+                    ->pluck('user_id')
+                    ->toArray();
+            }
 
-            $fatClubeMes = (float) DB::table('pedidos')
+            $pedidosBase = DB::table('pedidos')
                 ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
-                ->whereBetween('created_at', [$inicioMes, $fimMes])
-                ->whereIn('user_id', $clubeUserIds)
-                ->sum('valor_total');
+                ->whereBetween('created_at', [$inicioMes, $fimMes]);
 
-            $fatOutrosMes = (float) DB::table('pedidos')
-                ->whereNotIn('status_pedido', ['cancelado', 'rascunho'])
-                ->whereBetween('created_at', [$inicioMes, $fimMes])
-                ->whereNotIn('user_id', $clubeUserIds)
-                ->sum('valor_total');
+            if ($brechoId) {
+                $pedidosBase->where('brecho_id', $brechoId);
+            }
 
+            $fatClubeMes = !empty($clubeUserIds) ? (float) (clone $pedidosBase)->whereIn('user_id', $clubeUserIds)->sum('valor_total') : 0.0;
+            $fatOutrosMes = (float) (clone $pedidosBase)->when(!empty($clubeUserIds), fn($q) => $q->whereNotIn('user_id', $clubeUserIds))->sum('valor_total');
             $fatTotalMes = $fatClubeMes + $fatOutrosMes;
 
             $pctClube  = $fatTotalMes > 0 ? round(($fatClubeMes / $fatTotalMes) * 100, 1) : 0.0;

@@ -38,10 +38,13 @@ class CheckAdmin
                 return redirect()->route('login')->with('error', 'Acesso suspenso. Este brechó está inativo.');
             }
 
-            // Bloqueia acesso ao módulo Financeiro, DRE, Bancos e Usuários do sistema
+            // Bloqueia acesso ao módulo Financeiro, DRE, Bancos, Equipe e Configuração de Brechós
             if ($request->is('admin/financeiro*') || 
                 $request->is('financeiro*') || 
                 $request->is('admin/users*') || 
+                $request->is('admin/equipe*') || 
+                $request->is('admin/brechos*') || 
+                $request->is('admin/knowledge-base*') || 
                 $request->is('classificacao_financeira*')) {
                 abort(403, 'Acesso restrito à administração da Matriz.');
             }

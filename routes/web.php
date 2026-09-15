@@ -875,6 +875,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'index'])->name('brechos.index');
     Route::post('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'store'])->name('brechos.store');
     Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
+    Route::post('brechos/{brecho}/operador', [\App\Http\Controllers\Admin\BrechoController::class, 'createOperator'])->name('brechos.createOperator');
 
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');
