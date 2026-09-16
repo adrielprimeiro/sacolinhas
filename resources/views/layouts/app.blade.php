@@ -99,9 +99,9 @@
 				</a>
 
                 {{-- 2. Comercial & Captação --}}
-                <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*') ? 'true' : 'false' }} }">
+                <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.vencimentos*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.vencimentos*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-shopping-cart w-5 text-center text-indigo-500"></i>
                             <span>Comercial & Captação</span>
@@ -117,6 +117,9 @@
                         </a>
                         <a href="{{ route('admin.sacolinha.gestao') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinha.gestao', 'admin.sacolinha.show') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-user-tag mr-1.5 text-indigo-400"></i> Sacolas por Cliente
+                        </a>
+                        <a href="{{ route('admin.vencimentos') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-red-600 hover:bg-white {{ request()->routeIs('admin.vencimentos*') ? 'font-bold text-red-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-triangle-exclamation mr-1.5 text-red-500"></i> Sacolas Vencidas
                         </a>
                         <a href="{{ route('admin.sacolinhas.qrcode.scanner') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-qrcode mr-1.5 text-indigo-400"></i> Bipar Sacolinha
