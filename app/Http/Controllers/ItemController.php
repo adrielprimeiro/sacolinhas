@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use App\Models\ItemMedia;
+use App\Models\Categoria;
+use App\Models\Marca;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -86,17 +88,143 @@ class ItemController extends Controller
 
     public function create()
     {
-        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
-            ->with($this->categoryTreeWith())
-            ->orderBy('name')
-            ->get();
-        return view('admin.items.create', compact('treeCategories'));
+        $categorias = $this->getTreeCategoriesList();
+        $marcas = Marca::orderBy('total_registros', 'desc')
+            ->orderBy('nome')
+            ->pluck('nome')
+            ->filter()
+            ->unique()
+            ->values();
+        $brechoId = auth()->user()->brecho_id ?? 1;
+        $proximoCodigo = self::generateNextCodigo($brechoId);
+
+        return view('admin.items.create', compact('categorias', 'marcas', 'proximoCodigo'));
+    }
+
+    public static function generateNextCodigo($brechoId = 1)
+    {
+        $lastItem = Item::where('brecho_id', $brechoId)
+            ->whereRaw('LENGTH(codigo) = 4')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if ($lastItem && ctype_alnum($lastItem->codigo)) {
+            $dec = base_convert($lastItem->codigo, 36, 10);
+            do {
+                $dec++;
+                $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+            } while (Item::where('brecho_id', $brechoId)->where('codigo', $candidate)->exists());
+
+            return $candidate;
+        }
+
+        $count = Item::where('brecho_id', $brechoId)->count();
+        $dec = $count + 1;
+        do {
+            $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+            $dec++;
+        } while (Item::where('brecho_id', $brechoId)->where('codigo', $candidate)->exists());
+
+        return $candidate;
+    }
+
+    private function getTreeCategoriesList(): array
+    {
+        $categorias = [];
+        $buildTreeList = function($cats, $level = 0, $path = '') use (&$buildTreeList, &$categorias) {
+            foreach ($cats as $cat) {
+                $indent = str_repeat("\u{00A0}\u{00A0}\u{00A0}\u{00A0}", $level);
+                $prefix = $level > 0 ? '↳ ' : '';
+                $currentPath = $path ? $path . ' › ' . $cat->name : $cat->name;
+                
+                $categorias[] = [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'formatted_name' => $indent . $prefix . $cat->name,
+                    'path' => $currentPath,
+                    'preco_base' => (float) $cat->preco_base,
+                ];
+                
+                if ($cat->children && $cat->children->isNotEmpty()) {
+                    $buildTreeList($cat->children, $level + 1, $currentPath);
+                }
+            }
+        };
+
+        $rootCats = Categoria::whereNull('parent_id')->with('children')->orderBy('name')->get();
+        $buildTreeList($rootCats);
+
+        return $categorias;
     }
 
     public function store(Request $request)
     {
         $brechoId = auth()->user()->brecho_id ?? 1;
 
+        // Suporte para inserção rápida em lote (tabela no estilo avaliações)
+        if ($request->has('items_json') || $request->has('items')) {
+            $itemsData = $request->has('items_json') 
+                ? json_decode($request->input('items_json'), true) 
+                : $request->input('items');
+
+            if (!is_array($itemsData)) {
+                return redirect()->back()->with('error', 'Formato inválido de itens enviado.');
+            }
+
+            // Filtrar apenas itens preenchidos
+            $validItems = array_filter($itemsData, function ($i) {
+                return !empty($i['nome']) && trim($i['nome']) !== '';
+            });
+
+            if (empty($validItems)) {
+                return redirect()->back()->with('error', 'Preencha pelo menos um item para cadastrar.');
+            }
+
+            $createdCount = 0;
+            DB::beginTransaction();
+            try {
+                foreach ($validItems as $i) {
+                    $codigo = !empty($i['codigo']) ? trim($i['codigo']) : self::generateNextCodigo($brechoId);
+
+                    // Garante que o código é único para o brechó
+                    if (Item::where('brecho_id', $brechoId)->where('codigo', $codigo)->exists()) {
+                        $codigo = self::generateNextCodigo($brechoId);
+                    }
+
+                    $preco = isset($i['preco']) ? (float) str_replace(',', '.', $i['preco']) : 0.00;
+                    $estado = !empty($i['estado']) ? $i['estado'] : 'Seminovo';
+
+                    $item = Item::create([
+                        'brecho_id'           => $brechoId,
+                        'codigo'              => $codigo,
+                        'nome_do_produto'     => trim($i['nome']),
+                        'marca'               => !empty($i['marca']) ? trim($i['marca']) : null,
+                        'estado'              => $estado,
+                        'cor'                 => !empty($i['cor']) ? trim($i['cor']) : null,
+                        'tamanho'             => !empty($i['tamanho']) ? trim($i['tamanho']) : null,
+                        'preco'               => $preco,
+                        'custo'               => 0.00,
+                        'codigo_da_categoria' => !empty($i['categoria_id']) ? $i['categoria_id'] : null,
+                        'status'              => 'disponivel',
+                    ]);
+
+                    if (!empty($i['categoria_id'])) {
+                        $item->categorias()->sync([$i['categoria_id']]);
+                    }
+
+                    $createdCount++;
+                }
+
+                DB::commit();
+                return redirect()->route('items.index')->with('success', "{$createdCount} item(ns) cadastrado(s) com sucesso no estoque!");
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Erro ao cadastrar itens em lote: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'Erro ao cadastrar itens: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback unitário legado
         $validated = $request->validate([
             'codigo' => [
                 'required',
@@ -110,7 +238,7 @@ class ItemController extends Controller
             'codigo_da_categoria' => 'nullable|string',
             'marca' => 'nullable|string',
             'modelo' => 'nullable|string',
-            'estado' => 'required|in:novo,usado,semi-novo,recondicionado',
+            'estado' => 'required|string',
             'cor' => 'nullable|string',
             'tamanho' => 'nullable|string',
             'pedido' => 'nullable|string',

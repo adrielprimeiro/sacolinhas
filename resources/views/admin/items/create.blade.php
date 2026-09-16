@@ -1,156 +1,488 @@
 @extends('layouts.app')
 
-@section('title', 'Criar Novo Item')
+@section('title', 'Cadastrar Itens no Estoque')
+@section('brand_route', 'items.index')
+@section('brand_icon', 'fas fa-box')
 
 @section('content')
-<div class="flex justify-between items-start mb-6">
-  <div>
-    <h1 class="text-3xl font-semibold text-gray-800">Criar Novo Item</h1>
-    <nav class="mt-2 text-sm text-gray-500">
-      <a href="{{ route('items.index') }}" class="hover:text-blue-600">Itens</a>
-      <span class="mx-2">/</span>
-      <span class="text-gray-700">Novo</span>
-    </nav>
-  </div>
-  <a href="{{ route('items.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition">
-    <i class="fas fa-arrow-left mr-2"></i> Voltar para a Lista
-  </a>
+<div class="space-y-6" x-data="itemBatchForm()">
+
+    {{-- Top Header --}}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <div>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 shadow-xs">
+                    <i class="fas fa-plus-circle text-lg"></i>
+                </span>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 leading-tight">Cadastrar Itens no Estoque</h1>
+                    <p class="text-sm text-gray-500">
+                        Inserção rápida e prática de peças no estoque com busca automática de classificação
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+            <a href="{{ route('items.index') }}"
+               class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium transition duration-150">
+                <i class="fas fa-arrow-left text-gray-500"></i>
+                <span>Voltar para Itens</span>
+            </a>
+        </div>
+    </div>
+
+    @if (isset($errors) && $errors->any())
+        <div class="bg-red-100 border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-xs">
+            <div class="font-semibold flex items-center gap-2 mb-1">
+                <i class="fas fa-exclamation-triangle"></i> Atenção:
+            </div>
+            <ul class="list-disc pl-5 text-sm space-y-0.5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Datalist de Marcas existentes --}}
+    <datalist id="marcas-list">
+        @foreach($marcas as $marcaNome)
+            <option value="{{ $marcaNome }}">
+        @endforeach
+    </datalist>
+
+    <form method="POST" action="{{ route('items.store') }}" @submit="onSubmit($event)" id="items-form">
+        @csrf
+
+        {{-- Container da Tabela de Inserção Rápida --}}
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-gray-50/80 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-tshirt text-indigo-600 text-base"></i>
+                    <h2 class="text-base font-bold text-gray-900">Peças para Cadastro</h2>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200"
+                          x-text="items.length + (items.length === 1 ? ' peça' : ' peças')"></span>
+                </div>
+
+                <div class="flex items-center gap-3 text-xs text-gray-500">
+                    <span class="inline-flex items-center gap-1">
+                        <i class="fas fa-keyboard text-gray-400"></i> Dica: Pressione <strong>Enter</strong> no preço para abrir nova linha
+                    </span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto pb-44">
+                <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 text-gray-600 text-[11px] uppercase font-bold tracking-wider">
+                        <tr>
+                            <th class="px-3 py-3 text-left" style="width: 32%;">Categoria / Nome</th>
+                            <th class="px-2 py-3 text-left" style="width: 20%;">Marca</th>
+                            <th class="px-2 py-3 text-center" style="width: 14%;">Conserv.</th>
+                            <th class="px-2 py-3 text-center" style="width: 16%;">Cor / Tam</th>
+                            <th class="px-2 py-3 text-right pr-3" style="width: 13%;">Preço Venda</th>
+                            <th class="px-2 py-3 text-center" style="width: 5%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="(item, index) in items" :key="index">
+                            <tr class="hover:bg-indigo-50/30 transition-colors">
+                                {{-- 1. Categoria / Nome / Código --}}
+                                <td class="px-3 py-2.5 align-top">
+                                    <div class="relative mb-1.5" @click.away="item.showCatDropdown = false">
+                                        <!-- Busca de Categoria -->
+                                        <div class="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="Pesquisar categoria..."
+                                                x-model="item.catSearch"
+                                                @focus="item.showCatDropdown = true; item.activeCatIndex = 0; $el.select();"
+                                                @input="item.showCatDropdown = true; item.categoria_id = ''; item.activeCatIndex = 0;"
+                                                @keydown.arrow-down.prevent="item.activeCatIndex = Math.min((getFilteredCategorias(item).length || 1) - 1, (item.activeCatIndex ?? 0) + 1)"
+                                                @keydown.arrow-up.prevent="item.activeCatIndex = Math.max(0, (item.activeCatIndex ?? 0) - 1)"
+                                                @keydown.enter.prevent="if (item.showCatDropdown && getFilteredCategorias(item).length > 0) { selectCategory(item, getFilteredCategorias(item)[item.activeCatIndex ?? 0], index); }"
+                                                class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 pl-2.5 pr-7 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+                                                autocomplete="off"
+                                            >
+                                            <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none text-gray-400">
+                                                <i class="fas fa-search text-[10px]"></i>
+                                            </div>
+                                        </div>
+
+                                        <!-- ID oculto -->
+                                        <input type="hidden" :value="item.categoria_id">
+
+                                        <!-- Dropdown de Categorias -->
+                                        <div
+                                            x-show="item.showCatDropdown"
+                                            x-cloak
+                                            class="absolute z-40 mt-1 w-full bg-white shadow-xl max-h-56 rounded-lg py-1 text-xs ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none border border-gray-200"
+                                        >
+                                            <template x-for="(cat, catIdx) in getFilteredCategorias(item)" :key="cat.id">
+                                                <button
+                                                    type="button"
+                                                    @click="selectCategory(item, cat, index)"
+                                                    :class="item.activeCatIndex === catIdx ? 'bg-indigo-50 text-indigo-900 font-semibold' : 'text-gray-900'"
+                                                    class="w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 transition-colors border-b border-gray-100 flex justify-between items-center gap-2"
+                                                >
+                                                    <span class="text-gray-700" x-html="item.catSearch ? cat.path : cat.formatted_name"></span>
+                                                    <span class="text-[10px] text-gray-400 font-medium whitespace-nowrap"
+                                                          x-show="cat.preco_base > 0"
+                                                          x-text="`R$ ${parseFloat(cat.preco_base).toFixed(2)}`"></span>
+                                                </button>
+                                            </template>
+                                            <div x-show="getFilteredCategorias(item).length === 0" class="px-3 py-2.5 text-gray-400 text-center font-medium">
+                                                Nenhuma categoria encontrada
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Nome customizado do Item -->
+                                    <div class="flex items-center gap-1.5">
+                                        <input
+                                            type="text"
+                                            :id="`item-nome-${index}`"
+                                            x-model="item.nome"
+                                            required
+                                            placeholder="Nome / Descrição da peça..."
+                                            @keydown.enter.prevent="document.getElementById(`item-marca-${index}`)?.focus()"
+                                            @blur="item.nome = capitalizeWords(item.nome)"
+                                            class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-medium"
+                                        >
+
+                                        <!-- Código / SKU opcional ou auto-gerado -->
+                                        <input
+                                            type="text"
+                                            x-model="item.codigo"
+                                            :placeholder="item.codigoAuto || 'Cód...'"
+                                            class="w-24 border border-gray-200 bg-gray-50/50 rounded-lg shadow-xs py-1.5 px-2 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-[11px] text-gray-700"
+                                            title="Código / SKU (opcional, gerado automaticamente se vazio)"
+                                        >
+                                    </div>
+                                </td>
+
+                                {{-- 2. Marca (Campo 100% Editável) --}}
+                                <td class="px-2 py-2.5 align-top">
+                                    <input
+                                        type="text"
+                                        :id="`item-marca-${index}`"
+                                        x-model="item.marca"
+                                        list="marcas-list"
+                                        placeholder="Digite ou selecione a marca..."
+                                        @keydown.enter.prevent="document.getElementById(`item-estado-${index}`)?.focus()"
+                                        @blur="item.marca = capitalizeWords(item.marca)"
+                                        class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+                                        autocomplete="off"
+                                    >
+                                </td>
+
+                                {{-- 3. Conservação --}}
+                                <td class="px-2 py-2.5 align-top text-center">
+                                    <select
+                                        :id="`item-estado-${index}`"
+                                        x-model="item.estado"
+                                        class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs text-center bg-white"
+                                    >
+                                        <option value="Seminovo">Seminovo</option>
+                                        <option value="Usado">Usado</option>
+                                        <option value="Novo">Novo</option>
+                                    </select>
+                                </td>
+
+                                {{-- 4. Cor / Tam --}}
+                                <td class="px-2 py-2.5 align-top">
+                                    <div class="space-y-1.5">
+                                        <input
+                                            type="text"
+                                            x-model="item.cor"
+                                            placeholder="Cor (ex: Azul)"
+                                            @blur="item.cor = capitalizeWords(item.cor)"
+                                            class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+                                        >
+                                        <input
+                                            type="text"
+                                            x-model="item.tamanho"
+                                            placeholder="Tam (ex: M, 38)"
+                                            @blur="item.tamanho = (item.tamanho || '').toUpperCase().trim()"
+                                            class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+                                        >
+                                    </div>
+                                </td>
+
+                                {{-- 5. Preço de Venda (Editável) --}}
+                                <td class="px-2 py-2.5 align-top text-right pr-3">
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-xs font-bold text-gray-500 pointer-events-none">
+                                            R$
+                                        </span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            :id="`item-preco-${index}`"
+                                            x-model="item.preco"
+                                            required
+                                            placeholder="0,00"
+                                            @keydown.enter.prevent="onPrecoEnter(index)"
+                                            class="block w-full pl-8 pr-2.5 py-1.5 text-right font-bold text-gray-900 border border-gray-300 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+                                        >
+                                    </div>
+                                </td>
+
+                                {{-- 6. Ações --}}
+                                <td class="px-2 py-2.5 text-center align-top whitespace-nowrap">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button
+                                            type="button"
+                                            @click="duplicateItem(index)"
+                                            title="Duplicar peça"
+                                            class="w-7 h-7 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 transition inline-flex items-center justify-center"
+                                        >
+                                            <i class="far fa-copy text-xs"></i>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="removeItem(index)"
+                                            title="Remover peça"
+                                            class="w-7 h-7 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition inline-flex items-center justify-center"
+                                            x-show="items.length > 1"
+                                        >
+                                            <i class="far fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-gray-50/75 border-t border-gray-200">
+                            <td colspan="3" class="px-4 py-3">
+                                <button
+                                    type="button"
+                                    @click="addItem(true)"
+                                    id="btn-add-item"
+                                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-xs font-bold transition duration-150 shadow-xs"
+                                >
+                                    <i class="fas fa-plus"></i>
+                                    <span>Adicionar Outra Peça</span>
+                                </button>
+                            </td>
+                            <td colspan="3" class="px-4 py-3 text-right">
+                                <div class="inline-flex items-center gap-4 text-xs">
+                                    <span class="text-gray-600">
+                                        Total de Peças: <strong class="text-gray-900 text-sm font-bold" x-text="items.length"></strong>
+                                    </span>
+                                    <span class="text-gray-600">
+                                        Valor Total: <strong class="text-emerald-700 text-sm font-black" x-text="formatCurrency(totalVenda)"></strong>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {{-- Bottom Actions --}}
+        <div class="flex items-center justify-end gap-3 pt-2">
+            <a href="{{ route('items.index') }}"
+               class="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition duration-150">
+                Cancelar
+            </a>
+            <button
+                type="submit"
+                :disabled="isSaving"
+                class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-sm transition duration-150 disabled:opacity-50"
+            >
+                <i class="fas fa-save" x-show="!isSaving"></i>
+                <i class="fas fa-spinner fa-spin" x-show="isSaving"></i>
+                <span x-text="isSaving ? 'Salvando...' : 'Salvar Itens no Estoque'"></span>
+            </button>
+        </div>
+    </form>
+
 </div>
 
-@if ($errors->any())
-  <div class="mb-4 bg-red-100 border border-red-200 text-red-800 px-4 py-3 rounded">
-    <div class="font-semibold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i> Corrija os erros abaixo:</div>
-    <ul class="list-disc pl-5">
-      @foreach ($errors->all() as $error)
-        <li>{{ $error }}</li>
-      @endforeach
-    </ul>
-  </div>
-@endif
+<script>
+function itemBatchForm() {
+    return {
+        categorias: @json($categorias ?? []),
+        proximoCodigoBase: '{{ $proximoCodigo ?? "0001" }}',
+        items: [],
+        isSaving: false,
 
-<form method="POST" action="{{ route('items.store') }}" enctype="multipart/form-data">
-  @csrf
+        init() {
+            this.addItem(false);
+        },
 
-  <div class="bg-white shadow-lg rounded-lg p-6 max-w-5xl">
-    {{-- Linha 1: Código + Nome --}}
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-      <div class="md:col-span-4">
-        <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Código *</label>
-        <input type="text" id="codigo" name="codigo" value="{{ old('codigo') }}" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('codigo') border-red-400 @enderror"
-               placeholder="Ex: SKU12345" />
-        @error('codigo')
-          <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-        @enderror
-      </div>
+        get totalVenda() {
+            return this.items.reduce((sum, item) => sum + (parseFloat(item.preco) || 0), 0);
+        },
 
-      <div class="md:col-span-8">
-        <label for="nome_do_produto" class="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
-        <input type="text" id="nome_do_produto" name="nome_do_produto" value="{{ old('nome_do_produto') }}" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('nome_do_produto') border-red-400 @enderror"
-               placeholder="Ex: Nome do Produto" />
-        @error('nome_do_produto')
-          <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-        @enderror
-      </div>
-    </div>
+        addItem(focusNew = false) {
+            const nextIdx = this.items.length;
+            this.items.push({
+                categoria_id: '',
+                catSearch: '',
+                showCatDropdown: false,
+                activeCatIndex: 0,
+                nome: '',
+                codigo: '',
+                codigoAuto: this.calculateNextCode(nextIdx),
+                marca: '',
+                estado: 'Seminovo',
+                cor: '',
+                tamanho: '',
+                preco: ''
+            });
 
-    {{-- Descrição --}}
-    <div class="mt-4">
-      <label for="descricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-      <textarea id="descricao" name="descricao" rows="3"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('descricao') border-red-400 @enderror"
-                placeholder="Descreva o item...">{{ old('descricao') }}</textarea>
-      @error('descricao')
-        <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-      @enderror
-    </div>
+            if (focusNew) {
+                this.$nextTick(() => {
+                    const inputs = document.querySelectorAll('input[placeholder="Pesquisar categoria..."]');
+                    if (inputs && inputs.length > 0) {
+                        inputs[inputs.length - 1].focus();
+                    }
+                });
+            }
+        },
 
-    {{-- Linha 2: Custo + Preço + Categoria --}}
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
-      <div class="md:col-span-4">
-        <label for="custo" class="block text-sm font-medium text-gray-700 mb-1">Custo (R$)</label>
-        <input type="number" id="custo" name="custo" value="{{ old('custo') }}" step="0.01" min="0"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('custo') border-red-400 @enderror" />
-        @error('custo')
-          <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-        @enderror
-      </div>
+        calculateNextCode(offset) {
+            try {
+                const baseDec = parseInt(this.proximoCodigoBase, 36);
+                if (isNaN(baseDec)) return '';
+                const nextDec = baseDec + offset;
+                return nextDec.toString(36).toUpperCase().padStart(4, '0');
+            } catch (e) {
+                return '';
+            }
+        },
 
-      <div class="md:col-span-4">
-        <label for="preco" class="block text-sm font-medium text-gray-700 mb-1">Preço (R$) *</label>
-        <input type="number" id="preco" name="preco" value="{{ old('preco') }}" step="0.01" min="0.01" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('preco') border-red-400 @enderror"
-               placeholder="0,00" />
-        @error('preco')
-          <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-        @enderror
-      </div>
+        duplicateItem(index) {
+            const original = this.items[index];
+            const duplicate = JSON.parse(JSON.stringify(original));
+            duplicate.codigo = '';
+            duplicate.codigoAuto = this.calculateNextCode(this.items.length);
+            this.items.splice(index + 1, 0, duplicate);
+        },
 
-      <div class="md:col-span-4">
-        <label for="codigo_da_categoria" class="block text-sm font-medium text-gray-700 mb-1">Código da Categoria (Legacy)</label>
-        <input type="text" id="codigo_da_categoria" name="codigo_da_categoria" value="{{ old('codigo_da_categoria') }}"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-               placeholder="Ex: CATEGORIA123" />
-      </div>
-    </div>
+        removeItem(index) {
+            if (this.items.length > 1) {
+                this.items.splice(index, 1);
+            }
+        },
 
-    {{-- Categorias Novo Sistema --}}
-    @include('admin.items.partials.categories')
+        getFilteredCategorias(item) {
+            const query = (item.catSearch || '').toLowerCase().trim();
+            if (!query) {
+                return this.categorias;
+            }
+            return this.categorias.filter(c => 
+                (c.name && c.name.toLowerCase().includes(query)) ||
+                (c.path && c.path.toLowerCase().includes(query))
+            );
+        },
 
-    {{-- Linha 3: Marca + Modelo + Estado --}}
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
-      <div class="md:col-span-4">
-        <label for="marca" class="block text-sm font-medium text-gray-700 mb-1">Marca</label>
-        <input type="text" id="marca" name="marca" value="{{ old('marca') }}"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
+        selectCategory(item, cat, index) {
+            item.categoria_id = cat.id;
+            item.catSearch = cat.name;
+            if (!item.nome || item.nome.trim() === '') {
+                item.nome = this.capitalizeWords(this.singularizePortuguese(cat.name));
+            }
+            if (!item.preco || parseFloat(item.preco) === 0) {
+                if (cat.preco_base && parseFloat(cat.preco_base) > 0) {
+                    item.preco = parseFloat(cat.preco_base).toFixed(2);
+                }
+            }
+            item.showCatDropdown = false;
 
-      <div class="md:col-span-4">
-        <label for="modelo" class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
-        <input type="text" id="modelo" name="modelo" value="{{ old('modelo') }}"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
+            this.$nextTick(() => {
+                const nomeInput = document.getElementById(`item-nome-${index}`);
+                if (nomeInput) {
+                    nomeInput.focus();
+                }
+            });
+        },
 
-      <div class="md:col-span-4">
-        <label for="estado" class="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
-        <select id="estado" name="estado" required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="novo" {{ old('estado') == 'novo' ? 'selected' : '' }}>Novo</option>
-          <option value="usado" {{ old('estado') == 'usado' ? 'selected' : '' }}>Usado</option>
-          <option value="semi-novo" {{ old('estado') == 'semi-novo' ? 'selected' : '' }}>Semi-novo</option>
-          <option value="recondicionado" {{ old('estado') == 'recondicionado' ? 'selected' : '' }}>Recondicionado</option>
-        </select>
-      </div>
-    </div>
+        onPrecoEnter(index) {
+            if (index === this.items.length - 1) {
+                this.addItem(true);
+            } else {
+                const nextCatInput = document.querySelectorAll('input[placeholder="Pesquisar categoria..."]')[index + 1];
+                if (nextCatInput) {
+                    nextCatInput.focus();
+                }
+            }
+        },
 
-    {{-- Linha 4: Status + Imagem --}}
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
-      <div class="md:col-span-6">
-        <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
-        <select id="status" name="status" required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="disponivel" {{ old('status') == 'disponivel' ? 'selected' : '' }}>Disponível</option>
-          <option value="reservado" {{ old('status') == 'reservado' ? 'selected' : '' }}>Reservado</option>
-          <option value="vendido" {{ old('status') == 'vendido' ? 'selected' : '' }}>Vendido</option>
-          <option value="indisponivel" {{ old('status') == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
-        </select>
-      </div>
-      <div class="md:col-span-6">
-        <label for="image" class="block text-sm font-medium text-gray-700 mb-1">Imagem de Capa</label>
-        <input type="file" id="image" name="image" accept="image/*"
-               class="w-full border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-    </div>
+        capitalizeWords(str) {
+            if (!str) return '';
+            const prepositions = ['de', 'da', 'do', 'dos', 'das', 'com', 'em', 'para', 'e'];
+            return str.toString().trim().split(/\s+/).map(w => {
+                let lower = w.toLowerCase();
+                if (prepositions.includes(lower)) return lower;
+                return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+            }).join(' ');
+        },
 
-    <div class="mt-8 flex justify-end border-t border-gray-200 pt-6">
-      <a href="{{ route('items.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-md transition mr-3">
-        Cancelar
-      </a>
-      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition">
-        <i class="fas fa-save mr-2"></i> Criar Item
-      </button>
-    </div>
-  </div>
-</form>
+        singularizePortuguese(phrase) {
+            if (!phrase) return '';
+            const words = phrase.trim().split(/\s+/);
+            const singularizedWords = words.map(w => {
+                const lower = w.toLowerCase();
+                const exceptions = ['tênis', 'óculos', 'lápis', 'pires', 'vírus', 'clube', 'status', 'jeans', 'grátis'];
+                if (exceptions.includes(lower)) return w;
+                if (lower.endsWith('ões')) return w.slice(0, -3) + 'ão';
+                if (lower.endsWith('éis')) return w.slice(0, -3) + 'el';
+                if (lower.endsWith('ais')) return w.slice(0, -3) + 'al';
+                if (lower.endsWith('eis')) return w.slice(0, -3) + 'el';
+                if (lower.endsWith('is')) {
+                    if (lower.endsWith('ntis')) return w.slice(0, -3) + 'il';
+                    if (lower.endsWith('uis')) return w.slice(0, -3) + 'ul';
+                    return w.slice(0, -1);
+                }
+                if (lower.endsWith('res')) return w.slice(0, -2);
+                if (lower.endsWith('s')) {
+                    if (lower.endsWith('ts') || lower.endsWith('ys')) return w.slice(0, -1);
+                    return w.slice(0, -1);
+                }
+                return w;
+            });
+            return singularizedWords.join(' ');
+        },
+
+        formatCurrency(value) {
+            return 'R$ ' + (parseFloat(value) || 0).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        },
+
+        onSubmit(event) {
+            const validItems = this.items.filter(item => item.nome && item.nome.trim() !== '');
+
+            if (validItems.length === 0) {
+                event.preventDefault();
+                alert('Por favor, informe pelo menos uma peça com nome preenchido.');
+                return;
+            }
+
+            for (let i = 0; i < validItems.length; i++) {
+                if (!validItems[i].preco || parseFloat(validItems[i].preco) < 0) {
+                    event.preventDefault();
+                    alert(`Por favor, preencha o Preço de Venda do item #${i + 1}.`);
+                    return;
+                }
+            }
+
+            this.isSaving = true;
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'items_json';
+            hidden.value = JSON.stringify(validItems);
+            event.target.appendChild(hidden);
+        }
+    };
+}
+</script>
 @endsection
