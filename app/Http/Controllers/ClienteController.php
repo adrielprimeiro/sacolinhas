@@ -390,8 +390,20 @@ class ClienteController extends Controller
         }
 
         try {
-            $clientes = Cliente::clientes()
-                             ->buscar($query) // ✅ USAR SCOPE
+            $queryBuilder = Cliente::clientes();
+
+            // Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                $brechoId = auth()->user()->brecho_id;
+                $queryBuilder->whereExists(function ($sub) use ($brechoId) {
+                    $sub->select(DB::raw(1))
+                        ->from('brecho_clientes')
+                        ->whereColumn('brecho_clientes.user_id', 'users.id')
+                        ->where('brecho_clientes.brecho_id', $brechoId);
+                });
+            }
+
+            $clientes = $queryBuilder->buscar($query) // ✅ USAR SCOPE
                              ->limit(10)
                              ->get([
                                 'id', 

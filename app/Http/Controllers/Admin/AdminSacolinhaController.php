@@ -55,6 +55,13 @@ class AdminSacolinhaController extends Controller
         $brechoId = null;
         if (auth()->check() && auth()->user()->isBrechoParceiro()) {
             $brechoId = auth()->user()->brecho_id;
+
+            $isClientOfBrecho = DB::table('brecho_clientes')
+                ->where('brecho_id', $brechoId)
+                ->where('user_id', $user->id)
+                ->exists();
+
+            abort_if(!$isClientOfBrecho, 403, 'Acesso restrito: este cliente não pertence ao seu brechó.');
         }
 
         // Verificar se tem itens com status 'Em Analise'
@@ -444,6 +451,13 @@ class AdminSacolinhaController extends Controller
         $brechoId = null;
         if (auth()->check() && auth()->user()->isBrechoParceiro()) {
             $brechoId = auth()->user()->brecho_id;
+
+            $isClientOfBrecho = DB::table('brecho_clientes')
+                ->where('brecho_id', $brechoId)
+                ->where('user_id', $user->id)
+                ->exists();
+
+            abort_if(!$isClientOfBrecho, 403, 'Acesso restrito: este cliente não pertence ao seu brechó.');
         }
 
         $itensQuery = DB::table('sacolinhas as s')

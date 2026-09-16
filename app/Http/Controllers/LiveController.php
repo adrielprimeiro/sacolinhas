@@ -574,8 +574,21 @@ class LiveController extends Controller
 				return response()->json(['success' => true, 'data' => []]);
 			}
 			
+			$usersQuery = User::where('role', $role);
+
+			// Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
+			if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+				$brechoId = auth()->user()->brecho_id;
+				$usersQuery->whereExists(function ($sub) use ($brechoId) {
+					$sub->select(DB::raw(1))
+						->from('brecho_clientes')
+						->whereColumn('brecho_clientes.user_id', 'users.id')
+						->where('brecho_clientes.brecho_id', $brechoId);
+				});
+			}
+
 			// ✅ BUSCA EM AMBOS OS CAMPOS (antigos e novos)
-			$users = User::where('role', $role)
+			$users = $usersQuery
 				->where(function($q) use ($query) {
 					$searchTerm = "%{$query}%";
 					
@@ -668,6 +681,17 @@ class LiveController extends Controller
                 'password' => bcrypt('temp123'),
                 'email_verified_at' => null,
             ]);
+
+            // Se for parceiro, vincula à loja
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                DB::table('brecho_clientes')->insertOrIgnore([
+                    'brecho_id' => auth()->user()->brecho_id,
+                    'user_id' => $user->id,
+                    'origem' => 'live_quick_create',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             Log::info("Novo cliente criado via busca rápida: {$user->name} (ID: {$user->id})");
 
