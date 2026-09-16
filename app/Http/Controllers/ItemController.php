@@ -95,35 +95,30 @@ class ItemController extends Controller
             ->filter()
             ->unique()
             ->values();
-        $brechoId = auth()->user()->brecho_id ?? 1;
-        $proximoCodigo = self::generateNextCodigo($brechoId);
+        $proximoCodigo = self::generateNextCodigo();
 
         return view('admin.items.create', compact('categorias', 'marcas', 'proximoCodigo'));
     }
 
-    public static function generateNextCodigo($brechoId = 1)
+    public static function generateNextCodigo(): string
     {
-        $lastItem = Item::where('brecho_id', $brechoId)
+        $lastItem = DB::table('items')
             ->whereRaw('LENGTH(codigo) = 4')
             ->orderBy('id', 'desc')
-            ->first();
+            ->first(['id', 'codigo']);
 
+        $dec = 13632; // '0AIO'
         if ($lastItem && ctype_alnum($lastItem->codigo)) {
-            $dec = base_convert($lastItem->codigo, 36, 10);
-            do {
-                $dec++;
-                $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
-            } while (Item::where('brecho_id', $brechoId)->where('codigo', $candidate)->exists());
-
-            return $candidate;
+            $parsed = base_convert($lastItem->codigo, 36, 10);
+            if ($parsed > 0) {
+                $dec = $parsed;
+            }
         }
 
-        $count = Item::where('brecho_id', $brechoId)->count();
-        $dec = $count + 1;
         do {
-            $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
             $dec++;
-        } while (Item::where('brecho_id', $brechoId)->where('codigo', $candidate)->exists());
+            $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+        } while (DB::table('items')->where('codigo', $candidate)->exists());
 
         return $candidate;
     }
@@ -184,11 +179,14 @@ class ItemController extends Controller
             DB::beginTransaction();
             try {
                 foreach ($validItems as $i) {
-                    $codigo = !empty($i['codigo']) ? trim($i['codigo']) : self::generateNextCodigo($brechoId);
+                    $codigo = !empty($i['codigo']) ? trim($i['codigo']) : '';
 
-                    // Garante que o código é único para o brechó
-                    if (Item::where('brecho_id', $brechoId)->where('codigo', $codigo)->exists()) {
-                        $codigo = self::generateNextCodigo($brechoId);
+                    if ($codigo !== '') {
+                        if (DB::table('items')->where('codigo', $codigo)->exists()) {
+                            throw new \Exception("O código '{$codigo}' já está em uso por outro item no estoque. Por favor, informe outro código ou deixe em branco para gerar automaticamente.");
+                        }
+                    } else {
+                        $codigo = self::generateNextCodigo();
                     }
 
                     $preco = isset($i['preco']) ? (float) str_replace(',', '.', $i['preco']) : 0.00;
@@ -229,7 +227,7 @@ class ItemController extends Controller
             'codigo' => [
                 'required',
                 'string',
-                \Illuminate\Validation\Rule::unique('items', 'codigo')->where(fn ($query) => $query->where('brecho_id', $brechoId)),
+                \Illuminate\Validation\Rule::unique('items', 'codigo'),
             ],
             'nome_do_produto' => 'required|string|max:255',
             'descricao' => 'nullable|string',
