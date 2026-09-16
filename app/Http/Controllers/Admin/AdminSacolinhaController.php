@@ -27,6 +27,15 @@ class AdminSacolinhaController extends Controller
                 DB::raw('COUNT(s.item_id) as total_itens')
             ]);
 
+        // Isolamento de dados por brechó parceiro
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $query->where('s.brecho_id', auth()->user()->brecho_id);
+        } elseif (auth()->check() && auth()->user()->role !== 'admin_master') {
+            $query->where(function($q) {
+                $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
+            });
+        }
+
         if ($request->filled('user_id')) {
             $query->where('u.id', $request->user_id);
         } elseif ($request->filled('cliente')) {
@@ -43,17 +52,28 @@ class AdminSacolinhaController extends Controller
 
     public function show(User $user)
     {
+        $brechoId = null;
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $brechoId = auth()->user()->brecho_id;
+        }
+
         // Verificar se tem itens com status 'Em Analise'
-        $temEmAnalise = DB::table('sacolinhas')
+        $temEmAnaliseQuery = DB::table('sacolinhas')
             ->where('user_id', $user->id)
-            ->where('status', 'em analise')
-            ->exists();
+            ->where('status', 'em analise');
+        if ($brechoId) {
+            $temEmAnaliseQuery->where('brecho_id', $brechoId);
+        }
+        $temEmAnalise = $temEmAnaliseQuery->exists();
 
         // Calcular total dos itens em análise
-        $totalItensEmAnalise = DB::table('sacolinhas')
+        $totalItensEmAnaliseQuery = DB::table('sacolinhas')
             ->where('user_id', $user->id)
-            ->where('status', 'em analise')
-            ->sum('price');
+            ->where('status', 'em analise');
+        if ($brechoId) {
+            $totalItensEmAnaliseQuery->where('brecho_id', $brechoId);
+        }
+        $totalItensEmAnalise = $totalItensEmAnaliseQuery->sum('price');
 
         $excedente = $totalItensEmAnalise;
 
@@ -76,11 +96,16 @@ class AdminSacolinhaController extends Controller
         $disponivelUI = max(0, $valorLimite + $valorPago - $utilizado);
 
         // Buscar itens da sacolinha
-        $itens = DB::table('sacolinhas as s')
+        $itensQuery = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
             ->where('s.user_id', $user->id)
-            ->where('s.status', '!=', 'pedido')
-            ->orderBy('s.add_at', 'asc')
+            ->where('s.status', '!=', 'pedido');
+
+        if ($brechoId) {
+            $itensQuery->where('s.brecho_id', $brechoId);
+        }
+
+        $itens = $itensQuery->orderBy('s.add_at', 'asc')
             ->select([
                 's.id as sacolinha_id',
                 's.item_id',
@@ -148,8 +173,9 @@ class AdminSacolinhaController extends Controller
         ]);
 
         $item = Item::findOrFail($validated['item_id']);
+        $brechoId = auth()->check() && auth()->user()->brecho_id ? auth()->user()->brecho_id : 1;
 
-        DB::transaction(function () use ($validated, $item) {
+        DB::transaction(function () use ($validated, $item, $brechoId) {
             $sacolinha = Sacolinhas::updateOrCreate(
                 [
                     'user_id' => $validated['user_id'],
@@ -161,9 +187,20 @@ class AdminSacolinhaController extends Controller
                     'add_at' => now(),
                     'obs' => $validated['obs'] ?? null,
                     'quantity' => 1,
-                    'status' => 'live' // Status padrão admin
+                    'status' => 'live', // Status padrão admin
+                    'brecho_id' => $brechoId,
                 ]
             );
+
+            // Vincula cliente ao brechó parceiro
+            if ($brechoId > 1) {
+                DB::table('brecho_clientes')->insertOrIgnore([
+                    'brecho_id' => $brechoId,
+                    'user_id' => $validated['user_id'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             // Atualiza status do item
             $item->update(['status' => 'sacolinha']);
@@ -404,11 +441,21 @@ class AdminSacolinhaController extends Controller
 
     public function pdf(User $user)
     {
-        $itens = DB::table('sacolinhas as s')
+        $brechoId = null;
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $brechoId = auth()->user()->brecho_id;
+        }
+
+        $itensQuery = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
             ->where('s.user_id', $user->id)
-            ->where('s.status', '!=', 'pedido')
-            ->orderBy('s.add_at', 'asc')
+            ->where('s.status', '!=', 'pedido');
+
+        if ($brechoId) {
+            $itensQuery->where('s.brecho_id', $brechoId);
+        }
+
+        $itens = $itensQuery->orderBy('s.add_at', 'asc')
             ->select([
                 's.price',
                 's.add_at',

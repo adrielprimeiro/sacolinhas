@@ -534,7 +534,13 @@ class LiveController extends Controller
      */
     public function getAllLives()
     {
-        $lives = Live::orderBy('created_at', 'desc')->get();
+        $query = Live::query();
+
+        if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+            $query->where('brecho_id', auth()->user()->brecho_id);
+        }
+
+        $lives = $query->orderBy('created_at', 'desc')->get();
 
         $formattedLives = $lives->map(function ($live) {
             $live->status = $live->ativo ? 'ativa' : 'encerrada';

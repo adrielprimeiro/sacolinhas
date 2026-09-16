@@ -34,10 +34,11 @@ class SacolinhaController extends Controller
             $result = DB::transaction(function () use ($request) {
                 
                 // 1. Buscar live ativa
-                $liveAtiva = DB::table('lives')
-                              ->where('ativo', 1)
-                              ->orderBy('created_at', 'desc')
-                              ->first();
+                $liveQuery = DB::table('lives')->where('ativo', 1);
+                if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+                    $liveQuery->where('brecho_id', auth()->user()->brecho_id);
+                }
+                $liveAtiva = $liveQuery->orderBy('created_at', 'desc')->first();
 
                 if (!$liveAtiva) {
                     throw new \Exception('Não há live ativa no momento!', 400);
@@ -74,7 +75,9 @@ class SacolinhaController extends Controller
 
                 // Preparar dados para gravação
                 $columns = \Schema::getColumnListing('sacolinhas');
+                $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : ($liveAtiva->brecho_id ?? 1);
                 $data = [
+                    'brecho_id' => $brechoId,
                     'user_id' => $request->client_id,
                     'item_id' => $request->item_id,
                     'live_id' => $liveAtiva->id,
@@ -89,6 +92,16 @@ class SacolinhaController extends Controller
                 // 3. Gravar na sacolinha
                 // A matemática (UPDATE cliente_limites) é feita pelo seu Trigger no MySQL
                 $sacolinha = Sacolinhas::create($data);
+
+                // Vincula cliente ao brechó parceiro
+                if ($brechoId > 1) {
+                    DB::table('brecho_clientes')->insertOrIgnore([
+                        'brecho_id' => $brechoId,
+                        'user_id' => $request->client_id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
 
 				// 4. Atualizar status do item
 				DB::table('items')
@@ -155,12 +168,13 @@ class SacolinhaController extends Controller
 			// Verificar se as colunas existem
 			$columns = \Schema::getColumnListing('sacolinhas');
 			Log::info("Colunas da tabela sacolinhas: " . implode(', ', $columns));
-			
+						// Se não fornecido liveId, buscar live ativa
 			if (!$liveId) {
-				$live = DB::table('lives')
-						  ->where('ativo', 1)
-						  ->orderBy('created_at', 'desc')
-						  ->first();
+				$liveQuery = DB::table('lives')->where('ativo', 1);
+				if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+					$liveQuery->where('brecho_id', auth()->user()->brecho_id);
+				}
+				$live = $liveQuery->orderBy('created_at', 'desc')->first();
 				
 				if (!$live) {
 					return response()->json([
@@ -174,7 +188,11 @@ class SacolinhaController extends Controller
 			}
 
 			// Verificar se existem registros
-			$count = DB::table('sacolinhas')->where('live_id', $liveId)->count();
+			$countQuery = DB::table('sacolinhas')->where('live_id', $liveId);
+			if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+				$countQuery->where('brecho_id', auth()->user()->brecho_id);
+			}
+			$count = $countQuery->count();
 			Log::info("Registros encontrados: " . $count);
 
 			if ($count === 0) {
@@ -217,11 +235,16 @@ class SacolinhaController extends Controller
 				$selectFields[] = 'i.preco as price';
 			}
 
-			$sacolinhas = DB::table('sacolinhas as s')
+			$sacolinhasQuery = DB::table('sacolinhas as s')
 				->join('users as u', 's.user_id', '=', 'u.id')
 				->join('items as i', 's.item_id', '=', 'i.id')
-				->where('s.live_id', $liveId)
-				->select($selectFields)
+				->where('s.live_id', $liveId);
+
+			if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+				$sacolinhasQuery->where('s.brecho_id', auth()->user()->brecho_id);
+			}
+
+			$sacolinhas = $sacolinhasQuery->select($selectFields)
 				->orderBy('s.add_at', 'desc')
 				->get();
 
@@ -375,10 +398,11 @@ class SacolinhaController extends Controller
 			
 			// Se não fornecido liveId, buscar live ativa
 			if (!$liveId) {
-				$live = DB::table('lives')
-					->where('ativo', 1)
-					->orderBy('created_at', 'desc')
-					->first();
+				$liveQuery = DB::table('lives')->where('ativo', 1);
+				if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+					$liveQuery->where('brecho_id', auth()->user()->brecho_id);
+				}
+				$live = $liveQuery->orderBy('created_at', 'desc')->first();
 				
 				if (!$live) {
 					return response()->json([
@@ -392,7 +416,11 @@ class SacolinhaController extends Controller
 			}
 
 			// Verificar se existem sacolas para esta live
-			$count = DB::table('sacolinhas')->where('live_id', $liveId)->count();
+			$countQuery = DB::table('sacolinhas')->where('live_id', $liveId);
+			if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+				$countQuery->where('brecho_id', auth()->user()->brecho_id);
+			}
+			$count = $countQuery->count();
 			Log::info("Registros encontrados para live $liveId: " . $count);
 
 			if ($count === 0) {
@@ -407,11 +435,16 @@ class SacolinhaController extends Controller
 			}
 
 			// Query unificada com tratamento consistente de preços
-			$sacolinhas = DB::table('sacolinhas as s')
+			$sacolinhasQuery = DB::table('sacolinhas as s')
 				->join('users as u', 's.user_id', '=', 'u.id')
 				->join('items as i', 's.item_id', '=', 'i.id')
-				->where('s.live_id', $liveId)
-				->select([
+				->where('s.live_id', $liveId);
+
+			if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+				$sacolinhasQuery->where('s.brecho_id', auth()->user()->brecho_id);
+			}
+
+			$sacolinhas = $sacolinhasQuery->select([
 					's.id as sacolinha_id',
 					's.user_id',
 					's.item_id',
