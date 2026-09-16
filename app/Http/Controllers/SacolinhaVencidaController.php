@@ -32,6 +32,10 @@ class SacolinhaVencidaController extends Controller
             })
             ->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) <= ?', [$hoje]);
 
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $base->where('s.brecho_id', auth()->user()->brecho_id);
+        }
+
         // Se quiser excluir status (ajuste conforme seus valores reais):
         // $base->whereNotIn('s.status', ['cancelado', 'entregue', 'enviado']);
 
@@ -88,8 +92,13 @@ class SacolinhaVencidaController extends Controller
 				$q->whereNull('s.obs')
 				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
 			})
-			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
-			->select([
+			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$itens->where('s.brecho_id', auth()->user()->brecho_id);
+		}
+
+		$itens = $itens->select([
 				's.user_id',
 				's.id as sacolinha_id',
 				's.item_id',
@@ -126,10 +135,30 @@ class SacolinhaVencidaController extends Controller
 			abort(404);
 		}
 
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$brechoId = auth()->user()->brecho_id;
+			$hasAccess = DB::table('brecho_clientes')
+				->where('brecho_id', $brechoId)
+				->where('user_id', $user->id)
+				->exists();
+			if (!$hasAccess) {
+				abort(403, 'Acesso negado.');
+			}
+		}
+
 		$base = DB::table('sacolinhas as s')
 			->where('s.user_id', $user->id)
 			->whereNotNull('s.add_at')
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
 			->whereRaw('DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) <= ?', [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$base->where('s.brecho_id', auth()->user()->brecho_id);
+		}
 
 		// (Opcional) se quiser excluir status específicos:
 		// $base->whereNotIn('s.status', ['cancelado', 'entregue', 'enviado']);
@@ -206,11 +235,21 @@ class SacolinhaVencidaController extends Controller
 		$prazoDias = 31;
 		$hoje = Carbon::today()->toDateString();
 
-		$resumo = DB::table('sacolinhas as s')
+		$resumoQuery = DB::table('sacolinhas as s')
 			->where('s.user_id', $user->id)
 			->whereNotNull('s.add_at')
-			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
-			->selectRaw("
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
+			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$resumoQuery->where('s.brecho_id', auth()->user()->brecho_id);
+		}
+
+		$resumo = $resumoQuery->selectRaw("
 				MIN(DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY))) as vencimento_mais_antigo,
 				COALESCE(SUM(s.quantity * s.price),0) as valor_total_vencido
 			")
@@ -253,11 +292,21 @@ class SacolinhaVencidaController extends Controller
 		$prazoDias = 31;
 		$hoje = Carbon::today()->toDateString();
 
-		$resumo = DB::table('sacolinhas as s')
+		$resumoQuery = DB::table('sacolinhas as s')
 			->where('s.user_id', $user->id)
 			->whereNotNull('s.add_at')
-			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
-			->selectRaw("
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
+			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$resumoQuery->where('s.brecho_id', auth()->user()->brecho_id);
+		}
+
+		$resumo = $resumoQuery->selectRaw("
 				MIN(DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY))) as vencimento_mais_antigo,
 				COALESCE(SUM(s.quantity * s.price),0) as valor_total_vencido
 			")
@@ -275,11 +324,21 @@ class SacolinhaVencidaController extends Controller
 		$valorFmt = number_format((float) $resumo->valor_total_vencido, 2, ',', '.');
 
 		// ✅ ADICIONADO: contar itens vencidos para calcular custo armazenagem
-		$itensCount = DB::table('sacolinhas as s')
+		$itensCountQuery = DB::table('sacolinhas as s')
 			->where('s.user_id', $user->id)
 			->whereNotNull('s.add_at')
-			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
-			->count();
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
+			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$itensCountQuery->where('s.brecho_id', auth()->user()->brecho_id);
+		}
+
+		$itensCount = $itensCountQuery->count();
 
 		$custoArmazenagem = number_format($itensCount * 5.00, 2, ',', '.');  // Exemplo: R$ 5 por item
 		$vencimentoDia = $vencimentoFmt;  // ✅ ADICIONADO: variável usada na mensagem
@@ -323,19 +382,6 @@ class SacolinhaVencidaController extends Controller
 				'updated_at' => now(),
 			]);
 		}
-
-		/* Monta mensagem
-		$msg = "No dia {$vencimentoDia} os itens do anexo estarão vencendo 31 dias na sacolinha.\n\n"
-			 . "Você pode:\n"
-			 . "1. Fazer o envio total ou parcial da sacolinha. Condição: pagamento do que for enviado.\n"
-			 . "2. Manter os itens armazenados. Condição: pagamento do custo de armazenagem por mais 30 dias no valor de R$ {$custoArmazenagem}\n"
-			 . "3. Liberar os itens para venda.";
-
-		// Dispara Job
-		SendWhatsAppVencidosPdf::dispatch($user->id, $rawPhone, $pdfUrl, $msg);
-
-		return back()->with('success', "PDF gerado e mensagem de vencidos enviada para {$nomeBase}.");
-		*/
 				
 		SendWhatsAppVencidosTemplate::dispatch(
 			(int) $user->id,
@@ -346,8 +392,6 @@ class SacolinhaVencidaController extends Controller
 		);
 
 		return back()->with('success', "Template de vencimento enviado para {$nomeBase}.");		
-				
-		
 	}
 	
 
@@ -359,12 +403,22 @@ class SacolinhaVencidaController extends Controller
 		$prazoDias = 31;
 		$hoje = now()->toDateString();
 
-		$itensVencidos = DB::table('sacolinhas as s')
+		$itensVencidosQuery = DB::table('sacolinhas as s')
 			->join('items as i', 's.item_id', '=', 'i.id')
 			->where('s.user_id', $clienteId)
 			->whereNotNull('s.add_at')
-			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje])
-			->select(
+			->where('s.status', '!=', 'pedido')
+			->where(function ($q) {
+				$q->whereNull('s.obs')
+				  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+			})
+			->whereRaw("DATE(DATE_ADD(s.add_at, INTERVAL {$prazoDias} DAY)) <= ?", [$hoje]);
+
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$itensVencidosQuery->where('s.brecho_id', auth()->user()->brecho_id);
+		}
+
+		$itensVencidos = $itensVencidosQuery->select(
 				'i.codigo',
 				'i.nome_do_produto',
 				's.price',
@@ -393,6 +447,10 @@ class SacolinhaVencidaController extends Controller
 			$logoBase64 = base64_encode(file_get_contents($logoPath));
 			$logoDataUri = "data:{$logoMime};base64,{$logoBase64}";
 		}
+
+		$nomeBrecho = (auth()->check() && auth()->user()->isBrechoParceiro() && auth()->user()->brecho)
+			? auth()->user()->brecho->nome
+			: 'Sacolinha Mania';
 
 		// ✅ HTML ADAPTADO para vencidos (igual ao seu, mas sem "Live" e com vencimento)
 		$html = '
@@ -428,7 +486,7 @@ class SacolinhaVencidaController extends Controller
 					' . ($logoDataUri ? '<img class="logo" src="' . $logoDataUri . '" />' : '') . '
 				  </td>
 				  <td class="title-cell">
-					<h1>Itens Vencidos - Sacolinha Mania</h1>
+					<h1>Itens Vencidos - ' . htmlspecialchars($nomeBrecho) . '</h1>
 					<p><strong>Cliente:</strong> ' . htmlspecialchars($cliente->name) . '</p>
 					<p><strong>Data de Geração:</strong> ' . date('d/m/Y H:i:s') . '</p>
 					<p><strong>Total de Itens Vencidos:</strong> ' . $totalItens . '</p>

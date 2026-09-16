@@ -368,6 +368,13 @@ class ItemController extends Controller
             ->whereNotNull('localizacao')
             ->where('localizacao', '!=', '');
 
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+        $brechoId = $isParceiro ? auth()->user()->brecho_id : null;
+
+        if ($brechoId) {
+            $queryLocais->where('brecho_id', $brechoId);
+        }
+
         if (!empty($buscaLocal)) {
             $queryLocais->where('localizacao', 'like', '%' . $buscaLocal . '%');
         }
@@ -384,7 +391,14 @@ class ItemController extends Controller
             ->get();
 
         // Resumo Geral do Estoque
-        $itensEstoque = Item::where('status', 'estoque')->get();
+        $itensEstoqueQuery = Item::query();
+        if ($isParceiro) {
+            $itensEstoqueQuery->where('brecho_id', $brechoId)->whereIn('status', ['estoque', 'disponivel']);
+        } else {
+            $itensEstoqueQuery->where('status', 'estoque');
+        }
+        $itensEstoque = $itensEstoqueQuery->get();
+
         $estoqueInfo = [
             'quantidade' => $itensEstoque->count(),
             'valor_total' => $itensEstoque->sum('preco'),
@@ -392,9 +406,13 @@ class ItemController extends Controller
         ];
 
         // Itens sem localização
-        $itensSemLocal = Item::where(function($q) {
+        $itensSemLocalQuery = Item::where(function($q) {
             $q->whereNull('localizacao')->orWhere('localizacao', '');
-        })->count();
+        });
+        if ($brechoId) {
+            $itensSemLocalQuery->where('brecho_id', $brechoId);
+        }
+        $itensSemLocal = $itensSemLocalQuery->count();
 
         return view('admin.items.inventario_report', compact('locaisEstoque', 'estoqueInfo', 'buscaLocal', 'itensSemLocal'));
     }
