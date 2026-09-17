@@ -21,6 +21,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'brecho_id',
         'name',
         'email',
         'password',
@@ -143,5 +144,32 @@ class User extends Authenticatable
 	public function perfilFinanceiro(): HasOne
 	{
 		return $this->hasOne(Pessoa::class, 'user_id');
+	}
+
+	/**
+	 * Brechó ao qual este operador/administrador pertence.
+	 */
+	public function brecho()
+	{
+		return $this->belongsTo(Brecho::class, 'brecho_id');
+	}
+
+	/**
+	 * Brechós aos quais este cliente está vinculado.
+	 */
+	public function brechosVinculados()
+	{
+		return $this->belongsToMany(Brecho::class, 'brecho_clientes', 'user_id', 'brecho_id')
+			->withPivot('origem')
+			->withTimestamps();
+	}
+
+	/**
+	 * Verifica se o usuário é um operador/admin de brechó parceiro.
+	 */
+	public function isBrechoParceiro(): bool
+	{
+		return ($this->role === 'brecho_admin' || !empty($this->brecho_id)) 
+			&& !in_array($this->role, ['admin_master', 'admin']);
 	}
 }

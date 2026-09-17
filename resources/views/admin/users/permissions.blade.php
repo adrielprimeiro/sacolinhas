@@ -57,6 +57,8 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($user->role === 'admin_master')
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Master</span>
+                                @elseif($user->role === 'brecho_admin')
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">Parceiro ({{ $user->brecho->nome ?? 'Nenhum' }})</span>
                                 @elseif($user->role === 'admin')
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Atendente</span>
                                 @else
@@ -65,14 +67,23 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="flex flex-col lg:flex-row gap-2 items-start lg:items-center">
-                                    <form action="{{ route('admin.equipe.updateRole', $user->id) }}" method="POST" class="flex gap-2 items-center">
+                                    <form action="{{ route('admin.equipe.updateRole', $user->id) }}" method="POST" class="flex flex-wrap gap-2 items-center">
                                         @csrf
-                                        <select name="role" class="block w-full pl-3 pr-8 py-1 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
-                                            <option value="client" {{ $user->role === 'client' ? 'selected' : '' }}>Cliente Padrão</option>
+                                        <select name="role" class="block pl-2 pr-6 py-1 text-xs border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+                                            <option value="client" {{ $user->role === 'client' ? 'selected' : '' }}>Cliente</option>
                                             <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Atendente</option>
+                                            <option value="brecho_admin" {{ $user->role === 'brecho_admin' ? 'selected' : '' }}>Brechó Parceiro</option>
                                             <option value="admin_master" {{ $user->role === 'admin_master' ? 'selected' : '' }}>Master</option>
                                         </select>
-                                        <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-1 px-2 rounded border border-indigo-200 transition" title="Salvar Nível">
+                                        @if(isset($brechos) && $brechos->count() > 0)
+                                        <select name="brecho_id" class="block pl-2 pr-6 py-1 text-xs border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md" title="Vincular a qual Brechó">
+                                            <option value="">(Sem Brechó)</option>
+                                            @foreach($brechos as $b)
+                                                <option value="{{ $b->id }}" {{ $user->brecho_id == $b->id ? 'selected' : '' }}>{{ $b->nome }}</option>
+                                            @endforeach
+                                        </select>
+                                        @endif
+                                        <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-1 px-2 rounded border border-indigo-200 transition text-xs" title="Salvar Nível">
                                             Salvar
                                         </button>
                                     </form>

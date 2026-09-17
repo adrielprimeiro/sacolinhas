@@ -14,19 +14,28 @@
             <p class="text-gray-500 mt-1">Gerencie a fila de pedidos, identifique códigos de produtos e integre o chat do Instagram/TikTok.</p>
         </div>
         
-        <!-- Seleção de Live -->
-        <div class="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200">
-            <label for="live-select" class="text-sm font-semibold text-gray-600">Live Ativa:</label>
-            <form action="{{ route('admin.live-chat.dashboard') }}" method="GET" class="flex gap-2">
-                <select name="live_id" id="live-select" onchange="this.form.submit()" class="text-sm rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">Selecione uma Live...</option>
-                    @foreach($lives as $l)
-                        <option value="{{ $l->id }}" {{ ($activeLive && $activeLive->id === $l->id) ? 'selected' : '' }}>
-                            #{{ $l->id }} - {{ $l->tipo_live_formatado }} ({{ $l->data->format('d/m/Y') }}) {{ $l->ativo ? '[ATIVA]' : '' }}
-                        </option>
-                    @endforeach
-                </select>
-            </form>
+        <!-- Seleção de Live e Ações -->
+        <div class="flex flex-wrap items-center gap-3">
+            @if($activeLive && $activeLive->ativo)
+                <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+                    <i class="fas fa-stop-circle text-sm"></i>
+                    <span>Encerrar Live & WhatsApp</span>
+                </button>
+            @endif
+
+            <div class="flex items-center gap-3 bg-white p-2.5 rounded-xl shadow-sm border border-gray-200">
+                <label for="live-select" class="text-xs font-bold text-gray-600">Live Ativa:</label>
+                <form action="{{ route('admin.live-chat.dashboard') }}" method="GET" class="flex gap-2">
+                    <select name="live_id" id="live-select" onchange="this.form.submit()" class="text-xs rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 focus:border-indigo-500 focus:ring-indigo-500 font-semibold">
+                        <option value="">Selecione uma Live...</option>
+                        @foreach($lives as $l)
+                            <option value="{{ $l->id }}" {{ ($activeLive && $activeLive->id === $l->id) ? 'selected' : '' }}>
+                                #{{ $l->id }} - {{ $l->tipo_live_formatado }} ({{ $l->data->format('d/m/Y') }}) {{ $l->ativo ? '[ATIVA]' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -84,6 +93,22 @@
                         <span class="inline-block w-2 h-2 bg-green-500 rounded-full animate-ping" id="chat-ping-dot"></span>
                         <span class="text-[11px] text-gray-300 font-medium" id="chat-status-text">Capturando</span>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Barra de Filtros do Chat -->
+            <div class="px-3 py-2 flex items-center justify-between gap-2 border-b border-gray-800 text-xs shrink-0" style="background-color: #111827;">
+                <div class="flex items-center gap-1.5">
+                    <button type="button" id="chat-filter-all-btn" onclick="setChatFilter('all')" class="px-2.5 py-1 rounded-lg font-bold text-xs bg-indigo-600 text-white transition shadow-sm cursor-pointer">
+                        Todas
+                    </button>
+                    <button type="button" id="chat-filter-marked-btn" onclick="setChatFilter('marked')" class="px-2.5 py-1 rounded-lg font-bold text-xs bg-gray-800 text-yellow-400 hover:bg-gray-700 transition flex items-center gap-1 border border-gray-700 cursor-pointer">
+                        <i class="fas fa-star text-yellow-400 text-[10px]"></i> Marcadas (<span id="chat-marked-count">0</span>)
+                    </button>
+                </div>
+                <div id="chat-user-filter-badge" class="hidden items-center gap-1.5 bg-indigo-950 text-indigo-200 px-2.5 py-1 rounded-lg text-xs border border-indigo-700">
+                    <span class="truncate max-w-[110px] font-semibold" id="chat-filtered-username">@usuario</span>
+                    <button type="button" onclick="clearUserChatFilter()" class="text-indigo-400 hover:text-white font-bold ml-1 cursor-pointer" title="Limpar filtro">&times;</button>
                 </div>
             </div>
             
@@ -349,35 +374,62 @@
 
         <!-- Painel Lateral de Controles e Entrada Manual / Feedback (Largura fixa em telas grandes) -->
         <div class="w-full flex flex-col gap-4 shrink-0 overflow-y-auto" style="width: 100%; max-width: 420px;">
+            <!-- Box de WhatsApp do Cliente -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm"></i>
+                        <span>WhatsApp da Cliente</span>
+                    </h4>
+                    <span id="online-qr-phone-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                        Carregando...
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="online-qr-phone-input" placeholder="DDD + Número (ex: 11999999999)" class="flex-1 px-3 py-2 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <button type="button" onclick="saveClientPhoneFromModal()" id="online-qr-phone-save-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1 shrink-0 cursor-pointer shadow active:scale-95">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+                <p id="online-qr-phone-help" class="text-[10.5px] text-gray-400 leading-tight">
+                    O WhatsApp é indispensável para o envio automático da sacola ao encerrar a live.
+                </p>
+            </div>
+
             <!-- Box de Entrada Manual / Leitor USB -->
-            <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800 shadow-xl flex flex-col gap-3">
-                <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
-                    <i class="fas fa-keyboard text-indigo-400 text-base"></i>
+            <div class="bg-gray-900 rounded-3xl p-5 border border-gray-800 shadow-xl flex flex-col gap-2.5">
+                <h4 class="text-xs font-extrabold text-white flex items-center gap-2">
+                    <i class="fas fa-keyboard text-indigo-400 text-sm"></i>
                     <span>Bipador USB / Entrada Manual</span>
                 </h4>
-                <p class="text-xs text-gray-300 leading-relaxed">
-                    Se estiver usando leitor USB de código de barras ou quiser digitar o SKU manualmente, use o campo abaixo:
-                </p>
-                <div class="flex gap-2 mt-1">
-                    <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: VEST-01 ou 12345..." class="flex-1 px-4 py-3.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
-                    <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-5 py-3.5 rounded-xl text-sm shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95">
-                        <i class="fas fa-plus"></i> Adicionar
+                <div class="flex gap-2">
+                    <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: 0001 ou 73254..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
+                        <i class="fas fa-plus"></i> Bipe
                     </button>
                 </div>
             </div>
 
             <!-- Feedback Visual em Tempo Real -->
-            <div id="online-qr-feedback" class="p-4 sm:p-5 rounded-3xl text-sm font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
+            <div id="online-qr-feedback" class="p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
 
-            <!-- Instruções Rápidas -->
-            <div class="bg-gray-900 rounded-3xl p-5 border border-gray-800 text-xs text-gray-300 space-y-2.5 flex-1">
-                <p class="font-bold text-white flex items-center gap-2 text-sm"><i class="fas fa-info-circle text-indigo-400"></i> Como funciona em Tela Inteira:</p>
-                <ul class="list-disc pl-4 space-y-1.5 text-gray-300 leading-normal">
-                    <li>A câmera permanece aberta continuamente em tela cheia para você bipar vários itens seguidos sem fechar a janela.</li>
-                    <li>Cada leitura bem-sucedida adiciona o produto automaticamente à sacola da cliente.</li>
-                    <li>O feedback de sucesso ou erro aparecerá em destaque logo acima.</li>
-                    <li>Ao finalizar todos os produtos da cliente, clique em <strong class="text-white">Concluir e Voltar</strong> para retornar à lista.</li>
-                </ul>
+            <!-- Box de Mensagens / Pedidos da Cliente na Live -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2 min-h-[170px] max-h-[250px]">
+                <div class="flex items-center justify-between shrink-0">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fas fa-comment-dots text-indigo-400 text-sm"></i>
+                        <span>Mensagens da Cliente</span>
+                    </h4>
+                    <button type="button" id="modal-client-filter-star-btn" onclick="toggleModalFilterMarkedOnly()" class="text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-star text-yellow-400 text-[9px]"></i> <span id="modal-client-marked-count">0</span> Marcadas
+                    </button>
+                </div>
+                <div id="online-qr-client-messages-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    <p class="text-[11px] text-gray-500 text-center py-4">Nenhum comentário desta cliente ainda.</p>
+                </div>
+                <div class="text-[10px] text-indigo-300 font-medium pt-1 border-t border-gray-800 shrink-0">
+                    <i class="fas fa-hand-pointer text-indigo-400"></i> Clique num código para bipe automático
+                </div>
             </div>
         </div>
     </div>
@@ -599,6 +651,14 @@
         }
     }
 
+    // Estado global do chat
+    let allLiveMessages = [];
+    let onlineUsersMap = {};
+    let onlineUsersByUsername = {};
+    let chatFilterMode = 'all'; // 'all' | 'marked'
+    let chatFilterUser = null;  // null | string
+    let modalFilterMarkedOnly = false;
+
     // Buscar dados do chat da live via AJAX
     function fetchChatData() {
         if (!liveId) return;
@@ -610,12 +670,102 @@
                     if (typeof updatePauseState === 'function') updatePauseState(data.is_paused);
                     updateInstagramState(data.insta_active);
                     updateTikTokState(data.tiktok_active);
-                    renderChatMessages(data.messages);
+
+                    allLiveMessages = data.messages || [];
+
+                    // Atualiza contador de mensagens marcadas
+                    const markedCount = allLiveMessages.filter(m => m.is_marked).length;
+                    const markedEl = document.getElementById("chat-marked-count");
+                    if (markedEl) markedEl.textContent = markedCount;
+
+                    // Mapear usuários online
+                    onlineUsersMap = {};
+                    onlineUsersByUsername = {};
+                    (data.online_users || []).forEach(u => {
+                        if (u.user_id) onlineUsersMap[u.user_id] = u;
+                        if (u.username) onlineUsersByUsername[u.username.toLowerCase()] = u;
+                    });
+
+                    renderChatMessages();
                     renderOnlineUsers(data.online_users);
                     renderCodeRequests(data.code_requests);
+
+                    // Se o modal de bipe estiver aberto para um cliente, atualiza as mensagens dele
+                    if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
+                        renderModalClientMessages(currentOnlineQrUser.username);
+                    }
                 }
             })
             .catch(err => console.error("Erro no polling da live:", err));
+    }
+
+    // Filtros de Chat
+    function setChatFilter(mode) {
+        chatFilterMode = mode;
+        const btnAll = document.getElementById("chat-filter-all-btn");
+        const btnMarked = document.getElementById("chat-filter-marked-btn");
+
+        if (mode === 'all') {
+            btnAll.className = "px-2.5 py-1 rounded-lg font-bold text-xs bg-indigo-600 text-white transition shadow-sm cursor-pointer";
+            btnMarked.className = "px-2.5 py-1 rounded-lg font-bold text-xs bg-gray-800 text-yellow-400 hover:bg-gray-700 transition flex items-center gap-1 border border-gray-700 cursor-pointer";
+        } else {
+            btnMarked.className = "px-2.5 py-1 rounded-lg font-bold text-xs bg-yellow-500 text-gray-900 transition shadow-sm flex items-center gap-1 cursor-pointer";
+            btnAll.className = "px-2.5 py-1 rounded-lg font-bold text-xs bg-gray-800 text-gray-300 hover:bg-gray-700 transition border border-gray-700 cursor-pointer";
+        }
+        renderChatMessages();
+    }
+
+    function filterChatByUser(username) {
+        chatFilterUser = username.replace(/^@/, '');
+        const badge = document.getElementById("chat-user-filter-badge");
+        const label = document.getElementById("chat-filtered-username");
+        if (badge && label) {
+            label.textContent = '@' + chatFilterUser;
+            badge.classList.remove("hidden");
+            badge.classList.add("flex");
+        }
+        renderChatMessages();
+    }
+
+    function clearUserChatFilter() {
+        chatFilterUser = null;
+        const badge = document.getElementById("chat-user-filter-badge");
+        if (badge) {
+            badge.classList.add("hidden");
+            badge.classList.remove("flex");
+        }
+        renderChatMessages();
+    }
+
+    // Alternar estrela (marcar/desmarcar) da mensagem
+    async function toggleMarkLiveMessage(messageId) {
+        try {
+            const res = await fetch('/admin/live-chat/toggle-mark-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ message_id: messageId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const target = allLiveMessages.find(m => m.id == messageId);
+                if (target) {
+                    target.is_marked = data.is_marked;
+                }
+                const markedCount = allLiveMessages.filter(m => m.is_marked).length;
+                const markedEl = document.getElementById("chat-marked-count");
+                if (markedEl) markedEl.textContent = markedCount;
+
+                renderChatMessages();
+                if (currentOnlineQrUser) {
+                    renderModalClientMessages(currentOnlineQrUser.username);
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao marcar mensagem:", e);
+        }
     }
 
     async function toggleMasterPause() {
@@ -659,30 +809,67 @@
     }
 
     // Renderizar mensagens de chat no terminal
-    function renderChatMessages(messages) {
+    function renderChatMessages() {
         const container = document.getElementById("chat-messages-container");
-        if (messages.length === 0) return;
+        if (!container) return;
+
+        let messages = allLiveMessages;
+
+        if (chatFilterMode === 'marked') {
+            messages = messages.filter(m => m.is_marked);
+        }
+        if (chatFilterUser) {
+            const lowerUser = chatFilterUser.toLowerCase();
+            messages = messages.filter(m => m.username && m.username.toLowerCase() === lowerUser);
+        }
+
+        if (messages.length === 0) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-500 py-10">
+                    <i class="fas ${chatFilterMode === 'marked' ? 'fa-star text-yellow-500/40' : 'fa-comment-slash'} text-3xl mb-2"></i>
+                    <p class="text-xs text-center">${chatFilterMode === 'marked' ? 'Nenhuma mensagem marcada encontrada.' : (chatFilterUser ? 'Nenhuma mensagem de @' + escapeHtml(chatFilterUser) : 'Aguardando mensagens do chat...')}</p>
+                </div>
+            `;
+            return;
+        }
 
         let html = '';
         messages.forEach(msg => {
             const isTikTok = msg.plataforma === 'tiktok';
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500"></i>' : '<i class="fab fa-instagram text-purple-500"></i>';
             const time = new Date(msg.created_at).toLocaleTimeString();
-            const initials = msg.username.slice(0,2).toUpperCase();
+            const initials = msg.username.slice(0, 2).toUpperCase();
             const avatarHtml = msg.avatar_url
                 ? `<img src="${escapeHtml(msg.avatar_url)}" onerror="this.onerror=null;this.src=''" class="w-6 h-6 rounded-full object-cover shrink-0" />`
                 : `<div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-[9px] text-indigo-300 shrink-0">${initials}</div>`;
             
+            const isMarked = !!msg.is_marked;
+            const starClass = isMarked ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-600 hover:text-yellow-400';
+            const bgClass = isMarked ? 'bg-yellow-950/30 border-l-2 border-yellow-400' : 'hover:bg-gray-800/50';
+
+            const userReg = onlineUsersByUsername[msg.username.toLowerCase()];
+            const qrBtn = (userReg && userReg.user_id) ? `
+                <button type="button" onclick="openOnlineQrModal('${userReg.user_id}', '${escapeHtml(msg.username)}', '${escapeHtml(userReg.user_name || '')}')" title="Bipar para esta cliente" class="text-gray-400 hover:text-indigo-400 p-1 transition cursor-pointer text-xs">
+                    <i class="fas fa-qrcode"></i>
+                </button>
+            ` : '';
+
             html += `
-                <div class="hover:bg-gray-800/50 p-1.5 rounded transition duration-150">
+                <div class="${bgClass} p-1.5 rounded transition duration-150 relative group">
                     <div class="flex items-center justify-between mb-0.5 gap-1.5">
                         <div class="flex items-center gap-1.5 min-w-0">
                             ${avatarHtml}
-                            <span class="font-bold text-xs text-indigo-400 flex items-center gap-1 truncate">
-                                ${icon} @${msg.username}
-                            </span>
+                            <button type="button" onclick="filterChatByUser('${escapeHtml(msg.username)}')" title="Filtrar chat por @${escapeHtml(msg.username)}" class="font-bold text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 truncate text-left cursor-pointer">
+                                ${icon} @${escapeHtml(msg.username)}
+                            </button>
                         </div>
-                        <span class="text-[9px] text-gray-600 font-mono shrink-0">${time}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${qrBtn}
+                            <button type="button" onclick="toggleMarkLiveMessage(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer">
+                                <i class="${starClass}"></i>
+                            </button>
+                            <span class="text-[9px] text-gray-600 font-mono">${time}</span>
+                        </div>
                     </div>
                     <p class="text-sm text-gray-200 leading-normal pl-7">${escapeHtml(msg.message)}</p>
                 </div>
@@ -1084,9 +1271,26 @@
 
         const feedback = document.getElementById("online-qr-feedback");
         if (feedback) {
-            feedback.className = "mt-3 p-3 rounded-xl text-xs font-bold hidden transition duration-200";
+            feedback.className = "p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed";
             feedback.textContent = "";
         }
+
+        // Configura campo e badge de WhatsApp
+        const userObj = onlineUsersMap[userId] || {};
+        const clientPhone = userObj.user_whatsapp || '';
+        const phoneInput = document.getElementById("online-qr-phone-input");
+        if (phoneInput) {
+            phoneInput.value = clientPhone;
+        }
+        updatePhoneBadge(!!clientPhone, clientPhone);
+
+        // Renderiza comentários da cliente nesta live
+        modalFilterMarkedOnly = false;
+        const starBtn = document.getElementById("modal-client-filter-star-btn");
+        if (starBtn) {
+            starBtn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+        }
+        renderModalClientMessages(username);
 
         document.getElementById("online-qr-modal").classList.remove("hidden");
         if (manualInput) manualInput.focus();
@@ -1099,6 +1303,193 @@
             document.head.appendChild(script);
         } else {
             startOnlineQrCamera();
+        }
+    }
+
+    function updatePhoneBadge(hasPhone, phoneText) {
+        const badge = document.getElementById("online-qr-phone-badge");
+        const help = document.getElementById("online-qr-phone-help");
+        if (!badge) return;
+
+        if (hasPhone && phoneText && phoneText.length >= 8) {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700";
+            badge.innerHTML = `<i class="fas fa-check-circle"></i> Cadastrado`;
+            if (help) {
+                help.className = "text-[10.5px] text-emerald-400/90 leading-tight";
+                help.textContent = "✅ WhatsApp verificado para envio automático ao encerrar a live.";
+            }
+        } else {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-300 border border-amber-700 animate-pulse";
+            badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Sem Telefone`;
+            if (help) {
+                help.className = "text-[10.5px] text-amber-300 font-bold leading-tight";
+                help.textContent = "⚠️ Digite o WhatsApp acima e clique em 'Salvar' para garantir o envio da sacola!";
+            }
+        }
+    }
+
+    async function saveClientPhoneFromModal() {
+        if (!currentOnlineQrUser || !currentOnlineQrUser.userId) return;
+        const input = document.getElementById("online-qr-phone-input");
+        const phone = input ? input.value.trim() : '';
+
+        if (!phone || phone.length < 8) {
+            alert("Por favor, digite um número de WhatsApp válido com DDD.");
+            return;
+        }
+
+        const btn = document.getElementById("online-qr-phone-save-btn");
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+        try {
+            const res = await fetch('/admin/live-chat/update-user-phone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    user_id: currentOnlineQrUser.userId,
+                    phone: phone
+                })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+
+            if (data.success) {
+                showToast("WhatsApp salvo com sucesso!");
+                updatePhoneBadge(true, data.phone);
+                if (onlineUsersMap[currentOnlineQrUser.userId]) {
+                    onlineUsersMap[currentOnlineQrUser.userId].user_whatsapp = data.phone;
+                }
+            } else {
+                alert("Erro ao salvar WhatsApp: " + (data.message || 'Verifique o número'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+            console.error("Erro ao salvar telefone:", e);
+            alert("Erro de comunicação ao salvar o telefone.");
+        }
+    }
+
+    function toggleModalFilterMarkedOnly() {
+        modalFilterMarkedOnly = !modalFilterMarkedOnly;
+        const btn = document.getElementById("modal-client-filter-star-btn");
+        if (btn) {
+            if (modalFilterMarkedOnly) {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-yellow-500 text-gray-900 border border-yellow-400 transition flex items-center gap-1 cursor-pointer shadow-sm";
+            } else {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+            }
+        }
+        if (currentOnlineQrUser) {
+            renderModalClientMessages(currentOnlineQrUser.username);
+        }
+    }
+
+    function renderModalClientMessages(username) {
+        const container = document.getElementById("online-qr-client-messages-list");
+        if (!container) return;
+
+        const uLower = username.toLowerCase().replace(/^@/, '');
+        let msgs = allLiveMessages.filter(m => m.username && m.username.toLowerCase() === uLower);
+
+        const markedCount = msgs.filter(m => m.is_marked).length;
+        const countEl = document.getElementById("modal-client-marked-count");
+        if (countEl) countEl.textContent = markedCount;
+
+        if (modalFilterMarkedOnly) {
+            msgs = msgs.filter(m => m.is_marked);
+        }
+
+        if (msgs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-gray-500">
+                    <i class="fas ${modalFilterMarkedOnly ? 'fa-star text-yellow-500/40' : 'fa-comment-slash'} text-xl mb-1"></i>
+                    <p class="text-[11px]">${modalFilterMarkedOnly ? 'Nenhuma mensagem marcada desta cliente.' : 'Nenhum comentário enviado por @' + escapeHtml(username) + ' nesta live.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        msgs.forEach(msg => {
+            const time = new Date(msg.created_at).toLocaleTimeString();
+            const isMarked = !!msg.is_marked;
+            const starClass = isMarked ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-600 hover:text-yellow-400';
+            const bgCard = isMarked ? 'bg-yellow-950/30 border border-yellow-500/40' : 'bg-gray-800/70 border border-gray-700/60';
+
+            // Detectar sequências numéricas (3 a 6 dígitos) como códigos de produtos clicáveis
+            let textWithCodes = escapeHtml(msg.message);
+            textWithCodes = textWithCodes.replace(/\b(\d{3,6})\b/g, function(match, code) {
+                return `<button type="button" onclick="event.stopPropagation(); clickCodeFromComment('${code}')" class="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-1.5 py-0.5 rounded text-[11px] transition shadow cursor-pointer mx-0.5 active:scale-95"><i class="fas fa-barcode text-[9px]"></i> ${code}</button>`;
+            });
+
+            html += `
+                <div class="${bgCard} p-2 rounded-xl text-xs transition flex flex-col gap-1">
+                    <div class="flex items-center justify-between text-[10px] text-gray-400">
+                        <span class="font-mono text-gray-400">${time}</span>
+                        <button type="button" onclick="toggleMarkLiveMessage(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-0.5 cursor-pointer">
+                            <i class="${starClass}"></i>
+                        </button>
+                    </div>
+                    <div class="text-gray-100 font-medium leading-relaxed">${textWithCodes}</div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function clickCodeFromComment(code) {
+        const input = document.getElementById("online-qr-manual-input");
+        if (input) {
+            input.value = code;
+            handleOnlineQrScan(code);
+        }
+    }
+
+    async function confirmEndLive(id) {
+        if (!confirm("⚠️ ATENÇÃO: Deseja realmente ENCERRAR esta Live agora?\n\n1. O status da live será alterado para ENCERRADA.\n2. Todas as sacolinhas de participantes serão processadas.\n3. Mensagens com a sacola serão disparadas via WhatsApp para as clientes cadastradas.")) {
+            return;
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+        showToast("Encerrando live e preparando envios de WhatsApp...");
+
+        try {
+            const res = await fetch(`/lives/${id}?enviar_whatsapp=1`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                let alertMsg = `✅ LIVE ENCERRADA COM SUCESSO!\n\n` +
+                    `• PDFs Gerados: ${data.pdfs_ok ?? 0}\n` +
+                    `• WhatsApps Enfileirados: ${data.jobs_enfileirados ?? 0}\n`;
+
+                if (data.clientes_sem_telefone && data.clientes_sem_telefone.length > 0) {
+                    const semTel = data.clientes_sem_telefone.map(c => `• ${c.name} (@${c.username || 'sem_user'})`).join('\n');
+                    alertMsg += `\n⚠️ ATENÇÃO - Clientes sem WhatsApp cadastrado:\n${semTel}\n\n(Dica: Acesse o cadastro para preencher o telefone e reenviar o link!)`;
+                }
+
+                alert(alertMsg);
+                window.location.reload();
+            } else {
+                alert("Erro ao encerrar live: " + (data.error || data.message || 'Erro inesperado'));
+            }
+        } catch (e) {
+            console.error("Erro ao encerrar live:", e);
+            alert("Erro de comunicação ao tentar encerrar a live.");
         }
     }
 

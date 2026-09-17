@@ -222,7 +222,10 @@
 
 	<aside id="chatDrawer" class="chat-drawer hidden" style="z-index: 9999;">
 		<div class="sidebar-header d-flex align-items-center justify-content-between">
-			<span id="chatSidebarTitle" class="me-2">Conversas</span>
+			<div class="d-flex align-items-center gap-2">
+				<a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size: 0.75rem;" title="Voltar ao Painel"><i class="bi bi-arrow-left"></i> Painel</a>
+				<span id="chatSidebarTitle" class="me-1">Conversas</span>
+			</div>
 			<div id="filterAdminContainer" style="display:none; margin-right: 10px;">
 				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" style="font-size: 0.75rem; padding: 2px 24px 2px 8px; width: auto;" onchange="renderConversations()">
 					<option value="">Todas</option>

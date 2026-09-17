@@ -5,14 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
+use App\Models\Traits\BelongsToBrecho;
 
 class Live extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToBrecho;
 
     protected $table = 'lives';
     
     protected $fillable = [
+        'brecho_id',
         'data',
         'tipo_live',
         'plataformas',

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use App\Models\ItemMedia;
+use App\Models\Categoria;
+use App\Models\Marca;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -86,17 +88,142 @@ class ItemController extends Controller
 
     public function create()
     {
-        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
-            ->with($this->categoryTreeWith())
-            ->orderBy('name')
-            ->get();
-        return view('admin.items.create', compact('treeCategories'));
+        $categorias = $this->getTreeCategoriesList();
+        $marcas = Marca::orderBy('total_registros', 'desc')
+            ->orderBy('nome')
+            ->pluck('nome')
+            ->filter()
+            ->unique()
+            ->values();
+        $proximoCodigo = self::generateNextCodigo();
+
+        return view('admin.items.create', compact('categorias', 'marcas', 'proximoCodigo'));
+    }
+
+    public static function generateNextCodigo(): string
+    {
+        $lastItem = DB::table('items')
+            ->whereRaw('LENGTH(codigo) = 4')
+            ->orderBy('id', 'desc')
+            ->first(['id', 'codigo']);
+
+        $dec = 13632; // '0AIO'
+        if ($lastItem && ctype_alnum($lastItem->codigo)) {
+            $parsed = base_convert($lastItem->codigo, 36, 10);
+            if ($parsed > 0) {
+                $dec = $parsed;
+            }
+        }
+
+        do {
+            $dec++;
+            $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+        } while (DB::table('items')->where('codigo', $candidate)->exists());
+
+        return $candidate;
+    }
+
+    private function getTreeCategoriesList(): array
+    {
+        $categorias = [];
+        $buildTreeList = function($cats, $level = 0, $path = '') use (&$buildTreeList, &$categorias) {
+            foreach ($cats as $cat) {
+                $indent = str_repeat("\u{00A0}\u{00A0}\u{00A0}\u{00A0}", $level);
+                $prefix = $level > 0 ? '↳ ' : '';
+                $currentPath = $path ? $path . ' › ' . $cat->name : $cat->name;
+                
+                $categorias[] = [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'formatted_name' => $indent . $prefix . $cat->name,
+                    'path' => $currentPath,
+                    'preco_base' => (float) $cat->preco_base,
+                ];
+                
+                if ($cat->children && $cat->children->isNotEmpty()) {
+                    $buildTreeList($cat->children, $level + 1, $currentPath);
+                }
+            }
+        };
+
+        $rootCats = Categoria::whereNull('parent_id')->with('children')->orderBy('name')->get();
+        $buildTreeList($rootCats);
+
+        return $categorias;
     }
 
     public function store(Request $request)
     {
+        $brechoId = auth()->user()->brecho_id ?? 1;
+
+        // Suporte para inserção rápida em lote (tabela no estilo avaliações)
+        if ($request->has('items_json') || $request->has('items')) {
+            $itemsData = $request->has('items_json') 
+                ? json_decode($request->input('items_json'), true) 
+                : $request->input('items');
+
+            if (!is_array($itemsData)) {
+                return redirect()->back()->with('error', 'Formato inválido de itens enviado.');
+            }
+
+            // Filtrar apenas itens preenchidos
+            $validItems = array_filter($itemsData, function ($i) {
+                return !empty($i['nome']) && trim($i['nome']) !== '';
+            });
+
+            if (empty($validItems)) {
+                return redirect()->back()->with('error', 'Preencha pelo menos um item para cadastrar.');
+            }
+
+            $createdCount = 0;
+            DB::beginTransaction();
+            try {
+                foreach ($validItems as $i) {
+                    $codigo = !empty($i['codigo']) ? trim($i['codigo']) : '';
+                    if ($codigo === '' || DB::table('items')->where('codigo', $codigo)->exists()) {
+                        $codigo = self::generateNextCodigo();
+                    }
+
+                    $preco = isset($i['preco']) ? (float) str_replace(',', '.', $i['preco']) : 0.00;
+                    $estado = !empty($i['estado']) ? $i['estado'] : 'Seminovo';
+
+                    $item = Item::create([
+                        'brecho_id'           => $brechoId,
+                        'codigo'              => $codigo,
+                        'nome_do_produto'     => trim($i['nome']),
+                        'marca'               => !empty($i['marca']) ? trim($i['marca']) : null,
+                        'estado'              => $estado,
+                        'cor'                 => !empty($i['cor']) ? trim($i['cor']) : null,
+                        'tamanho'             => !empty($i['tamanho']) ? trim($i['tamanho']) : null,
+                        'preco'               => $preco,
+                        'custo'               => 0.00,
+                        'codigo_da_categoria' => !empty($i['categoria_id']) ? $i['categoria_id'] : null,
+                        'status'              => 'disponivel',
+                    ]);
+
+                    if (!empty($i['categoria_id'])) {
+                        $item->categorias()->sync([$i['categoria_id']]);
+                    }
+
+                    $createdCount++;
+                }
+
+                DB::commit();
+                return redirect()->route('items.index')->with('success', "{$createdCount} item(ns) cadastrado(s) com sucesso no estoque!");
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Erro ao cadastrar itens em lote: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'Erro ao cadastrar itens: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback unitário legado
         $validated = $request->validate([
-            'codigo' => 'required|string|unique:items,codigo',
+            'codigo' => [
+                'required',
+                'string',
+                \Illuminate\Validation\Rule::unique('items', 'codigo'),
+            ],
             'nome_do_produto' => 'required|string|max:255',
             'descricao' => 'nullable|string',
             'custo' => 'nullable|numeric|min:0',
@@ -104,7 +231,7 @@ class ItemController extends Controller
             'codigo_da_categoria' => 'nullable|string',
             'marca' => 'nullable|string',
             'modelo' => 'nullable|string',
-            'estado' => 'required|in:novo,usado,semi-novo,recondicionado',
+            'estado' => 'required|string',
             'cor' => 'nullable|string',
             'tamanho' => 'nullable|string',
             'pedido' => 'nullable|string',
@@ -164,8 +291,14 @@ class ItemController extends Controller
 	
 	public function update(Request $request, Item $item)
 	{
+		$brechoId = $item->brecho_id ?? (auth()->user()->brecho_id ?? 1);
+
 		$validated = $request->validate([
-			'codigo' => 'required|string|unique:items,codigo,' . $item->id,
+			'codigo' => [
+				'required',
+				'string',
+				\Illuminate\Validation\Rule::unique('items', 'codigo')->ignore($item->id)->where(fn ($query) => $query->where('brecho_id', $brechoId)),
+			],
 			'nome_do_produto' => 'required|string|max:255',
 			'descricao' => 'nullable|string',
 			'custo' => 'nullable|numeric|min:0',
@@ -173,7 +306,7 @@ class ItemController extends Controller
 			'codigo_da_categoria' => 'nullable|string',
 			'marca' => 'nullable|string',
 			'modelo' => 'nullable|string',
-			'estado' => 'required|in:novo,usado,semi-novo,recondicionado',
+			'estado' => 'required|string|max:50',
 			'cor' => 'nullable|string',
 			'tamanho' => 'nullable|string',
 			'pedido' => 'nullable|string',
@@ -279,6 +412,10 @@ class ItemController extends Controller
 		// Sincroniza a imagem principal após remover
 		$item->syncMainImage();
 
+		if (request()->expectsJson() || request()->ajax()) {
+			return response()->json(['ok' => true, 'message' => 'Mídia removida com sucesso.']);
+		}
+
 		return back()->with('success', 'Mídia removida com sucesso.');
 	}	
 
@@ -356,6 +493,13 @@ class ItemController extends Controller
             ->whereNotNull('localizacao')
             ->where('localizacao', '!=', '');
 
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+        $brechoId = $isParceiro ? auth()->user()->brecho_id : null;
+
+        if ($brechoId) {
+            $queryLocais->where('brecho_id', $brechoId);
+        }
+
         if (!empty($buscaLocal)) {
             $queryLocais->where('localizacao', 'like', '%' . $buscaLocal . '%');
         }
@@ -372,7 +516,14 @@ class ItemController extends Controller
             ->get();
 
         // Resumo Geral do Estoque
-        $itensEstoque = Item::where('status', 'estoque')->get();
+        $itensEstoqueQuery = Item::query();
+        if ($isParceiro) {
+            $itensEstoqueQuery->where('brecho_id', $brechoId)->whereIn('status', ['estoque', 'disponivel']);
+        } else {
+            $itensEstoqueQuery->where('status', 'estoque');
+        }
+        $itensEstoque = $itensEstoqueQuery->get();
+
         $estoqueInfo = [
             'quantidade' => $itensEstoque->count(),
             'valor_total' => $itensEstoque->sum('preco'),
@@ -380,9 +531,13 @@ class ItemController extends Controller
         ];
 
         // Itens sem localização
-        $itensSemLocal = Item::where(function($q) {
+        $itensSemLocalQuery = Item::where(function($q) {
             $q->whereNull('localizacao')->orWhere('localizacao', '');
-        })->count();
+        });
+        if ($brechoId) {
+            $itensSemLocalQuery->where('brecho_id', $brechoId);
+        }
+        $itensSemLocal = $itensSemLocalQuery->count();
 
         return view('admin.items.inventario_report', compact('locaisEstoque', 'estoqueInfo', 'buscaLocal', 'itensSemLocal'));
     }
@@ -820,8 +975,9 @@ class ItemController extends Controller
 
 	private function storeStandardizedImage($file, int $itemId): array
 	{
-		$manager = new \Intervention\Image\ImageManager(new Driver());
-		//$manager = new ImageManager(new Driver());
+		$manager = extension_loaded('imagick')
+			? \Intervention\Image\ImageManager::imagick()
+			: \Intervention\Image\ImageManager::gd();
 
 		$img = $manager->read($file->getRealPath());
 

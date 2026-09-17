@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Traits\BelongsToBrecho;
 
 class Pedido extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToBrecho;
 
     protected $table = 'pedidos';
 
     protected $fillable = [
+        'brecho_id',
         'numero_pedido',
         'payment_token',
         'user_id',

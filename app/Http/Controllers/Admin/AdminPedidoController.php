@@ -16,6 +16,10 @@ class AdminPedidoController extends Controller
 	{
 		$query = Pedido::query()->with('user');
 
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$query->where('brecho_id', auth()->user()->brecho_id);
+		}
+
 		$query->when($request->filled('numero_pedido'), function ($q) use ($request) {
 			$q->where('numero_pedido', 'like', '%' . $request->input('numero_pedido') . '%');
 		});
@@ -64,10 +68,20 @@ class AdminPedidoController extends Controller
 
     public function create()
     {
-        $users = User::select('id', 'name', 'email')
-            ->orderBy('name')
-            ->limit(200)
-            ->get();
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $brechoId = auth()->user()->brecho_id;
+            $users = User::join('brecho_clientes as bc', 'bc.user_id', '=', 'users.id')
+                ->where('bc.brecho_id', $brechoId)
+                ->select('users.id', 'users.name', 'users.email')
+                ->orderBy('users.name')
+                ->get();
+        } else {
+            $users = User::select('id', 'name', 'email')
+                ->where('role', 'client')
+                ->orderBy('name')
+                ->limit(200)
+                ->get();
+        }
 
         $proximoNumero = Pedido::max('id') + 1;
         $numeroPedido = 'PED-' . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
@@ -119,6 +133,10 @@ class AdminPedidoController extends Controller
 
         $pedidoData = collect($validated)->except('items')->toArray();
 
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $pedidoData['brecho_id'] = auth()->user()->brecho_id;
+        }
+
         DB::transaction(function () use ($pedidoData, $request) {
             $pedido = Pedido::create($pedidoData);
             
@@ -145,6 +163,12 @@ class AdminPedidoController extends Controller
 
     public function show(Pedido $pedido)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         $pedido->load('user');
         $pedido->checkAndSyncTracking();
         return view('admin.pedidos.show', compact('pedido'));
@@ -153,16 +177,35 @@ class AdminPedidoController extends Controller
     public function pdf($id)
     {
         $pedido = Pedido::findOrFail($id);
+
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pedidos.pdf', compact('pedido'));
         return $pdf->stream("pedido-{$pedido->numero_pedido}.pdf");
     }
 
     public function edit(Pedido $pedido)
     {
-        $users = User::select('id', 'name', 'email')
-            ->orderBy('name')
-            ->limit(200)
-            ->get();
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+            $brechoId = auth()->user()->brecho_id;
+            $users = User::join('brecho_clientes as bc', 'bc.user_id', '=', 'users.id')
+                ->where('bc.brecho_id', $brechoId)
+                ->select('users.id', 'users.name', 'users.email')
+                ->orderBy('users.name')
+                ->get();
+        } else {
+            $users = User::select('id', 'name', 'email')
+                ->orderBy('name')
+                ->limit(200)
+                ->get();
+        }
 
         // Subtotal: soma dos itens do pedido
         $subtotal = DB::table('items_pedido')
@@ -191,6 +234,12 @@ class AdminPedidoController extends Controller
 
     public function updateStatus(Request $request, Pedido $pedido)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         $request->validate([
             'status_pedido' => 'required|in:aberto,pago,embalado,enviado,entregue,cancelado'
         ]);
@@ -215,6 +264,12 @@ class AdminPedidoController extends Controller
 
     public function update(Request $request, Pedido $pedido)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         $validated = $request->validate($this->rules($pedido->id));
 
         // Validar saldo da carteira (não permitir negativo nem maior que o saldo disponível + alocado)
@@ -251,6 +306,12 @@ class AdminPedidoController extends Controller
 
     public function destroy(Pedido $pedido)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         DB::transaction(function () use ($pedido) {
             $pedido->delete();
         });
@@ -262,6 +323,12 @@ class AdminPedidoController extends Controller
 
     public function adicionarItem(Request $request, Pedido $pedido)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            if ($pedido->brecho_id != auth()->user()->brecho_id) {
+                abort(403, 'Acesso não autorizado a este pedido.');
+            }
+        }
+
         $validated = $request->validate([
             'item_id' => 'required|exists:items,id',
             'preco_unitario' => 'required|numeric|min:0',

@@ -43,27 +43,70 @@ class WhatsappController extends Controller
 		$to = $this->normalizeToWhatsapp($fromRaw);
 		if (!$to) return $this->emptyTwiml();
 
+		// Encaminha webhook de teste para ambiente dev local se configurado
+		$devForwardUrl = Cache::get('twilio_dev_forward_url');
+		if ($devForwardUrl) {
+			$digitsOnly = preg_replace('/\D+/', '', $fromRaw);
+			// Telefone de teste do desenvolvedor (Adriel)
+			if (str_contains($digitsOnly, '84136870')) {
+				try {
+					Log::info('TWILIO_FORWARD_TO_DEV', ['url' => $devForwardUrl, 'from' => $fromRaw]);
+					$forwardResp = Http::timeout(10)->asForm()->withoutVerifying()->post($devForwardUrl, $request->all());
+					return response($forwardResp->body(), $forwardResp->status())
+						->header('Content-Type', 'text/xml');
+				} catch (\Throwable $e) {
+					Log::error('Erro ao encaminhar webhook para dev local', ['error' => $e->getMessage()]);
+				}
+			}
+		}
+
 		$intent = $this->detectIntent($body);
 		$digits = $this->normalizeDigits($fromRaw);
 
-		// 1) DETECÇÃO DE CONFLITO DE TELEFONE
-		$matchedUsers = $digits ? $this->findUsersByPhoneDigits($digits) : collect();
-		$realUsers = $matchedUsers->where('id', '!=', 1); // ignora Sistema
+		$repliedSid = trim((string) (
+			$request->input('OriginalRepliedMessageSid')
+			?? $request->input('original_replied_message_sid')
+			?? ''
+		));
 
-		if ($realUsers->count() > 1) {
-			// BLOQUEIA: registra conflito e NÃO responde
-			$this->recordPhoneConflict($fromRaw, $digits, $realUsers);
-			return $this->emptyTwiml();
+		$user = null;
+		$contextLiveId = null;
+
+		if ($repliedSid !== '') {
+			$origMsg = DB::table('whatsapp_messages')->where('message_sid', $repliedSid)->first();
+			if ($origMsg && $origMsg->user_id) {
+				$user = User::find($origMsg->user_id);
+				if ($user && $origMsg->live_id) {
+					$contextLiveId = (int) $origMsg->live_id;
+				}
+			}
 		}
 
-		// 1.1) GARANTE UM USUÁRIO (Identifica, Cria ou trata Conflito)
-		if ($realUsers->count() > 1) {
-			// Mantém sua lógica de bloqueio por conflito
-			$this->recordPhoneConflict($fromRaw, $digits, $realUsers);
-			return $this->emptyTwiml();
-		}
+		// 1) Se não identificado pela mensagem original, busca por telefone
+		if (!$user) {
+			$matchedUsers = $digits ? $this->findUsersByPhoneDigits($digits) : collect();
+			$realUsers = $matchedUsers->where('id', '!=', 1); // ignora Sistema
 
-		$user = $realUsers->first();
+			if ($realUsers->count() > 1) {
+				// Desambigua pelo usuário com atividade mais recente (sacolinhas, live_pdfs ou mensagens)
+				$userWithActivity = $realUsers->sortByDesc(function ($u) {
+					$lastPdf = DB::table('live_pdfs')->where('user_id', $u->id)->max('id') ?? 0;
+					$lastSacola = DB::table('sacolinhas')->where('user_id', $u->id)->max('id') ?? 0;
+					$lastMsg = DB::table('whatsapp_messages')->where('user_id', $u->id)->where('direction', 'outbound')->max('id') ?? 0;
+					return max($lastPdf, $lastSacola, $lastMsg, $u->id);
+				})->first();
+
+				if ($userWithActivity) {
+					$user = $userWithActivity;
+				} else {
+					// BLOQUEIA: registra conflito e NÃO responde
+					$this->recordPhoneConflict($fromRaw, $digits, $realUsers);
+					return $this->emptyTwiml();
+				}
+			} else {
+				$user = $realUsers->first();
+			}
+		}
 
 		if (!$user && $digits) {
 			// Se não existe, cria um usuário temporário para garantir o vínculo no chat
@@ -95,6 +138,9 @@ class WhatsappController extends Controller
 
 		// 2) Infere contexto
 		$context = $this->inferContextFromUser($user?->id);
+		if (!empty($contextLiveId)) {
+			$context['live_id'] = $contextLiveId;
+		}
 
 		// 3) Grava inbound (mantém como está)
 		$this->logInboundMessage($request, $user, $context);
@@ -208,8 +254,13 @@ class WhatsappController extends Controller
 
 
 
-		// 4) Trata "confirm" (botão Revisar e Confirmar)
-		$isConfirm = ($intent === 'confirm') || (mb_strtolower($body) === mb_strtolower('Revisar e Confirmar'));
+		// 4) Trata "confirm" (botão Revisar e Confirmar) ou "pdf"
+		$normalizedBody = mb_strtolower(trim($body));
+		$isConfirm = ($intent === 'confirm')
+			|| ($intent === 'pdf')
+			|| ($normalizedBody === mb_strtolower('Revisar e Confirmar'))
+			|| ($normalizedBody === 'pdf')
+			|| ($buttonId !== '' && in_array(mb_strtolower($buttonId), ['confirmar', 'confirm', 'pdf']));
 
 		if ($isConfirm) {
 			if (!$user) {
@@ -217,12 +268,65 @@ class WhatsappController extends Controller
 				return $this->emptyTwiml();
 			}
 
-			// 4.1) Pega o PDF pronto mais recente
+			// 4.1) Pega o PDF pronto mais recente (status 'ready')
 			$pdfRow = DB::table('live_pdfs')
 				->where('user_id', $user->id)
 				->where('status', 'ready')
 				->orderByDesc('id')
 				->first();
+
+			// Fallback 1: se já foi marcado como 'sent' (ex: usuário clicou de novo ou reenvio)
+			if (!$pdfRow) {
+				$pdfRow = DB::table('live_pdfs')
+					->where('user_id', $user->id)
+					->where('status', 'sent')
+					->orderByDesc('id')
+					->first();
+			}
+
+			// Fallback 2: se não tem registro em live_pdfs, tenta gerar na hora para a última live com sacolinha
+			if (!$pdfRow) {
+				$liveIdParaGerar = $context['live_id'] ?? DB::table('sacolinhas')
+					->where('user_id', $user->id)
+					->whereNotNull('live_id')
+					->orderByDesc('live_id')
+					->value('live_id');
+
+				if (!$liveIdParaGerar) {
+					$liveIdParaGerar = DB::table('whatsapp_messages')
+						->where('user_id', $user->id)
+						->whereNotNull('live_id')
+						->orderByDesc('id')
+						->value('live_id');
+				}
+
+				if ($liveIdParaGerar) {
+					try {
+						$pdfInfo = app(\App\Http\Controllers\LiveController::class)->gerarPdfSacolinhaLiveSalvar($user->id, (int)$liveIdParaGerar);
+						DB::table('live_pdfs')->updateOrInsert(
+							['live_id' => (int)$liveIdParaGerar, 'user_id' => $user->id],
+							[
+								'pdf_path' => $pdfInfo['path'],
+								'pdf_url' => $pdfInfo['url'],
+								'status' => 'ready',
+								'sent_at' => null,
+								'updated_at' => now(),
+								'created_at' => now(),
+							]
+						);
+						$pdfRow = DB::table('live_pdfs')
+							->where('live_id', (int)$liveIdParaGerar)
+							->where('user_id', $user->id)
+							->first();
+					} catch (\Throwable $e) {
+						Log::error('Erro ao gerar PDF live on-the-fly em confirm', [
+							'user_id' => $user->id,
+							'live_id' => $liveIdParaGerar,
+							'error' => $e->getMessage()
+						]);
+					}
+				}
+			}
 
 			if (!$pdfRow) {
 				$liveIdParaErro = $context['live_id'] ?? DB::table('whatsapp_messages')
@@ -244,14 +348,25 @@ class WhatsappController extends Controller
 			}
 
 			$liveIdAtual = (int) $pdfRow->live_id;
+			$liveRow = DB::table('lives')->where('id', $liveIdAtual)->first();
+			$brecho = null;
+			if ($liveRow && !empty($liveRow->brecho_id) && $liveRow->brecho_id > 1) {
+				$brecho = DB::table('brechos')->where('id', $liveRow->brecho_id)->first();
+			}
+			$chavePix = (!empty($brecho->chave_pix)) ? $brecho->chave_pix : 'mania@maniademelissa.com';
 
-			// 4.2) CONDIÇÕES (as que você descreveu)
-			// Sacolinha existe se existe registro em sacolinhas para o user
-			$hasSacolinha = DB::table('sacolinhas')
+			// 4.2) CONDIÇÕES
+			// Sacolinha existe se existe registro em sacolinhas para o user (escopado ao brechó se aplicável)
+			$hasSacolinhaQuery = DB::table('sacolinhas')
 				->where('user_id', $user->id)
 				->where('status', '!=', 'pedido')
-				->where('live_id', '!=', $liveIdAtual)
-				->exists();
+				->where('live_id', '!=', $liveIdAtual);
+
+			if ($liveRow && !empty($liveRow->brecho_id)) {
+				$hasSacolinhaQuery->where('brecho_id', $liveRow->brecho_id);
+			}
+
+			$hasSacolinha = $hasSacolinhaQuery->exists();
 
 			// Limite disponível (vem de cliente_limites). Se não existir registro, assume 0
 			$limiteDisponivel = (float) (DB::table('cliente_limites')
@@ -263,26 +378,22 @@ class WhatsappController extends Controller
 			$saldoCliente = (float) (DB::table('conta_corrente')
 				->where('user_id', $user->id)
 				->orderByDesc('data_movimentacao')
-				->orderByDesc('id')  // Pega a movimentação mais recente (ou use 'created_at' se preferir)
+				->orderByDesc('id')
 				->value('saldo_atual') ?? 0);			
-				
 
 			$limiteFinal = $limiteDisponivel + $saldoCliente;
 			
-			// (Opcional) Se você ainda quer mencionar "itens em análise", mantenha esse count,
-			// mas ele NÃO deve decidir msg2/msg3 (decisão é pelo limite).
-			$itensEmAnaliseCount = DB::table('sacolinhas')
-				->where('user_id', $user->id)
-				->where('status', '!=', 'pedido')
-				->where('live_id', $liveIdAtual)
-				->count();
-
 			// Dados para msg2 (resumo da sacolinha na live atual)
-			$dadosSacola = DB::table('sacolinhas')
+			$dadosSacolaQuery = DB::table('sacolinhas')
 				->selectRaw('MIN(add_at) as abertura, COUNT(*) as num_items, SUM(quantity * price) as valor_total')
 				->where('user_id', $user->id)
-				->where('status', '!=', 'pedido')
-				->first();
+				->where('status', '!=', 'pedido');
+
+			if ($liveRow && !empty($liveRow->brecho_id)) {
+				$dadosSacolaQuery->where('brecho_id', $liveRow->brecho_id);
+			}
+
+			$dadosSacola = $dadosSacolaQuery->first();
 
 			// 4.3) Decide msg1/msg2/msg3
 			//Não tem sacolinha?
@@ -290,7 +401,7 @@ class WhatsappController extends Controller
 				// msg1
 				$msg = "👉 Confira o pedido.\n"
 					. "Se estiver ok:\n\n"
-					. "*Pagamento:* PIX mania@maniademelissa.com ou cartão (peça o link)\n"
+					. "*Pagamento:* PIX {$chavePix} ou cartão (peça o link)\n"
 					. "*Envio:* sacolinha(até 30 dias) ou envio (cotação de frete)\n\n"
 					. "É só escolher sua opção para prosseguirmos.\n"
 					. "⏰ Sem resposta em 24h, o pedido é cancelado.";
@@ -306,7 +417,6 @@ class WhatsappController extends Controller
 						? number_format((float) $dadosSacola->valor_total, 2, ',', '.')
 						: '-';
 					$saldo = number_format($saldoCliente, 2, ',', '.');	
-						
 
 					$msg ="👉 Confira o pedido\n"
 						. "Se estiver ok → os itens serão incluídos em sua sacolinha.\n\n"
@@ -318,7 +428,6 @@ class WhatsappController extends Controller
 						. "Quando quiser o envio do pedido é só falar!";
 
 					$this->sendWhatsappMedia($to, $msg, (string) $pdfRow->pdf_url, $user->id, $liveIdAtual, 'second');
-					//Não tem limete(limite <= 0)
 				} else {
 					// msg3 
 					$msg ="👉 Confira o pedido\n"
@@ -328,6 +437,30 @@ class WhatsappController extends Controller
 						. "⏰ Sem resposta em 24h, itens cancelados.";
 
 					$this->sendWhatsappMedia($to, $msg, (string) $pdfRow->pdf_url, $user->id, $liveIdAtual, 'second');
+				}
+			}
+
+			// Se for brechó parceiro, atribui conversa no chat ao operador deste brechó
+			if ($brecho && $brecho->id > 1) {
+				$brechoAdmin = DB::table('users')
+					->where('brecho_id', $brecho->id)
+					->where(function ($q) {
+						$q->where('role', 'brecho_admin')
+						  ->orWhere('is_admin', 1);
+					})
+					->first();
+
+				if ($brechoAdmin) {
+					DB::table('chat_assignments')->updateOrInsert(
+						['user_id' => $user->id],
+						[
+							'assigned_admin_id' => $brechoAdmin->id,
+							'assigned_by_admin_id' => $brechoAdmin->id,
+							'assigned_at' => now(),
+							'expires_at' => now()->addHours(24),
+							'updated_at' => now(),
+						]
+					);
 				}
 			}
 
@@ -366,6 +499,8 @@ class WhatsappController extends Controller
 		if ($from !== '' && !str_starts_with($from, 'whatsapp:')) {
 			$from = 'whatsapp:' . $from;
 		}
+
+		if (empty($accountSid) || empty($authToken) || empty($from)) {
 			DB::table('whatsapp_messages')->insert([
 				'user_id' => $userId,
 				'live_id' => $liveId,
@@ -383,19 +518,24 @@ class WhatsappController extends Controller
 				'created_at' => now(),
 				'updated_at' => now(),
 			]);
-
+			return null;
+		}
 
 		$statusCallback = rtrim((string) config('app.url'), '/') . '/twilio-status';
+		$hasLocalhost = str_contains($statusCallback, 'localhost') || str_contains($statusCallback, '127.0.0.1');
 
 		$payload = [
 			'From' => $from,
 			'To' => $to,
 			'Body' => $body,
-			'StatusCallback' => $statusCallback,
 		];
+		if (!$hasLocalhost) {
+			$payload['StatusCallback'] = $statusCallback;
+		}
 
 		$resp = Http::withBasicAuth($accountSid, $authToken)
 			->asForm()
+			->withoutVerifying()
 			->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages.json", $payload);
 
 		$respJson = $resp->json();
@@ -442,18 +582,52 @@ class WhatsappController extends Controller
 			$from = 'whatsapp:' . $from;
 		}
 
+		if (empty($accountSid) || empty($authToken) || empty($from)) {
+			DB::table('whatsapp_messages')->insert([
+				'user_id' => $userId,
+				'live_id' => $liveId,
+				'direction' => 'outbound',
+				'status' => 'failed',
+				'message_sid' => null,
+				'account_sid' => $accountSid,
+				'from' => $from,
+				'to' => $to,
+				'body' => $body,
+				'message_type' => $messageType,
+				'failed_reason' => 'Credenciais Twilio ausentes (services.twilio.*)',
+				'raw_payload' => null,
+				'status_updated_at' => now(),
+				'created_at' => now(),
+				'updated_at' => now(),
+			]);
+			return null;
+		}
+
+		// Se a URL contiver localhost ou 127.0.0.1, substitui pelo host público (ngrok/tunnel) para que a Twilio consiga fazer o download
+		if (str_contains($mediaUrl, 'localhost') || str_contains($mediaUrl, '127.0.0.1')) {
+			$publicHost = config('app.public_media_url') ?? env('NGROK_URL') ?? env('APP_PUBLIC_URL');
+			if ($publicHost) {
+				$parsed = parse_url($mediaUrl);
+				$mediaUrl = rtrim($publicHost, '/') . ($parsed['path'] ?? '') . (isset($parsed['query']) ? '?' . $parsed['query'] : '');
+			}
+		}
+
 		$statusCallback = rtrim((string) config('app.url'), '/') . '/twilio-status';
+		$hasLocalhost = str_contains($statusCallback, 'localhost') || str_contains($statusCallback, '127.0.0.1');
 
 		$payload = [
 			'From' => $from,
 			'To' => $to,
 			'Body' => $body,
 			'MediaUrl' => $mediaUrl,
-			'StatusCallback' => $statusCallback,
 		];
+		if (!$hasLocalhost) {
+			$payload['StatusCallback'] = $statusCallback;
+		}
 
 		$resp = Http::withBasicAuth($accountSid, $authToken)
 			->asForm()
+			->withoutVerifying()
 			->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages.json", $payload);
 
 		$respJson = $resp->json();

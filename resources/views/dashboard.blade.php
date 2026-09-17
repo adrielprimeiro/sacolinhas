@@ -20,7 +20,11 @@
         </div>
     </div>
 
-    <!-- Grid de Estatísticas (8 Cards) -->
+    @php
+        $isBrecho = auth()->check() && auth()->user()->isBrechoParceiro();
+    @endphp
+
+    <!-- Grid de Estatísticas (8 Cards para Matriz / 4 Cards para Brechó Parceiro) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         <!-- Card 1: Atenção - Vencimentos -->
@@ -38,13 +42,13 @@
 
                 <div class="mt-4 space-y-3">
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500">Sacolas vencendo hoje</span>
+                        <span class="text-gray-500">Sacolas vencidas</span>
                         <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">
                             {{ $alertasVencimento['sacolas_vencem_hoje'] ?? 0 }}
                         </span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500">Itens vencendo hoje</span>
+                        <span class="text-gray-500">Itens vencidos</span>
                         <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">
                             {{ $alertasVencimento['itens_vencem_hoje'] ?? 0 }}
                         </span>
@@ -65,12 +69,12 @@
             </div>
         </div>
 
-        <!-- Card 2: Físico Estoque (Resumo dos Locais) -->
+        <!-- Card 2: Estoque -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-blue-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider">Físico</p>
+                        <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider">{{ $isBrecho ? 'Produtos' : 'Físico' }}</p>
                         <h3 class="text-lg font-bold text-gray-800 mt-1">Estoque</h3>
                     </div>
                     <div class="p-3 rounded-lg bg-blue-50 text-blue-600">
@@ -79,46 +83,82 @@
                 </div>
 
                 <div class="mt-4 space-y-2.5">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-map-marker-alt text-blue-500 text-xs"></i> Locais cadastrados</span>
-                        <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
-                            {{ number_format($estoqueResumoLocais['locais_cadastrados'] ?? 0, 0, ',', '.') }}
-                        </span>
-                    </div>
+                    @if($isBrecho)
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-boxes text-blue-500 text-xs"></i> Total de Itens</span>
+                            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
+                                {{ number_format($estoqueInfo['quantidade'] ?? 0, 0, ',', '.') }}
+                            </span>
+                        </div>
 
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tshirt text-indigo-500 text-xs"></i> Peças endereçadas</span>
-                        <span class="font-bold text-indigo-700">
-                            {{ number_format($estoqueResumoLocais['pecas_enderecadas'] ?? 0, 0, ',', '.') }} itens
-                        </span>
-                    </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-check-circle text-green-500 text-xs"></i> Disponíveis</span>
+                            <span class="font-bold text-green-700">
+                                {{ number_format($estatisticas['itens_disponiveis'] ?? 0, 0, ',', '.') }} itens
+                            </span>
+                        </div>
 
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tag text-green-500 text-xs"></i> Valor em prateleiras</span>
-                        <span class="font-bold text-green-600">
-                            R$ {{ number_format($estoqueResumoLocais['valor_prateleiras'] ?? 0, 2, ',', '.') }}
-                        </span>
-                    </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-shopping-bag text-indigo-500 text-xs"></i> Em Sacolinhas</span>
+                            <span class="font-bold text-indigo-700">
+                                {{ number_format($sacolasInfo['total_itens'] ?? 0, 0, ',', '.') }} itens
+                            </span>
+                        </div>
 
-                    <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
-                        <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-question-circle text-yellow-500 text-xs"></i> Sem localização</span>
-                        <span class="font-bold text-yellow-600">
-                            {{ number_format($estoqueResumoLocais['sem_localizacao'] ?? 0, 0, ',', '.') }} itens
-                        </span>
-                    </div>
+                        <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tag text-green-500 text-xs"></i> Valor do Estoque</span>
+                            <span class="font-bold text-green-600">
+                                R$ {{ number_format($estoqueInfo['valor_total'] ?? 0, 2, ',', '.') }}
+                            </span>
+                        </div>
+                    @else
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-map-marker-alt text-blue-500 text-xs"></i> Locais cadastrados</span>
+                            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
+                                {{ number_format($estoqueResumoLocais['locais_cadastrados'] ?? 0, 0, ',', '.') }}
+                            </span>
+                        </div>
+
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tshirt text-indigo-500 text-xs"></i> Peças endereçadas</span>
+                            <span class="font-bold text-indigo-700">
+                                {{ number_format($estoqueResumoLocais['pecas_enderecadas'] ?? 0, 0, ',', '.') }} itens
+                            </span>
+                        </div>
+
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-tag text-green-500 text-xs"></i> Valor em prateleiras</span>
+                            <span class="font-bold text-green-600">
+                                R$ {{ number_format($estoqueResumoLocais['valor_prateleiras'] ?? 0, 2, ',', '.') }}
+                            </span>
+                        </div>
+
+                        <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
+                            <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-question-circle text-yellow-500 text-xs"></i> Sem localização</span>
+                            <span class="font-bold text-yellow-600">
+                                {{ number_format($estoqueResumoLocais['sem_localizacao'] ?? 0, 0, ',', '.') }} itens
+                            </span>
+                        </div>
+                    @endif
                 </div>
             </div>
 
             <div class="mt-6 flex flex-col gap-2">
-                <a href="{{ route('inventario') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Ver Estoque
-                </a>
-                <a href="{{ route('live.scanner') }}" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Scanner Live
-                </a>
-                <a href="{{ route('alocacao.scanner') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Endereçar / Alocar
-                </a>
+                @if($isBrecho)
+                    <a href="{{ route('items.index') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Ver Estoque
+                    </a>
+                @else
+                    <a href="{{ route('inventario') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Ver Estoque
+                    </a>
+                    <a href="{{ route('live.scanner') }}" class="block w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Scanner Live
+                    </a>
+                    <a href="{{ route('alocacao.scanner') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Endereçar / Alocar
+                    </a>
+                @endif
             </div>
         </div>
 
@@ -158,85 +198,143 @@
             </div>
 
             <div class="mt-6">
-                <a href="{{ route('admin.sacolinhas.index') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Ver Todas
-                </a>
+                @if($isBrecho)
+                    <a href="{{ route('admin.sacolinha.gestao') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Ver Sacolas
+                    </a>
+                @else
+                    <a href="{{ route('admin.sacolinhas.index') }}" class="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Ver Todas
+                    </a>
+                @endif
             </div>
         </div>
 
-        <!-- Card 4: Faturamento por Origem de Cliente (Gráfico Donut / Pizza) -->
-        <div class="bg-white rounded-xl shadow-md border-t-4 border-indigo-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
-            <div>
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Do Mês Vigente</p>
-                        <h3 class="text-lg font-bold text-gray-800 mt-1">Faturamento Clube</h3>
-                    </div>
-                    <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
-                        <i class="fas fa-chart-pie text-xl"></i>
-                    </div>
-                </div>
-
-                <div class="mt-3 flex items-center gap-4">
-                    <!-- Gráfico Circular / Donut SVG -->
-                    <div class="relative flex items-center justify-center shrink-0">
-                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                                class="text-gray-200"
-                                stroke-width="4"
-                                stroke="currentColor"
-                                fill="none"
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                                class="text-indigo-600 transition-all duration-1000 ease-out"
-                                stroke-dasharray="{{ min(100, max(0, $faturamentoClubeInfo['pct_clube'] ?? 0)) }}, 100"
-                                stroke-width="4"
-                                stroke-linecap="round"
-                                stroke="currentColor"
-                                fill="none"
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                        </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <span class="text-xs font-extrabold text-gray-800">{{ number_format($faturamentoClubeInfo['pct_clube'] ?? 0, 1) }}%</span>
-                            <span class="text-[8px] text-indigo-600 font-bold uppercase tracking-tighter">Clube</span>
-                        </div>
-                    </div>
-
-                    <!-- Legendas e Valores -->
-                    <div class="flex-1 space-y-1.5">
+        <!-- Card 4: Faturamento / Pedidos -->
+        @if($isBrecho)
+            <!-- Card 4 para Brechó Parceiro: Pedidos do Mês -->
+            <div class="bg-white rounded-xl shadow-md border-t-4 border-indigo-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-start justify-between">
                         <div>
-                            <p class="text-lg font-extrabold text-indigo-700 leading-tight">
-                                R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}
-                            </p>
-                            <p class="text-[11px] text-gray-500 font-medium">Vendas para Membros</p>
+                            <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Do Mês Vigente</p>
+                            <h3 class="text-lg font-bold text-gray-800 mt-1">Pedidos do Mês</h3>
                         </div>
-                        <div class="pt-1.5 border-t border-gray-100 space-y-1 text-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-600 flex items-center gap-1.5 text-[11px]">
-                                    <span class="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span> Clube:
-                                </span>
-                                <span class="font-bold text-indigo-700 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}</span>
+                        <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
+                            <i class="fas fa-shopping-cart text-xl"></i>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500">Total de Pedidos</span>
+                            <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-100 text-indigo-800">
+                                {{ $faturamentoClubeInfo['total_pedidos_mes'] ?? 0 }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500">Pedidos Concluídos</span>
+                            <span class="font-bold text-emerald-600">
+                                {{ $faturamentoClubeInfo['pedidos_concluidos'] ?? 0 }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500">Ticket Médio</span>
+                            <span class="font-semibold text-gray-700">
+                                R$ {{ number_format($faturamentoClubeInfo['ticket_medio'] ?? 0, 2, ',', '.') }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm border-t border-gray-100 pt-2">
+                            <span class="text-gray-500">Faturamento Total</span>
+                            <span class="font-bold text-indigo-700">
+                                R$ {{ number_format($faturamentoClubeInfo['fat_total_mes'] ?? 0, 2, ',', '.') }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <a href="{{ route('admin.pedido.index') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Ver Pedidos
+                    </a>
+                </div>
+            </div>
+        @else
+            <!-- Card 4 para Matriz: Faturamento Clube de Assinaturas -->
+            <div class="bg-white rounded-xl shadow-md border-t-4 border-indigo-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Do Mês Vigente</p>
+                            <h3 class="text-lg font-bold text-gray-800 mt-1">Faturamento Clube</h3>
+                        </div>
+                        <div class="p-3 rounded-lg bg-indigo-50 text-indigo-600">
+                            <i class="fas fa-chart-pie text-xl"></i>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center gap-4">
+                        <!-- Gráfico Circular / Donut SVG -->
+                        <div class="relative flex items-center justify-center shrink-0">
+                            <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                                <path
+                                    class="text-gray-200"
+                                    stroke-width="4"
+                                    stroke="currentColor"
+                                    fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                />
+                                <path
+                                    class="text-indigo-600 transition-all duration-1000 ease-out"
+                                    stroke-dasharray="{{ min(100, max(0, $faturamentoClubeInfo['pct_clube'] ?? 0)) }}, 100"
+                                    stroke-width="4"
+                                    stroke-linecap="round"
+                                    stroke="currentColor"
+                                    fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                <span class="text-xs font-extrabold text-gray-800">{{ number_format($faturamentoClubeInfo['pct_clube'] ?? 0, 1) }}%</span>
+                                <span class="text-[8px] text-indigo-600 font-bold uppercase tracking-tighter">Clube</span>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-500 flex items-center gap-1.5 text-[11px]">
-                                    <span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span> Outros:
-                                </span>
-                                <span class="font-semibold text-gray-600 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_outros_mes'] ?? 0, 2, ',', '.') }}</span>
+                        </div>
+
+                        <!-- Legendas e Valores -->
+                        <div class="flex-1 space-y-1.5">
+                            <div>
+                                <p class="text-lg font-extrabold text-indigo-700 leading-tight">
+                                    R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}
+                                </p>
+                                <p class="text-[11px] text-gray-500 font-medium">Vendas para Membros</p>
+                            </div>
+                            <div class="pt-1.5 border-t border-gray-100 space-y-1 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600 flex items-center gap-1.5 text-[11px]">
+                                        <span class="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span> Clube:
+                                    </span>
+                                    <span class="font-bold text-indigo-700 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_clube_mes'] ?? 0, 2, ',', '.') }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500 flex items-center gap-1.5 text-[11px]">
+                                        <span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span> Outros:
+                                    </span>
+                                    <span class="font-semibold text-gray-600 text-[11px]">R$ {{ number_format($faturamentoClubeInfo['fat_outros_mes'] ?? 0, 2, ',', '.') }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="mt-5">
-                <a href="{{ route('admin.clube.dashboard') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
-                    Painel do Clube
-                </a>
+                <div class="mt-5">
+                    <a href="{{ route('admin.clube.dashboard') }}" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-sm shadow-sm hover:shadow">
+                        Painel do Clube
+                    </a>
+                </div>
             </div>
-        </div>
+        @endif
 
+        @if(!$isBrecho)
         <!-- Card 5: Disponíveis -->
         <div class="bg-white rounded-xl shadow-md border-t-4 border-green-500 hover:shadow-lg transition duration-300 p-6 flex flex-col justify-between">
             <div>
@@ -365,6 +463,7 @@
                 </a>
             </div>
         </div>
+        @endif
 
     </div>
 </div>

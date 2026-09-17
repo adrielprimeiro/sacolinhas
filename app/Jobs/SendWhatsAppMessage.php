@@ -157,10 +157,10 @@ class SendWhatsAppMessage implements ShouldQueue
                 ->where('user_id', $this->userId)
                 ->where('live_id', $this->liveId)
                 ->where('status', '!=', 'pedido')
-                ->selectRaw('SUM(quantity) as num_items, SUM(quantity * price) as valor_total')
+                ->selectRaw('COUNT(*) as total_rows, SUM(COALESCE(quantity, 1)) as num_items, SUM(COALESCE(quantity, 1) * COALESCE(price, 0)) as valor_total')
                 ->first();
 
-            $totalItens = (int) ($dadosSacola?->num_items ?? 0);
+            $totalItens = (int) ($dadosSacola?->num_items ?: ($dadosSacola?->total_rows ?? 0));
             $valorTotal = number_format((float) ($dadosSacola?->valor_total ?? 0), 2, ',', '.');
 
             $vars = [

@@ -31,6 +31,10 @@ class RelatorioVencimentosController extends Controller
             ->whereNotNull('s.add_at')
             ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()");
 
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $baseVencidos->where('s.brecho_id', auth()->user()->brecho_id);
+        }
+
         // Filtro por cliente (nome, email, id, whatsapp)
         if ($busca !== '') {
             $baseVencidos->where(function ($q) use ($busca) {
@@ -77,7 +81,7 @@ class RelatorioVencimentosController extends Controller
 
         $itens = collect();
         if (!empty($userIds)) {
-            $linhas = DB::table('sacolinhas as s')
+            $linhasQuery = DB::table('sacolinhas as s')
                 ->leftJoin('items as i', 'i.id', '=', 's.item_id') // <-- ajuste se necessário
                 ->whereIn('s.user_id', $userIds)
                 ->where('s.status', '!=', 'pedido')
@@ -86,7 +90,13 @@ class RelatorioVencimentosController extends Controller
                           ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
                 })
                 ->whereNotNull('s.add_at')
-                ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()");
+
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                $linhasQuery->where('s.brecho_id', auth()->user()->brecho_id);
+            }
+
+            $linhas = $linhasQuery
                 ->select([
                     's.id',
                     's.user_id',

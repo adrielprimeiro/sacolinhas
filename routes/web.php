@@ -275,6 +275,8 @@ Route::middleware('auth')->group(function () {
         Route::post('live-chat/toggle-instagram', [\App\Http\Controllers\Admin\LiveChatController::class, 'toggleInstagram'])->name('admin.live-chat.toggle-instagram');
         Route::post('live-chat/toggle-tiktok', [\App\Http\Controllers\Admin\LiveChatController::class, 'toggleTiktok'])->name('admin.live-chat.toggle-tiktok');
         Route::post('live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])->name('admin.live-chat.message');
+        Route::post('live-chat/toggle-mark-message', [\App\Http\Controllers\Admin\LiveChatController::class, 'toggleMarkMessage'])->name('admin.live-chat.toggle-mark');
+        Route::post('live-chat/update-user-phone', [\App\Http\Controllers\Admin\LiveChatController::class, 'updateUserPhone'])->name('admin.live-chat.update-phone');
 
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
@@ -870,6 +872,12 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('equipe.index');
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
     Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
+
+    // Gestão de Brechós Parceiros
+    Route::get('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'index'])->name('brechos.index');
+    Route::post('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'store'])->name('brechos.store');
+    Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
+    Route::post('brechos/{brecho}/operador', [\App\Http\Controllers\Admin\BrechoController::class, 'createOperator'])->name('brechos.createOperator');
 
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');
