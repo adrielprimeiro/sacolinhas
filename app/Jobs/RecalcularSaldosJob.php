@@ -38,31 +38,23 @@
          */
         public function handle()
         {
-            Log::info("Iniciando recálculo de saldos para user_id: {$this->userId} a partir de: {$this->dataInicial}");
+            Log::info("Iniciando recálculo de saldos para user_id: {$this->userId}");
 
             DB::transaction(function () {
-                // Pega todas as movimentações do usuário a partir da data inicial, ordenadas cronologicamente
                 $movimentacoes = ContaCorrente::where('user_id', $this->userId)
-                                            ->where('data_movimentacao', '>=', $this->dataInicial)
-                                            ->orderBy('data_movimentacao')
-                                            ->orderBy('id') // Para garantir ordem consistente
+                                            ->orderBy('data_movimentacao', 'asc')
+                                            ->orderBy('id', 'asc')
                                             ->get();
 
-                // Pega o saldo final da última movimentação ANTES da data inicial
-                $saldoAnteriorTotal = ContaCorrente::where('user_id', $this->userId)
-                                                  ->where('data_movimentacao', '<', $this->dataInicial)
-                                                  ->orderBy('data_movimentacao', 'desc')
-                                                  ->orderBy('id', 'desc')
-                                                  ->first()
-                                                  ->saldo_atual ?? 0;
+                $saldoAnteriorTotal = 0;
 
                 foreach ($movimentacoes as $movimentacao) {
                     $movimentacao->saldo_anterior = $saldoAnteriorTotal;
 
                     if ($movimentacao->tipo_movimentacao === 'credito') {
-                        $movimentacao->saldo_atual = $saldoAnteriorTotal + $movimentacao->valor;
+                        $movimentacao->saldo_atual = $saldoAnteriorTotal + (float)$movimentacao->valor;
                     } else { // debito
-                        $movimentacao->saldo_atual = $saldoAnteriorTotal - $movimentacao->valor;
+                        $movimentacao->saldo_atual = $saldoAnteriorTotal - (float)$movimentacao->valor;
                     }
 
                     $movimentacao->save();
