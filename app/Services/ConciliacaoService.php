@@ -112,7 +112,7 @@ class ConciliacaoService
             'count_this_page' => count($results)
         ]);
         
-        $count = $this->processarPayments($results);
+        $count = $this->processarPayments($results, $accessToken);
 
         // Sincronizar relatórios de extrato completo (bank_report: entradas/tarifas)
         $countReports = $this->sincronizarRelatoriosMercadoPago($startDate, $endDate);
@@ -135,28 +135,74 @@ class ConciliacaoService
         return $count + $countReports + $countMoney;
     }
     
-    private function processarPayments(array $payments): int
+    private function getMercadoPagoUserId(string $accessToken): ?int
+    {
+        return \Illuminate\Support\Facades\Cache::remember('mercadopago_user_id', 86400 * 7, function () use ($accessToken) {
+            try {
+                $response = Http::withoutVerifying()->withToken($accessToken)->get('https://api.mercadopago.com/users/me');
+                if ($response->successful()) {
+                    return (int) $response->json('id');
+                }
+            } catch (\Exception $e) {
+                Log::error('Erro ao obter user_id do Mercado Pago: ' . $e->getMessage());
+            }
+            return 3338711472; // Fallback para a conta do usuário
+        });
+    }
+
+    private function processarPayments(array $payments, string $accessToken = ''): int
     {
         $count = 0;
         $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
         $contaBancariaId = $contaMp ? $contaMp->id : 2;
 
+        $myUserId = !empty($accessToken) ? $this->getMercadoPagoUserId($accessToken) : 3338711472;
+
         foreach ($payments as $payment) {
-            $status       = $payment['status'] ?? '';
-            $paymentType  = $payment['payment_type_id'] ?? '';
+            $status        = $payment['status'] ?? '';
+            $paymentType   = $payment['payment_type_id'] ?? '';
             $operationType = $payment['operation_type'] ?? '';
+            $collectorId   = $payment['collector_id'] ?? ($payment['collector']['id'] ?? null);
+            $payerId       = $payment['payer']['id'] ?? ($payment['payer_id'] ?? null);
 
             /*
-             * Regras de inclusão:
-             *  - 'approved' ou 'accredited' = recebimentos de clientes (entradas)
-             *  - 'authorized' + type='account_money' = pagamentos feitos PELO usuário
-             *    (compras em estabelecimentos via saldo MP) → saídas
+             * Distinção crucial entre ENTRADA e SAÍDA:
+             * 1. Pagamentos feitos PELO usuário/empresa (compras no ML, pagamentos em lojas/padarias):
+             *    - Identificados quando o usuário é o pagador ($payerId == $myUserId) OU o recebedor é outra pessoa ($collectorId != $myUserId).
+             *    - Se pago com cartão de crédito (ex: Master): VAI PARA A FATURA DO CARTÃO, não debita da conta bancária (saldo em conta). DEVE SER IGNORADO para não inflar ou corromper o saldo da conta corrente!
+             *    - Se pago com saldo em conta (account_money): é uma SAÍDA da conta bancária (status: authorized, approved, accredited).
+             * 2. Pagamentos RECEBIDOS de clientes (vendas do site, transferências Pix recebidas):
+             *    - Identificados quando o recebedor é o próprio usuário ($collectorId == $myUserId).
+             *    - Se status for approved ou accredited: é uma ENTRADA.
              */
-            $isEntrada = in_array($status, ['approved', 'accredited']);
-            $isSaida   = ($status === 'authorized' && $paymentType === 'account_money');
+            $isPayer = false;
+            if ($myUserId) {
+                if ($collectorId && (int)$collectorId !== (int)$myUserId) {
+                    $isPayer = true;
+                } elseif ($payerId && (int)$payerId === (int)$myUserId) {
+                    $isPayer = true;
+                }
+            }
 
-            if (!$isEntrada && !$isSaida) {
-                continue;
+            if ($isPayer) {
+                // Compras com cartão de crédito não afetam o saldo em conta bancária (ContaBancaria)
+                if ($paymentType === 'credit_card') {
+                    continue;
+                }
+
+                // Saída usando saldo da conta
+                $isSaida = in_array($status, ['authorized', 'approved', 'accredited']) && $paymentType === 'account_money';
+                if (!$isSaida) {
+                    continue;
+                }
+                $isEntrada = false;
+            } else {
+                $isEntrada = in_array($status, ['approved', 'accredited']);
+                $isSaida   = false;
+
+                if (!$isEntrada) {
+                    continue;
+                }
             }
 
             $tipo        = $isSaida ? 'saida' : 'entrada';
