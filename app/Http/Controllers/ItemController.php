@@ -180,12 +180,7 @@ class ItemController extends Controller
             try {
                 foreach ($validItems as $i) {
                     $codigo = !empty($i['codigo']) ? trim($i['codigo']) : '';
-
-                    if ($codigo !== '') {
-                        if (DB::table('items')->where('codigo', $codigo)->exists()) {
-                            throw new \Exception("O código '{$codigo}' já está em uso por outro item no estoque. Por favor, informe outro código ou deixe em branco para gerar automaticamente.");
-                        }
-                    } else {
+                    if ($codigo === '' || DB::table('items')->where('codigo', $codigo)->exists()) {
                         $codigo = self::generateNextCodigo();
                     }
 
@@ -311,7 +306,7 @@ class ItemController extends Controller
 			'codigo_da_categoria' => 'nullable|string',
 			'marca' => 'nullable|string',
 			'modelo' => 'nullable|string',
-			'estado' => 'required|in:novo,usado,semi-novo,recondicionado',
+			'estado' => 'required|string|max:50',
 			'cor' => 'nullable|string',
 			'tamanho' => 'nullable|string',
 			'pedido' => 'nullable|string',
@@ -416,6 +411,10 @@ class ItemController extends Controller
 
 		// Sincroniza a imagem principal após remover
 		$item->syncMainImage();
+
+		if (request()->expectsJson() || request()->ajax()) {
+			return response()->json(['ok' => true, 'message' => 'Mídia removida com sucesso.']);
+		}
 
 		return back()->with('success', 'Mídia removida com sucesso.');
 	}	
@@ -976,8 +975,9 @@ class ItemController extends Controller
 
 	private function storeStandardizedImage($file, int $itemId): array
 	{
-		$manager = new \Intervention\Image\ImageManager(new Driver());
-		//$manager = new ImageManager(new Driver());
+		$manager = extension_loaded('imagick')
+			? \Intervention\Image\ImageManager::imagick()
+			: \Intervention\Image\ImageManager::gd();
 
 		$img = $manager->read($file->getRealPath());
 

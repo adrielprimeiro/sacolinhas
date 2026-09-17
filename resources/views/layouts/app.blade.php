@@ -195,10 +195,10 @@
                         <a href="{{ route('clientes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('clientes.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-address-book mr-1.5 text-indigo-400"></i> Lista de Clientes
                         </a>
-						@if(!$isBrecho)
                         <a href="{{ route('admin.chat.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.chat.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-comments mr-1.5 text-indigo-400"></i> Chat ao Vivo
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fab fa-whatsapp mr-1.5 text-emerald-500"></i> WhatsApp Dashboard
                         </a>

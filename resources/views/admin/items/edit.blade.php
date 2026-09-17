@@ -91,14 +91,15 @@
 					<!-- Botão Remover -->
 					<div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
 						<button type="button"
-								onclick="if(confirm('Remover mídia?')) document.getElementById('delete-medias-{{ $media->id }}').submit();"
-								class="bg-red-600 text-white w-6 h-6 flex items-center justify-center rounded-full -mt-2 -mr-2 shadow-lg z-20">
+								onclick="deleteMediaAjax({{ $media->id }})"
+								class="bg-red-600 hover:bg-red-700 text-white w-6 h-6 flex items-center justify-center rounded-full -mt-2 -mr-2 shadow-lg z-20 transition"
+								title="Remover mídia">
 							<i class="fas fa-times text-sm"></i>
 						</button>
 					</div>
 				</div>
 			@empty
-				<div class="col-span-3 text-center text-sm text-gray-500 py-4">Nenhuma mídia cadastrada.</div>
+				<div class="col-span-3 text-center text-sm text-gray-500 py-4" id="emptyMediaNotice">Nenhuma mídia cadastrada.</div>
 			@endforelse
 		</div>
  
@@ -127,31 +128,17 @@
         {{-- Linha 1: Código + Nome --}}
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div class="md:col-span-6">
-            <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Código *</label>
-            <div class="relative">
-              <input type="text" id="codigo" name="codigo"
-                     value="{{ old('codigo', $item->codigo) }}"
-                     required
-                     class="w-full border border-gray-300 rounded-md pl-3 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('codigo') border-red-400 @enderror"
-                     placeholder="Ex: SKU12345" autocomplete="off" />
-
-              <button type="button" id="btnToggleQr"
-                      class="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-gray-500 hover:text-indigo-700"
-                      title="Ler QRCode e preencher o código">
-                <i class="fas fa-qrcode text-lg"></i>
-              </button>
-            </div>
+            <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">
+              Código <span class="text-xs text-gray-400 font-normal">(Gerado automaticamente)</span>
+            </label>
+            <input type="text" id="codigo" name="codigo"
+                   value="{{ old('codigo', $item->codigo) }}"
+                   readonly
+                   tabindex="-1"
+                   class="w-full border border-gray-200 bg-gray-100 text-gray-600 font-mono rounded-md px-3 py-2 cursor-not-allowed select-none focus:outline-none @error('codigo') border-red-400 @enderror" />
             @error('codigo')
               <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
             @enderror
-
-            <div id="qrReaderWrap" class="hidden mt-3 border border-gray-200 rounded-md p-3 bg-gray-50">
-              <div class="text-sm text-gray-600 mb-2">Permita o acesso à câmera e aponte para o QRCode.</div>
-              <div id="qrReader" class="w-full"></div>
-              <div class="mt-2">
-                <button type="button" id="btnCloseQr" class="text-sm text-gray-600 hover:text-gray-900">Fechar leitor</button>
-              </div>
-            </div>
           </div>
 
           <div class="md:col-span-6">
@@ -250,12 +237,21 @@
 
           <div class="md:col-span-4">
             <label for="estado" class="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
+            @php
+              $currentEstado = old('estado', $item->estado);
+              $normEstado = strtolower($currentEstado ?? '');
+              $isSeminovo = in_array($normEstado, ['seminovo', 'semi-novo']) || empty($normEstado);
+              $isNovo = in_array($normEstado, ['novo', 'nova']);
+              $isUsado = str_starts_with($normEstado, 'usado');
+            @endphp
             <select id="estado" name="estado" required
                     class="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 @error('estado') border-red-400 @enderror">
-              <option value="novo" {{ old('estado', $item->estado) == 'novo' ? 'selected' : '' }}>Novo</option>
-              <option value="usado" {{ old('estado', $item->estado) == 'usado' ? 'selected' : '' }}>Usado</option>
-              <option value="semi-novo" {{ old('estado', $item->estado) == 'semi-novo' ? 'selected' : '' }}>Semi-novo</option>
-              <option value="recondicionado" {{ old('estado', $item->estado) == 'recondicionado' ? 'selected' : '' }}>Recondicionado</option>
+              <option value="Seminovo" {{ $isSeminovo ? 'selected' : '' }}>Seminovo</option>
+              <option value="Usado" {{ $isUsado ? 'selected' : '' }}>Usado</option>
+              <option value="Novo" {{ $isNovo ? 'selected' : '' }}>Novo</option>
+              @if(!empty($currentEstado) && !$isSeminovo && !$isNovo && !$isUsado)
+                <option value="{{ $currentEstado }}" selected>{{ $currentEstado }}</option>
+              @endif
             </select>
             @error('estado')
               <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
@@ -366,7 +362,6 @@
 @endsection
 
 @push('scripts')
-<script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -405,7 +400,49 @@
     </div>`;
   }
 
-  // 3. Lógica de Ordenação (Sortable)
+  function buildDeleteButton(mediaId) {
+    return `<div class="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button type="button"
+              onclick="deleteMediaAjax(${mediaId})"
+              class="bg-red-600 hover:bg-red-700 text-white w-6 h-6 flex items-center justify-center rounded-full -mt-2 -mr-2 shadow-lg z-20 transition"
+              title="Remover mídia">
+        <i class="fas fa-times text-sm"></i>
+      </button>
+    </div>`;
+  }
+
+  // 3. Exclusão Ajax
+  window.deleteMediaAjax = async function(mediaId) {
+    if (!confirm('Deseja realmente remover esta mídia?')) return;
+    showOverlay();
+    try {
+      const delUrl = "{{ url('/items/' . $item->id . '/medias') }}/" + mediaId;
+      const resp = await fetch(delUrl, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken(),
+          'Accept': 'application/json',
+        }
+      });
+      if (resp.ok) {
+        const card = document.querySelector(`[data-media-card="${mediaId}"]`);
+        if (card) card.remove();
+        refreshSelectionUI();
+        if (grid && grid.querySelectorAll('[data-media-card]').length === 0) {
+          grid.innerHTML = '<div class="col-span-3 text-center text-sm text-gray-500 py-4" id="emptyMediaNotice">Nenhuma mídia cadastrada.</div>';
+        }
+      } else {
+        alert('Erro ao excluir mídia.');
+      }
+    } catch(e) {
+      console.error(e);
+      alert('Erro ao excluir mídia.');
+    } finally {
+      hideOverlay();
+    }
+  };
+
+  // 4. Lógica de Ordenação (Sortable)
   async function saveOrder() {
     if (!grid) return;
     const orderedIds = Array.from(grid.querySelectorAll('[data-media-card]'))
@@ -445,7 +482,7 @@
     });
   }
 
-  // 4. Upload de Arquivos
+  // 5. Upload de Arquivos
   if (addBtn && input) {
     addBtn.addEventListener('click', () => input.click());
     input.addEventListener('change', async () => {
@@ -461,22 +498,42 @@
           headers: { 'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json' },
           body: fd,
         });
-        const data = await resp.json();
+
+        let data;
+        try {
+          data = await resp.json();
+        } catch(parseErr) {
+          throw new Error('Falha na resposta do servidor (' + resp.status + ')');
+        }
+
+        if (!resp.ok || !data.ok) {
+          const errMsg = data.message || data.error || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Erro no envio');
+          throw new Error(errMsg);
+        }
         
-        if (data.ok && Array.isArray(data.media)) {
+        if (Array.isArray(data.media)) {
+          const emptyNotice = document.getElementById('emptyMediaNotice');
+          if (emptyNotice) emptyNotice.remove();
+
           data.media.forEach(m => {
             const imgSrc = m.final_url || m.thumb || m.url;
             const wrap = document.createElement('div');
             wrap.className = 'relative group';
             wrap.setAttribute('data-media-card', m.id);
-            wrap.innerHTML = `${buildSelectCheckbox(m.id)}${buildDragHandle()}
-              <img src="${imgSrc}" class="w-full h-24 object-cover rounded-md border border-gray-200">`;
-            grid.prepend(wrap);
+            wrap.innerHTML = `
+              ${buildSelectCheckbox(m.id)}
+              ${buildDragHandle()}
+              <img src="${imgSrc}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+              ${m.is_cover ? '<div class="absolute bottom-1 right-1 bg-yellow-400 text-white w-5 h-5 flex items-center justify-center rounded-full text-xs shadow-sm"><i class="fas fa-star"></i></div>' : ''}
+              ${buildDeleteButton(m.id)}
+            `;
+            grid.appendChild(wrap);
           });
           await saveOrder();
         }
       } catch (e) {
-        alert('Falha no upload.');
+        console.error('Upload error:', e);
+        alert('Falha ao adicionar fotos: ' + e.message);
       } finally {
         hideOverlay();
         input.value = '';
@@ -484,7 +541,7 @@
     });
   }
 
-  // 5. Seleção e Edição IA
+  // 6. Seleção e Edição IA
   function refreshSelectionUI() {
     const selected = document.querySelectorAll('.media-select:checked');
     const count = selected.length;

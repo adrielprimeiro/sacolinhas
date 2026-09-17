@@ -56,10 +56,9 @@ class ChatController extends Controller
 			)
 			->orderBy('wm.created_at', 'desc');
 
-		// Se não for master, filtra pelas conversas atribuídas E com janela aberta
+		// Se não for master, filtra apenas pelas conversas atribuídas a este operador/atendente
 		if (!$isMaster) {
-			$query->where('ca.assigned_admin_id', $authAdmin->id)
-				  ->whereRaw('DATE_ADD(sub_inbound.last_inbound_at, INTERVAL 24 HOUR) > NOW()');
+			$query->where('ca.assigned_admin_id', $authAdmin->id);
 		}
 
 		$conversations = $query->get();
@@ -95,15 +94,9 @@ class ChatController extends Controller
 
 		if (!$isMaster) {
 			$assignment = DB::table('chat_assignments')->where('user_id', $userId)->first();
-			$lastInboundAt = DB::table('whatsapp_messages')
-				->where('user_id', $userId)
-				->where('direction', 'inbound')
-				->max('created_at');
-			
-			$isWindowOpen = $lastInboundAt && now()->diffInHours($lastInboundAt) < 24;
 
-			if (!$assignment || $assignment->assigned_admin_id != $authAdmin->id || !$isWindowOpen) {
-				return response()->json(['error' => 'Você não tem permissão para acessar esta conversa ou a janela de atendimento expirou.'], 403);
+			if (!$assignment || $assignment->assigned_admin_id != $authAdmin->id) {
+				return response()->json(['error' => 'Você não tem permissão para acessar esta conversa.'], 403);
 			}
 		}
 
@@ -131,16 +124,31 @@ class ChatController extends Controller
 	{
 		$auth = auth()->user();
 
-		// Permitir só admin logado (master e atendente). Se quiser só master, eu ajusto.
-		if (!$auth || (int)$auth->is_admin !== 1) {
+		if (!$auth || ((int)$auth->is_admin !== 1 && !in_array($auth->role, ['admin', 'admin_master', 'brecho_admin']))) {
 			return response()->json(['error' => 'Não autorizado'], 403);
 		}
 
-		// Lista atendentes (role = admin) e masters
-		$admins = User::where('is_admin', 1)
-			->whereIn('role', ['admin', 'admin_master'])
+		// Lista atendentes (role = admin), masters e operadores de brechós parceiros
+		$admins = User::where(function ($q) {
+				$q->where('is_admin', 1)
+				  ->orWhere('role', 'brecho_admin')
+				  ->orWhereNotNull('brecho_id');
+			})
+			->whereIn('role', ['admin', 'admin_master', 'brecho_admin'])
 			->orderBy('name')
-			->get(['id', 'name', 'role']);
+			->with('brecho:id,nome')
+			->get(['id', 'name', 'role', 'brecho_id'])
+			->map(function ($u) {
+				$label = $u->name;
+				if ($u->brecho && $u->brecho_id > 1) {
+					$label .= ' (' . $u->brecho->nome . ')';
+				}
+				return [
+					'id' => $u->id,
+					'name' => $label,
+					'role' => $u->role,
+				];
+			});
 
 		return response()->json($admins);
 	}
@@ -201,6 +209,19 @@ class ChatController extends Controller
 				'success' => false,
 				'error' => 'Envie uma mensagem ou um anexo.',
 			], 422);
+		}
+
+		$authAdmin = auth()->user();
+		$isMaster = $authAdmin && $authAdmin->is_admin == 1 && $authAdmin->role === 'admin_master';
+
+		if (!$isMaster) {
+			$assignment = DB::table('chat_assignments')->where('user_id', $userId)->first();
+			if (!$assignment || $assignment->assigned_admin_id != $authAdmin->id) {
+				return response()->json([
+					'success' => false,
+					'error' => 'Você não tem permissão para responder nesta conversa.',
+				], 403);
+			}
 		}
 
 		// ✅ VERIFICAÇÃO PRÉVIA: Última mensagem inbound nas últimas 24h
@@ -820,8 +841,19 @@ class ChatController extends Controller
 		
 	public function markMessagesAsRead($userId)
 	{
+		$authAdmin = auth()->user();
+		$isMaster = $authAdmin && $authAdmin->is_admin == 1 && $authAdmin->role === 'admin_master';
+		$userId = (int) $userId;
+
+		if (!$isMaster) {
+			$assignment = DB::table('chat_assignments')->where('user_id', $userId)->first();
+			if (!$assignment || $assignment->assigned_admin_id != $authAdmin->id) {
+				return response()->json(['error' => 'Não autorizado'], 403);
+			}
+		}
+
 		DB::table('whatsapp_messages')
-			->where('user_id', (int) $userId)
+			->where('user_id', $userId)
 			->where('direction', 'inbound')
 			->where('status', '!=', 'read')
 			->update([

@@ -17,10 +17,12 @@ class LiveMessage extends Model
         'username',
         'message',
         'avatar_url',
+        'is_marked',
         'captured_at'
     ];
 
     protected $casts = [
+        'is_marked' => 'boolean',
         'captured_at' => 'datetime',
     ];
 

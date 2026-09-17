@@ -150,14 +150,11 @@
                                             class="block w-full border border-gray-300 rounded-lg shadow-xs py-1.5 px-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-medium"
                                         >
 
-                                        <!-- Código / SKU opcional ou auto-gerado -->
-                                        <input
-                                            type="text"
-                                            x-model="item.codigo"
-                                            :placeholder="item.codigoAuto || 'Cód...'"
-                                            class="w-24 border border-gray-200 bg-gray-50/50 rounded-lg shadow-xs py-1.5 px-2 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-[11px] text-gray-700"
-                                            title="Código / SKU (opcional, gerado automaticamente se vazio)"
-                                        >
+                                        <!-- Código gerado automaticamente (inativo) -->
+                                        <div class="w-20 flex-shrink-0 flex items-center justify-center bg-gray-100 border border-gray-200 rounded-lg py-1.5 px-2 text-[11px] font-mono text-gray-500 select-none cursor-not-allowed shadow-xs"
+                                             title="Código gerado automaticamente">
+                                            <span x-text="item.codigoAuto || 'Auto'"></span>
+                                        </div>
                                     </div>
                                 </td>
 

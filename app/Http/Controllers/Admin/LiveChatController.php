@@ -240,13 +240,27 @@ class LiveChatController extends Controller
      */
     public function getChatData(Request $request, $liveId)
     {
-        // 1. Mensagens recentes (últimas 100)
+        // 1. Mensagens recentes (últimas 150)
         $messages = LiveMessage::where('live_id', $liveId)
             ->orderBy('id', 'desc')
-            ->limit(100)
+            ->limit(150)
             ->get()
             ->reverse()
             ->values();
+
+        $markedMessages = LiveMessage::where('live_id', $liveId)
+            ->where('is_marked', true)
+            ->orderBy('id', 'desc')
+            ->limit(50)
+            ->get()
+            ->reverse()
+            ->values();
+
+        $userCounts = LiveMessage::where('live_id', $liveId)
+            ->select('username', DB::raw('COUNT(*) as total_msgs'), DB::raw('SUM(CASE WHEN is_marked = 1 THEN 1 ELSE 0 END) as marked_msgs'))
+            ->groupBy('username')
+            ->get()
+            ->keyBy('username');
 
         // 2. Pessoas online (quem comentou, ordenado por data mais recente)
         $onlineRaw = LiveMessage::where('live_id', $liveId)
@@ -297,7 +311,9 @@ class LiveChatController extends Controller
                 'user_id' => $matchedUser ? $matchedUser->id : null,
                 'user_name' => $matchedUser ? $matchedUser->name : null,
                 'user_apelido' => $matchedUser ? $matchedUser->apelido : null,
-                'user_whatsapp' => $matchedUser ? $matchedUser->whatsapp : null,
+                'user_whatsapp' => $matchedUser ? ($matchedUser->whatsapp ?: $matchedUser->phone) : null,
+                'total_msgs' => (int) ($userCounts[$cleanUsername]->total_msgs ?? 0),
+                'marked_msgs' => (int) ($userCounts[$cleanUsername]->marked_msgs ?? 0),
             ];
         }
 
@@ -355,6 +371,7 @@ class LiveChatController extends Controller
             'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false),
             'tiktok_active' => $tiktokActive,
             'messages' => $messages,
+            'marked_messages' => $markedMessages,
             'online_users' => $onlineUsers,
             'code_requests' => $groupedRequests
         ]);
@@ -551,6 +568,45 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'active_live' => null
+        ]);
+    }
+
+    public function toggleMarkMessage(Request $request)
+    {
+        $messageId = $request->input('message_id');
+        $message = LiveMessage::find($messageId);
+        if (!$message) {
+            return response()->json(['success' => false, 'message' => 'Mensagem não encontrada.'], 404);
+        }
+
+        $message->is_marked = !$message->is_marked;
+        $message->save();
+
+        return response()->json([
+            'success' => true,
+            'is_marked' => (bool)$message->is_marked,
+            'message_id' => $message->id
+        ]);
+    }
+
+    public function updateUserPhone(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'phone' => 'required|string|min:8'
+        ]);
+
+        $user = User::findOrFail($request->input('user_id'));
+        $cleanPhone = preg_replace('/\D/', '', $request->input('phone'));
+
+        $user->whatsapp = $cleanPhone;
+        $user->phone = $cleanPhone;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'phone' => $cleanPhone,
+            'message' => 'WhatsApp atualizado com sucesso!'
         ]);
     }
 }

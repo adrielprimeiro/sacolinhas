@@ -218,11 +218,12 @@ class LiveController extends Controller
             }
         }
 
-        // 3) Enfileira WhatsApp SOMENTE para quem tem PDF pronto
+        // 3) Enfileira WhatsApp para todos os clientes da live
         $jobsEnfileirados = 0;
         $delay = 0;
+        $clientesSemTelefone = [];
 
-        foreach ($clientesComPdf as $clienteId) {
+        foreach ($clientesIds as $clienteId) {
             $user = DB::table('users')->where('id', $clienteId)->first();
             if (!$user) {
                 Log::warning('Usuário não encontrado para envio WhatsApp', [
@@ -232,45 +233,76 @@ class LiveController extends Controller
                 continue;
             }
 
-            $telefone = $user->whatsapp ?? $user->telefone_principal ?? $user->telefone_2;
-			if (!$telefone) {
-				Log::warning('Sem telefone para envio WhatsApp', [
+            $rawTelefone = $user->whatsapp ?: ($user->phone ?: ($user->telefone_principal ?: $user->telefone_2));
+            $cleanPhone = preg_replace('/\D/', '', (string) $rawTelefone);
+
+            if (empty($cleanPhone) || strlen($cleanPhone) < 8) {
+                $clientesSemTelefone[] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'username' => $user->instagram ?: ($user->tiktok ?: $user->apelido)
+                ];
+                Log::warning('Sem telefone para envio WhatsApp', [
                     'live_id' => $liveId,
                     'user_id' => $clienteId,
+                    'user_name' => $user->name,
                 ]);
-				DB::table('whatsapp_messages')->insert([
-					'user_id' => $clienteId,
-					'live_id' => $liveId,
-					'direction' => 'outbound',
-					'status' => 'failed',
-					'message_type' => 'first',
-					'failed_reason' => 'Sem telefone cadastrado',
-					'retry_count' => 0,
-					'status_updated_at' => now(),
-					'created_at' => now(),
-					'updated_at' => now(),
-				]);
-				continue;
-			}			
-			
-			
-			
-			
+                DB::table('whatsapp_messages')->insert([
+                    'user_id' => $clienteId,
+                    'live_id' => $liveId,
+                    'direction' => 'outbound',
+                    'status' => 'failed',
+                    'message_type' => 'first',
+                    'failed_reason' => 'Sem telefone cadastrado',
+                    'retry_count' => 0,
+                    'status_updated_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                continue;
+            }
 
-            // ✅ CORREÇÃO: Garantir que o Job seja chamado com messageType = 'first'
-            SendWhatsAppMessage::dispatch($telefone, $liveId, $clienteId, 'first')
+            // Enfileira mensagem WhatsApp
+            SendWhatsAppMessage::dispatch($cleanPhone, $liveId, $clienteId, 'first')
                 ->onQueue('whatsapp')
                 ->delay(now()->addSeconds($delay));
 
             Log::info('Job WhatsApp enfileirado', [
                 'live_id' => $liveId,
                 'user_id' => $clienteId,
-                'telefone' => $telefone,
+                'telefone' => $cleanPhone,
                 'delay' => $delay,
             ]);
 
             $jobsEnfileirados++;
             $delay++;
+        }
+
+        // Se for brechó parceiro, atribui automaticamente as conversas ao operador deste brechó
+        $brechoId = $live->brecho_id ?? 1;
+        if ($brechoId > 1) {
+            $brechoAdmin = DB::table('users')
+                ->where('brecho_id', $brechoId)
+                ->where(function ($q) {
+                    $q->where('role', 'brecho_admin')
+                      ->orWhere('is_admin', 1);
+                })
+                ->first();
+
+            if ($brechoAdmin) {
+                foreach ($clientesIds as $cId) {
+                    DB::table('chat_assignments')->updateOrInsert(
+                        ['user_id' => (int) $cId],
+                        [
+                            'assigned_admin_id' => $brechoAdmin->id,
+                            'assigned_by_admin_id' => auth()->id() ?: $brechoAdmin->id,
+                            'assigned_at' => now(),
+                            'expires_at' => now()->addHours(24),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
+            }
         }
 
         // 4) Encerra a live (agora de fato)
@@ -291,11 +323,21 @@ class LiveController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
+        $mensagemRetorno = 'Live encerrada com sucesso!';
+        if ($jobsEnfileirados > 0) {
+            $mensagemRetorno .= " {$jobsEnfileirados} WhatsApp(s) enfileirado(s).";
+        }
+        if (count($clientesSemTelefone) > 0) {
+            $nomes = implode(', ', array_map(fn($c) => $c['name'], $clientesSemTelefone));
+            $mensagemRetorno .= " Atenção: Clientes sem WhatsApp cadastrado ({$nomes}).";
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Live encerrada. PDFs gerados e mensagens enfileiradas.',
+            'message' => $mensagemRetorno,
             'pdfs_ok' => count($clientesComPdf),
             'jobs_enfileirados' => $jobsEnfileirados,
+            'clientes_sem_telefone' => $clientesSemTelefone
         ]);
     }
 
@@ -408,15 +450,17 @@ class LiveController extends Controller
 
 		$liveRow = DB::table('lives')->where('id', $liveId)->first();
 		$brechoNome = 'Sacolinha Mania';
-		if ($liveRow && !empty($liveRow->brecho_id)) {
+		$isPartnerBrecho = false;
+		if ($liveRow && !empty($liveRow->brecho_id) && $liveRow->brecho_id > 1) {
 			$brechoNome = DB::table('brechos')->where('id', $liveRow->brecho_id)->value('nome') ?? $brechoNome;
+			$isPartnerBrecho = true;
 		}
 
-		// Logo (igual)
+		// Logo (não exibe o logo da Minha Mania se o brechó for parceiro)
 		$logoPath = public_path('images/LogoColorida sem fundo.png');
 		$logoDataUri = null;
 
-		if (file_exists($logoPath)) {
+		if (!$isPartnerBrecho && file_exists($logoPath)) {
 			$logoMime = mime_content_type($logoPath) ?: 'image/png';
 			$logoBase64 = base64_encode(file_get_contents($logoPath));
 			$logoDataUri = "data:{$logoMime};base64,{$logoBase64}";
@@ -576,17 +620,6 @@ class LiveController extends Controller
 			
 			$usersQuery = User::where('role', $role);
 
-			// Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
-			if (auth()->check() && auth()->user()->isBrechoParceiro()) {
-				$brechoId = auth()->user()->brecho_id;
-				$usersQuery->whereExists(function ($sub) use ($brechoId) {
-					$sub->select(DB::raw(1))
-						->from('brecho_clientes')
-						->whereColumn('brecho_clientes.user_id', 'users.id')
-						->where('brecho_clientes.brecho_id', $brechoId);
-				});
-			}
-
 			// ✅ BUSCA EM AMBOS OS CAMPOS (antigos e novos)
 			$users = $usersQuery
 				->where(function($q) use ($query) {
@@ -661,10 +694,17 @@ class LiveController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string|max:255'
+                'name' => 'required|string|max:255',
+                'phone' => 'nullable|string',
+                'whatsapp' => 'nullable|string',
+                'instagram' => 'nullable|string',
+                'tiktok' => 'nullable|string',
+                'apelido' => 'nullable|string',
             ]);
 
-            $name = $request->input('name');
+            $name = trim($request->input('name'));
+            $rawPhone = $request->input('whatsapp') ?: $request->input('phone');
+            $cleanPhone = $rawPhone ? preg_replace('/\D/', '', $rawPhone) : null;
             
             // Gerar email temporário único
             $emailBase = strtolower(str_replace(' ', '.', $name));
@@ -676,7 +716,11 @@ class LiveController extends Controller
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
-                'phone' => null,
+                'phone' => $cleanPhone,
+                'whatsapp' => $cleanPhone,
+                'instagram' => $request->input('instagram') ? trim($request->input('instagram')) : null,
+                'tiktok' => $request->input('tiktok') ? trim($request->input('tiktok')) : null,
+                'apelido' => $request->input('apelido') ? trim($request->input('apelido')) : null,
                 'role' => 'client',
                 'password' => bcrypt('temp123'),
                 'email_verified_at' => null,
@@ -701,6 +745,7 @@ class LiveController extends Controller
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
+                    'whatsapp' => $user->whatsapp,
                     'email' => $user->email,
                     'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
                     'created_now' => true
@@ -828,6 +873,31 @@ class LiveController extends Controller
 		// 5) dispara o mesmo job do Encerrar Live
 		SendWhatsAppMessage::dispatch($telefone, $liveId, $userId, 'first')
 			->onQueue('whatsapp');
+
+		// Se for brechó parceiro, atribui conversa no chat ao operador deste brechó
+		$liveBrechoId = $live->brecho_id ?? 1;
+		if ($liveBrechoId > 1) {
+			$brechoAdmin = DB::table('users')
+				->where('brecho_id', $liveBrechoId)
+				->where(function ($q) {
+					$q->where('role', 'brecho_admin')
+					  ->orWhere('is_admin', 1);
+				})
+				->first();
+
+			if ($brechoAdmin) {
+				DB::table('chat_assignments')->updateOrInsert(
+					['user_id' => $userId],
+					[
+						'assigned_admin_id' => $brechoAdmin->id,
+						'assigned_by_admin_id' => auth()->id() ?: $brechoAdmin->id,
+						'assigned_at' => now(),
+						'expires_at' => now()->addHours(24),
+						'updated_at' => now(),
+					]
+				);
+			}
+		}
 
 		return response()->json([
 			'success' => true,
