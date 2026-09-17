@@ -66,7 +66,7 @@ class GeminiService
      */
     public function generateAnswer(string $userPrompt, ?string $systemInstruction = null, array $history = []): string
     {
-        $groqKey = env('GROQ_API_KEY');
+        $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
         if (empty($groqKey)) {
             return "Chave da API da Groq não configurada.";
         }

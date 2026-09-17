@@ -396,9 +396,11 @@ class SeverinoService
             ]
         ];
 
-        $groqKey = env('GROQ_API_KEY');
-        if (empty($groqKey)) {
-            return "Chave da API da Groq não configurada.";
+        $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY', '');
+        $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+
+        if (empty($groqKey) && empty($geminiKey)) {
+            return "Chave da API de IA (Gemini ou Groq) não configurada.";
         }
 
         // Converte as ferramentas do formato Gemini para o formato OpenAI/Groq
@@ -469,32 +471,37 @@ class SeverinoService
             "max_tokens" => 2000
         ];
 
-        $providersToTry = [
-            [
+        $providersToTry = [];
+
+        if (!empty($geminiKey)) {
+            $providersToTry[] = [
                 "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key" => env("GEMINI_API_KEY", ""),
+                "key" => $geminiKey,
                 "model" => "gemini-2.5-flash",
                 "name" => "Google Gemini 2.5 Flash"
-            ],
-            [
+            ];
+        }
+
+        if (!empty($groqKey)) {
+            $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-20b",
                 "name" => "Groq GPT OSS 20B"
-            ],
-            [
+            ];
+            $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "qwen/qwen3.8-27b",
                 "name" => "Groq Qwen 3.8"
-            ],
-            [
+            ];
+            $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-120b",
                 "name" => "Groq GPT OSS 120B"
-            ]
-        ];
+            ];
+        }
 
         // Carrega pontuação do cache (inicia em 10)
         foreach ($providersToTry as &$p) {

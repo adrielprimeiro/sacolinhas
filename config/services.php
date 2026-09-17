@@ -46,10 +46,18 @@ return [
 	],	
 	
 	'gemini' => [
-    'api_key' => env('GEMINI_API_KEY'),
-	'paid_api_key' => env('GEMINI_PAID_API_KEY'),
-    'model' => 'gemini-3.1-flash-image-preview', // ou o modelo que preferir
+        'api_key' => env('GEMINI_API_KEY'),
+	    'paid_api_key' => env('GEMINI_PAID_API_KEY'),
+        'model' => 'gemini-3.1-flash-image-preview',
 	],
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+    ],
+
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+    ],
 
     'mercadopago' => [
         'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
