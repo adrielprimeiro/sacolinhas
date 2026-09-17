@@ -473,12 +473,28 @@ class SeverinoService
 
         $providersToTry = [];
 
+        $orKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
+        if (!empty($orKey)) {
+            $providersToTry[] = [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => $orKey,
+                "model" => "meta-llama/llama-3.3-70b-instruct",
+                "name" => "OpenRouter Llama 3.3 70B"
+            ];
+            $providersToTry[] = [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => $orKey,
+                "model" => "mistralai/mistral-large-2407",
+                "name" => "OpenRouter Mistral Large"
+            ];
+        }
+
         if (!empty($geminiKey)) {
             $providersToTry[] = [
                 "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                 "key" => $geminiKey,
-                "model" => "gemini-2.5-flash",
-                "name" => "Google Gemini 2.5 Flash"
+                "model" => "gemini-2.0-flash",
+                "name" => "Google Gemini 2.0 Flash"
             ];
         }
 
@@ -486,20 +502,14 @@ class SeverinoService
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "openai/gpt-oss-20b",
-                "name" => "Groq GPT OSS 20B"
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen 3.8"
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
                 "model" => "openai/gpt-oss-120b",
                 "name" => "Groq GPT OSS 120B"
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-20b",
+                "name" => "Groq GPT OSS 20B"
             ];
         }
 
