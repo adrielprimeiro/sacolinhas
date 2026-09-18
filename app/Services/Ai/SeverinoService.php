@@ -164,9 +164,11 @@ class SeverinoService
             "  3. Se a pergunta do usuário admitir mais de um critério (ex: 'lançamentos para conciliar' refere-se às transações pendentes no extrato bancário E/OU aos lançamentos em aberto no financeiro), NÃO pergunte ao usuário! Consulte AMBOS no banco e entregue ambos claramente estruturados na sua resposta final!\n" .
             "REGRA DE DIVERGÊNCIAS DE SALDO BANCÁRIO X SISTEMA:\n" .
             "- Quando o usuário perguntar por que o saldo de uma conta bancária (ex: Mercado Pago, Inter, etc.) no sistema está diferente do saldo real no banco:\n" .
-            "  1. Calcule o saldo do sistema (`contas_bancarias` -> `saldo_inicial + sum(receitas) - sum(despesas)` das movimentações).\n" .
-            "  2. Verifique se há transações de compras com cartão de crédito indevidamente classificadas como receita/entrada na conta corrente, ou movimentações manuais sem extrato, ou taxas não debitadas.\n" .
-            "  3. Entregue exatamente os lançamentos e valores que causam a diferença numérica!\n" .
+            "  1. Calcule IMEDIATAMENTE a diferença matemática exata entre os dois valores citados pelo usuário: Diferença = |Saldo Sistema - Saldo Banco|.\n" .
+            "  2. NUNCA dê respostas teóricas, vagas ou genéricas (ex: 'pode ser causada por transações pendentes ou a query mostrou...'). Você DEVE encontrar o motivo exato no banco de dados!\n" .
+            "  3. Busque no banco via `executar_query_select` movimentações (`movimentacoes`) e transações (`transacoes_extrato`) recentes da conta cujo valor seja igual ou próximo à diferença: `WHERE ABS(valor_pago - :diferenca) < 0.05` ou `WHERE ABS(valor - :diferenca) < 0.05`.\n" .
+            "  4. Verifique se houve compras no Mercado Livre / cartão de crédito / PIX indevidamente classificadas como receita (entrada) ou transferências entre contas indevidas.\n" .
+            "  5. Responda apontando diretamente a(s) transação(ões) com data, valor exato e descrição, explicando exatamente o que causou o desvio de centavos ou reais!\n" .
             "ANTI-PAGINAÇÃO E ANTI-LOOP (REGRA CRÍTICA DE DESEMPENHO):\n" .
             "- NUNCA execute queries em loop paginado (ex: LIMIT 10 OFFSET 10, OFFSET 20, OFFSET 30...) para varrer tabelas inteiras ou tentar listar dezenas de itens! Isso esgota o tempo do servidor e trava o sistema em loop!\n" .
             "- Se houver muitos registros, use agregações (`COUNT(*)`, `SUM()`, `GROUP BY`) ou traga no máximo os 10 mais recentes/relevantes (`ORDER BY ... DESC LIMIT 10`).\n" .

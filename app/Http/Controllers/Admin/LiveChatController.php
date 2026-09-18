@@ -552,10 +552,10 @@ class LiveChatController extends Controller
 
     public function getActiveTiktokLives(Request $request)
     {
-        $isActive = Cache::get('tiktok_capture_active', false) && !Cache::get('tiktok_capture_stopped', false);
+        $isStopped = Cache::get('tiktok_capture_stopped', false);
         $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first();
         
-        if ($isActive && $activeLive) {
+        if (!$isStopped && $activeLive) {
             return response()->json([
                 'success' => true,
                 'active_live' => [
