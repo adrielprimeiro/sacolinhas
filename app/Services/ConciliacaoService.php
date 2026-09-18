@@ -830,7 +830,7 @@ class ConciliacaoService
             'date' => $this->findHeaderIndex($headers, [
                 'date', 'generation_date', 'data', 'fecha_liberacion', 'date_released', 
                 'date_created', 'date_approved', 'fecha', 'data_liberacao', 'data_liberação',
-                'release_date'
+                'release_date', 'transaction_date_short', 'settlement_date_short', 'money_release_date'
             ]),
             'source_id' => $this->findHeaderIndex($headers, [
                 'source_id', 'id', 'operation_id', 'transaction_id', 'operacion_id', 
@@ -841,11 +841,11 @@ class ConciliacaoService
             'description' => $this->findHeaderIndex($headers, [
                 'description', 'descricao', 'descrição', 'concept', 'concepto', 'detail', 
                 'record_type', 'concept_desc', 'motivo', 'tipo_movimentacao', 'tipo_movimentação',
-                'transaction_type', 'tipo_transacao', 'tipo_transação'
+                'store_name', 'transaction_type', 'tipo_transacao', 'tipo_transação'
             ]),
             'net_credit' => $this->findHeaderIndex($headers, [
                 'net_credit_amount', 'net_credit', 'credit', 'credito', 'crédito', 
-                'amount_credited', 'valor_bruto', 'transaction_amount'
+                'amount_credited', 'valor_bruto'
             ]),
             'net_debit' => $this->findHeaderIndex($headers, [
                 'net_debit_amount', 'net_debit', 'debit', 'debito', 'débito', 'amount_debited'
@@ -853,7 +853,7 @@ class ConciliacaoService
             'value_signed' => $this->findHeaderIndex($headers, [
                 'net_received_amount', 'valor_liquido', 'valor_liquido_recebido', 'valor_líquido', 
                 'valor_líquido_recebido', 'valor', 'amount', 'net_amount', 'settlement_net_amount', 
-                'valor_recebido', 'transaction_net_amount'
+                'transaction_amount', 'valor_recebido', 'transaction_net_amount'
             ]),
             'external_reference' => $this->findHeaderIndex($headers, [
                 'external_reference', 'id_externo', 'referencia_externa', 'referência_externa', 'purchase_order'
@@ -891,7 +891,7 @@ class ConciliacaoService
             }
 
             $dateStr = trim($row[$colIndex['date']] ?? '');
-            $description = trim($row[$colIndex['description']] ?? 'Pagamento com Pix');
+            $description = $colIndex['description'] !== -1 ? trim($row[$colIndex['description']] ?? '') : '';
             $externalReference = $colIndex['external_reference'] !== -1 ? trim($row[$colIndex['external_reference']] ?? '') : null;
 
             // Ignorar lançamentos de retenção/reserva interna do Mercado Pago (ex: reserve_for_payment, reserve_for_payout)
@@ -899,12 +899,8 @@ class ConciliacaoService
                 continue;
             }
 
-            if (in_array(strtolower($description), ['payout', 'payouts', ''])) {
-                $description = "Pagamento com Pix";
-            }
-
             try {
-                // Tratar data no formato brasileiro DD-MM-YYYY ou DD/MM/YYYY
+                // Tratar data no formato brasileiro DD-MM-YYYY ou DD/MM/YYYY ou ISO
                 if (preg_match('/^(\d{2})[\/-](\d{2})[\/-](\d{4})(.*)$/', $dateStr, $matches)) {
                     $date = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
                 } else {
@@ -920,20 +916,37 @@ class ConciliacaoService
             $tipo = 'entrada';
             $valor = 0.0;
 
-            if ($netDebit > 0) {
+            if ($colIndex['value_signed'] !== -1 && ($colIndex['net_credit'] === -1 || $colIndex['net_debit'] === -1)) {
+                // Relatórios que utilizam coluna única com sinal positivo/negativo (ex: settlement_net_amount)
+                $rawVal = $row[$colIndex['value_signed']] ?? '0';
+                $floatVal = $this->parseMoneyValueRaw($rawVal);
+                $valor = abs($floatVal);
+                $tipo = $floatVal >= 0 ? 'entrada' : 'saida';
+            } else if ($netDebit > 0) {
                 $tipo = 'saida';
                 $valor = $netDebit;
             } else if ($netCredit > 0) {
                 $tipo = 'entrada';
                 $valor = $netCredit;
             } else if ($colIndex['value_signed'] !== -1) {
-                // Caso use coluna única de valor com sinal positivo/negativo
                 $rawVal = $row[$colIndex['value_signed']] ?? '0';
                 $floatVal = $this->parseMoneyValueRaw($rawVal);
                 $valor = abs($floatVal);
                 $tipo = $floatVal >= 0 ? 'entrada' : 'saida';
             } else {
                 continue;
+            }
+
+            if (empty($description) || in_array(strtolower($description), ['settlement', 'payout', 'payouts', 'payment', 'regular_payment'])) {
+                $payMethodIdx = $this->findHeaderIndex($headers, ['payment_method']);
+                $methodVal = $payMethodIdx !== -1 ? strtolower(trim($row[$payMethodIdx] ?? '')) : '';
+                if ($methodVal === 'available_money') {
+                    $description = $tipo === 'saida' ? 'Pagamento com saldo da conta' : 'Recebimento em conta';
+                } elseif ($methodVal === 'pix') {
+                    $description = $tipo === 'saida' ? 'Pix enviado' : 'Pix recebido';
+                } else {
+                    $description = $tipo === 'saida' ? 'Pagamento Mercado Pago' : 'Recebimento Mercado Pago';
+                }
             }
 
             $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
