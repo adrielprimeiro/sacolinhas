@@ -77,6 +77,11 @@ class ChatController extends Controller
 			} else {
 				$conv->window_expires_at = null;
 			}
+			
+			// Formata a prévia da última mensagem se for template
+			if ($conv->last_message_body && str_starts_with($conv->last_message_body, 'TEMPLATE ')) {
+				$conv->last_message_body = '*(Template Automático)*';
+			}
 		});
 
 		return response()->json($conversations);
@@ -114,6 +119,36 @@ class ChatController extends Controller
 			->map(function ($m) {
 				$m->has_media = !empty($m->media_url);
 				$m->download_url = $m->has_media ? route('admin.chat.download', ['id' => $m->id]) : null;
+				
+				// Formatar mensagens de Template
+				if (str_starts_with($m->body, 'TEMPLATE ')) {
+					if (preg_match('/^TEMPLATE\s+([A-Za-z0-9]+)\s+VARS\s+(.*)$/', $m->body, $matches)) {
+						$sid = $matches[1];
+						$vars = json_decode($matches[2], true) ?? [];
+						
+						// Dicionário de templates conhecidos (textos aproximados)
+						$templates = [
+							'HXa53e481bb778394ef9db617d050bc19e' => "Oi {{1}}, você adicionou {{2}} peças na sacola que totalizam R$ {{3}}",
+							'HX683ab296fb0256860ac186db30c9462c' => "Oi {{1}}, você adicionou {{2}} peças na sacola que totalizam R$ {{3}}. Acesse seu portal: {{4}}",
+							'HX1adbad63d8d7d779e092cfffdbb10d18' => "Oi {{1}}, sua sacola com {{2}} itens está aguardando avaliação. Acesse: {{3}}",
+							'HX378937c73b703db60f41b0acfbd497e3' => "Oi {{1}}, você adicionou {{2}} peças na sacola que totalizam R$ {{3}}"
+						];
+						
+						$text = $templates[$sid] ?? "📋 [Mensagem de Template enviada]";
+						if (!isset($templates[$sid])) {
+							foreach($vars as $k => $v) {
+								$text .= "\n- Variável {{$k}}: $v";
+							}
+						} else {
+							foreach($vars as $k => $v) {
+								$text = str_replace("{{" . $k . "}}", $v, $text);
+							}
+						}
+						
+						$m->body = "*(Template Automático)*\n" . $text;
+					}
+				}
+
 				return $m;
 			});
 
