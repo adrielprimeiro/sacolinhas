@@ -127,6 +127,11 @@ class User extends Authenticatable
 		return $this->hasMany(WhatsappMessage::class);
 	}
 
+	public function sacolinhas()
+	{
+		return $this->hasMany(Sacolinhas::class, 'user_id');
+	}
+
 
 	public function grupos()
 	{
