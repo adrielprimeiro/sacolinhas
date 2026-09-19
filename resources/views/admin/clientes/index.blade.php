@@ -142,6 +142,21 @@
             </div>
         </div>
 
+        {{-- Brechó (para Administrador Master) --}}
+        @if(!$isParceiro && isset($todosBrechos))
+        <div>
+            <label class="text-xs text-gray-400 font-medium block mb-1">Brechó</label>
+            <select name="brecho_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none">
+                <option value="">Todos os Brechós</option>
+                @foreach($todosBrechos as $b)
+                    <option value="{{ $b->id }}" {{ request('brecho_id') == $b->id ? 'selected' : '' }}>
+                        {{ $b->nome }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        @endif
+
         {{-- Status --}}
         <div>
             <label class="text-xs text-gray-400 font-medium block mb-1">Status</label>
@@ -216,6 +231,7 @@
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">Avatar</th>
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cliente</th>
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contato / CPF</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Brechó</th>
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Limite de Crédito</th>
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">L. Disponível</th>
                         <th class="px-5 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Status</th>
@@ -272,6 +288,32 @@
                                         @endif
                                     </div>
                                 </div>
+                            </td>
+                            {{-- Brechó(s) Vinculado(s) --}}
+                            <td class="px-5 py-4 text-center">
+                                @if($cliente->brechosVinculados && $cliente->brechosVinculados->isNotEmpty())
+                                    <div class="flex flex-wrap gap-1 justify-center max-w-[170px] mx-auto">
+                                        @foreach($cliente->brechosVinculados as $vb)
+                                            @if($vb->id == 1)
+                                                <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-2xs" title="Cliente Minha Mania">
+                                                    <i class="fas fa-store text-[9px]"></i> Mania
+                                                </span>
+                                            @elseif($vb->id == 2)
+                                                <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-2xs" title="Cliente Taco Balaio">
+                                                    <i class="fas fa-tshirt text-[9px]"></i> Taco Balaio
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-2xs">
+                                                    <i class="fas fa-store text-[9px]"></i> {{ $vb->nome }}
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-[11px] font-medium px-2 py-0.5 rounded-full">
+                                        Mania
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-5 py-4 text-right font-semibold text-gray-700 text-sm">
                                 R$ {{ number_format($cliente->limite?->limite_credito ?? 300.00, 2, ',', '.') }}

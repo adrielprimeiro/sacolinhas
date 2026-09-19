@@ -15,11 +15,21 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Cliente::clientes()->with(['limite']); // ✅ USAR SCOPE E CARREGAR LIMITE
-        
+        $query = Cliente::clientes()->with(['limite', 'brechosVinculados']); // ✅ USAR SCOPE E CARREGAR LIMITE E BRECHÓS
+
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+
         // Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
-        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+        if ($isParceiro) {
             $brechoId = auth()->user()->brecho_id;
+            $query->whereExists(function ($sub) use ($brechoId) {
+                $sub->select(DB::raw(1))
+                    ->from('brecho_clientes')
+                    ->whereColumn('brecho_clientes.user_id', 'users.id')
+                    ->where('brecho_clientes.brecho_id', $brechoId);
+            });
+        } elseif ($request->filled('brecho_id')) {
+            $brechoId = (int) $request->brecho_id;
             $query->whereExists(function ($sub) use ($brechoId) {
                 $sub->select(DB::raw(1))
                     ->from('brecho_clientes')
@@ -87,7 +97,9 @@ class ClienteController extends Controller
             });
         })->count();
 
-        return view('admin.clientes.index', compact('clientes', 'clientesIncompletosCount', 'isParceiro'));
+        $todosBrechos = Brecho::where('ativo', true)->orderBy('id')->get();
+
+        return view('admin.clientes.index', compact('clientes', 'clientesIncompletosCount', 'isParceiro', 'todosBrechos'));
     }
 
     public function create()
