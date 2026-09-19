@@ -92,15 +92,22 @@ class AdminSacolinhaController extends Controller
         $valorLimite = (float) ($limitesRow->limite_credito ?? 0);
         $utilizado   = (float) ($limitesRow->limite_utilizado ?? 0);
         
-        // Buscar saldo
-        $ultima = ContaCorrente::where('user_id', $user->id)
-            ->orderByDesc('data_movimentacao')
-            ->orderByDesc('id')
-            ->first();
-        $saldo = $ultima?->saldo_atual ?? 0;
-        
-        $valorPago   = (float) ($saldo ?? 0);
-        $disponivelUI = max(0, $valorLimite + $valorPago - $utilizado);
+        $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
+
+        // Buscar saldo (apenas para Matriz/Mania, parceiros não utilizam carteira)
+        if ($isParceiro) {
+            $valorPago = 0.0;
+            $disponivelUI = 0.0;
+        } else {
+            $ultima = ContaCorrente::where('user_id', $user->id)
+                ->orderByDesc('data_movimentacao')
+                ->orderByDesc('id')
+                ->first();
+            $saldo = $ultima?->saldo_atual ?? 0;
+            
+            $valorPago   = (float) ($saldo ?? 0);
+            $disponivelUI = max(0, $valorLimite + $valorPago - $utilizado);
+        }
 
         // Buscar itens da sacolinha
         $itensQuery = DB::table('sacolinhas as s')
@@ -143,7 +150,8 @@ class AdminSacolinhaController extends Controller
             'valorLimite',
             'utilizado',
             'valorPago',
-            'disponivelUI'
+            'disponivelUI',
+            'isParceiro'
         ));
     }
 
@@ -265,49 +273,61 @@ class AdminSacolinhaController extends Controller
                     $subtotal += ($sacola->price * ($sacola->quantity ?? 1));
                 }
 
-                // 3. Buscar saldo atual
-                $ultimaTransacao = ContaCorrente::where('user_id', $userId)
-                    ->orderByDesc('data_movimentacao')
-                    ->orderByDesc('id')
-                    ->first();
-                $saldoAtual = (float) ($ultimaTransacao?->saldo_atual ?? 0);
+                $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
+                $brechoId = $isParceiro ? auth()->user()->brecho_id : ($itensSacolinha->first()->brecho_id ?? 1);
 
-                // 4. Calcular total do pedido e aplicar trava de segurança rígida
                 $totalItensFrete = $subtotal + $valorFrete;
                 $isToleranceAuthorized = false;
                 $valorFaltante = 0.00;
                 $adminName = null;
                 $toleranceObs = null;
 
-                if ($saldoAtual < $totalItensFrete) {
-                    if (!empty($user->sacolinha_autorizada_por)) {
-                        $valorFaltante = $totalItensFrete - $saldoAtual;
-                        $isToleranceAuthorized = true;
-                        $adminName = $user->sacolinha_autorizada_por;
-                        $toleranceObs = $user->sacolinha_autorizada_obs;
-                        $saldoUtilizadoNoPedido = $totalItensFrete;
-                        $totalFinal = 0.00;
-                    } else {
-                        throw new \Exception("Saldo insuficiente na carteira para realizar a operação. O pedido totaliza R$ " . number_format($totalItensFrete, 2, ',', '.') . ", mas o cliente possui apenas R$ " . number_format($saldoAtual, 2, ',', '.') . ". É necessária a autorização do fechamento.");
-                    }
+                if ($isParceiro) {
+                    // Brechós parceiros não possuem carteira
+                    $saldoUtilizadoNoPedido = 0.00;
+                    $totalFinal = $totalItensFrete;
+                    $statusPedido = 'pendente';
+                    $statusPagamento = 'pendente';
                 } else {
-                    $saldoUtilizadoNoPedido = $totalItensFrete;
-                    $totalFinal = 0.00; // Pedido nasce 100% quitado usando o saldo da carteira
-                }
+                    // 3. Buscar saldo atual (Minha Mania)
+                    $ultimaTransacao = ContaCorrente::where('user_id', $userId)
+                        ->orderByDesc('data_movimentacao')
+                        ->orderByDesc('id')
+                        ->first();
+                    $saldoAtual = (float) ($ultimaTransacao?->saldo_atual ?? 0);
 
-                // 5. Definir Status (Se zerou com saldo, já nasce aprovado)
-                $statusPedido = 'pendente';
-                $statusPagamento = 'pendente';
-                
-                if ($totalFinal <= 0) {
-                    $statusPedido = 'pago'; 
-                    $statusPagamento = 'aprovado';
+                    // 4. Calcular total do pedido e aplicar trava de segurança rígida
+                    if ($saldoAtual < $totalItensFrete) {
+                        if (!empty($user->sacolinha_autorizada_por)) {
+                            $valorFaltante = $totalItensFrete - $saldoAtual;
+                            $isToleranceAuthorized = true;
+                            $adminName = $user->sacolinha_autorizada_por;
+                            $toleranceObs = $user->sacolinha_autorizada_obs;
+                            $saldoUtilizadoNoPedido = $totalItensFrete;
+                            $totalFinal = 0.00;
+                        } else {
+                            throw new \Exception("Saldo insuficiente na carteira para realizar a operação. O pedido totaliza R$ " . number_format($totalItensFrete, 2, ',', '.') . ", mas o cliente possui apenas R$ " . number_format($saldoAtual, 2, ',', '.') . ". É necessária a autorização do fechamento.");
+                        }
+                    } else {
+                        $saldoUtilizadoNoPedido = $totalItensFrete;
+                        $totalFinal = 0.00; // Pedido nasce 100% quitado usando o saldo da carteira
+                    }
+
+                    // 5. Definir Status (Se zerou com saldo, já nasce aprovado)
+                    $statusPedido = 'pendente';
+                    $statusPagamento = 'pendente';
+                    
+                    if ($totalFinal <= 0) {
+                        $statusPedido = 'pago'; 
+                        $statusPagamento = 'aprovado';
+                    }
                 }
 
                 // 6. Criar o Pedido
                 $pedido = Pedido::create([
                     'numero_pedido'   => $numeroPedido,
                     'user_id'         => $userId,
+                    'brecho_id'       => $brechoId,
                     'status_pedido'   => $statusPedido,
                     'data_pedido'     => now(),
                     'valor_total'     => $totalFinal,
@@ -481,17 +501,20 @@ class AdminSacolinhaController extends Controller
             ])
             ->get();
 
-        $total = (float) $itens->sum('price');
+        $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
+        if ($isParceiro) {
+            $valorPago = 0.0;
+        } else {
+            // Buscar saldo (apenas para Matriz/Mania)
+            $ultima = ContaCorrente::where('user_id', $user->id)
+                ->orderByDesc('data_movimentacao')
+                ->orderByDesc('id')
+                ->first();
+            $saldo = $ultima?->saldo_atual ?? 0;
+            $valorPago = (float) $saldo;
+        }
 
-        // Buscar saldo
-        $ultima = ContaCorrente::where('user_id', $user->id)
-            ->orderByDesc('data_movimentacao')
-            ->orderByDesc('id')
-            ->first();
-        $saldo = $ultima?->saldo_atual ?? 0;
-        $valorPago = (float) $saldo;
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago'));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago', 'isParceiro'));
         return $pdf->stream("sacolinha-{$user->name}.pdf");
     }
 

@@ -136,12 +136,14 @@
                 <div class="box">
                     <h3>Resumo da Sacola</h3>
                     <strong>Total de Itens:</strong> {{ $itens->count() }}<br>
+                    @if(empty($isParceiro))
                     <strong>Saldo da Carteira:</strong> 
                     <span style="color: {{ $valorPago >= 0 ? '#10b981' : '#ef4444' }}; font-weight: bold;">
                         R$ {{ number_format($valorPago, 2, ',', '.') }}
                     </span>
                     <br>
                     <strong>Observação:</strong> O saldo atual será consolidado no fechamento.
+                    @endif
                 </div>
             </td>
         </tr>
@@ -176,20 +178,22 @@
                 <th>Subtotal Itens:</th>
                 <td>R$ {{ number_format($total, 2, ',', '.') }}</td>
             </tr>
-            @if($valorPago > 0)
-            <tr class="wallet-row" style="color: #059669;">
-                <th>Saldo Utilizado (Desconto):</th>
-                <td>- R$ {{ number_format($valorPago, 2, ',', '.') }}</td>
-            </tr>
-            @elseif($valorPago < 0)
-            <tr class="wallet-row" style="color: #dc2626;">
-                <th>Dívida Anterior Embutida:</th>
-                <td>+ R$ {{ number_format(abs($valorPago), 2, ',', '.') }}</td>
-            </tr>
+            @if(empty($isParceiro))
+                @if($valorPago > 0)
+                <tr class="wallet-row" style="color: #059669;">
+                    <th>Saldo Utilizado (Desconto):</th>
+                    <td>- R$ {{ number_format($valorPago, 2, ',', '.') }}</td>
+                </tr>
+                @elseif($valorPago < 0)
+                <tr class="wallet-row" style="color: #dc2626;">
+                    <th>Dívida Anterior Embutida:</th>
+                    <td>+ R$ {{ number_format(abs($valorPago), 2, ',', '.') }}</td>
+                </tr>
+                @endif
             @endif
             <tr class="grand-total">
                 <th>Total Estimado a Pagar:</th>
-                <td>R$ {{ number_format(max(0, $total - $valorPago), 2, ',', '.') }}</td>
+                <td>R$ {{ number_format(empty($isParceiro) ? max(0, $total - $valorPago) : $total, 2, ',', '.') }}</td>
             </tr>
         </table>
     </div>

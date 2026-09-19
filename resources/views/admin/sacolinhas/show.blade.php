@@ -19,6 +19,7 @@
                     <p class="text-xs text-gray-500 uppercase font-semibold">Total Itens:</p>
                     <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
                 </div>
+                @if(empty($isParceiro))
                 <div class="flex items-center gap-2">
                     <div class="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-100">
                         <i class="fas fa-wallet text-green-600 text-[10px]"></i>
@@ -31,6 +32,7 @@
                         </span>
                     @endif
                 </div>
+                @endif
                 <div class="flex items-center gap-2 mt-2" x-show="selectedIds.length > 0" style="display: none;">
                     <div class="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
                         <i class="fas fa-check-double text-blue-600 text-[10px]"></i>
@@ -38,7 +40,7 @@
                         <span class="text-sm font-bold text-blue-700">R$ <span x-text="parseFloat(selectedTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span></span>
                     </div>
                 </div>
-                @if(!empty($user->sacolinha_autorizada_por))
+                @if(empty($isParceiro) && !empty($user->sacolinha_autorizada_por))
                     <div style="background-color: #fffbeb; border-color: #fde68a;" class="mt-3 border rounded-xl p-3 flex gap-3 items-start max-w-md">
                         <div style="background-color: #fef3c7; color: #92400e;" class="p-2 rounded-lg flex-shrink-0">
                             <i class="fas fa-unlock-alt text-sm"></i>
@@ -62,7 +64,7 @@
                 @endif
             </div>
         </div>
-        <div class="flex flex-col gap-2 min-w-[180px]">
+        <div class="flex flex-col gap-2" style="min-width: 180px;">
             <div class="flex items-center bg-gray-100 rounded-lg px-3 py-1.5 border border-gray-200">
                 <span class="text-[10px] font-bold text-gray-400 uppercase mr-2">Frete R$</span>
                 <input type="number" step="0.01" x-model="freteValor" 
@@ -76,7 +78,7 @@
                     class="w-full text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
                 <i class="fas fa-check-circle"></i> Fechar Sacolinha
             </button>
-            @if(empty($user->sacolinha_autorizada_por))
+            @if(empty($isParceiro) && empty($user->sacolinha_autorizada_por))
                 <button type="button" @click="openModalAutorizar()" 
                         style="background-color: #f59e0b;"
                         class="w-full text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 mt-1 mb-1 shadow-sm hover:opacity-90">
@@ -91,8 +93,10 @@
                 <i class="fas fa-truck"></i> Simular Frete
             </button>
             <a href="{{ route('admin.sacolinha.pdf', $user->id) }}" target="_blank"
-               class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center">
-                <i class="fas fa-file-pdf"></i> Imprimir Sacolinha
+               style="background-color: #7c3aed !important; color: #ffffff !important;"
+               class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center shadow-sm">
+                <i class="fas fa-file-pdf" style="color: #ffffff !important;"></i>
+                <span style="color: #ffffff !important;" class="text-white font-bold whitespace-nowrap">Imprimir Sacolinha</span>
             </a>
         </div>
     </div>
@@ -515,6 +519,7 @@
         </div>
     </div>
 
+    @if(empty($isParceiro))
     <!-- Modal de Autorização de Fechamento -->
     <div x-show="modalAutorizar" 
          class="fixed inset-0 z-50 overflow-y-auto" 
@@ -567,6 +572,7 @@
             </div>
         </div>
     </div>
+    @endif
 
 </div>
 

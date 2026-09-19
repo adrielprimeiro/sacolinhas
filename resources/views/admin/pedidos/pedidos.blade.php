@@ -399,7 +399,9 @@
                         <div class="col-md-4">
                             <div id="cliente-info" class="alert alert-success mt-3" style="display: none;">
                                 <strong>✓ Cliente:</strong> <span id="cliente-nome"></span><br>
+								@if(!auth()->check() || !auth()->user()->isBrechoParceiro())
 								<i class="fas fa-tasks"></i><strong> Saldo:</strong> <span id="cliente-saldo" class="text-primary fw-bold">R$ 0,00</span><br>
+								@endif
                             </div>
                         </div>
                     </div>
@@ -419,8 +421,8 @@
                                 <small>Clique no item para mover para o pedido</small>
                             </div>
                             <div class="info-resumo">
-								<button type="button" id="btn-imprimir-sacolinha" class="btn btn-info text-white w-100 btn-lg" disabled>
-									<i class="fas fa-print me-2"></i> Imprimir
+								<button type="button" id="btn-imprimir-sacolinha" class="btn btn-info text-white w-100 btn-lg" style="color: #ffffff !important;" disabled>
+									<i class="fas fa-print me-2" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">Imprimir Sacolinha</span>
 								</button>
 								<div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
 									<small>Itens:</small>
