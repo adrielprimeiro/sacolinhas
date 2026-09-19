@@ -99,6 +99,18 @@ class Cliente extends Model
         return $this->hasOne(ClienteLimite::class, 'user_id');
     }
 
+    public function brechosVinculados()
+    {
+        return $this->belongsToMany(Brecho::class, 'brecho_clientes', 'user_id', 'brecho_id')
+            ->withPivot('origem')
+            ->withTimestamps();
+    }
+
+    public function sacolinhas()
+    {
+        return $this->hasMany(Sacolinhas::class, 'user_id');
+    }
+
     // ===== SCOPES =====
     
     public function scopeAtivos($query)
