@@ -269,7 +269,12 @@ class LojaController extends Controller
                     $sacolinhaItem->save();
                     $message = 'Quantidade atualizada.';
                 } else {
+                    $itemObj = DB::table('items')->where('id', $itemId)->first(['id', 'brecho_id']);
+                    $brechoId = (!empty($itemObj->brecho_id) && $itemObj->brecho_id > 1)
+                        ? $itemObj->brecho_id
+                        : ((auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1);
                     $sacolinhaItem = Sacolinhas::create([
+                        'brecho_id' => $brechoId,
                         'user_id' => $userId,
                         'item_id' => $itemId,
                         'live_id' => $liveId,

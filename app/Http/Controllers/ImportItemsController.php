@@ -37,9 +37,12 @@ class ImportItemsController extends Controller
 				'path' => request()->path(),
 				'first_item' => data_get($request->all(), 'items.0'),
 			]);
+            $brechoId = (auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1;
+
             foreach ($request->input('items') as $itemData) {
                 // Mapeamento dos dados da planilha para os campos do banco de dados
                 $dataToUpdateOrCreate = [
+                    'brecho_id' => $brechoId,
                     'nome_do_produto' => $itemData['nome_do_produto'],     
 					'codigo' => $itemData['codigo'],
                     'preco' => $itemData['preco'],

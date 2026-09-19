@@ -87,7 +87,7 @@
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-500 flex items-center gap-1.5"><i class="fas fa-boxes text-blue-500 text-xs"></i> Total de Itens</span>
                             <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
-                                {{ number_format($estoqueInfo['quantidade'] ?? 0, 0, ',', '.') }}
+                                {{ number_format($estatisticas['total_itens'] ?? 0, 0, ',', '.') }}
                             </span>
                         </div>
 

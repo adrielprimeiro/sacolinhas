@@ -76,7 +76,15 @@ class DashboardController extends Controller
                 });
 
             if ($brechoId) {
-                $sacolasQuery->where('brecho_id', $brechoId);
+                $sacolasQuery->where(function ($q) use ($brechoId) {
+                    $q->where('sacolinhas.brecho_id', $brechoId)
+                      ->orWhereExists(function ($sub) use ($brechoId) {
+                          $sub->select(DB::raw(1))
+                              ->from('items')
+                              ->whereColumn('items.id', 'sacolinhas.item_id')
+                              ->where('items.brecho_id', $brechoId);
+                      });
+                });
             }
 
             $sacolasInfo = [
@@ -167,7 +175,12 @@ class DashboardController extends Controller
                 : Cliente::where('role', 'client')->count();
 
             $itensTotalQuery = Item::query();
-            $itensDispQuery  = Item::where('status', 'disponivel');
+            $itensDispQuery  = Item::query();
+            if ($isParceiro) {
+                $itensDispQuery->whereIn('status', ['disponivel', 'estoque']);
+            } else {
+                $itensDispQuery->where('status', 'disponivel');
+            }
             $itensVendQuery  = Item::where('status', 'vendido');
             $itensResQuery   = Item::where('status', 'reservado');
 
@@ -205,7 +218,15 @@ class DashboardController extends Controller
                 ->whereRaw('DATE(DATE_ADD(add_at, INTERVAL 31 DAY)) <= ?', [$hoje]);
 
             if ($brechoId) {
-                $alertaBase->where('brecho_id', $brechoId);
+                $alertaBase->where(function ($q) use ($brechoId) {
+                    $q->where('sacolinhas.brecho_id', $brechoId)
+                      ->orWhereExists(function ($sub) use ($brechoId) {
+                          $sub->select(DB::raw(1))
+                              ->from('items')
+                              ->whereColumn('items.id', 'sacolinhas.item_id')
+                              ->where('items.brecho_id', $brechoId);
+                      });
+                });
             }
 
             $sacolasVencemHoje = (clone $alertaBase)

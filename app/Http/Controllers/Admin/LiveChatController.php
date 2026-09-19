@@ -368,8 +368,8 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'is_paused' => Cache::get('live_capture_paused', false),
-            'insta_active' => Cache::get('insta_capture_active', false) && !Cache::get('instagram_capture_stopped', false),
-            'tiktok_active' => $tiktokActive,
+            'insta_active' => !Cache::get('instagram_capture_stopped', false),
+            'tiktok_active' => !Cache::get('tiktok_capture_stopped', false),
             'messages' => $messages,
             'marked_messages' => $markedMessages,
             'online_users' => $onlineUsers,
@@ -390,32 +390,45 @@ class LiveChatController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated) {
-                $item = Item::findOrFail($validated['item_id']);
+            $msg = DB::transaction(function () use ($validated) {
+                $item = Item::lockForUpdate()->findOrFail($validated['item_id']);
                 $live = \App\Models\Live::findOrFail($validated['live_id']);
+
+                // Prevenção estrita de duplicidade na live
+                $existing = Sacolinhas::where('item_id', $validated['item_id'])
+                    ->where('live_id', $validated['live_id'])
+                    ->first();
+
+                if ($existing) {
+                    if ($existing->user_id == $validated['user_id']) {
+                        return 'Item já está na sacola desta cliente!';
+                    } else {
+                        $otherUser = User::find($existing->user_id);
+                        $otherName = $otherUser ? $otherUser->name : "outro cliente";
+                        throw new \Exception("Esta peça já foi bipada e está na sacola de {$otherName}!");
+                    }
+                }
 
                 $price = $item->preco;
                 if ($live->tipo_live === 'precinho') {
                     $price = $price * 0.5;
                 }
 
-                $brechoId = $live->brecho_id ?? 1;
+                $brechoId = (!empty($item->brecho_id) && $item->brecho_id > 1)
+                    ? $item->brecho_id
+                    : ($live->brecho_id ?? 1);
 
-                // 1. Criar ou atualizar a sacolinha do cliente nesta live
-                Sacolinhas::updateOrCreate(
-                    [
-                        'user_id' => $validated['user_id'],
-                        'item_id' => $validated['item_id'],
-                        'live_id' => $validated['live_id']
-                    ],
-                    [
-                        'brecho_id' => $brechoId,
-                        'price' => $price,
-                        'add_at' => now(),
-                        'quantity' => 1,
-                        'status' => 'live'
-                    ]
-                );
+                // 1. Criar a sacolinha do cliente nesta live
+                Sacolinhas::create([
+                    'user_id' => $validated['user_id'],
+                    'item_id' => $validated['item_id'],
+                    'live_id' => $validated['live_id'],
+                    'brecho_id' => $brechoId,
+                    'price' => $price,
+                    'add_at' => now(),
+                    'quantity' => 1,
+                    'status' => 'live'
+                ]);
 
                 // 2. Vincular cliente a este brechó
                 DB::table('brecho_clientes')->updateOrInsert(
@@ -436,11 +449,13 @@ class LiveChatController extends Controller
                 if (!empty($validated['code_request_id'])) {
                     LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
                 }
+
+                return 'Item adicionado à sacola com sucesso!';
             });
 
-            return response()->json(['success' => true, 'message' => 'Item adicionado à sacola com sucesso!']);
+            return response()->json(['success' => true, 'message' => $msg]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 

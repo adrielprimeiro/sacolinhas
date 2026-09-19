@@ -67,7 +67,9 @@ class LiveController extends Controller
                 'plataformas.*' => 'string|in:instagram,tiktok,youtube,facebook'
             ]);
 
-            $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1;
+            $brechoId = (auth()->check() && !empty(auth()->user()->brecho_id))
+                ? auth()->user()->brecho_id
+                : ($request->input('brecho_id') ?: 1);
 
             // Verificar se já existe uma live ativa para este brechó
             $liveAtiva = DB::table('lives')
