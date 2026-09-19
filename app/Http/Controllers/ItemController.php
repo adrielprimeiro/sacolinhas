@@ -100,9 +100,12 @@ class ItemController extends Controller
         return view('admin.items.create', compact('categorias', 'marcas', 'proximoCodigo'));
     }
 
-    public static function generateNextCodigo(): string
+    public static function generateNextCodigo(?int $brechoId = null): string
     {
+        $brechoId = $brechoId ?? (auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1);
+
         $lastItem = DB::table('items')
+            ->where('brecho_id', $brechoId)
             ->whereRaw('LENGTH(codigo) = 4')
             ->orderBy('id', 'desc')
             ->first(['id', 'codigo']);
@@ -118,7 +121,7 @@ class ItemController extends Controller
         do {
             $dec++;
             $candidate = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
-        } while (DB::table('items')->where('codigo', $candidate)->exists());
+        } while (DB::table('items')->where('brecho_id', $brechoId)->where('codigo', $candidate)->exists());
 
         return $candidate;
     }
@@ -180,8 +183,8 @@ class ItemController extends Controller
             try {
                 foreach ($validItems as $i) {
                     $codigo = !empty($i['codigo']) ? trim($i['codigo']) : '';
-                    if ($codigo === '' || DB::table('items')->where('codigo', $codigo)->exists()) {
-                        $codigo = self::generateNextCodigo();
+                    if ($codigo === '' || DB::table('items')->where('brecho_id', $brechoId)->where('codigo', $codigo)->exists()) {
+                        $codigo = self::generateNextCodigo($brechoId);
                     }
 
                     $preco = isset($i['preco']) ? (float) str_replace(',', '.', $i['preco']) : 0.00;
@@ -222,7 +225,7 @@ class ItemController extends Controller
             'codigo' => [
                 'required',
                 'string',
-                \Illuminate\Validation\Rule::unique('items', 'codigo'),
+                \Illuminate\Validation\Rule::unique('items', 'codigo')->where(fn ($query) => $query->where('brecho_id', $brechoId)),
             ],
             'nome_do_produto' => 'required|string|max:255',
             'descricao' => 'nullable|string',
@@ -437,6 +440,17 @@ class ItemController extends Controller
         }
         
         $itemBuilder = Item::query();
+
+        if ($request->filled('live_id')) {
+            $liveBrecho = DB::table('lives')->where('id', $request->live_id)->value('brecho_id');
+            if ($liveBrecho) {
+                $itemBuilder->where('brecho_id', $liveBrecho);
+            }
+        } elseif ($request->filled('brecho_id')) {
+            $itemBuilder->where('brecho_id', $request->brecho_id);
+        } elseif (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $itemBuilder->where('brecho_id', auth()->user()->brecho_id);
+        }
 
         if (preg_match('/^AV(\d+)$/i', $query, $matches)) {
             $avItemId = $matches[1];

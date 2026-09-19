@@ -39,23 +39,30 @@ class Sacolinhas extends Model
         });
 
         static::creating(function ($sacolinha) {
-            // Se brecho_id não foi preenchido ou for 1, tenta herdar do item
-            if (empty($sacolinha->brecho_id) || $sacolinha->brecho_id == 1) {
-                if (!empty($sacolinha->item_id)) {
-                    $itemBrechoId = DB::table('items')->where('id', $sacolinha->item_id)->value('brecho_id');
-                    if (!empty($itemBrechoId) && $itemBrechoId > 1) {
-                        $sacolinha->brecho_id = $itemBrechoId;
-                    }
+            // 1. Se pertence a uma live, a sacolinha pertence estritamente ao brechó daquela live
+            if (!empty($sacolinha->live_id)) {
+                $liveBrechoId = DB::table('lives')->where('id', $sacolinha->live_id)->value('brecho_id');
+                if (!empty($liveBrechoId)) {
+                    $sacolinha->brecho_id = $liveBrechoId;
+                    return;
                 }
             }
-            // Se ainda não tiver brecho_id, tenta herdar da live
-            if (empty($sacolinha->brecho_id)) {
-                if (!empty($sacolinha->live_id)) {
-                    $liveBrechoId = DB::table('lives')->where('id', $sacolinha->live_id)->value('brecho_id');
-                    if (!empty($liveBrechoId)) {
-                        $sacolinha->brecho_id = $liveBrechoId;
-                    }
+
+            // 2. Se não for de live, tenta herdar do item
+            if (!empty($sacolinha->item_id)) {
+                $itemBrechoId = DB::table('items')->where('id', $sacolinha->item_id)->value('brecho_id');
+                if (!empty($itemBrechoId)) {
+                    $sacolinha->brecho_id = $itemBrechoId;
+                    return;
                 }
+            }
+
+            // 3. Usuário logado
+            if (empty($sacolinha->brecho_id) && auth()->check() && !empty(auth()->user()->brecho_id)) {
+                $sacolinha->brecho_id = auth()->user()->brecho_id;
+            }
+            if (empty($sacolinha->brecho_id)) {
+                $sacolinha->brecho_id = 1;
             }
         });
 

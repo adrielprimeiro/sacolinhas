@@ -808,6 +808,8 @@
         }
     }
 
+    let lastRenderedChatHash = "";
+
     // Renderizar mensagens de chat no terminal
     function renderChatMessages() {
         const container = document.getElementById("chat-messages-container");
@@ -822,6 +824,12 @@
             const lowerUser = chatFilterUser.toLowerCase();
             messages = messages.filter(m => m.username && m.username.toLowerCase() === lowerUser);
         }
+
+        const currentHash = `${chatFilterMode}:${chatFilterUser || ''}:${messages.length}:${messages.length > 0 ? messages[messages.length - 1].id : 0}:${messages.filter(m => m.is_marked).length}`;
+        if (currentHash === lastRenderedChatHash && container.innerHTML.trim().length > 50) {
+            return; // Nada mudou, não reconstrói o DOM para manter a página super rápida
+        }
+        lastRenderedChatHash = currentHash;
 
         if (messages.length === 0) {
             container.innerHTML = `
@@ -1545,6 +1553,10 @@
         fetchChatData();
     }
 
+    let isScanProcessing = false;
+    let lastScannedCode = "";
+    let lastScannedTime = 0;
+
     async function handleOnlineQrScan(decodedText) {
         if (!decodedText || !decodedText.trim() || !currentOnlineQrUser) return;
         
@@ -1566,6 +1578,20 @@
             } catch(e) {}
         }
 
+        const now = Date.now();
+        if (isScanProcessing) {
+            console.warn("Scan bloqueado: outro bipe em processamento.");
+            return;
+        }
+        if (lastScannedCode === code && (now - lastScannedTime) < 2000) {
+            console.warn("Scan bloqueado: mesmo código bipado em menos de 2 segundos.");
+            return;
+        }
+
+        isScanProcessing = true;
+        lastScannedCode = code;
+        lastScannedTime = now;
+
         const manualInput = document.getElementById("online-qr-manual-input");
         if (manualInput) manualInput.value = "";
 
@@ -1576,7 +1602,7 @@
         }
 
         try {
-            const response = await fetch(`/api/items/search?q=${encodeURIComponent(code)}`);
+            const response = await fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`);
             const data = await response.json();
 
             if (!data.success || !data.data || data.data.length === 0) {
@@ -1618,7 +1644,7 @@
             } else {
                 if (feedback) {
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
-                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Erro ao adicionar:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola. Tente novamente.')}</span></div></div>`;
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Atenção:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola.')}</span></div></div>`;
                 }
             }
         } catch (err) {
@@ -1627,6 +1653,10 @@
                 feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg";
                 feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-circle text-red-400 text-xl mt-0.5"></i><div><b>Erro de comunicação:</b><br><span class="text-xs text-red-300 font-normal">Falha ao se comunicar com o servidor ao processar "${escapeHtml(code)}".</span></div></div>`;
             }
+        } finally {
+            setTimeout(() => {
+                isScanProcessing = false;
+            }, 600);
         }
     }
 

@@ -391,8 +391,15 @@ class LiveChatController extends Controller
 
         try {
             $msg = DB::transaction(function () use ($validated) {
-                $item = Item::lockForUpdate()->findOrFail($validated['item_id']);
+                $item = Item::withoutGlobalScopes()->lockForUpdate()->findOrFail($validated['item_id']);
                 $live = \App\Models\Live::findOrFail($validated['live_id']);
+
+                $liveBrechoId = $live->brecho_id ?: 1;
+                $itemBrechoId = $item->brecho_id ?: 1;
+
+                if ($liveBrechoId != $itemBrechoId) {
+                    throw new \Exception("Este produto (#{$item->codigo}) pertence a outro brechó e não pode entrar na live deste brechó!");
+                }
 
                 // Prevenção estrita de duplicidade na live
                 $existing = Sacolinhas::where('item_id', $validated['item_id'])
@@ -414,9 +421,7 @@ class LiveChatController extends Controller
                     $price = $price * 0.5;
                 }
 
-                $brechoId = (!empty($item->brecho_id) && $item->brecho_id > 1)
-                    ? $item->brecho_id
-                    : ($live->brecho_id ?? 1);
+                $brechoId = $liveBrechoId;
 
                 // 1. Criar a sacolinha do cliente nesta live
                 Sacolinhas::create([

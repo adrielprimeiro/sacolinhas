@@ -62,10 +62,10 @@ class ImportItemsController extends Controller
                     // 'image' => $itemData['image'] ?? null,
                 ];
 
-                // Condição para encontrar o item (pelo código)
-                $itemIdentifier = ['codigo' => $itemData['codigo']];
+                // Condição para encontrar o item (pelo brecho_id e código)
+                $itemIdentifier = ['brecho_id' => $brechoId, 'codigo' => $itemData['codigo']];
 
-                // Tenta encontrar o item pelo 'codigo'. Se encontrar, atualiza. Se não, insere.
+                // Tenta encontrar o item pelo 'brecho_id' e 'codigo'. Se encontrar, atualiza. Se não, insere.
                 $item = DB::table('items')->where($itemIdentifier)->first();
 
                 if ($item) {
@@ -75,9 +75,10 @@ class ImportItemsController extends Controller
                 } else {
                     DB::table('items')->insert($dataToUpdateOrCreate + ['created_at' => now(), 'updated_at' => now()]);
                 }
-				$check = DB::table('items')->where('codigo', $itemData['codigo'])->first();
+				$check = DB::table('items')->where($itemIdentifier)->first();
 
 				\Log::info('IMPORT-ITEMS AFTER SAVE', [
+					'brecho_id' => $brechoId,
 					'codigo' => $itemData['codigo'],
 					'estado_saved' => $check->estado ?? null,
 					'status_saved' => $check->status ?? null,
