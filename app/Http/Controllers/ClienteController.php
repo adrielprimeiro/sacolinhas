@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente; // ✅ USAR MODEL CLIENTE
+use App\Models\User;
+use App\Models\Sacolinhas;
+use App\Models\Brecho;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -67,7 +70,24 @@ class ClienteController extends Controller
         }
         
         $clientes = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
-        return view('admin.clientes.index', compact('clientes'));
+
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+        $targetBrechoId = $isParceiro ? auth()->user()->brecho_id : 2;
+
+        $clientesIncompletosCount = User::whereExists(function ($sub) use ($targetBrechoId) {
+            $sub->select(DB::raw(1))
+                ->from('brecho_clientes')
+                ->whereColumn('brecho_clientes.user_id', 'users.id')
+                ->where('brecho_clientes.brecho_id', $targetBrechoId);
+        })->where(function ($q) {
+            $q->where(function ($subQ) {
+                $subQ->whereNull('whatsapp')->orWhere('whatsapp', '');
+            })->where(function ($subQ) {
+                $subQ->whereNull('phone')->orWhere('phone', '');
+            });
+        })->count();
+
+        return view('admin.clientes.index', compact('clientes', 'clientesIncompletosCount', 'isParceiro'));
     }
 
     public function create()
@@ -442,5 +462,297 @@ class ClienteController extends Controller
                 'data' => []
             ], 500);
         }
+    }
+
+    /**
+     * Tela de vinculação e transferência de clientes da Minha Mania para o brechó parceiro.
+     */
+    public function vincularMania(Request $request)
+    {
+        $user = auth()->user();
+        $isParceiro = $user && $user->isBrechoParceiro();
+        
+        $brechoId = $isParceiro ? $user->brecho_id : (int) $request->get('brecho_id', 2);
+        $brecho = Brecho::find($brechoId) ?? Brecho::first();
+
+        if (!$brecho) {
+            return redirect()->route('admin.clientes.index')->with('error', 'Nenhum brechó parceiro encontrado.');
+        }
+
+        // Buscar clientes vinculados a este brechó
+        $clientes = User::whereExists(function ($sub) use ($brechoId) {
+            $sub->select(DB::raw(1))
+                ->from('brecho_clientes')
+                ->whereColumn('brecho_clientes.user_id', 'users.id')
+                ->where('brecho_clientes.brecho_id', $brechoId);
+        })
+        ->withCount(['sacolinhas as sacolinhas_brecho_count' => function ($q) use ($brechoId) {
+            $q->where('brecho_id', $brechoId);
+        }])
+        ->orderBy('sacolinhas_brecho_count', 'desc')
+        ->orderBy('name', 'asc')
+        ->get();
+
+        // Para cada cliente, identificar se é incompleto e buscar sugestões da Mania
+        $clientesComSugestoes = $clientes->map(function ($c) use ($brechoId) {
+            $emailAuto = str_ends_with($c->email, '@mania.com') || str_ends_with($c->email, '@temp.cliente.com');
+            $isIncompleto = (empty($c->whatsapp) && empty($c->phone)) || $emailAuto;
+            $c->is_incompleto = $isIncompleto;
+
+            // Busca sugestões inteligentes na base da Mania (excluindo o próprio dummy)
+            $c->sugestoes = $this->gerarSugestoesMania($c->name);
+
+            return $c;
+        });
+
+        $todosBrechos = Brecho::where('ativo', true)->get();
+
+        return view('admin.clientes.vincular_mania', compact(
+            'brecho',
+            'brechoId',
+            'clientesComSugestoes',
+            'todosBrechos',
+            'isParceiro'
+        ));
+    }
+
+    /**
+     * Busca inteligente na base de clientes da Minha Mania (para AJAX).
+     */
+    public function buscarMania(Request $request)
+    {
+        $query = trim($request->get('q', ''));
+        $targetBrechoId = (int) $request->get('brecho_id', 2);
+
+        if (mb_strlen($query) < 2) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        try {
+            $cleanPhone = preg_replace('/\D/', '', $query);
+
+            $candidates = User::where('role', 'client')
+                ->where(function ($q) use ($query, $cleanPhone) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('nome_cliente', 'like', "%{$query}%")
+                      ->orWhere('apelido', 'like', "%{$query}%")
+                      ->orWhere('instagram', 'like', "%{$query}%")
+                      ->orWhere('cpf', 'like', "%{$query}%");
+
+                    if (!empty($cleanPhone) && strlen($cleanPhone) >= 4) {
+                        $q->orWhere('whatsapp', 'like', "%{$cleanPhone}%")
+                          ->orWhere('phone', 'like', "%{$cleanPhone}%");
+                    }
+                })
+                ->limit(20)
+                ->get();
+
+            $jaVinculados = DB::table('brecho_clientes')
+                ->where('brecho_id', $targetBrechoId)
+                ->whereIn('user_id', $candidates->pluck('id'))
+                ->pluck('user_id')
+                ->toArray();
+
+            $data = $candidates->map(function ($c) use ($jaVinculados) {
+                return [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'apelido' => $c->apelido,
+                    'email' => $c->email,
+                    'whatsapp' => $c->whatsapp ?: $c->phone,
+                    'instagram' => $c->instagram,
+                    'cidade' => $c->cidade,
+                    'estado' => $c->estado,
+                    'cpf' => $c->cpf,
+                    'total_pedidos' => $c->total_pedidos,
+                    'ja_vinculado' => in_array($c->id, $jaVinculados),
+                ];
+            });
+
+            return response()->json(['success' => true, 'data' => $data]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao buscar clientes da Mania: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Transfere sacolinhas e vincula o cliente real da Mania ao brechó parceiro,
+     * limpando o cadastro temporário/dummy.
+     */
+    public function transferirDadosMania(Request $request)
+    {
+        $request->validate([
+            'dummy_user_id' => 'required|integer',
+            'mania_user_id' => 'required|integer|exists:users,id',
+            'brecho_id' => 'nullable|integer',
+        ]);
+
+        $user = auth()->user();
+        $brechoId = ($user && $user->isBrechoParceiro()) ? $user->brecho_id : (int) ($request->brecho_id ?: 2);
+        $dummyUserId = (int) $request->dummy_user_id;
+        $maniaUserId = (int) $request->mania_user_id;
+
+        try {
+            $sacolasTransferidas = 0;
+
+            DB::transaction(function () use ($brechoId, $dummyUserId, $maniaUserId, &$sacolasTransferidas) {
+                // 1. Garante o vínculo do cliente real da Mania em brecho_clientes
+                DB::table('brecho_clientes')->updateOrInsert(
+                    ['brecho_id' => $brechoId, 'user_id' => $maniaUserId],
+                    ['origem' => 'vinculo_mania', 'updated_at' => now()]
+                );
+
+                // 2. Transfere sacolinhas deste brechó do dummy para o cliente real
+                $sacolasTransferidas = Sacolinhas::where('brecho_id', $brechoId)
+                    ->where('user_id', $dummyUserId)
+                    ->update(['user_id' => $maniaUserId]);
+
+                // 3. Transfere pedidos deste brechó se houver
+                DB::table('pedidos')
+                    ->where('brecho_id', $brechoId)
+                    ->where('user_id', $dummyUserId)
+                    ->update(['user_id' => $maniaUserId]);
+
+                // 4. Se o usuário dummy for diferente do real, desvincula do brecho_clientes
+                if ($dummyUserId !== $maniaUserId) {
+                    DB::table('brecho_clientes')
+                        ->where('brecho_id', $brechoId)
+                        ->where('user_id', $dummyUserId)
+                        ->delete();
+
+                    // Se não tiver mais nenhuma sacolinha e nenhum outro brechó, remove o dummy para manter o banco limpo
+                    $sacolinhasRestantes = Sacolinhas::where('user_id', $dummyUserId)->count();
+                    $brechosRestantes = DB::table('brecho_clientes')->where('user_id', $dummyUserId)->count();
+                    
+                    if ($sacolinhasRestantes === 0 && $brechosRestantes === 0) {
+                        \App\Models\ClienteLimite::where('user_id', $dummyUserId)->delete();
+                        User::where('id', $dummyUserId)->delete();
+                    }
+                }
+            });
+
+            $clienteReal = User::find($maniaUserId);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Cliente {$clienteReal->name} vinculado com sucesso e {$sacolasTransferidas} peça(s) transferida(s)!",
+                'cliente' => [
+                    'id' => $clienteReal->id,
+                    'name' => $clienteReal->name,
+                    'whatsapp' => $clienteReal->whatsapp ?: $clienteReal->phone,
+                    'cidade' => $clienteReal->cidade,
+                    'estado' => $clienteReal->estado,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao transferir dados da Mania: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Importa diretamente um cliente da Mania para o brechó parceiro (sem precisar de cadastro prévio).
+     */
+    public function importarMania(Request $request)
+    {
+        $request->validate([
+            'mania_user_id' => 'required|integer|exists:users,id',
+            'brecho_id' => 'nullable|integer',
+        ]);
+
+        $user = auth()->user();
+        $brechoId = ($user && $user->isBrechoParceiro()) ? $user->brecho_id : (int) ($request->brecho_id ?: 2);
+        $maniaUserId = (int) $request->mania_user_id;
+
+        try {
+            DB::table('brecho_clientes')->updateOrInsert(
+                ['brecho_id' => $brechoId, 'user_id' => $maniaUserId],
+                ['origem' => 'importacao_mania', 'updated_at' => now()]
+            );
+
+            $clienteReal = User::find($maniaUserId);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Cliente {$clienteReal->name} importado e vinculado ao brechó com sucesso!",
+                'cliente' => [
+                    'id' => $clienteReal->id,
+                    'name' => $clienteReal->name,
+                    'whatsapp' => $clienteReal->whatsapp ?: $clienteReal->phone,
+                    'cidade' => $clienteReal->cidade,
+                    'estado' => $clienteReal->estado,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao importar cliente da Mania: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Helper privado para gerar sugestões de clientes Mania com base no nome digitado.
+     */
+    private function gerarSugestoesMania(string $name): array
+    {
+        $cleanName = trim($name);
+        $words = array_filter(explode(' ', $cleanName), fn($w) => mb_strlen($w) >= 3);
+
+        $candidates = User::where('role', 'client')
+            ->where(function ($q) use ($words, $cleanName) {
+                foreach ($words as $w) {
+                    $q->orWhere('name', 'like', "%{$w}%")
+                      ->orWhere('nome_cliente', 'like', "%{$w}%")
+                      ->orWhere('apelido', 'like', "%{$w}%")
+                      ->orWhere('instagram', 'like', "%{$w}%");
+                }
+                // Variações fonéticas conhecidas
+                if (stripos($cleanName, 'rock') !== false) {
+                    $q->orWhere('name', 'like', '%Roque%')->orWhere('instagram', 'like', '%roque%');
+                }
+                if (stripos($cleanName, 'jane') !== false) {
+                    $q->orWhere('name', 'like', '%Jany%')->orWhere('apelido', 'like', '%Jany%');
+                }
+                if (stripos($cleanName, 'tacia') !== false) {
+                    $q->orWhere('name', 'like', '%Taci%');
+                }
+                if (stripos($cleanName, 'concei') !== false) {
+                    $q->orWhere('name', 'like', '%Concei%');
+                }
+            })
+            ->select('id', 'name', 'apelido', 'whatsapp', 'phone', 'instagram', 'cidade', 'estado', 'cpf')
+            ->limit(50)
+            ->get();
+
+        $normDummy = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $cleanName) ?: $cleanName));
+
+        $scored = $candidates->map(function ($c) use ($normDummy) {
+            $score = 0;
+            $normC = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $c->name) ?: $c->name));
+            if ($normC === $normDummy) $score += 100;
+            elseif (!empty($normDummy) && (str_contains($normC, $normDummy) || str_contains($normDummy, $normC))) $score += 50;
+
+            if (in_array(strtoupper($c->estado ?? ''), ['SC', 'SANTA CATARINA'])) $score += 30;
+            if (preg_match('/(florian|jose|biguac|palhoca)/i', $c->cidade ?? '')) $score += 30;
+
+            if ($c->whatsapp) $score += 15;
+            if ($c->instagram) $score += 10;
+
+            $c->score = $score;
+            return $c;
+        })->sortByDesc('score')->take(3)->values();
+
+        return $scored->map(function ($c) {
+            return [
+                'id' => $c->id,
+                'name' => $c->name,
+                'apelido' => $c->apelido,
+                'whatsapp' => $c->whatsapp ?: $c->phone,
+                'instagram' => $c->instagram,
+                'cidade' => $c->cidade,
+                'estado' => $c->estado,
+                'score' => $c->score,
+            ];
+        })->toArray();
     }
 }

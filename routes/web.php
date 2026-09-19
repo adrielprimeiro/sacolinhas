@@ -333,6 +333,16 @@ Route::middleware('auth')->group(function () {
 
 
 
+        // ===== ADMIN CLIENTES: VINCULAÇÃO MULTI-TENANT COM A MANIA =====
+        Route::get('clientes/vincular-mania', [ClienteController::class, 'vincularMania'])
+            ->name('admin.clientes.vincular_mania');
+        Route::get('clientes/api/buscar-mania', [ClienteController::class, 'buscarMania'])
+            ->name('admin.clientes.buscar_mania');
+        Route::post('clientes/transferir-dados-mania', [ClienteController::class, 'transferirDadosMania'])
+            ->name('admin.clientes.transferir_dados_mania');
+        Route::post('clientes/importar-mania', [ClienteController::class, 'importarMania'])
+            ->name('admin.clientes.importar_mania');
+
         // ===== ADMIN CLIENTES =====
         Route::resource('clientes', ClienteController::class)->names([
             'index' => 'admin.clientes.index',
