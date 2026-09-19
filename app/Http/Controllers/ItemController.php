@@ -20,7 +20,14 @@ class ItemController extends Controller
 {
 	public function index(Request $request)
 	{
-		$query = Item::query();
+		$query = Item::query()->with(['brecho']);
+
+		// Isolamento multi-tenant estrito
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$query->where('items.brecho_id', auth()->user()->brecho_id);
+		} elseif ($request->filled('brecho_id')) {
+			$query->where('items.brecho_id', $request->brecho_id);
+		}
 
 		if ($request->filled('codigo')) {
             $codigoPesquisa = trim($request->codigo);
@@ -82,7 +89,9 @@ class ItemController extends Controller
             ->orderBy('name')
             ->get();
 
-		return view('admin.items.index', compact('items', 'treeCategories'));
+        $brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
+
+		return view('admin.items.index', compact('items', 'treeCategories', 'brechos'));
 	}
 		
 

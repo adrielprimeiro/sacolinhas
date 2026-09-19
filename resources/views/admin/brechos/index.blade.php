@@ -73,7 +73,11 @@
                         @endif
                     </td>
                     <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">
-                        {{ $b->items_count }} itens
+                        <a href="{{ route('items.index', ['brecho_id' => $b->id]) }}" class="text-indigo-600 hover:text-indigo-800 font-bold hover:underline inline-flex items-center gap-1.5" title="Ver itens deste brechó">
+                            <i class="fas fa-tshirt text-xs text-indigo-400"></i>
+                            {{ $b->items_count }} itens
+                            <i class="fas fa-external-link-alt text-[10px] opacity-60"></i>
+                        </a>
                     </td>
                     <td class="px-5 py-4 whitespace-nowrap text-xs">
                         @if($b->users->count() > 0)
@@ -100,6 +104,9 @@
                         @endif
                     </td>
                     <td class="px-5 py-4 whitespace-nowrap text-right text-sm font-medium space-x-1.5">
+                        <a href="{{ route('items.index', ['brecho_id' => $b->id]) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition text-xs font-semibold inline-flex items-center" title="Ver itens deste brechó">
+                            <i class="fas fa-boxes mr-1"></i> Ver Itens
+                        </a>
                         <button @click="selectedBrecho = {{ json_encode($b) }}; operatorModalOpen = true;" class="text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2.5 py-1.5 rounded-lg hover:bg-emerald-100 transition text-xs font-semibold inline-flex items-center" title="Criar login de operador">
                             <i class="fas fa-user-plus mr-1"></i> + Operador
                         </button>

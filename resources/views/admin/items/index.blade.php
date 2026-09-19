@@ -36,7 +36,7 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
 
                 {{-- Busca --}}
-                <div class="md:col-span-3">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-3' : 'md:col-span-3' }}">
                     <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Buscar por código</label>
                     <div class="relative">
                         <input
@@ -57,8 +57,29 @@
                     </div>
                 </div>
 
-                {{-- Status --}}
+                @if(!auth()->check() || !auth()->user()->isBrechoParceiro())
+                {{-- Brechó --}}
                 <div class="md:col-span-2">
+                    <label for="brecho_id" class="block text-sm font-medium text-gray-700 mb-1">Brechó</label>
+                    <select
+                        id="brecho_id"
+                        name="brecho_id"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-gray-700"
+                    >
+                        <option value="">Todos os Brechós</option>
+                        @if(isset($brechos))
+                            @foreach($brechos as $b)
+                                <option value="{{ $b->id }}" {{ request('brecho_id') == $b->id ? 'selected' : '' }}>
+                                    {{ $b->nome }}
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+                @endif
+
+                {{-- Status --}}
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-2' : 'md:col-span-2' }}">
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select
                         id="status"
@@ -80,7 +101,7 @@
                 </div>
 
                 {{-- Categoria --}}
-                <div class="md:col-span-3">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-2' : 'md:col-span-3' }}">
                     <label for="categoria_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                     <select
                         id="categoria_id"
@@ -108,7 +129,7 @@
                 </div>
 
                 {{-- Localização --}}
-                <div class="md:col-span-2">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-1' : 'md:col-span-2' }}">
                     <label for="localizacao" class="block text-sm font-medium text-gray-700 mb-1">Localização</label>
                     <input
                         id="localizacao"
@@ -162,6 +183,9 @@
                             <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                         </th>
                         <th class="py-3 px-6 text-left w-16">Foto</th>
+                        @if(!auth()->check() || !auth()->user()->isBrechoParceiro())
+                            <th class="py-3 px-4 text-left">Brechó</th>
+                        @endif
                         <th class="py-3 px-6 text-left">Cód / SKU</th>
                         <th class="py-3 px-6 text-left">Nome</th>
                         <th class="py-3 px-6 text-left">Detalhes (Marca/Cor/Tam/Est/Local)</th>
@@ -227,6 +251,15 @@
                                     </div>
                                 @endif
                             </td>
+
+                            @if(!auth()->check() || !auth()->user()->isBrechoParceiro())
+                            <td class="py-3 px-4 text-left whitespace-nowrap">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold {{ ($item->brecho_id ?? 1) == 1 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
+                                    <i class="fas fa-store mr-1 text-[10px]"></i>
+                                    {{ $item->brecho->nome ?? 'Matriz' }}
+                                </span>
+                            </td>
+                            @endif
 
                             <td class="py-3 px-6 text-left whitespace-nowrap font-medium">
                                 {{ $codigo ?? '—' }}
