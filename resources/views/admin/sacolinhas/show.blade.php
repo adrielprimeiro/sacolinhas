@@ -64,9 +64,9 @@
                 @endif
             </div>
         </div>
-        <div class="flex flex-col gap-2" style="min-width: 180px;">
+        <div class="flex flex-col gap-2 notranslate" translate="no" style="min-width: 180px;">
             <div class="flex items-center bg-gray-100 rounded-lg px-3 py-1.5 border border-gray-200">
-                <span class="text-[10px] font-bold text-gray-400 uppercase mr-2">Frete R$</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase mr-2 notranslate" translate="no">Frete R$</span>
                 <input type="number" step="0.01" x-model="freteValor" 
                        class="bg-transparent border-none focus:ring-0 w-20 text-right font-bold text-blue-600 p-0"
                        placeholder="0,00">
@@ -74,29 +74,33 @@
             <button id="btnFecharSacolinha" 
                     :disabled="selectedIds.length === 0"
                     @click="fecharSacolinha()"
+                    translate="no"
                     :class="selectedIds.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'"
-                    class="w-full text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
-                <i class="fas fa-check-circle"></i> Fechar Sacolinha
+                    class="notranslate w-full text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
+                <i class="fas fa-check-circle notranslate" translate="no"></i> <span translate="no" class="notranslate">Fechar Sacolinha</span>
             </button>
             @if(empty($isParceiro) && empty($user->sacolinha_autorizada_por))
                 <button type="button" @click="openModalAutorizar()" 
                         style="background-color: #f59e0b;"
-                        class="w-full text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 mt-1 mb-1 shadow-sm hover:opacity-90">
-                    <i class="fas fa-lock"></i> Autorizar Fechamento
+                        translate="no"
+                        class="notranslate w-full text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 mt-1 mb-1 shadow-sm hover:opacity-90">
+                    <i class="fas fa-lock notranslate" translate="no"></i> <span translate="no" class="notranslate">Autorizar Fechamento</span>
                 </button>
             @endif
             <button id="btnSimularFrete" 
                     :disabled="selectedIds.length === 0"
                     @click="openModalFrete()"
+                    translate="no"
                     :class="selectedIds.length === 0 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-blue-600 text-blue-600 hover:bg-blue-50 cursor-pointer'"
-                    class="w-full border-2 text-xs font-bold py-1.5 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
-                <i class="fas fa-truck"></i> Simular Frete
+                    class="notranslate w-full border-2 text-xs font-bold py-1.5 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
+                <i class="fas fa-truck notranslate" translate="no"></i> <span translate="no" class="notranslate">Simular Frete</span>
             </button>
-            <a href="{{ route('admin.sacolinha.pdf', $user->id) }}" target="_blank"
-               style="background-color: #7c3aed !important; color: #ffffff !important;"
-               class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center shadow-sm">
-                <i class="fas fa-file-pdf" style="color: #ffffff !important;"></i>
-                <span style="color: #ffffff !important;" class="text-white font-bold whitespace-nowrap">Imprimir Sacolinha</span>
+            <a href="{{ route('admin.sacolinha.pdf', $user->id) }}" id="btnImprimirSacolinha" target="_blank"
+               translate="no"
+               style="background-color: #7c3aed !important; color: #ffffff !important; text-decoration: none !important;"
+               class="notranslate w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center shadow-sm">
+                <i class="fas fa-file-pdf notranslate" translate="no" style="color: #ffffff !important; font-size: 14px;"></i>
+                <span translate="no" class="notranslate text-white font-bold text-xs uppercase" style="color: #ffffff !important; display: inline-block; white-space: nowrap;">Imprimir Sacolinha</span>
             </a>
         </div>
     </div>
@@ -105,12 +109,13 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center justify-between flex-1">
-                <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wider">Itens na Sacola</h2>
+                <h2 class="text-sm font-semibold text-gray-800 uppercase tracking-wider notranslate" translate="no">Itens na Sacola</h2>
             </div>
             <div class="flex items-center gap-4">
                 <button @click="openModalAddItem()" 
-                        class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
-                    <i class="fas fa-plus"></i> Adicionar Item
+                        translate="no"
+                        class="notranslate bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fas fa-plus notranslate" translate="no"></i> <span translate="no" class="notranslate">Adicionar Item</span>
                 </button>
             </div>
         </div>
