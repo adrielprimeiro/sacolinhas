@@ -501,6 +501,8 @@ class AdminSacolinhaController extends Controller
             ])
             ->get();
 
+        $total = (float) $itens->sum('price');
+
         $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
         if ($isParceiro) {
             $valorPago = 0.0;
