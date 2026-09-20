@@ -123,8 +123,11 @@ Modelo de comunidade e assinatura mensal para compradoras recorrentes.
 ---
 
 ### 📊 ÁREA 6: RELATÓRIOS & AUDITORIA
+> 🔍 **Detalhamento Completo:** [`docs/areas/06_RELATORIOS_AUDITORIA.md`](areas/06_RELATORIOS_AUDITORIA.md) *(sacolinhas vencidas, portal_acessos, rastreamentos de pedidos)*
+
 1. **Relatório de Clientes (`admin.clientes.relatorios`):** Frequência de compra, ticket médio por cliente, clientes inativas.
 2. **Acessos ao Portal (`admin.portal-acessos.index`):** Rastreia quando as clientes abriram o link do Portal da Sacolinha para ver suas peças.
+3. **Relatório de Vencimentos (`admin.relatorios.vencimentos`):** Monitoramento e cobrança de peças acima de 31 dias.
 
 ---
 

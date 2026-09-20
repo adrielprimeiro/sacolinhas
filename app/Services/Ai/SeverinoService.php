@@ -1794,6 +1794,32 @@ class SeverinoService
   3. Carteira do Cliente (`conta_corrente`): é um extrato histórico. O saldo atual do cliente é SEMPRE a linha mais recente (`ORDER BY data_movimentacao DESC, id DESC LIMIT 1`). NUNCA faça `SUM(saldo_atual)` em `conta_corrente`!
   4. Limite de sacolinha: tabela `cliente_limites` (`limite_credito`, `limite_utilizado`, `limite_disponivel`).
   5. Contato e identificação: Para responder ao usuário sobre uma sacolinha ou pedido, SEMPRE use o `name` do cliente (JOIN com `users`), nunca o ID numérico isolado."];
+                        case "relatorios":
+                        case "relatorio":
+                        case "auditoria":
+                        case "portal":
+                        case "portal_acessos":
+                        case "rastreamento":
+                        case "rastreamentos":
+                            $zoomFile = base_path('docs/areas/06_RELATORIOS_AUDITORIA.md');
+                            if (file_exists($zoomFile)) {
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['portal', 'portal_acessos'])) {
+                                    if (preg_match('/### Subárea 6\.2:.*?(?=### Subárea 6\.3|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO PORTAL ACESSOS:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['rastreamento', 'rastreamentos'])) {
+                                    if (preg_match('/### Subárea 6\.3:.*?(?=## 📊|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO RASTREAMENTO DE PEDIDOS:\n" . trim($m[0])];
+                                    }
+                                }
+                            }
+                            return ["mapa" => "MÓDULO RELATÓRIOS E AUDITORIA:
+- Controllers principais: `RelatorioVencimentosController`, `PortalAcessosController`.
+- Tabelas principais:
+  1. `sacolinhas`: Peças retidas acima de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()` e `status != 'pedido'`).
+  2. `portal_acessos` (id, user_id, ip_address, user_agent, url, route_name, created_at): Histórico de visualizações do portal da sacolinha por cliente.
+  3. `pedido_rastreamentos` (id, pedido_id, status, descricao, data_hora): Histórico logístico dos envios de encomendas."];
                         case "controllers":
                         case "controller":
                         case "rotas":
