@@ -54,6 +54,8 @@ A Minha Mania opera um modelo de **Social Commerce e Brechó Circular**: os prod
 ---
 
 ### 📦 ÁREA 2: PRODUTOS & ESTOQUE (O Acervo Físico e Virtual)
+> 🔍 **Detalhamento Completo:** [`docs/areas/02_PRODUTOS_ESTOQUE.md`](areas/02_PRODUTOS_ESTOQUE.md) *(status da peça, tabela items, conferências de inventário e formulas)*
+
 Controla o ciclo de vida da peça desde a entrada até a entrega final.
 
 1. **Lista de Produtos (`items.index`):**

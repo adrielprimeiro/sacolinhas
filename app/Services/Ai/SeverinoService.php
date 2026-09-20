@@ -1658,11 +1658,44 @@ class SeverinoService
      * ATENÇÃO: Nome da tabela é `avaliacao_items` (com 'items' em inglês). Valores são `total_venda` e `total_payout`."];
                         case "estoque":
                         case "produtos":
+                        case "produto":
                         case "itens":
+                        case "item":
+                        case "inventario":
+                        case "conferencia":
+                        case "conferencias":
+                        case "categorias":
+                        case "categoria":
+                        case "marcas":
+                        case "marca":
+                        case "araras":
+                        case "localizacao":
+                            $zoomFile = base_path('docs/areas/02_PRODUTOS_ESTOQUE.md');
+                            if (file_exists($zoomFile)) {
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['inventario', 'conferencia', 'conferencias', 'araras', 'localizacao'])) {
+                                    if (preg_match('/### Subárea 2\.4:.*?(?=### Subárea 2\.5|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO INVENTÁRIO & CONFERÊNCIAS:\n" . trim($m[0]) . "\n\nFÓRMULA:\nSELECT id, localizacao, total_esperado, total_lido, total_faltantes, acuracia_percentual FROM conferencias_inventario ORDER BY created_at DESC LIMIT 5;"];
+                                    }
+                                } elseif (in_array($modulo, ['marcas', 'marca'])) {
+                                    if (preg_match('/### Subárea 2\.3:.*?(?=### Subárea 2\.4|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO MARCAS:\n" . trim($m[0]) . "\n\nREGRA: Na tabela `items`, a marca é uma string na coluna `marca` (ex: 'Farm', 'Zara')."];
+                                    }
+                                } elseif (in_array($modulo, ['categorias', 'categoria'])) {
+                                    if (preg_match('/### Subárea 2\.2:.*?(?=### Subárea 2\.3|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CATEGORIAS:\n" . trim($m[0])];
+                                    }
+                                }
+                            }
                             return ["mapa" => "MÓDULO ESTOQUE & PRODUTOS:
-- Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao, marca_id, categoria_id, tamanho, cor).
-- Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.
-- NOTA: Para informações sobre sacolinhas de clientes, use o módulo 'sacolinhas' (tabela `sacolinhas`)."];
+- Controller principal: `ItemController` (`app/Http/Controllers/ItemController.php`).
+- Tabela principal: `items` (id, codigo, nome_do_produto, preco, custo, status, localizacao, marca, cor, tamanho, estado, brecho_id).
+- REGRAS CRÍTICAS:
+  1. A tabela chama-se `items` (NÃO existe tabela 'produtos').
+  2. A coluna de nome chama-se `nome_do_produto` (NÃO 'nome' nem 'titulo'). O código da peça é `codigo` (NÃO 'sku').
+  3. Peças disponíveis para venda: `WHERE status = 'disponivel'` (peças com status 'em_sacolinha' ou 'vendido' NÃO estão disponíveis!).
+  4. Auditorias físicas de araras/caixas: tabela `conferencias_inventario` (colunas: `localizacao`, `total_esperado`, `total_lido`, `total_faltantes`, `acuracia_percentual`).
+  5. Marcas: coluna `marca` em `items` ou tabela `marcas` (id, nome, porcentagem_valor)."];
                         case "clientes":
                         case "cliente":
                         case "enderecos":
