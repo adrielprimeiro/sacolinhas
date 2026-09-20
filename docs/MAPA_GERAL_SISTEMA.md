@@ -85,6 +85,8 @@ Toda a inteligência e suporte focado no cliente final.
 ---
 
 ### 💰 ÁREA 4: FINANCEIRO (A Tesouraria e Controladoria)
+> 🔍 **Detalhamento Completo:** [`docs/areas/04_FINANCEIRO_CONCILIACAO.md`](areas/04_FINANCEIRO_CONCILIACAO.md) *(DRE, Orçamento, Conciliação Inter/MP, saldo real e lançamentos)*
+
 O coração monetário da empresa, operando em regime de caixa e competência.
 
 #### A. Análises e Inteligência Estratégica:

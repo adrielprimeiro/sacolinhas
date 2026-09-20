@@ -1580,29 +1580,48 @@ class SeverinoService
                         case "dre":
                         case "fluxo_caixa":
                         case "fluxocaixa":
+                        case "lancamentos":
+                        case "lancamento":
+                        case "movimentacoes":
+                        case "movimentacao":
+                            $zoomFile = base_path('docs/areas/04_FINANCEIRO_CONCILIACAO.md');
+                            if (file_exists($zoomFile)) {
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['dre'])) {
+                                    if (preg_match('/### Subárea 4\.1:.*?(?=### Subárea 4\.2|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO DRE (RESULTADO DO EXERCÍCIO):\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['orcamento', 'orcamentos', 'previsao', 'previsoes', 'previsto_realizado'])) {
+                                    if (preg_match('/### Subárea 4\.2:.*?(?=### Subárea 4\.3|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO ORÇAMENTO (PREVISTO X REALIZADO):\n" . trim($m[0]) . "\n\nREGRA: Use sempre a ferramenta relatorio_orcamento_previsto_realizado para apurar metas vs realizado do mês!"];
+                                    }
+                                } elseif (in_array($modulo, ['conciliacao', 'extrato', 'extratos'])) {
+                                    if (preg_match('/### Subárea 4\.3:.*?(?=### Subárea 4\.4|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CONCILIAÇÃO BANCÁRIA:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['banco', 'bancos', 'contas_bancarias'])) {
+                                    if (preg_match('/### Subárea 4\.4:.*?(?=### Subárea 4\.5|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CONTAS BANCÁRIAS:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['lancamento', 'lancamentos', 'movimentacao', 'movimentacoes'])) {
+                                    if (preg_match('/### Subárea 4\.5:.*?(?=## 📊|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO LANÇAMENTOS E MOVIMENTAÇÕES:\n" . trim($m[0])];
+                                    }
+                                }
+                            }
                             return ["mapa" => "MÓDULO FINANCEIRO E BANCÁRIO:
-- Controllers principais: `DreController`, `FluxoCaixaController`, `OrcamentoController`, `ConciliacaoController`, `ContaBancariaController`, `ContaCorrenteController`, `LancamentoController`, `MovimentacaoController`.
+- Controllers principais: `DreController`, `FluxoCaixaController`, `OrcamentoController`, `ConciliacaoController`, `ContaBancariaController`, `LancamentoController`, `MovimentacaoController`.
 - Tabelas principais:
-  1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas da empresa: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'. (Atenção: NÃO existe a coluna 'saldo_atual' nessa tabela).
-  2. `transacoes_extrato` (id, fitid, data, descricao, valor, valor_bruto, valor_liquido, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id). É onde ficam os extratos bancários importados/sincronizados do Inter e Mercado Pago!
+  1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'.
+     * ATENÇÃO CRÍTICA: NÃO existe a coluna 'saldo_atual' nessa tabela! O saldo real = saldo_inicial + entradas - saídas em `movimentacoes`.
+  2. `transacoes_extrato` (id, fitid, data, descricao, valor, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id).
+     * Transação pendente no extrato NÃO virou lançamento no financeiro até ser conciliada!
   3. `lancamentos` (id, tipo ['receita','despesa'], status ['pendente','pago_parcial','pago','cancelado'], pessoa_id, classificacao_financeira_id, data_emissao, data_vencimento, valor_total, descricao).
   4. `movimentacoes` (id, lancamento_id, conta_bancaria_id, data_pagamento, valor_pago, forma_pagamento, transacao_extrato_id).
-  5. `conta_corrente` (id, user_id, valor, tipo_movimentacao, saldo_atual, data_movimentacao).
-     ATENÇÃO CRÍTICA: A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (muitas linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.
-     NUNCA faça `SUM(saldo_atual)` ou `COUNT(*) WHERE saldo_atual < 0` diretamente em `conta_corrente`! Isso somará dezenas de linhas antigas do mesmo cliente.
-     Para perguntas sobre a Carteira de Clientes (saldo consolidado da carteira, quantidade de clientes negativos/devedores ou positivos, soma das dívidas ou créditos), USE SEMPRE a ferramenta dedicada `resumo_carteira_clientes`!
-  6. `orcamentos` (id, classificacao_financeira_id, periodo, valor_previsto).
-     ATENÇÃO CRÍTICA SOBRE ORÇAMENTO (PREVISTO X REALIZADO):
-     A tabela `orcamentos` guarda o valor previsto planejado por categoria em cada mês (dia 1 do mês, ex: '2026-09-01').
-     O valor REALIZADO NÃO é uma coluna estática; ele é calculado dinamicamente somando `lancamentos` onde `status = 'pago'` e `data_vencimento` está no mês daquele período para a mesma categoria!
-     Para qualquer pergunta sobre itens fora do previsto, orçamento estourado, previsto x realizado ou metas, USE SEMPRE a ferramenta dedicada `relatorio_orcamento_previsto_realizado`!
-- Regra de Conciliação e Lançamentos Faltantes:
-  * Uma transação bancária no extrato (`transacoes_extrato`) só gera um `lancamento` e `movimentacao` no sistema quando é CONCILIADA (`status = 'conciliado'`).
-  * Se o usuário perguntar por que está faltando um lançamento de uma transferência, PIX ou pagamento que ocorreu no banco, consulte `transacoes_extrato`! Se estiver `status = 'pendente'`, o lançamento ainda NÃO existe no financeiro porque a transação ainda está pendente de conciliação bancária na tela de Conciliação.
-  * Em transferências entre contas próprias (ex: Inter -> Mercado Pago), existem duas pontas no extrato: saída no Inter e entrada no Mercado Pago. Se uma das pontas foi conciliada individualmente e a outra ficou com status 'pendente', o lançamento da ponta pendente estará faltando no financeiro até que seja conciliado!
-- Regra de Pessoas (Clientes/Fornecedores): Se precisar buscar um lançamento ou movimentação por nome (ex: fornecedor 'Meias' ou 'Leandro'), você DEVE fazer um JOIN com a tabela `pessoas` (id, nome) usando o `pessoa_id` da tabela `lancamentos`.
-- Regra de Saldo: O saldo real da empresa é a soma do saldo_inicial das contas + movimentações de entrada - saídas.
-- Regra de Movimentações: Tudo que entra ou sai de verdade do caixa/banco da empresa passa por `movimentacoes`."];
+     * É a movimentação efetivada que afeta o saldo bancário de verdade.
+  5. `orcamentos` (id, classificacao_financeira_id, periodo, valor_previsto).
+     * O REALIZADO é dinâmico (soma de `lancamentos` pagos no mês). Para perguntas sobre orçamento ou pró-labore, use as ferramentas dedicadas!
+  6. `pessoas` (id, nome): Fornecedores e prestadores. Use JOIN com `pessoas` para buscar por nome."];
                         case "clube":
                             return ["mapa" => "MÓDULO CLUBE MANIA:
 - Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
