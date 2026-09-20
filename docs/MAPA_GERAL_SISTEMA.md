@@ -31,6 +31,8 @@ A Minha Mania opera um modelo de **Social Commerce e Brechó Circular**: os prod
 ---
 
 ### 🛍️ ÁREA 1: COMERCIAL & CAPTAÇÃO (O Motor de Vendas)
+> 🔍 **Detalhamento Completo:** [`docs/areas/01_COMERCIAL_SACOLINHAS.md`](areas/01_COMERCIAL_SACOLINHAS.md) *(regras de 31 dias, faturamento de live, pedidos e schemas reais)*
+
 É onde as vendas acontecem, as peças são disputadas e as sacolinhas são criadas e controladas.
 
 1. **Live (`bags.index`):**

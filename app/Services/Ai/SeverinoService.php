@@ -1608,24 +1608,41 @@ class SeverinoService
 - Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
 - Regra Ativos: Um cliente é assinante ativo se existe em `clube_assinaturas` com `status = 'ativa'`.
 - Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'."];
+                        case "comercial":
                         case "lives":
                         case "sacolinhas":
                         case "sacolinha":
                         case "vendas":
-                            return ["mapa" => "MÓDULO LIVES E VENDAS:
-- Tabelas principais: `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
-- Tabela de Itens Separados (Sacolinhas): `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at, obs).
-- Regras de Sacolinhas: 
-  1. Identificação do Cliente: NUNCA mostre apenas o ID numérico do cliente! Sempre faça `JOIN users u ON u.id = sacolinhas.user_id` para trazer `u.name` e responder com o nome do cliente (ex: 'A sacolinha da Aline').
-  2. Escopo Ativo: Se o usuário não especificar período ou data, filtre SEMPRE apenas sacolinhas abertas/ativas (`sacolinhas.status != 'pedido'` e `(sacolinhas.obs IS NULL OR LOWER(sacolinhas.obs) NOT LIKE '%ped-%')`).
-  3. Contagem de Sacolas: 'Uma sacola' = um cliente. Para contar quantas sacolas abertas existem, faça COUNT(DISTINCT user_id) na tabela `sacolinhas`.
-  4. Itens x Sacolas: Se a pergunta for sobre 'quantos itens tem', conte as linhas de `sacolinhas`. Se for sobre 'quantas sacolas', conte os `user_id` únicos.
-  5. Vencimento: O prazo máximo é 31 dias. Use `DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()` para itens vencidos, e `>= NOW()` para os NÃO vencidos.
-- Regra Resultado Live: Para saber o faturamento de uma live, faça SUM(price * quantity) na tabela `sacolinhas` filtrando pelo `live_id` correspondente à tabela `lives`.
-- Tabela de Pedidos: `pedidos` (id, user_id, valor_total, live_id, status_pedido, status_pagamento). Para faturamento aprovado, use sempre `status_pagamento = 'aprovado'`. O `status_pedido` reflete a logística (ex: enviado, entregue)."];
+                        case "pedidos":
+                        case "pedido":
+                        case "vencimentos":
+                        case "vencimento":
+                        case "avaliacao":
+                        case "avaliacoes":
+                        case "desapego":
+                        case "desapegos":
+                            $zoomFile = base_path('docs/areas/01_COMERCIAL_SACOLINHAS.md');
+                            if (file_exists($zoomFile)) {
+                                return ["mapa" => file_get_contents($zoomFile)];
+                            }
+                            return ["mapa" => "MÓDULO COMERCIAL, LIVES, SACOLINHAS E DESAPEGOS:
+- Controllers principais: `LiveController`, `SacolinhaController`, `AdminSacolinhaController`, `SacolinhaVencidaController`, `PedidoController`, `AvaliacaoController`.
+- Tabelas principais:
+  1. `lives` (id, data, tipo_live, plataformas, ativo, encerrada_em).
+  2. `sacolinhas` (id, user_id, item_id, live_id, quantity, price, status, add_at, obs).
+     * Sacolinha Aberta: `status != 'pedido' AND (obs IS NULL OR LOWER(obs) NOT LIKE '%ped-%')`.
+     * Total Sacolinhas Abertas: `COUNT(DISTINCT user_id)`.
+     * Vencimento: Mais de 31 dias corridos (`DATE_ADD(add_at, INTERVAL 31 DAY) <= CURDATE()`).
+  3. `pedidos` (id, numero_pedido, user_id, status_pedido, status_pagamento, valor_total, valor_frete, forma_pagamento).
+     * IMPORTANTE: Não existe tabela 'pedido_items'. As peças continuam em `sacolinhas` com `obs = 'ped-{id}'` e `status = 'pedido'`.
+  4. `avaliacoes` (id, user_id, tipo_compra, total_venda, total_payout, pagamento_escolhido, status).
+  5. `avaliacao_items` (id, avaliacao_id, nome, preco_venda, payout_credito, payout_dinheiro, status).
+     * ATENÇÃO: Nome da tabela é `avaliacao_items` (com 'items' em inglês). Valores são `total_venda` e `total_payout`."];
                         case "estoque":
-                            return ["mapa" => "MÓDULO ESTOQUE:
-- Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao).
+                        case "produtos":
+                        case "itens":
+                            return ["mapa" => "MÓDULO ESTOQUE & PRODUTOS:
+- Tabelas principais: `items` (id, codigo, nome_do_produto, custo, preco, status, localizacao, marca_id, categoria_id, tamanho, cor).
 - Regra de Status: 'disponivel', 'vendido', 'em_sacolinha', 'sacolinha', 'loja'. Se status for 'vendido' ou 'em_sacolinha', a coluna 'localizacao' muda para 'Sacolinha'.
 - NOTA: Para informações sobre sacolinhas de clientes, use o módulo 'sacolinhas' (tabela `sacolinhas`)."];
                         case "clientes":
@@ -1636,14 +1653,6 @@ class SeverinoService
 - Tabela principal: `users` (id, name, email, cidade, estado, bairro, endereco, numero_endereco, complemento, cep, phone, whatsapp, telefone_principal, apelido, instagram, tiktok).
 - Regra de Endereço e Cidade: O endereço, cidade, estado, CEP e bairro ficam DIRETAMENTE nas colunas da tabela `users` (NÃO existe tabela separada de endereços!).
 - Tabela `pessoas`: Fornecedores, funcionários e pessoas externas do módulo financeiro. Usuários e clientes do sistema são SEMPRE `users`."];
-                        case "avaliacao":
-                        case "avaliacoes":
-                        case "desapego":
-                        case "desapegos":
-                            return ["mapa" => "MÓDULO AVALIAÇÕES E DESAPEGOS:
-- Controller principal: `AvaliacaoController` (`app/Http/Controllers/Admin/AvaliacaoController.php`).
-- Tabelas principais: `avaliacoes` (id, user_id, status, tipo_compra, valor_total_aprovado, valor_frete, created_at), `avaliacao_itens` (id, avaliacao_id, categoria_id, marca_id, tamanho, valor_sugerido, status).
-- Regra: Peças enviadas por clientes para desapego. Se aprovadas, podem virar crédito na carteira do cliente (`conta_corrente`) ou pagamento via PIX/banco."];
                         case "controllers":
                         case "controller":
                         case "rotas":
