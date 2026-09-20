@@ -1611,17 +1611,20 @@ class SeverinoService
                             }
                             return ["mapa" => "MÓDULO FINANCEIRO E BANCÁRIO:
 - Controllers principais: `DreController`, `FluxoCaixaController`, `OrcamentoController`, `ConciliacaoController`, `ContaBancariaController`, `LancamentoController`, `MovimentacaoController`.
-- Tabelas principais:
-  1. `contas_bancarias` (id, nome, tipo, saldo_inicial). Contas: 1='Caixinha', 2='Mercado Pago', 3='Carteira Cliente', 4='Inter'.
-     * ATENÇÃO CRÍTICA: NÃO existe a coluna 'saldo_atual' nessa tabela! O saldo real = saldo_inicial + entradas - saídas em `movimentacoes`.
-  2. `transacoes_extrato` (id, fitid, data, descricao, valor, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem, conta_bancaria_id, movimentacao_id).
-     * Transação pendente no extrato NÃO virou lançamento no financeiro até ser conciliada!
+- TABELAS E COLUNAS REAIS (USE EXATAMENTE ESTAS):
+  1. `contas_bancarias` (id, nome, tipo, saldo_inicial).
+     * Coluna de identificação da conta é `nome` (ex: 'Inter', 'Mercado Pago', 'Caixinha'). NUNCA use 'instituicao'!
+     * ATENÇÃO CRÍTICA: NÃO existe a coluna 'saldo_atual' nessa tabela!
+  2. `movimentacoes` (id, lancamento_id, conta_bancaria_id, data_pagamento, valor_pago, transacao_extrato_id).
+     * A coluna de valor é `valor_pago` (NUNCA use 'valor'!).
+     * NÃO existe coluna 'tipo' em movimentacoes! Para saber se é entrada (receita) ou saída (despesa), faça SEMPRE `LEFT JOIN lancamentos l ON l.id = movimentacoes.lancamento_id`.
   3. `lancamentos` (id, tipo ['receita','despesa'], status ['pendente','pago_parcial','pago','cancelado'], pessoa_id, classificacao_financeira_id, data_emissao, data_vencimento, valor_total, descricao).
-  4. `movimentacoes` (id, lancamento_id, conta_bancaria_id, data_pagamento, valor_pago, forma_pagamento, transacao_extrato_id).
-     * É a movimentação efetivada que afeta o saldo bancário de verdade.
-  5. `orcamentos` (id, classificacao_financeira_id, periodo, valor_previsto).
-     * O REALIZADO é dinâmico (soma de `lancamentos` pagos no mês). Para perguntas sobre orçamento ou pró-labore, use as ferramentas dedicadas!
-  6. `pessoas` (id, nome): Fornecedores e prestadores. Use JOIN com `pessoas` para buscar por nome."];
+  4. `transacoes_extrato` (id, fitid, data, descricao, valor, tipo ['entrada','saida'], status ['pendente','conciliado','ignorado'], origem ['inter','mercadopago'], conta_bancaria_id).
+     * Transações com `status = 'pendente'` são as que estão no extrato do banco mas ainda NÃO foram conciliadas no sistema.
+- FÓRMULA DO SALDO REAL DE CADA CONTA BANCÁRIA:
+  SELECT cb.id, cb.nome, (cb.saldo_inicial + COALESCE(SUM(CASE WHEN l.tipo = 'receita' THEN m.valor_pago ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN l.tipo = 'despesa' THEN m.valor_pago ELSE 0 END), 0)) AS saldo_real FROM contas_bancarias cb LEFT JOIN movimentacoes m ON m.conta_bancaria_id = cb.id LEFT JOIN lancamentos l ON l.id = m.lancamento_id WHERE cb.id != 3 GROUP BY cb.id, cb.nome, cb.saldo_inicial;
+- FÓRMULA DE TRANSAÇÕES PENDENTES NO EXTRATO:
+  SELECT id, data, origem, tipo, valor, descricao FROM transacoes_extrato WHERE status = 'pendente' ORDER BY data DESC LIMIT 10;"];
                         case "clube":
                             return ["mapa" => "MÓDULO CLUBE MANIA:
 - Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
