@@ -132,6 +132,8 @@ Modelo de comunidade e assinatura mensal para compradoras recorrentes.
 ---
 
 ### ⚙️ ÁREA 7: GOVERNANÇA & IA (Administração Master)
+> 🔍 **Detalhamento Completo:** [`docs/areas/07_GOVERNANCA_IA.md`](areas/07_GOVERNANCA_IA.md) *(brechós parceiros, controle de equipe, knowledge_bases e severino_dynamic_tools)*
+
 1. **Brechós Parceiros (`admin.brechos.index`):** Gestão de estoque e vendas para modelo de parceiros.
 2. **Gestão de Equipe (`admin.equipe.index`):** Usuários internos, vendedoras, operadores de embalagem e permissões.
 3. **Severino AI & RAG (`severino.index`, `admin.knowledge-base.index`):** Central de inteligência, base de memória permanente e histórico de auditoria do assistente.

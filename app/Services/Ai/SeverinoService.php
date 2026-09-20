@@ -1820,6 +1820,25 @@ class SeverinoService
   1. `sacolinhas`: Peças retidas acima de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()` e `status != 'pedido'`).
   2. `portal_acessos` (id, user_id, ip_address, user_agent, url, route_name, created_at): Histórico de visualizações do portal da sacolinha por cliente.
   3. `pedido_rastreamentos` (id, pedido_id, status, descricao, data_hora): Histórico logístico dos envios de encomendas."];
+                        case "governanca":
+                        case "brechos":
+                        case "brecho":
+                        case "equipe":
+                        case "permissoes":
+                        case "ia":
+                        case "latm":
+                        case "regras":
+                            $zoomFile = base_path('docs/areas/07_GOVERNANCA_IA.md');
+                            if (file_exists($zoomFile)) {
+                                return ["mapa" => "MÓDULO GOVERNANÇA, EQUIPE & IA:\n" . file_get_contents($zoomFile)];
+                            }
+                            return ["mapa" => "MÓDULO GOVERNANÇA, EQUIPE & IA:
+- Controllers principais: `BrechoController`, `AdminUserController`, `SeverinoController`.
+- Tabelas principais:
+  1. `brechos` (id, nome, slug, documento, chave_pix, ativo): Gestão multi-tenant de parceiros.
+  2. `users` (role in ['admin_master', 'admin', 'brecho_admin', 'client']): Controle de acesso e equipe.
+  3. `knowledge_bases` (id, title, category, content, is_active): Memória permanente de longo prazo da IA.
+  4. `severino_dynamic_tools` (id, nome, descricao, modulo_area, parametros, sql_template, ativo): Catálogo de ferramentas autônomas LATM criadas pela IA."];
                         case "controllers":
                         case "controller":
                         case "rotas":
@@ -1846,7 +1865,7 @@ class SeverinoService
   * `ClubeDashboardController` / `ClubeMensalidadesController`: Assinaturas ativas e mensalidades.
 DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras exatas de qualquer controller, chame a ferramenta `consultar_codigo_controller`!"];
                         default:
-                            return ["erro" => "Módulo não reconhecido. Módulos válidos: financeiro, orcamento, dre, fluxo_caixa, sacolinhas, lives, avaliacoes, estoque, clube, clientes, controllers."];
+                            return ["erro" => "Módulo não reconhecido. Módulos válidos: comercial (lives, sacolinhas, desapegos, pedidos), estoque (produtos, marcas, categorias, inventario), clientes (carteira, limites, whatsapp), financeiro (dre, orcamento, conciliacao, bancos), clube (assinaturas, mensalidades, desafios, grupos), relatorios (vencimentos, portal), governanca (brechos, equipe, ia)."];
                     }
 
                 case "executar_query_select":
