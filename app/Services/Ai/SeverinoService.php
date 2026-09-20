@@ -1700,10 +1700,39 @@ class SeverinoService
                         case "cliente":
                         case "enderecos":
                         case "endereco":
-                            return ["mapa" => "MÓDULO CLIENTES E ENDEREÇOS:
-- Tabela principal: `users` (id, name, email, cidade, estado, bairro, endereco, numero_endereco, complemento, cep, phone, whatsapp, telefone_principal, apelido, instagram, tiktok).
-- Regra de Endereço e Cidade: O endereço, cidade, estado, CEP e bairro ficam DIRETAMENTE nas colunas da tabela `users` (NÃO existe tabela separada de endereços!).
-- Tabela `pessoas`: Fornecedores, funcionários e pessoas externas do módulo financeiro. Usuários e clientes do sistema são SEMPRE `users`."];
+                        case "carteira":
+                        case "conta_corrente":
+                        case "contacorrente":
+                        case "whatsapp":
+                        case "chat":
+                        case "limites":
+                        case "limite":
+                            $zoomFile = base_path('docs/areas/03_CLIENTES_ATENDIMENTO.md');
+                            if (file_exists($zoomFile)) {
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['carteira', 'conta_corrente', 'contacorrente'])) {
+                                    if (preg_match('/### Subárea 3\.2:.*?(?=### Subárea 3\.3|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CARTEIRA & CONTA-CORRENTE:\n" . trim($m[0]) . "\n\nREGRA: NUNCA faça SUM(saldo_atual). O saldo atual do cliente é o último registro (ORDER BY id DESC LIMIT 1). Para o saldo consolidado do painel, chame resumo_carteira_clientes!"];
+                                    }
+                                } elseif (in_array($modulo, ['limites', 'limite'])) {
+                                    if (preg_match('/### Subárea 3\.3:.*?(?=### Subárea 3\.4|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO LIMITES DE SACOLINHA:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['whatsapp', 'chat'])) {
+                                    if (preg_match('/### Subárea 3\.4:.*?(?=## 📊|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CHAT & WHATSAPP:\n" . trim($m[0])];
+                                    }
+                                }
+                            }
+                            return ["mapa" => "MÓDULO CLIENTES, ATENDIMENTO E CARTEIRA:
+- Controller principal: `ClienteController` (`app/Http/Controllers/ClienteController.php`), `ContaCorrenteController`.
+- Tabela principal: `users` (id, name, email, role, phone, whatsapp, instagram, tiktok, apelido, cidade, estado, bairro, endereco, numero_endereco, complemento, cep, cpf).
+- REGRAS CRÍTICAS:
+  1. A tabela chama-se `users` com `WHERE role = 'client'` (NÃO existe tabela 'clientes' nem 'enderecos').
+  2. Endereço, cidade, estado e CEP ficam DIRETAMENTE nas colunas da tabela `users`.
+  3. Carteira do Cliente (`conta_corrente`): é um extrato histórico. O saldo atual do cliente é SEMPRE a linha mais recente (`ORDER BY data_movimentacao DESC, id DESC LIMIT 1`). NUNCA faça `SUM(saldo_atual)` em `conta_corrente`!
+  4. Limite de sacolinha: tabela `cliente_limites` (`limite_credito`, `limite_utilizado`, `limite_disponivel`).
+  5. Contato e identificação: Para responder ao usuário sobre uma sacolinha ou pedido, SEMPRE use o `name` do cliente (JOIN com `users`), nunca o ID numérico isolado."];
                         case "controllers":
                         case "controller":
                         case "rotas":

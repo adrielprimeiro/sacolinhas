@@ -70,6 +70,8 @@ Controla o ciclo de vida da peça desde a entrada até a entrega final.
 ---
 
 ### 👥 ÁREA 3: CLIENTES & ATENDIMENTO (O Relacionamento)
+> 🔍 **Detalhamento Completo:** [`docs/areas/03_CLIENTES_ATENDIMENTO.md`](areas/03_CLIENTES_ATENDIMENTO.md) *(tabela users, conta_corrente, carteira de clientes, limites e whatsapp)*
+
 Toda a inteligência e suporte focado no cliente final.
 
 1. **Lista de Clientes (`clientes.index`):**
