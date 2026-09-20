@@ -169,6 +169,11 @@ class SeverinoService
             "  3. Busque no banco via `executar_query_select` movimentações (`movimentacoes`) e transações (`transacoes_extrato`) recentes da conta cujo valor seja igual ou próximo à diferença: `WHERE ABS(valor_pago - :diferenca) < 0.05` ou `WHERE ABS(valor - :diferenca) < 0.05`.\n" .
             "  4. Verifique se houve compras no Mercado Livre / cartão de crédito / PIX indevidamente classificadas como receita (entrada) ou transferências entre contas indevidas.\n" .
             "  5. Responda apontando diretamente a(s) transação(ões) com data, valor exato e descrição, explicando exatamente o que causou o desvio de centavos ou reais!\n" .
+            "REGRA DE MÉDIAS, HISTÓRICOS E TENDÊNCIAS (REGRA CRÍTICA):\n" .
+            "- Quando o usuário perguntar por MÉDIA, HISTÓRICO, TENDÊNCIA ou COMPARAÇÃO (ex: 'em média quantas sacolinhas por live?', 'faturamento médio por live', 'média de pedidos'):\n" .
+            "  1. NUNCA responda olhando apenas o último registro! Uma média exige uma amostra representativa (no mínimo as últimas 10 a 20 lives ou períodos)!\n" .
+            "  2. Para lives, utilize SEMPRE a ferramenta `resumo_live` passando o parâmetro `quantidade_lives: 10` (ou 20) para obter as médias e totais já calculados, OU execute queries SQL agregadas com `AVG()`, `COUNT()`, `SUM()` agrupados.\n" .
+            "  3. Apresente na resposta a média calculada, quantas lives/períodos foram analisados e o resumo dos dados para embasar o cálculo!\n" .
             "ANTI-PAGINAÇÃO E ANTI-LOOP (REGRA CRÍTICA DE DESEMPENHO):\n" .
             "- NUNCA execute queries em loop paginado (ex: LIMIT 10 OFFSET 10, OFFSET 20, OFFSET 30...) para varrer tabelas inteiras ou tentar listar dezenas de itens! Isso esgota o tempo do servidor e trava o sistema em loop!\n" .
             "- Se houver muitos registros, use agregações (`COUNT(*)`, `SUM()`, `GROUP BY`) ou traga no máximo os 10 mais recentes/relevantes (`ORDER BY ... DESC LIMIT 10`).\n" .
@@ -219,11 +224,12 @@ class SeverinoService
                     ],
                     [
                         "name" => "resumo_live",
-                        "description" => "Retorna o resultado final de uma live (total de itens vendidos/separados, faturamento, total de clientes), buscando pela data (Y-m-d) ou pegando a mais recente.",
+                        "description" => "Retorna o resultado de lives (total de itens vendidos/separados, faturamento, clientes distintos e sacolinhas). Pode buscar por data específica, pegar a mais recente, ou calcular médias e totais sobre as últimas N lives (ex: quantidade_lives = 10 para responder 'em média').",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, pega a última live."]
+                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, analisa a(s) live(s) mais recente(s)."],
+                                "quantidade_lives" => ["type" => "INTEGER", "description" => "Opcional. Quantidade de últimas lives para analisar e calcular médias (ex: 5, 10, 20). Padrão é 1. Use 10 ou mais quando o usuário pedir média ou comparativo."]
                             ]
                         ]
                     ],
@@ -475,8 +481,29 @@ class SeverinoService
 
         $providersToTry = [];
 
+        if (!empty($geminiKey)) {
+            $providersToTry[] = [
+                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "key" => $geminiKey,
+                "model" => "gemini-2.5-flash",
+                "name" => "Google Gemini 2.5 Flash"
+            ];
+        }
+
         $orKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
         if (!empty($orKey)) {
+            $providersToTry[] = [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => $orKey,
+                "model" => "deepseek/deepseek-chat",
+                "name" => "OpenRouter DeepSeek Chat"
+            ];
+            $providersToTry[] = [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => $orKey,
+                "model" => "qwen/qwen-2.5-72b-instruct",
+                "name" => "OpenRouter Qwen 2.5 72B"
+            ];
             $providersToTry[] = [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => $orKey,
@@ -488,15 +515,6 @@ class SeverinoService
                 "key" => $orKey,
                 "model" => "mistralai/mistral-large-2407",
                 "name" => "OpenRouter Mistral Large"
-            ];
-        }
-
-        if (!empty($geminiKey)) {
-            $providersToTry[] = [
-                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key" => $geminiKey,
-                "model" => "gemini-2.0-flash",
-                "name" => "Google Gemini 2.0 Flash"
             ];
         }
 
@@ -580,15 +598,25 @@ class SeverinoService
                             ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
-                            // SUCESSO: Aumenta a pontuação em 1 (máximo 10)
-                            $provider['score'] = min($provider['score'] + 1, 10);
-                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
-                            
                             $data = $response->json();
-                            $choice = $data["choices"][0] ?? null;
-                            if ($choice) {
+                            $choiceCandidate = $data["choices"][0] ?? null;
+                            $msgCandidate = $choiceCandidate["message"] ?? [];
+                            $hasTools = !empty($msgCandidate["tool_calls"]);
+                            $hasTxt = trim((string)($msgCandidate["content"] ?? "")) !== "" || trim((string)($msgCandidate["reasoning"] ?? "")) !== "";
+
+                            if ($choiceCandidate && ($hasTools || $hasTxt)) {
+                                // SUCESSO: Aumenta a pontuação em 1 (máximo 10)
+                                $provider['score'] = min($provider['score'] + 1, 10);
+                                \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
+                                $choice = $choiceCandidate;
                                 break 2; // Sucesso, sai do loop provedores e attempts
                             }
+
+                            // 200 OK mas retornou content vazio e sem ferramentas:
+                            $provider['score'] = max($provider['score'] - 5, -30);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
+                            Log::warning("Provedor {$provider['name']} retornou 200 OK mas resposta vazia (sem content e sem tool_calls). Tentando próximo.");
+                            continue;
                         }
 
                         if ($response->status() == 429 || $response->status() == 413) {
@@ -604,8 +632,12 @@ class SeverinoService
                                     $retryResp = Http::withHeaders($headers)->timeout(12)->post($provider["url"], $payload);
                                     if ($retryResp->successful()) {
                                         $data = $retryResp->json();
-                                        $choice = $data["choices"][0] ?? null;
-                                        if ($choice) {
+                                        $retryCandidate = $data["choices"][0] ?? null;
+                                        $retryMsg = $retryCandidate["message"] ?? [];
+                                        $retryTools = !empty($retryMsg["tool_calls"]);
+                                        $retryTxt = trim((string)($retryMsg["content"] ?? "")) !== "" || trim((string)($retryMsg["reasoning"] ?? "")) !== "";
+                                        if ($retryCandidate && ($retryTools || $retryTxt)) {
+                                            $choice = $retryCandidate;
                                             break 2;
                                         }
                                     }
@@ -697,12 +729,53 @@ class SeverinoService
                 }
             }
 
-            if ($sessionId) {
+            if ($finalText !== "") {
+                if ($sessionId) {
+                    \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+                    \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                }
+                \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
+                return $finalText;
+            }
+
+            // Fallback de segurança: se o modelo encerrou sem texto, tenta síntese a partir do histórico/scratchpad
+            \Illuminate\Support\Facades\Log::warning("Severino recebeu resposta vazia no round final. Tentando síntese de recuperação.");
+            if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
+                $scratch = \Illuminate\Support\Facades\Cache::get('severino_scratchpad_' . $sessionId, '');
                 \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
                 \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                return $this->forceFinalAnswerFromScratchpad($scratch, $lastUserPrompt ?? $userPrompt);
             }
-            \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
-            return $finalText !== "" ? $finalText : "Resposta processada mas sem texto legível.";
+
+            if (!empty($geminiKey)) {
+                try {
+                    $synthPayload = [
+                        "model" => "gemini-2.5-flash",
+                        "messages" => array_merge(
+                            [["role" => "system", "content" => "Você é o Severino. Formule uma resposta objetiva, completa e em Markdown para o usuário com base no histórico de dados apurados."]],
+                            array_slice($payload["messages"], -6),
+                            [["role" => "user", "content" => "Por favor, entregue a resposta final formatada."]]
+                        ),
+                        "temperature" => 0.2,
+                        "max_tokens" => 1500
+                    ];
+                    $synthResp = Http::withHeaders([
+                        "Authorization" => "Bearer " . $geminiKey,
+                        "Content-Type" => "application/json"
+                    ])->timeout(12)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", $synthPayload);
+
+                    if ($synthResp->successful()) {
+                        $st = trim((string)($synthResp->json()["choices"][0]["message"]["content"] ?? ""));
+                        if ($st !== "") {
+                            return $st;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Erro no fallback de síntese final: " . $e->getMessage());
+                }
+            }
+
+            return "Não consegui formular uma resposta legível no momento. Por favor, reformule sua pergunta ou digite 'continue'.";
         }
 
         if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
@@ -1120,6 +1193,62 @@ class SeverinoService
 
                 case "resumo_live":
                     $data = $args["data"] ?? null;
+                    $qtdLives = max(1, min(30, (int)($args["quantidade_lives"] ?? 1)));
+
+                    // Se solicitou analisar mais de 1 live (para médias ou comparativo)
+                    if ($qtdLives > 1 && !$data) {
+                        $rows = DB::select("
+                            SELECT 
+                                l.id as live_id, 
+                                l.data, 
+                                l.tipo_live,
+                                COUNT(DISTINCT s.user_id) as total_sacolinhas,
+                                COUNT(s.id) as total_itens,
+                                COALESCE(SUM(s.price * s.quantity), 0) as faturamento
+                            FROM lives l
+                            LEFT JOIN sacolinhas s ON s.live_id = l.id
+                            WHERE l.data <= CURDATE()
+                            GROUP BY l.id, l.data, l.tipo_live
+                            HAVING total_itens > 0
+                            ORDER BY l.data DESC
+                            LIMIT ?
+                        ", [$qtdLives]);
+
+                        if (empty($rows)) {
+                            return ["erro" => "Nenhuma live com sacolinhas encontrada."];
+                        }
+
+                        $totSacs = 0;
+                        $totItens = 0;
+                        $totFat = 0;
+                        $detalhes = [];
+
+                        foreach ($rows as $r) {
+                            $totSacs += (int)$r->total_sacolinhas;
+                            $totItens += (int)$r->total_itens;
+                            $totFat += (float)$r->faturamento;
+                            $detalhes[] = [
+                                "live_id" => $r->live_id,
+                                "data" => \Carbon\Carbon::parse($r->data)->format("d/m/Y"),
+                                "tipo" => $r->tipo_live,
+                                "sacolinhas" => (int)$r->total_sacolinhas,
+                                "itens" => (int)$r->total_itens,
+                                "faturamento" => (float)$r->faturamento
+                            ];
+                        }
+
+                        $countLives = count($rows);
+                        return [
+                            "amostra_lives_analisadas" => $countLives,
+                            "media_sacolinhas_por_live" => round($totSacs / $countLives, 1),
+                            "media_itens_por_live" => round($totItens / $countLives, 1),
+                            "media_faturamento_por_live" => round($totFat / $countLives, 2),
+                            "total_geral_faturamento" => round($totFat, 2),
+                            "total_geral_itens" => $totItens,
+                            "detalhes_ultimas_lives" => $detalhes
+                        ];
+                    }
+
                     if ($data) {
                         $live = \App\Models\Live::whereDate("data", $data)->first();
                     } else {
@@ -1142,7 +1271,8 @@ class SeverinoService
                         "tipo" => $live->tipo_live,
                         "total_itens_separados" => (int)$stats->total_itens,
                         "faturamento_bruto" => (float)$stats->faturamento,
-                        "clientes_distintos" => (int)$stats->total_clientes
+                        "clientes_distintos" => (int)$stats->total_clientes,
+                        "sacolinhas" => (int)$stats->total_clientes
                     ];
 
                 case "status_clube_mensalidades":
