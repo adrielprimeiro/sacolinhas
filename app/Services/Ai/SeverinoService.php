@@ -1335,7 +1335,8 @@ class SeverinoService
                         ->where('status', 'ativa')
                         ->get();
 
-                    $primeiroDiaMesRef = \Carbon\Carbon::now()->startOfMonth()->format('Y-m-d');
+                    $anoAtualNum = (int) date('Y');
+                    $mesAtualNum = (int) date('n');
 
                     $pagos = [];
                     $pendentes = [];
@@ -1347,7 +1348,8 @@ class SeverinoService
                         // Verifica se pagou a mensalidade do mês atual
                         $mensalidade = DB::table('clube_mensalidades')
                             ->where('user_id', $assinatura->user_id)
-                            ->where('mes_referencia', $primeiroDiaMesRef)
+                            ->where('competencia_ano', $anoAtualNum)
+                            ->where('competencia_mes', $mesAtualNum)
                             ->where('status_pagamento', 'pago')
                             ->first();
 
