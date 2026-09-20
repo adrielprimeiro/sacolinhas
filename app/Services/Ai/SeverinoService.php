@@ -184,7 +184,9 @@ class SeverinoService
             "REGRA DE OURO PARA BANCO DE DADOS: Para responder às perguntas do usuário, consulte sempre o banco via `executar_query_select` ou utilize o código do controller correspondente (`consultar_codigo_controller`) para descobrir as tabelas e colunas certas. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
             "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
-            "AUTO-APRENDIZADO: Sempre que você usar o mapa para deduzir uma query SQL inédita e ela funcionar com sucesso, chame 'salvar_memoria_sql' automaticamente ANTES de dar a resposta final ao usuário para guardar esse conhecimento. O 'assunto' deve ser a intenção original do usuário.\n" .
+            "CAPACIDADE DE AUTO-APRENDIZADO E CRIAÇÃO DE FERRAMENTAS (LATM):\n" .
+            "- Se o usuário fizer uma pergunta nova que você não possui ferramenta pronta, consulte o controller correspondente via `consultar_codigo_controller` ou teste uma query via `executar_query_select`.\n" .
+            "- Assim que você descobrir e validar a query correta, chame OBRIGATORIAMENTE `criar_ferramenta_dinamica` para registrar permanentemente essa nova ferramenta no seu catálogo no banco de dados! Dessa forma você fica mais inteligente a cada conversa e nunca mais precisará deduzir do zero.\n" .
             "Nunca execute nenhuma alteração (INSERT/UPDATE/DELETE), apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
         $tools = [
@@ -409,10 +411,58 @@ class SeverinoService
                             ],
                             "required" => ["query"]
                         ]
+                    ],
+                    [
+                        "name" => "criar_ferramenta_dinamica",
+                        "description" => "Registra permanentemente uma nova ferramenta autônoma no banco de dados. USE SEMPRE que você deduzir ou validar uma nova query SQL para responder a uma pergunta do usuário que não tinha ferramenta pronta. A query deve ser SELECT parametrizada com :nome_parametro.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "nome" => ["type" => "STRING", "description" => "Identificador único em snake_case (ex: listar_desapegos_aprovados, ranking_vendas_por_marca)"],
+                                "descricao" => ["type" => "STRING", "description" => "Explicação clara do que a ferramenta faz e quando deve ser chamada"],
+                                "modulo_area" => ["type" => "STRING", "description" => "Área do sistema (comercial, estoque, financeiro, clube, clientes)"],
+                                "parametros_json" => ["type" => "STRING", "description" => "JSON com os parâmetros opcionais (ex: {\"limite\": {\"type\": \"integer\", \"description\": \"Quantidade máxima\"}}). Se não tiver, envie '{}'"],
+                                "sql_template" => ["type" => "STRING", "description" => "Query SQL SELECT exata, usando binds :nome_parametro para filtros"],
+                                "exemplo_pergunta" => ["type" => "STRING", "description" => "Exemplo de pergunta do usuário que essa ferramenta resolve"]
+                            ],
+                            "required" => ["nome", "descricao", "sql_template"]
+                        ]
                     ]
                 ]
             ]
         ];
+
+        // Carrega Ferramentas Dinâmicas Autônomas criadas pelo próprio Severino (LATM)
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('severino_dynamic_tools')) {
+                $dynamicTools = \App\Models\SeverinoDynamicTool::where('ativo', true)->get();
+                foreach ($dynamicTools as $dTool) {
+                    $dParams = $dTool->parametros ?? [];
+                    $props = [];
+                    $required = [];
+                    foreach ($dParams as $pKey => $pDef) {
+                        $props[$pKey] = [
+                            "type" => strtoupper($pDef["type"] ?? "STRING"),
+                            "description" => $pDef["description"] ?? ""
+                        ];
+                        if (!empty($pDef["required"])) {
+                            $required[] = $pKey;
+                        }
+                    }
+                    $tools[0]["functionDeclarations"][] = [
+                        "name" => $dTool->nome,
+                        "description" => $dTool->descricao,
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => empty($props) ? (object)[] : $props,
+                            "required" => $required
+                        ]
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Erro ao carregar ferramentas dinâmicas: " . $e->getMessage());
+        }
 
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY', '');
         $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
@@ -1639,7 +1689,91 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
                         return ["erro" => "Erro na sintaxe SQL: " . $e->getMessage()];
                     }
 
+                case "criar_ferramenta_dinamica":
+                    $nome = trim(preg_replace('/[^a-z0-9_]/', '_', strtolower($args["nome"] ?? "")));
+                    $descricao = trim($args["descricao"] ?? "");
+                    $modulo = trim($args["modulo_area"] ?? "geral");
+                    $sql = trim($args["sql_template"] ?? "");
+                    $exemplo = trim($args["exemplo_pergunta"] ?? "");
+                    $paramsJson = $args["parametros_json"] ?? "{}";
+                    $params = is_array($paramsJson) ? $paramsJson : (json_decode($paramsJson, true) ?? []);
+
+                    if (empty($nome) || empty($descricao) || empty($sql)) {
+                        return ["erro" => "Nome, descrição e sql_template são obrigatórios para criar uma ferramenta."];
+                    }
+
+                    // Segurança: apenas SELECT
+                    if (!preg_match("/^\s*SELECT/i", $sql) || preg_match("/\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT|EXEC)\b/i", $sql)) {
+                        return ["erro" => "Apenas queries SELECT seguras de leitura são permitidas para criação de ferramentas."];
+                    }
+
+                    // Auto-teste (Dry Run) com validação antes de salvar
+                    try {
+                        $testSql = preg_replace('/LIMIT\s+\d+/i', '', $sql);
+                        $testSql = "SELECT * FROM (" . rtrim($testSql, ';') . ") AS __dry_run LIMIT 1";
+                        $testBinds = [];
+                        if (preg_match_all('/:([a-zA-Z0-9_]+)/', $testSql, $matches)) {
+                            foreach ($matches[1] as $pName) {
+                                $pType = strtolower($params[$pName]['type'] ?? 'string');
+                                if ($pType === 'integer' || $pType === 'int') {
+                                    $testBinds[$pName] = 10;
+                                } elseif ($pType === 'date') {
+                                    $testBinds[$pName] = date('Y-m-d');
+                                } else {
+                                    $testBinds[$pName] = 'teste';
+                                }
+                            }
+                        }
+                        DB::select($testSql, $testBinds);
+                    } catch (\Exception $e) {
+                        return [
+                            "erro" => "A query SQL falhou no teste de validação e NÃO foi salva: " . $e->getMessage() . ". Por favor, corrija os nomes das colunas/tabelas e tente novamente."
+                        ];
+                    }
+
+                    \App\Models\SeverinoDynamicTool::updateOrCreate(
+                        ["nome" => $nome],
+                        [
+                            "descricao" => $descricao,
+                            "modulo_area" => $modulo,
+                            "parametros" => $params,
+                            "sql_template" => $sql,
+                            "created_by" => "severino_latm",
+                            "ativo" => true,
+                            "exemplos_uso" => $exemplo
+                        ]
+                    );
+
+                    return [
+                        "sucesso" => true,
+                        "mensagem" => "Ferramenta dinâmica '{$nome}' foi testada, validada e salva com sucesso no banco de dados! Ela já faz parte do seu catálogo oficial permanente."
+                    ];
+
                 default:
+                    // Verifica se é uma ferramenta dinâmica criada pelo próprio Severino
+                    if (\Illuminate\Support\Facades\Schema::hasTable('severino_dynamic_tools')) {
+                        $dyn = \App\Models\SeverinoDynamicTool::where('nome', $name)->where('ativo', true)->first();
+                        if ($dyn) {
+                            $dynSql = $dyn->sql_template;
+                            $dynBinds = [];
+                            if (preg_match_all('/:([a-zA-Z0-9_]+)/', $dynSql, $matches)) {
+                                foreach ($matches[1] as $paramName) {
+                                    if (isset($args[$paramName])) {
+                                        $dynBinds[$paramName] = $args[$paramName];
+                                    } else {
+                                        $default = $dyn->parametros[$paramName]['default'] ?? 10;
+                                        $dynBinds[$paramName] = $default;
+                                    }
+                                }
+                            }
+                            $results = DB::select($dynSql, $dynBinds);
+                            return [
+                                "ferramenta_dinamica" => $name,
+                                "total_registros" => count($results),
+                                "dados" => $results
+                            ];
+                        }
+                    }
                     return ["erro" => "Ferramenta {$name} não existe."];
             }
         } catch (\Exception $e) {
