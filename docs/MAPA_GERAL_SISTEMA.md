@@ -109,6 +109,8 @@ O coração monetário da empresa, operando em regime de caixa e competência.
 ---
 
 ### 👑 ÁREA 5: CLUBE & ENGAJAMENTO (Fidelização e Recorrência)
+> 🔍 **Detalhamento Completo:** [`docs/areas/05_CLUBE_MANIA.md`](areas/05_CLUBE_MANIA.md) *(clube_assinaturas, clube_mensalidades, pontuações, desafios e grupos)*
+
 Modelo de comunidade e assinatura mensal para compradoras recorrentes.
 
 1. **Painel do Clube (`admin.clube.dashboard`):**

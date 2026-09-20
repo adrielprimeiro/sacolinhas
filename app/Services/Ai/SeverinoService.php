@@ -1626,10 +1626,47 @@ class SeverinoService
 - FÓRMULA DE TRANSAÇÕES PENDENTES NO EXTRATO:
   SELECT id, data, origem, tipo, valor, descricao FROM transacoes_extrato WHERE status = 'pendente' ORDER BY data DESC LIMIT 10;"];
                         case "clube":
+                        case "assinatura":
+                        case "assinaturas":
+                        case "mensalidade":
+                        case "mensalidades":
+                        case "desafio":
+                        case "desafios":
+                        case "grupos":
+                        case "grupo":
+                        case "pontos":
+                        case "pontuacoes":
+                            $zoomFile = base_path('docs/areas/05_CLUBE_MANIA.md');
+                            if (file_exists($zoomFile)) {
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['mensalidade', 'mensalidades'])) {
+                                    if (preg_match('/### Subárea 5\.2:.*?(?=### Subárea 5\.3|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CLUBE MENSALIDADES:\n" . trim($m[0]) . "\n\nATENÇÃO: As colunas são competencia_ano (ex: 2026) e competencia_mes (1..12). NÃO existe mes_referencia!"];
+                                    }
+                                } elseif (in_array($modulo, ['desafio', 'desafios'])) {
+                                    if (preg_match('/### Subárea 5\.4:.*?(?=### Subárea 5\.5|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CLUBE DESAFIOS:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['grupos', 'grupo'])) {
+                                    if (preg_match('/### Subárea 5\.5:.*?(?=## 📊|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CLUBE GRUPOS / TRIBOS:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['pontos', 'pontuacoes'])) {
+                                    if (preg_match('/### Subárea 5\.3:.*?(?=### Subárea 5\.4|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO CLUBE PONTUAÇÃO:\n" . trim($m[0])];
+                                    }
+                                }
+                            }
                             return ["mapa" => "MÓDULO CLUBE MANIA:
-- Tabelas principais: `clube_assinaturas` (id, user_id, status), `clube_mensalidades` (id, user_id, mes_referencia, status_pagamento).
-- Regra Ativos: Um cliente é assinante ativo se existe em `clube_assinaturas` com `status = 'ativa'`.
-- Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'."];
+- Controller principal: `ClubeDashboardController`, `ClubeMensalidadesController`.
+- Tabelas principais:
+  1. `clube_assinaturas` (id, user_id, status ['ativa','cancelada','suspensa']).
+     * Assinantes ativos: `WHERE status = 'ativa'`.
+  2. `clube_mensalidades` (id, user_id, assinatura_id, competencia_ano, competencia_mes, status_pagamento ['pago','pendente'], valor, pago_em).
+     * ATENÇÃO CRÍTICA: O mês e ano de referência são `competencia_mes` (1..12) e `competencia_ano` (2026). NÃO use 'mes_referencia'!
+  3. `pontuacoes_clientes` (user_id, mes_ano ['YYYY-MM'], total, pontos_mensalidade, pontos_itens, pontos_desafios).
+  4. `desafios` (id, nome, descricao, pontos, status) e `pontos_desafio`.
+  5. `grupos` (id, nome, lider_id) e `grupo_membros` (grupo_id, user_id)."];
                         case "comercial":
                         case "lives":
                         case "live":
