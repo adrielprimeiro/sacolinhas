@@ -277,6 +277,16 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "listar_sacolinhas_vencidas",
+                        "description" => "Retorna a lista dos clientes com sacolinhas vencidas (com peças paradas há mais de 31 dias), ordenadas pelo maior valor vencido, com quantidade de peças, valor total e tempo de atraso.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "limite" => ["type" => "INTEGER", "description" => "Quantidade de clientes para retornar (padrão: 10, máximo: 30)"]
+                            ]
+                        ]
+                    ],
+                    [
                         "name" => "resumo_carteira_clientes",
                         "description" => "Retorna os dados consolidados da Carteira de Clientes: o saldo líquido total da carteira (como no painel), quantidade de clientes com saldo negativo (devedores) e a soma total das dívidas, quantidade com saldo positivo (crédito) e soma dos créditos, e clientes zerados.",
                         "parameters" => [
@@ -1407,6 +1417,53 @@ class SeverinoService
                     return [
                         "total_em_dia" => $emDia->count(),
                         "lista_formatada" => $listaTexto
+                    ];
+
+                case "listar_sacolinhas_vencidas":
+                    $limite = max(1, min(30, (int)($args["limite"] ?? 10)));
+                    $vencidas = DB::select("
+                        SELECT 
+                            u.id as user_id,
+                            COALESCE(NULLIF(u.nome_cliente, ''), u.name) as cliente,
+                            COUNT(s.id) as itens_vencidos,
+                            ROUND(SUM(s.quantity * s.price), 2) as valor_vencido,
+                            DATEDIFF(CURDATE(), MIN(s.add_at)) as dias_mais_antigo
+                        FROM sacolinhas s
+                        JOIN users u ON u.id = s.user_id
+                        WHERE s.add_at IS NOT NULL
+                          AND u.role = 'client'
+                          AND s.status != 'pedido'
+                          AND (s.obs IS NULL OR LOWER(s.obs) NOT LIKE '%ped-%')
+                          AND DATE(DATE_ADD(s.add_at, INTERVAL 31 DAY)) <= CURDATE()
+                        GROUP BY u.id, u.nome_cliente, u.name
+                        ORDER BY valor_vencido DESC
+                        LIMIT ?
+                    ", [$limite]);
+
+                    if (empty($vencidas)) {
+                        return ["mensagem" => "Nenhuma sacolinha vencida encontrada no momento! Todas estão em dia."];
+                    }
+
+                    $totalClientes = count($vencidas);
+                    $totalValor = array_sum(array_column($vencidas, 'valor_vencido'));
+                    $totalItens = array_sum(array_column($vencidas, 'itens_vencidos'));
+
+                    $lista = [];
+                    foreach ($vencidas as $idx => $v) {
+                        $lista[] = [
+                            "posicao" => $idx + 1,
+                            "cliente" => $v->cliente,
+                            "itens_vencidos" => (int)$v->itens_vencidos,
+                            "valor_vencido" => (float)$v->valor_vencido,
+                            "dias_parado" => (int)$v->dias_mais_antigo
+                        ];
+                    }
+
+                    return [
+                        "total_clientes_listados" => $totalClientes,
+                        "valor_total_amostra" => round($totalValor, 2),
+                        "total_itens_amostra" => $totalItens,
+                        "ranking_clientes_vencidos" => $lista
                     ];
 
                 case "consultar_memoria_sql":
