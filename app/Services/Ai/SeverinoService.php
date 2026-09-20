@@ -1610,6 +1610,7 @@ class SeverinoService
 - Regra Pagamento: Para saber quem pagou, cruze `clube_assinaturas` com `clube_mensalidades` pelo `user_id`. A coluna `mes_referencia` guarda o mês (ex: 2026-08-01) e `status_pagamento` pode ser 'pago' ou 'pendente'."];
                         case "comercial":
                         case "lives":
+                        case "live":
                         case "sacolinhas":
                         case "sacolinha":
                         case "vendas":
@@ -1623,7 +1624,24 @@ class SeverinoService
                         case "desapegos":
                             $zoomFile = base_path('docs/areas/01_COMERCIAL_SACOLINHAS.md');
                             if (file_exists($zoomFile)) {
-                                return ["mapa" => file_get_contents($zoomFile)];
+                                $content = file_get_contents($zoomFile);
+                                if (in_array($modulo, ['avaliacao', 'avaliacoes', 'desapego', 'desapegos'])) {
+                                    if (preg_match('/### Subárea 1\.5:.*?(?=## 🚫|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO AVALIAÇÃO DE DESAPEGOS:\n" . trim($m[0]) . "\n\nANTI-ALUCINAÇÃO:\n- Tabela: avaliacao_items (com 'items' em inglês)\n- Colunas reais de valor: total_venda e total_payout (NÃO use valor_total_aprovado)"];
+                                    }
+                                } elseif (in_array($modulo, ['pedidos', 'pedido'])) {
+                                    if (preg_match('/### Subárea 1\.4:.*?(?=### Subárea 1\.5|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO PEDIDOS:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['lives', 'live'])) {
+                                    if (preg_match('/### Subárea 1\.1:.*?(?=### Subárea 1\.2|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO LIVES:\n" . trim($m[0])];
+                                    }
+                                } elseif (in_array($modulo, ['sacolinhas', 'sacolinha', 'vencimentos', 'vencimento'])) {
+                                    if (preg_match('/### Subárea 1\.2:.*?(?=### Subárea 1\.4|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO SACOLINHAS E VENCIMENTOS:\n" . trim($m[0])];
+                                    }
+                                }
                             }
                             return ["mapa" => "MÓDULO COMERCIAL, LIVES, SACOLINHAS E DESAPEGOS:
 - Controllers principais: `LiveController`, `SacolinhaController`, `AdminSacolinhaController`, `SacolinhaVencidaController`, `PedidoController`, `AvaliacaoController`.
