@@ -491,29 +491,23 @@ class SeverinoService
 
         $providersToTry = [];
 
-        if (!empty($geminiKey)) {
+        if (!empty($groqKey)) {
             $providersToTry[] = [
-                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key" => $geminiKey,
-                "model" => "gemini-2.5-flash",
-                "name" => "Google Gemini 2.5 Flash"
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B"
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen 27B"
             ];
         }
 
         $orKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
         if (!empty($orKey)) {
-            $providersToTry[] = [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => $orKey,
-                "model" => "deepseek/deepseek-chat",
-                "name" => "OpenRouter DeepSeek Chat"
-            ];
-            $providersToTry[] = [
-                "url" => "https://openrouter.ai/api/v1/chat/completions",
-                "key" => $orKey,
-                "model" => "qwen/qwen-2.5-72b-instruct",
-                "name" => "OpenRouter Qwen 2.5 72B"
-            ];
             $providersToTry[] = [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => $orKey,
@@ -526,20 +520,20 @@ class SeverinoService
                 "model" => "mistralai/mistral-large-2407",
                 "name" => "OpenRouter Mistral Large"
             ];
+            $providersToTry[] = [
+                "url" => "https://openrouter.ai/api/v1/chat/completions",
+                "key" => $orKey,
+                "model" => "deepseek/deepseek-chat",
+                "name" => "OpenRouter DeepSeek Chat"
+            ];
         }
 
-        if (!empty($groqKey)) {
+        if (!empty($geminiKey) && str_starts_with($geminiKey, 'AIzaSy')) {
             $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B"
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-20b",
-                "name" => "Groq GPT OSS 20B"
+                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "key" => $geminiKey,
+                "model" => "gemini-2.5-flash",
+                "name" => "Google Gemini 2.5 Flash"
             ];
         }
 
