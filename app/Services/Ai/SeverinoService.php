@@ -153,45 +153,27 @@ class SeverinoService
             "REGRA DE MEMORIZAÇÃO E ATALHOS:\n" .
             "- Quando o usuário pedir para você 'gravar', 'memorizar', 'salvar na memória' ou criar um atalho ('Grava aí Severino: Quando eu perguntar X responda Y', etc.), você DEVE OBRIGATORIAMENTE chamar a ferramenta `memorizar_regra_ou_preferencia`.\n" .
             "- NUNCA responda que gravou ou registrou apenas em texto se você não chamou a ferramenta `memorizar_regra_ou_preferencia`, pois somente essa ferramenta grava no banco de dados definitivo (`KnowledgeBase`) para ficar ativo para sempre em todas as conversas futuras!\n" .
-            "AUTONOMIA OBRIGATÓRIA E VIÉS PARA AÇÃO INVESTIGATIVA (REGRA SUPREMA):\n" .
-            "- É TERMINANTEMENTE PROIBIDO responder com 'Para saber X preciso consultar o banco de dados. Qual status você gostaria de verificar?' ou qualquer pergunta passiva! Se você precisa consultar o código ou o banco, CONSULTE-OS IMEDIATAMENTE usando suas ferramentas!\n" .
-            "- NUNCA sugira queries SQL para o usuário rodar no terminal ou banco, e NUNCA diga frases como 'basta rodar as queries acima'! O usuário é o gestor do negócio, NÃO um programador. VOCÊ é o robô com acesso total de leitura ao banco via `executar_query_select`. Execute você mesmo as queries, analise os dados e entregue a resposta pronta, mastigada e formatada em português claro!\n" .
-            "- NUNCA pergunte 'Você gostaria que eu buscasse os lançamentos no sistema para tentarmos identificar a diferença?' Se o usuário perguntou sobre uma divergência de saldo, status ou valor, investigue ativamente usando `executar_query_select` e explique a composição exata da diferença!\n" .
-            "- Você tem acesso ao código PHP do sistema através de `consultar_codigo_controller` e ao banco via `executar_query_select` e `mapear_modulo_sistema` justamente para APRENDER SOZINHO as regras de negócio de qualquer tela ou módulo, sem depender de ferramentas pré-moldadas.\n" .
-            "- Sempre que o usuário perguntar sobre qualquer relatório, tela, processo ou cálculo do sistema (ex: Conciliação, DRE, Fluxo de Caixa, Estoque, Devoluções, Vendas, Comissões, etc.):\n" .
-            "  1. CHAME `consultar_codigo_controller` (ex: 'ConciliacaoController', 'DreController', 'AvaliacaoController', etc.) para inspecionar os controllers e services e ver quais models, filtros e regras a tela do sistema usa.\n" .
-            "  2. CHAME `executar_query_select` para rodar os SELECTs no banco de dados baseados nas regras do controller.\n" .
-            "  3. Se a pergunta do usuário admitir mais de um critério (ex: 'lançamentos para conciliar' refere-se às transações pendentes no extrato bancário E/OU aos lançamentos em aberto no financeiro), NÃO pergunte ao usuário! Consulte AMBOS no banco e entregue ambos claramente estruturados na sua resposta final!\n" .
-            "REGRA DE DIVERGÊNCIAS DE SALDO BANCÁRIO X SISTEMA:\n" .
-            "- Quando o usuário perguntar por que o saldo de uma conta bancária (ex: Mercado Pago, Inter, etc.) no sistema está diferente do saldo real no banco:\n" .
-            "  1. Calcule IMEDIATAMENTE a diferença matemática exata entre os dois valores citados pelo usuário: Diferença = |Saldo Sistema - Saldo Banco|.\n" .
-            "  2. NUNCA dê respostas teóricas, vagas ou genéricas (ex: 'pode ser causada por transações pendentes ou a query mostrou...'). Você DEVE encontrar o motivo exato no banco de dados!\n" .
-            "  3. Busque no banco via `executar_query_select` movimentações (`movimentacoes`) e transações (`transacoes_extrato`) recentes da conta cujo valor seja igual ou próximo à diferença: `WHERE ABS(valor_pago - :diferenca) < 0.05` ou `WHERE ABS(valor - :diferenca) < 0.05`.\n" .
-            "  4. Verifique se houve compras no Mercado Livre / cartão de crédito / PIX indevidamente classificadas como receita (entrada) ou transferências entre contas indevidas.\n" .
-            "  5. Responda apontando diretamente a(s) transação(ões) com data, valor exato e descrição, explicando exatamente o que causou o desvio de centavos ou reais!\n" .
-            "REGRA DE MÉDIAS, HISTÓRICOS E TENDÊNCIAS (REGRA CRÍTICA):\n" .
-            "- Quando o usuário perguntar por MÉDIA, HISTÓRICO, TENDÊNCIA ou COMPARAÇÃO (ex: 'em média quantas sacolinhas por live?', 'faturamento médio por live', 'média de pedidos'):\n" .
-            "  1. NUNCA responda olhando apenas o último registro! Uma média exige uma amostra representativa (no mínimo as últimas 10 a 20 lives ou períodos)!\n" .
-            "  2. Para lives, utilize SEMPRE a ferramenta `resumo_live` passando o parâmetro `quantidade_lives: 10` (ou 20) para obter as médias e totais já calculados, OU execute queries SQL agregadas com `AVG()`, `COUNT()`, `SUM()` agrupados.\n" .
-            "  3. Apresente na resposta a média calculada, quantas lives/períodos foram analisados e o resumo dos dados para embasar o cálculo!\n" .
-            "ANTI-PAGINAÇÃO E ANTI-LOOP (REGRA CRÍTICA DE DESEMPENHO):\n" .
-            "- NUNCA execute queries em loop paginado (ex: LIMIT 10 OFFSET 10, OFFSET 20, OFFSET 30...) para varrer tabelas inteiras ou tentar listar dezenas de itens! Isso esgota o tempo do servidor e trava o sistema em loop!\n" .
-            "- Se houver muitos registros, use agregações (`COUNT(*)`, `SUM()`, `GROUP BY`) ou traga no máximo os 10 mais recentes/relevantes (`ORDER BY ... DESC LIMIT 10`).\n" .
-            "RESOLUÇÃO DE PERGUNTAS CONTEXTUAIS ('QUAIS FORAM?', 'QUEM?'):\n" .
-            "- Quando o usuário fizer uma pergunta de continuidade curta como 'Quais foram?', 'Quem?', 'Quais são eles?':\n" .
-            "  1. Identifique o TEMA CENTRAL da conversa. Por exemplo, se a conversa era sobre conciliações automáticas recentes, 'Quais foram?' refere-se às transações que foram conciliadas (tabela `transacoes_extrato` com `status = 'conciliado'` ordenadas por `updated_at DESC LIMIT 10`).\n" .
-            "  2. NUNCA tente puxar listas gigantes de contas pendentes quando a pergunta era sobre o que foi conciliado!\n" .
-            "REGRA DE OURO PARA BANCO DE DADOS: Para responder às perguntas do usuário, consulte sempre o banco via `executar_query_select` ou utilize o código do controller correspondente (`consultar_codigo_controller`) para descobrir as tabelas e colunas certas. USE SEMPRE SINTAXE MYSQL.\n" .
-            "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
-            "REGRA CRÍTICA DE CONCILIAÇÃO BANCÁRIA E EXTRATO:\n" .
-            "- Para qualquer pergunta sobre 'o que tenho pra conciliar', 'quantos lançamentos para conciliar', 'extrato bancário', 'última sincronização' ou 'última conciliação', USE SEMPRE E IMEDIATAMENTE a ferramenta dedicada `status_conciliacao_extrato`!\n" .
+            "AVALIAÇÃO DO FEEDBACK DO USUÁRIO E AUTO-CORREÇÃO (REGRA FUNDAMENTAL):\n" .
+            "- Analise SEMPRE a mensagem do usuário em relação à sua resposta anterior no histórico:\n" .
+            "  1. Se o usuário contestar, demonstrar dúvida, estranheza ou disser algo como 'você já falou isso!', 'tá falando de X ou Y?', 'não foi isso que perguntei', 'quantos lançamentos?', RECONHEÇA IMEDIATAMENTE que a resposta anterior não foi a esperada ou foi ambígua!\n" .
+            "  2. NUNCA, sob hipótese alguma, repita a mesma resposta ou frase anterior! Isso é inaceitável.\n" .
+            "  3. Investigue ativamente via código (`consultar_codigo_controller`), mapa (`mapear_modulo_sistema`) ou banco (`executar_query_select`) para entender as opções.\n" .
+            "  4. SE MESMO APÓS INVESTIGAR VOCÊ NÃO SOUBER OU SE A PERGUNTA ENVOLVER CRITÉRIOS AMBÍGUOS DO NEGÓCIO:\n" .
+            "     👉 PERGUNTE DE FORMA DIRETA E OBJETIVA AO USUÁRIO o que ele realmente gostaria que você procurasse! Seja humilde e transparente, mostrando o que você encontrou no sistema e perguntando qual das opções reflete a necessidade real dele.\n" .
+            "AUTONOMIA E RESOLUÇÃO DOS PRÓPRIOS PROBLEMAS (LATM):\n" .
+            "- O Severino deve resolver seus próprios problemas e evoluir sozinho a cada conversa!\n" .
+            "- Sempre que o usuário te explicar o que ele realmente procura (ou quando você descobrir a query correta no banco para uma pergunta nova):\n" .
+            "  1. Entregue a resposta imediata ao usuário em português claro com os números apurados.\n" .
+            "  2. Chame `memorizar_regra_ou_preferencia` para gravar a regra/definição na sua base de conhecimento permanente (`KnowledgeBase`).\n" .
+            "  3. Chame `criar_ferramenta_dinamica` para registrar a ferramenta no catálogo do banco (`severino_dynamic_tools`), para que você mesmo a consulte no futuro sem precisar errar novamente!\n" .
+            "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- DISTINÇÃO OBRIGATÓRIA ENTRE TRANSAÇÃO DE EXTRATO E LANÇAMENTO FINANCEIRO:\n" .
-            "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações reais importadas do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
-            "  2. 'Lançamento Financeiro' (tabela `lancamentos`): São os títulos financeiros em aberto no sistema (contas a pagar e a receber). Se o usuário perguntar 'quantos lançamentos?', informe a quantidade de contas em aberto no financeiro (tabela `lancamentos`) E também a quantidade de transações pendentes no extrato bancário (`transacoes_extrato`), deixando explícita a diferença!\n" .
+            "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações importadas diretamente do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
+            "  2. 'Lançamento Financeiro' (tabela `lancamentos`): São os títulos financeiros em aberto no sistema (contas a pagar e a receber). Se o usuário perguntar 'quantos lançamentos?', informe os títulos em aberto (tabela `lancamentos`) E diferencie das transações pendentes no extrato (`transacoes_extrato`)!\n" .
             "- DISTINÇÃO OBRIGATÓRIA ENTRE SINCRONIZAÇÃO E CONCILIAÇÃO:\n" .
             "  1. 'Última Sincronização': Momento em que o sistema buscou e baixou novas transações da API bancária ou OFX para o sistema.\n" .
             "  2. 'Última Conciliação': Momento em que uma transação bancária foi efetivamente vinculada/casada a um lançamento financeiro no sistema.\n" .
-            "  3. Se o usuário perguntar 'qual foi a última atualização do extrato?', informe CLARAMENTE AMBAS as datas (da última sincronização bancária e da última conciliação realizada) para evitar qualquer ambiguidade!\n" .
+            "  3. Se o usuário perguntar 'qual foi a última atualização do extrato?', informe as duas informações (da última sincronização bancária e da última conciliação realizada) para evitar ambiguidade!\n" .
             "  4. Se o usuário perguntar 'Você tá falando da sincronização ou da última conciliação?', responda diretamente esclarecendo a data de cada uma!\n" .
             "Nunca execute nenhuma alteração (INSERT/UPDATE/DELETE), apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
@@ -218,14 +200,6 @@ class SeverinoService
                                 "user_id" => ["type" => "INTEGER", "description" => "ID numérico do cliente (deve ser o ID, não o nome)"]
                             ],
                             "required" => ["user_id"]
-                        ]
-                    ],
-                    [
-                        "name" => "status_conciliacao_extrato",
-                        "description" => "Retorna o panorama completo e dados exatos da conciliação bancária: quantidade de transações pendentes no extrato bancário (Banco Inter e Mercado Pago), quantidade de lançamentos financeiros em aberto no sistema (contas a pagar e receber), data/hora da última sincronização do extrato bancário, data/hora da última conciliação realizada e a lista detalhada das transações bancárias aguardando conciliação.",
-                        "parameters" => [
-                            "type" => "OBJECT",
-                            "properties" => (object)[]
                         ]
                     ],
                     [
@@ -973,73 +947,6 @@ class SeverinoService
                         "limite_utilizado_na_sacolinha_atualmente" => $utilizado,
                         "limite_disponivel" => $disponivel,
                         "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
-                    ];
-
-                case "status_conciliacao_extrato":
-                    // 1. Transações do extrato bancário aguardando conciliação
-                    $transacoesPendentes = DB::table('transacoes_extrato')
-                        ->where('status', 'pendente')
-                        ->orderBy('data', 'desc')
-                        ->get(['id', 'origem', 'data', 'descricao', 'valor', 'tipo', 'created_at']);
-
-                    $totalTransacoesPendentes = $transacoesPendentes->count();
-
-                    // 2. Lançamentos financeiros do sistema em aberto (contas a pagar / receber)
-                    $totalLancamentosPendentes = DB::table('lancamentos')
-                        ->where('status', 'pendente')
-                        ->count();
-
-                    $lancamentosDespesaPendentes = DB::table('lancamentos')
-                        ->where('status', 'pendente')
-                        ->where('tipo', 'despesa')
-                        ->count();
-
-                    $lancamentosReceitaPendentes = DB::table('lancamentos')
-                        ->where('status', 'pendente')
-                        ->where('tipo', 'receita')
-                        ->count();
-
-                    // 3. Última Sincronização do Extrato (quando novas transações foram baixadas das APIs bancárias/OFX)
-                    $ultimaSincronizacaoCache = \Illuminate\Support\Facades\Cache::get('last_extrato_auto_synced_at');
-                    $ultimaTransacaoCriada = DB::table('transacoes_extrato')->max('created_at');
-                    $dataUltimaSincronizacao = $ultimaSincronizacaoCache 
-                        ? \Carbon\Carbon::parse($ultimaSincronizacaoCache)->format('d/m/Y H:i:s')
-                        : ($ultimaTransacaoCriada ? \Carbon\Carbon::parse($ultimaTransacaoCriada)->format('d/m/Y H:i:s') : 'Desconhecida');
-
-                    // 4. Última Conciliação Realizada (quando uma transação do extrato foi casada com um lançamento)
-                    $ultimaConciliacao = DB::table('transacoes_extrato')
-                        ->where('status', 'conciliado')
-                        ->max('updated_at');
-                    $dataUltimaConciliacao = $ultimaConciliacao 
-                        ? \Carbon\Carbon::parse($ultimaConciliacao)->format('d/m/Y H:i:s')
-                        : 'Nenhuma conciliação registrada';
-
-                    // 5. Amostra detalhada das transações pendentes no extrato
-                    $itensPendentes = [];
-                    foreach ($transacoesPendentes->take(10) as $tp) {
-                        $itensPendentes[] = [
-                            'id' => $tp->id,
-                            'origem' => $tp->origem,
-                            'data' => \Carbon\Carbon::parse($tp->data)->format('d/m/Y'),
-                            'tipo' => $tp->tipo === 'entrada' ? 'Entrada (Recebimento)' : 'Saída (Pagamento/Pix)',
-                            'valor' => 'R$ ' . number_format($tp->valor, 2, ',', '.'),
-                            'descricao' => $tp->descricao
-                        ];
-                    }
-
-                    return [
-                        "distincao_conceitual_obrigatoria" => "ATENÇÃO SEVERINO: 'Transações de Extrato' são movimentações que vieram do banco aguardando conciliação. 'Lançamentos' são contas a pagar/receber no financeiro do sistema. Não as confunda na resposta!",
-                        "extrato_bancario" => [
-                            "total_transacoes_pendentes_no_extrato" => $totalTransacoesPendentes,
-                            "data_ultima_sincronizacao_com_bancos" => $dataUltimaSincronizacao,
-                            "data_ultima_conciliacao_realizada" => $dataUltimaConciliacao,
-                            "itens_pendentes_detalhes" => $itensPendentes
-                        ],
-                        "lancamentos_financeiros" => [
-                            "total_lancamentos_em_aberto_no_sistema" => $totalLancamentosPendentes,
-                            "contas_a_pagar_pendentes" => $lancamentosDespesaPendentes,
-                            "contas_a_receber_pendentes" => $lancamentosReceitaPendentes
-                        ]
                     ];
 
                 case "resumo_carteira_clientes":
