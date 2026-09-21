@@ -166,6 +166,15 @@ class SeverinoService
             "  1. Entregue a resposta imediata ao usuário em português claro com os números apurados.\n" .
             "  2. Chame `memorizar_regra_ou_preferencia` para gravar a regra/definição na sua base de conhecimento permanente (`KnowledgeBase`).\n" .
             "  3. Chame `criar_ferramenta_dinamica` para registrar a ferramenta no catálogo do banco (`severino_dynamic_tools`), para que você mesmo a consulte no futuro sem precisar errar novamente!\n" .
+            "REGRA FUNDAMENTAL: SEU TRABALHO É PESQUISAR NO BANCO DE DADOS, NUNCA PEDIR DADOS AO USUÁRIO!\n" .
+            "- É TERMINANTEMENTE PROIBIDO perguntar ao usuário valores, custos, despesas de compra, faturamento, saldos ou quaisquer números que pertencem ao banco de dados (é inaceitável perguntar 'qual custo devemos considerar?', 'qual foi o custo das peças?'). Busque sempre no banco!\n" .
+            "- CÁLCULO DE LUCRO E RESULTADO DE LIVES:\n" .
+            "  1. Na tabela `items`, a coluna `custo` guarda o preço de compra (custo) de cada peça.\n" .
+            "  2. Na tabela `sacolinhas`, a coluna `price` guarda o preço de venda de cada peça vinculada à live (`live_id`).\n" .
+            "  3. Faturamento Bruto da live = SUM(sacolinhas.price * sacolinhas.quantity).\n" .
+            "  4. Custo Total das Peças = SUM(COALESCE(items.custo, 0) * sacolinhas.quantity).\n" .
+            "  5. Lucro Bruto da live = Faturamento Bruto - Custo Total das Peças (Preço de Venda menos Preço de Compra/Custo).\n" .
+            "  6. Sempre que o usuário perguntar pelo LUCRO de uma live, USE A FERRAMENTA `resumo_live` (que já entrega faturamento bruto, custo total das peças e lucro bruto apurado) e apresente esses números com clareza!\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- DISTINÇÃO OBRIGATÓRIA ENTRE TRANSAÇÃO DE EXTRATO E LANÇAMENTO FINANCEIRO:\n" .
             "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações importadas diretamente do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
@@ -214,12 +223,12 @@ class SeverinoService
                     ],
                     [
                         "name" => "resumo_live",
-                        "description" => "Retorna o resultado de lives (total de itens vendidos/separados, faturamento, clientes distintos e sacolinhas). Pode buscar por data específica, pegar a mais recente, ou calcular médias e totais sobre as últimas N lives (ex: quantidade_lives = 10 para responder 'em média').",
+                        "description" => "Retorna o panorama financeiro e operacional completo de lives: faturamento bruto, custo total das peças vendidas (preço de compra), lucro bruto apurado (faturamento - custo), margem de lucro (%), total de peças separadas, clientes distintos e sacolinhas. Use SEMPRE que perguntarem sobre faturamento, lucro, resultado, custo ou desempenho de live(s).",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, analisa a(s) live(s) mais recente(s)."],
-                                "quantidade_lives" => ["type" => "INTEGER", "description" => "Opcional. Quantidade de últimas lives para analisar e calcular médias (ex: 5, 10, 20). Padrão é 1. Use 10 ou mais quando o usuário pedir média ou comparativo."]
+                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, analisa a live mais recente."],
+                                "quantidade_lives" => ["type" => "INTEGER", "description" => "Opcional. Quantidade de últimas lives para analisar e calcular médias (ex: 5, 10, 20). Padrão é 1."]
                             ]
                         ]
                     ],
@@ -530,7 +539,27 @@ class SeverinoService
 
         $providersToTry = [];
 
-        // 1. Google Gemini (Modelos modernos, ultrarrápidos e com cota padrão)
+        // 1. Groq (Prioridade 1: Ultrarrápido ~300ms a 900ms via LPU)
+        if (!empty($groqKey)) {
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B",
+                "default_score" => 18,
+                "timeout" => 10
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen 27B",
+                "default_score" => 17,
+                "timeout" => 8
+            ];
+        }
+
+        // 2. Google Gemini (Prioridade 2: Modelos modernos de alta precisão e cotas generosas)
         if (!empty($geminiKey)) {
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.1-flash-lite'))) {
                 $providersToTry[] = [
@@ -538,7 +567,8 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
-                    "default_score" => 15
+                    "default_score" => 14,
+                    "timeout" => 8
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
@@ -547,27 +577,10 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
-                    "default_score" => 14
+                    "default_score" => 13,
+                    "timeout" => 8
                 ];
             }
-        }
-
-        // 2. Groq (Prioridade 2: Ultrarrápido, excelente fallback dentro de limites)
-        if (!empty($groqKey)) {
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B",
-                "default_score" => 12
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen 27B",
-                "default_score" => 11
-            ];
         }
 
         // 3. OpenRouter (Apenas se tiver saldo e não estiver desativado por 402)
@@ -667,7 +680,7 @@ class SeverinoService
                         ];
 
                         $response = Http::withHeaders($headers)
-                            ->timeout(12)
+                            ->timeout($provider['timeout'] ?? 10)
                             ->post($provider["url"], $payload);
 
                         if ($response->successful()) {
@@ -1295,9 +1308,13 @@ class SeverinoService
                                 l.tipo_live,
                                 COUNT(DISTINCT s.user_id) as total_sacolinhas,
                                 COUNT(s.id) as total_itens,
-                                COALESCE(SUM(s.price * s.quantity), 0) as faturamento
+                                SUM(s.quantity) as total_pecas,
+                                COALESCE(SUM(s.price * s.quantity), 0) as faturamento,
+                                COALESCE(SUM(COALESCE(i.custo, 0) * s.quantity), 0) as custo_total,
+                                COALESCE(SUM((s.price - COALESCE(i.custo, 0)) * s.quantity), 0) as lucro_bruto
                             FROM lives l
                             LEFT JOIN sacolinhas s ON s.live_id = l.id
+                            LEFT JOIN items i ON s.item_id = i.id
                             WHERE l.data <= CURDATE()
                             GROUP BY l.id, l.data, l.tipo_live
                             HAVING total_itens > 0
@@ -1312,19 +1329,26 @@ class SeverinoService
                         $totSacs = 0;
                         $totItens = 0;
                         $totFat = 0;
+                        $totCusto = 0;
+                        $totLucro = 0;
                         $detalhes = [];
 
                         foreach ($rows as $r) {
                             $totSacs += (int)$r->total_sacolinhas;
                             $totItens += (int)$r->total_itens;
                             $totFat += (float)$r->faturamento;
+                            $totCusto += (float)$r->custo_total;
+                            $totLucro += (float)$r->lucro_bruto;
                             $detalhes[] = [
                                 "live_id" => $r->live_id,
                                 "data" => \Carbon\Carbon::parse($r->data)->format("d/m/Y"),
                                 "tipo" => $r->tipo_live,
                                 "sacolinhas" => (int)$r->total_sacolinhas,
                                 "itens" => (int)$r->total_itens,
-                                "faturamento" => (float)$r->faturamento
+                                "faturamento" => (float)$r->faturamento,
+                                "custo_itens" => (float)$r->custo_total,
+                                "lucro_bruto" => (float)$r->lucro_bruto,
+                                "margem" => (float)$r->faturamento > 0 ? round(((float)$r->lucro_bruto / (float)$r->faturamento) * 100, 2) . "%" : "0%"
                             ];
                         }
 
@@ -1334,7 +1358,10 @@ class SeverinoService
                             "media_sacolinhas_por_live" => round($totSacs / $countLives, 1),
                             "media_itens_por_live" => round($totItens / $countLives, 1),
                             "media_faturamento_por_live" => round($totFat / $countLives, 2),
+                            "media_lucro_por_live" => round($totLucro / $countLives, 2),
                             "total_geral_faturamento" => round($totFat, 2),
+                            "total_geral_custo" => round($totCusto, 2),
+                            "total_geral_lucro" => round($totLucro, 2),
                             "total_geral_itens" => $totItens,
                             "detalhes_ultimas_lives" => $detalhes
                         ];
@@ -1350,20 +1377,40 @@ class SeverinoService
                         return ["erro" => "Nenhuma live encontrada na data informada."];
                     }
 
-                    // Calcula o faturamento usando a tabela sacolinhas baseada no live_id
-                    $stats = DB::table("sacolinhas")
-                        ->where("live_id", $live->id)
-                        ->selectRaw("COUNT(id) as total_itens, SUM(price * quantity) as faturamento, COUNT(DISTINCT user_id) as total_clientes")
+                    // Calcula faturamento, custo das peças e lucro bruto usando sacolinhas e items
+                    $stats = DB::table("sacolinhas as s")
+                        ->leftJoin("items as i", "s.item_id", "=", "i.id")
+                        ->where("s.live_id", $live->id)
+                        ->selectRaw("
+                            COUNT(s.id) as total_itens,
+                            SUM(s.quantity) as total_pecas,
+                            COUNT(DISTINCT s.user_id) as total_clientes,
+                            COALESCE(SUM(s.price * s.quantity), 0) as faturamento,
+                            COALESCE(SUM(COALESCE(i.custo, 0) * s.quantity), 0) as custo_total,
+                            COALESCE(SUM((s.price - COALESCE(i.custo, 0)) * s.quantity), 0) as lucro_bruto,
+                            COUNT(CASE WHEN i.custo IS NULL OR i.custo = 0 THEN 1 END) as itens_sem_custo
+                        ")
                         ->first();
+
+                    $faturamento = (float) $stats->faturamento;
+                    $custoTotal = (float) $stats->custo_total;
+                    $lucroBruto = (float) $stats->lucro_bruto;
+                    $margemPercentual = $faturamento > 0 ? round(($lucroBruto / $faturamento) * 100, 2) : 0;
 
                     return [
                         "live_id" => $live->id,
                         "data_live" => $live->data->format("d/m/Y"),
                         "tipo" => $live->tipo_live,
                         "total_itens_separados" => (int)$stats->total_itens,
-                        "faturamento_bruto" => (float)$stats->faturamento,
+                        "quantidade_pecas" => (int)$stats->total_pecas,
+                        "faturamento_bruto" => $faturamento,
+                        "custo_total_pecas" => $custoTotal,
+                        "lucro_bruto" => $lucroBruto,
+                        "margem_lucro_percentual" => "{$margemPercentual}%",
+                        "itens_sem_custo_cadastrado" => (int)$stats->itens_sem_custo,
                         "clientes_distintos" => (int)$stats->total_clientes,
-                        "sacolinhas" => (int)$stats->total_clientes
+                        "sacolinhas" => (int)$stats->total_clientes,
+                        "formula_utilizada" => "Faturamento Bruto = soma(sacolinhas.price * quantity) | Custo Total = soma(items.custo * quantity) | Lucro Bruto = Faturamento Bruto - Custo Total"
                     ];
 
                 case "status_clube_mensalidades":
