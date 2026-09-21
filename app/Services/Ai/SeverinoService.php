@@ -530,15 +530,26 @@ class SeverinoService
 
         $providersToTry = [];
 
-        // 1. Google Gemini (Prioridade 1: Extremamente rápido ~0.8s, cotas generosas e alta precisão)
+        // 1. Google Gemini (Modelos modernos, ultrarrápidos e com cota padrão)
         if (!empty($geminiKey)) {
-            $providersToTry[] = [
-                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key" => $geminiKey,
-                "model" => "gemini-2.5-flash",
-                "name" => "Google Gemini 2.5 Flash",
-                "default_score" => 15
-            ];
+            if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.1-flash-lite'))) {
+                $providersToTry[] = [
+                    "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                    "key" => $geminiKey,
+                    "model" => "gemini-3.1-flash-lite",
+                    "name" => "Google Gemini 3.1 Flash Lite",
+                    "default_score" => 15
+                ];
+            }
+            if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
+                $providersToTry[] = [
+                    "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                    "key" => $geminiKey,
+                    "model" => "gemini-3.5-flash",
+                    "name" => "Google Gemini 3.5 Flash",
+                    "default_score" => 14
+                ];
+            }
         }
 
         // 2. Groq (Prioridade 2: Ultrarrápido, excelente fallback dentro de limites)
@@ -548,14 +559,14 @@ class SeverinoService
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-120b",
                 "name" => "Groq GPT OSS 120B",
-                "default_score" => 10
+                "default_score" => 12
             ];
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "qwen/qwen3.8-27b",
                 "name" => "Groq Qwen 27B",
-                "default_score" => 9
+                "default_score" => 11
             ];
         }
 
@@ -610,6 +621,16 @@ class SeverinoService
             
             for ($attempt = 0; $attempt < 3; $attempt++) {
                 
+                // Se todos os provedores estiverem com score negativo (penalizados), reseta para evitar paralisia
+                $maxScore = !empty($providersToTry) ? max(array_column($providersToTry, 'score')) : -1;
+                if ($maxScore < 0) {
+                    foreach ($providersToTry as &$p) {
+                        $p['score'] = $p['default_score'] ?? 10;
+                        \Illuminate\Support\Facades\Cache::forget("ai_score_" . md5($p['name']));
+                    }
+                    unset($p);
+                }
+
                 // Ordena os provedores pelo score (do maior para o menor)
                 usort($providersToTry, function ($a, $b) {
                     return $b['score'] <=> $a['score'];
@@ -703,6 +724,15 @@ class SeverinoService
                                         }
                                     }
                                 }
+                            }
+
+                            // Se for esgotamento de cota diária do modelo (ex: Free Tier do Google)
+                            if (str_contains($body, 'RESOURCE_EXHAUSTED') || str_contains($body, 'GenerateRequestsPerDay') || str_contains($body, 'exceeded your current quota')) {
+                                \Illuminate\Support\Facades\Cache::put('gemini_model_exhausted_' . md5($provider['model']), true, now()->addMinutes(30));
+                                $provider['score'] = -50;
+                                \Illuminate\Support\Facades\Cache::put($cacheKey, -50, now()->addMinutes(30));
+                                Log::warning("Provedor {$provider['name']} esgotou a cota do modelo ({$provider['model']}). Desativando por 30 minutos.");
+                                continue;
                             }
 
                             // RATE LIMIT: Punição moderada, perde 5 pontos (mínimo -30)
@@ -811,7 +841,7 @@ class SeverinoService
             if (!empty($geminiKey)) {
                 try {
                     $synthPayload = [
-                        "model" => "gemini-2.5-flash",
+                        "model" => "gemini-3.1-flash-lite",
                         "messages" => array_merge(
                             [["role" => "system", "content" => "Você é o Severino. Formule uma resposta objetiva, completa e em Markdown para o usuário com base no histórico de dados apurados."]],
                             array_slice($payload["messages"], -6),
@@ -871,7 +901,7 @@ class SeverinoService
                 "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
                 "Content-Type" => "application/json"
             ])->timeout(15)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
-                "model" => "gemini-2.5-flash",
+                "model" => "gemini-3.1-flash-lite",
                 "messages" => $messages,
                 "temperature" => 0.1,
                 "max_tokens" => 1000
