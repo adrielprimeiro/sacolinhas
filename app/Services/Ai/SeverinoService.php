@@ -183,10 +183,16 @@ class SeverinoService
             "  2. NUNCA tente puxar listas gigantes de contas pendentes quando a pergunta era sobre o que foi conciliado!\n" .
             "REGRA DE OURO PARA BANCO DE DADOS: Para responder às perguntas do usuário, consulte sempre o banco via `executar_query_select` ou utilize o código do controller correspondente (`consultar_codigo_controller`) para descobrir as tabelas e colunas certas. USE SEMPRE SINTAXE MYSQL.\n" .
             "REGRA FINANCEIRA: O 'Saldo na Carteira' de um cliente é apenas a diferença entre o que ele pagou e recebeu. O valor real que o cliente tem disponível e pode utilizar para comprar ou colocar peças é o 'Limite Disponível'.\n" .
-            "ANTI-ALUCINAÇÃO: É ESTIRAMENTE PROIBIDO inventar, chutar ou deduzir valores monetários, saldos, preços, totais ou dados de clientes da própria cabeça. Você é um robô de banco de dados! Sempre chame as ferramentas SQL ou de busca para checar a verdade. Se não achar, diga que não achou.\n" .
-            "CAPACIDADE DE AUTO-APRENDIZADO E CRIAÇÃO DE FERRAMENTAS (LATM):\n" .
-            "- Se o usuário fizer uma pergunta nova que você não possui ferramenta pronta, consulte o controller correspondente via `consultar_codigo_controller` ou teste uma query via `executar_query_select`.\n" .
-            "- Assim que você descobrir e validar a query correta, chame OBRIGATORIAMENTE `criar_ferramenta_dinamica` para registrar permanentemente essa nova ferramenta no seu catálogo no banco de dados! Dessa forma você fica mais inteligente a cada conversa e nunca mais precisará deduzir do zero.\n" .
+            "REGRA CRÍTICA DE CONCILIAÇÃO BANCÁRIA E EXTRATO:\n" .
+            "- Para qualquer pergunta sobre 'o que tenho pra conciliar', 'quantos lançamentos para conciliar', 'extrato bancário', 'última sincronização' ou 'última conciliação', USE SEMPRE E IMEDIATAMENTE a ferramenta dedicada `status_conciliacao_extrato`!\n" .
+            "- DISTINÇÃO OBRIGATÓRIA ENTRE TRANSAÇÃO DE EXTRATO E LANÇAMENTO FINANCEIRO:\n" .
+            "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações reais importadas do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
+            "  2. 'Lançamento Financeiro' (tabela `lancamentos`): São os títulos financeiros em aberto no sistema (contas a pagar e a receber). Se o usuário perguntar 'quantos lançamentos?', informe a quantidade de contas em aberto no financeiro (tabela `lancamentos`) E também a quantidade de transações pendentes no extrato bancário (`transacoes_extrato`), deixando explícita a diferença!\n" .
+            "- DISTINÇÃO OBRIGATÓRIA ENTRE SINCRONIZAÇÃO E CONCILIAÇÃO:\n" .
+            "  1. 'Última Sincronização': Momento em que o sistema buscou e baixou novas transações da API bancária ou OFX para o sistema.\n" .
+            "  2. 'Última Conciliação': Momento em que uma transação bancária foi efetivamente vinculada/casada a um lançamento financeiro no sistema.\n" .
+            "  3. Se o usuário perguntar 'qual foi a última atualização do extrato?', informe CLARAMENTE AMBAS as datas (da última sincronização bancária e da última conciliação realizada) para evitar qualquer ambiguidade!\n" .
+            "  4. Se o usuário perguntar 'Você tá falando da sincronização ou da última conciliação?', responda diretamente esclarecendo a data de cada uma!\n" .
             "Nunca execute nenhuma alteração (INSERT/UPDATE/DELETE), apenas consulte e informe. Responda em Markdown claro e objetivo.";
 
         $tools = [
@@ -212,6 +218,14 @@ class SeverinoService
                                 "user_id" => ["type" => "INTEGER", "description" => "ID numérico do cliente (deve ser o ID, não o nome)"]
                             ],
                             "required" => ["user_id"]
+                        ]
+                    ],
+                    [
+                        "name" => "status_conciliacao_extrato",
+                        "description" => "Retorna o panorama completo e dados exatos da conciliação bancária: quantidade de transações pendentes no extrato bancário (Banco Inter e Mercado Pago), quantidade de lançamentos financeiros em aberto no sistema (contas a pagar e receber), data/hora da última sincronização do extrato bancário, data/hora da última conciliação realizada e a lista detalhada das transações bancárias aguardando conciliação.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => (object)[]
                         ]
                     ],
                     [
@@ -521,7 +535,8 @@ class SeverinoService
                 }
             }
             
-            $truncatedText = mb_strlen($rawText) > 500 ? mb_substr($rawText, 0, 500) . "..." : $rawText;
+            $maxLen = ($msg["role"] === "assistant" || $msg["role"] === "model") ? 300 : 400;
+            $truncatedText = mb_strlen($rawText) > $maxLen ? mb_substr($rawText, 0, $maxLen) . "..." : $rawText;
             $messages[] = [
                 "role" => $msg["role"] === "assistant" || $msg["role"] === "model" ? "assistant" : "user",
                 "content" => $truncatedText
@@ -536,60 +551,69 @@ class SeverinoService
             "tools" => $groqTools,
             "tool_choice" => "auto",
             "temperature" => 0.2,
-            "max_tokens" => 2000
+            "max_tokens" => 1200
         ];
 
         $providersToTry = [];
 
+        // 1. Google Gemini (Prioridade 1: Extremamente rápido ~0.8s, cotas generosas e alta precisão)
+        if (!empty($geminiKey)) {
+            $providersToTry[] = [
+                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "key" => $geminiKey,
+                "model" => "gemini-2.5-flash",
+                "name" => "Google Gemini 2.5 Flash",
+                "default_score" => 15
+            ];
+        }
+
+        // 2. Groq (Prioridade 2: Ultrarrápido, excelente fallback dentro de limites)
         if (!empty($groqKey)) {
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B"
+                "name" => "Groq GPT OSS 120B",
+                "default_score" => 10
             ];
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen 27B"
+                "name" => "Groq Qwen 27B",
+                "default_score" => 9
             ];
         }
 
+        // 3. OpenRouter (Apenas se tiver saldo e não estiver desativado por 402)
         $orKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
-        if (!empty($orKey)) {
+        if (!empty($orKey) && !\Illuminate\Support\Facades\Cache::has('openrouter_disabled_402')) {
             $providersToTry[] = [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => $orKey,
                 "model" => "meta-llama/llama-3.3-70b-instruct",
-                "name" => "OpenRouter Llama 3.3 70B"
+                "name" => "OpenRouter Llama 3.3 70B",
+                "default_score" => 5
             ];
             $providersToTry[] = [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => $orKey,
                 "model" => "mistralai/mistral-large-2407",
-                "name" => "OpenRouter Mistral Large"
+                "name" => "OpenRouter Mistral Large",
+                "default_score" => 4
             ];
             $providersToTry[] = [
                 "url" => "https://openrouter.ai/api/v1/chat/completions",
                 "key" => $orKey,
                 "model" => "deepseek/deepseek-chat",
-                "name" => "OpenRouter DeepSeek Chat"
+                "name" => "OpenRouter DeepSeek Chat",
+                "default_score" => 4
             ];
         }
 
-        if (!empty($geminiKey) && str_starts_with($geminiKey, 'AIzaSy')) {
-            $providersToTry[] = [
-                "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key" => $geminiKey,
-                "model" => "gemini-2.5-flash",
-                "name" => "Google Gemini 2.5 Flash"
-            ];
-        }
-
-        // Carrega pontuação do cache (inicia em 10)
+        // Carrega pontuação do cache (inicia com default_score de cada provedor)
         foreach ($providersToTry as &$p) {
-            $p['score'] = \Illuminate\Support\Facades\Cache::get("ai_score_" . md5($p['name']), 10);
+            $p['score'] = \Illuminate\Support\Facades\Cache::get("ai_score_" . md5($p['name']), $p['default_score'] ?? 10);
         }
         unset($p);
         
@@ -670,6 +694,15 @@ class SeverinoService
                             $provider['score'] = max($provider['score'] - 5, -30);
                             \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                             Log::warning("Provedor {$provider['name']} retornou 200 OK mas resposta vazia (sem content e sem tool_calls). Tentando próximo.");
+                            continue;
+                        }
+
+                        if ($response->status() == 402) {
+                            // Saldo insuficiente no OpenRouter
+                            \Illuminate\Support\Facades\Cache::put('openrouter_disabled_402', true, now()->addHours(1));
+                            $provider['score'] = -50;
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, -50, now()->addHours(1));
+                            Log::warning("Provedor {$provider['name']} sem créditos (402). Desativando por 1 hora.");
                             continue;
                         }
 
@@ -861,7 +894,7 @@ class SeverinoService
 
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
-                "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
+                "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
                 "Content-Type" => "application/json"
             ])->timeout(15)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
                 "model" => "gemini-2.5-flash",
@@ -940,6 +973,73 @@ class SeverinoService
                         "limite_utilizado_na_sacolinha_atualmente" => $utilizado,
                         "limite_disponivel" => $disponivel,
                         "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
+                    ];
+
+                case "status_conciliacao_extrato":
+                    // 1. Transações do extrato bancário aguardando conciliação
+                    $transacoesPendentes = DB::table('transacoes_extrato')
+                        ->where('status', 'pendente')
+                        ->orderBy('data', 'desc')
+                        ->get(['id', 'origem', 'data', 'descricao', 'valor', 'tipo', 'created_at']);
+
+                    $totalTransacoesPendentes = $transacoesPendentes->count();
+
+                    // 2. Lançamentos financeiros do sistema em aberto (contas a pagar / receber)
+                    $totalLancamentosPendentes = DB::table('lancamentos')
+                        ->where('status', 'pendente')
+                        ->count();
+
+                    $lancamentosDespesaPendentes = DB::table('lancamentos')
+                        ->where('status', 'pendente')
+                        ->where('tipo', 'despesa')
+                        ->count();
+
+                    $lancamentosReceitaPendentes = DB::table('lancamentos')
+                        ->where('status', 'pendente')
+                        ->where('tipo', 'receita')
+                        ->count();
+
+                    // 3. Última Sincronização do Extrato (quando novas transações foram baixadas das APIs bancárias/OFX)
+                    $ultimaSincronizacaoCache = \Illuminate\Support\Facades\Cache::get('last_extrato_auto_synced_at');
+                    $ultimaTransacaoCriada = DB::table('transacoes_extrato')->max('created_at');
+                    $dataUltimaSincronizacao = $ultimaSincronizacaoCache 
+                        ? \Carbon\Carbon::parse($ultimaSincronizacaoCache)->format('d/m/Y H:i:s')
+                        : ($ultimaTransacaoCriada ? \Carbon\Carbon::parse($ultimaTransacaoCriada)->format('d/m/Y H:i:s') : 'Desconhecida');
+
+                    // 4. Última Conciliação Realizada (quando uma transação do extrato foi casada com um lançamento)
+                    $ultimaConciliacao = DB::table('transacoes_extrato')
+                        ->where('status', 'conciliado')
+                        ->max('updated_at');
+                    $dataUltimaConciliacao = $ultimaConciliacao 
+                        ? \Carbon\Carbon::parse($ultimaConciliacao)->format('d/m/Y H:i:s')
+                        : 'Nenhuma conciliação registrada';
+
+                    // 5. Amostra detalhada das transações pendentes no extrato
+                    $itensPendentes = [];
+                    foreach ($transacoesPendentes->take(10) as $tp) {
+                        $itensPendentes[] = [
+                            'id' => $tp->id,
+                            'origem' => $tp->origem,
+                            'data' => \Carbon\Carbon::parse($tp->data)->format('d/m/Y'),
+                            'tipo' => $tp->tipo === 'entrada' ? 'Entrada (Recebimento)' : 'Saída (Pagamento/Pix)',
+                            'valor' => 'R$ ' . number_format($tp->valor, 2, ',', '.'),
+                            'descricao' => $tp->descricao
+                        ];
+                    }
+
+                    return [
+                        "distincao_conceitual_obrigatoria" => "ATENÇÃO SEVERINO: 'Transações de Extrato' são movimentações que vieram do banco aguardando conciliação. 'Lançamentos' são contas a pagar/receber no financeiro do sistema. Não as confunda na resposta!",
+                        "extrato_bancario" => [
+                            "total_transacoes_pendentes_no_extrato" => $totalTransacoesPendentes,
+                            "data_ultima_sincronizacao_com_bancos" => $dataUltimaSincronizacao,
+                            "data_ultima_conciliacao_realizada" => $dataUltimaConciliacao,
+                            "itens_pendentes_detalhes" => $itensPendentes
+                        ],
+                        "lancamentos_financeiros" => [
+                            "total_lancamentos_em_aberto_no_sistema" => $totalLancamentosPendentes,
+                            "contas_a_pagar_pendentes" => $lancamentosDespesaPendentes,
+                            "contas_a_receber_pendentes" => $lancamentosReceitaPendentes
+                        ]
                     ];
 
                 case "resumo_carteira_clientes":
@@ -1998,7 +2098,7 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
 
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
-                "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
+                "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
                 "Content-Type" => "application/json"
             ])->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", $payload);
 
@@ -2026,7 +2126,7 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
             
             try {
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
-                    "Authorization" => "Bearer " . env("GEMINI_API_KEY", ""),
+                    "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
                     "Content-Type" => "application/json"
                 ])->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
                     "model" => "gemini-2.5-flash",

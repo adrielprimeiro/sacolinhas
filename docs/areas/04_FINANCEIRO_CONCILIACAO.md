@@ -89,9 +89,16 @@ O sistema financeiro da Minha Mania opera a gestão por **Competência** (DRE), 
   * `conta_bancaria_id`: FK para `contas_bancarias.id`.
   * `movimentacao_id`: FK para `movimentacoes.id` (quando conciliado).
 
-#### Regra Crítica de Lançamentos Pendentes no Extrato:
-* Uma transação bancária no extrato **SÓ GERA** lançamento e movimentação no sistema quando é **CONCILIADA** (`status = 'conciliado'`).
-* Se o usuário perguntar por que está faltando um pagamento ou PIX que ocorreu no banco, consulte `transacoes_extrato`! Se estiver `status = 'pendente'`, ele ainda está aguardando conciliação.
+#### ⚠️ Distinção Conceitual Obrigatória (Transações de Extrato vs Lançamentos):
+* **Transações de Extrato (`transacoes_extrato`):** São os registros brutos importados das contas bancárias (Banco Inter / Mercado Pago / OFX). Possuem status:
+  * `'pendente'`: Chegou do banco mas ainda NÃO foi vinculada a um lançamento financeiro no sistema.
+  * `'conciliado'`: Já foi casada com um lançamento financeiro (criando ou associando a `movimentacoes`).
+  * `'ignorado'`: Movimentação ignorada (ex: estorno duplicado ou desconsiderada manualmente).
+  * **NUNCA chame transação de extrato de "lançamento"!**
+* **Lançamentos Financeiros (`lancamentos`):** São os títulos a pagar ou a receber cadastrados no sistema financeiro.
+* **Sincronização vs Conciliação:**
+  * **Última Sincronização:** Data/hora em que o sistema buscou novas transações bancárias nas APIs (Inter / Mercado Pago) ou importou arquivo OFX (`Cache::get('last_extrato_auto_synced_at')` ou `MAX(created_at)` em `transacoes_extrato`).
+  * **Última Conciliação:** Data/hora em que a última transação foi efetivamente vinculada a um lançamento (`MAX(updated_at)` em `transacoes_extrato` WHERE `status = 'conciliado'`).
 * **Transferências entre contas próprias (ex: Inter -> Mercado Pago):** Têm duas pontas (saída no Inter e entrada no Mercado Pago). Ambas precisam ser conciliadas.
 
 ---
@@ -198,3 +205,6 @@ ORDER BY o.valor_previsto DESC;
 3. ❌ **Transações de Extrato:** Se um PIX ou transferência ocorreu no banco mas não aparece nos relatórios do sistema, verifique `transacoes_extrato` com `status = 'pendente'`. Ele só vira lançamento oficial quando for conciliado.
 4. ❌ **DRE x Fluxo de Caixa:** O DRE mede a competência do mês (pela data do pedido/emissão). O Fluxo de Caixa mede o que realmente entrou ou saiu do banco (pela data de pagamento em `movimentacoes`).
 5. ❌ **Pessoas x Usuários:** Fornecedores, parceiros e prestadores de serviço ficam na tabela `pessoas` (`pessoa_id` em `lancamentos`).
+6. ❌ **Transação de Extrato NÃO é Lançamento:** A tabela `transacoes_extrato` guarda o que veio do banco. A tabela `lancamentos` guarda os títulos financeiros (contas a pagar e a receber). Se o usuário perguntar "quantos lançamentos?", informe os lançamentos em aberto (`lancamentos WHERE status = 'pendente'`) e diferencie das transações de extrato pendentes (`transacoes_extrato WHERE status = 'pendente'`).
+7. ❌ **Sincronização NÃO é Conciliação:** Sincronização é quando novas transações bancárias entraram no sistema (`Cache` ou `MAX(created_at)` em `transacoes_extrato`). Conciliação é quando uma transação foi casada com um lançamento (`MAX(updated_at)` em `transacoes_extrato` com status 'conciliado').
+
