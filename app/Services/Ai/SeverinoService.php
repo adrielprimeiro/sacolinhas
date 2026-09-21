@@ -942,6 +942,38 @@ class SeverinoService
                         continue;
                     }
                 }
+
+                // 3. AUTO-EXECUÇÃO DE SQL GERADO NO TEXTO: Se o modelo gerou bloco de SQL SELECT no markdown em vez de tool_call
+                if (preg_match('/```sql\s*(SELECT\s+[\s\S]+?)\s*```/i', $finalText, $sqlMatch)) {
+                    $extractedSql = trim($sqlMatch[1]);
+                    \Illuminate\Support\Facades\Log::info("Severino gerou SQL no texto em vez de tool_call. Executando query automaticamente no banco: " . $extractedSql);
+                    $sqlResult = $this->executeTool("executar_query_select", ["query" => $extractedSql]);
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - DADOS DA QUERY SQL EXECUTADA]:\n" . json_encode($sqlResult, JSON_UNESCAPED_UNICODE) . "\n\nCom base nesses dados reais apurados no banco, apresente agora a resposta final completa e formatada em Markdown ao usuário (com os dados e nomes reais, NUNCA com placeholders como [NOME] ou [X]) e invoque a função 'criar_ferramenta_dinamica' para salvar essa ferramenta no seu catálogo oficial."
+                    ];
+                    continue;
+                }
+
+                // 4. DETECÇÃO DE PSEUDO TOOL CALL EM TEXTO: Se escreveu criar_ferramenta_dinamica(...) como texto
+                if (preg_match('/criar_ferramenta_dinamica\s*\((.*?)\)/s', $finalText)) {
+                    \Illuminate\Support\Facades\Log::info("Severino escreveu criar_ferramenta_dinamica em texto em vez de function call. Forçando chamada real.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - FUNCTION CALL OBRIGATÓRIA]: Você escreveu 'criar_ferramenta_dinamica(...)' em texto markdown. Você DEVE disparar a chamada de função (tool call) oficial 'criar_ferramenta_dinamica' com os parâmetros (nome, descricao, sql_template) para que ela seja salva no banco de dados e entregue a resposta ao usuário."
+                    ];
+                    continue;
+                }
+
+                // 5. BLOQUEIO DE PLACEHOLDERS HALLUCINADOS: Se gerou [NOME DA CLIENTE], [X peças], etc.
+                if (preg_match('/\[(NOME|VALOR|DATA|QUANTIDADE|X|TOTAL)[^\]]*\]/i', $finalText)) {
+                    \Illuminate\Support\Facades\Log::warning("Severino gerou placeholders no texto ('{$finalText}'). Interceptando.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - ERRO DE PLACEHOLDER]: Você gerou placeholders com colchetes (ex: [NOME], [X]). Isso não é permitido! Chame a ferramenta 'executar_query_select' ou 'mapear_modulo_sistema' para buscar os dados verdadeiros e entregue os nomes e números reais."
+                    ];
+                    continue;
+                }
             }
 
             if ($finalText !== "") {
