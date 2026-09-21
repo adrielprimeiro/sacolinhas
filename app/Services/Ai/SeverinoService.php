@@ -525,6 +525,40 @@ class SeverinoService
                 "content" => $truncatedText
             ];
         }
+
+        // Resgata a última mensagem do assistente para análise de feedback e anti-repetição
+        $lastAssistantMsg = null;
+        for ($k = count($history) - 1; $k >= 0; $k--) {
+            $r = $history[$k]['role'] ?? '';
+            if ($r === 'assistant' || $r === 'model') {
+                $txtCandidate = trim($history[$k]['text'] ?? $history[$k]['message'] ?? '');
+                if ($txtCandidate !== "") {
+                    $lastAssistantMsg = $txtCandidate;
+                    break;
+                }
+            }
+        }
+
+        // Análise de feedback corretivo ou de dúvida do usuário
+        $feedbackInstruction = null;
+        if ($lastAssistantMsg) {
+            $isComplaintOrClarification = preg_match('/(já falou|ja falou|não foi isso|nao foi isso|tá falando de|ta falando de|você disse|voce disse|errado|não é isso|nao e isso|quero saber é|quero saber e|quantos lançamentos|quantos lancamentos)/iu', $userPrompt);
+            $isFormulaOrRule = preg_match('/(faça o calculo|faca o calculo|calcule|menos o preço|menos o preco|preço de venda|preco de venda|custo de compra|preço de compra|preco de compra|fórmula|formula)/iu', $userPrompt);
+
+            if ($isComplaintOrClarification) {
+                $feedbackInstruction = "[AVALIAÇÃO DO FEEDBACK DO USUÁRIO]: O usuário contestou ou pediu esclarecimento sobre sua resposta anterior ('" . mb_substr($lastAssistantMsg, 0, 150) . "...'). NUNCA repita a mesma resposta anterior! Se a pergunta envolver conceitos distintos (ex: sincronização de extrato bancário vs conciliação de lançamentos), consulte as duas coisas no banco ou explique as opções e pergunte ao usuário exatamente o que ele deseja que você procure.";
+            } elseif ($isFormulaOrRule) {
+                $feedbackInstruction = "[ENSINAMENTO DE REGRA PELO USUÁRIO]: O usuário está te ensinando como calcular ou onde buscar a informação! É TERMINANTEMENTE PROIBIDO pedir números ou valores ao usuário. Use 'mapear_modulo_sistema' e 'executar_query_select' para consultar o banco e calcular o resultado. Em seguida, chame 'criar_ferramenta_dinamica' para gravar este aprendizado no catálogo de ferramentas autônomas.";
+            }
+        }
+
+        if ($feedbackInstruction) {
+            $messages[] = [
+                "role" => "system",
+                "content" => $feedbackInstruction
+            ];
+        }
+
         $messages[] = [
             "role" => "user",
             "content" => $userPrompt
@@ -842,6 +876,11 @@ class SeverinoService
                     
                     $resultado = $this->executeTool($name, $args);
                     $resumoDoResultado = $this->prepareToolContent($name, $resultado, $userPrompt);
+
+                    // Incentivo LATM: se rodou SQL SELECT com sucesso, estimula o registro da ferramenta dinâmica
+                    if ($name === 'executar_query_select' && empty($resultado['erro'])) {
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO DE AUTONOMIA LATM]: Query executada com sucesso! Para consolidar este aprendizado e não precisar rodar SQL cru no futuro, você DEVE chamar a ferramenta `criar_ferramenta_dinamica` registrando este template SQL com nome em snake_case, descrição clara e parâmetros se houver, e em seguida entregar a resposta final ao usuário.";
+                    }
                     
                     // Salva na memória de rascunho caso o loop seja interrompido (timeout/limite)
                     if ($sessionId) {
@@ -872,6 +911,36 @@ class SeverinoService
                         "content" => "Agora formule e entregue a resposta final completa e formatada em Markdown com base no que você concluiu."
                     ];
                     continue;
+                }
+            }
+
+            // 1. TRAVA DE AUTONOMIA: Impede o modelo de pedir dados de negócio/banco ao usuário
+            if ($finalText !== "" && $i < 7) {
+                $pedeDadosAoUsuario = preg_match('/(\b(me informe|precisamos saber|qual|informe|me diga|qual o|qual é o)\s+(custo|preço de compra|faturamento|saldo|valor gasto|despesa)|não (tenho|possuo) (acesso aos?|os?) (custos?|preços?|dados?)|custo associado a ela|se você souber[,\s]+por exemplo[,\s]+o custo)/iu', $finalText);
+                
+                if ($pedeDadosAoUsuario) {
+                    \Illuminate\Support\Facades\Log::warning("Severino tentou pedir dados ao usuário ('{$finalText}'). Interceptando e forçando ReAct autônomo na iteração {$i}.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - TRAVA DE AUTONOMIA]: É TERMINANTEMENTE PROIBIDO pedir dados, custos, preços de compra, despesas ou faturamento ao usuário! O usuário é o operador e esses dados devem ser apurados no banco de dados.\n" .
+                                     "1. O custo das peças está na tabela `items` (coluna `custo`), e os preços na tabela `sacolinhas` (coluna `price`).\n" .
+                                     "2. Use 'mapear_modulo_sistema' ou 'executar_query_select' AGORA para consultar diretamente os dados e calcular o que foi pedido.\n" .
+                                     "3. Se você não souber onde encontrar a informação ou se houver critérios ambíguos, pergunte ao usuário exatamente o que ele deseja que você procure dentre as opções reais do sistema, mas NUNCA peça para ele calcular ou te fornecer números de banco!"
+                    ];
+                    continue;
+                }
+
+                // 2. TRAVA ANTI-REPETIÇÃO: Impede de repetir a mesma resposta anterior
+                if (!empty($lastAssistantMsg) && mb_strlen($lastAssistantMsg) > 20) {
+                    similar_text($finalText, $lastAssistantMsg, $similarity);
+                    if ($similarity > 65) {
+                        \Illuminate\Support\Facades\Log::warning("Severino tentou repetir a resposta anterior ({$similarity}% similar). Interceptando na iteração {$i}.");
+                        $payload["messages"][] = [
+                            "role" => "user",
+                            "content" => "[SISTEMA - ANTI-REPETIÇÃO]: Você está repetindo a mesma resposta da mensagem anterior ('{$lastAssistantMsg}'). O usuário já indicou que isso não atende! Não repita essa frase. Investigue o banco de dados via 'executar_query_select' ou responda explicando claramente as distinções ou perguntando ao usuário o que ele deseja que você procure."
+                        ];
+                        continue;
+                    }
                 }
             }
 
