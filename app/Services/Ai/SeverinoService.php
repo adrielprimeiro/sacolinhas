@@ -534,28 +534,36 @@ class SeverinoService
             "tools" => $groqTools,
             "tool_choice" => "auto",
             "temperature" => 0.2,
-            "max_tokens" => 1200
+            "max_tokens" => 800
         ];
 
         $providersToTry = [];
 
-        // 1. Groq (Prioridade 1: Ultrarrápido ~300ms a 900ms via LPU)
+        // 1. Groq (Prioridade 1: Ultrarrápido ~250ms a 900ms via LPU)
         if (!empty($groqKey)) {
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B",
-                "default_score" => 18,
-                "timeout" => 10
+                "model" => "openai/gpt-oss-20b",
+                "name" => "Groq GPT OSS 20B",
+                "default_score" => 19,
+                "timeout" => 7
             ];
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
                 "model" => "qwen/qwen3.8-27b",
                 "name" => "Groq Qwen 27B",
-                "default_score" => 17,
-                "timeout" => 8
+                "default_score" => 18,
+                "timeout" => 7
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B",
+                "default_score" => 16,
+                "timeout" => 9
             ];
         }
 
@@ -668,8 +676,42 @@ class SeverinoService
                         return "Operei ferramentas demais. Parando loop.";
                     }
 
-                    $payload["model"] = $provider["model"];
+                    $payloadToSend = $payload;
+                    $payloadToSend["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
+
+                    // Se for Google Gemini e já temos resultados de ferramentas no histórico,
+                    // converte para texto padrão para evitar o erro 400 "thought_signature" do Gemini!
+                    if (str_contains($provider["url"], "generativelanguage.googleapis.com")) {
+                        $hasTool = false;
+                        foreach ($payloadToSend["messages"] as $m) {
+                            if (($m["role"] ?? "") === "tool" || !empty($m["tool_calls"])) {
+                                $hasTool = true;
+                                break;
+                            }
+                        }
+                        if ($hasTool) {
+                            $sanitizedGeminiMessages = [];
+                            foreach ($payloadToSend["messages"] as $m) {
+                                if (($m["role"] ?? "") === "tool") {
+                                    $sanitizedGeminiMessages[] = [
+                                        "role" => "user",
+                                        "content" => "[DADOS DA CONSULTA NO BANCO DE DADOS - FERRAMENTA '{$m['name']}']:\n{$m['content']}\n\nCom base nesses dados apurados, elabore e entregue a resposta final completa e formatada em Markdown para o usuário."
+                                    ];
+                                } elseif (!empty($m["tool_calls"])) {
+                                    $sanitizedGeminiMessages[] = [
+                                        "role" => "assistant",
+                                        "content" => "Vou consultar as ferramentas no sistema."
+                                    ];
+                                } else {
+                                    $sanitizedGeminiMessages[] = $m;
+                                }
+                            }
+                            $payloadToSend["messages"] = $sanitizedGeminiMessages;
+                            unset($payloadToSend["tools"]);
+                            unset($payloadToSend["tool_choice"]);
+                        }
+                    }
 
                     try {
                         $headers = [
@@ -681,7 +723,7 @@ class SeverinoService
 
                         $response = Http::withHeaders($headers)
                             ->timeout($provider['timeout'] ?? 10)
-                            ->post($provider["url"], $payload);
+                            ->post($provider["url"], $payloadToSend);
 
                         if ($response->successful()) {
                             $data = $response->json();
