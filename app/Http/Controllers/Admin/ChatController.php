@@ -56,7 +56,7 @@ class ChatController extends Controller
 			)
 			->orderBy('wm.created_at', 'desc');
 
-		// Se não for master, filtra apenas pelas conversas atribuídas a este operador/atendente
+		// Se não for master, filtra pelas conversas atribuídas
 		if (!$isMaster) {
 			$query->where('ca.assigned_admin_id', $authAdmin->id);
 		}
@@ -259,21 +259,7 @@ class ChatController extends Controller
 			}
 		}
 
-		// ✅ VERIFICAÇÃO PRÉVIA: Última mensagem inbound nas últimas 24h
-		$lastInbound = DB::table('whatsapp_messages')
-			->where('user_id', $userId)
-			->where('direction', 'inbound')
-			->where('created_at', '>=', now()->subHours(24))
-			->orderBy('created_at', 'desc')
-			->first();
 
-		if (!$lastInbound) {
-			return response()->json([
-				'success' => false,
-				'error_type' => 'outside_allowed_window',
-				'error' => 'Este cliente não iniciou conversa nas últimas 24h. Aguarde ele mandar uma mensagem ou use um Template aprovado.',
-			], 422);
-		}
 
 		$user = User::find($userId);
 		if (!$user || !$user->whatsapp) {
