@@ -114,11 +114,26 @@ function connectToUser(username) {
             const msgText = data.content || data.comment;
             const userText = data.user?.displayId || data.user?.nickname || data.uniqueId || data.nickname || 'Anônimo';
             if (!msgText) return;
+
+            let avatarUrl = '';
+            if (data.user?.avatarThumb?.urlList && data.user.avatarThumb.urlList.length > 0) {
+                avatarUrl = data.user.avatarThumb.urlList[0];
+            } else if (data.user?.avatarMedium?.urlList && data.user.avatarMedium.urlList.length > 0) {
+                avatarUrl = data.user.avatarMedium.urlList[0];
+            } else if (data.user?.avatarLarge?.urlList && data.user.avatarLarge.urlList.length > 0) {
+                avatarUrl = data.user.avatarLarge.urlList[0];
+            } else if (data.user?.profilePictureUrl) {
+                avatarUrl = data.user.profilePictureUrl;
+            } else if (data.profilePictureUrl) {
+                avatarUrl = data.profilePictureUrl;
+            }
+
             batchQueue.push({
                 live_id: 'auto',
                 username: userText,
                 message: msgText,
-                profile_picture: (data.user?.avatarThumb?.urlList && data.user.avatarThumb.urlList.length > 0) ? data.user.avatarThumb.urlList[0] : '',
+                profile_picture: avatarUrl,
+                avatar_url: avatarUrl,
                 platform: 'tiktok'
             });
             startFlushTimer();

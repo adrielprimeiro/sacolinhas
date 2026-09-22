@@ -243,20 +243,33 @@ class LiveChatController extends Controller
                     if ($platform === 'instagram' && Cache::get('instagram_capture_stopped', false)) continue;
                     if ($platform === 'instagram') Cache::put('insta_capture_active', true, 86400);
 
+                    $avatarUrl = $item['avatar_url']
+                        ?? $item['profile_picture']
+                        ?? $item['chatpic']
+                        ?? $item['chatimg']
+                        ?? $item['avatar']
+                        ?? $item['photo']
+                        ?? null;
+
                     $existing = LiveMessage::where('live_id', $liveId)
                         ->where('plataforma', $platform)
                         ->where('username', $cleanUsername)
                         ->where('message', $messageText)
                         ->where('created_at', '>=', now()->subSeconds(2))
                         ->first();
-                    if ($existing) continue;
+                    if ($existing) {
+                        if ($avatarUrl && empty($existing->avatar_url)) {
+                            $existing->update(['avatar_url' => $avatarUrl]);
+                        }
+                        continue;
+                    }
 
                     LiveMessage::create([
                         'live_id' => $liveId,
                         'plataforma' => $platform,
                         'username' => $cleanUsername,
                         'message' => $messageText,
-                        'avatar_url' => $item['avatar_url'] ?? $item['chatpic'] ?? $item['avatar'] ?? null,
+                        'avatar_url' => $avatarUrl,
                         'captured_at' => now()
                     ]);
                     $createdCount++;
@@ -296,19 +309,24 @@ class LiveChatController extends Controller
             ->orderByDesc('max_id')
             ->get();
 
-        // Buscar o avatar mais recente de cada username (subquery separada para evitar conflito com GROUP BY)
-        $avatarMap = LiveMessage::where('live_id', $liveId)
+        $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
+
+        // Buscar o avatar mais recente gravado no sistema para cada username
+        $avatarMap = !empty($allUsernames) ? LiveMessage::whereIn('username', $allUsernames)
             ->whereNotNull('avatar_url')
             ->where('avatar_url', '!=', '')
             ->select('username', DB::raw('MAX(id) as max_avatar_id'))
             ->groupBy('username')
             ->get()
-            ->mapWithKeys(function($row) use ($liveId) {
-                $msg = LiveMessage::where('live_id', $liveId)->where('username', $row->username)->whereNotNull('avatar_url')->where('avatar_url', '!=', '')->orderByDesc('id')->value('avatar_url');
+            ->mapWithKeys(function($row) {
+                $msg = LiveMessage::where('username', $row->username)
+                    ->whereNotNull('avatar_url')
+                    ->where('avatar_url', '!=', '')
+                    ->orderByDesc('id')
+                    ->value('avatar_url');
                 return [strtolower(trim($row->username)) => $msg];
-            });
+            }) : collect([]);
 
-        $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
         $matchedUsersCollection = !empty($allUsernames) ? User::whereIn('tiktok', $allUsernames)
             ->orWhereIn('instagram', $allUsernames)
             ->orWhereIn('apelido', $allUsernames)
@@ -319,7 +337,6 @@ class LiveChatController extends Controller
         $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection) {
             $cleanUser = trim($msg->username);
             $uLower = strtolower($cleanUser);
-            $avatar = $msg->avatar_url ?: ($avatarMap[$uLower] ?? null);
 
             $matchedUser = null;
             if ($msg->plataforma === 'tiktok') {
@@ -330,6 +347,11 @@ class LiveChatController extends Controller
                 $matchedUser = $matchedUsersCollection->firstWhere('instagram', $cleanUser)
                     ?? $matchedUsersCollection->firstWhere('apelido', $cleanUser)
                     ?? $matchedUsersCollection->firstWhere('name', $cleanUser);
+            }
+
+            $avatar = $msg->avatar_url ?: ($avatarMap[$uLower] ?? null);
+            if (!$avatar && $matchedUser && !empty($matchedUser->photo)) {
+                $avatar = asset('storage/' . $matchedUser->photo);
             }
 
             $msg->avatar_url = $avatar;
