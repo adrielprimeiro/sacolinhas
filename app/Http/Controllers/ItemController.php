@@ -440,23 +440,46 @@ class ItemController extends Controller
         $query = $rawQuery;
 
         // Limpar URLs caso venha uma URL completa do QR Code
-        if (filter_var($query, FILTER_VALIDATE_URL)) {
-            $path = parse_url($query, PHP_URL_PATH);
-            $parts = array_filter(explode('/', (string)$path));
-            if (!empty($parts)) {
-                $query = end($parts);
+        if (filter_var($query, FILTER_VALIDATE_URL) || str_contains($query, 'http://') || str_contains($query, 'https://') || str_contains($query, 'minhamania.net')) {
+            $parsedUrl = parse_url($query);
+            if (isset($parsedUrl['query'])) {
+                parse_str($parsedUrl['query'], $queryParams);
+                $p = $queryParams['codigo'] ?? $queryParams['c'] ?? $queryParams['code'] ?? $queryParams['item'] ?? $queryParams['id'] ?? null;
+                if ($p) {
+                    $query = $p;
+                }
+            }
+            if ($query === $rawQuery && isset($parsedUrl['path'])) {
+                $parts = array_filter(explode('/', (string)$parsedUrl['path']));
+                if (!empty($parts)) {
+                    $query = end($parts);
+                }
             }
         }
+
+        // Limpar prefixo de hash (#) ou espaços
+        $query = trim(preg_replace('/^[#\s]+/', '', $query));
         
         $itemBuilder = Item::query();
 
         if ($request->filled('live_id')) {
             $liveBrecho = DB::table('lives')->where('id', $request->live_id)->value('brecho_id');
             if ($liveBrecho) {
-                $itemBuilder->where('brecho_id', $liveBrecho);
+                $itemBuilder->where(function($b) use ($liveBrecho) {
+                    $b->where('brecho_id', $liveBrecho);
+                    if ($liveBrecho == 1) {
+                        $b->orWhereNull('brecho_id')->orWhere('brecho_id', 0);
+                    }
+                });
             }
         } elseif ($request->filled('brecho_id')) {
-            $itemBuilder->where('brecho_id', $request->brecho_id);
+            $brechoId = $request->brecho_id;
+            $itemBuilder->where(function($b) use ($brechoId) {
+                $b->where('brecho_id', $brechoId);
+                if ($brechoId == 1) {
+                    $b->orWhereNull('brecho_id')->orWhere('brecho_id', 0);
+                }
+            });
         } elseif (auth()->check() && auth()->user()->isBrechoParceiro()) {
             $itemBuilder->where('brecho_id', auth()->user()->brecho_id);
         }
@@ -470,14 +493,40 @@ class ItemController extends Controller
                 $itemBuilder->where('id', -1);
             }
         } else {
-            $itemBuilder->where(function($q) use ($query) {
-                $q->where('codigo', $query)
-                  ->orWhere('codigo', mb_strtoupper($query, 'UTF-8'))
-                  ->orWhere('codigo', mb_strtolower($query, 'UTF-8'))
-                  ->orWhere('codigo', 'like', "%{$query}%")
-                  ->orWhere('nome_do_produto', 'like', "%{$query}%")
-                  ->orWhere('descricao', 'like', "%{$query}%");
+            $cleanCode = $query;
+            $isNumeric = is_numeric($cleanCode);
+            $numericVal = $isNumeric ? (int)$cleanCode : -1;
+            $unpaddedNumeric = $isNumeric ? (string)(int)$cleanCode : '';
+
+            $itemBuilder->where(function($q) use ($cleanCode, $isNumeric, $numericVal, $unpaddedNumeric) {
+                $q->where('codigo', $cleanCode)
+                  ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                  ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'));
+
+                if ($isNumeric) {
+                    $q->orWhere('id', $numericVal);
+                    if (!empty($unpaddedNumeric) && $unpaddedNumeric !== $cleanCode) {
+                        $q->orWhere('codigo', $unpaddedNumeric);
+                    }
+                }
+
+                $q->orWhere('codigo', 'like', "%{$cleanCode}%")
+                  ->orWhere('nome_do_produto', 'like', "%{$cleanCode}%")
+                  ->orWhere('descricao', 'like', "%{$cleanCode}%");
             });
+
+            // Ordenação para colocar a correspondência exata de código ou ID no topo
+            $itemBuilder->orderByRaw("CASE 
+                WHEN codigo = ? THEN 1 
+                WHEN codigo = ? THEN 2 
+                WHEN id = ? THEN 3 
+                WHEN codigo LIKE ? THEN 4 
+                ELSE 5 END", [
+                $cleanCode,
+                mb_strtoupper($cleanCode, 'UTF-8'),
+                $numericVal,
+                "{$cleanCode}%"
+            ]);
         }
         
         // Permite buscar itens tanto em estoque quanto disponíveis
@@ -1170,7 +1219,23 @@ class ItemController extends Controller
 
 	public function buscarPorCodigo(Request $request)
 	{
-		$codigo = trim($request->get('codigo'));
+		$rawCodigo = trim($request->get('codigo'));
+		$codigo = $rawCodigo;
+
+		if (filter_var($codigo, FILTER_VALIDATE_URL) || str_contains($codigo, 'http://') || str_contains($codigo, 'https://') || str_contains($codigo, 'minhamania.net')) {
+			$parsedUrl = parse_url($codigo);
+			if (isset($parsedUrl['query'])) {
+				parse_str($parsedUrl['query'], $queryParams);
+				$p = $queryParams['codigo'] ?? $queryParams['c'] ?? $queryParams['code'] ?? $queryParams['item'] ?? $queryParams['id'] ?? null;
+				if ($p) $codigo = $p;
+			}
+			if ($codigo === $rawCodigo && isset($parsedUrl['path'])) {
+				$parts = array_filter(explode('/', (string)$parsedUrl['path']));
+				if (!empty($parts)) $codigo = end($parts);
+			}
+		}
+
+		$codigo = trim(preg_replace('/^[#\s]+/', '', $codigo));
 		
 		$itemBuilder = \App\Models\Item::with([
 			'medias' => function($q) {
@@ -1188,7 +1253,22 @@ class ItemController extends Controller
 				$item = null;
 			}
 		} else {
-			$item = $itemBuilder->where('codigo', $codigo)->first();
+			$isNumeric = is_numeric($codigo);
+			$numericVal = $isNumeric ? (int)$codigo : -1;
+			$unpadded = $isNumeric ? (string)(int)$codigo : '';
+
+			$item = $itemBuilder->where(function($q) use ($codigo, $isNumeric, $numericVal, $unpadded) {
+				$q->where('codigo', $codigo)
+				  ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+				  ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+				if ($isNumeric) {
+					$q->orWhere('id', $numericVal);
+					if (!empty($unpadded) && $unpadded !== $codigo) {
+						$q->orWhere('codigo', $unpadded);
+					}
+				}
+			})->orderByRaw("CASE WHEN codigo = ? THEN 1 WHEN id = ? THEN 2 ELSE 3 END", [$codigo, $numericVal])
+			  ->first();
 		}
 
 		if (!$item) {

@@ -16,6 +16,16 @@
         
         <!-- Seleção de Live e Ações -->
         <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('admin.live-chat.feed', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+                <i class="fas fa-comment-dots text-base text-purple-200"></i>
+                <span>Tela do Chat (Ao Vivo)</span>
+            </a>
+
+            <a href="{{ route('admin.live-chat.bipagem', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+                <i class="fas fa-qrcode text-base text-indigo-200"></i>
+                <span>Bipagem Contínua / QR Code</span>
+            </a>
+
             @if($activeLive && $activeLive->ativo)
                 <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
                     <i class="fas fa-stop-circle text-sm"></i>
@@ -1613,7 +1623,11 @@
                 return;
             }
 
+            const cleanCode = code.replace(/^[#\s]+/, '').trim();
             let matchedItem = data.data.find(item => 
+                (item.sku && item.sku.toLowerCase() === cleanCode.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === cleanCode.toLowerCase()) || 
+                String(item.id) === cleanCode ||
                 (item.sku && item.sku.toLowerCase() === code.toLowerCase()) || 
                 (item.codigo && item.codigo.toLowerCase() === code.toLowerCase()) || 
                 String(item.id) === code

@@ -35,6 +35,42 @@ class LiveChatController extends Controller
     }
 
     /**
+     * Exibe a tela exclusiva de Bipagem Contínua de QR Code com Pessoas Online
+     */
+    public function bipagem(Request $request)
+    {
+        $lives = Live::orderBy('id', 'desc')->limit(30)->get();
+        $activeLive = null;
+        
+        $liveId = $request->query('live_id');
+        if ($liveId) {
+            $activeLive = Live::find($liveId);
+        } else {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first();
+        }
+
+        return view('admin.lives.operator_bipagem', compact('lives', 'activeLive'));
+    }
+
+    /**
+     * Exibe a página exclusiva de visualização do Chat da Transmissão (Modo Leitura / Display)
+     */
+    public function feed(Request $request)
+    {
+        $lives = Live::orderBy('id', 'desc')->limit(30)->get();
+        $activeLive = null;
+        
+        $liveId = $request->query('live_id');
+        if ($liveId) {
+            $activeLive = Live::find($liveId);
+        } else {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first();
+        }
+
+        return view('admin.lives.chat_feed', compact('lives', 'activeLive'));
+    }
+
+    /**
      * Recebe mensagens do script do navegador
      */
     public function receiveMessage(Request $request)
@@ -220,6 +256,7 @@ class LiveChatController extends Controller
                         'plataforma' => $platform,
                         'username' => $cleanUsername,
                         'message' => $messageText,
+                        'avatar_url' => $item['avatar_url'] ?? $item['chatpic'] ?? $item['avatar'] ?? null,
                         'captured_at' => now()
                     ]);
                     $createdCount++;
@@ -240,21 +277,11 @@ class LiveChatController extends Controller
      */
     public function getChatData(Request $request, $liveId)
     {
-        // 1. Mensagens recentes (últimas 150)
-        $messages = LiveMessage::where('live_id', $liveId)
+        // 1. Mensagens recentes (últimas 200)
+        $rawMessages = LiveMessage::where('live_id', $liveId)
             ->orderBy('id', 'desc')
-            ->limit(150)
-            ->get()
-            ->reverse()
-            ->values();
-
-        $markedMessages = LiveMessage::where('live_id', $liveId)
-            ->where('is_marked', true)
-            ->orderBy('id', 'desc')
-            ->limit(50)
-            ->get()
-            ->reverse()
-            ->values();
+            ->limit(200)
+            ->get();
 
         $userCounts = LiveMessage::where('live_id', $liveId)
             ->select('username', DB::raw('COUNT(*) as total_msgs'), DB::raw('SUM(CASE WHEN is_marked = 1 THEN 1 ELSE 0 END) as marked_msgs'))
@@ -272,20 +299,48 @@ class LiveChatController extends Controller
         // Buscar o avatar mais recente de cada username (subquery separada para evitar conflito com GROUP BY)
         $avatarMap = LiveMessage::where('live_id', $liveId)
             ->whereNotNull('avatar_url')
+            ->where('avatar_url', '!=', '')
             ->select('username', DB::raw('MAX(id) as max_avatar_id'))
             ->groupBy('username')
             ->get()
             ->mapWithKeys(function($row) use ($liveId) {
-                $msg = LiveMessage::where('live_id', $liveId)->where('username', $row->username)->whereNotNull('avatar_url')->orderByDesc('id')->value('avatar_url');
-                return [$row->username => $msg];
+                $msg = LiveMessage::where('live_id', $liveId)->where('username', $row->username)->whereNotNull('avatar_url')->where('avatar_url', '!=', '')->orderByDesc('id')->value('avatar_url');
+                return [strtolower(trim($row->username)) => $msg];
             });
 
-        $allUsernames = $onlineRaw->pluck('username')->unique()->filter()->values()->toArray();
+        $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
         $matchedUsersCollection = !empty($allUsernames) ? User::whereIn('tiktok', $allUsernames)
             ->orWhereIn('instagram', $allUsernames)
             ->orWhereIn('apelido', $allUsernames)
             ->orWhereIn('name', $allUsernames)
             ->get() : collect([]);
+
+        // Enriquecer mensagens com avatar e cadastro
+        $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection) {
+            $cleanUser = trim($msg->username);
+            $uLower = strtolower($cleanUser);
+            $avatar = $msg->avatar_url ?: ($avatarMap[$uLower] ?? null);
+
+            $matchedUser = null;
+            if ($msg->plataforma === 'tiktok') {
+                $matchedUser = $matchedUsersCollection->firstWhere('tiktok', $cleanUser)
+                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUser)
+                    ?? $matchedUsersCollection->firstWhere('name', $cleanUser);
+            } else {
+                $matchedUser = $matchedUsersCollection->firstWhere('instagram', $cleanUser)
+                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUser)
+                    ?? $matchedUsersCollection->firstWhere('name', $cleanUser);
+            }
+
+            $msg->avatar_url = $avatar;
+            $msg->user_id = $matchedUser ? $matchedUser->id : null;
+            $msg->user_name = $matchedUser ? $matchedUser->name : null;
+            $msg->user_apelido = $matchedUser ? $matchedUser->apelido : null;
+            $msg->user_whatsapp = $matchedUser ? ($matchedUser->whatsapp ?: $matchedUser->phone) : null;
+            return $msg;
+        })->reverse()->values();
+
+        $markedMessages = $messages->filter(fn($m) => (bool)$m->is_marked)->values();
 
         $onlineUsers = [];
         foreach ($onlineRaw as $online) {
@@ -307,7 +362,7 @@ class LiveChatController extends Controller
                 'plataforma' => $online->plataforma,
                 'last_seen' => $online->last_seen ? date('H:i:s', strtotime($online->last_seen)) : '',
                 'max_id' => $online->max_id,
-                'avatar_url' => $avatarMap[$cleanUsername] ?? null,
+                'avatar_url' => $avatarMap[strtolower($cleanUsername)] ?? null,
                 'user_id' => $matchedUser ? $matchedUser->id : null,
                 'user_name' => $matchedUser ? $matchedUser->name : null,
                 'user_apelido' => $matchedUser ? $matchedUser->apelido : null,
@@ -382,6 +437,13 @@ class LiveChatController extends Controller
      */
     public function addToBag(Request $request)
     {
+        if (!$request->input('live_id') || $request->input('live_id') === 'null' || $request->input('live_id') === 'undefined') {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? Live::orderBy('id', 'desc')->first();
+            if ($activeLive) {
+                $request->merge(['live_id' => $activeLive->id]);
+            }
+        }
+
         $validated = $request->validate([
             'code_request_id' => 'nullable|exists:live_code_requests,id',
             'user_id' => 'required|exists:users,id',

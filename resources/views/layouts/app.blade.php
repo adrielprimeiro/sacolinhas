@@ -120,7 +120,16 @@
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
                         <a href="{{ route('bags.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('bags.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-broadcast-tower mr-1.5 text-indigo-400"></i> Live
+                            <i class="fas fa-broadcast-tower mr-1.5 text-indigo-400"></i> Lives
+                        </a>
+                        <a href="{{ route('admin.live-chat.feed') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.feed') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-comment-dots mr-1.5 text-pink-500"></i> Chat da Transmissão
+                        </a>
+                        <a href="{{ route('admin.live-chat.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-sliders-h mr-1.5 text-indigo-400"></i> Painel de Captura (Config)
+                        </a>
+                        <a href="{{ route('admin.live-chat.bipagem') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.bipagem') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-qrcode mr-1.5 text-emerald-500"></i> Bipagem Contínua / QR Code
                         </a>
                         <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live
