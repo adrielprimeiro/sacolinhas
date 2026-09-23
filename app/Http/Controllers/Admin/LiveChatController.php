@@ -114,7 +114,7 @@ class LiveChatController extends Controller
 
         $cleanUsername = trim($username);
         if (!$avatarUrl && !empty($cleanUsername)) {
-            $avatarUrl = self::resolveTikTokAvatar($cleanUsername);
+            $avatarUrl = Cache::get("tt_avatar_" . strtolower($cleanUsername));
         }
 
         $request->merge([
@@ -266,7 +266,7 @@ class LiveChatController extends Controller
                         ?? null;
 
                     if (!$avatarUrl && !empty($cleanUsername)) {
-                        $avatarUrl = self::resolveTikTokAvatar($cleanUsername);
+                        $avatarUrl = Cache::get("tt_avatar_" . strtolower($cleanUsername));
                     }
 
                     $existing = LiveMessage::where('live_id', $liveId)
@@ -380,22 +380,13 @@ class LiveChatController extends Controller
                 $avatar = asset('storage/' . $matchedUser->photo);
             }
             if (!$avatar && $matchedUser && !empty($matchedUser->tiktok)) {
-                $avatar = self::resolveTikTokAvatar($matchedUser->tiktok);
+                $avatar = Cache::get("tt_avatar_" . strtolower(trim($matchedUser->tiktok)));
             }
             if (!$avatar) {
-                $avatar = self::resolveTikTokAvatar($cleanUser);
+                $avatar = Cache::get("tt_avatar_" . $uLower);
             }
 
-            // Atualizar no banco de dados se resolvemos um avatar novo
-            if ($avatar && empty($msg->avatar_url)) {
-                $msg->avatar_url = $avatar;
-                try {
-                    LiveMessage::where('id', $msg->id)->update(['avatar_url' => $avatar]);
-                } catch (\Exception $e) {}
-            } else {
-                $msg->avatar_url = $avatar;
-            }
-
+            $msg->avatar_url = $avatar;
             $msg->user_id = $matchedUser ? $matchedUser->id : null;
             $msg->user_name = $matchedUser ? $matchedUser->name : null;
             $msg->user_apelido = $matchedUser ? $matchedUser->apelido : null;
@@ -432,10 +423,10 @@ class LiveChatController extends Controller
                 $userAvatar = asset('storage/' . $matchedUser->photo);
             }
             if (!$userAvatar && $matchedUser && !empty($matchedUser->tiktok)) {
-                $userAvatar = self::resolveTikTokAvatar($matchedUser->tiktok);
+                $userAvatar = Cache::get("tt_avatar_" . strtolower(trim($matchedUser->tiktok)));
             }
             if (!$userAvatar) {
-                $userAvatar = self::resolveTikTokAvatar($cleanUsername);
+                $userAvatar = Cache::get("tt_avatar_" . $uLower);
             }
 
             $onlineUsers[] = [
