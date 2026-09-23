@@ -267,15 +267,161 @@
     </div>
 </div>
 
+<!-- MODAL VINCULAR CLIENTE -->
+<div id="link-user-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" style="z-index: 99999;">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 mx-auto transform transition-all duration-300">
+        <div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
+            <h3 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-link text-indigo-600"></i>
+                <span>Vincular Usuário da Live</span>
+            </h3>
+            <button onclick="closeLinkModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1 leading-none">&times;</button>
+        </div>
+        
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+            Associe o usuário <strong id="modal-display-username" class="text-indigo-600 font-extrabold">@usuario</strong> (<span id="modal-display-platform" class="text-gray-800 font-bold uppercase"></span>) a um cliente cadastrado no sistema para salvar as peças na sacola dele.
+        </p>
+        
+        <input type="hidden" id="modal-input-username">
+        <input type="hidden" id="modal-input-platform">
+
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente por Nome, Apelido ou Celular:</label>
+            <input type="text" id="modal-search-input" onkeyup="searchClients(this.value)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
+        </div>
+
+        <div id="modal-search-results" class="max-h-48 overflow-y-auto space-y-2 border border-gray-100 rounded-xl p-2 bg-gray-50">
+            <!-- Resultados Ajax -->
+            <p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>
+        </div>
+        
+        <div class="mt-5 flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <button onclick="closeLinkModal()" class="px-4 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition cursor-pointer">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
+<div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
+    <!-- Cabeçalho Fullscreen Elegante -->
+    <div class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 shadow-2xl">
+        <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                <i class="fas fa-qrcode text-indigo-400 text-xl animate-pulse"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="text-base sm:text-lg font-black text-white tracking-tight">
+                        Bipagem de Produtos / QR Code
+                    </h3>
+                    <span class="bg-emerald-950 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider text-[10px]">Ao Vivo</span>
+                </div>
+                <p class="text-xs text-gray-300 mt-0.5 flex items-center gap-1.5">
+                    <span>Adicionando na sacola de:</span>
+                    <strong id="online-qr-client-name" class="text-indigo-300 font-black bg-gray-800 px-2 py-0.5 rounded-md border border-gray-700">@usuario</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <button type="button" onclick="closeOnlineQrModal()" class="bg-red-600 hover:bg-red-500 text-white font-black px-5 py-2 rounded-xl text-xs transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/20 active:scale-95 cursor-pointer">
+                <i class="fas fa-times text-sm"></i> Concluir e Voltar
+            </button>
+        </div>
+    </div>
+
+    <!-- Corpo / Área da Câmera em Tela Inteira -->
+    <div class="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 p-3 sm:p-6 overflow-hidden mx-auto w-full" style="max-width: 1600px;">
+        <!-- Container da Câmera -->
+        <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden relative border-2 border-indigo-500/60 shadow-2xl lg:min-h-0" style="min-height: 40vh;">
+            <div id="online-qr-reader" class="w-full h-full flex-1"></div>
+            
+            <div class="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10 px-4">
+                <div class="bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-full border border-gray-700 text-gray-200 text-xs font-bold flex items-center gap-2 shadow-xl text-center">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <i class="fas fa-camera text-indigo-400"></i>
+                    <span>Aponte a câmera para a etiqueta ou bipe com o leitor USB</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Lateral de Controles e Entrada Manual / Feedback -->
+        <div class="w-full flex flex-col gap-3.5 shrink-0 overflow-y-auto" style="width: 100%; max-width: 420px;">
+            <!-- Box de WhatsApp do Cliente -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm"></i>
+                        <span>WhatsApp da Cliente</span>
+                    </h4>
+                    <span id="online-qr-phone-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                        Carregando...
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="online-qr-phone-input" placeholder="DDD + Número (ex: 11999999999)" class="flex-1 px-3 py-2 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <button type="button" onclick="saveClientPhoneFromModal()" id="online-qr-phone-save-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1 shrink-0 cursor-pointer shadow active:scale-95">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+                <p id="online-qr-phone-help" class="text-[10.5px] text-gray-400 leading-tight">
+                    O WhatsApp é indispensável para o envio automático da sacola ao encerrar a live.
+                </p>
+            </div>
+
+            <!-- Box de Entrada Manual / Leitor USB -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2.5">
+                <h4 class="text-xs font-extrabold text-white flex items-center gap-2">
+                    <i class="fas fa-keyboard text-indigo-400 text-sm"></i>
+                    <span>Bipador USB / Entrada Manual de Código</span>
+                </h4>
+                <div class="flex gap-2">
+                    <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: 0001, 73254 ou SKU..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
+                        <i class="fas fa-plus"></i> Bipar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Feedback Visual em Tempo Real -->
+            <div id="online-qr-feedback" class="p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
+
+            <!-- Box de Mensagens / Pedidos da Cliente na Live -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2 min-h-[160px] max-h-[240px]">
+                <div class="flex items-center justify-between shrink-0">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fas fa-comment-dots text-indigo-400 text-sm"></i>
+                        <span>Comentários da Cliente</span>
+                    </h4>
+                    <button type="button" id="modal-client-filter-star-btn" onclick="toggleModalFilterMarkedOnly()" class="text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-star text-yellow-400 text-[9px]"></i> <span id="modal-client-marked-count">0</span> Marcadas
+                    </button>
+                </div>
+                <div id="online-qr-client-messages-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    <p class="text-[11px] text-gray-500 text-center py-4">Nenhum comentário desta cliente ainda.</p>
+                </div>
+                <div class="text-[10px] text-indigo-300 font-medium pt-1 border-t border-gray-800 shrink-0">
+                    <i class="fas fa-hand-pointer text-indigo-400"></i> Clique num código de peça para bipar instantaneamente
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
+<!-- Biblioteca HTML5-QRCode -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
 <script>
     // =========================================================================
     // PARÂMETROS GLOBAIS
     // =========================================================================
     const liveId = "{{ $activeLive ? $activeLive->id : '' }}";
     let allLiveMessages = [];
+    let rawOnlineUsers = [];
+    let onlineUsersMap = {};
     let currentFilter = 'all'; // 'all' | 'instagram' | 'tiktok' | 'marked' | 'registered'
     let currentSearchTerm = '';
     let currentFontSize = localStorage.getItem('live_chat_font_size') || 'md';
@@ -305,6 +451,43 @@
         return avatarGradientPalette[index];
     }
 
+    // =========================================================================
+    // SINTETIZADOR DE ÁUDIO (FEEDBACK SONORO INSTANTÂNEO VIA WEB AUDIO API)
+    // =========================================================================
+    function playSuccessBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            osc.frequency.setValueAtTime(1760, audioCtx.currentTime + 0.08); // A6
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } catch(e) {}
+    }
+
+    function playErrorBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch(e) {}
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         applyFontSize(currentFontSize);
         applyTheme(currentTheme);
@@ -326,8 +509,21 @@
             .then(data => {
                 if (data.success) {
                     allLiveMessages = data.messages || [];
+                    rawOnlineUsers = data.online_users || [];
+                    
+                    onlineUsersMap = {};
+                    rawOnlineUsers.forEach(u => {
+                        if (u.user_id) onlineUsersMap[u.user_id] = u;
+                        if (u.username) onlineUsersMap[u.username.toLowerCase()] = u;
+                    });
+
                     updateFilterCounts();
                     renderChatFeed();
+
+                    // Se o modal de bipe estiver aberto, atualizar mensagens da cliente
+                    if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
+                        renderModalClientMessages(currentOnlineQrUser.username);
+                    }
                 }
             })
             .catch(err => {
@@ -500,6 +696,7 @@
             const platformBadgeBg = isTikTok ? '#000000' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
 
             const cleanUser = msg.username || 'usuario';
+            const displayName = msg.user_name || msg.user_apelido || cleanUser;
             const initials = cleanUser.slice(0, 2).toUpperCase();
             const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const isMarked = !!msg.is_marked;
@@ -534,14 +731,24 @@
                 `;
             }
 
-            // Destacar códigos de produtos na mensagem (ex: #0ANL, 0ANL, 73672, etc.)
+            // Destacar códigos de produtos na mensagem e torná-los clicáveis para bipe rápido
             let formattedMessage = escapeHtml(msg.message);
             formattedMessage = formattedMessage.replace(/\b([a-zA-Z0-9]{3,6})\b/g, function(match, code) {
                 if (/\d/.test(code)) { // Se contém números (código de peça)
-                    return `<span class="chat-product-code"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</span>`;
+                    const cleanCode = code.replace(/^#/, '');
+                    if (msg.user_id) {
+                        return `<button type="button" onclick="event.stopPropagation(); quickBeepForUser('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}', '${cleanCode}')" title="Bipar código ${cleanCode} para @${escapeHtml(cleanUser)}" class="chat-product-code hover:opacity-90 active:scale-95 transition cursor-pointer"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</button>`;
+                    } else {
+                        return `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" title="Vincular @${escapeHtml(cleanUser)} para bipar ${cleanCode}" class="chat-product-code hover:opacity-90 active:scale-95 transition cursor-pointer"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</button>`;
+                    }
                 }
                 return code;
             });
+
+            // Botão Bipar para este cliente / Vincular
+            const biparBtn = msg.user_id 
+                ? `<button type="button" onclick="openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')" title="Bipar produtos para @${escapeHtml(cleanUser)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"><i class="fas fa-qrcode text-xs"></i> <span>Bipar</span></button>`
+                : `<button type="button" onclick="openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" title="Vincular @${escapeHtml(cleanUser)} a um cliente" class="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold px-2.5 py-1 rounded-xl shadow transition flex items-center gap-1 cursor-pointer active:scale-95 text-xs"><i class="fas fa-user-plus text-[11px]"></i> <span>Vincular</span></button>`;
 
             const userClass = isTikTok ? 'chat-user-tiktok' : 'chat-user-insta';
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
@@ -567,7 +774,8 @@
                                 ${whatsappBadge}
                             </div>
 
-                            <div class="flex items-center gap-2.5 flex-shrink-0">
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                ${biparBtn}
                                 <span class="chat-time-label" style="font-size: ${fontSizes.time};">${time}</span>
                                 <button type="button" onclick="toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer" style="background: none; border: none;">
                                     <i class="${starClass}"></i>
@@ -628,7 +836,7 @@
     // =========================================================================
     async function toggleMarkLiveMessageFeed(messageId) {
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const res = await fetch('/admin/live-chat/toggle-mark-message', {
                 method: 'POST',
                 headers: {
@@ -645,10 +853,488 @@
                 }
                 updateFilterCounts();
                 renderChatFeed();
+                if (currentOnlineQrUser) {
+                    renderModalClientMessages(currentOnlineQrUser.username);
+                }
             }
         } catch (e) {
             console.error("Erro ao marcar mensagem:", e);
         }
+    }
+
+    // =========================================================================
+    // MODAL DE BIPAGEM / QR CODE PARA CLIENTE
+    // =========================================================================
+    let onlineQrScannerInstance = null;
+    let currentOnlineQrUser = null;
+    let modalFilterMarkedOnly = false;
+    let isScanProcessing = false;
+    let lastScannedCode = "";
+    let lastScannedTime = 0;
+
+    function openOnlineQrModal(userId, username, clientName) {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            openLinkModal(username, 'instagram');
+            return;
+        }
+
+        currentOnlineQrUser = {
+            userId: userId,
+            username: username,
+            clientName: clientName || username
+        };
+
+        const clientNameEl = document.getElementById("online-qr-client-name");
+        if (clientNameEl) {
+            clientNameEl.textContent = `@${username} (${clientName || 'Cliente'})`;
+        }
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed";
+            feedback.textContent = "";
+        }
+
+        // Configura campo e badge de WhatsApp
+        const userObj = onlineUsersMap[userId] || {};
+        const clientPhone = userObj.user_whatsapp || '';
+        const phoneInput = document.getElementById("online-qr-phone-input");
+        if (phoneInput) {
+            phoneInput.value = clientPhone;
+        }
+        updatePhoneBadge(!!clientPhone, clientPhone);
+
+        // Renderiza comentários da cliente nesta live
+        modalFilterMarkedOnly = false;
+        const starBtn = document.getElementById("modal-client-filter-star-btn");
+        if (starBtn) {
+            starBtn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+        }
+        renderModalClientMessages(username);
+
+        document.getElementById("online-qr-modal").classList.remove("hidden");
+        if (manualInput) manualInput.focus();
+
+        // Inicializar câmera HTML5-QRCode
+        if (typeof Html5Qrcode === 'undefined') {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js";
+            script.onload = () => startOnlineQrCamera();
+            document.head.appendChild(script);
+        } else {
+            startOnlineQrCamera();
+        }
+    }
+
+    function quickBeepForUser(userId, username, clientName, code) {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            openLinkModal(username, 'instagram');
+            return;
+        }
+        openOnlineQrModal(userId, username, clientName);
+        if (code) {
+            const input = document.getElementById("online-qr-manual-input");
+            if (input) input.value = code;
+            handleOnlineQrScan(code);
+        }
+    }
+
+    function clickCodeFromComment(code) {
+        const input = document.getElementById("online-qr-manual-input");
+        if (input) {
+            input.value = code;
+            handleOnlineQrScan(code);
+        }
+    }
+
+    async function closeOnlineQrModal() {
+        if (onlineQrScannerInstance) {
+            try {
+                await onlineQrScannerInstance.stop();
+            } catch (e) {}
+        }
+        document.getElementById("online-qr-modal").classList.add("hidden");
+        fetchChatFeed();
+    }
+
+    async function startOnlineQrCamera() {
+        if (!onlineQrScannerInstance) {
+            let formats = [0, 9, 5]; // QR_CODE, EAN_13, CODE_128
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                formats = [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.CODE_128
+                ];
+            }
+            onlineQrScannerInstance = new Html5Qrcode("online-qr-reader", { formatsToSupport: formats });
+        }
+
+        try {
+            const config = {
+                fps: 15,
+                qrbox: function(width, height) {
+                    const minEdge = Math.min(width, height);
+                    const size = Math.min(Math.floor(minEdge * 0.8), 650);
+                    return { width: size, height: size };
+                },
+                disableFlip: true
+            };
+
+            await onlineQrScannerInstance.start(
+                { facingMode: "environment" },
+                config,
+                async (decodedText) => {
+                    console.log("QRCode lido:", decodedText);
+                    await handleOnlineQrScan(decodedText);
+                }
+            );
+        } catch (err) {
+            console.warn("Não foi possível iniciar a câmera ou permissão negada:", err);
+            const feedback = document.getElementById("online-qr-feedback");
+            if (feedback) {
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-xs sm:text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                feedback.innerHTML = `<i class="fas fa-exclamation-triangle text-amber-400 mr-1.5"></i> Câmera não acessível (${err.message || 'Sem permissão'}). Digite ou bipe o código com leitor USB no campo acima!`;
+            }
+        }
+    }
+
+    async function handleOnlineQrScan(decodedText) {
+        if (!decodedText || !decodedText.trim() || !currentOnlineQrUser) return;
+        
+        let code = decodedText.trim();
+
+        // Extrair código limpo se for URL
+        if (code.startsWith('http://') || code.startsWith('https://')) {
+            try {
+                const url = new URL(code);
+                const p = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item');
+                if (p) {
+                    code = p.trim();
+                } else {
+                    const segs = url.pathname.split('/').filter(Boolean);
+                    if (segs.length > 0) {
+                        code = segs[segs.length - 1].trim();
+                    }
+                }
+            } catch(e) {}
+        }
+
+        const now = Date.now();
+        if (isScanProcessing) {
+            console.warn("Scan bloqueado: outro bipe em processamento.");
+            return;
+        }
+        if (lastScannedCode === code && (now - lastScannedTime) < 2000) {
+            console.warn("Scan bloqueado: mesmo código bipado em menos de 2 segundos.");
+            return;
+        }
+
+        isScanProcessing = true;
+        lastScannedCode = code;
+        lastScannedTime = now;
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-blue-500/20 text-blue-200 border border-blue-500/40 block animate-pulse shadow-lg";
+            feedback.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-spinner fa-spin text-blue-400 text-xl"></i><div><b>Buscando produto...</b><br><span class="text-xs text-blue-300 font-normal">Etiqueta/SKU: ${escapeHtml(code)}</span></div></div>`;
+        }
+
+        try {
+            const response = await fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`);
+            const data = await response.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                playErrorBeep();
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg animate-shake";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-times-circle text-red-400 text-xl mt-0.5"></i><div><b>Produto não encontrado!</b><br><span class="text-xs text-red-300 font-normal">Nenhum produto cadastrado com o SKU ou código de barras <b>"${escapeHtml(code)}"</b>. Verifique o código e tente novamente.</span></div></div>`;
+                }
+                return;
+            }
+
+            const cleanCode = code.replace(/^[#\s]+/, '').trim();
+            let matchedItem = data.data.find(item => 
+                (item.sku && item.sku.toLowerCase() === cleanCode.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === cleanCode.toLowerCase()) || 
+                String(item.id) === cleanCode ||
+                (item.sku && item.sku.toLowerCase() === code.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === code.toLowerCase()) || 
+                String(item.id) === code
+            ) || data.data[0];
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const addResponse = await fetch('/admin/live-chat/add-to-bag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    code_request_id: null,
+                    user_id: currentOnlineQrUser.userId,
+                    item_id: matchedItem.id,
+                    live_id: liveId
+                })
+            });
+
+            const addData = await addResponse.json();
+
+            if (addData.success) {
+                playSuccessBeep();
+                showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal"><i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.</div></div></div>`;
+                }
+            } else {
+                playErrorBeep();
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Atenção:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola.')}</span></div></div>`;
+                }
+            }
+        } catch (err) {
+            playErrorBeep();
+            console.error("Erro na leitura/adição por QR Code:", err);
+            if (feedback) {
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg";
+                feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-circle text-red-400 text-xl mt-0.5"></i><div><b>Erro de comunicação:</b><br><span class="text-xs text-red-300 font-normal">Falha ao se comunicar com o servidor ao processar "${escapeHtml(code)}".</span></div></div>`;
+            }
+        } finally {
+            setTimeout(() => {
+                isScanProcessing = false;
+            }, 600);
+        }
+    }
+
+    function updatePhoneBadge(hasPhone, phoneText) {
+        const badge = document.getElementById("online-qr-phone-badge");
+        const help = document.getElementById("online-qr-phone-help");
+        if (!badge) return;
+
+        if (hasPhone && phoneText && phoneText.length >= 8) {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700";
+            badge.innerHTML = `<i class="fas fa-check-circle"></i> Cadastrado`;
+            if (help) {
+                help.className = "text-[10.5px] text-emerald-400/90 leading-tight";
+                help.textContent = "✅ WhatsApp verificado para envio automático ao encerrar a live.";
+            }
+        } else {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-300 border border-amber-700 animate-pulse";
+            badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Sem Telefone`;
+            if (help) {
+                help.className = "text-[10.5px] text-amber-300 font-bold leading-tight";
+                help.textContent = "⚠️ Digite o WhatsApp acima e clique em 'Salvar' para garantir o envio da sacola!";
+            }
+        }
+    }
+
+    async function saveClientPhoneFromModal() {
+        if (!currentOnlineQrUser || !currentOnlineQrUser.userId) return;
+        const input = document.getElementById("online-qr-phone-input");
+        const phone = input ? input.value.trim() : '';
+
+        if (!phone || phone.length < 8) {
+            alert("Por favor, digite um número de WhatsApp válido com DDD.");
+            return;
+        }
+
+        const btn = document.getElementById("online-qr-phone-save-btn");
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const res = await fetch('/admin/live-chat/update-user-phone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    user_id: currentOnlineQrUser.userId,
+                    phone: phone
+                })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+
+            if (data.success) {
+                showToast("WhatsApp salvo com sucesso!");
+                updatePhoneBadge(true, data.phone);
+                if (onlineUsersMap[currentOnlineQrUser.userId]) {
+                    onlineUsersMap[currentOnlineQrUser.userId].user_whatsapp = data.phone;
+                }
+            } else {
+                alert("Erro ao salvar WhatsApp: " + (data.message || 'Verifique o número'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+            console.error("Erro ao salvar telefone:", e);
+            alert("Erro de comunicação ao salvar o telefone.");
+        }
+    }
+
+    function toggleModalFilterMarkedOnly() {
+        modalFilterMarkedOnly = !modalFilterMarkedOnly;
+        const btn = document.getElementById("modal-client-filter-star-btn");
+        if (btn) {
+            if (modalFilterMarkedOnly) {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-yellow-500 text-gray-900 border border-yellow-400 transition flex items-center gap-1 cursor-pointer shadow-sm";
+            } else {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+            }
+        }
+        if (currentOnlineQrUser) {
+            renderModalClientMessages(currentOnlineQrUser.username);
+        }
+    }
+
+    function renderModalClientMessages(username) {
+        const container = document.getElementById("online-qr-client-messages-list");
+        if (!container) return;
+
+        const uLower = (username || '').toLowerCase().replace(/^@/, '');
+        let msgs = allLiveMessages.filter(m => m.username && m.username.toLowerCase() === uLower);
+
+        const markedCount = msgs.filter(m => m.is_marked).length;
+        const countEl = document.getElementById("modal-client-marked-count");
+        if (countEl) countEl.textContent = markedCount;
+
+        if (modalFilterMarkedOnly) {
+            msgs = msgs.filter(m => m.is_marked);
+        }
+
+        if (msgs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-gray-500">
+                    <i class="fas ${modalFilterMarkedOnly ? 'fa-star text-yellow-500/40' : 'fa-comment-slash'} text-xl mb-1"></i>
+                    <p class="text-[11px]">${modalFilterMarkedOnly ? 'Nenhuma mensagem marcada desta cliente.' : 'Nenhum comentário enviado por @' + escapeHtml(username) + ' nesta live.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        msgs.forEach(msg => {
+            const time = new Date(msg.created_at).toLocaleTimeString();
+            const isMarked = !!msg.is_marked;
+            const starClass = isMarked ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-600 hover:text-yellow-400';
+            const bgCard = isMarked ? 'bg-yellow-950/30 border border-yellow-500/40' : 'bg-gray-800/70 border border-gray-700/60';
+
+            // Detectar sequências numéricas (3 a 6 dígitos) como códigos de produtos clicáveis
+            let textWithCodes = escapeHtml(msg.message);
+            textWithCodes = textWithCodes.replace(/\b(\d{3,6})\b/g, function(match, code) {
+                return `<button type="button" onclick="event.stopPropagation(); clickCodeFromComment('${code}')" class="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-1.5 py-0.5 rounded text-[11px] transition shadow cursor-pointer mx-0.5 active:scale-95"><i class="fas fa-barcode text-[9px]"></i> ${code}</button>`;
+            });
+
+            html += `
+                <div class="${bgCard} p-2 rounded-xl text-xs transition flex flex-col gap-1">
+                    <div class="flex items-center justify-between text-[10px] text-gray-400">
+                        <span class="font-mono text-gray-400">${time}</span>
+                        <button type="button" onclick="toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-0.5 cursor-pointer">
+                            <i class="${starClass}"></i>
+                        </button>
+                    </div>
+                    <div class="text-gray-100 font-medium leading-relaxed">${textWithCodes}</div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // MODAL DE VINCULAR CLIENTE
+    // =========================================================================
+    function openLinkModal(username, platform) {
+        document.getElementById("modal-display-username").textContent = `@${username}`;
+        document.getElementById("modal-display-platform").textContent = (platform || 'instagram').toUpperCase();
+        document.getElementById("modal-input-username").value = username;
+        document.getElementById("modal-input-platform").value = platform || 'instagram';
+        document.getElementById("modal-search-input").value = "";
+        document.getElementById("modal-search-results").innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>`;
+        
+        document.getElementById("link-user-modal").classList.remove("hidden");
+        document.getElementById("modal-search-input").focus();
+    }
+
+    function closeLinkModal() {
+        document.getElementById("link-user-modal").classList.add("hidden");
+    }
+
+    function searchClients(query) {
+        const resultsContainer = document.getElementById("modal-search-results");
+        if (query.trim().length < 2) {
+            resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Digite pelo menos 2 caracteres.</p>`;
+            return;
+        }
+
+        fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(user => {
+                        html += `
+                            <div onclick="linkUserToProfile('${user.id}')" class="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition duration-150 cursor-pointer flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-800">${escapeHtml(user.name)}</h4>
+                                    <span class="text-[10px] text-gray-500">${user.whatsapp ? 'WhatsApp: ' + escapeHtml(user.whatsapp) : 'Sem número'}</span>
+                                    ${user.apelido ? `<span class="text-[10px] text-indigo-600 block">Apelido: ${escapeHtml(user.apelido)}</span>` : ''}
+                                </div>
+                                <i class="fas fa-plus text-indigo-500 text-xs"></i>
+                            </div>
+                        `;
+                    });
+                    resultsContainer.innerHTML = html;
+                } else {
+                    resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Nenhum cliente cadastrado encontrado.</p>`;
+                }
+            })
+            .catch(err => console.error("Erro na busca de usuários:", err));
+    }
+
+    function linkUserToProfile(userId) {
+        const username = document.getElementById("modal-input-username").value;
+        const platform = document.getElementById("modal-input-platform").value;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        fetch('/admin/live-chat/link-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                username: username,
+                platform: platform,
+                user_id: userId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast("Vinculação realizada com sucesso!");
+                closeLinkModal();
+                fetchChatFeed();
+                // Abre o leitor de QR Code para esse usuário que acabou de ser vinculado
+                openOnlineQrModal(userId, username, '');
+            } else {
+                alert("Erro ao vincular: " + data.message);
+            }
+        })
+        .catch(err => console.error("Erro ao vincular usuário:", err));
     }
 
     // =========================================================================
@@ -716,6 +1402,28 @@
     }
 
     // =========================================================================
+    // NOTIFICAÇÃO TOAST
+    // =========================================================================
+    function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "fixed bottom-5 right-5 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transition-all duration-300 translate-y-5 opacity-0 text-sm font-extrabold flex items-center gap-2 border border-emerald-400";
+        toast.style.zIndex = "999999";
+        toast.innerHTML = `<i class="fas fa-check-circle"></i> <span>${escapeHtml(message)}</span>`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.transform = "translateY(0)";
+            toast.style.opacity = "1";
+        }, 100);
+
+        setTimeout(() => {
+            toast.style.transform = "translateY(5px)";
+            toast.style.opacity = "0";
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    // =========================================================================
     // UTILITÁRIOS
     // =========================================================================
     function escapeHtml(text) {
@@ -727,7 +1435,7 @@
             '"': '&quot;',
             "'": '&#039;'
         };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 
     function safeAttr(str) {
