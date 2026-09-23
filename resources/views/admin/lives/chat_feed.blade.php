@@ -60,11 +60,13 @@
         background-color: var(--card-bg) !important;
         border: 1.5px solid var(--card-border) !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-        transition: transform 0.1s ease, background-color 0.15s ease;
+        transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease;
+        cursor: pointer;
     }
 
     .chat-card:hover {
         background-color: var(--card-bg-hover) !important;
+        border-color: #6366f1 !important;
     }
 
     .chat-card.marked {
@@ -747,14 +749,18 @@
 
             // Botão Bipar para este cliente / Vincular
             const biparBtn = msg.user_id 
-                ? `<button type="button" onclick="openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')" title="Bipar produtos para @${escapeHtml(cleanUser)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"><i class="fas fa-qrcode text-xs"></i> <span>Bipar</span></button>`
-                : `<button type="button" onclick="openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" title="Vincular @${escapeHtml(cleanUser)} a um cliente" class="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold px-2.5 py-1 rounded-xl shadow transition flex items-center gap-1 cursor-pointer active:scale-95 text-xs"><i class="fas fa-user-plus text-[11px]"></i> <span>Vincular</span></button>`;
+                ? `<button type="button" onclick="event.stopPropagation(); openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')" title="Bipar produtos para @${escapeHtml(cleanUser)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"><i class="fas fa-qrcode text-xs"></i> <span>Bipar</span></button>`
+                : `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" title="Vincular @${escapeHtml(cleanUser)} a um cliente" class="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold px-2.5 py-1 rounded-xl shadow transition flex items-center gap-1 cursor-pointer active:scale-95 text-xs"><i class="fas fa-user-plus text-[11px]"></i> <span>Vincular</span></button>`;
 
             const userClass = isTikTok ? 'chat-user-tiktok' : 'chat-user-insta';
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
 
+            const cardClickAction = msg.user_id
+                ? `onclick="openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')"`
+                : `onclick="openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')"`;
+
             html += `
-                <div class="chat-card ${isMarked ? 'marked' : ''} rounded-2xl flex items-start gap-3 sm:gap-4 relative group" style="padding: ${fontSizes.padding};">
+                <div ${cardClickAction} class="chat-card ${isMarked ? 'marked' : ''} rounded-2xl flex items-start gap-3 sm:gap-4 relative group cursor-pointer transition-all duration-100 hover:shadow-lg active:scale-[0.995]" style="padding: ${fontSizes.padding};" title="Clique para bipar para @${escapeHtml(cleanUser)}">
                     <!-- Avatar com Badge de Plataforma -->
                     <div class="relative flex-shrink-0">
                         ${avatarHtml}
@@ -777,7 +783,7 @@
                             <div class="flex items-center gap-2 flex-shrink-0">
                                 ${biparBtn}
                                 <span class="chat-time-label" style="font-size: ${fontSizes.time};">${time}</span>
-                                <button type="button" onclick="toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer" style="background: none; border: none;">
+                                <button type="button" onclick="event.stopPropagation(); toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer" style="background: none; border: none;">
                                     <i class="${starClass}"></i>
                                 </button>
                             </div>
