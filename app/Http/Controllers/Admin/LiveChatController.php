@@ -101,14 +101,25 @@ class LiveChatController extends Controller
             Cache::put('insta_capture_active', true, 86400);
         }
 
-        // Mapeamento nativo para payloads do Social Stream Ninja (author / chatname / chatmessage)
+        // Mapeamento nativo para payloads do Social Stream Ninja e extensões
         $username = $request->input('username') ?? $request->input('author') ?? $request->input('chatname') ?? '';
         $message = $request->input('message') ?? $request->input('chatmessage') ?? $request->input('text') ?? '';
-        $avatarUrl = $request->input('avatar_url') ?? $request->input('chatpic') ?? null;
+        $avatarUrl = $request->input('avatar_url') 
+            ?? $request->input('profile_picture') 
+            ?? $request->input('chatpic') 
+            ?? $request->input('chatimg') 
+            ?? $request->input('avatar') 
+            ?? $request->input('photo') 
+            ?? null;
+
+        $cleanUsername = trim($username);
+        if (!$avatarUrl && !empty($cleanUsername)) {
+            $avatarUrl = self::resolveTikTokAvatar($cleanUsername);
+        }
 
         $request->merge([
             'platform' => $plat,
-            'username' => $username,
+            'username' => $cleanUsername,
             'message' => $message,
             'avatar_url' => $avatarUrl
         ]);
@@ -138,6 +149,9 @@ class LiveChatController extends Controller
                     ->where('created_at', '>=', now()->subSeconds(2))
                     ->first();
                 if ($existing) {
+                    if ($avatarUrl && empty($existing->avatar_url)) {
+                        $existing->update(['avatar_url' => $avatarUrl]);
+                    }
                     return response()->json(['success' => true, 'duplicate' => true, 'data' => $existing]);
                 }
 
@@ -251,6 +265,10 @@ class LiveChatController extends Controller
                         ?? $item['photo']
                         ?? null;
 
+                    if (!$avatarUrl && !empty($cleanUsername)) {
+                        $avatarUrl = self::resolveTikTokAvatar($cleanUsername);
+                    }
+
                     $existing = LiveMessage::where('live_id', $liveId)
                         ->where('plataforma', $platform)
                         ->where('username', $cleanUsername)
@@ -327,11 +345,13 @@ class LiveChatController extends Controller
                 return [strtolower(trim($row->username)) => $msg];
             }) : collect([]);
 
-        $matchedUsersCollection = !empty($allUsernames) ? User::whereIn('tiktok', $allUsernames)
-            ->orWhereIn('instagram', $allUsernames)
-            ->orWhereIn('apelido', $allUsernames)
-            ->orWhereIn('name', $allUsernames)
-            ->get() : collect([]);
+        $matchedUsersCollection = !empty($allUsernames) ? User::where(function($q) use ($allUsernames) {
+            $q->whereIn('tiktok', $allUsernames)
+              ->orWhereIn('instagram', $allUsernames)
+              ->orWhereIn('apelido', $allUsernames)
+              ->orWhereIn('nome_cliente', $allUsernames)
+              ->orWhereIn('name', $allUsernames);
+        })->get() : collect([]);
 
         // Enriquecer mensagens com avatar e cadastro
         $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection) {
@@ -340,27 +360,42 @@ class LiveChatController extends Controller
 
             $matchedUser = null;
             if ($msg->plataforma === 'tiktok') {
-                $matchedUser = $matchedUsersCollection->firstWhere('tiktok', $cleanUser)
-                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUser)
-                    ?? $matchedUsersCollection->firstWhere('name', $cleanUser);
+                $matchedUser = $matchedUsersCollection->first(fn($u) => 
+                    strtolower($u->tiktok ?? '') === $uLower ||
+                    strtolower($u->apelido ?? '') === $uLower ||
+                    strtolower($u->nome_cliente ?? '') === $uLower ||
+                    strtolower($u->name ?? '') === $uLower
+                );
             } else {
-                $matchedUser = $matchedUsersCollection->firstWhere('instagram', $cleanUser)
-                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUser)
-                    ?? $matchedUsersCollection->firstWhere('name', $cleanUser);
+                $matchedUser = $matchedUsersCollection->first(fn($u) => 
+                    strtolower($u->instagram ?? '') === $uLower ||
+                    strtolower($u->apelido ?? '') === $uLower ||
+                    strtolower($u->nome_cliente ?? '') === $uLower ||
+                    strtolower($u->name ?? '') === $uLower
+                );
             }
 
             $avatar = $msg->avatar_url ?: ($avatarMap[$uLower] ?? null);
             if (!$avatar && $matchedUser && !empty($matchedUser->photo)) {
                 $avatar = asset('storage/' . $matchedUser->photo);
             }
-            if (!$avatar && $msg->plataforma === 'tiktok') {
-                $avatar = self::resolveTikTokAvatar($cleanUser);
-            }
             if (!$avatar && $matchedUser && !empty($matchedUser->tiktok)) {
                 $avatar = self::resolveTikTokAvatar($matchedUser->tiktok);
             }
+            if (!$avatar) {
+                $avatar = self::resolveTikTokAvatar($cleanUser);
+            }
 
-            $msg->avatar_url = $avatar;
+            // Atualizar no banco de dados se resolvemos um avatar novo
+            if ($avatar && empty($msg->avatar_url)) {
+                $msg->avatar_url = $avatar;
+                try {
+                    LiveMessage::where('id', $msg->id)->update(['avatar_url' => $avatar]);
+                } catch (\Exception $e) {}
+            } else {
+                $msg->avatar_url = $avatar;
+            }
+
             $msg->user_id = $matchedUser ? $matchedUser->id : null;
             $msg->user_name = $matchedUser ? $matchedUser->name : null;
             $msg->user_apelido = $matchedUser ? $matchedUser->apelido : null;
@@ -373,27 +408,34 @@ class LiveChatController extends Controller
         $onlineUsers = [];
         foreach ($onlineRaw as $online) {
             $cleanUsername = trim($online->username);
+            $uLower = strtolower($cleanUsername);
             $matchedUser = null;
 
             if ($online->plataforma === 'tiktok') {
-                $matchedUser = $matchedUsersCollection->firstWhere('tiktok', $cleanUsername)
-                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUsername)
-                    ?? $matchedUsersCollection->firstWhere('name', $cleanUsername);
+                $matchedUser = $matchedUsersCollection->first(fn($u) => 
+                    strtolower($u->tiktok ?? '') === $uLower ||
+                    strtolower($u->apelido ?? '') === $uLower ||
+                    strtolower($u->nome_cliente ?? '') === $uLower ||
+                    strtolower($u->name ?? '') === $uLower
+                );
             } else {
-                $matchedUser = $matchedUsersCollection->firstWhere('instagram', $cleanUsername)
-                    ?? $matchedUsersCollection->firstWhere('apelido', $cleanUsername)
-                    ?? $matchedUsersCollection->firstWhere('name', $cleanUsername);
+                $matchedUser = $matchedUsersCollection->first(fn($u) => 
+                    strtolower($u->instagram ?? '') === $uLower ||
+                    strtolower($u->apelido ?? '') === $uLower ||
+                    strtolower($u->nome_cliente ?? '') === $uLower ||
+                    strtolower($u->name ?? '') === $uLower
+                );
             }
 
-            $userAvatar = $avatarMap[strtolower($cleanUsername)] ?? null;
+            $userAvatar = $avatarMap[$uLower] ?? null;
             if (!$userAvatar && $matchedUser && !empty($matchedUser->photo)) {
                 $userAvatar = asset('storage/' . $matchedUser->photo);
             }
-            if (!$userAvatar && $online->plataforma === 'tiktok') {
-                $userAvatar = self::resolveTikTokAvatar($cleanUsername);
-            }
             if (!$userAvatar && $matchedUser && !empty($matchedUser->tiktok)) {
                 $userAvatar = self::resolveTikTokAvatar($matchedUser->tiktok);
+            }
+            if (!$userAvatar) {
+                $userAvatar = self::resolveTikTokAvatar($cleanUsername);
             }
 
             $onlineUsers[] = [
@@ -776,6 +818,7 @@ class LiveChatController extends Controller
                 }
 
                 if ($avatar) {
+                    $avatar = html_entity_decode((string)$avatar, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                     LiveMessage::where('username', $username)
                         ->where(function($q) {
                             $q->whereNull('avatar_url')->orWhere('avatar_url', '');

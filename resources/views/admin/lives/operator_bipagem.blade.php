@@ -496,9 +496,12 @@
 
             const isCurrentActive = activeClient && activeClient.userId && activeClient.userId == u.user_id;
 
+            const cleanOnlineUser = u.username || 'usuario';
+            const illustratedOnlineAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(cleanOnlineUser)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+
             const avatarHtml = u.avatar_url
-                ? `<img src="${escapeHtml(u.avatar_url)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-10 h-10 rounded-xl object-cover border border-gray-200 shadow-sm" /><div class="w-10 h-10 rounded-xl bg-indigo-100 items-center justify-center font-black text-xs text-indigo-700 hidden">${initials}</div>`
-                : `<div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center font-black text-xs text-indigo-700">${initials}</div>`;
+                ? `<img src="${safeAttr(u.avatar_url)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${illustratedOnlineAvatar}';" class="w-10 h-10 rounded-xl object-cover border border-gray-200 shadow-sm" />`
+                : `<img src="${illustratedOnlineAvatar}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-10 h-10 rounded-xl object-cover border border-gray-200 shadow-sm" /><div class="w-10 h-10 rounded-xl bg-indigo-100 items-center justify-center font-black text-xs text-indigo-700 hidden">${initials}</div>`;
 
             let displayName = escapeHtml(u.user_name || '');
             if (u.user_apelido) {
@@ -596,15 +599,16 @@
         // Avatar
         const avatarImg = document.getElementById("selected-client-avatar-img");
         const avatarPlaceholder = document.getElementById("selected-client-avatar-placeholder");
-        if (activeClient.avatarUrl) {
-            avatarImg.src = activeClient.avatarUrl;
-            avatarImg.classList.remove("hidden");
-            avatarPlaceholder.classList.add("hidden");
-        } else {
-            avatarImg.classList.add("hidden");
-            avatarPlaceholder.classList.remove("hidden");
-            avatarPlaceholder.textContent = activeClient.username.slice(0, 2).toUpperCase();
-        }
+        const illSelectedAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(activeClient.username || 'usuario')}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+        
+        avatarImg.setAttribute('referrerpolicy', 'no-referrer');
+        avatarImg.onerror = function() {
+            this.onerror = null;
+            this.src = illSelectedAvatar;
+        };
+        avatarImg.src = activeClient.avatarUrl || illSelectedAvatar;
+        avatarImg.classList.remove("hidden");
+        avatarPlaceholder.classList.add("hidden");
 
         // Ícone da plataforma
         const platformBadge = document.getElementById("selected-client-platform-badge");
@@ -1293,6 +1297,11 @@
             "'": '&#039;'
         };
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function safeAttr(str) {
+        if (!str) return '';
+        return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function showToast(message) {

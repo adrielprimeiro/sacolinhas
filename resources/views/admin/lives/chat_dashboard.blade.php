@@ -856,10 +856,11 @@
             const isTikTok = msg.plataforma === 'tiktok';
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500"></i>' : '<i class="fab fa-instagram text-purple-500"></i>';
             const time = new Date(msg.created_at).toLocaleTimeString();
-            const initials = msg.username.slice(0, 2).toUpperCase();
+            const cleanUser = msg.username || 'usuario';
+            const illustratedAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(cleanUser)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
             const avatarHtml = msg.avatar_url
-                ? `<img src="${escapeHtml(msg.avatar_url)}" onerror="this.onerror=null;this.src=''" class="w-6 h-6 rounded-full object-cover shrink-0" />`
-                : `<div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-[9px] text-indigo-300 shrink-0">${initials}</div>`;
+                ? `<img src="${safeAttr(msg.avatar_url)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${illustratedAvatar}';" class="w-6 h-6 rounded-full object-cover shrink-0" />`
+                : `<img src="${illustratedAvatar}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-6 h-6 rounded-full object-cover shrink-0" /><div class="w-6 h-6 rounded-full bg-indigo-900 items-center justify-center font-bold text-[9px] text-indigo-300 shrink-0 hidden">${initials}</div>`;
             
             const isMarked = !!msg.is_marked;
             const starClass = isMarked ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-600 hover:text-yellow-400';
@@ -917,11 +918,13 @@
             const isTikTok = u.plataforma === 'tiktok';
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500 text-xs"></i>' : '<i class="fab fa-instagram text-purple-500 text-xs"></i>';
             const initials = u.username.slice(0,2).toUpperCase();
+            const cleanOnlineUser = u.username || 'usuario';
+            const illustratedOnlineAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(cleanOnlineUser)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
-            // Avatar: foto de perfil se disponível, fallback para iniciais
+            // Avatar: foto de perfil se disponível, fallback para persona ilustrada e iniciais
             const avatarHtml = u.avatar_url
-                ? `<img src="${escapeHtml(u.avatar_url)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" /><div class="w-9 h-9 rounded-full bg-indigo-100 items-center justify-center font-bold text-xs text-indigo-700 hidden">${initials}</div>`
-                : `<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">${initials}</div>`;
+                ? `<img src="${safeAttr(u.avatar_url)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${illustratedOnlineAvatar}';" class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />`
+                : `<img src="${illustratedOnlineAvatar}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" /><div class="w-9 h-9 rounded-full bg-indigo-100 items-center justify-center font-bold text-xs text-indigo-700 hidden">${initials}</div>`;
             
             let displayName = escapeHtml(u.user_name || '');
             if (u.user_apelido) {
@@ -2140,6 +2143,23 @@
             input.focus();
             searchAvulsoClients(targetName);
         }
+    }
+
+    function safeAttr(str) {
+        if (!str) return '';
+        return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 </script>
 @endpush

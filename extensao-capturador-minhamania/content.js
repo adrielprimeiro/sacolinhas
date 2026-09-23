@@ -721,7 +721,10 @@
             console.log(`[Capturador] Tentando processar - Usuário: "${user}", Texto: "${text}"`);
 
             if (user && text) {
-                const avatarImg = rowElement.querySelector('img[src]');
+                // Tentar capturar o avatar (imagem de perfil) do nó de chat ou nós adjacentes
+                const avatarImg = rowElement.querySelector('img[src]')
+                    || rowElement.parentElement?.querySelector('img[src]')
+                    || rowElement.closest('[role="row"], [role="listitem"], li, div[class*="Comment"], div[class*="comment"], div[class*="Row"], div[class*="row"]')?.querySelector('img[src]');
                 const avatarUrl = avatarImg ? avatarImg.src : null;
                 sendChatMessage(user, text, avatarUrl);
             } else {
@@ -889,7 +892,6 @@
                 }
             });
         } catch (e) {}
-    }
     }
 
     function autoDetectContainer() {
