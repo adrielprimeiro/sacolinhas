@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 
 class LiveChatController extends Controller
 {
@@ -71,7 +73,7 @@ class LiveChatController extends Controller
     }
 
     /**
-     * Recebe mensagens do script do navegador
+     * Recebe mensagens do script do navegador ou extensão
      */
     public function receiveMessage(Request $request)
     {
@@ -113,9 +115,9 @@ class LiveChatController extends Controller
             ?? null;
 
         $cleanUsername = trim($username);
-        if (!$avatarUrl && !empty($cleanUsername)) {
-            $avatarUrl = Cache::get("tt_avatar_" . strtolower($cleanUsername));
-        }
+
+        // Persistir avatar permanentemente no disco e recuperar se já existir
+        $avatarUrl = $this->persistUserAvatar($cleanUsername, $plat, $avatarUrl);
 
         $request->merge([
             'platform' => $plat,
@@ -165,50 +167,21 @@ class LiveChatController extends Controller
                     'captured_at' => (isset($validated['timestamp']) && $validated['timestamp']) ? date('Y-m-d H:i:s', strtotime($validated['timestamp'])) : now()
                 ]);
 
-                // 2. Tentar encontrar usuário correspondente no banco
-                $user = null;
-                if ($platform === 'tiktok') {
-                    $user = User::where('tiktok', $cleanUsername)->first()
-                        ?? User::where('apelido', $cleanUsername)->first()
-                        ?? User::where('name', $cleanUsername)->first();
-                } else {
-                    $user = User::where('instagram', $cleanUsername)->first()
-                        ?? User::where('apelido', $cleanUsername)->first()
-                        ?? User::where('name', $cleanUsername)->first();
-                }
-
-                // 3. Escanear a mensagem buscando códigos de produtos (Desativado temporariamente conforme solicitação)
-                $matchedCodes = [];
-                /*
-                preg_match_all('/#?([a-zA-Z0-9-]+)/', $messageText, $matches);
-                if (!empty($matches[1])) {
-                    $candidates = array_unique($matches[1]);
-                    foreach ($candidates as $candidate) {
-                        // Verifica se existe um item com esse código
-                        $item = Item::where('codigo', $candidate)->first();
-                        if ($item) {
-                            // Registra o pedido de código
-                            LiveCodeRequest::create([
-                                'live_id' => $liveId,
-                                'live_message_id' => $liveMessage->id,
-                                'username' => $cleanUsername,
-                                'user_id' => $user ? $user->id : null,
-                                'item_id' => $item->id,
-                                'codigo' => $item->codigo,
-                                'message_text' => $messageText,
-                                'status' => 'pending'
-                            ]);
-                            $matchedCodes[] = $item->codigo;
-                        }
+                // 2. Tentar encontrar usuário correspondente no banco e atualizar photo se necessário
+                $user = $this->findUserByUsername($cleanUsername, $platform);
+                if ($user && empty($user->photo) && !empty($avatarUrl)) {
+                    $uLower = strtolower($cleanUsername);
+                    $filename = "avatars/{$uLower}.jpg";
+                    if (Storage::disk('public')->exists($filename)) {
+                        $user->update(['photo' => $filename]);
                     }
                 }
-                */
 
                 return response()->json([
                     'success' => true,
                     'message_id' => $liveMessage->id,
                     'matched_user' => $user ? $user->name : null,
-                    'matched_codes' => $matchedCodes
+                    'matched_codes' => []
                 ])
                 ->header('Access-Control-Allow-Origin', '*')
                 ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -257,7 +230,7 @@ class LiveChatController extends Controller
                     if ($platform === 'instagram' && Cache::get('instagram_capture_stopped', false)) continue;
                     if ($platform === 'instagram') Cache::put('insta_capture_active', true, 86400);
 
-                    $avatarUrl = $item['avatar_url']
+                    $rawAvatar = $item['avatar_url']
                         ?? $item['profile_picture']
                         ?? $item['chatpic']
                         ?? $item['chatimg']
@@ -265,9 +238,7 @@ class LiveChatController extends Controller
                         ?? $item['photo']
                         ?? null;
 
-                    if (!$avatarUrl && !empty($cleanUsername)) {
-                        $avatarUrl = Cache::get("tt_avatar_" . strtolower($cleanUsername));
-                    }
+                    $avatarUrl = $this->persistUserAvatar($cleanUsername, $platform, $rawAvatar);
 
                     $existing = LiveMessage::where('live_id', $liveId)
                         ->where('plataforma', $platform)
@@ -329,22 +300,6 @@ class LiveChatController extends Controller
 
         $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
 
-        // Buscar o avatar mais recente gravado no sistema para cada username
-        $avatarMap = !empty($allUsernames) ? LiveMessage::whereIn('username', $allUsernames)
-            ->whereNotNull('avatar_url')
-            ->where('avatar_url', '!=', '')
-            ->select('username', DB::raw('MAX(id) as max_avatar_id'))
-            ->groupBy('username')
-            ->get()
-            ->mapWithKeys(function($row) {
-                $msg = LiveMessage::where('username', $row->username)
-                    ->whereNotNull('avatar_url')
-                    ->where('avatar_url', '!=', '')
-                    ->orderByDesc('id')
-                    ->value('avatar_url');
-                return [strtolower(trim($row->username)) => $msg];
-            }) : collect([]);
-
         $matchedUsersCollection = !empty($allUsernames) ? User::where(function($q) use ($allUsernames) {
             $q->whereIn('tiktok', $allUsernames)
               ->orWhereIn('instagram', $allUsernames)
@@ -352,6 +307,66 @@ class LiveChatController extends Controller
               ->orWhereIn('nome_cliente', $allUsernames)
               ->orWhereIn('name', $allUsernames);
         })->get() : collect([]);
+
+        // Construir mapa de avatares com resolução inteligente e suporte a storage local permanente
+        $avatarMap = [];
+        foreach ($allUsernames as $u) {
+            $uClean = trim($u);
+            $uLower = strtolower($uClean);
+            
+            // 1. Verifica se usuário cadastrado possui photo
+            $uMatched = $matchedUsersCollection->first(fn($usr) => 
+                strtolower($usr->instagram ?? '') === $uLower ||
+                strtolower($usr->tiktok ?? '') === $uLower ||
+                strtolower($usr->apelido ?? '') === $uLower ||
+                strtolower($usr->nome_cliente ?? '') === $uLower ||
+                strtolower($usr->name ?? '') === $uLower
+            );
+
+            if ($uMatched && !empty($uMatched->photo)) {
+                if (str_starts_with($uMatched->photo, 'http') || str_starts_with($uMatched->photo, '/storage/')) {
+                    $avatarMap[$uLower] = $uMatched->photo;
+                    continue;
+                }
+                $avatarMap[$uLower] = asset('storage/' . $uMatched->photo);
+                continue;
+            }
+
+            // 2. Verifica se existe arquivo salvo no storage local
+            $filename = "avatars/{$uLower}.jpg";
+            if (Storage::disk('public')->exists($filename)) {
+                $avatarMap[$uLower] = asset('storage/' . $filename);
+                if ($uMatched && empty($uMatched->photo)) {
+                    $uMatched->update(['photo' => $filename]);
+                }
+                continue;
+            }
+
+            // 3. Cache de avatar
+            $cached = Cache::get("avatar_{$uLower}");
+            if ($cached) {
+                $avatarMap[$uLower] = $cached;
+                continue;
+            }
+
+            // 4. Fallback TikTok scraping cache
+            $ttCached = Cache::get("tt_avatar_{$uLower}");
+            if ($ttCached) {
+                $avatarMap[$uLower] = $ttCached;
+                continue;
+            }
+
+            // 5. Última URL salva em live_messages
+            $lastMsgAvatar = LiveMessage::where('username', $uClean)
+                ->whereNotNull('avatar_url')
+                ->where('avatar_url', '!=', '')
+                ->orderByDesc('id')
+                ->value('avatar_url');
+
+            if ($lastMsgAvatar) {
+                $avatarMap[$uLower] = $lastMsgAvatar;
+            }
+        }
 
         // Enriquecer mensagens com avatar e cadastro
         $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection) {
@@ -375,15 +390,11 @@ class LiveChatController extends Controller
                 );
             }
 
-            $avatar = $msg->avatar_url ?: ($avatarMap[$uLower] ?? null);
+            $avatar = $avatarMap[$uLower] ?? $msg->avatar_url ?? null;
             if (!$avatar && $matchedUser && !empty($matchedUser->photo)) {
-                $avatar = asset('storage/' . $matchedUser->photo);
-            }
-            if (!$avatar && $matchedUser && !empty($matchedUser->tiktok)) {
-                $avatar = Cache::get("tt_avatar_" . strtolower(trim($matchedUser->tiktok)));
-            }
-            if (!$avatar) {
-                $avatar = Cache::get("tt_avatar_" . $uLower);
+                $avatar = str_starts_with($matchedUser->photo, 'http') || str_starts_with($matchedUser->photo, '/storage/') 
+                    ? $matchedUser->photo 
+                    : asset('storage/' . $matchedUser->photo);
             }
 
             $msg->avatar_url = $avatar;
@@ -420,13 +431,9 @@ class LiveChatController extends Controller
 
             $userAvatar = $avatarMap[$uLower] ?? null;
             if (!$userAvatar && $matchedUser && !empty($matchedUser->photo)) {
-                $userAvatar = asset('storage/' . $matchedUser->photo);
-            }
-            if (!$userAvatar && $matchedUser && !empty($matchedUser->tiktok)) {
-                $userAvatar = Cache::get("tt_avatar_" . strtolower(trim($matchedUser->tiktok)));
-            }
-            if (!$userAvatar) {
-                $userAvatar = Cache::get("tt_avatar_" . $uLower);
+                $userAvatar = str_starts_with($matchedUser->photo, 'http') || str_starts_with($matchedUser->photo, '/storage/') 
+                    ? $matchedUser->photo 
+                    : asset('storage/' . $matchedUser->photo);
             }
 
             $onlineUsers[] = [
@@ -486,7 +493,7 @@ class LiveChatController extends Controller
         // Se a captura do TikTok estiver ativa mas o serviço desconectou, envia um ping de reconexão em background
         if ($tiktokActive && rand(1, 4) === 1) {
             try {
-                \Illuminate\Support\Facades\Http::timeout(1)->post('http://127.0.0.1:3001/connect', [
+                Http::timeout(1)->post('http://127.0.0.1:3001/connect', [
                     'username' => '_minhamania'
                 ]);
             } catch (\Exception $e) {}
@@ -502,6 +509,121 @@ class LiveChatController extends Controller
             'online_users' => $onlineUsers,
             'code_requests' => $groupedRequests
         ]);
+    }
+
+    /**
+     * Salva ou recupera o avatar permanentemente no disco local e vincula ao cliente
+     */
+    public function persistUserAvatar($username, $platform = 'instagram', $avatarUrl = null, $userId = null)
+    {
+        $cleanUsername = trim($username);
+        if (empty($cleanUsername)) return null;
+
+        $uLower = strtolower($cleanUsername);
+        $filename = "avatars/{$uLower}.jpg";
+
+        // 1. Se já recebemos um avatarUrl novo e válido nesta requisição
+        if (!empty($avatarUrl)) {
+            // Se for Base64 (data:image)
+            if (str_starts_with($avatarUrl, 'data:image')) {
+                try {
+                    $data = substr($avatarUrl, strpos($avatarUrl, ',') + 1);
+                    $decoded = base64_decode($data);
+                    if ($decoded !== false && strlen($decoded) > 100) {
+                        Storage::disk('public')->put($filename, $decoded);
+                        $localUrl = asset('storage/' . $filename);
+                        Cache::forever("avatar_{$uLower}", $localUrl);
+                        $this->linkAvatarToUserRecord($cleanUsername, $platform, $filename, $userId);
+                        return $localUrl;
+                    }
+                } catch (\Exception $e) {}
+            }
+
+            // Se for URL remota (Instagram CDN, TikTok CDN, etc.)
+            if (str_starts_with($avatarUrl, 'http://') || str_starts_with($avatarUrl, 'https://')) {
+                // Se não for já a nossa própria URL local
+                if (!str_contains($avatarUrl, '/storage/avatars/')) {
+                    try {
+                        $res = Http::timeout(3)
+                            ->withHeaders([
+                                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Referer' => 'https://www.instagram.com/'
+                            ])
+                            ->get($avatarUrl);
+
+                        if ($res->successful() && strlen($res->body()) > 200) {
+                            Storage::disk('public')->put($filename, $res->body());
+                            $localUrl = asset('storage/' . $filename);
+                            Cache::forever("avatar_{$uLower}", $localUrl);
+                            $this->linkAvatarToUserRecord($cleanUsername, $platform, $filename, $userId);
+                            return $localUrl;
+                        }
+                    } catch (\Exception $e) {}
+                } else {
+                    return $avatarUrl;
+                }
+            }
+        }
+
+        // 2. Se não veio avatar na mensagem, buscar nas fontes permanentes:
+        // A) Se o arquivo local já existe no disco
+        if (Storage::disk('public')->exists($filename)) {
+            $localUrl = asset('storage/' . $filename);
+            Cache::forever("avatar_{$uLower}", $localUrl);
+            $this->linkAvatarToUserRecord($cleanUsername, $platform, $filename, $userId);
+            return $localUrl;
+        }
+
+        // B) Se o usuário associado tem foto no cadastro
+        $user = $userId ? User::find($userId) : $this->findUserByUsername($cleanUsername, $platform);
+        if ($user && !empty($user->photo)) {
+            if (str_starts_with($user->photo, 'http') || str_starts_with($user->photo, '/storage/')) {
+                return $user->photo;
+            }
+            return asset('storage/' . $user->photo);
+        }
+
+        // C) Cache
+        $cached = Cache::get("avatar_{$uLower}");
+        if ($cached) return $cached;
+
+        // D) Fallback TikTok scraping cache
+        if ($platform === 'tiktok') {
+            $ttCached = Cache::get("tt_avatar_{$uLower}");
+            if ($ttCached) return $ttCached;
+        }
+
+        return null;
+    }
+
+    protected function linkAvatarToUserRecord($username, $platform, $photoPath, $userId = null)
+    {
+        try {
+            $user = $userId ? User::find($userId) : $this->findUserByUsername($username, $platform);
+            if ($user && (empty($user->photo) || str_contains($user->photo, 'placeholder'))) {
+                $user->update(['photo' => $photoPath]);
+            }
+        } catch (\Exception $e) {}
+    }
+
+    protected function findUserByUsername($username, $platform = 'instagram')
+    {
+        $clean = trim($username);
+        $uLower = strtolower($clean);
+
+        if ($platform === 'tiktok') {
+            return User::whereRaw('LOWER(tiktok) = ?', [$uLower])
+                ->orWhereRaw('LOWER(apelido) = ?', [$uLower])
+                ->orWhereRaw('LOWER(nome_cliente) = ?', [$uLower])
+                ->orWhereRaw('LOWER(name) = ?', [$uLower])
+                ->first();
+        }
+
+        return User::whereRaw('LOWER(instagram) = ?', [$uLower])
+            ->orWhereRaw('LOWER(apelido) = ?', [$uLower])
+            ->orWhereRaw('LOWER(nome_cliente) = ?', [$uLower])
+            ->orWhereRaw('LOWER(name) = ?', [$uLower])
+            ->first();
     }
 
     /**
@@ -526,7 +648,7 @@ class LiveChatController extends Controller
         try {
             $msg = DB::transaction(function () use ($validated) {
                 $item = Item::withoutGlobalScopes()->lockForUpdate()->findOrFail($validated['item_id']);
-                $live = \App\Models\Live::findOrFail($validated['live_id']);
+                $live = Live::findOrFail($validated['live_id']);
 
                 $liveBrechoId = $live->brecho_id ?: 1;
                 $itemBrechoId = $item->brecho_id ?: 1;
@@ -630,6 +752,7 @@ class LiveChatController extends Controller
             DB::transaction(function () use ($validated) {
                 $user = User::findOrFail($validated['user_id']);
                 $username = trim($validated['username']);
+                $uLower = strtolower($username);
 
                 // 1. Atualizar o cadastro do usuário
                 if ($validated['platform'] === 'tiktok') {
@@ -638,7 +761,25 @@ class LiveChatController extends Controller
                     $user->update(['instagram' => $username]);
                 }
 
-                // 2. Associar retroativamente todas as requisições de código desse username
+                // 2. Se o usuário ainda não tiver foto, tentar associar o avatar salvo deste username
+                if (empty($user->photo) || str_contains($user->photo, 'placeholder')) {
+                    $filename = "avatars/{$uLower}.jpg";
+                    if (Storage::disk('public')->exists($filename)) {
+                        $user->update(['photo' => $filename]);
+                        Cache::forever("avatar_{$uLower}", asset('storage/' . $filename));
+                    } else {
+                        $lastMsgAvatar = LiveMessage::where('username', $username)
+                            ->whereNotNull('avatar_url')
+                            ->where('avatar_url', '!=', '')
+                            ->orderByDesc('id')
+                            ->value('avatar_url');
+                        if ($lastMsgAvatar) {
+                            $this->persistUserAvatar($username, $validated['platform'], $lastMsgAvatar, $user->id);
+                        }
+                    }
+                }
+
+                // 3. Associar retroativamente todas as requisições de código desse username
                 LiveCodeRequest::where('username', $username)
                     ->whereNull('user_id')
                     ->whereHas('liveMessage', function ($q) use ($validated) {
@@ -686,13 +827,13 @@ class LiveChatController extends Controller
             Cache::put('tiktok_capture_stopped', true, 86400);
             Cache::put('tiktok_capture_active', false);
             try {
-                \Illuminate\Support\Facades\Http::timeout(3)->post('http://127.0.0.1:3001/disconnect');
+                Http::timeout(3)->post('http://127.0.0.1:3001/disconnect');
             } catch (\Exception $e) {}
         } else {
             Cache::forget('tiktok_capture_stopped');
             Cache::put('tiktok_capture_active', true, 86400);
             try {
-                \Illuminate\Support\Facades\Http::timeout(5)->post('http://127.0.0.1:3001/connect', [
+                Http::timeout(5)->post('http://127.0.0.1:3001/connect', [
                     'username' => $username
                 ]);
             } catch (\Exception $e) {}
@@ -704,41 +845,19 @@ class LiveChatController extends Controller
         ]);
     }
 
-    public function getActiveTiktokLives(Request $request)
-    {
-        $isStopped = Cache::get('tiktok_capture_stopped', false);
-        $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first();
-        
-        if (!$isStopped && $activeLive) {
-            return response()->json([
-                'success' => true,
-                'active_live' => [
-                    'username' => '_minhamania',
-                    'live_id' => $activeLive->id
-                ]
-            ]);
-        }
-        
-        return response()->json([
-            'success' => true,
-            'active_live' => null
-        ]);
-    }
-
     public function toggleMarkMessage(Request $request)
     {
-        $messageId = $request->input('message_id');
-        $message = LiveMessage::find($messageId);
-        if (!$message) {
-            return response()->json(['success' => false, 'message' => 'Mensagem não encontrada.'], 404);
-        }
+        $validated = $request->validate([
+            'message_id' => 'required|exists:live_messages,id'
+        ]);
 
+        $message = LiveMessage::findOrFail($validated['message_id']);
         $message->is_marked = !$message->is_marked;
         $message->save();
 
         return response()->json([
             'success' => true,
-            'is_marked' => (bool)$message->is_marked,
+            'is_marked' => $message->is_marked,
             'message_id' => $message->id
         ]);
     }
