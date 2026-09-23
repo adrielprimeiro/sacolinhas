@@ -787,9 +787,10 @@
             if (row.dataset.captured === "true") return;
             const userAttr = row.getAttribute("data-chatname") || row.querySelector("[data-chatname]")?.getAttribute("data-chatname");
             const msgAttr = row.getAttribute("data-chatmessage") || row.querySelector("[data-chatmessage]")?.getAttribute("data-chatmessage");
+            const avatarAttr = row.getAttribute("data-chatimg") || row.querySelector("img")?.src || null;
             if (userAttr && msgAttr && isValidUsername(userAttr)) {
                 row.dataset.captured = "true";
-                sendChatMessage(userAttr, msgAttr);
+                sendChatMessage(userAttr, msgAttr, avatarAttr);
                 return;
             }
         });
@@ -802,6 +803,7 @@
             if (parsed && parsed.chatname && parsed.chatmessage) {
                 const user = parsed.chatname;
                 const text = parsed.chatmessage;
+                const avatar = parsed.avatar || row.querySelector("img")?.src || null;
 
                 // Ignorar mensagens de sistema / eventos do Instagram Live
                 const lowerText = text.toLowerCase();
@@ -812,7 +814,7 @@
 
                 if (isValidUsername(user)) {
                     row.dataset.captured = "true";
-                    sendChatMessage(user, text);
+                    sendChatMessage(user, text, avatar);
                 }
             }
         });
@@ -843,7 +845,7 @@
                             const lowerMsg = message.toLowerCase();
                             if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
                                 row.dataset.captured = "true";
-                                sendChatMessage(username.replace(/^@/, ''), message);
+                                sendChatMessage(username.replace(/^@/, ''), message, img ? img.src : null);
                                 break;
                             }
                         }
@@ -889,7 +891,8 @@
                         const lowerMsg = message.toLowerCase();
                         if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
                             commentContainer.dataset.captured = "true";
-                            sendChatMessage(username.replace(/^@/, ''), message);
+                            const avatarImg = commentContainer.querySelector('img[src]');
+                            sendChatMessage(username.replace(/^@/, ''), message, avatarImg ? avatarImg.src : null);
                         }
                     }
                 }

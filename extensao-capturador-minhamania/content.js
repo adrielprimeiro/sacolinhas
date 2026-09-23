@@ -721,7 +721,9 @@
             console.log(`[Capturador] Tentando processar - Usuário: "${user}", Texto: "${text}"`);
 
             if (user && text) {
-                sendChatMessage(user, text);
+                const avatarImg = rowElement.querySelector('img[src]');
+                const avatarUrl = avatarImg ? avatarImg.src : null;
+                sendChatMessage(user, text, avatarUrl);
             } else {
                 console.warn("[Capturador] Não foi possível extrair usuário e texto válidos do elemento:", rowElement);
             }
@@ -731,7 +733,7 @@
     }
 
     // Enviar mensagem para o Laravel
-    async function sendChatMessage(username, message) {
+    async function sendChatMessage(username, message, avatarUrl) {
         const msgKey = `${username}:${message}`;
         if (sentMessages.has(msgKey)) return; // Evitar duplicatas
         sentMessages.add(msgKey);
@@ -750,7 +752,8 @@
                     live_id: liveId,
                     platform: platform,
                     username: username,
-                    message: message
+                    message: message,
+                    avatar_url: avatarUrl || null
                 })
             });
             const data = await res.json();
@@ -775,9 +778,10 @@
             if (row.dataset.captured === "true") return;
             const userAttr = row.getAttribute("data-chatname") || row.querySelector("[data-chatname]")?.getAttribute("data-chatname");
             const msgAttr = row.getAttribute("data-chatmessage") || row.querySelector("[data-chatmessage]")?.getAttribute("data-chatmessage");
+            const avatarAttr = row.getAttribute("data-chatimg") || row.querySelector("img")?.src || null;
             if (userAttr && msgAttr && isValidUsername(userAttr)) {
                 row.dataset.captured = "true";
-                sendChatMessage(userAttr, msgAttr);
+                sendChatMessage(userAttr, msgAttr, avatarAttr);
                 return;
             }
         });
@@ -790,6 +794,7 @@
             if (parsed && parsed.chatname && parsed.chatmessage) {
                 const user = parsed.chatname;
                 const text = parsed.chatmessage;
+                const avatar = parsed.avatar || row.querySelector("img")?.src || null;
 
                 // Ignorar mensagens de sistema / eventos do Instagram Live
                 const lowerText = text.toLowerCase();
@@ -800,7 +805,7 @@
 
                 if (isValidUsername(user)) {
                     row.dataset.captured = "true";
-                    sendChatMessage(user, text);
+                    sendChatMessage(user, text, avatar);
                 }
             }
         });
@@ -831,7 +836,7 @@
                             const lowerMsg = message.toLowerCase();
                             if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
                                 row.dataset.captured = "true";
-                                sendChatMessage(username.replace(/^@/, ''), message);
+                                sendChatMessage(username.replace(/^@/, ''), message, img ? img.src : null);
                                 break;
                             }
                         }
@@ -877,12 +882,14 @@
                         const lowerMsg = message.toLowerCase();
                         if (lowerMsg !== 'entrou' && lowerMsg !== 'joined' && !lowerMsg.includes('acenou') && !lowerMsg.includes('participar')) {
                             commentContainer.dataset.captured = "true";
-                            sendChatMessage(username.replace(/^@/, ''), message);
+                            const avatarImg = commentContainer.querySelector('img[src]');
+                            sendChatMessage(username.replace(/^@/, ''), message, avatarImg ? avatarImg.src : null);
                         }
                     }
                 }
             });
         } catch (e) {}
+    }
     }
 
     function autoDetectContainer() {
