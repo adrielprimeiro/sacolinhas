@@ -353,6 +353,9 @@ class LiveChatController extends Controller
             if (!$avatar && $matchedUser && !empty($matchedUser->photo)) {
                 $avatar = asset('storage/' . $matchedUser->photo);
             }
+            if (!$avatar && $msg->plataforma === 'tiktok') {
+                $avatar = self::resolveTikTokAvatar($cleanUser);
+            }
 
             $msg->avatar_url = $avatar;
             $msg->user_id = $matchedUser ? $matchedUser->id : null;
@@ -712,5 +715,63 @@ class LiveChatController extends Controller
             'phone' => $cleanPhone,
             'message' => 'WhatsApp atualizado com sucesso!'
         ]);
+    }
+
+    /**
+     * Resolve o avatar do TikTok em tempo real via scraper mobile
+     */
+    public static function resolveTikTokAvatar($username)
+    {
+        $cleanUser = ltrim(trim($username), '@');
+        if (empty($cleanUser)) return null;
+
+        $cacheKey = "tt_avatar_" . strtolower($cleanUser);
+        return Cache::remember($cacheKey, 86400 * 7, function () use ($cleanUser, $username) {
+            // 1. Verificar se já temos em alguma mensagem anterior
+            $existing = LiveMessage::where('username', $username)
+                ->whereNotNull('avatar_url')
+                ->where('avatar_url', '!=', '')
+                ->orderByDesc('id')
+                ->value('avatar_url');
+            if ($existing) return $existing;
+
+            // 2. Tentar scraper mobile do TikTok
+            try {
+                $url = "https://www.tiktok.com/@" . $cleanUser;
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Upgrade-Insecure-Requests: 1'
+                ]);
+                $html = curl_exec($ch);
+                curl_close($ch);
+
+                $avatar = null;
+                if (preg_match('/"avatarLarger"\s*:\s*"([^"]+)"/', $html, $m)) {
+                    $avatar = json_decode('"' . $m[1] . '"');
+                } elseif (preg_match('/"avatarMedium"\s*:\s*"([^"]+)"/', $html, $m)) {
+                    $avatar = json_decode('"' . $m[1] . '"');
+                } elseif (preg_match('/"avatarThumb"\s*:\s*"([^"]+)"/', $html, $m)) {
+                    $avatar = json_decode('"' . $m[1] . '"');
+                } elseif (preg_match('/<meta\s+property="og:image"\s+content="([^"]+)"/', $html, $m)) {
+                    $avatar = $m[1];
+                }
+
+                if ($avatar) {
+                    LiveMessage::where('username', $username)
+                        ->where(function($q) {
+                            $q->whereNull('avatar_url')->orWhere('avatar_url', '');
+                        })
+                        ->update(['avatar_url' => $avatar]);
+                    return $avatar;
+                }
+            } catch (\Exception $e) {}
+
+            return null;
+        });
     }
 }
