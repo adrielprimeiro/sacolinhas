@@ -186,7 +186,7 @@
             </button>
 
             <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
-            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-gray-800 hover:bg-gray-700 text-emerald-400 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
                 <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
                 <span id="autoscroll-text">Rolagem: Ativa</span>
             </button>
@@ -196,12 +196,6 @@
                 <i class="fas fa-expand"></i>
                 <span class="hidden sm:inline">Tela Cheia</span>
             </button>
-
-            <!-- Botão Bipagem Contínua -->
-            <a href="{{ route('admin.live-chat.bipagem', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95">
-                <i class="fas fa-qrcode text-sm"></i>
-                <span>Bipagem / QR Code</span>
-            </a>
 
             <!-- Seletor de Live -->
             <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
@@ -469,8 +463,8 @@
 
         if (autoScrollEnabled) {
             if (btnTop) {
-                btnTop.className = "bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
-                if (iconTop) iconTop.className = "fas fa-arrow-down text-xs text-emerald-400";
+                btnTop.className = "bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 border border-emerald-400";
+                if (iconTop) iconTop.className = "fas fa-arrow-down text-xs";
                 if (textTop) textTop.textContent = "Rolagem: Ativa";
             }
             if (btnFilter) {
@@ -480,8 +474,8 @@
             }
         } else {
             if (btnTop) {
-                btnTop.className = "bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
-                if (iconTop) iconTop.className = "fas fa-pause text-xs text-amber-400";
+                btnTop.className = "bg-amber-500 hover:bg-amber-600 text-gray-950 p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 border border-amber-300 animate-pulse";
+                if (iconTop) iconTop.className = "fas fa-pause text-xs";
                 if (textTop) textTop.textContent = "Rolagem: Pausada";
             }
             if (btnFilter) {
