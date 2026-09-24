@@ -142,8 +142,8 @@
 </style>
 
 <div class="container mx-auto px-2 sm:px-4 py-2 live-feed-page-wrapper">
-    <!-- Top Bar com Controles de Leitura e Filtros -->
-    <div class="mb-2.5 bg-gray-900 text-white p-3 sm:p-3.5 rounded-2xl shadow-lg border border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
+    <!-- Top Bar com Controles de Leitura e Filtros (Card 1) -->
+    <div id="feed-top-header" class="mb-2.5 bg-gray-900 text-white p-3 sm:p-3.5 rounded-2xl shadow-lg border border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
         <!-- Título & Live Ativa -->
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
@@ -197,6 +197,12 @@
                 <span class="hidden sm:inline">Tela Cheia</span>
             </button>
 
+            <!-- Botão Ocultar 2 Primeiros Cards -->
+            <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
+                <i class="fas fa-chevron-up text-indigo-400"></i>
+                <span class="hidden sm:inline">Ocultar Cards</span>
+            </button>
+
             <!-- Seletor de Live -->
             <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
                 <form action="{{ route('admin.live-chat.feed') }}" method="GET" class="flex gap-2 m-0">
@@ -213,8 +219,8 @@
         </div>
     </div>
 
-    <!-- Barra de Filtros e Busca Rápida -->
-    <div class="mb-2.5 bg-white p-2.5 px-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+    <!-- Barra de Filtros e Busca Rápida (Card 2) -->
+    <div id="feed-filter-bar" class="mb-2.5 bg-white p-2.5 px-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <!-- Filtros Rápidos -->
         <div class="flex flex-wrap items-center gap-1.5">
             <button type="button" onclick="setFeedFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow transition cursor-pointer">
@@ -249,6 +255,14 @@
 
     <!-- FEED PRINCIPAL DO CHAT (LEITURA ULTRA FÁCIL & AVATAR EM DESTAQUE) -->
     <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700" style="min-height: 0;">
+        <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
+        <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
+            <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
+                <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
+                <span>Mostrar Cards / Filtros</span>
+            </button>
+        </div>
+
         <!-- Container com Scroll -->
         <div id="feed-messages-container" class="flex-1 p-3 sm:p-5 overflow-y-auto space-y-3 font-sans" onscroll="handleContainerScroll()">
             @if(!$activeLive)
@@ -495,6 +509,44 @@
         }
     }
 
+    // =========================================================================
+    // OCULTAR / EXIBIR CARDS DO TOPO
+    // =========================================================================
+    let topCardsHidden = localStorage.getItem('live_chat_top_cards_hidden') === 'true';
+
+    function updateTopCardsUI() {
+        const headerEl  = document.getElementById('feed-top-header');
+        const filterEl  = document.getElementById('feed-filter-bar');
+        const floatBtn  = document.getElementById('floating-show-top-cards-btn');
+        const toggleBtn = document.getElementById('btn-toggle-top-cards');
+
+        if (topCardsHidden) {
+            if (headerEl)  headerEl.classList.add('hidden');
+            if (filterEl)  filterEl.classList.add('hidden');
+            if (floatBtn)  floatBtn.classList.remove('hidden');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').className = 'fas fa-chevron-down text-indigo-400';
+                const span = toggleBtn.querySelector('span');
+                if (span) span.textContent = 'Mostrar Cards';
+            }
+        } else {
+            if (headerEl)  headerEl.classList.remove('hidden');
+            if (filterEl)  filterEl.classList.remove('hidden');
+            if (floatBtn)  floatBtn.classList.add('hidden');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').className = 'fas fa-chevron-up text-indigo-400';
+                const span = toggleBtn.querySelector('span');
+                if (span) span.textContent = 'Ocultar Cards';
+            }
+        }
+    }
+
+    function toggleTopCards() {
+        topCardsHidden = !topCardsHidden;
+        localStorage.setItem('live_chat_top_cards_hidden', topCardsHidden ? 'true' : 'false');
+        updateTopCardsUI();
+    }
+
     // Paleta de cores vibrantes para avatares sem foto
     const avatarGradientPalette = [
         'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', // Indigo / Purple
@@ -557,6 +609,7 @@
         applyFontSize(currentFontSize);
         applyTheme(currentTheme);
         updateAutoScrollUI();
+        updateTopCardsUI();
 
         if (liveId) {
             fetchChatFeed();
