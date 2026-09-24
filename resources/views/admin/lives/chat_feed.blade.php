@@ -185,6 +185,12 @@
                 <span id="theme-text" class="hidden sm:inline">Modo Escuro</span>
             </button>
 
+            <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
+            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-gray-800 hover:bg-gray-700 text-emerald-400 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+                <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
+                <span id="autoscroll-text">Rolagem: Ativa</span>
+            </button>
+
             <!-- Botão Tela Cheia -->
             <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
                 <i class="fas fa-expand"></i>
@@ -435,13 +441,39 @@
     let currentFontSize = localStorage.getItem('live_chat_font_size') || 'md';
     let currentTheme = localStorage.getItem('live_chat_theme') || 'dark';
     let autoCloseAfterScan = localStorage.getItem('live_chat_auto_close_scan') !== 'false'; // Padrão: true (fechar após bipar ativado)
-    let autoScrollEnabled = true;
+    let autoScrollEnabled = localStorage.getItem('live_chat_autoscroll_enabled') !== 'false'; // Padrão: true (rolagem automática ativada)
     let lastRenderedHash = "";
     let pollingInterval = null;
 
     function toggleAutoClosePreference(checked) {
         autoCloseAfterScan = checked;
         localStorage.setItem('live_chat_auto_close_scan', checked ? 'true' : 'false');
+    }
+
+    function updateAutoScrollUI() {
+        const btn = document.getElementById("btn-autoscroll-toggle");
+        const icon = document.getElementById("autoscroll-icon");
+        const text = document.getElementById("autoscroll-text");
+        if (!btn) return;
+
+        if (autoScrollEnabled) {
+            btn.className = "bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+            if (icon) icon.className = "fas fa-arrow-down text-xs text-emerald-400";
+            if (text) text.textContent = "Rolagem: Ativa";
+        } else {
+            btn.className = "bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+            if (icon) icon.className = "fas fa-pause text-xs text-amber-400";
+            if (text) text.textContent = "Rolagem: Pausada";
+        }
+    }
+
+    function toggleAutoScroll() {
+        autoScrollEnabled = !autoScrollEnabled;
+        localStorage.setItem('live_chat_autoscroll_enabled', autoScrollEnabled ? 'true' : 'false');
+        updateAutoScrollUI();
+        if (autoScrollEnabled) {
+            scrollToBottom(true);
+        }
     }
 
     // Paleta de cores vibrantes para avatares sem foto
@@ -505,6 +537,7 @@
     document.addEventListener("DOMContentLoaded", function() {
         applyFontSize(currentFontSize);
         applyTheme(currentTheme);
+        updateAutoScrollUI();
 
         if (liveId) {
             fetchChatFeed();
@@ -810,11 +843,15 @@
             `;
         });
 
-        const shouldScroll = autoScrollEnabled && (container.scrollTop + container.clientHeight >= container.scrollHeight - 150);
+        const isNearBottom = (container.scrollTop + container.clientHeight >= container.scrollHeight - 180);
+        const shouldScroll = autoScrollEnabled && isNearBottom;
         container.innerHTML = html;
 
         if (shouldScroll) {
             scrollToBottom(false);
+        } else if (!isNearBottom) {
+            const badge = document.getElementById("new-messages-floating-badge");
+            if (badge) badge.classList.remove("hidden");
         }
     }
 
@@ -829,10 +866,6 @@
         const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
         if (isNearBottom) {
             badge.classList.add("hidden");
-            autoScrollEnabled = true;
-        } else {
-            badge.classList.remove("hidden");
-            autoScrollEnabled = false;
         }
     }
 
@@ -843,7 +876,6 @@
                 top: container.scrollHeight,
                 behavior: smooth ? 'smooth' : 'auto'
             });
-            autoScrollEnabled = true;
             const badge = document.getElementById("new-messages-floating-badge");
             if (badge) badge.classList.add("hidden");
         }

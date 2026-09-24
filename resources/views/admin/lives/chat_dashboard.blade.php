@@ -115,6 +115,9 @@
                     <button type="button" id="chat-filter-marked-btn" onclick="setChatFilter('marked')" class="px-2.5 py-1 rounded-lg font-bold text-xs bg-gray-800 text-yellow-400 hover:bg-gray-700 transition flex items-center gap-1 border border-gray-700 cursor-pointer">
                         <i class="fas fa-star text-yellow-400 text-[10px]"></i> Marcadas (<span id="chat-marked-count">0</span>)
                     </button>
+                    <button type="button" id="dashboard-autoscroll-btn" onclick="toggleChatAutoScroll()" class="px-2 py-1 rounded-lg font-bold text-[11px] bg-emerald-950 text-emerald-300 hover:bg-emerald-900 transition flex items-center gap-1 border border-emerald-700 cursor-pointer shadow-sm" title="Ativar ou desativar rolagem automática do chat">
+                        <i class="fas fa-arrow-down text-[10px]" id="dashboard-autoscroll-icon"></i> <span id="dashboard-autoscroll-text">Auto</span>
+                    </button>
                 </div>
                 <div id="chat-user-filter-badge" class="hidden items-center gap-1.5 bg-indigo-950 text-indigo-200 px-2.5 py-1 rounded-lg text-xs border border-indigo-700">
                     <span class="truncate max-w-[110px] font-semibold" id="chat-filtered-username">@usuario</span>
@@ -674,6 +677,37 @@
     let chatFilterMode = 'all'; // 'all' | 'marked'
     let chatFilterUser = null;  // null | string
     let modalFilterMarkedOnly = false;
+    let chatAutoScrollEnabled = localStorage.getItem('live_chat_dashboard_autoscroll') !== 'false';
+
+    function updateChatAutoScrollUI() {
+        const btn = document.getElementById("dashboard-autoscroll-btn");
+        const icon = document.getElementById("dashboard-autoscroll-icon");
+        const text = document.getElementById("dashboard-autoscroll-text");
+        if (!btn) return;
+
+        if (chatAutoScrollEnabled) {
+            btn.className = "px-2 py-1 rounded-lg font-bold text-[11px] bg-emerald-950 text-emerald-300 hover:bg-emerald-900 transition flex items-center gap-1 border border-emerald-700 cursor-pointer shadow-sm";
+            if (icon) icon.className = "fas fa-arrow-down text-[10px] text-emerald-400";
+            if (text) text.textContent = "Auto";
+        } else {
+            btn.className = "px-2 py-1 rounded-lg font-bold text-[11px] bg-amber-950 text-amber-300 hover:bg-amber-900 transition flex items-center gap-1 border border-amber-700 cursor-pointer shadow-sm";
+            if (icon) icon.className = "fas fa-pause text-[10px] text-amber-400";
+            if (text) text.textContent = "Pausado";
+        }
+    }
+
+    function toggleChatAutoScroll() {
+        chatAutoScrollEnabled = !chatAutoScrollEnabled;
+        localStorage.setItem('live_chat_dashboard_autoscroll', chatAutoScrollEnabled ? 'true' : 'false');
+        updateChatAutoScrollUI();
+        if (chatAutoScrollEnabled) {
+            const container = document.getElementById("chat-messages-container");
+            if (container) container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    // Inicializa estado visual da rolagem
+    setTimeout(updateChatAutoScrollUI, 50);
 
     // Buscar dados do chat da live via AJAX
     function fetchChatData() {
@@ -901,7 +935,7 @@
             `;
         });
 
-        const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+        const shouldScroll = chatAutoScrollEnabled && (container.scrollTop + container.clientHeight >= container.scrollHeight - 120);
         container.innerHTML = html;
         if (shouldScroll) {
             container.scrollTop = container.scrollHeight;
