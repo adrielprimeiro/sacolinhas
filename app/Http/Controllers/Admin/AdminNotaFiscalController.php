@@ -163,6 +163,25 @@ class AdminNotaFiscalController extends Controller
             $validated['certificado_path'] = $path;
         }
 
+        // Higienizar CEP (apenas números para compatibilidade total com SEFAZ)
+        if (!empty($validated['cep'])) {
+            $validated['cep'] = preg_replace('/[^0-9]/', '', $validated['cep']);
+        }
+
+        // Preencher código IBGE do município automaticamente se estiver vazio
+        if (empty($validated['codigo_municipio']) && !empty($validated['cep'])) {
+            $validated['codigo_municipio'] = \App\Services\Fiscal\IbgeHelper::getCodigoMunicipio(
+                $validated['cep'],
+                $validated['municipio'] ?? null,
+                $validated['uf'] ?? null
+            );
+        }
+
+        // Se a senha não foi informada na atualização, mantém a senha atual
+        if (empty($validated['certificado_senha'])) {
+            unset($validated['certificado_senha']);
+        }
+
         $brecho->update(collect($validated)->except('certificado_file')->toArray());
 
         return redirect()->back()->with('success', 'Configurações fiscais salvas com sucesso!');
