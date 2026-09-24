@@ -238,6 +238,12 @@
             <button type="button" onclick="setFeedFilter('registered')" id="filter-btn-registered" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-emerald-700 hover:bg-emerald-50 transition border border-emerald-300 flex items-center gap-1 cursor-pointer">
                 <i class="fas fa-user-check text-emerald-500"></i> Cadastradas (<span id="count-filter-registered">0</span>)
             </button>
+
+            <!-- Alternador de Rolagem Automática (Ultra Destacado na Barra) -->
+            <button type="button" onclick="toggleAutoScroll()" id="filter-btn-autoscroll" class="px-3 py-1.5 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm border border-emerald-500 ml-1" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+                <i class="fas fa-arrow-down text-xs" id="filter-autoscroll-icon"></i>
+                <span id="filter-autoscroll-text">Rolagem: Ativa</span>
+            </button>
         </div>
 
         <!-- Busca / Filtro em Tempo Real -->
@@ -451,19 +457,38 @@
     }
 
     function updateAutoScrollUI() {
-        const btn = document.getElementById("btn-autoscroll-toggle");
-        const icon = document.getElementById("autoscroll-icon");
-        const text = document.getElementById("autoscroll-text");
-        if (!btn) return;
+        // 1. Botão do Cabeçalho Superior
+        const btnTop = document.getElementById("btn-autoscroll-toggle");
+        const iconTop = document.getElementById("autoscroll-icon");
+        const textTop = document.getElementById("autoscroll-text");
+        
+        // 2. Botão da Barra de Filtros (Ultra Visível)
+        const btnFilter = document.getElementById("filter-btn-autoscroll");
+        const iconFilter = document.getElementById("filter-autoscroll-icon");
+        const textFilter = document.getElementById("filter-autoscroll-text");
 
         if (autoScrollEnabled) {
-            btn.className = "bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
-            if (icon) icon.className = "fas fa-arrow-down text-xs text-emerald-400";
-            if (text) text.textContent = "Rolagem: Ativa";
+            if (btnTop) {
+                btnTop.className = "bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+                if (iconTop) iconTop.className = "fas fa-arrow-down text-xs text-emerald-400";
+                if (textTop) textTop.textContent = "Rolagem: Ativa";
+            }
+            if (btnFilter) {
+                btnFilter.className = "px-3 py-1.5 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 cursor-pointer shadow-md ml-1 border border-emerald-500";
+                if (iconFilter) iconFilter.className = "fas fa-arrow-down text-xs";
+                if (textFilter) textFilter.textContent = "Rolagem: Ativa";
+            }
         } else {
-            btn.className = "bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
-            if (icon) icon.className = "fas fa-pause text-xs text-amber-400";
-            if (text) text.textContent = "Rolagem: Pausada";
+            if (btnTop) {
+                btnTop.className = "bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+                if (iconTop) iconTop.className = "fas fa-pause text-xs text-amber-400";
+                if (textTop) textTop.textContent = "Rolagem: Pausada";
+            }
+            if (btnFilter) {
+                btnFilter.className = "px-3 py-1.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-600 text-gray-950 transition flex items-center gap-1.5 cursor-pointer shadow-md ml-1 border border-amber-400 animate-pulse";
+                if (iconFilter) iconFilter.className = "fas fa-pause text-xs";
+                if (textFilter) textFilter.textContent = "Rolagem: Pausada";
+            }
         }
     }
 
