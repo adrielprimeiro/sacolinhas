@@ -326,6 +326,12 @@
         </div>
 
         <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <label class="flex items-center gap-2 bg-gray-800 hover:bg-gray-750 border border-gray-700 px-3 py-1.5 rounded-xl cursor-pointer select-none transition shadow-sm" title="Fechar automaticamente o leitor após bipar a peça">
+                <input type="checkbox" id="online-qr-auto-close-toggle" onchange="toggleAutoClosePreference(this.checked)" class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 focus:ring-offset-gray-800 cursor-pointer">
+                <span class="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                    <i class="fas fa-magic text-indigo-400 text-[11px]"></i> Fechar após bipar
+                </span>
+            </label>
             <button type="button" onclick="closeOnlineQrModal()" class="bg-red-600 hover:bg-red-500 text-white font-black px-5 py-2 rounded-xl text-xs transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/20 active:scale-95 cursor-pointer">
                 <i class="fas fa-times text-sm"></i> Concluir e Voltar
             </button>
@@ -428,9 +434,15 @@
     let currentSearchTerm = '';
     let currentFontSize = localStorage.getItem('live_chat_font_size') || 'md';
     let currentTheme = localStorage.getItem('live_chat_theme') || 'dark';
+    let autoCloseAfterScan = localStorage.getItem('live_chat_auto_close_scan') !== 'false'; // Padrão: true (fechar após bipar ativado)
     let autoScrollEnabled = true;
     let lastRenderedHash = "";
     let pollingInterval = null;
+
+    function toggleAutoClosePreference(checked) {
+        autoCloseAfterScan = checked;
+        localStorage.setItem('live_chat_auto_close_scan', checked ? 'true' : 'false');
+    }
 
     // Paleta de cores vibrantes para avatares sem foto
     const avatarGradientPalette = [
@@ -921,6 +933,11 @@
         }
         renderModalClientMessages(username);
 
+        const autoCloseToggle = document.getElementById("online-qr-auto-close-toggle");
+        if (autoCloseToggle) {
+            autoCloseToggle.checked = autoCloseAfterScan;
+        }
+
         document.getElementById("online-qr-modal").classList.remove("hidden");
         if (manualInput) manualInput.focus();
 
@@ -1097,7 +1114,13 @@
                 showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
                 if (feedback) {
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
-                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal"><i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.</div></div></div>`;
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal">${autoCloseAfterScan ? '<i class="fas fa-check-double text-emerald-400 mr-1"></i> Fechando leitor em instantes...' : '<i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.'}</div></div></div>`;
+                }
+
+                if (autoCloseAfterScan) {
+                    setTimeout(() => {
+                        closeOnlineQrModal();
+                    }, 750);
                 }
             } else {
                 playErrorBeep();

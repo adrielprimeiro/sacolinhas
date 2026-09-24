@@ -361,6 +361,12 @@
         </div>
 
         <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <label class="flex items-center gap-2 bg-gray-800 hover:bg-gray-750 border border-gray-700 px-3 py-1.5 rounded-xl cursor-pointer select-none transition shadow-sm" title="Fechar automaticamente o leitor após bipar a peça">
+                <input type="checkbox" id="online-qr-auto-close-toggle" onchange="toggleAutoClosePreference(this.checked)" class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 focus:ring-offset-gray-800 cursor-pointer">
+                <span class="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                    <i class="fas fa-magic text-indigo-400 text-[11px]"></i> Fechar após bipar
+                </span>
+            </label>
             <button onclick="closeOnlineQrModal()" class="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/20 active:scale-95">
                 <i class="fas fa-times text-base"></i> Concluir e Voltar
             </button>
@@ -1265,10 +1271,53 @@
     }
 
     // ==========================================
+    // SINTETIZADOR DE ÁUDIO (FEEDBACK SONORO INSTANTÂNEO VIA WEB AUDIO API)
+    // ==========================================
+    function playSuccessBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            osc.frequency.setValueAtTime(1760, audioCtx.currentTime + 0.08); // A6
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } catch(e) {}
+    }
+
+    function playErrorBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch(e) {}
+    }
+
+    // ==========================================
     // LEITOR DE QRCODE / ETIQUETAS PARA PESSOAS ONLINE
     // ==========================================
     let onlineQrScannerInstance = null;
     let currentOnlineQrUser = null;
+    let autoCloseAfterScan = localStorage.getItem('live_chat_auto_close_scan') !== 'false'; // Padrão: true (fechar após bipar ativado)
+
+    function toggleAutoClosePreference(checked) {
+        autoCloseAfterScan = checked;
+        localStorage.setItem('live_chat_auto_close_scan', checked ? 'true' : 'false');
+    }
 
     function openOnlineQrModal(userId, username, clientName) {
         if (!userId || userId === 'null' || userId === 'undefined') {
@@ -1312,6 +1361,11 @@
             starBtn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
         }
         renderModalClientMessages(username);
+
+        const autoCloseToggle = document.getElementById("online-qr-auto-close-toggle");
+        if (autoCloseToggle) {
+            autoCloseToggle.checked = autoCloseAfterScan;
+        }
 
         document.getElementById("online-qr-modal").classList.remove("hidden");
         if (manualInput) manualInput.focus();
@@ -1619,6 +1673,7 @@
             const data = await response.json();
 
             if (!data.success || !data.data || data.data.length === 0) {
+                playErrorBeep();
                 if (feedback) {
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg animate-shake";
                     feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-times-circle text-red-400 text-xl mt-0.5"></i><div><b>Produto não encontrado!</b><br><span class="text-xs text-red-300 font-normal">Nenhum produto cadastrado com o SKU ou código de barras <b>"${escapeHtml(code)}"</b>. Verifique o código e tente novamente.</span></div></div>`;
@@ -1653,18 +1708,27 @@
             const addData = await addResponse.json();
 
             if (addData.success) {
+                playSuccessBeep();
                 showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
                 if (feedback) {
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
-                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal"><i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.</div></div></div>`;
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal">${autoCloseAfterScan ? '<i class="fas fa-check-double text-emerald-400 mr-1"></i> Fechando leitor em instantes...' : '<i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.'}</div></div></div>`;
+                }
+
+                if (autoCloseAfterScan) {
+                    setTimeout(() => {
+                        closeOnlineQrModal();
+                    }, 750);
                 }
             } else {
+                playErrorBeep();
                 if (feedback) {
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
                     feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Atenção:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola.')}</span></div></div>`;
                 }
             }
         } catch (err) {
+            playErrorBeep();
             console.error("Erro na leitura/adição por QR Code:", err);
             if (feedback) {
                 feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg";
