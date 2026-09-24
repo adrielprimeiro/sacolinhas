@@ -285,7 +285,10 @@ class MelhorEnvioService
                 'receipt' => false,
                 'own_hand' => false,
                 'reverse' => false,
-                'non_commercial' => true,
+                'non_commercial' => !($pedido->notaFiscal && $pedido->notaFiscal->isAutorizada()),
+                'invoice' => ($pedido->notaFiscal && $pedido->notaFiscal->isAutorizada()) 
+                    ? ['key' => $pedido->notaFiscal->chave_acesso] 
+                    : null,
             ]
         ];
 

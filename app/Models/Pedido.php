@@ -89,6 +89,16 @@ class Pedido extends Model
         return $this->hasMany(\App\Models\PedidoRastreamento::class, 'pedido_id')->orderBy('data_hora', 'desc');
     }
 
+    public function notaFiscal()
+    {
+        return $this->hasOne(\App\Models\NotaFiscal::class, 'pedido_id')->latestOfMany();
+    }
+
+    public function notasFiscais()
+    {
+        return $this->hasMany(\App\Models\NotaFiscal::class, 'pedido_id');
+    }
+
     public function lancamento()
     {
         return $this->hasOne(\App\Models\Lancamento::class, 'referencia_id')->where('referencia_tipo', 'pedido');

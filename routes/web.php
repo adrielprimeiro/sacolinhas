@@ -35,6 +35,7 @@ use App\Http\Controllers\ItemMediaController;
 use App\Http\Controllers\PontuacoesController;
 use App\Http\Controllers\Admin\GruposController;
 use App\Http\Controllers\Admin\LiveMovimentacaoController;
+use App\Http\Controllers\Admin\AdminNotaFiscalController;
 
 // Webhook MercadoPago
 Route::post('/mercadopago/webhook', [\App\Http\Controllers\MercadoPagoController::class, 'webhook'])
@@ -410,6 +411,16 @@ Route::middleware('auth')->group(function () {
         Route::post('pedido/{pedido}/adicionar-item', [AdminPedidoController::class, 'adicionarItem'])->name('admin.pedido.adicionarItem');
         Route::delete('pedido/{pedido}/remover-item/{itemId}', [AdminPedidoController::class, 'removerItem'])->name('admin.pedido.removerItem');
         Route::post('pedido/{pedido}/devolucao', [AdminPedidoController::class, 'devolucao'])->name('admin.pedido.devolucao');
+        
+        // Emissão e Ações de NF-e (NFePHP)
+        Route::post('pedido/{pedido}/nfe/emitir', [AdminNotaFiscalController::class, 'emitir'])->name('admin.pedido.nfe.emitir');
+        Route::get('nfe/{notaFiscal}/danfe', [AdminNotaFiscalController::class, 'danfe'])->name('admin.nfe.danfe');
+        Route::get('nfe/{notaFiscal}/xml', [AdminNotaFiscalController::class, 'xml'])->name('admin.nfe.xml');
+        Route::post('nfe/{notaFiscal}/cancelar', [AdminNotaFiscalController::class, 'cancelar'])->name('admin.nfe.cancelar');
+
+        // Configurações Fiscais (Certificado A1, Série, Ambiente)
+        Route::get('fiscal/configuracoes', [AdminNotaFiscalController::class, 'configuracoes'])->name('admin.fiscal.configuracoes');
+        Route::post('fiscal/configuracoes', [AdminNotaFiscalController::class, 'salvarConfiguracoes'])->name('admin.fiscal.salvar');
 
         // ===== ADMIN CATEGORIAS =====
         Route::resource('categorias', \App\Http\Controllers\CategoriaController::class)->names([

@@ -146,6 +146,9 @@
                         <a href="{{ route('admin.pedido.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.pedido.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
                         </a>
+                        <a href="{{ route('admin.fiscal.configuracoes') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.fiscal.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-file-invoice-dollar mr-1.5 text-purple-500"></i> Configurações NF-e
+                        </a>
 						@if(!$isBrecho)
                         <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos

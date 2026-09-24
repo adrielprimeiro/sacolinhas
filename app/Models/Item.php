@@ -30,7 +30,12 @@ class Item extends Model
         'tamanho',
         'image',
         'status',
-        'localizacao'
+        'localizacao',
+        'ncm',
+        'cfop',
+        'cest',
+        'origem',
+        'unidade_tributavel'
     ];
 
     protected $casts = [

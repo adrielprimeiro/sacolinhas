@@ -66,6 +66,21 @@
                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
                 <i class="fas fa-file-pdf mr-1.5"></i> PDF
             </a>
+            @if ($pedido->notaFiscal && $pedido->notaFiscal->isAutorizada())
+                <a href="{{ route('admin.nfe.danfe', $pedido->notaFiscal->id) }}" target="_blank"
+                   class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                    <i class="fas fa-file-invoice mr-1.5"></i> DANFE
+                </a>
+            @else
+                <form action="{{ route('admin.pedido.nfe.emitir', $pedido->id) }}" method="POST" class="inline"
+                      onsubmit="return confirm('Deseja transmitir a NF-e deste pedido para a SEFAZ?');">
+                    @csrf
+                    <button type="submit"
+                            class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
+                        <i class="fas fa-file-invoice mr-1.5"></i> {{ $pedido->notaFiscal ? 'Reemitir NF-e' : 'Emitir NF-e' }}
+                    </button>
+                </form>
+            @endif
             <a href="{{ route('admin.pedido.edit', $pedido->id) }}"
                class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1.5 px-3 rounded-md shadow-sm transition duration-300 text-xs sm:text-sm">
                 <i class="fas fa-edit mr-1.5"></i> Editar
@@ -84,8 +99,105 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {{-- Coluna Esquerda: Pagamento --}}
+        {{-- Coluna Esquerda: Pagamento & Fiscal --}}
         <div class="lg:col-span-1 space-y-6">
+
+            {{-- Card Nota Fiscal Eletrônica (NF-e) --}}
+            <div class="bg-white shadow-lg rounded-lg p-6 border-t-4 {{ $pedido->notaFiscal && $pedido->notaFiscal->isAutorizada() ? 'border-green-500' : ($pedido->notaFiscal && $pedido->notaFiscal->status === 'rejeitada' ? 'border-red-500' : 'border-purple-500') }}">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-file-invoice text-purple-600"></i> Nota Fiscal (NF-e)
+                    </h2>
+                    @if ($pedido->notaFiscal)
+                        @if ($pedido->notaFiscal->isAutorizada())
+                            <span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                <i class="fas fa-check-circle"></i> Autorizada
+                            </span>
+                        @elseif ($pedido->notaFiscal->status === 'rejeitada')
+                            <span class="bg-red-100 text-red-800 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                <i class="fas fa-times-circle"></i> Rejeitada
+                            </span>
+                        @elseif ($pedido->notaFiscal->isCancelada())
+                            <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                <i class="fas fa-ban"></i> Cancelada
+                            </span>
+                        @else
+                            <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2.5 py-1 rounded-full capitalize">
+                                {{ $pedido->notaFiscal->status }}
+                            </span>
+                        @endif
+                    @else
+                        <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-2 py-0.5 rounded">
+                            Não emitida
+                        </span>
+                    @endif
+                </div>
+
+                @if ($pedido->notaFiscal)
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500 font-semibold">Número / Série:</span>
+                            <span class="text-gray-800 font-bold">NF-e nº {{ $pedido->notaFiscal->numero }} (Série {{ $pedido->notaFiscal->serie }})</span>
+                        </div>
+
+                        @if ($pedido->notaFiscal->chave_acesso)
+                            <div>
+                                <span class="text-gray-500 font-semibold text-xs block mb-1">Chave de Acesso:</span>
+                                <div class="bg-gray-50 p-2 rounded border border-gray-200 text-[11px] font-mono break-all text-gray-700 select-all">
+                                    {{ $pedido->notaFiscal->chave_formatada }}
+                                </div>
+                            </div>
+                        @endif
+
+                        @if ($pedido->notaFiscal->protocolo)
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-500 font-semibold">Protocolo SEFAZ:</span>
+                                <span class="text-gray-800 font-mono">{{ $pedido->notaFiscal->protocolo }}</span>
+                            </div>
+                        @endif
+
+                        @if ($pedido->notaFiscal->xMotivo && $pedido->notaFiscal->status === 'rejeitada')
+                            <div class="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded text-xs">
+                                <strong>Rejeição SEFAZ:</strong> {{ $pedido->notaFiscal->xMotivo }}
+                            </div>
+                        @endif
+
+                        <div class="pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            @if ($pedido->notaFiscal->isAutorizada())
+                                <a href="{{ route('admin.nfe.danfe', $pedido->notaFiscal->id) }}" target="_blank"
+                                   class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded text-center text-xs transition">
+                                    <i class="fas fa-file-pdf mr-1"></i> Imprimir DANFE
+                                </a>
+                                <a href="{{ route('admin.nfe.xml', $pedido->notaFiscal->id) }}"
+                                   class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-1.5 px-3 rounded text-center text-xs transition border border-blue-200">
+                                    <i class="fas fa-download mr-1"></i> XML
+                                </a>
+                            @endif
+
+                            @if (!$pedido->notaFiscal->isAutorizada())
+                                <form action="{{ route('admin.pedido.nfe.emitir', $pedido->id) }}" method="POST" class="w-full">
+                                    @csrf
+                                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded text-xs transition">
+                                        <i class="fas fa-redo mr-1"></i> Transmitir Novamente
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="text-sm text-gray-500 mb-4">
+                        Nenhuma NF-e foi emitida para este pedido ainda.
+                    </div>
+                    <form action="{{ route('admin.pedido.nfe.emitir', $pedido->id) }}" method="POST"
+                          onsubmit="return confirm('Deseja transmitir a NF-e deste pedido para a SEFAZ?');">
+                        @csrf
+                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md shadow-sm transition text-xs flex items-center justify-center gap-2">
+                            <i class="fas fa-paper-plane"></i> Emitir NF-e Gratuitamente (SEFAZ)
+                        </button>
+                    </form>
+                @endif
+            </div>
+
             <div class="bg-white shadow-lg rounded-lg p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
                     <i class="fas fa-calculator text-blue-500"></i> Pagamento
