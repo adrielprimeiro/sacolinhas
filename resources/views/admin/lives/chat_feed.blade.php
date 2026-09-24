@@ -239,11 +239,14 @@
                 <i class="fas fa-user-check text-emerald-500"></i> Cadastradas (<span id="count-filter-registered">0</span>)
             </button>
 
-            <!-- Alternador de Rolagem Automática (Ultra Destacado na Barra) -->
-            <button type="button" onclick="toggleAutoScroll()" id="filter-btn-autoscroll" class="px-3 py-1.5 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm border border-emerald-500 ml-1" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
-                <i class="fas fa-arrow-down text-xs" id="filter-autoscroll-icon"></i>
-                <span id="filter-autoscroll-text">Rolagem: Ativa</span>
-            </button>
+            <!-- Totais das Sacolinhas da Live -->
+            <div class="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-extrabold text-indigo-800 shadow-sm select-none">
+                <i class="fas fa-shopping-bag text-indigo-500"></i>
+                <span id="sacolinhas-itens-badge">0 itens</span>
+                <span class="text-indigo-300 font-light mx-0.5">|</span>
+                <i class="fas fa-money-bill-wave text-emerald-500"></i>
+                <span id="sacolinhas-valor-badge" class="text-emerald-700">R$ 0,00</span>
+            </div>
         </div>
 
         <!-- Busca / Filtro em Tempo Real -->
@@ -465,15 +468,10 @@
     }
 
     function updateAutoScrollUI() {
-        // 1. Botão do Cabeçalho Superior
+        // Botão do Cabeçalho Superior
         const btnTop = document.getElementById("btn-autoscroll-toggle");
         const iconTop = document.getElementById("autoscroll-icon");
         const textTop = document.getElementById("autoscroll-text");
-        
-        // 2. Botão da Barra de Filtros (Ultra Visível)
-        const btnFilter = document.getElementById("filter-btn-autoscroll");
-        const iconFilter = document.getElementById("filter-autoscroll-icon");
-        const textFilter = document.getElementById("filter-autoscroll-text");
 
         if (autoScrollEnabled) {
             if (btnTop) {
@@ -481,21 +479,11 @@
                 if (iconTop) iconTop.className = "fas fa-arrow-down text-xs";
                 if (textTop) textTop.textContent = "Rolagem: Ativa";
             }
-            if (btnFilter) {
-                btnFilter.className = "px-3 py-1.5 rounded-xl font-extrabold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 cursor-pointer shadow-md ml-1 border border-emerald-500";
-                if (iconFilter) iconFilter.className = "fas fa-arrow-down text-xs";
-                if (textFilter) textFilter.textContent = "Rolagem: Ativa";
-            }
         } else {
             if (btnTop) {
                 btnTop.className = "bg-amber-500 hover:bg-amber-600 text-gray-950 p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 border border-amber-300 animate-pulse";
                 if (iconTop) iconTop.className = "fas fa-pause text-xs";
                 if (textTop) textTop.textContent = "Rolagem: Pausada";
-            }
-            if (btnFilter) {
-                btnFilter.className = "px-3 py-1.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-600 text-gray-950 transition flex items-center gap-1.5 cursor-pointer shadow-md ml-1 border border-amber-400 animate-pulse";
-                if (iconFilter) iconFilter.className = "fas fa-pause text-xs";
-                if (textFilter) textFilter.textContent = "Rolagem: Pausada";
             }
         }
     }
@@ -684,6 +672,20 @@
         if (statusEl) {
             statusEl.className = "text-emerald-400 font-bold flex items-center gap-1";
             statusEl.innerHTML = `<i class="fas fa-check-circle text-xs"></i> Ao Vivo (${total})`;
+        }
+
+        // Atualizar totais das sacolinhas
+        if (stats) {
+            const itensEl = document.getElementById("sacolinhas-itens-badge");
+            const valorEl = document.getElementById("sacolinhas-valor-badge");
+            if (itensEl) {
+                const qtd = stats.sacolinhas_itens ?? 0;
+                itensEl.textContent = `${qtd} ${qtd === 1 ? 'item' : 'itens'}`;
+            }
+            if (valorEl) {
+                const valor = parseFloat(stats.sacolinhas_valor ?? 0);
+                valorEl.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
         }
     }
 

@@ -501,6 +501,16 @@ class LiveChatController extends Controller
         $totalRegisteredOnline = count(array_filter($onlineUsers, fn($u) => !empty($u['user_id'])));
         $totalRegisteredRecent = $messages->filter(fn($m) => !empty($m->user_id))->count();
 
+        // 5. Totalizadores das sacolinhas desta live
+        $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+            ->first();
+
+        $totalSacolinhasItens = (int) ($sacolinhasTotals->total_itens ?? 0);
+        $totalSacolinhasValor = (float) ($sacolinhasTotals->total_valor ?? 0);
+
         $tiktokActive = Cache::get('tiktok_capture_active', true) && !Cache::get('tiktok_capture_stopped', false);
 
         // Se a captura do TikTok estiver ativa mas o serviço desconectou, envia um ping de reconexão em background
@@ -529,6 +539,8 @@ class LiveChatController extends Controller
                 'total_registered' => $totalRegisteredRecent,
                 'total_online' => count($onlineUsers),
                 'total_registered_online' => $totalRegisteredOnline,
+                'sacolinhas_itens' => $totalSacolinhasItens,
+                'sacolinhas_valor' => $totalSacolinhasValor,
             ]
         ]);
     }
