@@ -531,7 +531,7 @@
                         if (u.username) onlineUsersMap[u.username.toLowerCase()] = u;
                     });
 
-                    updateFilterCounts();
+                    updateFilterCounts(data.stats);
                     renderChatFeed();
 
                     // Se o modal de bipe estiver aberto, atualizar mensagens da cliente
@@ -550,12 +550,12 @@
             });
     }
 
-    function updateFilterCounts() {
-        const total = allLiveMessages.length;
-        const insta = allLiveMessages.filter(m => m.plataforma === 'instagram').length;
-        const tiktok = allLiveMessages.filter(m => m.plataforma === 'tiktok').length;
-        const marked = allLiveMessages.filter(m => !!m.is_marked).length;
-        const reg = allLiveMessages.filter(m => !!m.user_id).length;
+    function updateFilterCounts(stats) {
+        const total = stats ? stats.total_messages : allLiveMessages.length;
+        const insta = stats ? stats.total_instagram : allLiveMessages.filter(m => m.plataforma === 'instagram').length;
+        const tiktok = stats ? stats.total_tiktok : allLiveMessages.filter(m => m.plataforma === 'tiktok').length;
+        const marked = stats ? stats.total_marked : allLiveMessages.filter(m => !!m.is_marked).length;
+        const reg = stats ? stats.total_registered : allLiveMessages.filter(m => !!m.user_id).length;
 
         const totalBadge = document.getElementById("chat-total-msgs-badge");
         if (totalBadge) totalBadge.textContent = `${total} mensagens capturadas`;

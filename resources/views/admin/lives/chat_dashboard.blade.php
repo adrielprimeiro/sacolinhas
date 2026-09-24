@@ -690,7 +690,7 @@
                     allLiveMessages = data.messages || [];
 
                     // Atualiza contador de mensagens marcadas
-                    const markedCount = allLiveMessages.filter(m => m.is_marked).length;
+                    const markedCount = (data.stats && data.stats.total_marked !== undefined) ? data.stats.total_marked : allLiveMessages.filter(m => m.is_marked).length;
                     const markedEl = document.getElementById("chat-marked-count");
                     if (markedEl) markedEl.textContent = markedCount;
 

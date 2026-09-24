@@ -488,6 +488,19 @@ class LiveChatController extends Controller
         // Reindexar o array agrupado para JSON
         $groupedRequests = array_values($groupedRequests);
 
+        // 4. Totalizadores globais da live inteira
+        $platformCounts = LiveMessage::where('live_id', $liveId)
+            ->select('plataforma', DB::raw('COUNT(*) as total'), DB::raw('SUM(CASE WHEN is_marked = 1 THEN 1 ELSE 0 END) as marked'))
+            ->groupBy('plataforma')
+            ->get();
+
+        $totalMessages = (int) $platformCounts->sum('total');
+        $totalInsta = (int) ($platformCounts->firstWhere('plataforma', 'instagram')->total ?? 0);
+        $totalTiktok = (int) ($platformCounts->firstWhere('plataforma', 'tiktok')->total ?? 0);
+        $totalMarked = (int) $platformCounts->sum('marked');
+        $totalRegisteredOnline = count(array_filter($onlineUsers, fn($u) => !empty($u['user_id'])));
+        $totalRegisteredRecent = $messages->filter(fn($m) => !empty($m->user_id))->count();
+
         $tiktokActive = Cache::get('tiktok_capture_active', true) && !Cache::get('tiktok_capture_stopped', false);
 
         // Se a captura do TikTok estiver ativa mas o serviço desconectou, envia um ping de reconexão em background
@@ -507,7 +520,16 @@ class LiveChatController extends Controller
             'messages' => $messages,
             'marked_messages' => $markedMessages,
             'online_users' => $onlineUsers,
-            'code_requests' => $groupedRequests
+            'code_requests' => $groupedRequests,
+            'stats' => [
+                'total_messages' => $totalMessages,
+                'total_instagram' => $totalInsta,
+                'total_tiktok' => $totalTiktok,
+                'total_marked' => $totalMarked,
+                'total_registered' => $totalRegisteredRecent,
+                'total_online' => count($onlineUsers),
+                'total_registered_online' => $totalRegisteredOnline,
+            ]
         ]);
     }
 
