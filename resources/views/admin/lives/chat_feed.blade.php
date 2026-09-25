@@ -256,41 +256,143 @@
         </div>
     </div>
 
-    <!-- FEED PRINCIPAL DO CHAT (LEITURA ULTRA FÁCIL & AVATAR EM DESTAQUE) -->
-    <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700" style="min-height: 0;">
-        <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
-        <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
-            <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
-                <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
-                <span>Mostrar Cards / Filtros</span>
-            </button>
+    <!-- Área principal: Feed + Painel de Bipagem (lado a lado) -->
+    <div class="flex gap-2.5 flex-1" style="min-height:0;">
+
+        <!-- FEED PRINCIPAL DO CHAT (LEITURA ULTRA FÁCIL & AVATAR EM DESTAQUE) -->
+        <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700" style="min-height: 0;">
+            <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
+            <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
+                <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
+                    <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
+                    <span>Mostrar Cards / Filtros</span>
+                </button>
+            </div>
+
+            <!-- Container com Scroll -->
+            <div id="feed-messages-container" class="flex-1 p-3 sm:p-5 overflow-y-auto space-y-3 font-sans" onscroll="handleContainerScroll()">
+                @if(!$activeLive)
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                        <i class="fas fa-video-slash text-4xl mb-3 text-gray-500"></i>
+                        <h3 class="text-base font-bold text-gray-300">Nenhuma Live Selecionada</h3>
+                        <p class="text-xs text-gray-400 mt-1">Selecione uma live no topo para carregar o chat da transmissão.</p>
+                    </div>
+                @else
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-3 text-indigo-500"></i>
+                        <p class="text-xs font-semibold text-gray-300">Aguardando comentários da transmissão...</p>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Botão Flutuante de Novas Mensagens / Ir para o Final -->
+            <div id="new-messages-floating-badge" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 hidden z-30 transition-all">
+                <button type="button" onclick="scrollToBottom(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-full text-xs shadow-2xl flex items-center gap-2 border border-indigo-400 active:scale-95 cursor-pointer animate-bounce">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Novas mensagens abaixo</span>
+                </button>
+            </div>
         </div>
 
-        <!-- Container com Scroll -->
-        <div id="feed-messages-container" class="flex-1 p-3 sm:p-5 overflow-y-auto space-y-3 font-sans" onscroll="handleContainerScroll()">
-            @if(!$activeLive)
-                <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
-                    <i class="fas fa-video-slash text-4xl mb-3 text-gray-500"></i>
-                    <h3 class="text-base font-bold text-gray-300">Nenhuma Live Selecionada</h3>
-                    <p class="text-xs text-gray-400 mt-1">Selecione uma live no topo para carregar o chat da transmissão.</p>
+        <!-- ============================================================
+             PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
+             ============================================================ -->
+        <div id="scan-panel" class="w-80 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
+
+            <!-- Card: Código da Live (capturado por voz) -->
+            <div class="bg-white rounded-2xl shadow border border-gray-200 p-3 shrink-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-microphone text-white text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-black text-gray-800">Código da Live (Voz)</p>
+                        <p class="text-[10px] text-gray-400 leading-tight">Diga "O código é: ..." para capturar</p>
+                    </div>
+                    <!-- Indicador de status do microfone -->
+                    <div id="mic-status-dot" class="ml-auto w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                 </div>
-            @else
-                <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-3 text-indigo-500"></i>
-                    <p class="text-xs font-semibold text-gray-300">Aguardando comentários da transmissão...</p>
+                <div class="flex gap-1.5">
+                    <input type="text" id="scan-live-code" placeholder="Aguardando voz..." readonly
+                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none tracking-wider">
+                    <button type="button" onclick="clearLiveCode()" title="Limpar código"
+                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
                 </div>
-            @endif
+            </div>
+
+            <!-- Card: Câmera + Lista de Itens Bipados -->
+            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden">
+
+                <!-- Header do painel -->
+                <div class="flex items-center justify-between px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                            <i class="fas fa-barcode text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-gray-800">Itens Bipados</p>
+                            <p class="text-[10px] text-gray-400 leading-tight">Câmera lendo códigos de barras</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <!-- Status câmera -->
+                        <div id="cam-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300" title="Câmera inativa"></div>
+                        <!-- Botão limpar lista -->
+                        <button type="button" onclick="clearScanList()" title="Limpar lista"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-400 transition text-xs cursor-pointer">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Entrada manual de código de barras -->
+                <div class="px-3 py-2 border-b border-gray-100 shrink-0">
+                    <div class="flex gap-1.5">
+                        <input type="text" id="scan-manual-input" placeholder="Digitar ou bipar código..."
+                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            onkeydown="handleManualScan(event)">
+                        <button type="button" onclick="addManualCode()" title="Adicionar"
+                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contador -->
+                <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-500 font-semibold">
+                        Total: <span id="scan-count" class="text-gray-800 font-black">0</span> itens
+                    </span>
+                    <button type="button" onclick="copyScanList()" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold cursor-pointer flex items-center gap-1">
+                        <i class="fas fa-copy text-[10px]"></i> Copiar lista
+                    </button>
+                </div>
+
+                <!-- Lista de itens -->
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">
+                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
+                        <i class="fas fa-barcode text-4xl mb-2"></i>
+                        <p class="text-xs font-semibold">Nenhum item bipado ainda</p>
+                        <p class="text-[10px] text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Botão Flutuante de Novas Mensagens / Ir para o Final -->
-        <div id="new-messages-floating-badge" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 hidden z-30 transition-all">
-            <button type="button" onclick="scrollToBottom(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-full text-xs shadow-2xl flex items-center gap-2 border border-indigo-400 active:scale-95 cursor-pointer animate-bounce">
-                <i class="fas fa-arrow-down"></i>
-                <span>Novas mensagens abaixo</span>
-            </button>
-        </div>
-    </div>
+    </div><!-- fim flex gap row -->
+
+    <!-- Câmera oculta para leitura de código de barras -->
+    <video id="scan-camera-video" autoplay muted playsinline
+        style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"
+        aria-hidden="true"></video>
+    <canvas id="scan-camera-canvas"
+        style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"
+        aria-hidden="true"></canvas>
+
 </div>
+
 
 <!-- MODAL VINCULAR CLIENTE -->
 <div id="link-user-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" style="z-index: 99999;">
@@ -535,6 +637,244 @@
         updateTopCardsUI();
     }
 
+    // =========================================================================
+    // SISTEMA DE BIPAGEM — CÂMERA (BarcodeDetector) + RECONHECIMENTO DE VOZ
+    // =========================================================================
+    const scanItems = [];           // [{code, time, source}]
+    let scanCameraStream = null;
+    let scanCameraActive = false;
+    let scanSpeechRecog = null;
+    let scanSpeechActive = false;
+    let lastScannedCode = null;
+    let lastScannedTime = 0;
+    const SCAN_DEBOUNCE_MS = 2000;  // evita repetição do mesmo código
+
+    /* ---- câmera oculta -------------------------------------------------- */
+    async function initScanCamera() {
+        if (scanCameraActive) return;
+        try {
+            if (!('BarcodeDetector' in window)) {
+                console.warn('[Scan] BarcodeDetector não suportado neste navegador.');
+                updateCamDot(false, 'BarcodeDetector não suportado');
+                return;
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
+            scanCameraStream = stream;
+            const video = document.getElementById('scan-camera-video');
+            video.srcObject = stream;
+            await video.play();
+            scanCameraActive = true;
+            updateCamDot(true);
+            startBarcodeLoop();
+        } catch (err) {
+            console.warn('[Scan] Câmera:', err.message);
+            updateCamDot(false, err.message);
+        }
+    }
+
+    function startBarcodeLoop() {
+        const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','itf','pdf417'] });
+        const video   = document.getElementById('scan-camera-video');
+        const canvas  = document.getElementById('scan-camera-canvas');
+        const ctx     = canvas.getContext('2d');
+
+        async function tick() {
+            if (!scanCameraActive || video.readyState < 2) { requestAnimationFrame(tick); return; }
+            canvas.width  = video.videoWidth  || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            try {
+                const codes = await detector.detect(canvas);
+                if (codes.length > 0) {
+                    const raw = codes[0].rawValue;
+                    const now = Date.now();
+                    if (raw !== lastScannedCode || (now - lastScannedTime) > SCAN_DEBOUNCE_MS) {
+                        lastScannedCode = raw;
+                        lastScannedTime = now;
+                        addScanItem(raw, 'camera');
+                    }
+                }
+            } catch(_) {}
+            setTimeout(() => requestAnimationFrame(tick), 300); // 3 fps — leve na CPU
+        }
+        requestAnimationFrame(tick);
+    }
+
+    function updateCamDot(active, title) {
+        const dot = document.getElementById('cam-status-dot');
+        if (!dot) return;
+        dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`;
+        dot.title = title || (active ? 'Câmera ativa' : 'Câmera inativa');
+    }
+
+    /* ---- reconhecimento de voz ------------------------------------------ */
+    function initScanSpeech() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { console.warn('[Scan] SpeechRecognition não suportado.'); return; }
+
+        scanSpeechRecog = new SR();
+        scanSpeechRecog.lang = 'pt-BR';
+        scanSpeechRecog.continuous = true;
+        scanSpeechRecog.interimResults = false;
+        scanSpeechRecog.maxAlternatives = 3;
+
+        const TRIGGERS = ['o código é', 'o código desse é', 'o código dela é', 'o código dele é', 'código'];
+
+        scanSpeechRecog.onresult = (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+            for (const trigger of TRIGGERS) {
+                const idx = transcript.indexOf(trigger);
+                if (idx !== -1) {
+                    const after = transcript.slice(idx + trigger.length).trim();
+                    // Pega a primeira "palavra" após o gatilho (o código bipado)
+                    const code = after.split(/\s+/)[0]?.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                    if (code && code.length >= 2) {
+                        document.getElementById('scan-live-code').value = code;
+                        flashMicDot();
+                        playSuccessBeep();
+                    }
+                    break;
+                }
+            }
+        };
+
+        scanSpeechRecog.onerror = (e) => {
+            if (e.error !== 'no-speech') console.warn('[Scan] Speech error:', e.error);
+        };
+
+        scanSpeechRecog.onend = () => {
+            // Reinicia automaticamente enquanto a página estiver aberta
+            if (scanSpeechActive) {
+                try { scanSpeechRecog.start(); } catch(_) {}
+            }
+        };
+
+        try {
+            scanSpeechRecog.start();
+            scanSpeechActive = true;
+            updateMicDot(true);
+        } catch(e) {
+            console.warn('[Scan] Speech start error:', e.message);
+        }
+    }
+
+    function updateMicDot(active) {
+        const dot = document.getElementById('mic-status-dot');
+        if (!dot) return;
+        dot.className = `ml-auto w-2.5 h-2.5 rounded-full shrink-0 ${active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`;
+        dot.title = active ? 'Microfone ativo — ouvindo...' : 'Microfone inativo';
+    }
+
+    function flashMicDot() {
+        const dot = document.getElementById('mic-status-dot');
+        if (!dot) return;
+        dot.className = 'ml-auto w-2.5 h-2.5 rounded-full shrink-0 bg-yellow-400 animate-ping';
+        setTimeout(() => updateMicDot(true), 800);
+    }
+
+    /* ---- lista de itens -------------------------------------------------- */
+    function addScanItem(code, source = 'manual') {
+        // Remove estado vazio
+        document.getElementById('scan-empty-state')?.remove();
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const item = { code, time: timeStr, source };
+        scanItems.unshift(item); // mais recente no topo
+
+        const list = document.getElementById('scan-items-list');
+        const liveCode = document.getElementById('scan-live-code')?.value?.trim() || '';
+
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-300 transition scan-item';
+        el.dataset.code = code;
+        el.innerHTML = `
+            <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}">
+                <i class="fas fa-${source === 'camera' ? 'camera' : 'keyboard'} text-[10px]"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-black text-gray-800 truncate tracking-wider">${code}</p>
+                ${liveCode ? `<p class="text-[10px] text-indigo-600 font-semibold">Live: ${liveCode}</p>` : ''}
+                <p class="text-[10px] text-gray-400">${timeStr}</p>
+            </div>
+            <button type="button" onclick="removeScanItem(this)" title="Remover"
+                class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 cursor-pointer">
+                <i class="fas fa-times text-[10px]"></i>
+            </button>
+        `;
+        list.prepend(el);
+        updateScanCount();
+        playSuccessBeep();
+    }
+
+    function removeScanItem(btn) {
+        const el = btn.closest('.scan-item');
+        const code = el?.dataset.code;
+        if (code) { const i = scanItems.findIndex(x => x.code === code); if (i !== -1) scanItems.splice(i, 1); }
+        el?.remove();
+        updateScanCount();
+        if (scanItems.length === 0) showScanEmptyState();
+    }
+
+    function clearScanList() {
+        scanItems.length = 0;
+        const list = document.getElementById('scan-items-list');
+        list.innerHTML = '';
+        showScanEmptyState();
+        updateScanCount();
+    }
+
+    function showScanEmptyState() {
+        const list = document.getElementById('scan-items-list');
+        if (list.querySelector('.scan-item')) return;
+        list.innerHTML = `
+            <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
+                <i class="fas fa-barcode text-4xl mb-2"></i>
+                <p class="text-xs font-semibold">Nenhum item bipado ainda</p>
+                <p class="text-[10px] text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>
+            </div>`;
+    }
+
+    function updateScanCount() {
+        const el = document.getElementById('scan-count');
+        if (el) el.textContent = scanItems.length;
+    }
+
+    function clearLiveCode() {
+        const el = document.getElementById('scan-live-code');
+        if (el) el.value = '';
+    }
+
+    function handleManualScan(event) {
+        if (event.key === 'Enter') addManualCode();
+    }
+
+    function addManualCode() {
+        const input = document.getElementById('scan-manual-input');
+        const code = input?.value?.trim().toUpperCase();
+        if (!code) return;
+        addScanItem(code, 'manual');
+        input.value = '';
+        input.focus();
+    }
+
+    function copyScanList() {
+        if (scanItems.length === 0) return;
+        const liveCode = document.getElementById('scan-live-code')?.value?.trim() || '';
+        const lines = scanItems.map(i => liveCode ? `${i.code}\t${liveCode}\t${i.time}` : `${i.code}\t${i.time}`);
+        navigator.clipboard?.writeText(lines.join('\n'))
+            .then(() => { const btn = document.querySelector('[onclick="copyScanList()"]'); if(btn){ const orig = btn.innerHTML; btn.innerHTML='<i class="fas fa-check text-emerald-500"></i> Copiado!'; setTimeout(()=>btn.innerHTML=orig,1500); } })
+            .catch(() => {});
+    }
+
+    /* ---- inicialização --------------------------------------------------- */
+    function initScanSystem() {
+        initScanCamera();
+        initScanSpeech();
+    }
+
     // Paleta de cores vibrantes para avatares sem foto
     const avatarGradientPalette = [
         'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', // Indigo / Purple
@@ -598,6 +938,7 @@
         applyTheme(currentTheme);
         updateAutoScrollUI();
         updateTopCardsUI();
+        initScanSystem();
 
         if (liveId) {
             fetchChatFeed();
