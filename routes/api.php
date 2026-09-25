@@ -6,4 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/import-items', [ImportItemsController::class, 'import']);
 Route::post('/webhooks/mercadopago', [\App\Http\Controllers\MercadoPagoController::class, 'webhook'])->name('api.mercadopago.webhook');
-Route::post('/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioWebhookController::class, 'handle'])->name('api.melhorenvio.webhook');
+Route::post('/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioWebhookController::class, 'handle'])->name('api.melhorenvio.webhook');
+
+Route::match(['POST', 'OPTIONS'], '/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage']);
+Route::match(['POST', 'OPTIONS'], '/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch']);
+

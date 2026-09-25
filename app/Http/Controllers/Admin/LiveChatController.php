@@ -660,9 +660,18 @@ class LiveChatController extends Controller
      */
     public function receiveMessage(Request $request)
     {
+        if ($request->isMethod('OPTIONS')) {
+            return response('', 200)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
+        }
+
         if (Cache::get('live_capture_paused', false)) {
             return response()->json(['success' => true, 'paused' => true])
-                ->header('Access-Control-Allow-Origin', '*');
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
         if (!$request->input('live_id') || $request->input('live_id') === 'auto' || !\App\Models\Live::where('id', $request->input('live_id'))->exists()) {
@@ -781,9 +790,18 @@ class LiveChatController extends Controller
 
     public function receiveMessageBatch(Request $request)
     {
+        if ($request->isMethod('OPTIONS')) {
+            return response('', 200)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
+        }
+
         if (Cache::get('live_capture_paused', false)) {
             return response()->json(['success' => true, 'paused' => true])
-                ->header('Access-Control-Allow-Origin', '*');
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
         $messages = $request->input('messages', []);

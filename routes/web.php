@@ -50,11 +50,12 @@ Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookContro
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // Live Chat Webhook (recebe mensagens do browser)
-Route::post('/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
+Route::match(['POST', 'OPTIONS'], '/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 Route::get('/api/active-tiktok-lives', [\App\Http\Controllers\Admin\LiveChatController::class, 'getActiveTiktokLives']);
-Route::post('/api/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch'])
+Route::match(['POST', 'OPTIONS'], '/api/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 
 
 // Rota que vai disparar o envio das imagens
