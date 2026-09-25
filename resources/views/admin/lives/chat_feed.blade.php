@@ -1007,45 +1007,44 @@
         oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900
     };
 
-    function parsePortugueseWordsToNumber(phrase) {
-        if (!phrase) return null;
-        let clean = phrase.toLowerCase().trim();
-        const digitMatch = clean.match(/^([a-z]?\d+[\w\-]*)/i);
-        if (digitMatch) return digitMatch[1].toUpperCase();
-
-        const words = clean.split(/[\s\-]+/).filter(w => w !== 'e');
-        if (words.length === 0) return null;
+    function parsePortugueseWordsFromTokens(tokens) {
+        let startIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+            const w = tokens[i];
+            if (ptSpeechUnits[w] !== undefined || ptSpeechTens[w] !== undefined || ptSpeechHundreds[w] !== undefined) {
+                startIndex = i;
+                break;
+            }
+        }
+        if (startIndex === -1) return null;
 
         let total = 0;
         let current = 0;
         let matchedAny = false;
         let prefixLetter = "";
 
-        for (let i = 0; i < words.length; i++) {
-            const norm = words[i].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-            const origW = words[i];
-
-            if (i === 0 && origW.length === 1 && /^[a-z]$/i.test(origW)) {
-                prefixLetter = origW.toUpperCase();
-                continue;
+        // Se antes do número havia uma letra isolada que NÃO seja verbo ou artigo (ex: 'peca B doze' => B12)
+        if (startIndex > 0) {
+            const prevTok = tokens[startIndex - 1];
+            if (prevTok.length === 1 && /^[a-z]$/i.test(prevTok) && !['e', 'o', 'a'].includes(prevTok.toLowerCase())) {
+                prefixLetter = prevTok.toUpperCase();
             }
+        }
 
-            if (/^\d+$/.test(norm)) {
-                current += parseInt(norm, 10);
-                matchedAny = true;
-                continue;
-            }
+        for (let i = startIndex; i < tokens.length; i++) {
+            const w = tokens[i];
+            if (w === 'e') continue;
 
-            if (ptSpeechUnits[norm] !== undefined) {
-                current += ptSpeechUnits[norm];
+            if (ptSpeechUnits[w] !== undefined) {
+                current += ptSpeechUnits[w];
                 matchedAny = true;
-            } else if (ptSpeechTens[norm] !== undefined) {
-                current += ptSpeechTens[norm];
+            } else if (ptSpeechTens[w] !== undefined) {
+                current += ptSpeechTens[w];
                 matchedAny = true;
-            } else if (ptSpeechHundreds[norm] !== undefined) {
-                current += ptSpeechHundreds[norm];
+            } else if (ptSpeechHundreds[w] !== undefined) {
+                current += ptSpeechHundreds[w];
                 matchedAny = true;
-            } else if (norm === 'mil') {
+            } else if (w === 'mil') {
                 if (current === 0) current = 1;
                 total += current * 1000;
                 current = 0;
@@ -1062,42 +1061,47 @@
 
     function extractCodeFromSpokenText(transcript) {
         if (!transcript) return null;
-        // Normaliza acentos para ASCII: "código" => "codigo", "é" => "e", "peça" => "peca"
-        let text = transcript.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-        // Encontra o gatilho da frase
-        const triggerMatch = text.match(/\b(?:codigo|cod|peca|item)\b/i);
+        // 1. Remove acentos e qualquer pontuação (pontos, vírgulas, dois-pontos, aspas, traços, etc.)
+        let clean = transcript
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[,.:;!?"'()\[\]{}—–_\-\/]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        // 2. Procura pelo gatilho: "codigo", "cod", "peca", "item"
+        const triggerMatch = clean.match(/\b(?:codigo|cod|peca|item)\b/i);
         if (!triggerMatch) return null;
 
-        const triggerIndex = text.indexOf(triggerMatch[0]);
-        let afterTrigger = text.slice(triggerIndex + triggerMatch[0].length).trim();
+        const triggerIndex = clean.indexOf(triggerMatch[0]);
+        let after = clean.slice(triggerIndex + triggerMatch[0].length).trim();
+        if (!after) return null;
 
-        // Remove qualificadores comuns de referência ao produto
-        for (let loop = 0; loop < 4; loop++) {
-            afterTrigger = afterTrigger.replace(/^(?:dele|dela|desse|dessa|deste|desta|disso|disto|da|do|de|peca|item|aqui|daqui|agora)\b/i, '').trim();
+        const tokens = after.split(' ').filter(Boolean);
+
+        // Primeiro: se houver número em dígitos no texto após o gatilho (ex: "15", "01", "A12", "P5", "COD-10")
+        for (let i = 0; i < tokens.length; i++) {
+            const tok = tokens[i];
+            const numMatch = tok.match(/^[a-z]?\d+[\w]*$/i);
+            if (numMatch) {
+                return numMatch[0].toUpperCase();
+            }
         }
 
-        // Remove verbos e conectivos de ligação
-        for (let loop = 0; loop < 4; loop++) {
-            afterTrigger = afterTrigger.replace(/^(?:vai\s+ser|sera|fica|ficou|e|eh|\:|o|a|numero|num|codigo)\b/i, '').trim();
+        // Segundo: se não houver dígitos, verifica números por extenso (ex: "quinze", "vinte e dois", "cento e quatro")
+        const wordsNum = parsePortugueseWordsFromTokens(tokens);
+        if (wordsNum !== null) {
+            return String(wordsNum);
         }
 
-        if (!afterTrigger) return null;
-
-        // Tenta primeiro converter números por extenso ("quinze" => 15, "vinte e um" => 21)
-        const converted = parsePortugueseWordsToNumber(afterTrigger);
-        if (converted) return String(converted);
-
-        // Se tiver dígitos ou código alfanumérico
-        const match = afterTrigger.match(/^[a-z]?\d+[\w\-]*/i);
-        if (match) return match[0].toUpperCase();
-
-        // Palavra única válida (caso seja um código em texto)
-        const words = afterTrigger.split(/\s+/);
-        if (words.length > 0) {
-            const first = words[0].toUpperCase();
-            if (first.length >= 2 && !['O', 'A', 'DE', 'E', 'PARA', 'COM', 'QUE', 'GENTE', 'MENINAS', 'PESSOAL', 'VAI', 'SER'].includes(first)) {
-                return first;
+        // Terceiro: se for uma palavra única válida de código (ex: "VESTIDO1", "ALFA")
+        const stopWords = ['e', 'o', 'a', 'de', 'do', 'da', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'viu', 'gente', 'meninas'];
+        const candidates = tokens.filter(t => !stopWords.includes(t));
+        if (candidates.length > 0) {
+            const cand = candidates[0].toUpperCase();
+            if (cand.length >= 2) {
+                return cand;
             }
         }
 
@@ -1123,10 +1127,12 @@
             bgSpeechRecog.lang = 'pt-BR';
             bgSpeechRecog.continuous = true;
             bgSpeechRecog.interimResults = true;
-            bgSpeechRecog.maxAlternatives = 5; // Analisa até 5 hipóteses acústicas do Google Speech
+            bgSpeechRecog.maxAlternatives = 5;
 
             bgSpeechRecog.onresult = function(event) {
                 let currentPreview = '';
+                let foundCodeInTurn = null;
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     const res = event.results[i];
                     if (res[0]) {
@@ -1138,20 +1144,29 @@
                         const transcript = res[a].transcript;
                         const detectedCode = extractCodeFromSpokenText(transcript);
                         if (detectedCode) {
-                            const now = Date.now();
-                            if (detectedCode !== lastSpokenCode || (now - lastSpokenTime) > 2500) {
-                                lastSpokenCode = detectedCode;
-                                lastSpokenTime = now;
-                                applySpokenLiveCode(detectedCode);
-                                break;
-                            }
+                            foundCodeInTurn = detectedCode;
+                            break;
                         }
+                    }
+                    if (foundCodeInTurn) break;
+                }
+
+                // Se identificou um código válido
+                if (foundCodeInTurn) {
+                    const now = Date.now();
+                    const liveInput = document.getElementById('scan-live-code');
+                    const isDifferentOrEmpty = !liveInput || !liveInput.value || liveInput.value.trim().toUpperCase() !== foundCodeInTurn;
+
+                    if (isDifferentOrEmpty || (now - lastSpokenTime) > 1500) {
+                        lastSpokenCode = foundCodeInTurn;
+                        lastSpokenTime = now;
+                        applySpokenLiveCode(foundCodeInTurn);
                     }
                 }
 
                 // Atualiza o feedback visual do que o microfone está ouvindo em tempo real
                 if (currentPreview) {
-                    showMicTranscript(currentPreview);
+                    showMicTranscript(currentPreview, foundCodeInTurn);
                 }
             };
 
@@ -1171,7 +1186,7 @@
                         try {
                             if (bgSpeechActive) bgSpeechRecog.start();
                         } catch(e) {}
-                    }, 250);
+                    }, 200);
                 }
             };
 
@@ -1186,11 +1201,15 @@
         }
     }
 
-    function showMicTranscript(text) {
+    function showMicTranscript(text, detectedCode) {
         const preview = document.getElementById('mic-transcript-preview');
         const textEl = document.getElementById('mic-transcript-text');
         if (preview && textEl) {
-            textEl.textContent = `"${text.trim()}"`;
+            if (detectedCode) {
+                textEl.innerHTML = `"${escapeHtml(text.trim())}" &rarr; <span class="text-emerald-700 font-extrabold bg-emerald-100 px-1.5 py-0.5 rounded shadow-sm">Código: ${escapeHtml(detectedCode)}</span>`;
+            } else {
+                textEl.textContent = `"${text.trim()}"`;
+            }
             preview.classList.remove('hidden');
             clearTimeout(micTranscriptTimer);
             micTranscriptTimer = setTimeout(() => {
@@ -1239,10 +1258,16 @@
             flashMicDot();
             playSuccessBeep();
 
-            // Destaque visual no input
-            liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50');
+            // Dispara evento de input
+            try {
+                liveInput.dispatchEvent(new Event('input', { bubbles: true }));
+                liveInput.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch(e) {}
+
+            // Destaque visual pulsante no input (verde esmeralda)
+            liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
             setTimeout(() => {
-                liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50');
+                liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
             }, 1200);
 
             // Atualiza banner de confirmação se estiver visível
@@ -1426,6 +1451,8 @@
     function clearLiveCode() {
         const el = document.getElementById('scan-live-code');
         if (el) el.value = '';
+        lastSpokenCode = null;
+        lastSpokenTime = 0;
     }
 
     function handleManualScan(event) {
