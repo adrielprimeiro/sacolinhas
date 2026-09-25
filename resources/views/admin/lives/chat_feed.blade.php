@@ -49,6 +49,7 @@
         height: calc(100vh - 85px);
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
     #feed-messages-container {
@@ -313,8 +314,8 @@
                     <div id="mic-status-dot" class="ml-auto w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                 </div>
                 <div class="flex gap-1.5">
-                    <input type="text" id="scan-live-code" placeholder="Aguardando voz..." readonly
-                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none tracking-wider">
+                    <input type="text" id="scan-live-code" placeholder="Aguardando voz ou digite..."
+                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
                         class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer">
                         <i class="fas fa-times text-xs"></i>
