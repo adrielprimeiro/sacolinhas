@@ -674,23 +674,31 @@ class LiveChatController extends Controller
                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
-        // Parse robusto de payload JSON mesmo se o Content-Type não for enviado perfeitamente
+        // Extração infalível de payload (JSON string, body bruto, json() ou all())
+        $payload = [];
         $raw = $request->getContent();
-        if ($raw && empty($request->all())) {
+        if ($raw) {
             $decoded = json_decode($raw, true);
             if (is_array($decoded)) {
-                $request->merge($decoded);
+                $payload = $decoded;
             }
         }
+        if (empty($payload)) {
+            $payload = $request->json()->all();
+        }
+        if (empty($payload)) {
+            $payload = $request->all();
+        }
 
-        if (!$request->input('live_id') || $request->input('live_id') === 'auto' || !\App\Models\Live::where('id', $request->input('live_id'))->exists()) {
+        $liveIdInput = $payload['live_id'] ?? $request->input('live_id');
+        if (!$liveIdInput || $liveIdInput === 'auto' || !\App\Models\Live::where('id', $liveIdInput)->exists()) {
             $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
-            if ($activeLive) {
-                $request->merge(['live_id' => $activeLive->id]);
-            }
+            $liveId = $activeLive ? $activeLive->id : null;
+        } else {
+            $liveId = $liveIdInput;
         }
 
-        $plat = strtolower((string) $request->input('platform', $request->input('source', $request->input('provider', $request->input('chatname', 'instagram')))));
+        $plat = strtolower((string) ($payload['platform'] ?? $payload['source'] ?? $payload['provider'] ?? $request->input('platform', 'instagram')));
         if (str_contains($plat, 'tiktok')) {
             $plat = 'tiktok';
         } else {
@@ -705,56 +713,43 @@ class LiveChatController extends Controller
         }
 
         // Mapeamento nativo para payloads do Social Stream Ninja e extensões
-        $username = $request->input('username') ?? $request->input('author') ?? $request->input('chatname') ?? '';
-        $message = $request->input('message') ?? $request->input('chatmessage') ?? $request->input('text') ?? '';
-        $avatarUrl = $request->input('avatar_url') 
-            ?? $request->input('profile_picture') 
-            ?? $request->input('chatpic') 
-            ?? $request->input('chatimg') 
-            ?? $request->input('avatar') 
-            ?? $request->input('photo') 
-            ?? null;
+        $username = $payload['username'] ?? $payload['author'] ?? $payload['chatname'] ?? $request->input('username', '');
+        $message = $payload['message'] ?? $payload['chatmessage'] ?? $payload['text'] ?? $request->input('message', '');
+        $avatarUrl = $payload['avatar_url'] 
+            ?? $payload['profile_picture'] 
+            ?? $payload['chatpic'] 
+            ?? $payload['chatimg'] 
+            ?? $payload['avatar'] 
+            ?? $payload['photo'] 
+            ?? $request->input('avatar_url', null);
 
-        $cleanUsername = trim($username);
+        $cleanUsername = trim((string) $username);
+        $messageText = trim((string) $message);
 
-        // Persistir avatar permanentemente no disco e recuperar se já existir
-        $avatarUrl = $this->persistUserAvatar($cleanUsername, $plat, $avatarUrl);
-
-        $request->merge([
-            'platform' => $plat,
-            'username' => $cleanUsername,
-            'message' => $message,
-            'avatar_url' => $avatarUrl
-        ]);
-
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'live_id' => 'required|exists:lives,id',
-            'platform' => 'required|in:instagram,tiktok',
-            'username' => 'required|string',
-            'message' => 'required|string',
-            'avatar_url' => 'nullable|string',
-            'timestamp' => 'nullable|string'
-        ]);
-
-        if ($validator->fails()) {
+        if (empty($cleanUsername) || empty($messageText)) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'error' => 'Nome de usuário e mensagem são obrigatórios'
             ], 422)
             ->header('Access-Control-Allow-Origin', '*')
             ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
-        $validated = $validator->validated();
-        $cleanUsername = trim($validated['username']);
-        $messageText = trim($validated['message']);
-        $platform = $validated['platform'];
-        $liveId = $validated['live_id'];
-        $avatarUrl = $validated['avatar_url'] ?? null;
+        if (!$liveId) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Nenhuma live ativa encontrada'
+            ], 422)
+            ->header('Access-Control-Allow-Origin', '*');
+        }
+
+        // Persistir avatar permanentemente no disco e recuperar se já existir
+        $avatarUrl = $this->persistUserAvatar($cleanUsername, $plat, $avatarUrl);
+        $timestamp = $payload['timestamp'] ?? $request->input('timestamp');
 
         try {
-            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $avatarUrl, $validated) {
+            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $avatarUrl, $timestamp) {
                 // Evitar duplicidade técnica de leitura do DOM (mesmo usuário e texto em menos de 2 segundos)
                 $existing = LiveMessage::where('live_id', $liveId)
                     ->where('plataforma', $platform)
@@ -776,7 +771,7 @@ class LiveChatController extends Controller
                     'username' => $cleanUsername,
                     'message' => $messageText,
                     'avatar_url' => $avatarUrl,
-                    'captured_at' => (isset($validated['timestamp']) && $validated['timestamp']) ? date('Y-m-d H:i:s', strtotime($validated['timestamp'])) : now()
+                    'captured_at' => ($timestamp) ? date('Y-m-d H:i:s', strtotime($timestamp)) : now()
                 ]);
 
                 // 2. Tentar encontrar usuário correspondente no banco e atualizar photo se necessário
