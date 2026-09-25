@@ -71,12 +71,11 @@
         object-fit: cover !important;
         border-radius: 0.75rem !important;
     }
-    #scan-camera-reader canvas {
-        display: none !important;
-    }
     #scan-camera-reader__scan_region {
-        min-height: 100% !important;
+        width: 100% !important;
+        height: 100% !important;
     }
+    #scan-camera-reader__scan_region svg,
     #scan-camera-reader__dashboard {
         display: none !important;
     }
@@ -380,11 +379,9 @@
                             <p class="text-xs font-black text-gray-800 leading-tight">Leitor & Itens</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <!-- Botão alternar câmera (se mais de 1) -->
-                        <button type="button" onclick="switchScanCamera()" id="btn-switch-scan-cam" title="Trocar Câmera" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-500 hover:text-indigo-600 transition text-xs cursor-pointer hidden">
-                            <i class="fas fa-sync-alt text-[10px]"></i>
-                        </button>
+                    <div class="flex items-center gap-1">
+                        <!-- Select de Câmera (se houver mais de 1) -->
+                        <select id="scan-camera-select" onchange="changeScanCamera(this.value)" class="text-[10px] font-bold py-0.5 px-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 max-w-[125px] truncate hidden cursor-pointer" title="Selecionar Câmera"></select>
                         <!-- Botão minimizar/expandir visor da câmera -->
                         <button type="button" onclick="toggleCameraViewSize()" id="btn-toggle-cam-size" title="Minimizar / Expandir Visor da Câmera" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-500 hover:text-indigo-600 transition text-xs cursor-pointer">
                             <i class="fas fa-chevron-up text-[10px]" id="cam-size-icon"></i>
@@ -399,7 +396,7 @@
 
                 <!-- IMAGEM DA CÂMERA AO VIVO DENTRO DO CARD -->
                 <div id="scan-camera-wrapper" class="p-2 pb-1 shrink-0 transition-all duration-200">
-                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 140px;">
+                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 175px;">
                         <!-- Container da Câmera (Html5Qrcode injeta o vídeo aqui) -->
                         <div id="scan-camera-reader" class="w-full h-full"></div>
 
@@ -416,9 +413,10 @@
                         </div>
 
                         <!-- Mira / Linha de Leitura visual -->
-                        <div id="scan-camera-overlay" class="absolute inset-0 pointer-events-none hidden z-10 flex items-center justify-center">
-                            <div class="w-48 h-20 border-2 border-emerald-400/80 rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] relative">
-                                <div class="absolute inset-x-2 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/90 animate-pulse shadow-[0_0_8px_#34d399]"></div>
+                        <div id="scan-camera-overlay" class="absolute inset-0 pointer-events-none hidden z-10 flex flex-col items-center justify-center p-2">
+                            <div class="w-56 h-28 border-2 border-emerald-400/90 rounded-2xl shadow-[0_0_15px_rgba(52,211,153,0.35)] relative flex items-center justify-center">
+                                <div class="absolute inset-x-3 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/90 animate-pulse shadow-[0_0_8px_#34d399]"></div>
+                                <span class="absolute -bottom-2 text-[8px] font-extrabold text-emerald-300 bg-gray-900/90 px-2 py-0.5 rounded-full border border-emerald-500/40 uppercase tracking-wider">Leitor Rápido Ativo</span>
                             </div>
                         </div>
                     </div>
@@ -740,19 +738,39 @@
     let bgSpeechActive = false;
     let bgLastScannedCode = null;
     let bgLastScannedTime = 0;
-    const BG_SCAN_DEBOUNCE_MS = 2000;
+    const BG_SCAN_DEBOUNCE_MS = 1500;
 
     /* ---- Câmera Visível no Card (Html5Qrcode) ----------------------------- */
     let availableCameras = [];
-    let currentCameraIndex = 0;
+    let selectedCameraId = null;
+
+    function extractCleanCode(raw) {
+        if (!raw) return '';
+        let code = String(raw).trim();
+        if (code.startsWith('http://') || code.startsWith('https://')) {
+            try {
+                const url = new URL(code);
+                const p = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item') || url.searchParams.get('id');
+                if (p) {
+                    code = p.trim();
+                } else {
+                    const segs = url.pathname.split('/').filter(Boolean);
+                    if (segs.length > 0) {
+                        code = segs[segs.length - 1].trim();
+                    }
+                }
+            } catch(e) {}
+        }
+        return code;
+    }
 
     async function initScanCamera(preferredCameraId) {
-        if (bgCameraActive) return;
+        if (bgCameraActive && !preferredCameraId) return;
 
         // Se a lib Html5Qrcode ainda não carregou, aguarda brevemente
         if (typeof Html5Qrcode === 'undefined') {
             console.log('[Scan] Aguardando lib Html5Qrcode...');
-            setTimeout(() => initScanCamera(preferredCameraId), 500);
+            setTimeout(() => initScanCamera(preferredCameraId), 400);
             return;
         }
 
@@ -760,60 +778,103 @@
             const readerEl = document.getElementById('scan-camera-reader');
             if (!readerEl) return;
 
-            let formats = [0, 9, 5, 1, 2, 3, 4, 6, 7, 8, 10, 11];
+            // Se já estava escaneando e desejamos mudar de câmera, encerra a anterior
+            if (bgHtml5QrCode) {
+                try {
+                    if (bgHtml5QrCode.isScanning) {
+                        await bgHtml5QrCode.stop();
+                    }
+                } catch(e) {}
+                bgCameraActive = false;
+            }
+
+            // Formatos essenciais focados em máxima velocidade (QR Code e Códigos de Barras 1D padrão)
+            let formats = [0, 9, 5, 3]; // QR_CODE, EAN_13, CODE_128, CODE_39
             if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
                 formats = [
                     Html5QrcodeSupportedFormats.QR_CODE,
                     Html5QrcodeSupportedFormats.EAN_13,
                     Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E
+                    Html5QrcodeSupportedFormats.CODE_39
                 ];
             }
 
             if (!bgHtml5QrCode) {
-                bgHtml5QrCode = new Html5Qrcode("scan-camera-reader", { formatsToSupport: formats, verbose: false });
+                bgHtml5QrCode = new Html5Qrcode("scan-camera-reader", {
+                    formatsToSupport: formats,
+                    verbose: false,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // BarcodeDetector nativo via hardware GPU
+                    }
+                });
             }
 
-            const config = {
-                fps: 15,
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    return {
-                        width: Math.min(Math.floor(viewfinderWidth * 0.85), 320),
-                        height: Math.min(Math.floor(viewfinderHeight * 0.75), 150)
-                    };
-                },
-                disableFlip: false
-            };
-
-            // Detecta câmeras para máxima compatibilidade em Windows / Mobile
-            let cameraConfig = { facingMode: "environment" };
+            // Descobre câmeras disponíveis para popular o seletor
             try {
-                availableCameras = await Html5Qrcode.getCameras();
-                if (availableCameras && availableCameras.length > 0) {
-                    const switchBtn = document.getElementById('btn-switch-scan-cam');
-                    if (switchBtn && availableCameras.length > 1) {
-                        switchBtn.classList.remove('hidden');
-                    }
-                    if (preferredCameraId) {
-                        cameraConfig = preferredCameraId;
-                    } else {
-                        cameraConfig = availableCameras[currentCameraIndex % availableCameras.length].id;
-                    }
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    availableCameras = devices;
+                    populateCameraSelect(devices);
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.warn('[Scan] Não foi possível enumerar câmeras:', e);
+            }
+
+            // Escolhe a câmera correta
+            let cameraConfig = { facingMode: "environment" };
+            if (preferredCameraId) {
+                cameraConfig = preferredCameraId;
+                selectedCameraId = preferredCameraId;
+            } else if (availableCameras && availableCameras.length > 0) {
+                const saved = localStorage.getItem('scan_preferred_camera');
+                const foundSaved = availableCameras.find(c => c.id === saved);
+                if (foundSaved) {
+                    cameraConfig = foundSaved.id;
+                    selectedCameraId = foundSaved.id;
+                } else {
+                    const backCam = availableCameras.find(c =>
+                        (c.label || '').toLowerCase().includes('back') ||
+                        (c.label || '').toLowerCase().includes('traseira') ||
+                        (c.label || '').toLowerCase().includes('environment')
+                    );
+                    const chosen = backCam || availableCameras[0];
+                    cameraConfig = chosen.id;
+                    selectedCameraId = chosen.id;
+                }
+            }
+
+            // Sincroniza o select visual
+            const camSelect = document.getElementById('scan-camera-select');
+            if (camSelect && selectedCameraId && typeof cameraConfig === 'string') {
+                camSelect.value = selectedCameraId;
+            }
+
+            // Configuração para máxima velocidade e leitura no sensor inteiro
+            const config = {
+                fps: 25, // Taxa de quadros alta para reconhecimento instantâneo
+                disableFlip: false,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                },
+                videoConstraints: {
+                    facingMode: { ideal: "environment" },
+                    focusMode: { ideal: "continuous" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
 
             await bgHtml5QrCode.start(
                 cameraConfig,
                 config,
                 function(decodedText) {
+                    const cleanCode = extractCleanCode(decodedText);
+                    if (!cleanCode) return;
                     const now = Date.now();
-                    if (decodedText !== bgLastScannedCode || (now - bgLastScannedTime) > BG_SCAN_DEBOUNCE_MS) {
-                        bgLastScannedCode = decodedText;
+                    if (cleanCode !== bgLastScannedCode || (now - bgLastScannedTime) > BG_SCAN_DEBOUNCE_MS) {
+                        bgLastScannedCode = cleanCode;
                         bgLastScannedTime = now;
-                        addScanItem(decodedText, 'camera');
+                        addScanItem(cleanCode, 'camera');
                     }
                 },
                 function() {} // ignora frames sem detecção
@@ -830,15 +891,45 @@
             updateScanDevicesBtn();
         } catch (err) {
             console.warn('[Scan] Câmera não pôde iniciar automaticamente:', err.message || err);
+            bgCameraActive = false;
             updateCamDot(false, 'Câmera: ' + (err.message || 'Permissão necessária'));
             updateScanDevicesBtn();
         }
     }
 
+    function populateCameraSelect(devices) {
+        const camSelect = document.getElementById('scan-camera-select');
+        if (!camSelect) return;
+        camSelect.innerHTML = '';
+        devices.forEach((dev, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dev.id;
+            let label = dev.label || ('Câmera ' + (idx + 1));
+            if (label.length > 22) label = label.substring(0, 20) + '...';
+            opt.textContent = label;
+            camSelect.appendChild(opt);
+        });
+        if (devices.length > 1) {
+            camSelect.classList.remove('hidden');
+        } else {
+            camSelect.classList.add('hidden');
+        }
+    }
+
+    async function changeScanCamera(cameraId) {
+        if (!cameraId) return;
+        selectedCameraId = cameraId;
+        localStorage.setItem('scan_preferred_camera', cameraId);
+        await stopScanCamera();
+        await initScanCamera(cameraId);
+    }
+
     async function stopScanCamera() {
-        if (bgHtml5QrCode && bgCameraActive) {
+        if (bgHtml5QrCode) {
             try {
-                await bgHtml5QrCode.stop();
+                if (bgHtml5QrCode.isScanning) {
+                    await bgHtml5QrCode.stop();
+                }
             } catch(e) {}
             bgCameraActive = false;
 
@@ -854,12 +945,10 @@
 
     async function switchScanCamera() {
         if (!availableCameras || availableCameras.length <= 1) return;
-        currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-        const nextCameraId = availableCameras[currentCameraIndex].id;
-        if (bgCameraActive) {
-            await stopScanCamera();
-            await initScanCamera(nextCameraId);
-        }
+        const currentIdx = availableCameras.findIndex(c => c.id === selectedCameraId);
+        const nextIdx = (currentIdx + 1) % availableCameras.length;
+        const nextCam = availableCameras[nextIdx];
+        await changeScanCamera(nextCam.id);
     }
 
     let cameraViewCollapsed = false;
@@ -1056,6 +1145,9 @@
     /* ---- Lista de Itens Bipados ------------------------------------------ */
     function addScanItem(code, source) {
         source = source || 'manual';
+        const cleanCode = extractCleanCode(code).toUpperCase();
+        if (!cleanCode) return;
+
         const emptyState = document.getElementById('scan-empty-state');
         if (emptyState) emptyState.remove();
 
@@ -1065,7 +1157,7 @@
         const trimmedLiveCode = liveCode.trim().toUpperCase();
 
         const item = {
-            code: code,
+            code: cleanCode,
             liveCode: trimmedLiveCode,
             time: timeStr,
             timestamp: Date.now(),
@@ -1074,21 +1166,32 @@
         bgScanItems.unshift(item);
 
         const list = document.getElementById('scan-items-list');
-        const iconClass = source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
-        const iconName  = source === 'camera' ? 'camera' : 'keyboard';
+        let iconClass = 'bg-blue-100 text-blue-600';
+        let iconName  = 'camera';
+        let sourceLabel = 'Câmera';
+        if (source === 'usb') {
+            iconClass = 'bg-purple-100 text-purple-600';
+            iconName  = 'barcode';
+            sourceLabel = 'Bipador USB';
+        } else if (source === 'manual') {
+            iconClass = 'bg-emerald-100 text-emerald-600';
+            iconName  = 'keyboard';
+            sourceLabel = 'Manual';
+        }
+
         const liveHtml  = trimmedLiveCode ? '<p class="text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1"><i class="fas fa-tag text-[10px]"></i> Live: ' + trimmedLiveCode + '</p>' : '';
 
         const el = document.createElement('div');
         el.className = 'flex items-center gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl px-2.5 py-2 group transition-all duration-500 scan-item';
-        el.dataset.code = code;
+        el.dataset.code = cleanCode;
         el.innerHTML =
             '<div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm">' +
                 '<i class="fas fa-' + iconName + ' text-xs"></i>' +
             '</div>' +
             '<div class="flex-1 min-w-0 scan-item-info">' +
-                '<p class="text-xs font-black text-gray-900 truncate tracking-wider">' + code + '</p>' +
+                '<p class="text-xs font-black text-gray-900 truncate tracking-wider">' + escapeHtml(cleanCode) + '</p>' +
                 liveHtml +
-                '<p class="text-[10px] text-gray-400">' + timeStr + ' &bull; ' + (source === 'camera' ? 'Câmera' : 'Manual') + '</p>' +
+                '<p class="text-[10px] text-gray-400">' + timeStr + ' &bull; ' + sourceLabel + '</p>' +
             '</div>' +
             '<button type="button" onclick="removeScanItem(this)" title="Remover item" ' +
                 'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer">' +
@@ -1110,13 +1213,13 @@
         const bannerText = document.getElementById('scan-last-item-text');
         const bannerTime = document.getElementById('scan-last-item-time');
         if (banner && bannerText) {
-            bannerText.textContent = code + (trimmedLiveCode ? ' • Live: ' + trimmedLiveCode : '');
+            bannerText.textContent = cleanCode + (trimmedLiveCode ? ' • Live: ' + trimmedLiveCode : '');
             if (bannerTime) bannerTime.textContent = timeStr;
             banner.classList.remove('hidden');
             clearTimeout(window._scanBannerTimeout);
             window._scanBannerTimeout = setTimeout(function() {
                 banner.classList.add('hidden');
-            }, 5000);
+            }, 4000);
         }
 
         updateScanCount();
@@ -1176,12 +1279,58 @@
     function addManualCode() {
         const input = document.getElementById('scan-manual-input');
         if (!input) return;
-        const code = input.value.trim().toUpperCase();
+        const code = extractCleanCode(input.value).toUpperCase();
         if (!code) return;
         addScanItem(code, 'manual');
         input.value = '';
         input.focus();
     }
+
+    // =========================================================================
+    // LISTENER GLOBAL PARA LEITORES DE CÓDIGO DE BARRAS USB (HARDWARE SCANNER)
+    // =========================================================================
+    let usbScanBuffer = "";
+    let usbLastKeyTime = 0;
+    const USB_MAX_INTERVAL_MS = 65; // Leitores físicos USB disparam teclas em < 40ms
+
+    window.addEventListener('keydown', function(event) {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isEditingText = (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select');
+        const isOurManualInput = document.activeElement && document.activeElement.id === 'scan-manual-input';
+
+        const now = Date.now();
+        const diff = now - usbLastKeyTime;
+
+        if (event.key === 'Enter') {
+            if (usbScanBuffer.length >= 2 && (diff < 120 || isOurManualInput)) {
+                event.preventDefault();
+                event.stopPropagation();
+                const cleanCode = extractCleanCode(usbScanBuffer);
+                if (cleanCode) {
+                    addScanItem(cleanCode, 'usb');
+                    const manualInput = document.getElementById('scan-manual-input');
+                    if (manualInput) manualInput.value = '';
+                }
+                usbScanBuffer = "";
+                return;
+            }
+            usbScanBuffer = "";
+            return;
+        }
+
+        if (diff > 90) {
+            usbScanBuffer = "";
+        }
+
+        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            if (isEditingText && !isOurManualInput && diff > USB_MAX_INTERVAL_MS) {
+                usbScanBuffer = "";
+                return;
+            }
+            usbScanBuffer += event.key;
+            usbLastKeyTime = now;
+        }
+    }, true);
 
     function copyScanList() {
         if (bgScanItems.length === 0) return;
@@ -1720,6 +1869,12 @@
             autoCloseToggle.checked = autoCloseAfterScan;
         }
 
+        // Se a câmera do card lateral estiver ativa, pausa temporariamente para evitar conflito de hardware
+        if (bgCameraActive) {
+            sidebarCamPausedForModal = true;
+            stopScanCamera();
+        }
+
         document.getElementById("online-qr-modal").classList.remove("hidden");
         if (manualInput) manualInput.focus();
 
@@ -1733,6 +1888,8 @@
             startOnlineQrCamera();
         }
     }
+
+    let sidebarCamPausedForModal = false;
 
     function quickBeepForUser(userId, username, clientName, code) {
         if (!userId || userId === 'null' || userId === 'undefined') {
@@ -1762,31 +1919,49 @@
             } catch (e) {}
         }
         document.getElementById("online-qr-modal").classList.add("hidden");
+        
+        // Se a câmera do card lateral estava ligada antes de abrir o modal, reativa-a suavemente
+        if (sidebarCamPausedForModal) {
+            sidebarCamPausedForModal = false;
+            setTimeout(() => initScanCamera(), 300);
+        }
+
         fetchChatFeed();
     }
 
     async function startOnlineQrCamera() {
         if (!onlineQrScannerInstance) {
-            let formats = [0, 9, 5]; // QR_CODE, EAN_13, CODE_128
+            let formats = [0, 9, 5, 3]; // QR_CODE, EAN_13, CODE_128, CODE_39
             if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
                 formats = [
                     Html5QrcodeSupportedFormats.QR_CODE,
                     Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.CODE_128
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39
                 ];
             }
-            onlineQrScannerInstance = new Html5Qrcode("online-qr-reader", { formatsToSupport: formats });
+            onlineQrScannerInstance = new Html5Qrcode("online-qr-reader", {
+                formatsToSupport: formats,
+                verbose: false,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
         }
 
         try {
             const config = {
-                fps: 15,
-                qrbox: function(width, height) {
-                    const minEdge = Math.min(width, height);
-                    const size = Math.min(Math.floor(minEdge * 0.8), 650);
-                    return { width: size, height: size };
+                fps: 25,
+                disableFlip: true,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
                 },
-                disableFlip: true
+                videoConstraints: {
+                    facingMode: "environment",
+                    focusMode: { ideal: "continuous" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
             };
 
             await onlineQrScannerInstance.start(
