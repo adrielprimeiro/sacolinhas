@@ -697,6 +697,12 @@ class LiveChatController extends Controller
             $payload = $request->all();
         }
 
+        Log::info('[LiveChat receiveMessage]', [
+            'raw_length' => strlen($raw ?? ''),
+            'raw_preview' => substr($raw ?? '', 0, 100),
+            'payload_keys' => array_keys($payload)
+        ]);
+
         $liveIdInput = $payload['live_id'] ?? $request->input('live_id');
         if (!$liveIdInput || $liveIdInput === 'auto' || !\App\Models\Live::where('id', $liveIdInput)->exists()) {
             $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
@@ -736,7 +742,11 @@ class LiveChatController extends Controller
         if (empty($cleanUsername) || empty($messageText)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Nome de usuário e mensagem são obrigatórios'
+                'error' => 'Nome de usuário e mensagem são obrigatórios',
+                'debug' => [
+                    'raw_received' => $raw,
+                    'payload_received' => $payload,
+                ]
             ], 422)
             ->header('Access-Control-Allow-Origin', '*')
             ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
