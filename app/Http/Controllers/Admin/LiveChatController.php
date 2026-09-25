@@ -91,6 +91,7 @@ class LiveChatController extends Controller
                 'items.preco'
             ];
             $hasBuyerCols = Schema::hasColumn('live_items', 'buyer_username');
+            $hasVideoCutCols = Schema::hasColumn('live_items', 'video_cut_path');
             if ($hasCodigoLiveCol) {
                 $selects[] = 'live_items.codigo_live';
             }
@@ -100,8 +101,17 @@ class LiveChatController extends Controller
                 $selects[] = 'live_items.buyer_name';
                 $selects[] = 'live_items.live_message_id';
             }
+            if ($hasVideoCutCols) {
+                $selects[] = 'live_items.video_cut_path';
+                $selects[] = 'live_items.video_cut_filename';
+                $selects[] = 'live_items.video_cut_duration';
+                $selects[] = 'live_items.video_cut_status';
+                $selects[] = 'live_items.video_cut_started_at';
+                $selects[] = 'live_items.video_cut_finished_at';
+                $selects[] = 'live_items.video_cut_trigger';
+            }
 
-            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol, $hasBuyerCols) {
+            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
                 return [
                     'id' => 'scan_db_' . $row->live_item_id,
                     'itemId' => $row->item_id,
@@ -111,6 +121,13 @@ class LiveChatController extends Controller
                     'buyerUsername' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
                     'buyerName' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
                     'liveMessageId' => $hasBuyerCols ? ($row->live_message_id ?? null) : null,
+                    'videoCutPath' => $hasVideoCutCols ? ($row->video_cut_path ?? null) : null,
+                    'videoCutFilename' => $hasVideoCutCols ? ($row->video_cut_filename ?? null) : null,
+                    'videoCutDuration' => $hasVideoCutCols ? ($row->video_cut_duration ?? null) : null,
+                    'videoCutStatus' => $hasVideoCutCols ? ($row->video_cut_status ?? null) : null,
+                    'videoCutStartedAt' => $hasVideoCutCols ? ($row->video_cut_started_at ?? null) : null,
+                    'videoCutFinishedAt' => $hasVideoCutCols ? ($row->video_cut_finished_at ?? null) : null,
+                    'videoCutTrigger' => $hasVideoCutCols ? ($row->video_cut_trigger ?? null) : null,
                     'productName' => $row->nome_do_produto ?: 'Sem Nome',
                     'productDetails' => $row->descricao ?? '',
                     'tamanho' => $row->tamanho ?? '',
@@ -417,6 +434,225 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Comprador desvinculado do item com sucesso.'
+        ]);
+    }
+
+    /**
+     * Inicia o corte de vídeo para a peça atual na live
+     */
+    public function startVideoCut(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'nullable',
+            'code' => 'nullable|string',
+            'codigo_live' => 'nullable|string'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+        $code = trim((string) $request->input('code'));
+        $codigoLive = trim((string) $request->input('codigo_live'));
+
+        if (!$itemId && $code) {
+            $item = DB::table('items')->where('codigo', $code)->first();
+            if ($item) $itemId = $item->id;
+        }
+
+        if (!$itemId && $codigoLive) {
+            $liveItem = DB::table('live_items')
+                ->where('live_id', $liveId)
+                ->whereRaw('LOWER(TRIM(codigo_live)) = ?', [mb_strtolower($codigoLive, 'UTF-8')])
+                ->first();
+            if ($liveItem) $itemId = $liveItem->item_id;
+        }
+
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'Peça não identificada para iniciar o corte.'], 404);
+        }
+
+        if (Schema::hasTable('live_items') && Schema::hasColumn('live_items', 'video_cut_status')) {
+            DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update([
+                'video_cut_status' => 'recording',
+                'video_cut_started_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Gravação do corte iniciada para a peça #' . ($code ?: $itemId),
+            'item_id' => $itemId
+        ]);
+    }
+
+    /**
+     * Finaliza o corte de vídeo no OBS e salva os metadados na tabela live_items
+     */
+    public function finishVideoCut(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'nullable',
+            'code' => 'nullable|string',
+            'codigo_live' => 'nullable|string',
+            'video_path' => 'nullable|string',
+            'video_filename' => 'nullable|string',
+            'duration' => 'nullable|numeric',
+            'trigger' => 'nullable|string'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+        $code = trim((string) $request->input('code'));
+        $codigoLive = trim((string) $request->input('codigo_live'));
+        $videoPath = $request->input('video_path');
+        $videoFilename = $request->input('video_filename');
+        if (!$videoFilename && $videoPath) {
+            $videoFilename = basename(str_replace('\\', '/', $videoPath));
+        }
+        $duration = $request->input('duration') !== null ? (int) round($request->input('duration')) : null;
+        $trigger = $request->input('trigger', 'voice_ok');
+
+        if (!$itemId && $code) {
+            $item = DB::table('items')->where('codigo', $code)->first();
+            if ($item) $itemId = $item->id;
+        }
+
+        if (!$itemId && $codigoLive) {
+            $liveItem = DB::table('live_items')
+                ->where('live_id', $liveId)
+                ->whereRaw('LOWER(TRIM(codigo_live)) = ?', [mb_strtolower($codigoLive, 'UTF-8')])
+                ->first();
+            if ($liveItem) $itemId = $liveItem->item_id;
+        }
+
+        if (!$itemId && Schema::hasColumn('live_items', 'video_cut_status')) {
+            $lastRec = DB::table('live_items')
+                ->where('live_id', $liveId)
+                ->where('video_cut_status', 'recording')
+                ->orderBy('id', 'desc')
+                ->first();
+            if ($lastRec) $itemId = $lastRec->item_id;
+        }
+
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'Peça não identificada para associar o corte.'], 404);
+        }
+
+        $updateData = [
+            'updated_at' => now()
+        ];
+        if (Schema::hasColumn('live_items', 'video_cut_status')) {
+            $updateData['video_cut_status'] = 'recorded';
+        }
+        if (Schema::hasColumn('live_items', 'video_cut_path')) {
+            $updateData['video_cut_path'] = $videoPath;
+        }
+        if (Schema::hasColumn('live_items', 'video_cut_filename')) {
+            $updateData['video_cut_filename'] = $videoFilename;
+        }
+        if (Schema::hasColumn('live_items', 'video_cut_duration') && $duration !== null) {
+            $updateData['video_cut_duration'] = $duration;
+        }
+        if (Schema::hasColumn('live_items', 'video_cut_finished_at')) {
+            $updateData['video_cut_finished_at'] = now();
+        }
+        if (Schema::hasColumn('live_items', 'video_cut_trigger')) {
+            $updateData['video_cut_trigger'] = $trigger;
+        }
+
+        DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Corte de vídeo salvo e associado com sucesso à peça!',
+            'item_id' => $itemId,
+            'video_path' => $videoPath,
+            'video_filename' => $videoFilename,
+            'duration' => $duration
+        ]);
+    }
+
+    /**
+     * Retorna a lista completa de cortes e status de gravação de todos os itens da live
+     */
+    public function getVideoCuts(Request $request)
+    {
+        $liveId = $request->query('live_id');
+        if (!$liveId) {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first();
+            $liveId = $activeLive ? $activeLive->id : null;
+        }
+
+        if (!$liveId) {
+            return response()->json(['success' => false, 'message' => 'Nenhuma live encontrada.'], 404);
+        }
+
+        $hasVideoCutCols = Schema::hasColumn('live_items', 'video_cut_path');
+        $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
+        $hasBuyerCols = Schema::hasColumn('live_items', 'buyer_username');
+
+        $query = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $liveId)
+            ->orderBy('live_items.id', 'asc');
+
+        $selects = [
+            'live_items.id as live_item_id',
+            'live_items.created_at as scanned_at',
+            'items.id as item_id',
+            'items.codigo',
+            'items.nome_do_produto',
+            'items.descricao',
+            'items.preco'
+        ];
+
+        if ($hasCodigoLiveCol) $selects[] = 'live_items.codigo_live';
+        if ($hasBuyerCols) {
+            $selects[] = 'live_items.buyer_username';
+            $selects[] = 'live_items.buyer_name';
+        }
+        if ($hasVideoCutCols) {
+            $selects[] = 'live_items.video_cut_path';
+            $selects[] = 'live_items.video_cut_filename';
+            $selects[] = 'live_items.video_cut_duration';
+            $selects[] = 'live_items.video_cut_status';
+            $selects[] = 'live_items.video_cut_started_at';
+            $selects[] = 'live_items.video_cut_finished_at';
+            $selects[] = 'live_items.video_cut_trigger';
+        }
+
+        $items = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
+            return [
+                'live_item_id' => $row->live_item_id,
+                'item_id' => $row->item_id,
+                'code' => $row->codigo,
+                'live_code' => $hasCodigoLiveCol ? ($row->codigo_live ?? '') : '',
+                'buyer_username' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
+                'buyer_name' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
+                'product_name' => $row->nome_do_produto,
+                'product_price' => $row->preco,
+                'video_cut_path' => $hasVideoCutCols ? ($row->video_cut_path ?? null) : null,
+                'video_cut_filename' => $hasVideoCutCols ? ($row->video_cut_filename ?? null) : null,
+                'video_cut_duration' => $hasVideoCutCols ? ($row->video_cut_duration ?? null) : null,
+                'video_cut_status' => $hasVideoCutCols ? ($row->video_cut_status ?? 'none') : 'none',
+                'video_cut_finished_at' => $hasVideoCutCols ? ($row->video_cut_finished_at ?? null) : null,
+                'video_cut_trigger' => $hasVideoCutCols ? ($row->video_cut_trigger ?? null) : null
+            ];
+        });
+
+        $totalItems = $items->count();
+        $totalCutsRecorded = $items->filter(fn($i) => $i['video_cut_status'] === 'recorded')->count();
+        $totalDurationSec = $items->sum('video_cut_duration');
+
+        return response()->json([
+            'success' => true,
+            'live_id' => $liveId,
+            'total_items' => $totalItems,
+            'total_cuts_recorded' => $totalCutsRecorded,
+            'total_duration_seconds' => $totalDurationSec,
+            'cuts' => $items
         ]);
     }
 

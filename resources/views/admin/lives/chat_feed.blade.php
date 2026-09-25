@@ -267,6 +267,24 @@
                 <span class="hidden sm:inline">Ocultar Cards</span>
             </button>
 
+            <!-- Integração OBS Studio -->
+            <button type="button" onclick="openObsSettingsModal()" id="btn-obs-status" class="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm" title="Conexão com o OBS Studio para cortes automáticos">
+                <span id="obs-status-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                <span id="obs-status-text">OBS: Desconectado</span>
+            </button>
+
+            <!-- Gatilho de Voz "OK" -->
+            <button type="button" onclick="toggleCutVoiceTrigger()" id="btn-voice-trigger" class="bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/50 p-2 px-3 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Finalizar cortes falando 'OK', 'Próximo' ou 'Fechou'">
+                <i class="fas fa-microphone text-xs text-emerald-400" id="voice-trigger-icon"></i>
+                <span id="voice-trigger-text">Voz "OK": Ativa</span>
+            </button>
+
+            <!-- Central de Cortes da Live -->
+            <button type="button" onclick="openVideoCutsModal()" id="btn-cuts-center" class="bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/40 p-2 px-3 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ver cortes de vídeo da live">
+                <i class="fas fa-film text-xs text-indigo-400"></i>
+                <span>Cortes (<strong id="cuts-counter-val">0</strong>)</span>
+            </button>
+
             <!-- Seletor de Live -->
             <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
                 <form action="{{ route('admin.live-chat.feed') }}" method="GET" class="flex gap-2 m-0">
@@ -638,6 +656,191 @@
     </div>
 </div>
 
+<!-- BARRA FLUTUANTE DE GRAVAÇÃO ATIVA DO CORTE NO OBS -->
+<div id="obs-recording-floating-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-red-700 via-rose-700 to-red-800 text-white px-5 py-3 rounded-2xl shadow-2xl border-2 border-red-400 flex items-center gap-4 transition-all">
+    <div class="flex items-center gap-2.5">
+        <span class="relative flex h-3.5 w-3.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-400"></span>
+        </span>
+        <span class="font-black text-xs uppercase tracking-wider text-red-100">Gravando Corte OBS</span>
+    </div>
+    <div class="h-6 w-px bg-red-400/40"></div>
+    <div class="text-xs font-semibold flex items-center gap-1.5">
+        <span>Peça:</span>
+        <strong id="rec-cut-code-badge" class="text-yellow-300 bg-red-950/70 px-2 py-0.5 rounded-lg font-mono text-sm tracking-wider">#---</strong>
+        <span id="rec-cut-live-code" class="text-xs text-red-200"></span>
+    </div>
+    <div class="h-6 w-px bg-red-400/40"></div>
+    <div class="font-mono font-black text-base text-yellow-300 min-w-[55px] text-center" id="rec-cut-timer">00:00</div>
+    <div class="h-6 w-px bg-red-400/40"></div>
+    <button type="button" onclick="finishCurrentVideoCut('floating_bar_btn')" class="bg-white hover:bg-red-50 text-red-700 font-black px-4 py-2 rounded-xl shadow-lg transition active:scale-95 text-xs flex items-center gap-1.5 cursor-pointer border border-red-200">
+        <i class="fas fa-stop text-red-600"></i>
+        <span>FINALIZAR CORTE (OK)</span>
+    </button>
+    <span class="text-[11px] text-red-200 hidden lg:inline opacity-80">(ou fale "OK" / aperte Espaço)</span>
+</div>
+
+<!-- MODAL DE CONFIGURAÇÃO DA INTEGRAÇÃO COM OBS STUDIO -->
+<div id="obs-settings-modal" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" style="z-index: 99999;">
+    <div class="bg-gray-900 border border-gray-700 text-white rounded-2xl shadow-2xl max-w-lg w-full p-6 mx-auto transform transition-all duration-300 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow text-white">
+                    <i class="fas fa-video"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white">Integração com OBS Studio</h3>
+                    <p class="text-[11px] text-gray-400">Gravação automática de cortes por produto em tempo real</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeObsSettingsModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 my-4 text-xs">
+            <!-- Status de Conexão -->
+            <div class="p-3 rounded-xl bg-gray-800/80 border border-gray-700 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span id="obs-modal-status-dot" class="w-3 h-3 rounded-full bg-red-500 shrink-0"></span>
+                    <div>
+                        <span class="text-[11px] text-gray-400 block">Status da Conexão:</span>
+                        <strong id="obs-modal-status-text" class="text-red-400 text-sm font-black">Desconectado</strong>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-obs-connect" onclick="connectToObs()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-1.5 rounded-xl transition text-xs shadow">
+                        Conectar
+                    </button>
+                    <button type="button" id="btn-obs-disconnect" onclick="disconnectObs()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold px-3 py-1.5 rounded-xl transition text-xs hidden">
+                        Desconectar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Campos de Configuração -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-2">
+                    <label class="block text-[11px] font-bold text-gray-300 mb-1">Endereço IP / Host:</label>
+                    <input type="text" id="obs-cfg-host" value="127.0.0.1" placeholder="127.0.0.1 ou localhost" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-300 mb-1">Porta:</label>
+                    <input type="number" id="obs-cfg-port" value="4455" placeholder="4455" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-300 mb-1">Senha do Servidor WebSocket (se configurada no OBS):</label>
+                <input type="password" id="obs-cfg-password" placeholder="Opcional se desativada a autenticação no OBS" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            </div>
+
+            <!-- Opções de Automação -->
+            <div class="space-y-2 pt-2 border-t border-gray-800">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="obs-cfg-auto-record" checked class="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-700">
+                    <span class="text-gray-300 font-semibold">Iniciar gravação automaticamente ao bipar cada peça</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="obs-cfg-voice-finish" checked class="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-700">
+                    <span class="text-gray-300 font-semibold">Finalizar corte automaticamente ao falar "OK", "Próximo" ou "Fechou"</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="obs-cfg-auto-connect" checked class="w-4 h-4 text-indigo-600 rounded bg-gray-800 border-gray-700">
+                    <span class="text-gray-300 font-semibold">Conectar automaticamente ao carregar a página</span>
+                </label>
+            </div>
+
+            <!-- Guia Rápido OBS Studio -->
+            <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 text-[11px] text-gray-400 space-y-1.5">
+                <strong class="text-indigo-400 block font-bold text-xs"><i class="fas fa-info-circle mr-1"></i> Como ativar o WebSocket no OBS Studio:</strong>
+                <p>1. No OBS Studio, vá no menu superior: <strong>Ferramentas &rarr; Configurações do servidor WebSocket</strong>.</p>
+                <p>2. Marque a caixinha <strong>"Ativar servidor WebSocket"</strong> (Porta padrão: <strong>4455</strong>).</p>
+                <p>3. Se a opção <em>"Ativar autenticação"</em> estiver desmarcada, deixe o campo Senha em branco aqui. Se estiver marcada, copie a senha do OBS para cá.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-3 border-t border-gray-800">
+            <button type="button" onclick="testObsRecordCut()" class="text-gray-400 hover:text-yellow-400 text-xs font-semibold transition">
+                <i class="fas fa-vial mr-1"></i> Testar Gravação de 3s
+            </button>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeObsSettingsModal()" class="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-800 text-xs font-bold transition">
+                    Fechar
+                </button>
+                <button type="button" onclick="saveObsSettingsAndConnect()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition shadow">
+                    Salvar e Conectar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CENTRAL DE CORTES DA LIVE -->
+<div id="video-cuts-modal" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" style="z-index: 99999;">
+    <div class="bg-gray-900 border border-gray-700 text-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 mx-auto transform transition-all duration-300 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-800 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow text-white">
+                    <i class="fas fa-film text-base"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white">Central de Cortes de Vídeo da Live</h3>
+                    <p class="text-[11px] text-gray-400">100% dos cortes linkados aos itens para publicação em redes sociais</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeVideoCutsModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Resumo / Estatísticas no Topo -->
+        <div class="grid grid-cols-3 gap-3 my-3 shrink-0">
+            <div class="bg-gray-800/80 border border-gray-700/80 p-3 rounded-xl flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] text-gray-400 font-bold block">Total de Peças na Live</span>
+                    <strong class="text-xl font-black text-white" id="modal-cuts-total-items">0</strong>
+                </div>
+                <i class="fas fa-tags text-2xl text-gray-600"></i>
+            </div>
+            <div class="bg-emerald-950/40 border border-emerald-800/50 p-3 rounded-xl flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] text-emerald-400 font-bold block">Cortes Gravados</span>
+                    <strong class="text-xl font-black text-emerald-300" id="modal-cuts-recorded-count">0</strong>
+                </div>
+                <i class="fas fa-check-circle text-2xl text-emerald-500"></i>
+            </div>
+            <div class="bg-indigo-950/40 border border-indigo-800/50 p-3 rounded-xl flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] text-indigo-400 font-bold block">Tempo Total de Cortes</span>
+                    <strong class="text-xl font-black text-indigo-300" id="modal-cuts-total-duration">0 min</strong>
+                </div>
+                <i class="fas fa-clock text-2xl text-indigo-500"></i>
+            </div>
+        </div>
+
+        <!-- Lista dos Cortes -->
+        <div class="flex-1 overflow-y-auto border border-gray-800 rounded-xl bg-gray-950/50 p-2 space-y-2 min-h-[250px]" id="modal-cuts-list-container">
+            <div class="text-center py-10 text-gray-500 text-xs">
+                <i class="fas fa-spinner fa-spin text-xl mb-2 text-indigo-500 block"></i>
+                Carregando cortes da live...
+            </div>
+        </div>
+
+        <!-- Ações no Rodapé -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-800 shrink-0">
+            <button type="button" onclick="copyCutsListToClipboard()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                <i class="fas fa-copy text-indigo-400"></i>
+                <span>Copiar Lista de Cortes (Edição/Social Media)</span>
+            </button>
+            <button type="button" onclick="closeVideoCutsModal()" class="px-5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -748,6 +951,21 @@
     let bgLastScannedCode = null;
     let bgLastScannedTime = 0;
     const BG_SCAN_DEBOUNCE_MS = 1500;
+
+    // INTEGRAÇÃO OBS STUDIO & CORTES DE VÍDEO
+    let obsWs = null;
+    let isObsConnected = false;
+    let currentRecordingItem = null;
+    let cutTimerInterval = null;
+    let cutStartTime = null;
+    let isAutoRecordOnScanEnabled = localStorage.getItem('obs_auto_record_on_scan') !== 'false';
+    let isCutVoiceTriggerEnabled = localStorage.getItem('obs_voice_trigger_enabled') !== 'false';
+    let obsHost = localStorage.getItem('obs_host') || '127.0.0.1';
+    let obsPort = localStorage.getItem('obs_port') || '4455';
+    let obsPassword = localStorage.getItem('obs_password') || '';
+    let obsAutoConnect = localStorage.getItem('obs_auto_connect') !== 'false';
+    let obsReqCounter = 1;
+    let obsPendingRequests = {};
 
     /* ---- Câmera Visível no Card (Html5Qrcode) ----------------------------- */
     let availableCameras = [];
@@ -1169,6 +1387,17 @@
                     // Percorre todas as alternativas oferecidas pelo reconhecimento
                     for (let a = 0; a < res.length; a++) {
                         const transcript = res[a].transcript;
+
+                        // Detecção de voz para finalização de corte no OBS ("OK", "Próximo", "Fechou", "Cortou")
+                        if (currentRecordingItem && isCutVoiceTriggerEnabled) {
+                            if (/\b(ok|okay|próximo|proximo|fechou|cortou|corta|próxima|proxima|feito|fim|gravado)\b/i.test(transcript)) {
+                                console.log('[OBS Voz] Fala de término de corte detectada:', transcript);
+                                finishCurrentVideoCut('voice_ok');
+                                foundCodeInTurn = null;
+                                break;
+                            }
+                        }
+
                         const detectedCode = extractCodeFromSpokenText(transcript);
                         if (detectedCode) {
                             foundCodeInTurn = detectedCode;
@@ -2057,6 +2286,9 @@
                 '<div class="scan-item-buyer-wrapper">' +
                     renderScanItemBuyerHtml(item) +
                 '</div>' +
+                '<div class="scan-item-video-cut-wrapper mt-1">' +
+                    renderScanItemVideoCutHtml(item) +
+                '</div>' +
             '</div>' +
             '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
                 'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
@@ -2178,6 +2410,13 @@
             buyerUsername: null,
             buyerName: null,
             liveMessageId: null,
+            videoCutPath: null,
+            videoCutFilename: null,
+            videoCutDuration: null,
+            videoCutStatus: null,
+            videoCutStartedAt: null,
+            videoCutFinishedAt: null,
+            videoCutTrigger: null,
             time: timeStr,
             timestamp: Date.now(),
             source: source,
@@ -2209,6 +2448,11 @@
 
         // Já sincroniza com a tabela live_items
         syncLinkItemToLive(null, cleanCode, item.liveCode);
+
+        // Dispara gravação automática do corte no OBS se ativada
+        if (isAutoRecordOnScanEnabled) {
+            startObsVideoCut(item);
+        }
 
         // Exibe o banner de confirmação com destaque no topo se não for duplicado
         if (!dupItem) {
@@ -2407,7 +2651,632 @@
         }
     }
 
-    /* ---- Inicialização --------------------------------------------------- */
+    // =========================================================================
+    // INTEGRAÇÃO OBS STUDIO (OBS-WEBSOCKET V5) & CONTROLE DE CORTES EM TEMPO REAL
+    // =========================================================================
+    function formatDurationSec(sec) {
+        sec = parseInt(sec) || 0;
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    async function obsSha256Base64(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        let binary = '';
+        for (let i = 0; i < hashArray.length; i++) {
+            binary += String.fromCharCode(hashArray[i]);
+        }
+        return btoa(binary);
+    }
+
+    function updateObsStatusUI() {
+        const dot = document.getElementById('obs-status-dot');
+        const text = document.getElementById('obs-status-text');
+        const modalDot = document.getElementById('obs-modal-status-dot');
+        const modalText = document.getElementById('obs-modal-status-text');
+        const btnConnect = document.getElementById('btn-obs-connect');
+        const btnDisconnect = document.getElementById('btn-obs-disconnect');
+
+        if (isObsConnected) {
+            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block";
+            if (text) text.textContent = `OBS: Conectado (${obsHost}:${obsPort})`;
+            if (modalDot) modalDot.className = "w-3 h-3 rounded-full bg-emerald-500 shrink-0";
+            if (modalText) {
+                modalText.className = "text-emerald-400 text-sm font-black";
+                modalText.textContent = `Conectado ao OBS Studio (${obsHost}:${obsPort})`;
+            }
+            if (btnConnect) btnConnect.classList.add('hidden');
+            if (btnDisconnect) btnDisconnect.classList.remove('hidden');
+        } else {
+            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 inline-block";
+            if (text) text.textContent = "OBS: Desconectado";
+            if (modalDot) modalDot.className = "w-3 h-3 rounded-full bg-red-500 shrink-0";
+            if (modalText) {
+                modalText.className = "text-red-400 text-sm font-black";
+                modalText.textContent = "Desconectado";
+            }
+            if (btnConnect) btnConnect.classList.remove('hidden');
+            if (btnDisconnect) btnDisconnect.classList.add('hidden');
+        }
+        updateCutsCounterBadge();
+    }
+
+    function connectToObs() {
+        if (obsWs) {
+            try { obsWs.close(); } catch(e) {}
+            obsWs = null;
+        }
+
+        const url = `ws://${obsHost}:${obsPort}`;
+        console.log('[OBS] Conectando em:', url);
+
+        try {
+            obsWs = new WebSocket(url);
+        } catch(err) {
+            console.warn('[OBS] Erro ao instanciar WebSocket:', err);
+            isObsConnected = false;
+            updateObsStatusUI();
+            showToast('Erro ao tentar conectar ao OBS: ' + err.message, 'error');
+            return;
+        }
+
+        obsWs.onopen = function() {
+            console.log('[OBS] WebSocket conectado! Aguardando Hello (OpCode 0)...');
+        };
+
+        obsWs.onmessage = async function(event) {
+            try {
+                const msg = JSON.parse(event.data);
+                // OpCode 0: Hello do OBS
+                if (msg.op === 0) {
+                    const d = msg.d || {};
+                    console.log('[OBS] Hello recebido! Versão:', d.obsWebSocketVersion);
+
+                    const identifyPayload = {
+                        op: 1,
+                        d: {
+                            rpcVersion: 1,
+                            eventSubscriptions: 65 // General + Outputs
+                        }
+                    };
+
+                    // Autenticação com salt + challenge se configurada
+                    if (d.authentication) {
+                        const salt = d.authentication.salt;
+                        const challenge = d.authentication.challenge;
+                        const secret = await obsSha256Base64(obsPassword + salt);
+                        const auth = await obsSha256Base64(secret + challenge);
+                        identifyPayload.d.authentication = auth;
+                    }
+
+                    obsWs.send(JSON.stringify(identifyPayload));
+                }
+                // OpCode 2: Identified (Pronto para comandos!)
+                else if (msg.op === 2) {
+                    console.log('[OBS] Identificado e autenticado com sucesso!');
+                    isObsConnected = true;
+                    updateObsStatusUI();
+                    showToast('🎬 Conectado com sucesso ao OBS Studio!', 'success');
+                }
+                // OpCode 5: Eventos em tempo real do OBS
+                else if (msg.op === 5) {
+                    const eventData = msg.d?.eventData || {};
+                    if (msg.d?.eventType === 'RecordStateChanged') {
+                        console.log('[OBS Event] RecordStateChanged:', eventData);
+                        if (eventData.outputPath && window._lastFinishedCutItem) {
+                            handleObsOutputPathReceived(window._lastFinishedCutItem, eventData.outputPath);
+                        }
+                    }
+                }
+                // OpCode 7: Resposta de Requisição (RequestResponse)
+                else if (msg.op === 7) {
+                    const reqId = msg.d?.requestId;
+                    const reqType = msg.d?.requestType;
+                    const resData = msg.d?.responseData || {};
+                    console.log(`[OBS Response] [${reqType}]`, msg.d);
+
+                    if (reqType === 'StopRecord' && resData.outputPath && window._lastFinishedCutItem) {
+                        handleObsOutputPathReceived(window._lastFinishedCutItem, resData.outputPath);
+                    }
+
+                    if (reqId && obsPendingRequests[reqId]) {
+                        obsPendingRequests[reqId](msg.d);
+                        delete obsPendingRequests[reqId];
+                    }
+                }
+            } catch(e) {
+                console.error('[OBS] Erro ao processar mensagem recebida:', e);
+            }
+        };
+
+        obsWs.onerror = function(err) {
+            console.warn('[OBS] Erro no WebSocket:', err);
+            isObsConnected = false;
+            updateObsStatusUI();
+        };
+
+        obsWs.onclose = function() {
+            console.log('[OBS] Conexão WebSocket encerrada.');
+            isObsConnected = false;
+            updateObsStatusUI();
+        };
+    }
+
+    function disconnectObs() {
+        if (obsWs) {
+            try { obsWs.close(); } catch(e) {}
+            obsWs = null;
+        }
+        isObsConnected = false;
+        updateObsStatusUI();
+        showToast('OBS desconectado.', 'info');
+    }
+
+    function sendObsRequest(requestType, requestData = {}) {
+        return new Promise((resolve, reject) => {
+            if (!obsWs || !isObsConnected) {
+                resolve({ requestStatus: { result: false, comment: 'OBS não conectado' } });
+                return;
+            }
+            const reqId = 'req_' + (obsReqCounter++) + '_' + Date.now();
+            obsPendingRequests[reqId] = resolve;
+            const payload = {
+                op: 6,
+                d: {
+                    requestType: requestType,
+                    requestId: reqId,
+                    requestData: requestData
+                }
+            };
+            try {
+                obsWs.send(JSON.stringify(payload));
+            } catch(e) {
+                delete obsPendingRequests[reqId];
+                reject(e);
+            }
+        });
+    }
+
+    // Modal de Configuração do OBS
+    function openObsSettingsModal() {
+        const modal = document.getElementById('obs-settings-modal');
+        if (!modal) return;
+        document.getElementById('obs-cfg-host').value = obsHost;
+        document.getElementById('obs-cfg-port').value = obsPort;
+        document.getElementById('obs-cfg-password').value = obsPassword;
+        document.getElementById('obs-cfg-auto-record').checked = isAutoRecordOnScanEnabled;
+        document.getElementById('obs-cfg-voice-finish').checked = isCutVoiceTriggerEnabled;
+        document.getElementById('obs-cfg-auto-connect').checked = obsAutoConnect;
+        updateObsStatusUI();
+        modal.classList.remove('hidden');
+    }
+
+    function closeObsSettingsModal() {
+        const modal = document.getElementById('obs-settings-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function saveObsSettingsAndConnect() {
+        obsHost = document.getElementById('obs-cfg-host').value.trim() || '127.0.0.1';
+        obsPort = document.getElementById('obs-cfg-port').value.trim() || '4455';
+        obsPassword = document.getElementById('obs-cfg-password').value;
+        isAutoRecordOnScanEnabled = document.getElementById('obs-cfg-auto-record').checked;
+        isCutVoiceTriggerEnabled = document.getElementById('obs-cfg-voice-finish').checked;
+        obsAutoConnect = document.getElementById('obs-cfg-auto-connect').checked;
+
+        localStorage.setItem('obs_host', obsHost);
+        localStorage.setItem('obs_port', obsPort);
+        localStorage.setItem('obs_password', obsPassword);
+        localStorage.setItem('obs_auto_record_on_scan', isAutoRecordOnScanEnabled ? 'true' : 'false');
+        localStorage.setItem('obs_voice_trigger_enabled', isCutVoiceTriggerEnabled ? 'true' : 'false');
+        localStorage.setItem('obs_auto_connect', obsAutoConnect ? 'true' : 'false');
+
+        updateCutVoiceTriggerUI();
+        connectToObs();
+        closeObsSettingsModal();
+    }
+
+    async function testObsRecordCut() {
+        if (!isObsConnected) {
+            showToast('Conecte ao OBS Studio primeiro para testar.', 'warning');
+            return;
+        }
+        showToast('Iniciando teste de gravação de 3s no OBS...', 'info');
+        playRecordStartBeep();
+        await sendObsRequest('StartRecord');
+        setTimeout(async function() {
+            const res = await sendObsRequest('StopRecord');
+            playRecordFinishBeep();
+            const outPath = res?.responseData?.outputPath || 'arquivo gravado';
+            showToast('✅ Teste concluído com sucesso! Arquivo: ' + outPath, 'success');
+        }, 3000);
+    }
+
+    function toggleCutVoiceTrigger() {
+        isCutVoiceTriggerEnabled = !isCutVoiceTriggerEnabled;
+        localStorage.setItem('obs_voice_trigger_enabled', isCutVoiceTriggerEnabled ? 'true' : 'false');
+        updateCutVoiceTriggerUI();
+        showToast(isCutVoiceTriggerEnabled ? '🎙️ Escuta de voz "OK" para cortes ATIVADA!' : '🎙️ Escuta de voz "OK" desativada.', 'info');
+    }
+
+    function updateCutVoiceTriggerUI() {
+        const btn = document.getElementById('btn-voice-trigger');
+        const icon = document.getElementById('voice-trigger-icon');
+        const text = document.getElementById('voice-trigger-text');
+        if (btn) {
+            if (isCutVoiceTriggerEnabled) {
+                btn.className = "bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/50 p-2 px-3 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+                if (icon) icon.className = "fas fa-microphone text-xs text-emerald-400 animate-pulse";
+                if (text) text.textContent = 'Voz "OK": Ativa';
+            } else {
+                btn.className = "bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 p-2 px-3 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+                if (icon) icon.className = "fas fa-microphone-slash text-xs text-gray-500";
+                if (text) text.textContent = 'Voz "OK": Inativa';
+            }
+        }
+    }
+
+    // =========================================================================
+    // CONTROLE DE GRAVAÇÃO DO CORTE (START / STOP)
+    // =========================================================================
+    async function startObsVideoCut(item) {
+        if (!item) return;
+
+        // Se havia outro corte gravando, finaliza ele primeiro
+        if (currentRecordingItem && currentRecordingItem.id !== item.id) {
+            await finishCurrentVideoCut('auto_next_scan');
+        }
+
+        currentRecordingItem = item;
+        item.videoCutStatus = 'recording';
+        item.videoCutStartedAt = Date.now();
+        item.videoCutDuration = 0;
+        cutStartTime = Date.now();
+
+        // Envia StartRecord para o OBS
+        if (isObsConnected) {
+            sendObsRequest('StartRecord').then(res => {
+                console.log('[OBS] Gravação iniciada no OBS:', res);
+            }).catch(e => {
+                console.warn('[OBS] Falha ao iniciar gravação:', e);
+            });
+        }
+
+        playRecordStartBeep();
+
+        // Notifica o backend
+        if (liveId) {
+            fetch('/admin/live-chat/start-video-cut', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    item_id: item.itemId,
+                    code: item.code,
+                    codigo_live: item.liveCode
+                })
+            }).catch(e => console.warn('[Corte API] Erro ao iniciar:', e));
+        }
+
+        // Atualiza a Barra Flutuante
+        const bar = document.getElementById('obs-recording-floating-bar');
+        const codeBadge = document.getElementById('rec-cut-code-badge');
+        const liveCodeSpan = document.getElementById('rec-cut-live-code');
+        const timerEl = document.getElementById('rec-cut-timer');
+
+        if (bar && codeBadge && timerEl) {
+            codeBadge.textContent = '#' + item.code;
+            if (liveCodeSpan) liveCodeSpan.textContent = item.liveCode ? `• Live: ${item.liveCode}` : '';
+            timerEl.textContent = '00:00';
+            bar.classList.remove('hidden');
+        }
+
+        // Inicia o contador de segundos na tela
+        clearInterval(cutTimerInterval);
+        cutTimerInterval = setInterval(function() {
+            if (!currentRecordingItem) return;
+            const elapsedSec = Math.floor((Date.now() - cutStartTime) / 1000);
+            currentRecordingItem.videoCutDuration = elapsedSec;
+            if (timerEl) {
+                timerEl.textContent = formatDurationSec(elapsedSec);
+            }
+            refreshItemVideoCutUI(currentRecordingItem);
+        }, 1000);
+
+        refreshItemVideoCutUI(item);
+    }
+
+    async function finishCurrentVideoCut(trigger = 'manual') {
+        if (!currentRecordingItem) return;
+
+        const itemToFinish = currentRecordingItem;
+        currentRecordingItem = null;
+        clearInterval(cutTimerInterval);
+
+        const elapsedSec = Math.max(1, Math.round((Date.now() - (cutStartTime || Date.now())) / 1000));
+        itemToFinish.videoCutDuration = elapsedSec;
+        itemToFinish.videoCutStatus = 'recorded';
+        itemToFinish.videoCutTrigger = trigger;
+        window._lastFinishedCutItem = itemToFinish;
+
+        // Oculta barra flutuante
+        const bar = document.getElementById('obs-recording-floating-bar');
+        if (bar) bar.classList.add('hidden');
+
+        playRecordFinishBeep();
+
+        // Envia StopRecord para o OBS se conectado
+        let resolvedPath = null;
+        if (isObsConnected) {
+            try {
+                const res = await sendObsRequest('StopRecord');
+                if (res?.responseData?.outputPath) {
+                    resolvedPath = res.responseData.outputPath;
+                }
+            } catch(e) {
+                console.warn('[OBS] Erro ao parar gravação:', e);
+            }
+        }
+
+        // Se não recebeu outputPath de imediato, define um nome amigável padrão enquanto aguarda evento
+        if (!resolvedPath && !itemToFinish.videoCutPath) {
+            const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const liveCodePart = itemToFinish.liveCode ? `_live_${itemToFinish.liveCode}` : '';
+            resolvedPath = `corte_${itemToFinish.code}${liveCodePart}_${dateStr}.mp4`;
+        }
+
+        if (resolvedPath) {
+            handleObsOutputPathReceived(itemToFinish, resolvedPath);
+        }
+
+        refreshItemVideoCutUI(itemToFinish);
+        updateCutsCounterBadge();
+
+        const triggerNames = {
+            'voice_ok': 'Voz ("OK")',
+            'manual_button': 'Botão Finalizar',
+            'floating_bar_btn': 'Barra Flutuante',
+            'keyboard_space': 'Tecla Espaço',
+            'card_btn': 'Card do Produto',
+            'auto_next_scan': 'Próximo Bipe'
+        };
+        const trgLabel = triggerNames[trigger] || trigger;
+        showToast(`✅ Corte da Peça #${itemToFinish.code} finalizado (${elapsedSec}s) via ${trgLabel}!`, 'success');
+    }
+
+    function handleObsOutputPathReceived(item, outputPath) {
+        if (!item || !outputPath) return;
+        item.videoCutPath = outputPath;
+        item.videoCutFilename = outputPath.split(/[\\/]/).pop();
+        item.videoCutStatus = 'recorded';
+
+        // Persiste no backend Laravel
+        if (liveId) {
+            fetch('/admin/live-chat/finish-video-cut', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    item_id: item.itemId,
+                    code: item.code,
+                    codigo_live: item.liveCode,
+                    video_path: item.videoCutPath,
+                    video_filename: item.videoCutFilename,
+                    duration: item.videoCutDuration,
+                    trigger: item.videoCutTrigger || 'voice_ok'
+                })
+            }).then(r => r.json()).then(data => {
+                console.log('[Corte API] Salvo no banco:', data);
+            }).catch(e => console.warn('[Corte API] Erro ao salvar:', e));
+        }
+
+        refreshItemVideoCutUI(item);
+        updateCutsCounterBadge();
+    }
+
+    function startObsVideoCutForItem(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (item) startObsVideoCut(item);
+    }
+
+    function renderScanItemVideoCutHtml(item) {
+        if (item.videoCutStatus === 'recording') {
+            const dur = formatDurationSec(item.videoCutDuration || 0);
+            return `
+                <div class="inline-flex items-center gap-1.5 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm animate-pulse">
+                    <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                    <span>GRAVANDO CORTE (${dur})</span>
+                    <button type="button" onclick="event.stopPropagation(); finishCurrentVideoCut('card_btn')" class="ml-1 text-[9px] bg-red-950 hover:bg-black px-1.5 py-0.5 rounded text-white font-bold transition cursor-pointer">OK</button>
+                </div>
+            `;
+        }
+
+        if (item.videoCutStatus === 'recorded') {
+            const dur = item.videoCutDuration ? `${item.videoCutDuration}s` : 'Salvo';
+            const tooltip = item.videoCutPath || item.videoCutFilename || 'Vídeo gravado';
+            return `
+                <div class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-lg shadow-sm" title="${escapeHtml(tooltip)}">
+                    <i class="fas fa-video text-emerald-600 text-[9px]"></i>
+                    <span>Corte: ${dur}</span>
+                    <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Regravar corte desta peça" class="ml-1 text-emerald-600 hover:text-emerald-950 p-0.5 transition cursor-pointer">
+                        <i class="fas fa-redo text-[9px]"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Gravar corte desta peça no OBS" class="text-[10px] font-bold text-gray-500 hover:text-red-600 bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 px-2 py-0.5 rounded-lg transition inline-flex items-center gap-1 cursor-pointer">
+                <i class="fas fa-video text-[9px]"></i>
+                <span>Gravar Corte</span>
+            </button>
+        `;
+    }
+
+    function refreshItemVideoCutUI(item) {
+        if (!item) return;
+        const el = document.querySelector(`[data-scan-id="${item.id}"]`);
+        if (!el) return;
+        const wrapper = el.querySelector('.scan-item-video-cut-wrapper');
+        if (wrapper) {
+            wrapper.innerHTML = renderScanItemVideoCutHtml(item);
+        }
+    }
+
+    // Modal Central de Cortes da Live
+    async function openVideoCutsModal() {
+        const modal = document.getElementById('video-cuts-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+
+        const container = document.getElementById('modal-cuts-list-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-10 text-gray-400 text-xs">
+                    <i class="fas fa-spinner fa-spin text-xl mb-2 text-indigo-500 block"></i>
+                    Carregando lista de cortes da live...
+                </div>
+            `;
+        }
+
+        try {
+            const res = await fetch(`/admin/live-chat/video-cuts?live_id=${liveId}`);
+            const data = await res.json();
+            if (data.success) {
+                renderVideoCutsModalList(data.cuts || [], data.total_items, data.total_cuts_recorded, data.total_duration_seconds);
+            }
+        } catch(e) {
+            console.warn('[Cortes] Erro ao carregar:', e);
+            renderVideoCutsModalList(bgScanItems, bgScanItems.length, bgScanItems.filter(i => i.videoCutStatus === 'recorded').length, 0);
+        }
+    }
+
+    function closeVideoCutsModal() {
+        const modal = document.getElementById('video-cuts-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function renderVideoCutsModalList(cuts, totalItems, totalRecorded, totalDurationSec) {
+        const totalItemsEl = document.getElementById('modal-cuts-total-items');
+        const totalRecEl = document.getElementById('modal-cuts-recorded-count');
+        const totalDurEl = document.getElementById('modal-cuts-total-duration');
+
+        if (totalItemsEl) totalItemsEl.textContent = totalItems;
+        if (totalRecEl) totalRecEl.textContent = totalRecorded;
+        if (totalDurEl) {
+            const min = Math.floor((totalDurationSec || 0) / 60);
+            const sec = (totalDurationSec || 0) % 60;
+            totalDurEl.textContent = `${min}m ${sec}s`;
+        }
+
+        const container = document.getElementById('modal-cuts-list-container');
+        if (!container) return;
+
+        if (!cuts || cuts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-500 text-xs">
+                    <i class="fas fa-video-slash text-2xl mb-2 text-gray-600 block"></i>
+                    Nenhuma peça bipada nesta live ainda.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        cuts.forEach((c, idx) => {
+            const isRecorded = c.video_cut_status === 'recorded' || c.videoCutStatus === 'recorded';
+            const isRecording = c.video_cut_status === 'recording' || c.videoCutStatus === 'recording';
+            const dur = c.video_cut_duration || c.videoCutDuration || 0;
+            const filename = c.video_cut_filename || c.videoCutFilename || '-';
+            const fullPath = c.video_cut_path || c.videoCutPath || '';
+            const code = c.code || c.codigo || '-';
+            const liveCode = c.live_code || c.liveCode || '';
+            const buyer = c.buyer_name || c.buyer_username || c.buyerName || c.buyerUsername || '';
+            const prodName = c.product_name || c.productName || 'Peça';
+
+            let statusBadge = '';
+            if (isRecording) {
+                statusBadge = '<span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg animate-pulse">Gravando</span>';
+            } else if (isRecorded) {
+                statusBadge = `<span class="bg-emerald-900/70 border border-emerald-500/50 text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1"><i class="fas fa-check text-[9px]"></i> ${dur}s</span>`;
+            } else {
+                statusBadge = '<span class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-lg">Pendente</span>';
+            }
+
+            html += `
+                <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl ${isRecorded ? 'bg-gray-800/70 border border-emerald-900/40' : 'bg-gray-800/40 border border-gray-800'} hover:bg-gray-800 transition text-xs">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-6 h-6 rounded-lg bg-gray-700 text-gray-300 font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
+                            #${idx + 1}
+                        </span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <strong class="text-white font-mono tracking-wider">#${escapeHtml(code)}</strong>
+                                ${liveCode ? `<span class="text-[10px] text-indigo-400 font-extrabold bg-indigo-950 px-1.5 py-0.2 rounded border border-indigo-800">Live: ${escapeHtml(liveCode)}</span>` : ''}
+                                ${buyer ? `<span class="text-[10px] text-emerald-400 font-semibold bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-800"><i class="fas fa-user text-[9px] mr-1"></i>${escapeHtml(buyer)}</span>` : ''}
+                            </div>
+                            <div class="text-[11px] text-gray-400 truncate">
+                                ${escapeHtml(prodName)} &bull; <span class="font-mono text-gray-500 text-[10px]">${escapeHtml(filename)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        ${statusBadge}
+                        ${fullPath ? `
+                            <button type="button" onclick="navigator.clipboard.writeText('${escapeHtml(fullPath).replace(/'/g, "\\'")}'); showToast('Caminho copiado!', 'success')" title="Copiar caminho do arquivo de vídeo" class="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition cursor-pointer">
+                                <i class="fas fa-copy text-xs"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function copyCutsListToClipboard() {
+        if (!bgScanItems || bgScanItems.length === 0) {
+            showToast('Nenhum corte para copiar.', 'warning');
+            return;
+        }
+
+        let text = `🎬 LISTA DE CORTES DA LIVE #${liveId}\n`;
+        text += `Total de Itens: ${bgScanItems.length}\n`;
+        text += `--------------------------------------------------------\n`;
+        bgScanItems.forEach((item, idx) => {
+            const code = item.code || '-';
+            const liveCode = item.liveCode ? ` (Live: ${item.liveCode})` : '';
+            const buyer = item.buyerName || item.buyerUsername ? ` [Comprador: ${item.buyerName || item.buyerUsername}]` : '';
+            const dur = item.videoCutDuration ? ` (${item.videoCutDuration}s)` : '';
+            const file = item.videoCutFilename || item.videoCutPath || 'Sem vídeo';
+            text += `${idx + 1}. #${code}${liveCode} - ${item.productName || 'Peça'}${dur}${buyer} -> Arquivo: ${file}\n`;
+        });
+
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('📋 Lista de cortes copiada para a área de transferência!', 'success');
+        }).catch(() => {
+            showToast('Não foi possível copiar automaticamente.', 'error');
+        });
+    }
+
+    function updateCutsCounterBadge() {
+        const recordedCount = bgScanItems.filter(i => i.videoCutStatus === 'recorded').length;
+        const total = bgScanItems.length;
+        const valEl = document.getElementById('cuts-counter-val');
+        if (valEl) {
+            valEl.textContent = `${recordedCount}/${total}`;
+        }
+    }
     function initScanSystem() {
         loadInitialLinkedLiveItems();
         initScanCamera();
@@ -2472,12 +3341,50 @@
         } catch(e) {}
     }
 
+    function playRecordStartBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.08); // C6
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.28);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.28);
+        } catch(e) {}
+    }
+
+    function playRecordFinishBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+            osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.08); // A5
+            osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.16); // E6
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        } catch(e) {}
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         applyFontSize(currentFontSize);
         applyTheme(currentTheme);
         updateAutoScrollUI();
         updateTopCardsUI();
         loadInitialLinkedLiveItems();
+        updateObsStatusUI();
+        updateCutVoiceTriggerUI();
+        updateCutsCounterBadge();
 
         if (liveId) {
             fetchChatFeed();
@@ -2488,6 +3395,24 @@
         setTimeout(function() {
             try { initScanSystem(); } catch(e) { console.warn('[Scan] Erro ao iniciar:', e); }
         }, 1000);
+
+        // Auto-conectar ao OBS Studio se ativado
+        if (obsAutoConnect) {
+            setTimeout(function() {
+                try { connectToObs(); } catch(e) { console.warn('[OBS] Erro ao auto-conectar:', e); }
+            }, 1200);
+        }
+
+        // Atalho Tecla Espaço para Finalizar Corte
+        document.addEventListener('keydown', function(e) {
+            if (e.code === 'Space' && currentRecordingItem) {
+                const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+                if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+                    e.preventDefault();
+                    finishCurrentVideoCut('keyboard_space');
+                }
+            }
+        });
     });
 
     // =========================================================================
