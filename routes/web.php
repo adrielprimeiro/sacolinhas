@@ -282,6 +282,8 @@ Route::middleware('auth')->group(function () {
         Route::post('live-chat/update-user-phone', [\App\Http\Controllers\Admin\LiveChatController::class, 'updateUserPhone'])->name('admin.live-chat.update-phone');
         Route::post('live-chat/link-item-live', [\App\Http\Controllers\Admin\LiveChatController::class, 'linkItemLive'])->name('admin.live-chat.link-item-live');
         Route::post('live-chat/unlink-item-live', [\App\Http\Controllers\Admin\LiveChatController::class, 'unlinkItemLive'])->name('admin.live-chat.unlink-item-live');
+        Route::post('live-chat/link-item-buyer', [\App\Http\Controllers\Admin\LiveChatController::class, 'linkItemBuyer'])->name('admin.live-chat.link-item-buyer');
+        Route::post('live-chat/unlink-item-buyer', [\App\Http\Controllers\Admin\LiveChatController::class, 'unlinkItemBuyer'])->name('admin.live-chat.unlink-item-buyer');
 
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])

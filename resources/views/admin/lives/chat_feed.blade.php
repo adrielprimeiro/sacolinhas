@@ -299,6 +299,17 @@
         </div>
     </div>
 
+    <!-- BANNER DE VINCULAÇÃO ATIVA ENTRE MENSAGEM E PEÇA -->
+    <div id="linking-active-banner" class="hidden mb-2.5 px-3.5 py-2.5 bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 text-white rounded-2xl shadow-xl flex items-center justify-between text-xs font-bold shrink-0 border border-indigo-400">
+        <div class="flex items-center gap-2 truncate">
+            <span class="w-2.5 h-2.5 rounded-full bg-yellow-300 animate-ping shrink-0"></span>
+            <span id="linking-active-text" class="truncate">Modo de Vinculação Ativo</span>
+        </div>
+        <button type="button" onclick="clearLinkingSelection()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ml-2 shadow-sm">
+            <i class="fas fa-times mr-1"></i> Cancelar
+        </button>
+    </div>
+
     <!-- Área principal: Feed + Painel de Bipagem (lado a lado) -->
     <div class="flex gap-2.5 flex-1" style="min-height:0;">
 
@@ -692,7 +703,9 @@
     // SISTEMA DE BIPAGEM — CÂMERA (Html5Qrcode) + RECONHECIMENTO DE VOZ
     // =========================================================================
     const initialLinkedLiveItems = @json($linkedLiveItems ?? []);
-    const bgScanItems = [];           // [{id, itemId, code, liveCode, time, source, productName, productDetails, ...}]
+    const bgScanItems = [];           // [{id, itemId, code, liveCode, buyerUsername, buyerName, buyerUserId, liveMessageId, time, source, productName, productDetails, ...}]
+    let selectedChatMsg = null;       // { id, username, displayName, userId }
+    let selectedScanItem = null;      // { id }
     let bgHtml5QrCode = null;
     let bgCameraActive = false;
     let bgSpeechRecog = null;
@@ -1505,15 +1518,303 @@
         }
     }
 
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function findFirstSpeakerForCode(liveCode, code) {
+        if (!allLiveMessages || allLiveMessages.length === 0) return null;
+
+        const targets = [];
+        if (liveCode && String(liveCode).trim()) {
+            targets.push(String(liveCode).trim().toLowerCase());
+        }
+        if (code && String(code).trim()) {
+            const c = String(code).replace(/^[#\s]+/, '').trim().toLowerCase();
+            if (c && !targets.includes(c)) targets.push(c);
+        }
+        if (targets.length === 0) return null;
+
+        for (let i = 0; i < allLiveMessages.length; i++) {
+            const msg = allLiveMessages[i];
+            if (!msg || !msg.message) continue;
+            const msgText = msg.message.toLowerCase();
+
+            for (const target of targets) {
+                const regex = new RegExp('(?:^|[^a-z0-9])' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
+                if (regex.test(msgText) || msgText.trim() === target) {
+                    const cleanUser = msg.username || 'usuario';
+                    const displayName = msg.user_name || msg.user_apelido || cleanUser;
+                    return {
+                        id: msg.id,
+                        username: cleanUser,
+                        displayName: displayName,
+                        userId: msg.user_id || null,
+                        text: msg.message
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    function renderScanItemBuyerHtml(item) {
+        if (item.buyerUsername) {
+            return `
+                <div class="mt-1.5 p-1.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5 truncate">
+                        <i class="fas fa-user-check text-emerald-600 shrink-0"></i>
+                        <span class="font-black text-emerald-950 truncate">
+                            @${escapeHtml(item.buyerUsername)} ${item.buyerName ? '<span class="font-normal text-emerald-800">(' + escapeHtml(item.buyerName) + ')</span>' : ''}
+                        </span>
+                    </div>
+                    <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="text-emerald-700 hover:text-red-600 p-0.5 ml-1 transition cursor-pointer">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        const firstSpeaker = findFirstSpeakerForCode(item.liveCode, item.code);
+        if (firstSpeaker) {
+            return `
+                <div class="mt-1 flex items-center gap-1">
+                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(firstSpeaker.username)}', '${escapeHtml(firstSpeaker.displayName)}', '${firstSpeaker.userId || ''}', ${firstSpeaker.id})" title="Vincular à 1ª pessoa que pediu no chat (${escapeHtml(firstSpeaker.text)})" class="text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1 cursor-pointer transition shadow-xs truncate">
+                        <i class="fas fa-trophy text-amber-500 text-[9px]"></i>
+                        <span class="truncate">1ª: @${escapeHtml(firstSpeaker.username)}</span>
+                        <span class="text-amber-700 font-bold ml-0.5">&bull; Vincular</span>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat" class="text-[10px] text-gray-400 hover:text-indigo-600 p-0.5 cursor-pointer">
+                        <i class="fas fa-link"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="mt-1 flex items-center gap-1">
+                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar este item para vincular a uma cliente" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline">
+                    <i class="fas fa-link text-[9px]"></i> Vincular cliente
+                </button>
+            </div>
+        `;
+    }
+
+    function updateScanItemBuyerUI(scanId) {
+        const itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) return;
+        const wrapper = itemEl.querySelector('.scan-item-buyer-wrapper');
+        if (!wrapper) return;
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+        wrapper.innerHTML = renderScanItemBuyerHtml(item);
+    }
+
+    function refreshAllScanItemsBuyerUI() {
+        bgScanItems.forEach(item => {
+            if (!item.buyerUsername) {
+                updateScanItemBuyerUI(item.id);
+            }
+        });
+    }
+
+    async function linkItemToBuyer(scanId, username, displayName, userId, msgId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        item.buyerUsername = username;
+        item.buyerName = displayName || '';
+        item.buyerUserId = userId || null;
+        item.liveMessageId = msgId || null;
+
+        updateScanItemBuyerUI(scanId);
+
+        if (msgId) {
+            const msg = allLiveMessages.find(m => m.id === msgId);
+            if (msg) {
+                msg.linked_item_id = item.itemId;
+                msg.linked_code = item.code + (item.liveCode ? ' (Live: ' + item.liveCode + ')' : '');
+                renderChatFeed();
+            }
+        }
+
+        playSuccessBeep();
+        clearLinkingSelection();
+
+        const banner = document.getElementById('scan-last-item-banner');
+        const bannerText = document.getElementById('scan-last-item-text');
+        if (banner && bannerText) {
+            bannerText.textContent = `Peça #${item.code} vinculada a @${username}!`;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanBannerTimeout);
+            window._scanBannerTimeout = setTimeout(() => banner.classList.add('hidden'), 3500);
+        }
+
+        if (liveId && item.itemId) {
+            try {
+                await fetch('/admin/live-chat/link-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: item.itemId,
+                        username: username,
+                        buyer_name: displayName || '',
+                        user_id: userId || null,
+                        message_id: msgId || null
+                    })
+                });
+            } catch(e) {
+                console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
+            }
+        }
+    }
+
+    async function unlinkItemBuyerAction(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        const oldMsgId = item.liveMessageId;
+        const itemId = item.itemId;
+
+        item.buyerUsername = null;
+        item.buyerName = null;
+        item.buyerUserId = null;
+        item.liveMessageId = null;
+
+        updateScanItemBuyerUI(scanId);
+
+        if (oldMsgId) {
+            const msg = allLiveMessages.find(m => m.id === oldMsgId);
+            if (msg) {
+                msg.linked_item_id = null;
+                msg.linked_code = null;
+                renderChatFeed();
+            }
+        }
+
+        if (liveId && itemId) {
+            try {
+                await fetch('/admin/live-chat/unlink-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: itemId
+                    })
+                });
+            } catch(e) {
+                console.warn('[Scan] Erro ao desvincular comprador no servidor:', e);
+            }
+        }
+    }
+
+    function updateLinkingBannerUI() {
+        const banner = document.getElementById('linking-active-banner');
+        const text = document.getElementById('linking-active-text');
+        if (!banner || !text) return;
+
+        if (selectedChatMsg) {
+            text.innerHTML = `<strong>Mensagem de @${escapeHtml(selectedChatMsg.username)} selecionada!</strong> Clique em uma peça da lista para vincular.`;
+            banner.classList.remove('hidden');
+        } else if (selectedScanItem) {
+            const item = bgScanItems.find(x => x.id === selectedScanItem.id);
+            const codeLabel = item ? (item.code + (item.liveCode ? ' • Live: ' + item.liveCode : '')) : '';
+            text.innerHTML = `<strong>Peça #${escapeHtml(codeLabel)} selecionada!</strong> Clique em um comentário do chat para vincular à cliente.`;
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+    }
+
+    function clearLinkingSelection() {
+        selectedChatMsg = null;
+        selectedScanItem = null;
+        updateLinkingBannerUI();
+        document.querySelectorAll('.chat-card.linking-selected').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-indigo-500'));
+        document.querySelectorAll('.scan-item.linking-selected').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-emerald-500'));
+        renderChatFeed();
+    }
+
+    function selectMessageForLinking(msgId, username, displayName, userId) {
+        if (selectedScanItem) {
+            linkItemToBuyer(selectedScanItem.id, username, displayName, userId, msgId);
+            return;
+        }
+        selectedChatMsg = { id: msgId, username, displayName, userId };
+        selectedScanItem = null;
+        updateLinkingBannerUI();
+        renderChatFeed();
+    }
+
+    function toggleSelectMessageForLinking(msgId, username, displayName, userId) {
+        if (selectedChatMsg && selectedChatMsg.id === msgId) {
+            clearLinkingSelection();
+        } else {
+            selectMessageForLinking(msgId, username, displayName, userId);
+        }
+    }
+
+    function selectScanItemForLinking(scanId) {
+        if (selectedChatMsg) {
+            linkItemToBuyer(scanId, selectedChatMsg.username, selectedChatMsg.displayName, selectedChatMsg.userId, selectedChatMsg.id);
+            return;
+        }
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (selectedScanItem && selectedScanItem.id === scanId) {
+            clearLinkingSelection();
+        } else {
+            selectedScanItem = { id: scanId };
+            selectedChatMsg = null;
+            updateLinkingBannerUI();
+
+            document.querySelectorAll('.scan-item').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-emerald-500'));
+            const el = document.querySelector(`[data-scan-id="${scanId}"]`);
+            if (el) el.classList.add('linking-selected', 'ring-4', 'ring-emerald-500');
+        }
+    }
+
+    function handleScanItemClick(scanId) {
+        if (selectedChatMsg) {
+            linkItemToBuyer(scanId, selectedChatMsg.username, selectedChatMsg.displayName, selectedChatMsg.userId, selectedChatMsg.id);
+            return;
+        }
+        selectScanItemForLinking(scanId);
+    }
+
+    function handleMessageCardClick(msgId, username, displayName, userId) {
+        if (selectedScanItem) {
+            linkItemToBuyer(selectedScanItem.id, username, displayName, userId, msgId);
+            return;
+        }
+        if (userId) {
+            openOnlineQrModal(userId, username, displayName);
+        } else {
+            openLinkModal(username, 'instagram');
+        }
+    }
+
     /* ---- Lista de Itens Bipados ------------------------------------------ */
     function createScanItemElement(item, isNew) {
         const el = document.createElement('div');
+        const isSelected = selectedScanItem && selectedScanItem.id === item.id;
         el.className = isNew
             ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item'
-            : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+            : (isSelected
+                ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-500 ring-4 ring-emerald-400 rounded-xl p-2.5 group transition scan-item linking-selected'
+                : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item');
         el.dataset.code = item.code;
         el.dataset.scanId = item.id;
         if (item.itemId) el.dataset.itemId = item.itemId;
+        el.setAttribute('onclick', `handleScanItemClick('${item.id}')`);
 
         let detailsInitial = '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>';
         if (item.productName) {
@@ -1529,7 +1830,7 @@
         }
 
         el.innerHTML =
-            '<div class="flex-1 min-w-0 scan-item-info">' +
+            '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
                 '<div class="flex items-center justify-between gap-1">' +
                     '<span class="text-xs font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(item.code) + '</span>' +
                 '</div>' +
@@ -1539,8 +1840,11 @@
                 '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
                     detailsInitial +
                 '</div>' +
+                '<div class="scan-item-buyer-wrapper">' +
+                    renderScanItemBuyerHtml(item) +
+                '</div>' +
             '</div>' +
-            '<button type="button" onclick="removeScanItem(this)" title="Remover item da live" ' +
+            '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
                 'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
                 '<i class="fas fa-trash-alt text-[10px]"></i>' +
             '</button>';
@@ -1572,6 +1876,10 @@
             id: scanUniqueId,
             code: cleanCode,
             liveCode: liveCodeInField,
+            buyerUserId: null,
+            buyerUsername: null,
+            buyerName: null,
+            liveMessageId: null,
             time: timeStr,
             timestamp: Date.now(),
             source: source,
@@ -1881,6 +2189,7 @@
 
                     updateFilterCounts(data.stats);
                     renderChatFeed();
+                    refreshAllScanItemsBuyerUI();
 
                     // Se o modal de bipe estiver aberto, atualizar mensagens da cliente
                     if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
@@ -2003,7 +2312,10 @@
         }
 
         const avatarHash = list.map(m => (m.avatar_url ? m.avatar_url.length : 0)).join(',');
-        const currentHash = `${currentFilter}:${currentSearchTerm}:${list.length}:${list.length > 0 ? list[list.length - 1].id : 0}:${list.filter(m => m.is_marked).length}:${avatarHash}:${currentFontSize}:${currentTheme}`;
+        const selectedMsgHash = selectedChatMsg ? selectedChatMsg.id : 0;
+        const selectedItemHash = selectedScanItem ? selectedScanItem.id : 0;
+        const linkedHash = list.map(m => m.linked_code || '').join(',');
+        const currentHash = `${currentFilter}:${currentSearchTerm}:${list.length}:${list.length > 0 ? list[list.length - 1].id : 0}:${list.filter(m => m.is_marked).length}:${avatarHash}:${currentFontSize}:${currentTheme}:${selectedMsgHash}:${selectedItemHash}:${linkedHash}`;
         if (currentHash === lastRenderedHash && container.innerHTML.trim().length > 50) {
             return; // Sem alterações
         }
@@ -2076,6 +2388,8 @@
             const initials = cleanUser.slice(0, 2).toUpperCase();
             const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const isMarked = !!msg.is_marked;
+            const isSelectedMsg = selectedChatMsg && selectedChatMsg.id === msg.id;
+            const cardSelectionClass = isSelectedMsg ? 'linking-selected ring-4 ring-indigo-500 bg-indigo-950/40 border-indigo-400' : '';
 
             // Foto de perfil com avatar grande e nítido (Prioridade: Foto Real -> Persona Ilustrada -> Iniciais em Gradiente)
             const gradientBg = getGradientForUser(cleanUser);
@@ -2107,6 +2421,17 @@
                 `;
             }
 
+            // Badge de Peça Vinculada à Mensagem
+            let linkedItemBadge = '';
+            if (msg.linked_code) {
+                linkedItemBadge = `
+                    <div class="mt-1.5 inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-950 border border-emerald-300 px-2.5 py-0.5 rounded-lg text-xs font-black shadow-sm">
+                        <i class="fas fa-shopping-bag text-emerald-700 text-xs"></i>
+                        <span>Peça Vinculada: #${escapeHtml(msg.linked_code)}</span>
+                    </div>
+                `;
+            }
+
             // Destacar códigos de produtos na mensagem e torná-los clicáveis para bipe rápido
             let formattedMessage = escapeHtml(msg.message);
             formattedMessage = formattedMessage.replace(/\b([a-zA-Z0-9]{3,6})\b/g, function(match, code) {
@@ -2126,15 +2451,21 @@
                 ? `<button type="button" onclick="event.stopPropagation(); openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')" title="Bipar produtos para @${escapeHtml(cleanUser)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"><i class="fas fa-qrcode text-xs"></i> <span>Bipar</span></button>`
                 : `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" title="Vincular @${escapeHtml(cleanUser)} a um cliente" class="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold px-2.5 py-1 rounded-xl shadow transition flex items-center gap-1 cursor-pointer active:scale-95 text-xs"><i class="fas fa-user-plus text-[11px]"></i> <span>Vincular</span></button>`;
 
+            // Botão Vincular a Peça Selecionada
+            const vincularBtn = `
+                <button type="button" onclick="event.stopPropagation(); toggleSelectMessageForLinking(${msg.id}, '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}', '${msg.user_id || ''}')" title="${isSelectedMsg ? 'Cancelar seleção desta mensagem' : 'Selecionar mensagem para vincular a uma peça'}" class="${isSelectedMsg ? 'bg-indigo-600 text-white ring-2 ring-indigo-300 font-extrabold shadow-md' : 'bg-gray-800 hover:bg-indigo-600 text-gray-200 hover:text-white font-bold border border-gray-700'} text-xs px-2.5 py-1 rounded-xl transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm">
+                    <i class="fas fa-link text-[10px]"></i>
+                    <span>${isSelectedMsg ? 'Selecionada' : 'Vincular'}</span>
+                </button>
+            `;
+
             const userClass = isTikTok ? 'chat-user-tiktok' : 'chat-user-insta';
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
 
-            const cardClickAction = msg.user_id
-                ? `onclick="openOnlineQrModal('${msg.user_id}', '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}')"`
-                : `onclick="openLinkModal('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')"`;
+            const cardClickAction = `onclick="handleMessageCardClick(${msg.id}, '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}', '${msg.user_id || ''}')"`;
 
             html += `
-                <div ${cardClickAction} class="chat-card ${isMarked ? 'marked' : ''} rounded-2xl flex items-start gap-3 sm:gap-4 relative group cursor-pointer transition-all duration-100 hover:shadow-lg active:scale-[0.995]" style="padding: ${fontSizes.padding};" title="Clique para bipar para @${escapeHtml(cleanUser)}">
+                <div ${cardClickAction} class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group cursor-pointer transition-all duration-100 hover:shadow-lg active:scale-[0.995]" style="padding: ${fontSizes.padding};" title="${selectedScanItem ? 'Clique para vincular este comentário à peça selecionada' : 'Clique para bipar para @' + escapeHtml(cleanUser)}">
                     <!-- Avatar com Badge de Plataforma -->
                     <div class="relative flex-shrink-0">
                         ${avatarHtml}
@@ -2155,6 +2486,7 @@
                             </div>
 
                             <div class="flex items-center gap-2 flex-shrink-0">
+                                ${vincularBtn}
                                 ${biparBtn}
                                 <span class="chat-time-label" style="font-size: ${fontSizes.time};">${time}</span>
                                 <button type="button" onclick="event.stopPropagation(); toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer" style="background: none; border: none;">
@@ -2167,6 +2499,7 @@
                         <div class="chat-message-text" style="font-size: ${fontSizes.message};">
                             ${formattedMessage}
                         </div>
+                        ${linkedItemBadge}
                     </div>
                 </div>
             `;

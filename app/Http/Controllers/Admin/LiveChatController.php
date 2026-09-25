@@ -90,16 +90,27 @@ class LiveChatController extends Controller
                 'items.cor',
                 'items.preco'
             ];
+            $hasBuyerCols = Schema::hasColumn('live_items', 'buyer_username');
             if ($hasCodigoLiveCol) {
                 $selects[] = 'live_items.codigo_live';
             }
+            if ($hasBuyerCols) {
+                $selects[] = 'live_items.user_id as buyer_user_id';
+                $selects[] = 'live_items.buyer_username';
+                $selects[] = 'live_items.buyer_name';
+                $selects[] = 'live_items.live_message_id';
+            }
 
-            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol) {
+            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol, $hasBuyerCols) {
                 return [
                     'id' => 'scan_db_' . $row->live_item_id,
                     'itemId' => $row->item_id,
                     'code' => $row->codigo,
                     'liveCode' => $hasCodigoLiveCol ? ($row->codigo_live ?? '') : '',
+                    'buyerUserId' => $hasBuyerCols ? ($row->buyer_user_id ?? null) : null,
+                    'buyerUsername' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
+                    'buyerName' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
+                    'liveMessageId' => $hasBuyerCols ? ($row->live_message_id ?? null) : null,
                     'productName' => $row->nome_do_produto ?: 'Sem Nome',
                     'productDetails' => $row->descricao ?? '',
                     'tamanho' => $row->tamanho ?? '',
@@ -228,6 +239,141 @@ class LiveChatController extends Controller
             'success' => false,
             'message' => 'Item não encontrado para desvincular.'
         ], 404);
+    }
+
+    /**
+     * Vincula um item da live a um comprador (e opcionalmente a uma mensagem do chat)
+     */
+    public function linkItemBuyer(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'required|exists:items,id',
+            'username' => 'required|string',
+            'buyer_name' => 'nullable|string',
+            'user_id' => 'nullable|integer',
+            'message_id' => 'nullable|integer'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+        $username = trim((string) $request->input('username'));
+        $buyerName = trim((string) $request->input('buyer_name'));
+        $userId = $request->input('user_id') ?: null;
+        $messageId = $request->input('message_id') ?: null;
+
+        $item = Item::find($itemId);
+        if (!$item) {
+            return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
+        }
+
+        // Se user_id não foi passado, tenta encontrar cliente pelo username
+        if (!$userId) {
+            $cleanUser = trim(ltrim($username, '@'));
+            $matchedUser = User::where(function($q) use ($cleanUser) {
+                $q->where('instagram', $cleanUser)
+                  ->orWhere('tiktok', $cleanUser)
+                  ->orWhere('apelido', $cleanUser)
+                  ->orWhere('nome_cliente', $cleanUser)
+                  ->orWhere('name', $cleanUser);
+            })->first();
+            if ($matchedUser) {
+                $userId = $matchedUser->id;
+                if (!$buyerName) {
+                    $buyerName = $matchedUser->name;
+                }
+            }
+        }
+
+        // 1. Atualizar ou inserir em live_items
+        $updateData = [
+            'status_movimentacao' => 'enviado',
+            'updated_at' => now()
+        ];
+        if (Schema::hasColumn('live_items', 'user_id')) {
+            $updateData['user_id'] = $userId;
+        }
+        if (Schema::hasColumn('live_items', 'buyer_username')) {
+            $updateData['buyer_username'] = $username;
+        }
+        if (Schema::hasColumn('live_items', 'buyer_name')) {
+            $updateData['buyer_name'] = $buyerName ?: null;
+        }
+        if (Schema::hasColumn('live_items', 'live_message_id')) {
+            $updateData['live_message_id'] = $messageId;
+        }
+
+        DB::table('live_items')->updateOrInsert(
+            ['live_id' => $liveId, 'item_id' => $itemId],
+            $updateData
+        );
+
+        // 2. Se houver messageId e a tabela live_messages tiver os campos, atualiza a mensagem
+        if ($messageId && Schema::hasTable('live_messages')) {
+            $msgUpdate = [];
+            if (Schema::hasColumn('live_messages', 'linked_item_id')) {
+                $msgUpdate['linked_item_id'] = $itemId;
+            }
+            if (Schema::hasColumn('live_messages', 'linked_code')) {
+                $codigoLive = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->value('codigo_live');
+                $msgUpdate['linked_code'] = $codigoLive ? ($item->codigo . ' (Live: ' . $codigoLive . ')') : $item->codigo;
+            }
+            if (!empty($msgUpdate)) {
+                DB::table('live_messages')->where('id', $messageId)->update($msgUpdate);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item vinculado ao comprador com sucesso!',
+            'data' => [
+                'item_id' => $itemId,
+                'live_id' => $liveId,
+                'user_id' => $userId,
+                'buyer_username' => $username,
+                'buyer_name' => $buyerName,
+                'message_id' => $messageId
+            ]
+        ]);
+    }
+
+    /**
+     * Remove o comprador vinculado a um item da live
+     */
+    public function unlinkItemBuyer(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'required|exists:items,id'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+
+        $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
+        $messageId = $existing ? ($existing->live_message_id ?? null) : null;
+
+        $updateData = ['updated_at' => now()];
+        if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
+        if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = null;
+        if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = null;
+        if (Schema::hasColumn('live_items', 'live_message_id')) $updateData['live_message_id'] = null;
+
+        DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+
+        if ($messageId && Schema::hasTable('live_messages')) {
+            $msgUpdate = [];
+            if (Schema::hasColumn('live_messages', 'linked_item_id')) $msgUpdate['linked_item_id'] = null;
+            if (Schema::hasColumn('live_messages', 'linked_code')) $msgUpdate['linked_code'] = null;
+            if (!empty($msgUpdate)) {
+                DB::table('live_messages')->where('id', $messageId)->update($msgUpdate);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comprador desvinculado do item com sucesso.'
+        ]);
     }
 
     /**
@@ -526,8 +672,25 @@ class LiveChatController extends Controller
             }
         }
 
-        // Enriquecer mensagens com avatar e cadastro
-        $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection) {
+        // Mapear itens vinculados por mensagem diretamente da tabela live_items
+        $linkedByMessage = [];
+        if (Schema::hasTable('live_items') && Schema::hasColumn('live_items', 'live_message_id')) {
+            $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
+            $selects = ['live_items.live_message_id', 'items.id as item_id', 'items.codigo'];
+            if ($hasCodigoLiveCol) {
+                $selects[] = 'live_items.codigo_live';
+            }
+            $linkedByMessage = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $liveId)
+                ->whereNotNull('live_items.live_message_id')
+                ->select($selects)
+                ->get()
+                ->keyBy('live_message_id');
+        }
+
+        // Enriquecer mensagens com avatar, cadastro e peça vinculada
+        $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection, $linkedByMessage) {
             $cleanUser = trim($msg->username);
             $uLower = strtolower($cleanUser);
 
@@ -560,6 +723,16 @@ class LiveChatController extends Controller
             $msg->user_name = $matchedUser ? $matchedUser->name : null;
             $msg->user_apelido = $matchedUser ? $matchedUser->apelido : null;
             $msg->user_whatsapp = $matchedUser ? ($matchedUser->whatsapp ?: $matchedUser->phone) : null;
+
+            if (isset($linkedByMessage[$msg->id])) {
+                $li = $linkedByMessage[$msg->id];
+                $msg->linked_item_id = $li->item_id;
+                $msg->linked_code = !empty($li->codigo_live) ? ($li->codigo . ' (Live: ' . $li->codigo_live . ')') : $li->codigo;
+            } else if (!isset($msg->linked_code) || empty($msg->linked_code)) {
+                $msg->linked_item_id = null;
+                $msg->linked_code = null;
+            }
+
             return $msg;
         })->reverse()->values();
 
