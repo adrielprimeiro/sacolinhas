@@ -358,11 +358,16 @@
                 </div>
                 <div class="flex gap-1.5">
                     <input type="text" id="scan-live-code" placeholder="Diga: 'O código é ...' ou digite"
-                        class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase">
+                        class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
                         class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
                         <i class="fas fa-times"></i>
                     </button>
+                </div>
+                <!-- Feedback ao vivo do que o microfone está ouvindo -->
+                <div id="mic-transcript-preview" class="mt-1.5 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-[10px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
+                    <i class="fas fa-wave-square text-[9px] text-indigo-500 animate-pulse shrink-0"></i>
+                    <span class="truncate">Ouvindo: <span id="mic-transcript-text" class="text-indigo-900 italic font-bold"></span></span>
                 </div>
             </div>
 
@@ -984,7 +989,125 @@
         }
     }
 
-    /* ---- Reconhecimento de Voz (SpeechRecognition) ------------------------- */
+    /* ---- Reconhecimento de Voz Inteligente (SpeechRecognition) ------------ */
+    const ptSpeechUnits = {
+        zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
+        seis: 6, meia: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+        treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezasseis: 16,
+        dezessete: 17, dezassete: 17, dezoito: 18, dezenove: 19, dezanove: 19
+    };
+    const ptSpeechTens = {
+        vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60,
+        setenta: 70, oitenta: 80, noventa: 90
+    };
+    const ptSpeechHundreds = {
+        cem: 100, cento: 100, duzentos: 200, duzentas: 200, trezentos: 300, trezentas: 300,
+        quatrocentos: 400, quatrocentas: 400, quinhentos: 500, quinhentas: 500,
+        seiscentos: 600, seiscentas: 600, setecentos: 700, setecentas: 700,
+        oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900
+    };
+
+    function parsePortugueseWordsToNumber(phrase) {
+        if (!phrase) return null;
+        let clean = phrase.toLowerCase().trim();
+        const digitMatch = clean.match(/^([a-z]?\d+[\w\-]*)/i);
+        if (digitMatch) return digitMatch[1].toUpperCase();
+
+        const words = clean.split(/[\s\-]+/).filter(w => w !== 'e');
+        if (words.length === 0) return null;
+
+        let total = 0;
+        let current = 0;
+        let matchedAny = false;
+        let prefixLetter = "";
+
+        for (let i = 0; i < words.length; i++) {
+            const norm = words[i].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const origW = words[i];
+
+            if (i === 0 && origW.length === 1 && /^[a-z]$/i.test(origW)) {
+                prefixLetter = origW.toUpperCase();
+                continue;
+            }
+
+            if (/^\d+$/.test(norm)) {
+                current += parseInt(norm, 10);
+                matchedAny = true;
+                continue;
+            }
+
+            if (ptSpeechUnits[norm] !== undefined) {
+                current += ptSpeechUnits[norm];
+                matchedAny = true;
+            } else if (ptSpeechTens[norm] !== undefined) {
+                current += ptSpeechTens[norm];
+                matchedAny = true;
+            } else if (ptSpeechHundreds[norm] !== undefined) {
+                current += ptSpeechHundreds[norm];
+                matchedAny = true;
+            } else if (norm === 'mil') {
+                if (current === 0) current = 1;
+                total += current * 1000;
+                current = 0;
+                matchedAny = true;
+            } else {
+                break;
+            }
+        }
+
+        if (!matchedAny) return null;
+        total += current;
+        return prefixLetter + total;
+    }
+
+    function extractCodeFromSpokenText(transcript) {
+        if (!transcript) return null;
+        // Normaliza acentos para ASCII: "código" => "codigo", "é" => "e", "peça" => "peca"
+        let text = transcript.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+        // Encontra o gatilho da frase
+        const triggerMatch = text.match(/\b(?:codigo|cod|peca|item)\b/i);
+        if (!triggerMatch) return null;
+
+        const triggerIndex = text.indexOf(triggerMatch[0]);
+        let afterTrigger = text.slice(triggerIndex + triggerMatch[0].length).trim();
+
+        // Remove qualificadores comuns de referência ao produto
+        for (let loop = 0; loop < 4; loop++) {
+            afterTrigger = afterTrigger.replace(/^(?:dele|dela|desse|dessa|deste|desta|disso|disto|da|do|de|peca|item|aqui|daqui|agora)\b/i, '').trim();
+        }
+
+        // Remove verbos e conectivos de ligação
+        for (let loop = 0; loop < 4; loop++) {
+            afterTrigger = afterTrigger.replace(/^(?:vai\s+ser|sera|fica|ficou|e|eh|\:|o|a|numero|num|codigo)\b/i, '').trim();
+        }
+
+        if (!afterTrigger) return null;
+
+        // Tenta primeiro converter números por extenso ("quinze" => 15, "vinte e um" => 21)
+        const converted = parsePortugueseWordsToNumber(afterTrigger);
+        if (converted) return String(converted);
+
+        // Se tiver dígitos ou código alfanumérico
+        const match = afterTrigger.match(/^[a-z]?\d+[\w\-]*/i);
+        if (match) return match[0].toUpperCase();
+
+        // Palavra única válida (caso seja um código em texto)
+        const words = afterTrigger.split(/\s+/);
+        if (words.length > 0) {
+            const first = words[0].toUpperCase();
+            if (first.length >= 2 && !['O', 'A', 'DE', 'E', 'PARA', 'COM', 'QUE', 'GENTE', 'MENINAS', 'PESSOAL', 'VAI', 'SER'].includes(first)) {
+                return first;
+            }
+        }
+
+        return null;
+    }
+
+    let lastSpokenCode = null;
+    let lastSpokenTime = 0;
+    let micTranscriptTimer = null;
+
     function initScanSpeech() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
@@ -1000,49 +1123,79 @@
             bgSpeechRecog.lang = 'pt-BR';
             bgSpeechRecog.continuous = true;
             bgSpeechRecog.interimResults = true;
-            bgSpeechRecog.maxAlternatives = 1;
-
-            // Regex flexível para capturar após "o código é", "o código desse é", etc.
-            const triggerRegex = /(?:o\s+c[oó]digo(?:\s+d[eé]l[ea]|\s+d[eé]ss[ea]|\s+d[eé]ss[ea]\s+aqui|\s+d[eé]st[ea])?\s+(?:vai\s+ser\s+)?(?:[eé]|eh)\s+(?:c[oó]digo\s+)?|c[oó]digo\s+(?:[eé]|eh\s+)?)([\w\d\-_]+)/i;
+            bgSpeechRecog.maxAlternatives = 5; // Analisa até 5 hipóteses acústicas do Google Speech
 
             bgSpeechRecog.onresult = function(event) {
+                let currentPreview = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    const transcript = event.results[i][0].transcript.trim();
-                    const match = transcript.match(triggerRegex);
-                    if (match && match[1]) {
-                        const rawCode = match[1].trim().toUpperCase();
-                        if (rawCode.length >= 1) {
-                            applySpokenLiveCode(rawCode);
+                    const res = event.results[i];
+                    if (res[0]) {
+                        currentPreview = res[0].transcript;
+                    }
+
+                    // Percorre todas as alternativas oferecidas pelo reconhecimento
+                    for (let a = 0; a < res.length; a++) {
+                        const transcript = res[a].transcript;
+                        const detectedCode = extractCodeFromSpokenText(transcript);
+                        if (detectedCode) {
+                            const now = Date.now();
+                            if (detectedCode !== lastSpokenCode || (now - lastSpokenTime) > 2500) {
+                                lastSpokenCode = detectedCode;
+                                lastSpokenTime = now;
+                                applySpokenLiveCode(detectedCode);
+                                break;
+                            }
                         }
                     }
+                }
+
+                // Atualiza o feedback visual do que o microfone está ouvindo em tempo real
+                if (currentPreview) {
+                    showMicTranscript(currentPreview);
                 }
             };
 
             bgSpeechRecog.onerror = function(e) {
                 if (e.error !== 'no-speech') {
                     console.warn('[Scan] Speech error:', e.error);
+                    if (e.error === 'not-allowed') {
+                        updateMicDot(false, 'Microfone bloqueado: autorize no navegador');
+                    }
                 }
             };
 
             bgSpeechRecog.onend = function() {
-                // Reinicia continuamente se ativo
+                // Reinicia continuamente se ativo para manter a escuta sem interrupções
                 if (bgSpeechActive) {
                     setTimeout(function() {
                         try {
                             if (bgSpeechActive) bgSpeechRecog.start();
                         } catch(e) {}
-                    }, 400);
+                    }, 250);
                 }
             };
 
             bgSpeechRecog.start();
             bgSpeechActive = true;
-            updateMicDot(true, 'Microfone ouvindo...');
+            updateMicDot(true, 'Microfone super sensível ouvindo...');
             updateScanDevicesBtn();
         } catch(e) {
             console.warn('[Scan] Erro ao iniciar microfone:', e.message);
             updateMicDot(false, 'Microfone: ' + e.message);
             updateScanDevicesBtn();
+        }
+    }
+
+    function showMicTranscript(text) {
+        const preview = document.getElementById('mic-transcript-preview');
+        const textEl = document.getElementById('mic-transcript-text');
+        if (preview && textEl) {
+            textEl.textContent = `"${text.trim()}"`;
+            preview.classList.remove('hidden');
+            clearTimeout(micTranscriptTimer);
+            micTranscriptTimer = setTimeout(() => {
+                preview.classList.add('hidden');
+            }, 3500);
         }
     }
 
@@ -1085,6 +1238,12 @@
             liveInput.value = code;
             flashMicDot();
             playSuccessBeep();
+
+            // Destaque visual no input
+            liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50');
+            setTimeout(() => {
+                liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50');
+            }, 1200);
 
             // Atualiza banner de confirmação se estiver visível
             const banner = document.getElementById('scan-last-item-banner');
