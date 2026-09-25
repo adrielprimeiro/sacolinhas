@@ -544,7 +544,11 @@ class ItemController extends Controller
                 'image_url' => $item->image ? asset('storage/' . $item->image) : asset('images/no-image.png'),
                 'stock' => ucfirst($item->status ?? 'Estoque'),
                 'localizacao' => $item->localizacao ?? '-',
-                'description' => $item->descricao ?? ''
+                'description' => $item->descricao ?? '',
+                'tamanho' => $item->tamanho ?? '',
+                'marca' => $item->marca ?? '',
+                'cor' => $item->cor ?? '',
+                'estado' => $item->estado ?? ''
             ];
         });
         

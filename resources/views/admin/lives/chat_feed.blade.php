@@ -419,22 +419,14 @@
                     </div>
                 </div>
 
-                <!-- Barra de Contador, Câmera e Ações -->
-                <div class="px-2.5 py-1 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-gray-600 font-bold">
-                            Bipados: <span id="scan-count" class="text-emerald-700 font-black">0</span>
-                        </span>
-                        <select id="scan-camera-select" onchange="changeScanCamera(this.value)" class="text-[10px] font-bold py-0.5 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 max-w-[120px] truncate hidden cursor-pointer" title="Selecionar Câmera"></select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="clearScanList()" title="Limpar lista de bipados" class="text-[10px] text-gray-400 hover:text-red-500 font-bold cursor-pointer flex items-center gap-1 transition">
-                            <i class="fas fa-trash-alt text-[9px]"></i> Limpar
-                        </button>
-                        <button type="button" onclick="copyScanList()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1 transition">
-                            <i class="fas fa-copy text-[9px]"></i> Copiar lista
-                        </button>
-                    </div>
+                <!-- Barra de Contador e Ação Copiar -->
+                <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                    <span class="text-xs text-gray-700 font-extrabold">
+                        Bipados: <span id="scan-count" class="text-emerald-700 font-black">0</span>
+                    </span>
+                    <button type="button" onclick="copyScanList()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1 transition">
+                        <i class="fas fa-copy text-xs"></i> Copiar lista
+                    </button>
                 </div>
 
                 <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA AMPLIADA) -->
@@ -1025,7 +1017,7 @@
     function extractCodeFromSpokenText(transcript) {
         if (!transcript) return null;
 
-        // 1. Remove acentos e qualquer pontuação (pontos, vírgulas, dois-pontos, aspas, traços, etc.)
+        // 1. Remove acentos e qualquer pontuação
         let clean = transcript
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
@@ -1033,39 +1025,62 @@
             .replace(/\s+/g, ' ')
             .trim();
 
-        // 2. Procura pelo gatilho: "codigo", "cod", "peca", "item"
-        const triggerMatch = clean.match(/\b(?:codigo|cod|peca|item)\b/i);
+        if (!clean) return null;
+
+        // Se a fala inteira for puramente um número em dígitos (ex: "15", "120", "P15", "A1")
+        const directNumMatch = clean.match(/^[a-z]?\d{1,5}$/i);
+        if (directNumMatch) {
+            return directNumMatch[0].toUpperCase();
+        }
+
+        // Se a fala inteira for um número por extenso (ex: "quinze", "vinte e cinco")
+        const directTokens = clean.split(' ').filter(Boolean);
+        const directWordNum = parsePortugueseWordsFromTokens(directTokens);
+        if (directWordNum !== null && directTokens.length <= 4) {
+            const isPureNum = directTokens.every(t => t === 'e' || ptSpeechUnits[t] !== undefined || ptSpeechTens[t] !== undefined || ptSpeechHundreds[t] !== undefined);
+            if (isPureNum) return String(directWordNum);
+        }
+
+        // Procura pelo gatilho: "codigo", "cod", "peca", "item", "numero", "num"
+        const triggerMatch = clean.match(/\b(?:codigo|cod|peca|item|numero|num)\b/i);
         if (!triggerMatch) return null;
 
         const triggerIndex = clean.indexOf(triggerMatch[0]);
         let after = clean.slice(triggerIndex + triggerMatch[0].length).trim();
         if (!after) return null;
 
-        const tokens = after.split(' ').filter(Boolean);
+        const rawTokens = after.split(' ').filter(Boolean);
+        if (rawTokens.length === 0) return null;
 
-        // Primeiro: se houver número em dígitos no texto após o gatilho (ex: "15", "01", "A12", "P5", "COD-10")
-        for (let i = 0; i < tokens.length; i++) {
+        // Remove palavras conectoras iniciais (ex: "é", "eh", "o", "a", "de", "da", "do", etc.)
+        const leadStopWords = ['e', 'eh', 'o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'foi'];
+        let startIndex = 0;
+        while (startIndex < rawTokens.length && leadStopWords.includes(rawTokens[startIndex])) {
+            startIndex++;
+        }
+        const tokens = rawTokens.slice(startIndex);
+        if (tokens.length === 0) return null;
+
+        // Se após o gatilho for um número por extenso (ex: "código vinte e cinco")
+        const isPureNumPhrase = tokens.every(t => t === 'e' || ptSpeechUnits[t] !== undefined || ptSpeechTens[t] !== undefined || ptSpeechHundreds[t] !== undefined || t === 'mil' || /^\d+$/.test(t));
+        if (isPureNumPhrase) {
+            const wordsNum = parsePortugueseWordsFromTokens(tokens);
+            if (wordsNum !== null) {
+                return String(wordsNum);
+            }
+        }
+
+        // Pega até 3 palavras significativas para o código (ex: "VESTIDO AZUL CURTO", "CALCA JEANS 38")
+        const trailingStopWords = ['viu', 'gente', 'meninas', 'meninos', 'pessoal', 'por', 'favor', 'ta', 'ok', 'agora', 'vamos', 'para', 'proximo', 'proxima'];
+        const codeWords = [];
+        for (let i = 0; i < tokens.length && codeWords.length < 3; i++) {
             const tok = tokens[i];
-            const numMatch = tok.match(/^[a-z]?\d+[\w]*$/i);
-            if (numMatch) {
-                return numMatch[0].toUpperCase();
-            }
+            if (trailingStopWords.includes(tok)) break;
+            codeWords.push(tok.toUpperCase());
         }
 
-        // Segundo: se não houver dígitos, verifica números por extenso (ex: "quinze", "vinte e dois", "cento e quatro")
-        const wordsNum = parsePortugueseWordsFromTokens(tokens);
-        if (wordsNum !== null) {
-            return String(wordsNum);
-        }
-
-        // Terceiro: se for uma palavra única válida de código (ex: "VESTIDO1", "ALFA")
-        const stopWords = ['e', 'o', 'a', 'de', 'do', 'da', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'viu', 'gente', 'meninas'];
-        const candidates = tokens.filter(t => !stopWords.includes(t));
-        if (candidates.length > 0) {
-            const cand = candidates[0].toUpperCase();
-            if (cand.length >= 2) {
-                return cand;
-            }
+        if (codeWords.length > 0) {
+            return codeWords.join(' ');
         }
 
         return null;
@@ -1214,6 +1229,81 @@
         setTimeout(() => updateMicDot(bgSpeechActive), 1000);
     }
 
+    const scanProductCache = {};
+
+    async function fetchAndRenderItemDetails(code, scanId) {
+        let prod = scanProductCache[code];
+        if (prod === undefined) {
+            try {
+                const res = await fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`);
+                const data = await res.json();
+                if (data.success && data.data && data.data.length > 0) {
+                    const clean = code.replace(/^[#\s]+/, '').trim().toLowerCase();
+                    prod = data.data.find(item => 
+                        (item.sku && item.sku.toLowerCase() === clean) ||
+                        (item.codigo && item.codigo.toLowerCase() === clean) ||
+                        String(item.id) === clean
+                    ) || data.data[0];
+                    scanProductCache[code] = prod;
+                } else {
+                    scanProductCache[code] = null;
+                    prod = null;
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao buscar produto:', e);
+                prod = null;
+            }
+        }
+
+        const itemObj = bgScanItems.find(x => x.id === scanId);
+        const itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) return;
+
+        const detailsEl = itemEl.querySelector('.scan-item-details');
+        const thumbContainer = itemEl.querySelector('.scan-item-thumb');
+
+        if (prod) {
+            if (itemObj) {
+                itemObj.productName = prod.name;
+                itemObj.productDetails = prod.description;
+                itemObj.productPrice = prod.formatted_price;
+            }
+
+            let detailParts = [];
+            if (prod.description && prod.description.trim() && prod.description.trim() !== prod.name.trim()) {
+                detailParts.push(prod.description.trim());
+            }
+            if (prod.tamanho) detailParts.push('Tam: ' + prod.tamanho);
+            if (prod.marca) detailParts.push(prod.marca);
+            if (prod.cor) detailParts.push(prod.cor);
+            if (prod.formatted_price) detailParts.push(prod.formatted_price);
+
+            const detailsText = detailParts.join(' &bull; ');
+
+            if (detailsEl) {
+                detailsEl.innerHTML = `
+                    <div class="font-extrabold text-gray-900 leading-tight">${escapeHtml(prod.name)}</div>
+                    ${detailsText ? `<div class="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">${escapeHtml(detailsText)}</div>` : ''}
+                `;
+            }
+
+            if (thumbContainer && prod.image_url && !prod.image_url.includes('no-image')) {
+                thumbContainer.innerHTML = `<img src="${escapeHtml(prod.image_url)}" alt="" class="w-full h-full object-cover rounded-lg shadow-sm border border-gray-200">`;
+            }
+
+            const banner = document.getElementById('scan-last-item-banner');
+            const bannerText = document.getElementById('scan-last-item-text');
+            if (banner && bannerText && bgScanItems[0] && bgScanItems[0].id === scanId) {
+                const liveCode = itemObj ? itemObj.liveCode : '';
+                bannerText.textContent = code + (liveCode ? ' • Live: ' + liveCode : '') + ' • ' + prod.name;
+            }
+        } else {
+            if (detailsEl) {
+                detailsEl.innerHTML = `<span class="text-[10px] text-gray-400 font-medium">Item não cadastrado</span>`;
+            }
+        }
+    }
+
     function applySpokenLiveCode(code) {
         if (!code) return;
         code = String(code).trim().toUpperCase();
@@ -1237,19 +1327,13 @@
             }
 
             if (itemEl) {
-                const infoContainer = itemEl.querySelector('.scan-item-info');
-                if (infoContainer) {
-                    let liveEl = itemEl.querySelector('.scan-item-live-code');
-                    if (!liveEl) {
-                        liveEl = document.createElement('p');
-                        liveEl.className = 'text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1';
-                        if (infoContainer.children.length > 1) {
-                            infoContainer.insertBefore(liveEl, infoContainer.children[1]);
-                        } else {
-                            infoContainer.appendChild(liveEl);
-                        }
-                    }
-                    liveEl.innerHTML = '<i class="fas fa-tag text-[10px]"></i> Live: ' + escapeHtml(code);
+                const liveWrapper = itemEl.querySelector('.scan-item-live-wrapper');
+                if (liveWrapper) {
+                    liveWrapper.innerHTML = `
+                        <span class="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                            <i class="fas fa-tag text-[9px]"></i> Live: ${escapeHtml(code)}
+                        </span>
+                    `;
                 }
 
                 // Destaque visual piscando verde para confirmar vinculação
@@ -1264,7 +1348,8 @@
             const bannerText = document.getElementById('scan-last-item-text');
             const bannerTime = document.getElementById('scan-last-item-time');
             if (banner && bannerText && bgScanItems[0] === waitingItem) {
-                bannerText.textContent = waitingItem.code + ' • Live: ' + code;
+                const prodName = waitingItem.productName ? ' • ' + waitingItem.productName : '';
+                bannerText.textContent = waitingItem.code + ' • Live: ' + code + prodName;
                 if (bannerTime) bannerTime.textContent = waitingItem.time || '';
                 banner.classList.remove('hidden');
                 clearTimeout(window._scanBannerTimeout);
@@ -1348,7 +1433,10 @@
             liveCode: liveCodeInField,
             time: timeStr,
             timestamp: Date.now(),
-            source: source
+            source: source,
+            productName: '',
+            productDetails: '',
+            productPrice: ''
         };
         bgScanItems.unshift(item);
 
@@ -1360,46 +1448,54 @@
         const list = document.getElementById('scan-items-list');
         let iconClass = 'bg-blue-100 text-blue-600';
         let iconName  = 'camera';
-        let sourceLabel = 'Câmera';
         if (source === 'usb') {
             iconClass = 'bg-purple-100 text-purple-600';
             iconName  = 'barcode';
-            sourceLabel = 'Bipador USB';
         } else if (source === 'manual') {
             iconClass = 'bg-emerald-100 text-emerald-600';
             iconName  = 'keyboard';
-            sourceLabel = 'Manual';
         }
 
-        const liveHtml  = item.liveCode ? '<p class="text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1"><i class="fas fa-tag text-[10px]"></i> Live: ' + escapeHtml(item.liveCode) + '</p>' : '';
+        const liveHtml = item.liveCode
+            ? `<span class="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md"><i class="fas fa-tag text-[9px]"></i> Live: ${escapeHtml(item.liveCode)}</span>`
+            : `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md italic"><i class="fas fa-clock text-[9px]"></i> Aguardando código da live</span>`;
 
         const el = document.createElement('div');
-        el.className = 'flex items-center gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl px-2.5 py-2 group transition-all duration-500 scan-item';
+        el.className = 'flex items-start gap-2.5 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item';
         el.dataset.code = cleanCode;
         el.dataset.scanId = scanUniqueId;
         el.innerHTML =
-            '<div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm">' +
+            '<div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm overflow-hidden scan-item-thumb mt-0.5">' +
                 '<i class="fas fa-' + iconName + ' text-xs"></i>' +
             '</div>' +
             '<div class="flex-1 min-w-0 scan-item-info">' +
-                '<p class="text-xs font-black text-gray-900 truncate tracking-wider">' + escapeHtml(cleanCode) + '</p>' +
-                liveHtml +
-                '<p class="text-[10px] text-gray-400">' + timeStr + ' &bull; ' + sourceLabel + '</p>' +
+                '<div class="flex items-center justify-between gap-1">' +
+                    '<span class="text-xs font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(cleanCode) + '</span>' +
+                '</div>' +
+                '<div class="scan-item-live-wrapper mt-0.5">' +
+                    liveHtml +
+                '</div>' +
+                '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                    '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>' +
+                '</div>' +
             '</div>' +
             '<button type="button" onclick="removeScanItem(this)" title="Remover item" ' +
-                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer">' +
+                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
                 '<i class="fas fa-trash-alt text-[10px]"></i>' +
             '</button>';
 
         // Remove o destaque verde após 2.5s
         setTimeout(function() {
-            el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+            el.className = 'flex items-start gap-2.5 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
         }, 2500);
 
         if (list) {
             list.prepend(el);
             list.scrollTop = 0; // Rola a lista automaticamente para o topo
         }
+
+        // Busca assíncrona dos dados do produto para exibir Descrição e Detalhes
+        fetchAndRenderItemDetails(cleanCode, scanUniqueId);
 
         // Exibe o banner de confirmação com destaque no topo
         const banner = document.getElementById('scan-last-item-banner');
@@ -1534,10 +1630,11 @@
     function copyScanList() {
         if (bgScanItems.length === 0) return;
         const lines = bgScanItems.map(function(i) {
-            return (i.code + '\t' + (i.liveCode || '-') + '\t' + i.time + '\t' + i.source);
+            const prodInfo = (i.productName ? i.productName + (i.productDetails ? ' (' + i.productDetails + ')' : '') : '-');
+            return (i.code + '\t' + (i.liveCode || '-') + '\t' + prodInfo + '\t' + (i.productPrice || '-'));
         });
         if (navigator.clipboard) {
-            navigator.clipboard.writeText('CÓDIGO\tCÓDIGO_LIVE\tHORA\tORIGEM\n' + lines.join('\n')).then(function() {
+            navigator.clipboard.writeText('CÓDIGO\tCÓDIGO_LIVE\tPRODUTO_DETALHES\tVALOR\n' + lines.join('\n')).then(function() {
                 const btn = document.querySelector('[onclick="copyScanList()"]');
                 if (btn) {
                     const orig = btn.innerHTML;
