@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\Sacolinhas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -69,7 +70,164 @@ class LiveChatController extends Controller
             $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first();
         }
 
-        return view('admin.lives.chat_feed', compact('lives', 'activeLive'));
+        $linkedLiveItems = [];
+        if ($activeLive && Schema::hasTable('live_items')) {
+            $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
+            $query = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $activeLive->id)
+                ->orderBy('live_items.id', 'desc');
+
+            $selects = [
+                'live_items.id as live_item_id',
+                'live_items.created_at as linked_at',
+                'items.id as item_id',
+                'items.codigo',
+                'items.nome_do_produto',
+                'items.descricao',
+                'items.tamanho',
+                'items.marca',
+                'items.cor',
+                'items.preco'
+            ];
+            if ($hasCodigoLiveCol) {
+                $selects[] = 'live_items.codigo_live';
+            }
+
+            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol) {
+                return [
+                    'id' => 'scan_db_' . $row->live_item_id,
+                    'itemId' => $row->item_id,
+                    'code' => $row->codigo,
+                    'liveCode' => $hasCodigoLiveCol ? ($row->codigo_live ?? '') : '',
+                    'productName' => $row->nome_do_produto ?: 'Sem Nome',
+                    'productDetails' => $row->descricao ?? '',
+                    'tamanho' => $row->tamanho ?? '',
+                    'marca' => $row->marca ?? '',
+                    'cor' => $row->cor ?? '',
+                    'productPrice' => 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.'),
+                    'time' => $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '',
+                    'source' => 'live'
+                ];
+            });
+        }
+
+        return view('admin.lives.chat_feed', compact('lives', 'activeLive', 'linkedLiveItems'));
+    }
+
+    /**
+     * Vincula um item bipado à live atual e registra o código específico da live
+     */
+    public function linkItemLive(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'nullable|exists:items,id',
+            'code' => 'nullable|string',
+            'codigo_live' => 'nullable|string'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+        $codigoLive = trim((string) $request->input('codigo_live'));
+
+        if (!$itemId && $request->filled('code')) {
+            $code = trim($request->input('code'));
+            $item = Item::where('codigo', $code)
+                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+                ->first();
+            if ($item) {
+                $itemId = $item->id;
+            }
+        }
+
+        if (!$itemId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item não encontrado para vincular à live.'
+            ], 404);
+        }
+
+        $item = Item::find($itemId);
+        $origem = $item->localizacao;
+
+        $updateData = [
+            'status_movimentacao' => 'enviado',
+            'updated_at' => now(),
+            'created_at' => now()
+        ];
+        if (Schema::hasColumn('live_items', 'codigo_live')) {
+            $updateData['codigo_live'] = $codigoLive ?: null;
+        }
+        if ($origem && strtolower($origem) !== 'live') {
+            $updateData['localizacao_origem'] = $origem;
+        }
+
+        DB::table('live_items')->updateOrInsert(
+            ['live_id' => $liveId, 'item_id' => $itemId],
+            $updateData
+        );
+
+        if (strtolower($item->localizacao ?? '') !== 'live' && strtolower($item->localizacao ?? '') !== 'sacolinha') {
+            $item->localizacao = 'Live';
+            $item->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item vinculado à live com sucesso!',
+            'data' => [
+                'item_id' => $itemId,
+                'live_id' => $liveId,
+                'codigo_live' => $codigoLive
+            ]
+        ]);
+    }
+
+    /**
+     * Remove a vinculação de um item com a live atual
+     */
+    public function unlinkItemLive(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|exists:lives,id',
+            'item_id' => 'nullable|exists:items,id',
+            'code' => 'nullable|string'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+
+        if (!$itemId && $request->filled('code')) {
+            $code = trim($request->input('code'));
+            $item = Item::where('codigo', $code)
+                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+                ->first();
+            if ($item) {
+                $itemId = $item->id;
+            }
+        }
+
+        if ($itemId && Schema::hasTable('live_items')) {
+            DB::table('live_items')
+                ->where('live_id', $liveId)
+                ->where('item_id', $itemId)
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item removido da live com sucesso.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Item não encontrado para desvincular.'
+        ], 404);
     }
 
     /**

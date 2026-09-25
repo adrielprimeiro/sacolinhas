@@ -691,7 +691,8 @@
     // =========================================================================
     // SISTEMA DE BIPAGEM — CÂMERA (Html5Qrcode) + RECONHECIMENTO DE VOZ
     // =========================================================================
-    const bgScanItems = [];           // [{code, liveCode, time, source}]
+    const initialLinkedLiveItems = @json($linkedLiveItems ?? []);
+    const bgScanItems = [];           // [{id, itemId, code, liveCode, time, source, productName, productDetails, ...}]
     let bgHtml5QrCode = null;
     let bgCameraActive = false;
     let bgSpeechRecog = null;
@@ -1231,6 +1232,118 @@
 
     const scanProductCache = {};
 
+    function buildProductDetailsHtml(prod) {
+        if (!prod) return '';
+        const detailParts = [];
+        const safePush = (val) => {
+            if (val !== null && val !== undefined) {
+                const s = String(val).trim();
+                if (s !== '' && s.toLowerCase() !== 'null' && s.toLowerCase() !== '&null' && s.toLowerCase() !== '&bnull' && s.toLowerCase() !== '&bull;') {
+                    detailParts.push(escapeHtml(s));
+                }
+            }
+        };
+
+        if (prod.description && String(prod.description).trim().toLowerCase() !== 'null' && String(prod.description).trim() !== String(prod.name || '').trim()) {
+            safePush(prod.description);
+        }
+        if (prod.tamanho && String(prod.tamanho).toLowerCase() !== 'null') safePush('Tam: ' + prod.tamanho);
+        if (prod.marca && String(prod.marca).toLowerCase() !== 'null') safePush(prod.marca);
+        if (prod.cor && String(prod.cor).toLowerCase() !== 'null') safePush(prod.cor);
+        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') safePush(prod.formatted_price);
+
+        const detailsText = detailParts.join(' • ');
+        const nameHtml = escapeHtml(prod.name || 'Produto');
+
+        return `
+            <div class="font-extrabold text-gray-900 leading-tight">${nameHtml}</div>
+            ${detailsText ? `<div class="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
+        `;
+    }
+
+    function renderLiveCodeHtml(item) {
+        if (item && item.liveCode) {
+            return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1">
+                <i class="fas fa-tag text-[9px]"></i> Live: <span>${escapeHtml(item.liveCode)}</span>
+                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-1 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
+            </p>`;
+        } else {
+            const scanId = item ? item.id : '';
+            return `<p class="text-[10px] text-amber-600 font-bold italic scan-item-live-code flex items-center gap-1">
+                <i class="fas fa-clock text-[9px]"></i> Aguardando código da live
+                <button type="button" onclick="editItemLiveCode('${scanId}')" title="Inserir código da live" class="text-amber-500 hover:text-amber-700 ml-1 p-0.5 cursor-pointer"><i class="fas fa-plus-circle text-[9px]"></i></button>
+            </p>`;
+        }
+    }
+
+    function editItemLiveCode(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+        const currentCode = item.liveCode || '';
+        const novoCod = prompt('Código específico da live para o item ' + item.code + ':', currentCode);
+        if (novoCod === null) return;
+        const cleanCod = novoCod.trim().toUpperCase();
+        item.liveCode = cleanCod;
+        updateItemLiveCodeUI(scanId, cleanCod);
+        syncLinkItemToLive(item.itemId || null, item.code, cleanCod);
+    }
+
+    function updateItemLiveCodeUI(scanId, liveCode) {
+        let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) {
+            const it = bgScanItems.find(x => x.id === scanId);
+            if (it && it.code) itemEl = document.querySelector(`[data-code="${it.code}"]`);
+        }
+        if (!itemEl) return;
+        const wrapper = itemEl.querySelector('.scan-item-live-wrapper');
+        if (wrapper) {
+            wrapper.innerHTML = renderLiveCodeHtml({ id: scanId, liveCode: liveCode });
+        }
+    }
+
+    function syncLinkItemToLive(itemId, code, liveCode) {
+        if (!liveId) return;
+        fetch('/admin/live-chat/link-item-live', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                live_id: liveId,
+                item_id: itemId || null,
+                code: code || null,
+                codigo_live: liveCode || ''
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.data && data.data.item_id) {
+                const found = bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId === itemId));
+                if (found) {
+                    found.itemId = data.data.item_id;
+                }
+            }
+        })
+        .catch(err => console.warn('[Scan] Erro ao sincronizar item à live:', err));
+    }
+
+    function unlinkItemFromLive(itemId, code) {
+        if (!liveId) return;
+        fetch('/admin/live-chat/unlink-item-live', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                live_id: liveId,
+                item_id: itemId || null,
+                code: code || null
+            })
+        }).catch(err => console.warn('[Scan] Erro ao desvincular item:', err));
+    }
+
     async function fetchAndRenderItemDetails(code, scanId) {
         let prod = scanProductCache[code];
         if (prod === undefined) {
@@ -1260,35 +1373,20 @@
         if (!itemEl) return;
 
         const detailsEl = itemEl.querySelector('.scan-item-details');
-        const thumbContainer = itemEl.querySelector('.scan-item-thumb');
 
         if (prod) {
             if (itemObj) {
+                itemObj.itemId = prod.id;
                 itemObj.productName = prod.name;
                 itemObj.productDetails = prod.description;
                 itemObj.productPrice = prod.formatted_price;
+                itemObj.tamanho = prod.tamanho;
+                itemObj.marca = prod.marca;
+                itemObj.cor = prod.cor;
             }
-
-            let detailParts = [];
-            if (prod.description && prod.description.trim() && prod.description.trim() !== prod.name.trim()) {
-                detailParts.push(prod.description.trim());
-            }
-            if (prod.tamanho) detailParts.push('Tam: ' + prod.tamanho);
-            if (prod.marca) detailParts.push(prod.marca);
-            if (prod.cor) detailParts.push(prod.cor);
-            if (prod.formatted_price) detailParts.push(prod.formatted_price);
-
-            const detailsText = detailParts.join(' &bull; ');
 
             if (detailsEl) {
-                detailsEl.innerHTML = `
-                    <div class="font-extrabold text-gray-900 leading-tight">${escapeHtml(prod.name)}</div>
-                    ${detailsText ? `<div class="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">${escapeHtml(detailsText)}</div>` : ''}
-                `;
-            }
-
-            if (thumbContainer && prod.image_url && !prod.image_url.includes('no-image')) {
-                thumbContainer.innerHTML = `<img src="${escapeHtml(prod.image_url)}" alt="" class="w-full h-full object-cover rounded-lg shadow-sm border border-gray-200">`;
+                detailsEl.innerHTML = buildProductDetailsHtml(prod);
             }
 
             const banner = document.getElementById('scan-last-item-banner');
@@ -1297,6 +1395,9 @@
                 const liveCode = itemObj ? itemObj.liveCode : '';
                 bannerText.textContent = code + (liveCode ? ' • Live: ' + liveCode : '') + ' • ' + prod.name;
             }
+
+            // Sincroniza vinculação do item à live com o banco de dados
+            syncLinkItemToLive(prod.id, code, itemObj ? itemObj.liveCode : '');
         } else {
             if (detailsEl) {
                 detailsEl.innerHTML = `<span class="text-[10px] text-gray-400 font-medium">Item não cadastrado</span>`;
@@ -1317,25 +1418,14 @@
             // Associa o código a esse item pendente
             waitingItem.liveCode = code;
 
-            // Atualiza o elemento no DOM
-            let itemEl = null;
-            if (waitingItem.id) {
-                itemEl = document.querySelector('[data-scan-id="' + waitingItem.id + '"]');
-            }
+            // Atualiza o elemento no DOM com layout limpo e menor
+            updateItemLiveCodeUI(waitingItem.id, code);
+
+            let itemEl = document.querySelector('[data-scan-id="' + waitingItem.id + '"]');
             if (!itemEl && waitingItem.code) {
                 itemEl = document.querySelector('[data-code="' + waitingItem.code + '"]');
             }
-
             if (itemEl) {
-                const liveWrapper = itemEl.querySelector('.scan-item-live-wrapper');
-                if (liveWrapper) {
-                    liveWrapper.innerHTML = `
-                        <span class="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
-                            <i class="fas fa-tag text-[9px]"></i> Live: ${escapeHtml(code)}
-                        </span>
-                    `;
-                }
-
                 // Destaque visual piscando verde para confirmar vinculação
                 itemEl.classList.add('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
                 setTimeout(() => {
@@ -1357,6 +1447,9 @@
                     banner.classList.add('hidden');
                 }, 3000);
             }
+
+            // Sincroniza com a tabela live_items
+            syncLinkItemToLive(waitingItem.itemId, waitingItem.code, code);
 
             playSuccessBeep();
 
@@ -1413,6 +1506,54 @@
     }
 
     /* ---- Lista de Itens Bipados ------------------------------------------ */
+    function createScanItemElement(item, isNew) {
+        const el = document.createElement('div');
+        el.className = isNew
+            ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item'
+            : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+        el.dataset.code = item.code;
+        el.dataset.scanId = item.id;
+        if (item.itemId) el.dataset.itemId = item.itemId;
+
+        let detailsInitial = '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>';
+        if (item.productName) {
+            const fakeProd = {
+                name: item.productName,
+                description: item.productDetails,
+                tamanho: item.tamanho,
+                marca: item.marca,
+                cor: item.cor,
+                formatted_price: item.productPrice
+            };
+            detailsInitial = buildProductDetailsHtml(fakeProd);
+        }
+
+        el.innerHTML =
+            '<div class="flex-1 min-w-0 scan-item-info">' +
+                '<div class="flex items-center justify-between gap-1">' +
+                    '<span class="text-xs font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(item.code) + '</span>' +
+                '</div>' +
+                '<div class="scan-item-live-wrapper mt-0.5">' +
+                    renderLiveCodeHtml(item) +
+                '</div>' +
+                '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                    detailsInitial +
+                '</div>' +
+            '</div>' +
+            '<button type="button" onclick="removeScanItem(this)" title="Remover item da live" ' +
+                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
+                '<i class="fas fa-trash-alt text-[10px]"></i>' +
+            '</button>';
+
+        if (isNew) {
+            setTimeout(function() {
+                el.className = 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+            }, 2500);
+        }
+
+        return el;
+    }
+
     function addScanItem(code, source) {
         source = source || 'manual';
         const cleanCode = extractCleanCode(code).toUpperCase();
@@ -1446,48 +1587,7 @@
         }
 
         const list = document.getElementById('scan-items-list');
-        let iconClass = 'bg-blue-100 text-blue-600';
-        let iconName  = 'camera';
-        if (source === 'usb') {
-            iconClass = 'bg-purple-100 text-purple-600';
-            iconName  = 'barcode';
-        } else if (source === 'manual') {
-            iconClass = 'bg-emerald-100 text-emerald-600';
-            iconName  = 'keyboard';
-        }
-
-        const liveHtml = item.liveCode
-            ? `<span class="inline-flex items-center gap-1 text-[11px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md"><i class="fas fa-tag text-[9px]"></i> Live: ${escapeHtml(item.liveCode)}</span>`
-            : `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md italic"><i class="fas fa-clock text-[9px]"></i> Aguardando código da live</span>`;
-
-        const el = document.createElement('div');
-        el.className = 'flex items-start gap-2.5 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item';
-        el.dataset.code = cleanCode;
-        el.dataset.scanId = scanUniqueId;
-        el.innerHTML =
-            '<div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm overflow-hidden scan-item-thumb mt-0.5">' +
-                '<i class="fas fa-' + iconName + ' text-xs"></i>' +
-            '</div>' +
-            '<div class="flex-1 min-w-0 scan-item-info">' +
-                '<div class="flex items-center justify-between gap-1">' +
-                    '<span class="text-xs font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(cleanCode) + '</span>' +
-                '</div>' +
-                '<div class="scan-item-live-wrapper mt-0.5">' +
-                    liveHtml +
-                '</div>' +
-                '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
-                    '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>' +
-                '</div>' +
-            '</div>' +
-            '<button type="button" onclick="removeScanItem(this)" title="Remover item" ' +
-                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
-                '<i class="fas fa-trash-alt text-[10px]"></i>' +
-            '</button>';
-
-        // Remove o destaque verde após 2.5s
-        setTimeout(function() {
-            el.className = 'flex items-start gap-2.5 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
-        }, 2500);
+        const el = createScanItemElement(item, true);
 
         if (list) {
             list.prepend(el);
@@ -1496,6 +1596,9 @@
 
         // Busca assíncrona dos dados do produto para exibir Descrição e Detalhes
         fetchAndRenderItemDetails(cleanCode, scanUniqueId);
+
+        // Já sincroniza com a tabela live_items
+        syncLinkItemToLive(null, cleanCode, item.liveCode);
 
         // Exibe o banner de confirmação com destaque no topo
         const banner = document.getElementById('scan-last-item-banner');
@@ -1519,16 +1622,28 @@
         const el = btn.closest('.scan-item');
         const scanId = el ? el.dataset.scanId : null;
         const code = el ? el.dataset.code : null;
+        let itemObj = null;
+
         if (scanId) {
             const idx = bgScanItems.findIndex(x => x.id === scanId);
-            if (idx !== -1) bgScanItems.splice(idx, 1);
+            if (idx !== -1) {
+                itemObj = bgScanItems[idx];
+                bgScanItems.splice(idx, 1);
+            }
         } else if (code) {
             const idx = bgScanItems.findIndex(x => x.code === code);
-            if (idx !== -1) bgScanItems.splice(idx, 1);
+            if (idx !== -1) {
+                itemObj = bgScanItems[idx];
+                bgScanItems.splice(idx, 1);
+            }
         }
         if (el) el.remove();
         updateScanCount();
         if (bgScanItems.length === 0) showScanEmptyState();
+
+        if (itemObj) {
+            unlinkItemFromLive(itemObj.itemId || null, itemObj.code);
+        }
     }
 
     function clearScanList() {
@@ -1536,6 +1651,23 @@
         const list = document.getElementById('scan-items-list');
         if (list) list.innerHTML = '';
         showScanEmptyState();
+        updateScanCount();
+    }
+
+    function loadInitialLinkedLiveItems() {
+        if (window._initialLiveItemsLoaded) return;
+        if (!Array.isArray(initialLinkedLiveItems) || initialLinkedLiveItems.length === 0) return;
+        window._initialLiveItemsLoaded = true;
+        const emptyState = document.getElementById('scan-empty-state');
+        if (emptyState) emptyState.remove();
+        const list = document.getElementById('scan-items-list');
+
+        initialLinkedLiveItems.forEach(item => {
+            bgScanItems.push(item);
+            if (list) {
+                list.appendChild(createScanItemElement(item, false));
+            }
+        });
         updateScanCount();
     }
 
@@ -1647,6 +1779,7 @@
 
     /* ---- Inicialização --------------------------------------------------- */
     function initScanSystem() {
+        loadInitialLinkedLiveItems();
         initScanCamera();
         initScanSpeech();
     }
@@ -1714,6 +1847,7 @@
         applyTheme(currentTheme);
         updateAutoScrollUI();
         updateTopCardsUI();
+        loadInitialLinkedLiveItems();
 
         if (liveId) {
             fetchChatFeed();
