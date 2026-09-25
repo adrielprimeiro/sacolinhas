@@ -761,8 +761,9 @@ class LiveChatController extends Controller
             ->header('Access-Control-Allow-Origin', '*');
         }
 
+        $platform = $plat;
         // Persistir avatar permanentemente no disco e recuperar se já existir
-        $avatarUrl = $this->persistUserAvatar($cleanUsername, $plat, $avatarUrl);
+        $avatarUrl = $this->persistUserAvatar($cleanUsername, $platform, $avatarUrl);
         $timestamp = $payload['timestamp'] ?? $request->input('timestamp');
 
         try {
