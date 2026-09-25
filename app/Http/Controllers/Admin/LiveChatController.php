@@ -1196,14 +1196,7 @@ class LiveChatController extends Controller
 
         $tiktokActive = Cache::get('tiktok_capture_active', true) && !Cache::get('tiktok_capture_stopped', false);
 
-        // Se a captura do TikTok estiver ativa mas o serviço desconectou, envia um ping de reconexão em background
-        if ($tiktokActive && rand(1, 4) === 1) {
-            try {
-                Http::timeout(1)->post('http://127.0.0.1:3001/connect', [
-                    'username' => '_minhamania'
-                ]);
-            } catch (\Exception $e) {}
-        }
+
 
         return response()->json([
             'success' => true,
@@ -1237,9 +1230,7 @@ class LiveChatController extends Controller
         if (empty($cleanUsername)) return null;
 
         $uLower = strtolower($cleanUsername);
-        $filename = "avatars/{$uLower}.jpg";
-
-        // 1. Se já recebemos um avatarUrl novo e válido nesta requisição
+        // 1. Se já recebemos um avatarUrl novo nesta requisição
         if (!empty($avatarUrl)) {
             // Se for Base64 (data:image)
             if (str_starts_with($avatarUrl, 'data:image')) {
@@ -1256,29 +1247,9 @@ class LiveChatController extends Controller
                 } catch (\Exception $e) {}
             }
 
-            // Se for URL remota (Instagram CDN, TikTok CDN, etc.)
+            // Se for URL remota (Instagram CDN, TikTok CDN, etc.), retorna direto sem travar o servidor com download síncrono
             if (str_starts_with($avatarUrl, 'http://') || str_starts_with($avatarUrl, 'https://')) {
-                // Se não for já a nossa própria URL local
-                if (!str_contains($avatarUrl, '/storage/avatars/')) {
-                    try {
-                        $res = Http::timeout(3)
-                            ->withHeaders([
-                                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                'Referer' => 'https://www.instagram.com/'
-                            ])
-                            ->get($avatarUrl);
-
-                        if ($res->successful() && strlen($res->body()) > 200) {
-                            Storage::disk('public')->put($filename, $res->body());
-                            $localUrl = asset('storage/' . $filename);
-                            Cache::forever("avatar_{$uLower}", $localUrl);
-                            $this->linkAvatarToUserRecord($cleanUsername, $platform, $filename, $userId);
-                            return $localUrl;
-                        }
-                    } catch (\Exception $e) {}
-                } else {
-                    return $avatarUrl;
-                }
+                return $avatarUrl;
             }
         }
 
