@@ -393,7 +393,7 @@
         <!-- ============================================================
              PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 sm:w-96 shrink-0 flex flex-col gap-2.5 overflow-y-auto h-full pr-1 pb-8" style="min-height:0;">
+        <div id="scan-panel" class="w-80 sm:w-96 shrink-0 flex flex-col gap-2.5 h-full pb-0 overflow-hidden" style="min-height:0;">
 
             <!-- Card 1: Código da Live (capturado por voz) -->
             <div class="bg-white rounded-2xl shadow border border-gray-200 p-2.5 shrink-0">
@@ -426,7 +426,7 @@
             </div>
 
             <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados (Layout Limpo) -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col shrink-0 sm:shrink-0 overflow-hidden" style="min-height: 520px;">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
 
                 <!-- IMAGEM DA CÂMERA AO VIVO DENTRO DO CARD (FLUSH NO TOPO) -->
                 <div id="scan-camera-wrapper" class="p-2 pb-1 shrink-0 transition-all duration-200">
@@ -486,18 +486,16 @@
                     </div>
                 </div>
 
-                <!-- Barra de Contador e Ação Copiar -->
+                <!-- Barra de Contador de Itens Bipados -->
                 <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
-                    <span class="text-xs text-gray-700 font-extrabold">
-                        Bipados: <span id="scan-count" class="text-emerald-700 font-black">0</span>
+                    <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
+                        <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
+                        <span>Itens Bipados: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
                     </span>
-                    <button type="button" onclick="copyScanList()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1 transition">
-                        <i class="fas fa-copy text-xs"></i> Copiar lista
-                    </button>
                 </div>
 
                 <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA AMPLIADA) -->
-                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height: 280px; max-height: 480px;">
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height: 0;">
                     <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
                         <i class="fas fa-barcode text-3xl mb-1 text-gray-300"></i>
                         <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
@@ -1536,8 +1534,8 @@
         const nameHtml = escapeHtml(prod.name || 'Produto');
 
         return `
-            <div class="font-extrabold text-gray-900 leading-tight">${nameHtml}</div>
-            ${detailsText ? `<div class="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
+            <div class="font-bold text-gray-900 leading-tight text-[11px]">${nameHtml}</div>
+            ${detailsText ? `<div class="text-[9.5px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
         `;
     }
 
@@ -1960,15 +1958,15 @@
     function renderScanItemBuyerHtml(item) {
         if (item.buyerUsername) {
             return `
-                <div class="mt-1.5 p-1.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between text-xs">
-                    <div class="flex items-center gap-1.5 truncate">
-                        <i class="fas fa-user-check text-emerald-600 shrink-0"></i>
-                        <span class="font-black text-emerald-950 truncate">
-                            @${escapeHtml(item.buyerUsername)} ${item.buyerName ? '<span class="font-normal text-emerald-800">(' + escapeHtml(item.buyerName) + ')</span>' : ''}
+                <div class="mt-1 p-1 px-1.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between text-[10px]">
+                    <div class="flex items-center gap-1 truncate">
+                        <i class="fas fa-user-check text-emerald-600 text-[9px] shrink-0"></i>
+                        <span class="font-black text-emerald-950 truncate text-[10px]">
+                            @${escapeHtml(item.buyerUsername)} ${item.buyerName ? '<span class="font-normal text-emerald-800 text-[9px]">(' + escapeHtml(item.buyerName) + ')</span>' : ''}
                         </span>
                     </div>
                     <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="text-emerald-700 hover:text-red-600 p-0.5 ml-1 transition cursor-pointer">
-                        <i class="fas fa-times text-xs"></i>
+                        <i class="fas fa-times text-[9px]"></i>
                     </button>
                 </div>
             `;
@@ -1977,23 +1975,23 @@
         const firstSpeaker = findFirstSpeakerForCode(item.liveCode, item.code);
         if (firstSpeaker) {
             return `
-                <div class="mt-1 flex items-center gap-1">
-                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(firstSpeaker.username)}', '${escapeHtml(firstSpeaker.displayName)}', '${firstSpeaker.userId || ''}', ${firstSpeaker.id})" title="Vincular à 1ª pessoa que pediu no chat (${escapeHtml(firstSpeaker.text)})" class="text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1 cursor-pointer transition shadow-xs truncate">
-                        <i class="fas fa-trophy text-amber-500 text-[9px]"></i>
+                <div class="mt-0.5 flex items-center gap-1">
+                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(firstSpeaker.username)}', '${escapeHtml(firstSpeaker.displayName)}', '${firstSpeaker.userId || ''}', ${firstSpeaker.id})" title="Vincular à 1ª pessoa que pediu no chat (${escapeHtml(firstSpeaker.text)})" class="text-[9.5px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 px-1.5 py-0.5 rounded font-black flex items-center gap-1 cursor-pointer transition shadow-2xs truncate">
+                        <i class="fas fa-trophy text-amber-500 text-[8px]"></i>
                         <span class="truncate">1ª: @${escapeHtml(firstSpeaker.username)}</span>
                         <span class="text-amber-700 font-bold ml-0.5">&bull; Vincular</span>
                     </button>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat" class="text-[10px] text-gray-400 hover:text-indigo-600 p-0.5 cursor-pointer">
-                        <i class="fas fa-link"></i>
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat" class="text-[9px] text-gray-400 hover:text-indigo-600 p-0.5 cursor-pointer">
+                        <i class="fas fa-link text-[8px]"></i>
                     </button>
                 </div>
             `;
         }
 
         return `
-            <div class="mt-1 flex items-center gap-1">
-                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar este item para vincular a uma cliente" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline">
-                    <i class="fas fa-link text-[9px]"></i> Vincular cliente
+            <div class="mt-0.5 flex items-center gap-1">
+                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar este item para vincular a uma cliente" class="text-[9.5px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline">
+                    <i class="fas fa-link text-[8.5px]"></i> Vincular cliente
                 </button>
             </div>
         `;
@@ -2282,12 +2280,12 @@
         el.innerHTML =
             '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
                 '<div class="flex items-center justify-between gap-1">' +
-                    '<span class="text-xs font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(item.code) + '</span>' +
+                    '<span class="text-[11.5px] font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(item.code) + '</span>' +
                 '</div>' +
                 '<div class="scan-item-live-wrapper mt-0.5">' +
                     renderLiveCodeHtml(item) +
                 '</div>' +
-                '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                '<div class="scan-item-details text-[10px] text-gray-600 leading-snug mt-0.5">' +
                     detailsInitial +
                 '</div>' +
                 '<div class="scan-item-buyer-wrapper">' +
@@ -2298,8 +2296,8 @@
                 '</div>' +
             '</div>' +
             '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
-                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
-                '<i class="fas fa-trash-alt text-[10px]"></i>' +
+                'class="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
+                '<i class="fas fa-trash-alt text-[9px]"></i>' +
             '</button>';
 
         if (isNew) {
@@ -3111,19 +3109,19 @@
             const dur = item.videoCutDuration ? `${item.videoCutDuration}s` : 'Salvo';
             const tooltip = item.videoCutPath || item.videoCutFilename || 'Vídeo gravado';
             return `
-                <div class="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-lg shadow-sm" title="${escapeHtml(tooltip)}">
-                    <i class="fas fa-video text-emerald-600 text-[9px]"></i>
+                <div class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-300 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shadow-2xs" title="${escapeHtml(tooltip)}">
+                    <i class="fas fa-video text-emerald-600 text-[8px]"></i>
                     <span>Corte: ${dur}</span>
-                    <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Regravar corte desta peça" class="ml-1 text-emerald-600 hover:text-emerald-950 p-0.5 transition cursor-pointer">
-                        <i class="fas fa-redo text-[9px]"></i>
+                    <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Regravar corte desta peça" class="ml-0.5 text-emerald-600 hover:text-emerald-950 p-0.5 transition cursor-pointer">
+                        <i class="fas fa-redo text-[8px]"></i>
                     </button>
                 </div>
             `;
         }
 
         return `
-            <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Gravar corte desta peça no OBS" class="text-[10px] font-bold text-gray-500 hover:text-red-600 bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 px-2 py-0.5 rounded-lg transition inline-flex items-center gap-1 cursor-pointer">
-                <i class="fas fa-video text-[9px]"></i>
+            <button type="button" onclick="event.stopPropagation(); startObsVideoCutForItem('${item.id}')" title="Gravar corte desta peça no OBS" class="text-[9px] font-bold text-gray-500 hover:text-red-600 bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 px-1.5 py-0.5 rounded-md transition inline-flex items-center gap-1 cursor-pointer">
+                <i class="fas fa-video text-[8px]"></i>
                 <span>Gravar Corte</span>
             </button>
         `;
