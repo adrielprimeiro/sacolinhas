@@ -298,24 +298,28 @@
         <!-- ============================================================
              PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
+        <div id="scan-panel" class="w-80 sm:w-88 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
 
             <!-- Card: Código da Live (capturado por voz) -->
             <div class="bg-white rounded-2xl shadow border border-gray-200 p-3 shrink-0">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
-                        <i class="fas fa-microphone text-white text-xs"></i>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <i class="fas fa-microphone text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-gray-800">Código da Live (Voz)</p>
+                            <p class="text-[10px] text-gray-400 leading-tight">Diga: "O código é: [código]"</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs font-black text-gray-800">Código da Live (Voz)</p>
-                        <p class="text-[10px] text-gray-400 leading-tight">Diga "O código é: ..." para capturar</p>
+                    <div class="flex items-center gap-1.5">
+                        <span id="mic-status-label" class="text-[10px] font-bold text-gray-400">Inativo</span>
+                        <div id="mic-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                     </div>
-                    <!-- Indicador de status do microfone -->
-                    <div id="mic-status-dot" class="ml-auto w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                 </div>
                 <div class="flex gap-1.5">
                     <input type="text" id="scan-live-code" placeholder="Aguardando voz ou digite..."
-                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider">
+                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
                         class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer">
                         <i class="fas fa-times text-xs"></i>
@@ -329,54 +333,64 @@
                 <!-- Header do painel -->
                 <div class="flex items-center justify-between px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
                     <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                        <div class="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
                             <i class="fas fa-barcode text-white text-xs"></i>
                         </div>
                         <div>
                             <p class="text-xs font-black text-gray-800">Itens Bipados</p>
-                            <p class="text-[10px] text-gray-400 leading-tight">Câmera lendo códigos de barras</p>
+                            <p class="text-[10px] text-gray-400 leading-tight">Câmera lendo em segundo plano</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <!-- Status câmera -->
                         <div id="cam-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300" title="Câmera inativa"></div>
-                        <!-- Botão limpar lista -->
-                        <button type="button" onclick="clearScanList()" title="Limpar lista"
+                        <button type="button" onclick="clearScanList()" title="Limpar lista de bipados"
                             class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-400 transition text-xs cursor-pointer">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Entrada manual de código de barras -->
+                <!-- Botão de Ativação / Permissão (se necessário) -->
+                <div id="scan-activation-box" class="px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 shrink-0 flex items-center justify-between">
+                    <span class="text-[11px] font-semibold text-indigo-900 flex items-center gap-1.5">
+                        <i class="fas fa-shield-alt text-indigo-500 text-xs"></i> Permissões:
+                    </span>
+                    <button type="button" onclick="toggleScanDevices()" id="btn-toggle-scan-devices"
+                        class="text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95">
+                        <i class="fas fa-play text-[9px]" id="scan-devices-btn-icon"></i>
+                        <span id="scan-devices-btn-text">Ativar Câmera e Voz</span>
+                    </button>
+                </div>
+
+                <!-- Entrada manual de código de barras / leitor USB -->
                 <div class="px-3 py-2 border-b border-gray-100 shrink-0">
                     <div class="flex gap-1.5">
                         <input type="text" id="scan-manual-input" placeholder="Digitar ou bipar código..."
-                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 uppercase"
                             onkeydown="handleManualScan(event)">
                         <button type="button" onclick="addManualCode()" title="Adicionar"
-                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs">
+                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs shadow-sm">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Contador -->
+                <!-- Contador e Ação Copiar -->
                 <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
                     <span class="text-[10px] text-gray-500 font-semibold">
                         Total: <span id="scan-count" class="text-gray-800 font-black">0</span> itens
                     </span>
-                    <button type="button" onclick="copyScanList()" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold cursor-pointer flex items-center gap-1">
+                    <button type="button" onclick="copyScanList()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1">
                         <i class="fas fa-copy text-[10px]"></i> Copiar lista
                     </button>
                 </div>
 
-                <!-- Lista de itens -->
+                <!-- Lista de itens bipados -->
                 <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">
                     <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
-                        <i class="fas fa-barcode text-4xl mb-2"></i>
-                        <p class="text-xs font-semibold">Nenhum item bipado ainda</p>
-                        <p class="text-[10px] text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>
+                        <i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>
+                        <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
+                        <p class="text-[10px] text-gray-400 mt-1 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>
                     </div>
                 </div>
             </div>
@@ -384,13 +398,8 @@
 
     </div><!-- fim flex gap row -->
 
-    <!-- Câmera oculta para leitura de código de barras -->
-    <video id="scan-camera-video" autoplay muted playsinline
-        style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"
-        aria-hidden="true"></video>
-    <canvas id="scan-camera-canvas"
-        style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"
-        aria-hidden="true"></canvas>
+    <!-- Elemento invisível para Html5Qrcode rodar em segundo plano -->
+    <div id="scan-hidden-barcode-reader" style="position: fixed; left: -9999px; top: 0; width: 320px; height: 320px; z-index: -100; opacity: 0; pointer-events: none;" aria-hidden="true"></div>
 
 </div>
 
@@ -639,232 +648,359 @@
     }
 
     // =========================================================================
-    // SISTEMA DE BIPAGEM — CÂMERA (BarcodeDetector) + RECONHECIMENTO DE VOZ
+    // SISTEMA DE BIPAGEM — CÂMERA (Html5Qrcode) + RECONHECIMENTO DE VOZ
     // =========================================================================
-    const scanItems = [];           // [{code, time, source}]
-    let scanCameraStream = null;
-    let scanCameraActive = false;
-    let scanSpeechRecog = null;
-    let scanSpeechActive = false;
-    let lastScannedCode = null;
-    let lastScannedTime = 0;
-    const SCAN_DEBOUNCE_MS = 2000;  // evita repetição do mesmo código
+    const bgScanItems = [];           // [{code, liveCode, time, source}]
+    let bgHtml5QrCode = null;
+    let bgCameraActive = false;
+    let bgSpeechRecog = null;
+    let bgSpeechActive = false;
+    let bgLastScannedCode = null;
+    let bgLastScannedTime = 0;
+    const BG_SCAN_DEBOUNCE_MS = 2000;
 
-    /* ---- câmera oculta -------------------------------------------------- */
+    /* ---- Câmera em Segundo Plano (Html5Qrcode) ----------------------------- */
     async function initScanCamera() {
-        if (scanCameraActive) return;
+        if (bgCameraActive) return;
+
+        // Se a lib Html5Qrcode ainda não carregou, aguarda brevemente
+        if (typeof Html5Qrcode === 'undefined') {
+            console.log('[Scan] Aguardando lib Html5Qrcode...');
+            setTimeout(initScanCamera, 500);
+            return;
+        }
+
         try {
-            if (!('BarcodeDetector' in window)) {
-                console.warn('[Scan] BarcodeDetector não suportado neste navegador.');
-                updateCamDot(false, 'BarcodeDetector não suportado');
-                return;
+            const readerEl = document.getElementById('scan-hidden-barcode-reader');
+            if (!readerEl) return;
+
+            let formats = [0, 9, 5, 1, 2, 3, 4, 6, 7, 8, 10, 11];
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                formats = [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ];
             }
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-            });
-            scanCameraStream = stream;
-            const video = document.getElementById('scan-camera-video');
-            video.srcObject = stream;
-            await video.play();
-            scanCameraActive = true;
-            updateCamDot(true);
-            startBarcodeLoop();
+
+            if (!bgHtml5QrCode) {
+                bgHtml5QrCode = new Html5Qrcode("scan-hidden-barcode-reader", { formatsToSupport: formats, verbose: false });
+            }
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                disableFlip: false
+            };
+
+            // Detecta câmeras para máxima compatibilidade em Windows / Mobile
+            let cameraConfig = { facingMode: "environment" };
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (cameras && cameras.length > 0) {
+                    // No desktop ou notebook, usa a câmera padrão
+                    cameraConfig = cameras[cameras.length > 1 ? cameras.length - 1 : 0].id;
+                }
+            } catch(e) {}
+
+            await bgHtml5QrCode.start(
+                cameraConfig,
+                config,
+                function(decodedText) {
+                    const now = Date.now();
+                    if (decodedText !== bgLastScannedCode || (now - bgLastScannedTime) > BG_SCAN_DEBOUNCE_MS) {
+                        bgLastScannedCode = decodedText;
+                        bgLastScannedTime = now;
+                        addScanItem(decodedText, 'camera');
+                    }
+                },
+                function() {} // ignora frames vazios
+            );
+
+            bgCameraActive = true;
+            updateCamDot(true, 'Câmera ativa lendo códigos em segundo plano');
+            updateScanDevicesBtn();
         } catch (err) {
-            console.warn('[Scan] Câmera:', err.message);
-            updateCamDot(false, err.message);
+            console.warn('[Scan] Câmera não pôde iniciar automaticamente:', err.message || err);
+            updateCamDot(false, 'Câmera: ' + (err.message || 'Permissão necessária'));
+            updateScanDevicesBtn();
         }
     }
 
-    function startBarcodeLoop() {
-        const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','qr_code','upc_a','upc_e','itf','pdf417'] });
-        const video   = document.getElementById('scan-camera-video');
-        const canvas  = document.getElementById('scan-camera-canvas');
-        const ctx     = canvas.getContext('2d');
-
-        async function tick() {
-            if (!scanCameraActive || video.readyState < 2) { requestAnimationFrame(tick); return; }
-            canvas.width  = video.videoWidth  || 640;
-            canvas.height = video.videoHeight || 480;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    async function stopScanCamera() {
+        if (bgHtml5QrCode && bgCameraActive) {
             try {
-                const codes = await detector.detect(canvas);
-                if (codes.length > 0) {
-                    const raw = codes[0].rawValue;
-                    const now = Date.now();
-                    if (raw !== lastScannedCode || (now - lastScannedTime) > SCAN_DEBOUNCE_MS) {
-                        lastScannedCode = raw;
-                        lastScannedTime = now;
-                        addScanItem(raw, 'camera');
-                    }
-                }
-            } catch(_) {}
-            setTimeout(() => requestAnimationFrame(tick), 300); // 3 fps — leve na CPU
+                await bgHtml5QrCode.stop();
+            } catch(e) {}
+            bgCameraActive = false;
+            updateCamDot(false, 'Câmera parada');
+            updateScanDevicesBtn();
         }
-        requestAnimationFrame(tick);
     }
 
     function updateCamDot(active, title) {
         const dot = document.getElementById('cam-status-dot');
         if (!dot) return;
-        dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`;
+        dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
         dot.title = title || (active ? 'Câmera ativa' : 'Câmera inativa');
     }
 
-    /* ---- reconhecimento de voz ------------------------------------------ */
+    /* ---- Reconhecimento de Voz (SpeechRecognition) ------------------------- */
     function initScanSpeech() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { console.warn('[Scan] SpeechRecognition não suportado.'); return; }
+        if (!SR) {
+            console.warn('[Scan] SpeechRecognition não suportado neste navegador.');
+            updateMicDot(false, 'Voz não suportada neste navegador');
+            return;
+        }
 
-        scanSpeechRecog = new SR();
-        scanSpeechRecog.lang = 'pt-BR';
-        scanSpeechRecog.continuous = true;
-        scanSpeechRecog.interimResults = false;
-        scanSpeechRecog.maxAlternatives = 3;
-
-        const TRIGGERS = ['o código é', 'o código desse é', 'o código dela é', 'o código dele é', 'código'];
-
-        scanSpeechRecog.onresult = (event) => {
-            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-            for (const trigger of TRIGGERS) {
-                const idx = transcript.indexOf(trigger);
-                if (idx !== -1) {
-                    const after = transcript.slice(idx + trigger.length).trim();
-                    // Pega a primeira "palavra" após o gatilho (o código bipado)
-                    const code = after.split(/\s+/)[0]?.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                    if (code && code.length >= 2) {
-                        document.getElementById('scan-live-code').value = code;
-                        flashMicDot();
-                        playSuccessBeep();
-                    }
-                    break;
-                }
-            }
-        };
-
-        scanSpeechRecog.onerror = (e) => {
-            if (e.error !== 'no-speech') console.warn('[Scan] Speech error:', e.error);
-        };
-
-        scanSpeechRecog.onend = () => {
-            // Reinicia automaticamente enquanto a página estiver aberta
-            if (scanSpeechActive) {
-                try { scanSpeechRecog.start(); } catch(_) {}
-            }
-        };
+        if (bgSpeechRecog && bgSpeechActive) return;
 
         try {
-            scanSpeechRecog.start();
-            scanSpeechActive = true;
-            updateMicDot(true);
+            bgSpeechRecog = new SR();
+            bgSpeechRecog.lang = 'pt-BR';
+            bgSpeechRecog.continuous = true;
+            bgSpeechRecog.interimResults = true;
+            bgSpeechRecog.maxAlternatives = 1;
+
+            // Regex flexível para capturar após "o código é", "o código desse é", etc.
+            const triggerRegex = /(?:o\s+c[oó]digo(?:\s+d[eé]l[ea]|\s+d[eé]ss[ea]|\s+d[eé]ss[ea]\s+aqui|\s+d[eé]st[ea])?\s+(?:vai\s+ser\s+)?(?:[eé]|eh)\s+(?:c[oó]digo\s+)?|c[oó]digo\s+(?:[eé]|eh\s+)?)([\w\d\-_]+)/i;
+
+            bgSpeechRecog.onresult = function(event) {
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript.trim();
+                    const match = transcript.match(triggerRegex);
+                    if (match && match[1]) {
+                        const rawCode = match[1].trim().toUpperCase();
+                        if (rawCode.length >= 1) {
+                            applySpokenLiveCode(rawCode);
+                        }
+                    }
+                }
+            };
+
+            bgSpeechRecog.onerror = function(e) {
+                if (e.error !== 'no-speech') {
+                    console.warn('[Scan] Speech error:', e.error);
+                }
+            };
+
+            bgSpeechRecog.onend = function() {
+                // Reinicia continuamente se ativo
+                if (bgSpeechActive) {
+                    setTimeout(function() {
+                        try {
+                            if (bgSpeechActive) bgSpeechRecog.start();
+                        } catch(e) {}
+                    }, 400);
+                }
+            };
+
+            bgSpeechRecog.start();
+            bgSpeechActive = true;
+            updateMicDot(true, 'Microfone ouvindo...');
+            updateScanDevicesBtn();
         } catch(e) {
-            console.warn('[Scan] Speech start error:', e.message);
+            console.warn('[Scan] Erro ao iniciar microfone:', e.message);
+            updateMicDot(false, 'Microfone: ' + e.message);
+            updateScanDevicesBtn();
         }
     }
 
-    function updateMicDot(active) {
+    function stopScanSpeech() {
+        if (bgSpeechRecog) {
+            bgSpeechActive = false;
+            try { bgSpeechRecog.stop(); } catch(e) {}
+            updateMicDot(false, 'Microfone parado');
+            updateScanDevicesBtn();
+        }
+    }
+
+    function updateMicDot(active, label) {
         const dot = document.getElementById('mic-status-dot');
-        if (!dot) return;
-        dot.className = `ml-auto w-2.5 h-2.5 rounded-full shrink-0 ${active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`;
-        dot.title = active ? 'Microfone ativo — ouvindo...' : 'Microfone inativo';
+        const lbl = document.getElementById('mic-status-label');
+        if (dot) {
+            dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
+            dot.title = label || (active ? 'Microfone ativo' : 'Microfone inativo');
+        }
+        if (lbl) {
+            lbl.textContent = active ? 'Ouvindo' : 'Inativo';
+            lbl.className = `text-[10px] font-bold ${active ? 'text-emerald-600' : 'text-gray-400'}`;
+        }
     }
 
     function flashMicDot() {
         const dot = document.getElementById('mic-status-dot');
         if (!dot) return;
-        dot.className = 'ml-auto w-2.5 h-2.5 rounded-full shrink-0 bg-yellow-400 animate-ping';
-        setTimeout(() => updateMicDot(true), 800);
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+        setTimeout(() => updateMicDot(bgSpeechActive), 1000);
     }
 
-    /* ---- lista de itens -------------------------------------------------- */
+    function applySpokenLiveCode(code) {
+        const liveInput = document.getElementById('scan-live-code');
+        if (liveInput) {
+            liveInput.value = code;
+            flashMicDot();
+            playSuccessBeep();
+
+            // Se bipou um item recentemente (< 30s) sem código de live associado, vincula a ele!
+            if (bgScanItems.length > 0) {
+                const latest = bgScanItems[0];
+                const now = Date.now();
+                if ((now - (latest.timestamp || now)) < 30000 && !latest.liveCode) {
+                    latest.liveCode = code;
+                    const firstEl = document.querySelector('#scan-items-list .scan-item');
+                    if (firstEl) {
+                        const infoContainer = firstEl.querySelector('.scan-item-info');
+                        if (infoContainer && !firstEl.querySelector('.scan-item-live-code')) {
+                            const p = document.createElement('p');
+                            p.className = 'text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1';
+                            p.innerHTML = '<i class="fas fa-tag text-[10px]"></i> Live: ' + code;
+                            infoContainer.insertBefore(p, infoContainer.children[1]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* ---- Controle Unificado (Ativar / Desativar Câmera e Voz) ------------- */
+    function toggleScanDevices() {
+        if (!bgCameraActive || !bgSpeechActive) {
+            initScanCamera();
+            initScanSpeech();
+        } else {
+            stopScanCamera();
+            stopScanSpeech();
+        }
+    }
+
+    function updateScanDevicesBtn() {
+        const btn = document.getElementById('btn-toggle-scan-devices');
+        const icon = document.getElementById('scan-devices-btn-icon');
+        const text = document.getElementById('scan-devices-btn-text');
+        if (!btn) return;
+
+        if (bgCameraActive && bgSpeechActive) {
+            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95";
+            if (icon) icon.className = "fas fa-check text-[9px]";
+            if (text) text.textContent = "Câmera e Voz Ativas";
+        } else if (bgCameraActive || bgSpeechActive) {
+            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95";
+            if (icon) icon.className = "fas fa-sync fa-spin text-[9px]";
+            if (text) text.textContent = bgCameraActive ? "Ativar Microfone" : "Ativar Câmera";
+        } else {
+            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95 animate-pulse";
+            if (icon) icon.className = "fas fa-play text-[9px]";
+            if (text) text.textContent = "Ativar Câmera e Voz";
+        }
+    }
+
+    /* ---- Lista de Itens Bipados ------------------------------------------ */
     function addScanItem(code, source) {
         source = source || 'manual';
-        // Remove estado vazio
-        var emptyState = document.getElementById('scan-empty-state');
+        const emptyState = document.getElementById('scan-empty-state');
         if (emptyState) emptyState.remove();
 
-        var now = new Date();
-        var timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        var item = { code: code, time: timeStr, source: source };
-        scanItems.unshift(item);
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const liveCode = (document.getElementById('scan-live-code') || {}).value || '';
+        const trimmedLiveCode = liveCode.trim().toUpperCase();
 
-        var list = document.getElementById('scan-items-list');
-        var liveCode = (document.getElementById('scan-live-code') || {}).value || '';
-        liveCode = liveCode.trim();
+        const item = {
+            code: code,
+            liveCode: trimmedLiveCode,
+            time: timeStr,
+            timestamp: Date.now(),
+            source: source
+        };
+        bgScanItems.unshift(item);
 
-        var iconClass = source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
-        var iconName  = source === 'camera' ? 'camera' : 'keyboard';
-        var liveHtml  = liveCode ? '<p class="text-xs text-indigo-600 font-semibold">Live: ' + liveCode + '</p>' : '';
+        const list = document.getElementById('scan-items-list');
+        const iconClass = source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
+        const iconName  = source === 'camera' ? 'camera' : 'keyboard';
+        const liveHtml  = trimmedLiveCode ? '<p class="text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1"><i class="fas fa-tag text-[10px]"></i> Live: ' + trimmedLiveCode + '</p>' : '';
 
-        var el = document.createElement('div');
-        el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-300 transition scan-item';
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
         el.dataset.code = code;
         el.innerHTML =
-            '<div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + '">' +
+            '<div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm">' +
                 '<i class="fas fa-' + iconName + ' text-xs"></i>' +
             '</div>' +
-            '<div class="flex-1 min-w-0">' +
-                '<p class="text-xs font-black text-gray-800 truncate tracking-wider">' + code + '</p>' +
+            '<div class="flex-1 min-w-0 scan-item-info">' +
+                '<p class="text-xs font-black text-gray-900 truncate tracking-wider">' + code + '</p>' +
                 liveHtml +
-                '<p class="text-xs text-gray-400">' + timeStr + '</p>' +
+                '<p class="text-[10px] text-gray-400">' + timeStr + ' &bull; ' + (source === 'camera' ? 'Câmera' : 'Manual') + '</p>' +
             '</div>' +
-            '<button type="button" onclick="removeScanItem(this)" title="Remover" ' +
-                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 cursor-pointer">' +
-                '<i class="fas fa-times text-xs"></i>' +
+            '<button type="button" onclick="removeScanItem(this)" title="Remover item" ' +
+                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer">' +
+                '<i class="fas fa-trash-alt text-[10px]"></i>' +
             '</button>';
 
-        list.prepend(el);
+        if (list) list.prepend(el);
         updateScanCount();
         playSuccessBeep();
     }
 
     function removeScanItem(btn) {
         const el = btn.closest('.scan-item');
-        const code = el?.dataset.code;
-        if (code) { const i = scanItems.findIndex(x => x.code === code); if (i !== -1) scanItems.splice(i, 1); }
-        el?.remove();
+        const code = el ? el.dataset.code : null;
+        if (code) {
+            const idx = bgScanItems.findIndex(x => x.code === code);
+            if (idx !== -1) bgScanItems.splice(idx, 1);
+        }
+        if (el) el.remove();
         updateScanCount();
-        if (scanItems.length === 0) showScanEmptyState();
+        if (bgScanItems.length === 0) showScanEmptyState();
     }
 
     function clearScanList() {
-        scanItems.length = 0;
+        bgScanItems.length = 0;
         const list = document.getElementById('scan-items-list');
-        list.innerHTML = '';
+        if (list) list.innerHTML = '';
         showScanEmptyState();
         updateScanCount();
     }
 
     function showScanEmptyState() {
-        var list = document.getElementById('scan-items-list');
+        const list = document.getElementById('scan-items-list');
         if (list && list.querySelector('.scan-item')) return;
         if (list) {
             list.innerHTML =
                 '<div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">' +
-                    '<i class="fas fa-barcode text-4xl mb-2"></i>' +
-                    '<p class="text-xs font-semibold">Nenhum item bipado ainda</p>' +
-                    '<p class="text-xs text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>' +
+                    '<i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>' +
+                    '<p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>' +
+                    '<p class="text-[10px] text-gray-400 mt-1 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>' +
                 '</div>';
         }
     }
 
     function updateScanCount() {
-        var el = document.getElementById('scan-count');
-        if (el) el.textContent = scanItems.length;
+        const el = document.getElementById('scan-count');
+        if (el) el.textContent = bgScanItems.length;
     }
 
     function clearLiveCode() {
-        var el = document.getElementById('scan-live-code');
+        const el = document.getElementById('scan-live-code');
         if (el) el.value = '';
     }
 
     function handleManualScan(event) {
-        if (event.key === 'Enter') addManualCode();
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addManualCode();
+        }
     }
 
     function addManualCode() {
-        var input = document.getElementById('scan-manual-input');
+        const input = document.getElementById('scan-manual-input');
         if (!input) return;
-        var code = input.value.trim().toUpperCase();
+        const code = input.value.trim().toUpperCase();
         if (!code) return;
         addScanItem(code, 'manual');
         input.value = '';
@@ -872,17 +1008,15 @@
     }
 
     function copyScanList() {
-        if (scanItems.length === 0) return;
-        var liveCode = (document.getElementById('scan-live-code') || {}).value || '';
-        liveCode = liveCode.trim();
-        var lines = scanItems.map(function(i) {
-            return liveCode ? (i.code + '\t' + liveCode + '\t' + i.time) : (i.code + '\t' + i.time);
+        if (bgScanItems.length === 0) return;
+        const lines = bgScanItems.map(function(i) {
+            return (i.code + '\t' + (i.liveCode || '-') + '\t' + i.time + '\t' + i.source);
         });
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(lines.join('\n')).then(function() {
-                var btn = document.querySelector('[onclick="copyScanList()"]');
+            navigator.clipboard.writeText('CÓDIGO\tCÓDIGO_LIVE\tHORA\tORIGEM\n' + lines.join('\n')).then(function() {
+                const btn = document.querySelector('[onclick="copyScanList()"]');
                 if (btn) {
-                    var orig = btn.innerHTML;
+                    const orig = btn.innerHTML;
                     btn.innerHTML = '<i class="fas fa-check text-emerald-500"></i> Copiado!';
                     setTimeout(function() { btn.innerHTML = orig; }, 1500);
                 }
@@ -890,7 +1024,7 @@
         }
     }
 
-    /* ---- inicialização --------------------------------------------------- */
+    /* ---- Inicialização --------------------------------------------------- */
     function initScanSystem() {
         initScanCamera();
         initScanSpeech();
@@ -959,12 +1093,16 @@
         applyTheme(currentTheme);
         updateAutoScrollUI();
         updateTopCardsUI();
-        initScanSystem();
 
         if (liveId) {
             fetchChatFeed();
             pollingInterval = setInterval(fetchChatFeed, 2000);
         }
+
+        // Sistema de bipagem inicia após 1s (isolado para não travar a página)
+        setTimeout(function() {
+            try { initScanSystem(); } catch(e) { console.warn('[Scan] Erro ao iniciar:', e); }
+        }, 1000);
     });
 
     // =========================================================================
