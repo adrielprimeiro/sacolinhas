@@ -57,6 +57,30 @@
         transition: background-color 0.2s ease;
     }
 
+    #scan-camera-reader {
+        width: 100% !important;
+        height: 100% !important;
+        position: relative !important;
+        overflow: hidden !important;
+        border-radius: 0.75rem !important;
+        background: #000 !important;
+    }
+    #scan-camera-reader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        border-radius: 0.75rem !important;
+    }
+    #scan-camera-reader canvas {
+        display: none !important;
+    }
+    #scan-camera-reader__scan_region {
+        min-height: 100% !important;
+    }
+    #scan-camera-reader__dashboard {
+        display: none !important;
+    }
+
     .chat-card {
         background-color: var(--card-bg) !important;
         border: 1.5px solid var(--card-border) !important;
@@ -298,9 +322,9 @@
         <!-- ============================================================
              PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 sm:w-88 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
+        <div id="scan-panel" class="w-80 sm:w-92 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
 
-            <!-- Card: Código da Live (capturado por voz) -->
+            <!-- Card 1: Código da Live (capturado por voz) -->
             <div class="bg-white rounded-2xl shadow border border-gray-200 p-3 shrink-0">
                 <div class="flex items-center justify-between gap-2 mb-2">
                     <div class="flex items-center gap-2">
@@ -327,8 +351,8 @@
                 </div>
             </div>
 
-            <!-- Card: Câmera + Lista de Itens Bipados -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden">
+            <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados -->
+            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height:0;">
 
                 <!-- Header do painel -->
                 <div class="flex items-center justify-between px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
@@ -337,11 +361,15 @@
                             <i class="fas fa-barcode text-white text-xs"></i>
                         </div>
                         <div>
-                            <p class="text-xs font-black text-gray-800">Itens Bipados</p>
-                            <p class="text-[10px] text-gray-400 leading-tight">Câmera lendo em segundo plano</p>
+                            <p class="text-xs font-black text-gray-800">Leitor & Itens Bipados</p>
+                            <p class="text-[10px] text-gray-400 leading-tight">Câmera e Leitor USB integrados</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5">
+                        <!-- Botão alternar câmera (se mais de 1) -->
+                        <button type="button" onclick="switchScanCamera()" id="btn-switch-scan-cam" title="Trocar Câmera" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-500 hover:text-indigo-600 transition text-xs cursor-pointer hidden">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                         <div id="cam-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300" title="Câmera inativa"></div>
                         <button type="button" onclick="clearScanList()" title="Limpar lista de bipados"
                             class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-400 transition text-xs cursor-pointer">
@@ -350,15 +378,45 @@
                     </div>
                 </div>
 
-                <!-- Botão de Ativação / Permissão (se necessário) -->
-                <div id="scan-activation-box" class="px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 shrink-0 flex items-center justify-between">
-                    <span class="text-[11px] font-semibold text-indigo-900 flex items-center gap-1.5">
-                        <i class="fas fa-shield-alt text-indigo-500 text-xs"></i> Permissões:
-                    </span>
-                    <button type="button" onclick="toggleScanDevices()" id="btn-toggle-scan-devices"
-                        class="text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95">
-                        <i class="fas fa-play text-[9px]" id="scan-devices-btn-icon"></i>
-                        <span id="scan-devices-btn-text">Ativar Câmera e Voz</span>
+                <!-- IMAGEM DA CÂMERA AO VIVO DENTRO DO CARD -->
+                <div class="p-2.5 pb-1 shrink-0">
+                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 180px;">
+                        <!-- Container da Câmera (Html5Qrcode injeta o vídeo aqui) -->
+                        <div id="scan-camera-reader" class="w-full h-full"></div>
+
+                        <!-- Placeholder quando desligada -->
+                        <div id="scan-camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-400 p-4 text-center z-10 transition-all">
+                            <div class="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-lg mb-2 shadow">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <p class="text-xs font-bold text-gray-200">Câmera de Leitura</p>
+                            <p class="text-[10px] text-gray-400 mt-0.5 mb-2.5">Aponte para o código de barras / QR</p>
+                            <button type="button" onclick="startScanDevices()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95">
+                                <i class="fas fa-video text-[10px]"></i> Ativar Câmera e Voz
+                            </button>
+                        </div>
+
+                        <!-- Mira / Linha de Leitura visual -->
+                        <div id="scan-camera-overlay" class="absolute inset-0 pointer-events-none hidden z-10 flex items-center justify-center">
+                            <div class="w-56 h-28 border-2 border-emerald-400/80 rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] relative">
+                                <div class="absolute inset-x-2 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/90 animate-pulse shadow-[0_0_8px_#34d399]"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de status rápida de dispositivos -->
+                <div class="px-3 py-1 shrink-0 flex items-center justify-between text-[11px] border-b border-gray-100">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-gray-500 font-semibold text-[10px] flex items-center gap-1">
+                            <span id="scan-cam-active-badge" class="w-2 h-2 rounded-full bg-gray-300"></span> Câmera
+                        </span>
+                        <span class="text-gray-500 font-semibold text-[10px] flex items-center gap-1">
+                            <span id="scan-mic-active-badge" class="w-2 h-2 rounded-full bg-gray-300"></span> Voz
+                        </span>
+                    </div>
+                    <button type="button" onclick="toggleScanDevices()" id="btn-toggle-scan-devices" class="text-[10px] font-bold px-2 py-0.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition cursor-pointer">
+                        <span id="scan-devices-btn-text">Ativar Dispositivos</span>
                     </button>
                 </div>
 
@@ -386,7 +444,7 @@
                 </div>
 
                 <!-- Lista de itens bipados -->
-                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height:0;">
                     <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
                         <i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>
                         <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
@@ -397,9 +455,6 @@
         </div>
 
     </div><!-- fim flex gap row -->
-
-    <!-- Elemento invisível para Html5Qrcode rodar em segundo plano -->
-    <div id="scan-hidden-barcode-reader" style="position: fixed; left: -9999px; top: 0; width: 320px; height: 320px; z-index: -100; opacity: 0; pointer-events: none;" aria-hidden="true"></div>
 
 </div>
 
@@ -659,19 +714,22 @@
     let bgLastScannedTime = 0;
     const BG_SCAN_DEBOUNCE_MS = 2000;
 
-    /* ---- Câmera em Segundo Plano (Html5Qrcode) ----------------------------- */
-    async function initScanCamera() {
+    /* ---- Câmera Visível no Card (Html5Qrcode) ----------------------------- */
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+
+    async function initScanCamera(preferredCameraId) {
         if (bgCameraActive) return;
 
         // Se a lib Html5Qrcode ainda não carregou, aguarda brevemente
         if (typeof Html5Qrcode === 'undefined') {
             console.log('[Scan] Aguardando lib Html5Qrcode...');
-            setTimeout(initScanCamera, 500);
+            setTimeout(() => initScanCamera(preferredCameraId), 500);
             return;
         }
 
         try {
-            const readerEl = document.getElementById('scan-hidden-barcode-reader');
+            const readerEl = document.getElementById('scan-camera-reader');
             if (!readerEl) return;
 
             let formats = [0, 9, 5, 1, 2, 3, 4, 6, 7, 8, 10, 11];
@@ -688,22 +746,34 @@
             }
 
             if (!bgHtml5QrCode) {
-                bgHtml5QrCode = new Html5Qrcode("scan-hidden-barcode-reader", { formatsToSupport: formats, verbose: false });
+                bgHtml5QrCode = new Html5Qrcode("scan-camera-reader", { formatsToSupport: formats, verbose: false });
             }
 
             const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
+                fps: 15,
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    return {
+                        width: Math.min(Math.floor(viewfinderWidth * 0.85), 320),
+                        height: Math.min(Math.floor(viewfinderHeight * 0.75), 150)
+                    };
+                },
                 disableFlip: false
             };
 
             // Detecta câmeras para máxima compatibilidade em Windows / Mobile
             let cameraConfig = { facingMode: "environment" };
             try {
-                const cameras = await Html5Qrcode.getCameras();
-                if (cameras && cameras.length > 0) {
-                    // No desktop ou notebook, usa a câmera padrão
-                    cameraConfig = cameras[cameras.length > 1 ? cameras.length - 1 : 0].id;
+                availableCameras = await Html5Qrcode.getCameras();
+                if (availableCameras && availableCameras.length > 0) {
+                    const switchBtn = document.getElementById('btn-switch-scan-cam');
+                    if (switchBtn && availableCameras.length > 1) {
+                        switchBtn.classList.remove('hidden');
+                    }
+                    if (preferredCameraId) {
+                        cameraConfig = preferredCameraId;
+                    } else {
+                        cameraConfig = availableCameras[currentCameraIndex % availableCameras.length].id;
+                    }
                 }
             } catch(e) {}
 
@@ -718,11 +788,17 @@
                         addScanItem(decodedText, 'camera');
                     }
                 },
-                function() {} // ignora frames vazios
+                function() {} // ignora frames sem detecção
             );
 
             bgCameraActive = true;
-            updateCamDot(true, 'Câmera ativa lendo códigos em segundo plano');
+            // Oculta placeholder e exibe overlay
+            const placeholder = document.getElementById('scan-camera-placeholder');
+            if (placeholder) placeholder.classList.add('hidden');
+            const overlay = document.getElementById('scan-camera-overlay');
+            if (overlay) overlay.classList.remove('hidden');
+
+            updateCamDot(true, 'Câmera ativa lendo códigos');
             updateScanDevicesBtn();
         } catch (err) {
             console.warn('[Scan] Câmera não pôde iniciar automaticamente:', err.message || err);
@@ -737,16 +813,42 @@
                 await bgHtml5QrCode.stop();
             } catch(e) {}
             bgCameraActive = false;
+
+            const placeholder = document.getElementById('scan-camera-placeholder');
+            if (placeholder) placeholder.classList.remove('hidden');
+            const overlay = document.getElementById('scan-camera-overlay');
+            if (overlay) overlay.classList.add('hidden');
+
             updateCamDot(false, 'Câmera parada');
             updateScanDevicesBtn();
         }
     }
 
+    async function switchScanCamera() {
+        if (!availableCameras || availableCameras.length <= 1) return;
+        currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+        const nextCameraId = availableCameras[currentCameraIndex].id;
+        if (bgCameraActive) {
+            await stopScanCamera();
+            await initScanCamera(nextCameraId);
+        }
+    }
+
+    function startScanDevices() {
+        initScanCamera();
+        initScanSpeech();
+    }
+
     function updateCamDot(active, title) {
         const dot = document.getElementById('cam-status-dot');
-        if (!dot) return;
-        dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
-        dot.title = title || (active ? 'Câmera ativa' : 'Câmera inativa');
+        const badge = document.getElementById('scan-cam-active-badge');
+        if (dot) {
+            dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
+            dot.title = title || (active ? 'Câmera ativa' : 'Câmera inativa');
+        }
+        if (badge) {
+            badge.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-gray-300'}`;
+        }
     }
 
     /* ---- Reconhecimento de Voz (SpeechRecognition) ------------------------- */
@@ -823,6 +925,7 @@
     function updateMicDot(active, label) {
         const dot = document.getElementById('mic-status-dot');
         const lbl = document.getElementById('mic-status-label');
+        const badge = document.getElementById('scan-mic-active-badge');
         if (dot) {
             dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
             dot.title = label || (active ? 'Microfone ativo' : 'Microfone inativo');
@@ -830,6 +933,9 @@
         if (lbl) {
             lbl.textContent = active ? 'Ouvindo' : 'Inativo';
             lbl.className = `text-[10px] font-bold ${active ? 'text-emerald-600' : 'text-gray-400'}`;
+        }
+        if (badge) {
+            badge.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-gray-300'}`;
         }
     }
 
@@ -881,21 +987,17 @@
 
     function updateScanDevicesBtn() {
         const btn = document.getElementById('btn-toggle-scan-devices');
-        const icon = document.getElementById('scan-devices-btn-icon');
         const text = document.getElementById('scan-devices-btn-text');
         if (!btn) return;
 
         if (bgCameraActive && bgSpeechActive) {
-            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95";
-            if (icon) icon.className = "fas fa-check text-[9px]";
-            if (text) text.textContent = "Câmera e Voz Ativas";
+            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition cursor-pointer";
+            if (text) text.textContent = "Desativar Dispositivos";
         } else if (bgCameraActive || bgSpeechActive) {
-            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95";
-            if (icon) icon.className = "fas fa-sync fa-spin text-[9px]";
-            if (text) text.textContent = bgCameraActive ? "Ativar Microfone" : "Ativar Câmera";
+            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-indigo-700 hover:bg-indigo-50 transition cursor-pointer";
+            if (text) text.textContent = bgCameraActive ? "+ Ativar Microfone" : "+ Ativar Câmera";
         } else {
-            btn.className = "text-[11px] font-extrabold px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95 animate-pulse";
-            if (icon) icon.className = "fas fa-play text-[9px]";
+            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition cursor-pointer font-extrabold";
             if (text) text.textContent = "Ativar Câmera e Voz";
         }
     }
