@@ -897,6 +897,7 @@
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500"></i>' : '<i class="fab fa-instagram text-purple-500"></i>';
             const time = new Date(msg.created_at).toLocaleTimeString();
             const cleanUser = msg.username || 'usuario';
+            const initials = cleanUser.slice(0, 2).toUpperCase();
             const illustratedAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(cleanUser)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
             const avatarHtml = msg.avatar_url
                 ? `<img src="${safeAttr(msg.avatar_url)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${illustratedAvatar}';" class="w-6 h-6 rounded-full object-cover shrink-0" />`
