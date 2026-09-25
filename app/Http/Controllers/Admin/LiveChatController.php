@@ -939,13 +939,14 @@ class LiveChatController extends Controller
 
         $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
 
-        $matchedUsersCollection = !empty($allUsernames) ? User::where(function($q) use ($allUsernames) {
-            $q->whereIn('tiktok', $allUsernames)
+        $matchedUsersCollection = !empty($allUsernames) ? Cache::remember('matched_users_' . md5(implode(',', $allUsernames)), 20, function() use ($allUsernames) {
+            return User::whereIn('tiktok', $allUsernames)
               ->orWhereIn('instagram', $allUsernames)
               ->orWhereIn('apelido', $allUsernames)
               ->orWhereIn('nome_cliente', $allUsernames)
-              ->orWhereIn('name', $allUsernames);
-        })->get() : collect([]);
+              ->orWhereIn('name', $allUsernames)
+              ->get();
+        }) : collect([]);
 
         // Construir mapa de avatares com resolução inteligente e suporte a storage local permanente
         $avatarMap = [];
@@ -1304,21 +1305,24 @@ class LiveChatController extends Controller
     protected function findUserByUsername($username, $platform = 'instagram')
     {
         $clean = trim($username);
+        if (empty($clean)) return null;
         $uLower = strtolower($clean);
 
-        if ($platform === 'tiktok') {
-            return User::whereRaw('LOWER(tiktok) = ?', [$uLower])
-                ->orWhereRaw('LOWER(apelido) = ?', [$uLower])
-                ->orWhereRaw('LOWER(nome_cliente) = ?', [$uLower])
-                ->orWhereRaw('LOWER(name) = ?', [$uLower])
-                ->first();
-        }
+        return Cache::remember("find_user_{$platform}_{$uLower}", 300, function() use ($uLower, $platform) {
+            if ($platform === 'tiktok') {
+                return User::where('tiktok', $uLower)
+                    ->orWhere('apelido', $uLower)
+                    ->orWhere('nome_cliente', $uLower)
+                    ->orWhere('name', $uLower)
+                    ->first();
+            }
 
-        return User::whereRaw('LOWER(instagram) = ?', [$uLower])
-            ->orWhereRaw('LOWER(apelido) = ?', [$uLower])
-            ->orWhereRaw('LOWER(nome_cliente) = ?', [$uLower])
-            ->orWhereRaw('LOWER(name) = ?', [$uLower])
-            ->first();
+            return User::where('instagram', $uLower)
+                ->orWhere('apelido', $uLower)
+                ->orWhere('nome_cliente', $uLower)
+                ->orWhere('name', $uLower)
+                ->first();
+        });
     }
 
     /**
