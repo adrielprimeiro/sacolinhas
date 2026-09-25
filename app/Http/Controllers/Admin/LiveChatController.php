@@ -356,8 +356,7 @@ class LiveChatController extends Controller
                 $msgUpdate['linked_item_id'] = $itemId;
             }
             if (Schema::hasColumn('live_messages', 'linked_code')) {
-                $codigoLive = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->value('codigo_live');
-                $msgUpdate['linked_code'] = $codigoLive ? ($item->codigo . ' (Live: ' . $codigoLive . ')') : $item->codigo;
+                $msgUpdate['linked_code'] = $item->codigo;
             }
             if (!empty($msgUpdate)) {
                 DB::table('live_messages')->where('id', $messageId)->update($msgUpdate);
@@ -956,7 +955,17 @@ class LiveChatController extends Controller
         $linkedByMessage = [];
         if (Schema::hasTable('live_items') && Schema::hasColumn('live_items', 'live_message_id')) {
             $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
-            $selects = ['live_items.live_message_id', 'items.id as item_id', 'items.codigo'];
+            $selects = [
+                'live_items.live_message_id',
+                'items.id as item_id',
+                'items.codigo',
+                'items.nome_do_produto',
+                'items.descricao',
+                'items.tamanho',
+                'items.cor',
+                'items.marca',
+                'items.preco'
+            ];
             if ($hasCodigoLiveCol) {
                 $selects[] = 'live_items.codigo_live';
             }
@@ -1007,10 +1016,22 @@ class LiveChatController extends Controller
             if (isset($linkedByMessage[$msg->id])) {
                 $li = $linkedByMessage[$msg->id];
                 $msg->linked_item_id = $li->item_id;
-                $msg->linked_code = !empty($li->codigo_live) ? ($li->codigo . ' (Live: ' . $li->codigo_live . ')') : $li->codigo;
+                $msg->linked_code = $li->codigo;
+                $msg->linked_live_code = !empty($li->codigo_live) ? $li->codigo_live : null;
+                $msg->linked_product_name = $li->nome_do_produto ?: 'Peça';
+                $msg->linked_product_details = $li->descricao ?? '';
+                $msg->linked_product_tamanho = $li->tamanho ?? '';
+                $msg->linked_product_cor = $li->cor ?? '';
+                $msg->linked_product_preco = $li->preco ? ('R$ ' . number_format($li->preco, 2, ',', '.')) : '';
             } else if (!isset($msg->linked_code) || empty($msg->linked_code)) {
                 $msg->linked_item_id = null;
                 $msg->linked_code = null;
+                $msg->linked_live_code = null;
+                $msg->linked_product_name = null;
+                $msg->linked_product_details = null;
+                $msg->linked_product_tamanho = null;
+                $msg->linked_product_cor = null;
+                $msg->linked_product_preco = null;
             }
 
             return $msg;

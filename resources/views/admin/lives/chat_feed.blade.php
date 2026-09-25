@@ -2029,7 +2029,13 @@
             const msg = allLiveMessages.find(m => m.id === msgId);
             if (msg) {
                 msg.linked_item_id = item.itemId;
-                msg.linked_code = item.code + (item.liveCode ? ' (Live: ' + item.liveCode + ')' : '');
+                msg.linked_code = item.code;
+                msg.linked_live_code = item.liveCode || null;
+                msg.linked_product_name = item.productName || '';
+                msg.linked_product_details = item.productDetails || '';
+                msg.linked_product_tamanho = item.tamanho || '';
+                msg.linked_product_cor = item.cor || '';
+                msg.linked_product_preco = item.productPrice || '';
                 renderChatFeed();
             }
         }
@@ -2088,6 +2094,12 @@
             if (msg) {
                 msg.linked_item_id = null;
                 msg.linked_code = null;
+                msg.linked_live_code = null;
+                msg.linked_product_name = null;
+                msg.linked_product_details = null;
+                msg.linked_product_tamanho = null;
+                msg.linked_product_cor = null;
+                msg.linked_product_preco = null;
                 renderChatFeed();
             }
         }
@@ -2193,21 +2205,7 @@
             return;
         }
 
-        // 2. Se a mensagem já possui peça vinculada, apenas alterna a seleção dela
-        const msg = allLiveMessages.find(m => m.id === msgId);
-        if (msg && msg.linked_code) {
-            toggleSelectMessageForLinking(msgId, username, displayName, userId);
-            return;
-        }
-
-        // 3. Se há uma peça na lista de bipados aguardando cliente (ex: a última bipada sem comprador):
-        const waitingItem = bgScanItems.find(i => !i.buyerUsername);
-        if (waitingItem) {
-            linkItemToBuyer(waitingItem.id, username, displayName, userId, msgId);
-            return;
-        }
-
-        // 4. Caso contrário, seleciona a mensagem (com destaque na linha em azul) para vincular à peça que for clicada
+        // 2. Se NÃO tem peça selecionada: apenas alterna a seleção desta mensagem (destacando com borda azul)
         toggleSelectMessageForLinking(msgId, username, displayName, userId);
     }
 
@@ -2221,6 +2219,12 @@
         if (msg) {
             msg.linked_item_id = null;
             msg.linked_code = null;
+            msg.linked_live_code = null;
+            msg.linked_product_name = null;
+            msg.linked_product_details = null;
+            msg.linked_product_tamanho = null;
+            msg.linked_product_cor = null;
+            msg.linked_product_preco = null;
             renderChatFeed();
         }
         if (liveId) {
@@ -3674,36 +3678,30 @@
                 `;
             }
 
-            // Badge de Peça Vinculada à Mensagem (em azul destacado!)
-            let linkedItemBadge = '';
+            // Códigos limpos da peça vinculada (sem a palavra 'Live:')
+            let cleanItemCode = '';
+            let cleanLiveCode = '';
             if (msg.linked_code) {
-                linkedItemBadge = `
-                    <div class="mt-2 inline-flex items-center gap-1.5 bg-blue-600 text-white px-2.5 py-1 rounded-xl text-xs font-black shadow-md border border-blue-400">
-                        <i class="fas fa-tag text-blue-200 text-xs"></i>
-                        <span>Peça Vinculada: #${escapeHtml(msg.linked_code)}</span>
-                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerByMsgId(${msg.id})" title="Desvincular peça" class="text-blue-200 hover:text-white ml-1.5 p-0.5 transition cursor-pointer">
-                            <i class="fas fa-times text-xs"></i>
-                        </button>
-                    </div>
-                `;
+                const liveMatch = String(msg.linked_code).match(/\(Live:\s*([^)]+)\)/i);
+                if (liveMatch) {
+                    cleanLiveCode = liveMatch[1].trim();
+                } else if (msg.linked_live_code) {
+                    cleanLiveCode = String(msg.linked_live_code).trim();
+                }
+                cleanItemCode = String(msg.linked_code).replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim();
             }
 
-            // Destacar códigos de produtos na mensagem
-            let formattedMessage = escapeHtml(msg.message);
-            formattedMessage = formattedMessage.replace(/\b([a-zA-Z0-9]{3,6})\b/g, function(match, code) {
-                if (/\d/.test(code)) {
-                    return `<span class="chat-product-code"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</span>`;
-                }
-                return code;
-            });
-
-            // Botão/Status de Vinculação (Sem o botão 'Bipar')
+            // No lugar do Vincular: Exibe os códigos da peça vinculada (sem o texto 'Live:')
             let vincularBtn = '';
             if (isLinkedMsg) {
+                let codeDisplay = '#' + escapeHtml(cleanItemCode);
+                if (cleanLiveCode) {
+                    codeDisplay += ' &bull; ' + escapeHtml(cleanLiveCode);
+                }
                 vincularBtn = `
-                    <span class="inline-flex items-center gap-1 text-[11px] font-extrabold text-blue-300 bg-blue-900/60 border border-blue-500/50 px-2 py-0.5 rounded-lg shadow-sm">
-                        <i class="fas fa-link text-[10px] text-blue-400"></i>
-                        <span>#${escapeHtml(msg.linked_code)}</span>
+                    <span class="inline-flex items-center gap-1.5 text-xs font-black text-blue-200 bg-blue-900/80 border border-blue-500/60 px-2.5 py-1 rounded-xl shadow-sm tracking-wide" title="Peça vinculada a este comentário">
+                        <i class="fas fa-tag text-[10px] text-blue-400"></i>
+                        <span>${codeDisplay}</span>
                     </span>
                 `;
             } else {
@@ -3712,6 +3710,51 @@
                         <i class="fas fa-link text-[10px]"></i>
                         <span>${isSelectedMsg ? 'Selecionada' : 'Vincular'}</span>
                     </button>
+                `;
+            }
+
+            // Em baixo em azul: Descrição e Detalhes do Produto Vinculado
+            let linkedItemBadge = '';
+            if (isLinkedMsg) {
+                let prodName = msg.linked_product_name || '';
+                let prodDetails = msg.linked_product_details || '';
+                let prodTam = msg.linked_product_tamanho || '';
+                let prodCor = msg.linked_product_cor || '';
+                let prodPrice = msg.linked_product_preco || '';
+
+                // Fallback para buscar de bgScanItems se os dados ainda não vieram do polling
+                if (!prodName) {
+                    const scanObj = bgScanItems.find(i => 
+                        (i.itemId && msg.linked_item_id && i.itemId === msg.linked_item_id) ||
+                        (i.code && cleanItemCode && i.code.trim().toUpperCase() === cleanItemCode.toUpperCase())
+                    );
+                    if (scanObj) {
+                        prodName = scanObj.productName || '';
+                        prodDetails = scanObj.productDetails || '';
+                        prodTam = scanObj.tamanho || '';
+                        prodCor = scanObj.cor || '';
+                        prodPrice = scanObj.productPrice || '';
+                    }
+                }
+
+                let detailsText = escapeHtml(prodName || 'Produto vinculado');
+                if (prodDetails) detailsText += ' &bull; ' + escapeHtml(prodDetails);
+                if (prodTam) detailsText += ` (Tam: ${escapeHtml(prodTam)})`;
+                if (prodCor) detailsText += ` (${escapeHtml(prodCor)})`;
+                if (prodPrice) detailsText += ` &bull; <strong>${escapeHtml(prodPrice)}</strong>`;
+
+                linkedItemBadge = `
+                    <div class="mt-2 flex items-center justify-between gap-2 bg-blue-600/90 text-white px-3 py-1.5 rounded-xl text-xs shadow-md border border-blue-400/80">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fas fa-shopping-bag text-blue-200 text-xs shrink-0"></i>
+                            <div class="truncate text-blue-50 font-medium">
+                                ${detailsText}
+                            </div>
+                        </div>
+                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerByMsgId(${msg.id})" title="Desvincular produto deste comentário" class="text-blue-200 hover:text-white hover:bg-blue-700 rounded-lg p-1 transition cursor-pointer shrink-0">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
                 `;
             }
 
