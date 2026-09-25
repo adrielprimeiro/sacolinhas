@@ -417,6 +417,20 @@
                     <span id="scan-last-item-time" class="text-[10px] font-semibold text-emerald-100 shrink-0 ml-1"></span>
                 </div>
 
+                <!-- BANNER DE ALERTA DE CÓDIGO DA LIVE DUPLICADO (FLASH ÂMBAR/VERMELHO) -->
+                <div id="scan-duplicate-warning-banner" class="hidden mx-2 my-1 px-3 py-2 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white rounded-xl flex items-center justify-between text-xs font-black shadow-lg shrink-0 border border-amber-300">
+                    <div class="flex items-center gap-2 truncate">
+                        <i class="fas fa-exclamation-triangle text-amber-200 text-sm shrink-0 animate-pulse"></i>
+                        <div class="truncate">
+                            <span class="text-amber-200 uppercase tracking-wider text-[9px] block font-bold leading-none">Código Duplicado na Live!</span>
+                            <span id="scan-duplicate-warning-text" class="text-white text-xs font-black truncate block mt-0.5">Código já foi utilizado</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="dismissDuplicateLiveCodeAlert()" title="Fechar alerta" class="w-6 h-6 flex items-center justify-center rounded-lg bg-black/20 hover:bg-black/40 text-white ml-2 shrink-0 cursor-pointer transition">
+                        <i class="fas fa-times text-[10px]"></i>
+                    </button>
+                </div>
+
                 <!-- Entrada manual de código de barras / leitor USB -->
                 <div class="px-2.5 py-1.5 border-b border-gray-100 shrink-0">
                     <div class="flex gap-1.5">
@@ -1274,11 +1288,56 @@
         `;
     }
 
+    function checkLiveCodeDuplicate(code, excludeScanId = null, excludeCode = null, excludeItemId = null) {
+        if (!code) return null;
+        const norm = String(code).trim().toUpperCase();
+        if (!norm) return null;
+        return bgScanItems.find(i => {
+            if (excludeScanId && i.id === excludeScanId) return false;
+            if (excludeCode && i.code === excludeCode) return false;
+            if (excludeItemId && i.itemId && i.itemId === excludeItemId) return false;
+            if (!i.liveCode) return false;
+            return String(i.liveCode).trim().toUpperCase() === norm;
+        }) || null;
+    }
+
+    function triggerDuplicateLiveCodeAlert(code, dupItem) {
+        const dupCode = dupItem.code || dupItem.codigo || 'peça';
+        playErrorBeep();
+
+        const banner = document.getElementById('scan-duplicate-warning-banner');
+        const text = document.getElementById('scan-duplicate-warning-text');
+        if (banner && text) {
+            text.textContent = `Código "${code}" já foi usado na peça #${dupCode}!`;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanDupBannerTimeout);
+            window._scanDupBannerTimeout = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 8000);
+        }
+
+        showToast(`⚠️ Atenção: Código de live "${code}" já foi cadastrado na peça #${dupCode}!`, 'warning');
+    }
+
+    function dismissDuplicateLiveCodeAlert() {
+        const banner = document.getElementById('scan-duplicate-warning-banner');
+        if (banner) banner.classList.add('hidden');
+        clearTimeout(window._scanDupBannerTimeout);
+    }
+
     function renderLiveCodeHtml(item) {
         if (item && item.liveCode) {
-            return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1">
+            const dup = checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
+            const dupBadge = dup
+                ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] bg-red-100 text-red-700 font-black rounded border border-red-300 ml-1 animate-pulse" title="Código repetido na live! Já usado no item #${escapeHtml(dup.code)}">
+                    <i class="fas fa-exclamation-triangle text-[8px] text-red-600"></i> Repetido (Já em #${escapeHtml(dup.code)})
+                   </span>`
+                : '';
+
+            return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center flex-wrap gap-1">
                 <i class="fas fa-tag text-[9px]"></i> Live: <span>${escapeHtml(item.liveCode)}</span>
                 <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-1 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
+                ${dupBadge}
             </p>`;
         } else {
             const scanId = item ? item.id : '';
@@ -1296,8 +1355,21 @@
         const novoCod = prompt('Código específico da live para o item ' + item.code + ':', currentCode);
         if (novoCod === null) return;
         const cleanCod = novoCod.trim().toUpperCase();
+
+        if (cleanCod !== '') {
+            const dup = checkLiveCodeDuplicate(cleanCod, scanId, item.code, item.itemId);
+            if (dup) {
+                triggerDuplicateLiveCodeAlert(cleanCod, dup);
+                const proceed = confirm(`⚠️ ATENÇÃO: O código da live "${cleanCod}" já está em uso na peça #${dup.code}!\n\nDeseja utilizar este código mesmo assim?`);
+                if (!proceed) {
+                    return;
+                }
+            }
+        }
+
         item.liveCode = cleanCod;
         updateItemLiveCodeUI(scanId, cleanCod);
+        refreshAllScanItemsLiveCodeUI();
         syncLinkItemToLive(item.itemId || null, item.code, cleanCod);
     }
 
@@ -1308,10 +1380,17 @@
             if (it && it.code) itemEl = document.querySelector(`[data-code="${it.code}"]`);
         }
         if (!itemEl) return;
+        const it = bgScanItems.find(x => x.id === scanId);
         const wrapper = itemEl.querySelector('.scan-item-live-wrapper');
         if (wrapper) {
-            wrapper.innerHTML = renderLiveCodeHtml({ id: scanId, liveCode: liveCode });
+            wrapper.innerHTML = renderLiveCodeHtml(it || { id: scanId, liveCode: liveCode });
         }
+    }
+
+    function refreshAllScanItemsLiveCodeUI() {
+        bgScanItems.forEach(item => {
+            updateItemLiveCodeUI(item.id, item.liveCode);
+        });
     }
 
     function syncLinkItemToLive(itemId, code, liveCode) {
@@ -1331,6 +1410,9 @@
         })
         .then(r => r.json())
         .then(data => {
+            if (data.duplicate_warning) {
+                triggerDuplicateLiveCodeAlert(liveCode, data.duplicate_warning);
+            }
             if (data.success && data.data && data.data.item_id) {
                 const found = bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId === itemId));
                 if (found) {
@@ -1427,30 +1509,44 @@
         // 1. Procura na lista de itens bipados o item mais recente sem código de live
         const waitingItem = bgScanItems.find(i => !i.liveCode);
 
+        // Checar duplicidade na live atual
+        const dupItem = checkLiveCodeDuplicate(code, waitingItem ? waitingItem.id : null);
+        if (dupItem) {
+            triggerDuplicateLiveCodeAlert(code, dupItem);
+        }
+
         if (waitingItem) {
             // Associa o código a esse item pendente
             waitingItem.liveCode = code;
 
             // Atualiza o elemento no DOM com layout limpo e menor
             updateItemLiveCodeUI(waitingItem.id, code);
+            refreshAllScanItemsLiveCodeUI();
 
             let itemEl = document.querySelector('[data-scan-id="' + waitingItem.id + '"]');
             if (!itemEl && waitingItem.code) {
                 itemEl = document.querySelector('[data-code="' + waitingItem.code + '"]');
             }
             if (itemEl) {
-                // Destaque visual piscando verde para confirmar vinculação
-                itemEl.classList.add('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
-                setTimeout(() => {
-                    itemEl.classList.remove('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
-                }, 1500);
+                if (dupItem) {
+                    itemEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-2', 'ring-amber-400');
+                    setTimeout(() => {
+                        itemEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-2', 'ring-amber-400');
+                    }, 2500);
+                } else {
+                    // Destaque visual piscando verde para confirmar vinculação normal
+                    itemEl.classList.add('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
+                    setTimeout(() => {
+                        itemEl.classList.remove('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
+                    }, 1500);
+                }
             }
 
-            // Atualiza banner de confirmação do item
+            // Atualiza banner de confirmação do item se não for duplicado
             const banner = document.getElementById('scan-last-item-banner');
             const bannerText = document.getElementById('scan-last-item-text');
             const bannerTime = document.getElementById('scan-last-item-time');
-            if (banner && bannerText && bgScanItems[0] === waitingItem) {
+            if (banner && bannerText && bgScanItems[0] === waitingItem && !dupItem) {
                 const prodName = waitingItem.productName ? ' • ' + waitingItem.productName : '';
                 bannerText.textContent = waitingItem.code + ' • Live: ' + code + prodName;
                 if (bannerTime) bannerTime.textContent = waitingItem.time || '';
@@ -1464,7 +1560,9 @@
             // Sincroniza com a tabela live_items
             syncLinkItemToLive(waitingItem.itemId, waitingItem.code, code);
 
-            playSuccessBeep();
+            if (!dupItem) {
+                playSuccessBeep();
+            }
 
             // Limpa o campo do áudio imediatamente conforme solicitado!
             clearLiveCode();
@@ -1474,13 +1572,20 @@
             const liveInput = document.getElementById('scan-live-code');
             if (liveInput) {
                 liveInput.value = code;
-                playSuccessBeep();
 
-                // Destaque visual pulsante no input (verde esmeralda)
-                liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
-                setTimeout(() => {
-                    liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
-                }, 1200);
+                if (dupItem) {
+                    liveInput.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50', 'text-amber-900');
+                    setTimeout(() => {
+                        liveInput.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50', 'text-amber-900');
+                    }, 2000);
+                } else {
+                    playSuccessBeep();
+                    // Destaque visual pulsante no input (verde esmeralda)
+                    liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+                    setTimeout(() => {
+                        liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+                    }, 1200);
+                }
 
                 try {
                     liveInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1806,11 +1911,16 @@
     function createScanItemElement(item, isNew) {
         const el = document.createElement('div');
         const isSelected = selectedScanItem && selectedScanItem.id === item.id;
+        const isDuplicate = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
         el.className = isNew
-            ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item'
+            ? (isDuplicate
+                ? 'flex items-start gap-2 bg-amber-50 border border-amber-400 ring-2 ring-amber-300 rounded-xl p-2.5 group transition-all duration-500 scan-item'
+                : 'flex items-start gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item')
             : (isSelected
                 ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-500 ring-4 ring-emerald-400 rounded-xl p-2.5 group transition scan-item linking-selected'
-                : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item');
+                : (isDuplicate
+                    ? 'flex items-start gap-2 bg-red-50/40 border border-red-200 rounded-xl p-2.5 group hover:border-red-400 hover:bg-red-50/60 transition scan-item'
+                    : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item'));
         el.dataset.code = item.code;
         el.dataset.scanId = item.id;
         if (item.itemId) el.dataset.itemId = item.itemId;
@@ -1851,7 +1961,10 @@
 
         if (isNew) {
             setTimeout(function() {
-                el.className = 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+                const stillDup = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
+                el.className = stillDup
+                    ? 'flex items-start gap-2 bg-red-50/40 border border-red-200 rounded-xl p-2.5 group hover:border-red-400 hover:bg-red-50/60 transition scan-item'
+                    : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
             }, 2500);
         }
 
@@ -1871,6 +1984,14 @@
         const liveInput = document.getElementById('scan-live-code');
         const liveCodeInField = liveInput ? liveInput.value.trim().toUpperCase() : '';
         const scanUniqueId = 'scan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+        let dupItem = null;
+        if (liveCodeInField) {
+            dupItem = checkLiveCodeDuplicate(liveCodeInField);
+            if (dupItem) {
+                triggerDuplicateLiveCodeAlert(liveCodeInField, dupItem);
+            }
+        }
 
         const item = {
             id: scanUniqueId,
@@ -1902,28 +2023,34 @@
             list.scrollTop = 0; // Rola a lista automaticamente para o topo
         }
 
+        if (liveCodeInField) {
+            refreshAllScanItemsLiveCodeUI();
+        }
+
         // Busca assíncrona dos dados do produto para exibir Descrição e Detalhes
         fetchAndRenderItemDetails(cleanCode, scanUniqueId);
 
         // Já sincroniza com a tabela live_items
         syncLinkItemToLive(null, cleanCode, item.liveCode);
 
-        // Exibe o banner de confirmação com destaque no topo
-        const banner = document.getElementById('scan-last-item-banner');
-        const bannerText = document.getElementById('scan-last-item-text');
-        const bannerTime = document.getElementById('scan-last-item-time');
-        if (banner && bannerText) {
-            bannerText.textContent = cleanCode + (item.liveCode ? ' • Live: ' + item.liveCode : '');
-            if (bannerTime) bannerTime.textContent = timeStr;
-            banner.classList.remove('hidden');
-            clearTimeout(window._scanBannerTimeout);
-            window._scanBannerTimeout = setTimeout(function() {
-                banner.classList.add('hidden');
-            }, 3000);
+        // Exibe o banner de confirmação com destaque no topo se não for duplicado
+        if (!dupItem) {
+            const banner = document.getElementById('scan-last-item-banner');
+            const bannerText = document.getElementById('scan-last-item-text');
+            const bannerTime = document.getElementById('scan-last-item-time');
+            if (banner && bannerText) {
+                bannerText.textContent = cleanCode + (item.liveCode ? ' • Live: ' + item.liveCode : '');
+                if (bannerTime) bannerTime.textContent = timeStr;
+                banner.classList.remove('hidden');
+                clearTimeout(window._scanBannerTimeout);
+                window._scanBannerTimeout = setTimeout(function() {
+                    banner.classList.add('hidden');
+                }, 3000);
+            }
+            playSuccessBeep();
         }
 
         updateScanCount();
-        playSuccessBeep();
     }
 
     function removeScanItem(btn) {
@@ -1950,6 +2077,7 @@
         if (bgScanItems.length === 0) showScanEmptyState();
 
         if (itemObj) {
+            refreshAllScanItemsLiveCodeUI();
             unlinkItemFromLive(itemObj.itemId || null, itemObj.code);
         }
     }
@@ -1976,6 +2104,7 @@
                 list.appendChild(createScanItemElement(item, false));
             }
         });
+        refreshAllScanItemsLiveCodeUI();
         updateScanCount();
     }
 
@@ -3153,11 +3282,14 @@
     // =========================================================================
     // NOTIFICAÇÃO TOAST
     // =========================================================================
-    function showToast(message) {
+    function showToast(message, type = 'success') {
         const toast = document.createElement("div");
-        toast.className = "fixed bottom-5 right-5 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transition-all duration-300 translate-y-5 opacity-0 text-sm font-extrabold flex items-center gap-2 border border-emerald-400";
+        const isWarning = type === 'warning' || type === 'error';
+        const bgClass = isWarning ? "bg-gradient-to-r from-red-600 to-amber-600 text-white border-amber-300" : "bg-emerald-600 text-white border-emerald-400";
+        const iconClass = isWarning ? "fa-exclamation-triangle text-amber-200" : "fa-check-circle text-emerald-200";
+        toast.className = `fixed bottom-5 right-5 ${bgClass} px-5 py-3 rounded-2xl shadow-2xl z-50 transition-all duration-300 translate-y-5 opacity-0 text-sm font-extrabold flex items-center gap-2.5 border`;
         toast.style.zIndex = "999999";
-        toast.innerHTML = `<i class="fas fa-check-circle"></i> <span>${escapeHtml(message)}</span>`;
+        toast.innerHTML = `<i class="fas ${iconClass} text-base shrink-0"></i> <span>${escapeHtml(message)}</span>`;
         document.body.appendChild(toast);
         
         setTimeout(() => {
@@ -3169,7 +3301,7 @@
             toast.style.transform = "translateY(5px)";
             toast.style.opacity = "0";
             setTimeout(() => toast.remove(), 300);
-        }, 3500);
+        }, isWarning ? 6000 : 3500);
     }
 
     // =========================================================================

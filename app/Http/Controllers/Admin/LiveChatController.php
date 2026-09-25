@@ -164,6 +164,27 @@ class LiveChatController extends Controller
         $item = Item::find($itemId);
         $origem = $item->localizacao;
 
+        // Verificar se este codigo_live já existe em outro item desta mesma live
+        $duplicateWarning = null;
+        if (!empty($codigoLive) && Schema::hasColumn('live_items', 'codigo_live')) {
+            $duplicate = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $liveId)
+                ->where('live_items.item_id', '!=', $itemId)
+                ->whereRaw('LOWER(TRIM(live_items.codigo_live)) = ?', [mb_strtolower($codigoLive, 'UTF-8')])
+                ->select('items.id as item_id', 'items.codigo', 'items.nome_do_produto', 'live_items.codigo_live')
+                ->first();
+
+            if ($duplicate) {
+                $duplicateWarning = [
+                    'item_id' => $duplicate->item_id,
+                    'code' => $duplicate->codigo,
+                    'name' => $duplicate->nome_do_produto,
+                    'codigo_live' => $duplicate->codigo_live
+                ];
+            }
+        }
+
         $updateData = [
             'status_movimentacao' => 'enviado',
             'updated_at' => now(),
@@ -188,7 +209,10 @@ class LiveChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Item vinculado à live com sucesso!',
+            'message' => $duplicateWarning 
+                ? "Atenção: O código de live '{$codigoLive}' já está em uso na peça #{$duplicateWarning['code']}!" 
+                : 'Item vinculado à live com sucesso!',
+            'duplicate_warning' => $duplicateWarning,
             'data' => [
                 'item_id' => $itemId,
                 'live_id' => $liveId,
