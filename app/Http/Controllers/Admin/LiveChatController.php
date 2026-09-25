@@ -674,6 +674,15 @@ class LiveChatController extends Controller
                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
+        // Parse robusto de payload JSON mesmo se o Content-Type não for enviado perfeitamente
+        $raw = $request->getContent();
+        if ($raw && empty($request->all())) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $request->merge($decoded);
+            }
+        }
+
         if (!$request->input('live_id') || $request->input('live_id') === 'auto' || !\App\Models\Live::where('id', $request->input('live_id'))->exists()) {
             $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
             if ($activeLive) {
@@ -718,7 +727,7 @@ class LiveChatController extends Controller
             'avatar_url' => $avatarUrl
         ]);
 
-        $validated = $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'live_id' => 'required|exists:lives,id',
             'platform' => 'required|in:instagram,tiktok',
             'username' => 'required|string',
@@ -727,6 +736,17 @@ class LiveChatController extends Controller
             'timestamp' => 'nullable|string'
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
+        }
+
+        $validated = $validator->validated();
         $cleanUsername = trim($validated['username']);
         $messageText = trim($validated['message']);
         $platform = $validated['platform'];
