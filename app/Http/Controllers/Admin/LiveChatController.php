@@ -368,14 +368,34 @@ class LiveChatController extends Controller
     {
         $request->validate([
             'live_id' => 'required|exists:lives,id',
-            'item_id' => 'required|exists:items,id'
+            'item_id' => 'nullable|exists:items,id',
+            'message_id' => 'nullable|integer'
         ]);
 
         $liveId = $request->input('live_id');
         $itemId = $request->input('item_id');
+        $messageId = $request->input('message_id');
+
+        if (!$itemId && $messageId) {
+            $existing = DB::table('live_items')->where('live_id', $liveId)->where('live_message_id', $messageId)->first();
+            if ($existing) {
+                $itemId = $existing->item_id;
+            } else {
+                if (Schema::hasTable('live_messages')) {
+                    DB::table('live_messages')->where('id', $messageId)->update([
+                        'linked_item_id' => null,
+                        'linked_code' => null
+                    ]);
+                }
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Desvinculado com sucesso.'
+                ]);
+            }
+        }
 
         $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
-        $messageId = $existing ? ($existing->live_message_id ?? null) : null;
+        $messageId = $messageId ?: ($existing ? ($existing->live_message_id ?? null) : null);
 
         $updateData = ['updated_at' => now()];
         if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
