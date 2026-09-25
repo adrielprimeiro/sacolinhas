@@ -1230,6 +1230,8 @@ class LiveChatController extends Controller
         if (empty($cleanUsername)) return null;
 
         $uLower = strtolower($cleanUsername);
+        $filename = "avatars/{$uLower}.jpg";
+
         // 1. Se já recebemos um avatarUrl novo nesta requisição
         if (!empty($avatarUrl)) {
             // Se for Base64 (data:image)
