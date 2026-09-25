@@ -1562,6 +1562,40 @@ class LiveChatController extends Controller
         ]);
     }
 
+    /**
+     * Retorna a live ativa para o serviço TikTok Listener (Node.js)
+     */
+    public function getActiveTiktokLives()
+    {
+        if (Cache::get('tiktok_capture_stopped', false) || Cache::get('live_capture_paused', false)) {
+            return response()->json([
+                'success' => true,
+                'active_live' => null
+            ])->header('Access-Control-Allow-Origin', '*');
+        }
+
+        $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first() 
+                   ?? Live::orderBy('id', 'desc')->first();
+
+        if (!$activeLive) {
+            return response()->json([
+                'success' => true,
+                'active_live' => null
+            ])->header('Access-Control-Allow-Origin', '*');
+        }
+
+        $tiktokUsername = config('app.tiktok_username', '_minhamania');
+
+        return response()->json([
+            'success' => true,
+            'active_live' => [
+                'username' => $tiktokUsername,
+                'live_id' => $activeLive->id
+            ]
+        ])->header('Access-Control-Allow-Origin', '*');
+    }
+
+
     public function toggleMarkMessage(Request $request)
     {
         $validated = $request->validate([

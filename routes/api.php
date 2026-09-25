@@ -10,4 +10,6 @@ Route::post('/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioWebho
 
 Route::match(['POST', 'OPTIONS'], '/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage']);
 Route::match(['POST', 'OPTIONS'], '/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch']);
+Route::match(['GET', 'OPTIONS'], '/active-tiktok-lives', [\App\Http\Controllers\Admin\LiveChatController::class, 'getActiveTiktokLives']);
+
 
