@@ -1470,6 +1470,47 @@
         const detailsEl = itemEl.querySelector('.scan-item-details');
 
         if (prod) {
+            // Verificar se outro item diferente nesta live já possui este mesmo produto
+            const existingInList = bgScanItems.find(x => x.id !== scanId && x.itemId && x.itemId === prod.id);
+            if (existingInList) {
+                // Remove o item duplicado recém-criado
+                const dupIdx = bgScanItems.findIndex(x => x.id === scanId);
+                if (dupIdx !== -1) bgScanItems.splice(dupIdx, 1);
+                if (itemEl) itemEl.remove();
+                updateScanCount();
+                if (bgScanItems.length === 0) showScanEmptyState();
+
+                playErrorBeep();
+                showToast(`⚠️ A peça #${existingInList.code} já está adicionada nesta live! Não foi duplicada.`, 'warning');
+
+                const banner = document.getElementById('scan-duplicate-warning-banner');
+                const bannerText = document.getElementById('scan-duplicate-warning-text');
+                if (banner && bannerText) {
+                    bannerText.textContent = `A peça #${existingInList.code} já foi bipada nesta live!`;
+                    banner.classList.remove('hidden');
+                    clearTimeout(window._scanDupBannerTimeout);
+                    window._scanDupBannerTimeout = setTimeout(() => {
+                        banner.classList.add('hidden');
+                    }, 8000);
+                }
+
+                // Destaca o item original na lista
+                let origEl = document.querySelector(`[data-scan-id="${existingInList.id}"]`);
+                if (!origEl && existingInList.code) {
+                    origEl = document.querySelector(`[data-code="${existingInList.code}"]`);
+                }
+                if (origEl) {
+                    origEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    origEl.classList.remove('bg-gray-50', 'bg-emerald-50');
+                    origEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                    setTimeout(() => {
+                        origEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                        origEl.classList.add('bg-gray-50');
+                    }, 3000);
+                }
+                return;
+            }
+
             if (itemObj) {
                 itemObj.itemId = prod.id;
                 itemObj.productName = prod.name;
@@ -1971,10 +2012,83 @@
         return el;
     }
 
+    function findExistingScanItem(code) {
+        if (!code) return null;
+        const clean = String(code).replace(/^[#\s]+/, '').trim().toUpperCase();
+        if (!clean) return null;
+
+        // 1. Procura diretamente na lista por código/SKU ou itemId
+        let found = bgScanItems.find(i => 
+            (i.code && i.code.trim().toUpperCase() === clean) ||
+            (i.itemId && String(i.itemId) === clean)
+        );
+        if (found) return found;
+
+        // 2. Se temos cache desse produto, checa se o id ou código já está na lista
+        const cached = scanProductCache[clean] || scanProductCache[code];
+        if (cached) {
+            found = bgScanItems.find(i => 
+                (cached.id && i.itemId && i.itemId === cached.id) ||
+                (cached.codigo && i.code && i.code.trim().toUpperCase() === String(cached.codigo).trim().toUpperCase())
+            );
+            if (found) return found;
+        }
+
+        return null;
+    }
+
     function addScanItem(code, source) {
         source = source || 'manual';
         const cleanCode = extractCleanCode(code).toUpperCase();
         if (!cleanCode) return;
+
+        // NÃO ADICIONAR O MESMO ITEM BIPANDO MAIS DE UMA VEZ NA LIVE:
+        const existingItem = findExistingScanItem(cleanCode);
+        if (existingItem) {
+            playErrorBeep();
+
+            // Aumenta o debounce da câmera para não disparar continuamente
+            bgLastScannedCode = cleanCode;
+            bgLastScannedTime = Date.now() + 2000;
+
+            const liveCodeMsg = existingItem.liveCode ? ` (Live: ${existingItem.liveCode})` : '';
+            const bannerMsg = `Peça #${existingItem.code}${liveCodeMsg} já foi bipada nesta live!`;
+
+            // Alerta sonoro e visual imediato
+            const banner = document.getElementById('scan-duplicate-warning-banner');
+            const bannerText = document.getElementById('scan-duplicate-warning-text');
+            if (banner && bannerText) {
+                bannerText.textContent = bannerMsg;
+                banner.classList.remove('hidden');
+                clearTimeout(window._scanDupBannerTimeout);
+                window._scanDupBannerTimeout = setTimeout(() => {
+                    banner.classList.add('hidden');
+                }, 8000);
+            }
+
+            showToast(`⚠️ Peça #${existingItem.code}${liveCodeMsg} já está na live! Não foi duplicada.`, 'warning');
+
+            // Localiza e destaca o item já existente na lista
+            let existingEl = document.querySelector(`[data-scan-id="${existingItem.id}"]`);
+            if (!existingEl && existingItem.code) {
+                existingEl = document.querySelector(`[data-code="${existingItem.code}"]`);
+            }
+            if (existingEl) {
+                existingEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                existingEl.classList.remove('bg-gray-50', 'bg-emerald-50');
+                existingEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                setTimeout(() => {
+                    existingEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                    existingEl.classList.add('bg-gray-50');
+                }, 3000);
+            }
+
+            // Limpa o input manual se foi usado
+            const manualInput = document.getElementById('scan-manual-input');
+            if (manualInput) manualInput.value = '';
+
+            return; // Bloqueia a adição do item repetido!
+        }
 
         const emptyState = document.getElementById('scan-empty-state');
         if (emptyState) emptyState.remove();
@@ -2098,7 +2212,23 @@
         if (emptyState) emptyState.remove();
         const list = document.getElementById('scan-items-list');
 
+        const seenKeys = new Set();
         initialLinkedLiveItems.forEach(item => {
+            const key = (item.itemId ? 'id_' + item.itemId : '') || (item.code ? 'code_' + String(item.code).trim().toUpperCase() : '');
+            if (key && seenKeys.has(key)) return;
+            if (key) seenKeys.add(key);
+
+            // Popula cache de produto com os itens já existentes
+            if (item.code && item.itemId) {
+                scanProductCache[String(item.code).trim().toUpperCase()] = {
+                    id: item.itemId,
+                    codigo: item.code,
+                    name: item.productName || '',
+                    description: item.productDetails || '',
+                    formatted_price: item.productPrice || ''
+                };
+            }
+
             bgScanItems.push(item);
             if (list) {
                 list.appendChild(createScanItemElement(item, false));
