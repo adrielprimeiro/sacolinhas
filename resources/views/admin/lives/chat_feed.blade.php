@@ -333,8 +333,11 @@
 
         <!-- Busca / Filtro em Tempo Real -->
         <div class="relative w-full sm:w-72">
-            <input type="text" id="feed-search-input" onkeyup="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
+            <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 pr-7 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
             <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
+            <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer transition" title="Limpar busca">
+                <i class="fas fa-times-circle text-xs"></i>
+            </button>
         </div>
     </div>
 
@@ -407,7 +410,7 @@
                     </div>
                 </div>
                 <div class="flex gap-1.5">
-                    <input type="text" id="scan-live-code" placeholder="Diga: 'O código é ...' ou digite"
+                    <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'O código é ...' ou digite"
                         onkeydown="if(event.key==='Enter'){event.preventDefault(); applySpokenLiveCode(this.value);}"
                         class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
@@ -473,7 +476,7 @@
                 <!-- Entrada manual de código de barras / leitor USB -->
                 <div class="px-2.5 py-1.5 border-b border-gray-100 shrink-0">
                     <div class="flex gap-1.5">
-                        <input type="text" id="scan-manual-input" placeholder="Bipador USB ou digitar código..."
+                        <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Bipador USB ou digitar código..."
                             class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 uppercase"
                             onkeydown="handleManualScan(event)">
                         <button type="button" onclick="addManualCode()" title="Adicionar"
@@ -529,7 +532,7 @@
 
         <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente por Nome, Apelido ou Celular:</label>
-            <input type="text" id="modal-search-input" onkeyup="searchClients(this.value)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
+            <input type="text" id="modal-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeyup="searchClients(this.value)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
         </div>
 
         <div id="modal-search-results" class="max-h-48 overflow-y-auto space-y-2 border border-gray-100 rounded-xl p-2 bg-gray-50">
@@ -607,7 +610,7 @@
                     </span>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="online-qr-phone-input" placeholder="DDD + Número (ex: 11999999999)" class="flex-1 px-3 py-2 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <input type="text" id="online-qr-phone-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="DDD + Número (ex: 11999999999)" class="flex-1 px-3 py-2 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     <button type="button" onclick="saveClientPhoneFromModal()" id="online-qr-phone-save-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1 shrink-0 cursor-pointer shadow active:scale-95">
                         <i class="fas fa-save"></i> Salvar
                     </button>
@@ -624,7 +627,7 @@
                     <span>Bipador USB / Entrada Manual de Código</span>
                 </h4>
                 <div class="flex gap-2">
-                    <input type="text" id="online-qr-manual-input" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: 0001, 73254 ou SKU..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: 0001, 73254 ou SKU..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
                     <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
                         <i class="fas fa-plus"></i> Bipar
                     </button>
@@ -723,17 +726,17 @@
             <div class="grid grid-cols-3 gap-2">
                 <div class="col-span-2">
                     <label class="block text-[11px] font-bold text-gray-300 mb-1">Endereço IP / Host:</label>
-                    <input type="text" id="obs-cfg-host" value="127.0.0.1" placeholder="127.0.0.1 ou localhost" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                    <input type="text" id="obs-cfg-host" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" value="127.0.0.1" placeholder="127.0.0.1 ou localhost" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold text-gray-300 mb-1">Porta:</label>
-                    <input type="number" id="obs-cfg-port" value="4455" placeholder="4455" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                    <input type="number" id="obs-cfg-port" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" value="4455" placeholder="4455" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
                 </div>
             </div>
 
             <div>
                 <label class="block text-[11px] font-bold text-gray-300 mb-1">Senha do Servidor WebSocket (se configurada no OBS):</label>
-                <input type="password" id="obs-cfg-password" placeholder="Opcional se desativada a autenticação no OBS" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                <input type="text" id="obs-cfg-password" name="obs_pwd_field_no_autofill" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security: disc; text-security: disc;" placeholder="Opcional se desativada a autenticação no OBS" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
             </div>
 
             <!-- Opções de Automação -->
@@ -3381,6 +3384,13 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Limpar qualquer preenchimento automático indevido do navegador no campo de busca do chat
+        const searchInput = document.getElementById("feed-search-input");
+        if (searchInput && (searchInput.value.includes('@') || searchInput.value.includes('.com'))) {
+            searchInput.value = '';
+            currentSearchTerm = '';
+        }
+
         applyFontSize(currentFontSize);
         applyTheme(currentTheme);
         updateAutoScrollUI();
@@ -3532,12 +3542,38 @@
 
     function handleSearchChat(val) {
         currentSearchTerm = (val || '').trim().toLowerCase();
+        const clearBtn = document.getElementById("feed-search-clear-btn");
+        if (clearBtn) {
+            if (currentSearchTerm) {
+                clearBtn.classList.remove("hidden");
+            } else {
+                clearBtn.classList.add("hidden");
+            }
+        }
+        renderChatFeed();
+    }
+
+    function clearSearchFilter() {
+        const input = document.getElementById("feed-search-input");
+        if (input) input.value = '';
+        currentSearchTerm = '';
+        const clearBtn = document.getElementById("feed-search-clear-btn");
+        if (clearBtn) clearBtn.classList.add("hidden");
         renderChatFeed();
     }
 
     function renderChatFeed() {
         const container = document.getElementById("feed-messages-container");
         if (!container) return;
+
+        // Prevenção contra Autofill indevido do navegador com e-mail do admin (ex: adrielprimeiro@gmail.com)
+        if (currentSearchTerm && currentSearchTerm.includes('@') && (currentSearchTerm.includes('.com') || currentSearchTerm.includes('.br'))) {
+            const searchInput = document.getElementById("feed-search-input");
+            if (searchInput) searchInput.value = '';
+            currentSearchTerm = '';
+            const clearBtn = document.getElementById("feed-search-clear-btn");
+            if (clearBtn) clearBtn.classList.add("hidden");
+        }
 
         let list = allLiveMessages;
 
@@ -3578,6 +3614,11 @@
                     <i class="fas ${currentFilter === 'marked' ? 'fa-star text-amber-500' : 'fa-comment-slash'} text-4xl mb-3"></i>
                     <h3 class="text-sm font-bold text-gray-300">Nenhum comentário encontrado</h3>
                     <p class="text-xs text-gray-400 mt-1">${currentSearchTerm ? 'Nenhum resultado para "' + escapeHtml(currentSearchTerm) + '"' : 'Aguardando novas mensagens...'}</p>
+                    ${currentSearchTerm ? `
+                        <button type="button" onclick="clearSearchFilter()" class="mt-4 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95">
+                            <i class="fas fa-times-circle"></i> Limpar filtro de pesquisa
+                        </button>
+                    ` : ''}
                 </div>
             `;
             return;
