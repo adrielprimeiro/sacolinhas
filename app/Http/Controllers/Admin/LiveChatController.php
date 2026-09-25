@@ -679,6 +679,13 @@ class LiveChatController extends Controller
         $raw = $request->getContent();
         if ($raw) {
             $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                $decoded = json_decode(stripslashes($raw), true);
+            }
+            if (!is_array($decoded)) {
+                $cleaned = preg_replace('/^["\']|["\']$/', '', trim($raw));
+                $decoded = json_decode(stripslashes($cleaned), true);
+            }
             if (is_array($decoded)) {
                 $payload = $decoded;
             }
