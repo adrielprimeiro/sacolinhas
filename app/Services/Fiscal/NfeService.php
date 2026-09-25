@@ -17,6 +17,10 @@ use stdClass;
 
 class NfeService
 {
+    public function __construct(private readonly CertificateLoader $certificateLoader)
+    {
+    }
+
     /**
      * Orquestra a emissão completa da NF-e para um Pedido.
      */
@@ -40,7 +44,7 @@ class NfeService
                 'numero'          => $proximoNumero,
                 'status'          => 'pendente',
                 'valor_total'     => $pedido->valor_total,
-                'valor_produtos'  => $pedido->valor_total - ($pedido->valor_frete ?? 0) + ($pedido->valor_desconto ?? 0),
+                'valor_produtos'  => $pedido->valor_total - ($pedido->valor_frete ?? 0) - ($pedido->valor_desconto ?? 0),
                 'valor_frete'     => $pedido->valor_frete ?? 0,
                 'valor_desconto'  => $pedido->valor_desconto ?? 0,
                 'data_emissao'    => now(),
@@ -66,7 +70,11 @@ class NfeService
 
             // 5. Assinar digitalmente o XML
             $xmlAssinado = $tools->signNFe($xmlDesassinado);
-            $chave = $tools->chNFe;
+            $chave = $nfe->getChave();
+
+            if (!preg_match('/^\d{44}$/', $chave)) {
+                throw new \RuntimeException('O NFePHP não gerou uma chave de acesso válida para a NF-e.');
+            }
 
             $notaFiscal->update([
                 'chave_acesso' => $chave,
@@ -131,6 +139,7 @@ class NfeService
         $std->finNFe = 1; // Normal
         $std->indFinal = 1; // Consumidor final
         $std->indPres = 2; // Operação pela internet
+        $std->indIntermed = 0; // Operação sem intermediador/marketplace
         $std->procEmi = 0; // Aplicativo do contribuinte
         $std->verProc = 'MinhaMania_1.0';
         $nfe->tagide($std);
@@ -207,6 +216,9 @@ class NfeService
             ->select('items.*', 'items_pedido.quantidade', 'items_pedido.preco_unitario')
             ->get();
 
+        $valorFrete = round((float) ($pedido->valor_frete ?? 0), 2);
+        $valorDesconto = round((float) ($pedido->valor_desconto ?? 0), 2);
+
         // Se não houver itens cadastrados na tabela items_pedido, adiciona linha sintética com o total
         if ($itemsPedido->isEmpty()) {
             $itemsPedido = collect([(object) [
@@ -214,15 +226,32 @@ class NfeService
                 'codigo'             => 'P-01',
                 'nome_do_produto'    => 'PECA DE VESTUARIO DIVERSAS',
                 'quantidade'         => 1,
-                'preco_unitario'     => $pedido->valor_total - ($pedido->valor_frete ?? 0),
+                'preco_unitario'     => round(
+                    (float) $pedido->valor_total - $valorFrete + $valorDesconto,
+                    2
+                ),
                 'ncm'                => config('fiscal.padroes.ncm_vestuario', '61091000'),
                 'unidade_tributavel' => 'UN',
                 'origem'             => 0,
             ]]);
         }
 
+        $baseParaDistribuicao = round((float) $itemsPedido->sum(
+            static fn ($item): float => round(
+                (float) ($item->quantidade ?: 1) * (float) ($item->preco_unitario ?: 0),
+                2
+            )
+        ), 2);
+
+        if ($baseParaDistribuicao <= 0 && ($valorFrete > 0 || $valorDesconto > 0)) {
+            throw new \RuntimeException('Não foi possível distribuir frete/desconto porque os itens do pedido não possuem valor.');
+        }
+
         $totalProdutos = 0.0;
         $itemIndex = 0;
+        $valorAcumuladoItens = 0.0;
+        $freteDistribuido = 0.0;
+        $descontoDistribuido = 0.0;
 
         foreach ($itemsPedido as $item) {
             $itemIndex++;
@@ -230,6 +259,25 @@ class NfeService
             $vUnit = (float) ($item->preco_unitario ?: 0);
             $vProd = round($qtd * $vUnit, 2);
             $totalProdutos += $vProd;
+
+            if ($baseParaDistribuicao > 0 && ($valorFrete > 0 || $valorDesconto > 0)) {
+                $valorAcumuladoItens += max(0, $vProd);
+                $freteAcumulado = round(
+                    $valorFrete * ($valorAcumuladoItens / $baseParaDistribuicao),
+                    2
+                );
+                $descontoAcumulado = round(
+                    $valorDesconto * ($valorAcumuladoItens / $baseParaDistribuicao),
+                    2
+                );
+                $freteItem = round($freteAcumulado - $freteDistribuido, 2);
+                $descontoItem = round($descontoAcumulado - $descontoDistribuido, 2);
+                $freteDistribuido = $freteAcumulado;
+                $descontoDistribuido = $descontoAcumulado;
+            } else {
+                $freteItem = 0.0;
+                $descontoItem = 0.0;
+            }
 
             $cfop = $isInterestadual
                 ? ($item->cfop ?: config('fiscal.padroes.cfop_interestadual', '6102'))
@@ -251,6 +299,8 @@ class NfeService
             $std->uTrib = mb_substr($item->unidade_tributavel ?: 'UN', 0, 6);
             $std->qTrib = $qtd;
             $std->vUnTrib = $vUnit;
+            $std->vFrete = $freteItem > 0 ? $freteItem : null;
+            $std->vDesc = $descontoItem > 0 ? $descontoItem : null;
             $std->indTot = 1;
             $nfe->tagprod($std);
 
@@ -279,10 +329,22 @@ class NfeService
             $nfe->tagCOFINS($std);
         }
 
+        $totalProdutos = round($totalProdutos, 2);
+        $freteDistribuido = round($freteDistribuido, 2);
+        $descontoDistribuido = round($descontoDistribuido, 2);
+
+        if ($freteDistribuido !== $valorFrete || $descontoDistribuido !== $valorDesconto) {
+            throw new \RuntimeException('O frete ou desconto do pedido não pôde ser distribuído corretamente entre os itens.');
+        }
+
         // 8. Tag ICMSTot (Totais da Nota Fiscal)
-        $valorFrete = (float) ($pedido->valor_frete ?? 0);
-        $valorDesconto = (float) ($pedido->valor_desconto ?? 0);
         $valorTotalNf = round($totalProdutos + $valorFrete - $valorDesconto, 2);
+
+        if (abs($valorTotalNf - (float) $pedido->valor_total) > 0.01) {
+            throw new \RuntimeException(
+                "O total calculado dos itens ({$valorTotalNf}) não corresponde ao valor total do pedido ({$pedido->valor_total})."
+            );
+        }
 
         $std = new stdClass();
         $std->vBC = 0.00;
@@ -342,7 +404,71 @@ class NfeService
         $std->infCpl = "DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE IPI. Pedido Ref: {$pedido->numero_pedido}";
         $nfe->taginfAdic($std);
 
+        // 12. Responsável técnico pelo sistema emissor
+        $this->adicionarResponsavelTecnico($nfe, $brecho, $cnpjLimpo, $ambiente);
+
         return $nfe;
+    }
+
+    private function adicionarResponsavelTecnico(
+        Make $nfe,
+        Brecho $brecho,
+        string $cnpjEmitente,
+        int $ambiente
+    ): void {
+        $config = (array) config('fiscal.responsavel_tecnico', []);
+
+        $cnpjConfigurado = preg_replace('/\D/', '', (string) ($config['cnpj'] ?? ''));
+        $cnpjResponsavel = $cnpjConfigurado ?: ($ambiente === 2 ? $cnpjEmitente : '');
+
+        if (!preg_match('/^\d{14}$/', $cnpjResponsavel)) {
+            throw new \RuntimeException(
+                'Informe um CNPJ válido para o responsável técnico em NFE_RESP_TECNICO_CNPJ antes de emitir em produção.'
+            );
+        }
+
+        $contato = trim((string) ($config['contato'] ?? ''))
+            ?: 'Suporte Fiscal - ' . ($brecho->nome ?: 'Minha Mania');
+        $email = trim((string) ($config['email'] ?? ''))
+            ?: (string) config('mail.from.address');
+        $fone = preg_replace(
+            '/\D/',
+            '',
+            (string) ($config['fone'] ?? ($brecho->telefone ?: $brecho->whatsapp ?: ''))
+        );
+
+        $contato = mb_substr($contato, 0, 60);
+        $email = mb_substr($email, 0, 60);
+
+        if (mb_strlen($contato) < 2 || !filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/^\d{6,14}$/', $fone)) {
+            throw new \RuntimeException(
+                'Contato, e-mail e telefone do responsável técnico fiscal são obrigatórios e devem ser válidos.'
+            );
+        }
+
+        $csrt = preg_replace('/\s+/', '', (string) ($config['csrt'] ?? ''));
+        $idCsrt = preg_replace('/\D/', '', (string) ($config['id_csrt'] ?? ''));
+
+        if (($csrt === '') !== ($idCsrt === '')) {
+            throw new \RuntimeException('Informe o CSRT e o ID do CSRT juntos, ou deixe ambos vazios.');
+        }
+
+        if ($idCsrt !== '' && !preg_match('/^\d{2}$/', $idCsrt)) {
+            throw new \RuntimeException('O ID do CSRT do responsável técnico deve conter exatamente 2 dígitos.');
+        }
+
+        $std = new stdClass();
+        $std->CNPJ = $cnpjResponsavel;
+        $std->xContato = $contato;
+        $std->email = $email;
+        $std->fone = $fone;
+
+        if ($csrt !== '') {
+            $std->CSRT = $csrt;
+            $std->idCSRT = $idCsrt;
+        }
+
+        $nfe->taginfRespTec($std);
     }
 
     /**
@@ -458,7 +584,7 @@ class NfeService
     }
 
     /**
-     * Carrega o certificado digital A1 do brechó ou gera certificado de teste se em homologação.
+     * Carrega o certificado digital A1 configurado para o brechó.
      */
     protected function carregarCertificado(Brecho $brecho): Certificate
     {
@@ -467,19 +593,19 @@ class NfeService
 
         if (!empty($certPath) && Storage::exists($certPath)) {
             $pfxContent = Storage::get($certPath);
-            return Certificate::readPfx($pfxContent, $senha);
+            return $this->certificateLoader->load($pfxContent, $senha);
         }
 
         if (!empty($certPath) && file_exists($certPath)) {
             $pfxContent = file_get_contents($certPath);
-            return Certificate::readPfx($pfxContent, $senha);
+            return $this->certificateLoader->load($pfxContent, $senha);
         }
 
         // Verifica se há certificado padrão na pasta storage/app/fiscal/certificados/
         $defaultCert = storage_path('app/fiscal/certificados/certificado.pfx');
         if (file_exists($defaultCert)) {
             $pfxContent = file_get_contents($defaultCert);
-            return Certificate::readPfx($pfxContent, env('FISCAL_CERT_PASSWORD', ''));
+            return $this->certificateLoader->load($pfxContent, env('FISCAL_CERT_PASSWORD', ''));
         }
 
         throw new \Exception("Certificado Digital A1 (.pfx) não encontrado para o Brechó '{$brecho->nome}'. Faça o upload nas configurações fiscais.");

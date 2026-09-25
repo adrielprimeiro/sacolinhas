@@ -288,6 +288,13 @@ Route::middleware('auth')->group(function () {
         Route::post('live-chat/finish-video-cut', [\App\Http\Controllers\Admin\LiveChatController::class, 'finishVideoCut'])->name('admin.live-chat.finish-video-cut');
         Route::get('live-chat/video-cuts', [\App\Http\Controllers\Admin\LiveChatController::class, 'getVideoCuts'])->name('admin.live-chat.video-cuts');
 
+        // ===== OBS RELAY — comunicação entre PC B (browser) e PC A (agente OBS) =====
+        Route::get('obs-relay/health', [\App\Http\Controllers\Admin\ObsRelayController::class, 'health'])->name('admin.obs-relay.health');
+        Route::post('obs-relay/command', [\App\Http\Controllers\Admin\ObsRelayController::class, 'queueCommand'])->name('admin.obs-relay.queue');
+        Route::get('obs-relay/pending', [\App\Http\Controllers\Admin\ObsRelayController::class, 'pollPending'])->name('admin.obs-relay.pending');
+        Route::post('obs-relay/{id}/done', [\App\Http\Controllers\Admin\ObsRelayController::class, 'markDone'])->name('admin.obs-relay.done');
+        Route::get('obs-relay/{id}/status', [\App\Http\Controllers\Admin\ObsRelayController::class, 'getCommandStatus'])->name('admin.obs-relay.status');
+
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
              ->name("admin.items.update-status");

@@ -23,6 +23,16 @@ return [
     // Dados de contingência e timeouts
     'timeout' => 30,
 
+    // Responsável técnico pelo software emissor (grupo NFe/infNFe/infRespTec)
+    'responsavel_tecnico' => [
+        'cnpj' => env('NFE_RESP_TECNICO_CNPJ'),
+        'contato' => env('NFE_RESP_TECNICO_CONTATO'),
+        'email' => env('NFE_RESP_TECNICO_EMAIL'),
+        'fone' => env('NFE_RESP_TECNICO_FONE'),
+        'csrt' => env('NFE_RESP_TECNICO_CSRT'),
+        'id_csrt' => env('NFE_RESP_TECNICO_ID_CSRT'),
+    ],
+
     // Diretório base para armazenar certificados e XMLs (em storage/app)
     'storage' => [
         'certificados' => 'fiscal/certificados',

@@ -1,0 +1,15 @@
+{
+  "name": "sacolinhas-obs-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Agente local que faz polling no servidor e executa comandos OBS via WebSocket",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "obs-websocket-js": "^5.0.6",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.5"
+  }
+}

@@ -4,6 +4,7 @@ FROM php:8.4-fpm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
+    openssl \
     python3 \
     python3-pip \
     python-is-python3 \
@@ -24,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagickwand-dev \
     pkg-config \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip soap \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
     && apt-get clean \

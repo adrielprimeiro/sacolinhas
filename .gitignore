@@ -68,3 +68,26 @@ insta_session/
 social_stream_temp*
 *.zip
 
+# Videos de lives locais
+/Lives/
+*.mkv
+*.mp4
+
+# Scripts PHP temporários na raiz
+/test_*.php
+/check_*.php
+/fix_*.php
+/find_*.php
+/clean_*.php
+/add_*.php
+/activate_*.php
+/benchmark_*.php
+/expand_*.php
+/fetch_*.php
+/implement_*.php
+/remove_*.php
+/replace_*.php
+
+# Agente OBS — node_modules local e .env
+/obs-agent/node_modules/
+/obs-agent/.env

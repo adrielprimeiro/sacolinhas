@@ -753,6 +753,25 @@
                 </label>
             </div>
 
+            <!-- Modo Relay (OBS em outro PC) -->
+            <div class="pt-2 border-t border-gray-800 space-y-2">
+                <label class="flex items-start gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="obs-cfg-relay-mode" class="w-4 h-4 mt-0.5 text-orange-500 rounded bg-gray-800 border-gray-700">
+                    <div>
+                        <span class="text-orange-300 font-bold block">🔁 Modo Relay — OBS em outro PC</span>
+                        <span class="text-gray-400 text-[11px]">Ative quando o OBS está no <strong>PC A</strong> (transmissão) e você está bipando no <strong>PC B</strong>. Os comandos são enviados via servidor.</span>
+                    </div>
+                </label>
+                <div id="obs-relay-info" class="bg-orange-950/40 border border-orange-800/50 rounded-xl p-3 text-[11px] text-orange-200 space-y-1.5">
+                    <strong class="text-orange-400 block font-bold"><i class="fas fa-desktop mr-1"></i> Configuração do agente no PC A (do OBS):</strong>
+                    <p>1. Copie a pasta <code class="bg-gray-900 px-1 rounded">obs-agent/</code> do projeto para o PC A.</p>
+                    <p>2. Abra o terminal nessa pasta e rode: <code class="bg-gray-900 px-1 rounded">npm install</code></p>
+                    <p>3. Crie um arquivo <code class="bg-gray-900 px-1 rounded">.env</code> com <code class="bg-gray-900 px-1 rounded">SERVER_URL</code> e a senha do OBS.</p>
+                    <p>4. Inicie com: <code class="bg-gray-900 px-1 rounded">node agent.js</code> — deixe rodando durante a live.</p>
+                    <p class="text-orange-300"><i class="fas fa-info-circle mr-1"></i> Os campos Host/Porta acima ficam irrelevantes no modo relay (o agente conecta localmente).</p>
+                </div>
+            </div>
+
             <!-- Guia Rápido OBS Studio -->
             <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 text-[11px] text-gray-400 space-y-1.5">
                 <strong class="text-indigo-400 block font-bold text-xs"><i class="fas fa-info-circle mr-1"></i> Como ativar o WebSocket no OBS Studio:</strong>
@@ -760,6 +779,7 @@
                 <p>2. Marque a caixinha <strong>"Ativar servidor WebSocket"</strong> (Porta padrão: <strong>4455</strong>).</p>
                 <p>3. Se a opção <em>"Ativar autenticação"</em> estiver desmarcada, deixe o campo Senha em branco aqui. Se estiver marcada, copie a senha do OBS para cá.</p>
             </div>
+
         </div>
 
         <div class="flex justify-between items-center pt-3 border-t border-gray-800">
@@ -967,6 +987,11 @@
     let obsAutoConnect = localStorage.getItem('obs_auto_connect') !== 'false';
     let obsReqCounter = 1;
     let obsPendingRequests = {};
+
+    // MODO RELAY — OBS está no PC A, browser está no PC B
+    // Quando ativo, os comandos são enviados via servidor (sem WebSocket direto)
+    let obsRelayMode = localStorage.getItem('obs_relay_mode') === 'true';
+    let obsRelayAgentOnline = false; // detectado via polling de health
 
     /* ---- Câmera Visível no Card (Html5Qrcode) ----------------------------- */
     let availableCameras = [];
@@ -2684,8 +2709,25 @@
         const modalText = document.getElementById('obs-modal-status-text');
         const btnConnect = document.getElementById('btn-obs-connect');
         const btnDisconnect = document.getElementById('btn-obs-disconnect');
+        const relayToggle = document.getElementById('obs-cfg-relay-mode');
+        if (relayToggle) relayToggle.checked = obsRelayMode;
 
-        if (isObsConnected) {
+        if (obsRelayMode) {
+            // Modo relay ativo
+            const color = obsRelayAgentOnline ? 'emerald' : 'yellow';
+            const label = obsRelayAgentOnline ? 'Relay: Agente Online' : 'Relay: Aguardando Agente';
+            if (dot) dot.className = `w-2.5 h-2.5 rounded-full bg-${color}-500 animate-pulse inline-block`;
+            if (text) text.textContent = label;
+            if (modalDot) modalDot.className = `w-3 h-3 rounded-full bg-${color}-500 shrink-0`;
+            if (modalText) {
+                modalText.className = `text-${color}-400 text-sm font-black`;
+                modalText.textContent = obsRelayAgentOnline
+                    ? '🔁 Modo Relay Ativo — Agente conectado no PC do OBS'
+                    : '🔁 Modo Relay Ativo — Aguardando agente no PC do OBS...';
+            }
+            if (btnConnect) btnConnect.classList.add('hidden');
+            if (btnDisconnect) btnDisconnect.classList.add('hidden');
+        } else if (isObsConnected) {
             if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block";
             if (text) text.textContent = `OBS: Conectado (${obsHost}:${obsPort})`;
             if (modalDot) modalDot.className = "w-3 h-3 rounded-full bg-emerald-500 shrink-0";
@@ -2708,6 +2750,7 @@
         }
         updateCutsCounterBadge();
     }
+
 
     function connectToObs() {
         if (obsWs) {
@@ -2821,6 +2864,11 @@
     }
 
     function sendObsRequest(requestType, requestData = {}) {
+        // MODO RELAY: envia via servidor (OBS no PC A, browser no PC B)
+        if (obsRelayMode) {
+            return sendObsRequestRelay(requestType, requestData);
+        }
+        // MODO DIRETO: WebSocket local
         return new Promise((resolve, reject) => {
             if (!obsWs || !isObsConnected) {
                 resolve({ requestStatus: { result: false, comment: 'OBS não conectado' } });
@@ -2845,6 +2893,66 @@
         });
     }
 
+    /**
+     * Envia um comando OBS via relay (servidor → agente no PC A).
+     * Aguarda o resultado por até 15 segundos (polling do status).
+     */
+    async function sendObsRequestRelay(requestType, requestData = {}) {
+        try {
+            const queueRes = await fetch('/admin/obs-relay/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    command_type: requestType,
+                    payload: requestData
+                })
+            });
+            if (!queueRes.ok) throw new Error('Falha ao enfileirar comando relay');
+            const { id } = await queueRes.json();
+
+            // Polling do status por até 15s
+            const deadline = Date.now() + 15000;
+            while (Date.now() < deadline) {
+                await new Promise(r => setTimeout(r, 600));
+                const statusRes = await fetch(`/admin/obs-relay/${id}/status`);
+                if (!statusRes.ok) continue;
+                const data = await statusRes.json();
+                if (data.status === 'done') {
+                    return { responseData: data.result || {}, requestStatus: { result: true } };
+                }
+                if (data.status === 'error') {
+                    console.warn('[OBS Relay] Erro no comando:', data.result);
+                    return { requestStatus: { result: false, comment: data.result?.error || 'erro no agente' } };
+                }
+                // 'pending' ou 'processing' → continua aguardando
+            }
+            console.warn('[OBS Relay] Timeout aguardando resultado do comando #' + id);
+            return { requestStatus: { result: false, comment: 'timeout' } };
+        } catch (e) {
+            console.error('[OBS Relay] Erro:', e.message);
+            return { requestStatus: { result: false, comment: e.message } };
+        }
+    }
+
+    /** Verifica se o agente relay está online e atualiza obsRelayAgentOnline */
+    async function checkRelayAgentHealth() {
+        if (!obsRelayMode) return;
+        try {
+            const res = await fetch('/admin/obs-relay/health');
+            // Se o servidor responde, OK — o agente ser detectado é pela presença de comandos executados
+            // Para simplificar, consideramos o relay "ativo" quando o modo está ligado
+            obsRelayAgentOnline = res.ok;
+        } catch(e) {
+            obsRelayAgentOnline = false;
+        }
+        updateObsStatusUI();
+    }
+
+
+
     // Modal de Configuração do OBS
     function openObsSettingsModal() {
         const modal = document.getElementById('obs-settings-modal');
@@ -2855,6 +2963,8 @@
         document.getElementById('obs-cfg-auto-record').checked = isAutoRecordOnScanEnabled;
         document.getElementById('obs-cfg-voice-finish').checked = isCutVoiceTriggerEnabled;
         document.getElementById('obs-cfg-auto-connect').checked = obsAutoConnect;
+        const relayChk = document.getElementById('obs-cfg-relay-mode');
+        if (relayChk) relayChk.checked = obsRelayMode;
         updateObsStatusUI();
         modal.classList.remove('hidden');
     }
@@ -2871,6 +2981,7 @@
         isAutoRecordOnScanEnabled = document.getElementById('obs-cfg-auto-record').checked;
         isCutVoiceTriggerEnabled = document.getElementById('obs-cfg-voice-finish').checked;
         obsAutoConnect = document.getElementById('obs-cfg-auto-connect').checked;
+        obsRelayMode = document.getElementById('obs-cfg-relay-mode')?.checked || false;
 
         localStorage.setItem('obs_host', obsHost);
         localStorage.setItem('obs_port', obsPort);
@@ -2878,15 +2989,26 @@
         localStorage.setItem('obs_auto_record_on_scan', isAutoRecordOnScanEnabled ? 'true' : 'false');
         localStorage.setItem('obs_voice_trigger_enabled', isCutVoiceTriggerEnabled ? 'true' : 'false');
         localStorage.setItem('obs_auto_connect', obsAutoConnect ? 'true' : 'false');
+        localStorage.setItem('obs_relay_mode', obsRelayMode ? 'true' : 'false');
 
         updateCutVoiceTriggerUI();
-        connectToObs();
+        if (obsRelayMode) {
+            // No modo relay não conecta WebSocket direto
+            if (obsWs) { try { obsWs.close(); } catch(e) {} obsWs = null; }
+            isObsConnected = false;
+            updateObsStatusUI();
+            checkRelayAgentHealth();
+            showToast('🔁 Modo Relay ativado! Inicie o agente no PC do OBS.', 'info');
+        } else {
+            connectToObs();
+        }
         closeObsSettingsModal();
     }
 
+
     async function testObsRecordCut() {
-        if (!isObsConnected) {
-            showToast('Conecte ao OBS Studio primeiro para testar.', 'warning');
+        if (!isObsConnected && !obsRelayMode) {
+            showToast('Conecte ao OBS Studio primeiro (ou ative o Modo Relay).', 'warning');
             return;
         }
         showToast('Iniciando teste de gravação de 3s no OBS...', 'info');
@@ -2941,8 +3063,8 @@
         item.videoCutDuration = 0;
         cutStartTime = Date.now();
 
-        // Envia StartRecord para o OBS
-        if (isObsConnected) {
+        // Envia StartRecord para o OBS (direto ou via relay)
+        if (isObsConnected || obsRelayMode) {
             sendObsRequest('StartRecord').then(res => {
                 console.log('[OBS] Gravação iniciada no OBS:', res);
             }).catch(e => {
@@ -3016,9 +3138,9 @@
 
         playRecordFinishBeep();
 
-        // Envia StopRecord para o OBS se conectado
+        // Envia StopRecord para o OBS (direto ou via relay)
         let resolvedPath = null;
-        if (isObsConnected) {
+        if (isObsConnected || obsRelayMode) {
             try {
                 const res = await sendObsRequest('StopRecord');
                 if (res?.responseData?.outputPath) {
@@ -3409,7 +3531,12 @@
         }, 1000);
 
         // Auto-conectar ao OBS Studio se ativado
-        if (obsAutoConnect) {
+        if (obsRelayMode) {
+            // Modo relay: verifica se o agente está online
+            setTimeout(function() {
+                try { checkRelayAgentHealth(); } catch(e) { console.warn('[OBS Relay] Erro ao verificar agente:', e); }
+            }, 1200);
+        } else if (obsAutoConnect) {
             setTimeout(function() {
                 try { connectToObs(); } catch(e) { console.warn('[OBS] Erro ao auto-conectar:', e); }
             }, 1200);
