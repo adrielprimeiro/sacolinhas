@@ -843,13 +843,18 @@ class LiveChatController extends Controller
                 ->header('Access-Control-Allow-Origin', '*');
         }
 
-        $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() 
-                   ?? \App\Models\Live::orderBy('id', 'desc')->first();
-        if (!$activeLive) {
-            return response()->json(['success' => false, 'message' => 'Nenhuma live ativa'])
-                ->header('Access-Control-Allow-Origin', '*');
+        $liveIdInput = $request->input('live_id');
+        if ($liveIdInput && \App\Models\Live::where('id', $liveIdInput)->exists()) {
+            $liveId = $liveIdInput;
+        } else {
+            $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() 
+                       ?? \App\Models\Live::orderBy('id', 'desc')->first();
+            if (!$activeLive) {
+                return response()->json(['success' => false, 'message' => 'Nenhuma live ativa'])
+                    ->header('Access-Control-Allow-Origin', '*');
+            }
+            $liveId = $activeLive->id;
         }
-        $liveId = $activeLive->id;
 
         $createdCount = 0;
         try {

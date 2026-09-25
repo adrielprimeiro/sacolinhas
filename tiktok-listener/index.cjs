@@ -1,4 +1,4 @@
-﻿const { TikTokLiveConnection } = require("tiktok-live-connector");
+const { TikTokLiveConnection } = require("tiktok-live-connector");
 const axios = require("axios");
 
 const API_BASE_URL = "https://minhamania.net/api";
@@ -75,7 +75,7 @@ async function connectToTikTok(username, liveId) {
             const avatar = (data.user && data.user.profilePictureUrl) || data.profilePictureUrl || null;
             if (user && comment) {
                 console.log(`[Chat #${currentLiveId}] @${user}: ${comment}`);
-                sendToLaravel(user, comment, currentLiveId, avatar);
+                queueMessage(user, comment, currentLiveId, avatar);
             }
         });
 
@@ -105,21 +105,46 @@ async function connectToTikTok(username, liveId) {
     }
 }
 
-async function sendToLaravel(username, message, liveId, avatarUrl) {
-    if (!liveId) return;
+let messageQueue = [];
+let batchFlushTimer = null;
+
+function queueMessage(username, message, liveId, avatarUrl) {
+    if (!liveId || !username || !message) return;
+    messageQueue.push({
+        platform: "tiktok",
+        username: username,
+        message: message,
+        avatar_url: avatarUrl,
+        timestamp: new Date().toISOString()
+    });
+
+    if (!batchFlushTimer) {
+        batchFlushTimer = setTimeout(flushMessageQueue, 250);
+    }
+}
+
+async function flushMessageQueue() {
+    batchFlushTimer = null;
+    if (messageQueue.length === 0) return;
+
+    const batch = messageQueue.splice(0, 50);
     try {
-        await axios.post(API_BASE_URL + "/live-chat/message", {
-            live_id: liveId,
-            platform: "tiktok",
-            username: username,
-            message: message,
-            avatar_url: avatarUrl
+        await axios.post(API_BASE_URL + "/live-chat/message-batch", {
+            live_id: currentLiveId,
+            messages: batch
         }, {
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            timeout: 5000
+            timeout: 8000
         });
     } catch (e) {
-        console.error("[Laravel] Erro ao salvar mensagem: " + e.message);
+        console.error(`[Laravel Batch] Erro ao enviar lote (${batch.length} msgs): ${e.message}`);
+        if (messageQueue.length < 100) {
+            messageQueue.unshift(...batch);
+        }
+    }
+
+    if (messageQueue.length > 0 && !batchFlushTimer) {
+        batchFlushTimer = setTimeout(flushMessageQueue, 250);
     }
 }
 
