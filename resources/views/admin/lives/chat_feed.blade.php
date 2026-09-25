@@ -776,35 +776,42 @@
     }
 
     /* ---- lista de itens -------------------------------------------------- */
-    function addScanItem(code, source = 'manual') {
+    function addScanItem(code, source) {
+        source = source || 'manual';
         // Remove estado vazio
-        document.getElementById('scan-empty-state')?.remove();
+        var emptyState = document.getElementById('scan-empty-state');
+        if (emptyState) emptyState.remove();
 
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const item = { code, time: timeStr, source };
-        scanItems.unshift(item); // mais recente no topo
+        var now = new Date();
+        var timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        var item = { code: code, time: timeStr, source: source };
+        scanItems.unshift(item);
 
-        const list = document.getElementById('scan-items-list');
-        const liveCode = document.getElementById('scan-live-code')?.value?.trim() || '';
+        var list = document.getElementById('scan-items-list');
+        var liveCode = (document.getElementById('scan-live-code') || {}).value || '';
+        liveCode = liveCode.trim();
 
-        const el = document.createElement('div');
+        var iconClass = source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
+        var iconName  = source === 'camera' ? 'camera' : 'keyboard';
+        var liveHtml  = liveCode ? '<p class="text-xs text-indigo-600 font-semibold">Live: ' + liveCode + '</p>' : '';
+
+        var el = document.createElement('div');
         el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-300 transition scan-item';
         el.dataset.code = code;
-        el.innerHTML = `
-            <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${source === 'camera' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}">
-                <i class="fas fa-${source === 'camera' ? 'camera' : 'keyboard'} text-[10px]"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-black text-gray-800 truncate tracking-wider">${code}</p>
-                ${liveCode ? `<p class="text-[10px] text-indigo-600 font-semibold">Live: ${liveCode}</p>` : ''}
-                <p class="text-[10px] text-gray-400">${timeStr}</p>
-            </div>
-            <button type="button" onclick="removeScanItem(this)" title="Remover"
-                class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 cursor-pointer">
-                <i class="fas fa-times text-[10px]"></i>
-            </button>
-        `;
+        el.innerHTML =
+            '<div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + '">' +
+                '<i class="fas fa-' + iconName + ' text-xs"></i>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+                '<p class="text-xs font-black text-gray-800 truncate tracking-wider">' + code + '</p>' +
+                liveHtml +
+                '<p class="text-xs text-gray-400">' + timeStr + '</p>' +
+            '</div>' +
+            '<button type="button" onclick="removeScanItem(this)" title="Remover" ' +
+                'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 cursor-pointer">' +
+                '<i class="fas fa-times text-xs"></i>' +
+            '</button>';
+
         list.prepend(el);
         updateScanCount();
         playSuccessBeep();
@@ -828,23 +835,25 @@
     }
 
     function showScanEmptyState() {
-        const list = document.getElementById('scan-items-list');
-        if (list.querySelector('.scan-item')) return;
-        list.innerHTML = `
-            <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
-                <i class="fas fa-barcode text-4xl mb-2"></i>
-                <p class="text-xs font-semibold">Nenhum item bipado ainda</p>
-                <p class="text-[10px] text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>
-            </div>`;
+        var list = document.getElementById('scan-items-list');
+        if (list && list.querySelector('.scan-item')) return;
+        if (list) {
+            list.innerHTML =
+                '<div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">' +
+                    '<i class="fas fa-barcode text-4xl mb-2"></i>' +
+                    '<p class="text-xs font-semibold">Nenhum item bipado ainda</p>' +
+                    '<p class="text-xs text-gray-300 mt-1 text-center">Aponte a câmera para um código<br>ou digite manualmente</p>' +
+                '</div>';
+        }
     }
 
     function updateScanCount() {
-        const el = document.getElementById('scan-count');
+        var el = document.getElementById('scan-count');
         if (el) el.textContent = scanItems.length;
     }
 
     function clearLiveCode() {
-        const el = document.getElementById('scan-live-code');
+        var el = document.getElementById('scan-live-code');
         if (el) el.value = '';
     }
 
@@ -853,8 +862,9 @@
     }
 
     function addManualCode() {
-        const input = document.getElementById('scan-manual-input');
-        const code = input?.value?.trim().toUpperCase();
+        var input = document.getElementById('scan-manual-input');
+        if (!input) return;
+        var code = input.value.trim().toUpperCase();
         if (!code) return;
         addScanItem(code, 'manual');
         input.value = '';
@@ -863,11 +873,21 @@
 
     function copyScanList() {
         if (scanItems.length === 0) return;
-        const liveCode = document.getElementById('scan-live-code')?.value?.trim() || '';
-        const lines = scanItems.map(i => liveCode ? `${i.code}\t${liveCode}\t${i.time}` : `${i.code}\t${i.time}`);
-        navigator.clipboard?.writeText(lines.join('\n'))
-            .then(() => { const btn = document.querySelector('[onclick="copyScanList()"]'); if(btn){ const orig = btn.innerHTML; btn.innerHTML='<i class="fas fa-check text-emerald-500"></i> Copiado!'; setTimeout(()=>btn.innerHTML=orig,1500); } })
-            .catch(() => {});
+        var liveCode = (document.getElementById('scan-live-code') || {}).value || '';
+        liveCode = liveCode.trim();
+        var lines = scanItems.map(function(i) {
+            return liveCode ? (i.code + '\t' + liveCode + '\t' + i.time) : (i.code + '\t' + i.time);
+        });
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(lines.join('\n')).then(function() {
+                var btn = document.querySelector('[onclick="copyScanList()"]');
+                if (btn) {
+                    var orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check text-emerald-500"></i> Copiado!';
+                    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+                }
+            }).catch(function() {});
+        }
     }
 
     /* ---- inicialização --------------------------------------------------- */
