@@ -164,6 +164,25 @@
     #feed-messages-container::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.35);
     }
+
+    #scan-panel::-webkit-scrollbar,
+    #scan-items-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    #scan-panel::-webkit-scrollbar-track,
+    #scan-items-list::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.04);
+        border-radius: 4px;
+    }
+    #scan-panel::-webkit-scrollbar-thumb,
+    #scan-items-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    #scan-panel::-webkit-scrollbar-thumb:hover,
+    #scan-items-list::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
 </style>
 
 <div class="container mx-auto px-2 sm:px-4 py-2 live-feed-page-wrapper">
@@ -322,92 +341,101 @@
         <!-- ============================================================
              PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 sm:w-92 shrink-0 flex flex-col gap-2.5" style="min-height:0;">
+        <div id="scan-panel" class="w-80 sm:w-92 shrink-0 flex flex-col gap-2 overflow-y-auto max-h-full pr-0.5" style="min-height:0;">
 
             <!-- Card 1: Código da Live (capturado por voz) -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 p-3 shrink-0">
-                <div class="flex items-center justify-between gap-2 mb-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
-                            <i class="fas fa-microphone text-white text-xs"></i>
+            <div class="bg-white rounded-2xl shadow border border-gray-200 p-2.5 shrink-0">
+                <div class="flex items-center justify-between gap-1.5 mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[11px]">
+                            <i class="fas fa-microphone"></i>
                         </div>
-                        <div>
-                            <p class="text-xs font-black text-gray-800">Código da Live (Voz)</p>
-                            <p class="text-[10px] text-gray-400 leading-tight">Diga: "O código é: [código]"</p>
-                        </div>
+                        <span class="text-xs font-black text-gray-800">Código da Live (Voz)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <span id="mic-status-label" class="text-[10px] font-bold text-gray-400">Inativo</span>
-                        <div id="mic-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
+                        <div id="mic-status-dot" class="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                     </div>
                 </div>
                 <div class="flex gap-1.5">
-                    <input type="text" id="scan-live-code" placeholder="Aguardando voz ou digite..."
-                        class="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-black text-indigo-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase">
+                    <input type="text" id="scan-live-code" placeholder="Diga: 'O código é ...' ou digite"
+                        class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
-                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer">
-                        <i class="fas fa-times text-xs"></i>
+                        class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height:0;">
+            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 260px;">
 
                 <!-- Header do painel -->
-                <div class="flex items-center justify-between px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
-                            <i class="fas fa-barcode text-white text-xs"></i>
+                <div class="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-100 shrink-0">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[11px]">
+                            <i class="fas fa-barcode"></i>
                         </div>
                         <div>
-                            <p class="text-xs font-black text-gray-800">Leitor & Itens Bipados</p>
-                            <p class="text-[10px] text-gray-400 leading-tight">Câmera e Leitor USB integrados</p>
+                            <p class="text-xs font-black text-gray-800 leading-tight">Leitor & Itens</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <!-- Botão alternar câmera (se mais de 1) -->
                         <button type="button" onclick="switchScanCamera()" id="btn-switch-scan-cam" title="Trocar Câmera" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-500 hover:text-indigo-600 transition text-xs cursor-pointer hidden">
-                            <i class="fas fa-sync-alt"></i>
+                            <i class="fas fa-sync-alt text-[10px]"></i>
                         </button>
-                        <div id="cam-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300" title="Câmera inativa"></div>
+                        <!-- Botão minimizar/expandir visor da câmera -->
+                        <button type="button" onclick="toggleCameraViewSize()" id="btn-toggle-cam-size" title="Minimizar / Expandir Visor da Câmera" class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-500 hover:text-indigo-600 transition text-xs cursor-pointer">
+                            <i class="fas fa-chevron-up text-[10px]" id="cam-size-icon"></i>
+                        </button>
+                        <div id="cam-status-dot" class="w-2 h-2 rounded-full bg-gray-300" title="Câmera inativa"></div>
                         <button type="button" onclick="clearScanList()" title="Limpar lista de bipados"
                             class="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-400 transition text-xs cursor-pointer">
-                            <i class="fas fa-trash-alt"></i>
+                            <i class="fas fa-trash-alt text-[10px]"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- IMAGEM DA CÂMERA AO VIVO DENTRO DO CARD -->
-                <div class="p-2.5 pb-1 shrink-0">
-                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 180px;">
+                <div id="scan-camera-wrapper" class="p-2 pb-1 shrink-0 transition-all duration-200">
+                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 140px;">
                         <!-- Container da Câmera (Html5Qrcode injeta o vídeo aqui) -->
                         <div id="scan-camera-reader" class="w-full h-full"></div>
 
                         <!-- Placeholder quando desligada -->
-                        <div id="scan-camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-400 p-4 text-center z-10 transition-all">
-                            <div class="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-lg mb-2 shadow">
+                        <div id="scan-camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-400 p-2 text-center z-10 transition-all">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-sm mb-1 shadow">
                                 <i class="fas fa-camera"></i>
                             </div>
-                            <p class="text-xs font-bold text-gray-200">Câmera de Leitura</p>
-                            <p class="text-[10px] text-gray-400 mt-0.5 mb-2.5">Aponte para o código de barras / QR</p>
-                            <button type="button" onclick="startScanDevices()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95">
-                                <i class="fas fa-video text-[10px]"></i> Ativar Câmera e Voz
+                            <p class="text-[11px] font-bold text-gray-200">Câmera de Leitura</p>
+                            <p class="text-[9px] text-gray-400 mb-1.5">Aponte para o código da etiqueta</p>
+                            <button type="button" onclick="startScanDevices()" class="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[11px] shadow transition cursor-pointer flex items-center gap-1 active:scale-95">
+                                <i class="fas fa-video text-[9px]"></i> Ativar Câmera e Voz
                             </button>
                         </div>
 
                         <!-- Mira / Linha de Leitura visual -->
                         <div id="scan-camera-overlay" class="absolute inset-0 pointer-events-none hidden z-10 flex items-center justify-center">
-                            <div class="w-56 h-28 border-2 border-emerald-400/80 rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] relative">
+                            <div class="w-48 h-20 border-2 border-emerald-400/80 rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] relative">
                                 <div class="absolute inset-x-2 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/90 animate-pulse shadow-[0_0_8px_#34d399]"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- BANNER DE CONFIRMAÇÃO DO ÚLTIMO ITEM BIPADO (FLASH VERDE) -->
+                <div id="scan-last-item-banner" class="hidden mx-2 my-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-xl flex items-center justify-between text-xs font-black shadow-md shrink-0">
+                    <div class="flex items-center gap-1.5 truncate">
+                        <i class="fas fa-check-circle text-xs text-emerald-200 shrink-0"></i>
+                        <span id="scan-last-item-text" class="truncate">Item Bipado!</span>
+                    </div>
+                    <span id="scan-last-item-time" class="text-[10px] font-semibold text-emerald-100 shrink-0 ml-1"></span>
+                </div>
+
                 <!-- Barra de status rápida de dispositivos -->
                 <div class="px-3 py-1 shrink-0 flex items-center justify-between text-[11px] border-b border-gray-100">
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-2">
                         <span class="text-gray-500 font-semibold text-[10px] flex items-center gap-1">
                             <span id="scan-cam-active-badge" class="w-2 h-2 rounded-full bg-gray-300"></span> Câmera
                         </span>
@@ -421,34 +449,34 @@
                 </div>
 
                 <!-- Entrada manual de código de barras / leitor USB -->
-                <div class="px-3 py-2 border-b border-gray-100 shrink-0">
+                <div class="px-3 py-1.5 border-b border-gray-100 shrink-0">
                     <div class="flex gap-1.5">
-                        <input type="text" id="scan-manual-input" placeholder="Digitar ou bipar código..."
-                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 uppercase"
+                        <input type="text" id="scan-manual-input" placeholder="Bipador USB ou digitar código..."
+                            class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 uppercase"
                             onkeydown="handleManualScan(event)">
                         <button type="button" onclick="addManualCode()" title="Adicionar"
-                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs shadow-sm">
+                            class="w-7 h-7 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs shadow-sm shrink-0">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Contador e Ação Copiar -->
-                <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
-                    <span class="text-[10px] text-gray-500 font-semibold">
-                        Total: <span id="scan-count" class="text-gray-800 font-black">0</span> itens
+                <div class="px-3 py-1 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-500 font-bold">
+                        Bipados: <span id="scan-count" class="text-emerald-700 font-black">0</span>
                     </span>
                     <button type="button" onclick="copyScanList()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer flex items-center gap-1">
                         <i class="fas fa-copy text-[10px]"></i> Copiar lista
                     </button>
                 </div>
 
-                <!-- Lista de itens bipados -->
-                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height:0;">
-                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
-                        <i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>
+                <!-- Lista de itens bipados (COM SCROLL GARANTIDO) -->
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-[140px]" style="min-height: 140px;">
+                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-6 text-gray-300">
+                        <i class="fas fa-barcode text-3xl mb-1 text-gray-300"></i>
                         <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
-                        <p class="text-[10px] text-gray-400 mt-1 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>
                     </div>
                 </div>
             </div>
@@ -834,6 +862,22 @@
         }
     }
 
+    let cameraViewCollapsed = false;
+    function toggleCameraViewSize() {
+        cameraViewCollapsed = !cameraViewCollapsed;
+        const wrapper = document.getElementById('scan-camera-wrapper');
+        const icon = document.getElementById('cam-size-icon');
+        if (wrapper) {
+            if (cameraViewCollapsed) {
+                wrapper.classList.add('hidden');
+                if (icon) icon.className = "fas fa-chevron-down text-[10px]";
+            } else {
+                wrapper.classList.remove('hidden');
+                if (icon) icon.className = "fas fa-chevron-up text-[10px]";
+            }
+        }
+    }
+
     function startScanDevices() {
         initScanCamera();
         initScanSpeech();
@@ -953,6 +997,13 @@
             flashMicDot();
             playSuccessBeep();
 
+            // Atualiza banner de confirmação se estiver visível
+            const banner = document.getElementById('scan-last-item-banner');
+            const bannerText = document.getElementById('scan-last-item-text');
+            if (banner && !banner.classList.contains('hidden') && bannerText && bgScanItems.length > 0) {
+                bannerText.textContent = bgScanItems[0].code + ' • Live: ' + code;
+            }
+
             // Se bipou um item recentemente (< 30s) sem código de live associado, vincula a ele!
             if (bgScanItems.length > 0) {
                 const latest = bgScanItems[0];
@@ -1028,7 +1079,7 @@
         const liveHtml  = trimmedLiveCode ? '<p class="text-xs text-indigo-600 font-extrabold scan-item-live-code flex items-center gap-1"><i class="fas fa-tag text-[10px]"></i> Live: ' + trimmedLiveCode + '</p>' : '';
 
         const el = document.createElement('div');
-        el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+        el.className = 'flex items-center gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl px-2.5 py-2 group transition-all duration-500 scan-item';
         el.dataset.code = code;
         el.innerHTML =
             '<div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ' + iconClass + ' shadow-sm">' +
@@ -1044,7 +1095,30 @@
                 '<i class="fas fa-trash-alt text-[10px]"></i>' +
             '</button>';
 
-        if (list) list.prepend(el);
+        // Remove o destaque verde após 2.5s
+        setTimeout(function() {
+            el.className = 'flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+        }, 2500);
+
+        if (list) {
+            list.prepend(el);
+            list.scrollTop = 0; // Rola a lista automaticamente para o topo
+        }
+
+        // Exibe o banner de confirmação com destaque no topo
+        const banner = document.getElementById('scan-last-item-banner');
+        const bannerText = document.getElementById('scan-last-item-text');
+        const bannerTime = document.getElementById('scan-last-item-time');
+        if (banner && bannerText) {
+            bannerText.textContent = code + (trimmedLiveCode ? ' • Live: ' + trimmedLiveCode : '');
+            if (bannerTime) bannerTime.textContent = timeStr;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanBannerTimeout);
+            window._scanBannerTimeout = setTimeout(function() {
+                banner.classList.add('hidden');
+            }, 5000);
+        }
+
         updateScanCount();
         playSuccessBeep();
     }
