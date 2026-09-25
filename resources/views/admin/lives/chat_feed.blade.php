@@ -3640,7 +3640,7 @@
             const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const isMarked = !!msg.is_marked;
             const isSelectedMsg = selectedChatMsg && selectedChatMsg.id === msg.id;
-            const isLinkedMsg = !!msg.linked_code;
+            const isLinkedMsg = !!(msg.linked_code || msg.linked_item_id);
             let cardSelectionClass = '';
             if (isSelectedMsg) {
                 cardSelectionClass = 'linking-selected';
@@ -3678,6 +3678,15 @@
                 `;
             }
 
+            // Destacar códigos de produtos na mensagem
+            let formattedMessage = escapeHtml(msg.message || '');
+            formattedMessage = formattedMessage.replace(/\b([a-zA-Z0-9]{3,6})\b/g, function(match, code) {
+                if (/\d/.test(code)) {
+                    return `<span class="chat-product-code"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</span>`;
+                }
+                return code;
+            });
+
             // Códigos limpos da peça vinculada (sem a palavra 'Live:')
             let cleanItemCode = '';
             let cleanLiveCode = '';
@@ -3689,19 +3698,21 @@
                     cleanLiveCode = String(msg.linked_live_code).trim();
                 }
                 cleanItemCode = String(msg.linked_code).replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim();
+            } else if (msg.linked_live_code) {
+                cleanLiveCode = String(msg.linked_live_code).trim();
             }
 
             // No lugar do Vincular: Exibe os códigos da peça vinculada (sem o texto 'Live:')
             let vincularBtn = '';
             if (isLinkedMsg) {
-                let codeDisplay = '#' + escapeHtml(cleanItemCode);
+                let codeDisplay = cleanItemCode ? ('#' + escapeHtml(cleanItemCode)) : '';
                 if (cleanLiveCode) {
-                    codeDisplay += ' &bull; ' + escapeHtml(cleanLiveCode);
+                    codeDisplay = codeDisplay ? (codeDisplay + ' &bull; ' + escapeHtml(cleanLiveCode)) : escapeHtml(cleanLiveCode);
                 }
                 vincularBtn = `
                     <span class="inline-flex items-center gap-1.5 text-xs font-black text-blue-200 bg-blue-900/80 border border-blue-500/60 px-2.5 py-1 rounded-xl shadow-sm tracking-wide" title="Peça vinculada a este comentário">
                         <i class="fas fa-tag text-[10px] text-blue-400"></i>
-                        <span>${codeDisplay}</span>
+                        <span>${codeDisplay || 'Vinculado'}</span>
                     </span>
                 `;
             } else {
