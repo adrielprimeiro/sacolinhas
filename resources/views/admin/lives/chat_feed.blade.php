@@ -341,7 +341,7 @@
         <!-- ============================================================
              PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 sm:w-92 shrink-0 flex flex-col gap-2 overflow-y-auto max-h-full pr-0.5" style="min-height:0;">
+        <div id="scan-panel" class="w-80 sm:w-96 shrink-0 flex flex-col gap-2.5 overflow-y-auto h-full pr-1 pb-8" style="min-height:0;">
 
             <!-- Card 1: Código da Live (capturado por voz) -->
             <div class="bg-white rounded-2xl shadow border border-gray-200 p-2.5 shrink-0">
@@ -367,8 +367,8 @@
                 </div>
             </div>
 
-            <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 260px;">
+            <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados (Altura ampliada) -->
+            <div class="bg-white rounded-2xl shadow border border-gray-200 flex flex-col shrink-0 sm:shrink-0 overflow-hidden" style="min-height: 520px;">
 
                 <!-- Header do painel -->
                 <div class="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-gray-100 shrink-0">
@@ -471,9 +471,9 @@
                     </button>
                 </div>
 
-                <!-- Lista de itens bipados (COM SCROLL GARANTIDO) -->
-                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-[140px]" style="min-height: 140px;">
-                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-6 text-gray-300">
+                <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA AMPLIADA) -->
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height: 280px; max-height: 480px;">
+                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
                         <i class="fas fa-barcode text-3xl mb-1 text-gray-300"></i>
                         <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
                         <p class="text-[10px] text-gray-400 mt-0.5 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>
