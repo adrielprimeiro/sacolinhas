@@ -1,5 +1,16 @@
 const { TikTokLiveConnection } = require("tiktok-live-connector");
+const http = require("http");
+const https = require("https");
 const axios = require("axios");
+
+const httpAgent = new http.Agent({ keepAlive: true, family: 4 });
+const httpsAgent = new https.Agent({ keepAlive: true, family: 4 });
+
+const apiClient = axios.create({
+    httpAgent,
+    httpsAgent,
+    timeout: 6000
+});
 
 const API_BASE_URL = "https://minhamania.net/api";
 const POLL_INTERVAL_MS = 5000;
@@ -13,7 +24,7 @@ let nextRetryAfter = 0;
 async function checkActiveLives() {
     if (isConnecting) return;
     try {
-        const response = await axios.get(API_BASE_URL + "/active-tiktok-lives", { timeout: 8000 });
+        const response = await apiClient.get(API_BASE_URL + "/active-tiktok-lives");
         const data = response.data;
         if (data.success && data.active_live) {
             const rawUser = data.active_live.username || "_minhamania";
@@ -129,12 +140,11 @@ async function flushMessageQueue() {
 
     const batch = messageQueue.splice(0, 50);
     try {
-        await axios.post(API_BASE_URL + "/live-chat/message-batch", {
+        await apiClient.post(API_BASE_URL + "/live-chat/message-batch", {
             live_id: currentLiveId,
             messages: batch
         }, {
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            timeout: 8000
+            headers: { "Content-Type": "application/json", "Accept": "application/json" }
         });
     } catch (e) {
         console.error(`[Laravel Batch] Erro ao enviar lote (${batch.length} msgs): ${e.message}`);
@@ -152,7 +162,6 @@ console.log("=== TikTok Live Listener LOCAL Resiliente Iniciado ===");
 checkActiveLives();
 setInterval(checkActiveLives, POLL_INTERVAL_MS);
 
-const http = require("http");
 const localServer = http.createServer((req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

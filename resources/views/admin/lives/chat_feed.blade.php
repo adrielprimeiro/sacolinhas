@@ -425,28 +425,38 @@
                 </div>
             </div>
 
-            <!-- Card 2: Câmera com Imagem + Lista de Itens Bipados (Layout Limpo) -->
+            <!-- Card 2: Leitor de Código de Barras (Bipador USB / Físico) + Lista de Itens Bipados -->
             <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
 
-                <!-- IMAGEM DA CÂMERA AO VIVO DENTRO DO CARD (FLUSH NO TOPO) -->
-                <div id="scan-camera-wrapper" class="p-2 pb-1 shrink-0 transition-all duration-200">
-                    <div class="relative w-full bg-gray-950 rounded-xl overflow-hidden shadow-inner border border-gray-200 flex items-center justify-center" style="height: 180px;">
-                        <!-- Container da Câmera (Html5Qrcode injeta o vídeo aqui) -->
-                        <div id="scan-camera-reader" class="w-full h-full"></div>
-
-                        <!-- Placeholder quando desligada (Sem textos extras poluindo) -->
-                        <div id="scan-camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-400 p-2 text-center z-10 transition-all">
-                            <button type="button" onclick="startScanDevices()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg transition cursor-pointer flex items-center gap-2 active:scale-95">
-                                <i class="fas fa-camera text-sm"></i> Ativar Câmera e Voz
-                            </button>
-                        </div>
-
-                        <!-- Mira de Leitura visual limpa (sem texto sobre a imagem) -->
-                        <div id="scan-camera-overlay" class="absolute inset-0 pointer-events-none hidden z-10 flex flex-col items-center justify-center p-2">
-                            <div class="w-56 h-28 border border-emerald-400/60 rounded-2xl shadow-[0_0_15px_rgba(52,211,153,0.25)] relative flex items-center justify-center">
-                                <div class="absolute inset-x-3 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400/70 animate-pulse"></div>
+                <!-- Cabeçalho do Leitor com Status de Foco Automático -->
+                <div class="p-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 via-emerald-50/20 to-indigo-50/20 shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md text-xs">
+                                <i class="fas fa-barcode"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-black text-gray-900 leading-tight">Leitor de Código de Barras</h3>
+                                <p class="text-[10px] text-gray-500 font-semibold">Bipe as etiquetas diretamente</p>
                             </div>
                         </div>
+                        <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span id="scanner-focus-text">FOCO ATIVO</span>
+                        </div>
+                    </div>
+
+                    <!-- Campo de Entrada com Destaque Máximo para o Leitor -->
+                    <div class="relative">
+                        <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+                            placeholder="Aguardando bip do leitor..."
+                            class="w-full pl-9 pr-16 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                            onkeydown="handleManualScan(event)">
+                        <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
+                        <button type="button" onclick="addManualCode()" title="Bipar código digitado"
+                            class="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg text-xs shadow transition active:scale-95 flex items-center justify-center cursor-pointer">
+                            Bipar
+                        </button>
                     </div>
                 </div>
 
@@ -473,33 +483,23 @@
                     </button>
                 </div>
 
-                <!-- Entrada manual de código de barras / leitor USB -->
-                <div class="px-2.5 py-1.5 border-b border-gray-100 shrink-0">
-                    <div class="flex gap-1.5">
-                        <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Bipador USB ou digitar código..."
-                            class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 uppercase"
-                            onkeydown="handleManualScan(event)">
-                        <button type="button" onclick="addManualCode()" title="Adicionar"
-                            class="w-7 h-7 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer text-xs shadow-sm shrink-0">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Barra de Contador de Itens Bipados -->
                 <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
                     <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
                         <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
                         <span>Itens Bipados: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
                     </span>
+                    <button type="button" onclick="ensureScannerFocus(true)" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-crosshairs"></i> Manter Foco
+                    </button>
                 </div>
 
-                <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA AMPLIADA) -->
+                <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA MÁXIMA) -->
                 <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height: 0;">
                     <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
                         <i class="fas fa-barcode text-3xl mb-1 text-gray-300"></i>
                         <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
-                        <p class="text-[10px] text-gray-400 mt-0.5 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5 text-center">Aponte o leitor para o código de barras<br>ou digite e aperte Enter</p>
                     </div>
                 </div>
             </div>
@@ -965,13 +965,8 @@
     const bgScanItems = [];           // [{id, itemId, code, liveCode, buyerUsername, buyerName, buyerUserId, liveMessageId, time, source, productName, productDetails, ...}]
     let selectedChatMsg = null;       // { id, username, displayName, userId }
     let selectedScanItem = null;      // { id }
-    let bgHtml5QrCode = null;
-    let bgCameraActive = false;
     let bgSpeechRecog = null;
     let bgSpeechActive = false;
-    let bgLastScannedCode = null;
-    let bgLastScannedTime = 0;
-    const BG_SCAN_DEBOUNCE_MS = 1500;
 
     // INTEGRAÇÃO OBS STUDIO & CORTES DE VÍDEO
     let obsWs = null;
@@ -993,10 +988,6 @@
     let obsRelayMode = localStorage.getItem('obs_relay_mode') === 'true';
     let obsRelayAgentOnline = false; // detectado via polling de health
 
-    /* ---- Câmera Visível no Card (Html5Qrcode) ----------------------------- */
-    let availableCameras = [];
-    let selectedCameraId = null;
-
     function extractCleanCode(raw) {
         if (!raw) return '';
         let code = String(raw).trim();
@@ -1017,224 +1008,107 @@
         return code;
     }
 
-    async function initScanCamera(preferredCameraId) {
-        if (bgCameraActive && !preferredCameraId) return;
+    // =========================================================================
+    // GERENCIAMENTO INTELIGENTE DE FOCO DO LEITOR DE CÓDIGO DE BARRAS
+    // =========================================================================
+    function isUserTypingElsewhere() {
+        const el = document.activeElement;
+        if (!el) return false;
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'textarea' || tag === 'select') return true;
+        if (tag === 'input') {
+            const id = el.id || '';
+            // Campos de texto intencionais onde o usuário pode estar digitando
+            if (id === 'feed-search-input' || id === 'scan-live-code' || id === 'modal-search-input' || id === 'online-qr-phone-input' || id === 'online-qr-manual-input') {
+                return true;
+            }
+            if (id !== 'scan-manual-input' && (el.type === 'text' || el.type === 'search' || el.type === 'tel' || el.type === 'password' || el.type === 'number')) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        // Se a lib Html5Qrcode ainda não carregou, aguarda brevemente
-        if (typeof Html5Qrcode === 'undefined') {
-            console.log('[Scan] Aguardando lib Html5Qrcode...');
-            setTimeout(() => initScanCamera(preferredCameraId), 400);
+    function ensureScannerFocus(force = false) {
+        // Se modal da pessoa online estiver aberto, foca no input manual dele
+        const onlineModal = document.getElementById('online-qr-modal');
+        if (onlineModal && !onlineModal.classList.contains('hidden')) {
+            const modalInput = document.getElementById('online-qr-manual-input');
+            if (modalInput && (force || document.activeElement !== modalInput)) {
+                if (force || !isUserTypingElsewhere()) {
+                    modalInput.focus();
+                }
+            }
             return;
         }
 
-        try {
-            const readerEl = document.getElementById('scan-camera-reader');
-            if (!readerEl) return;
-
-            // Se já estava escaneando e desejamos mudar de câmera, encerra a anterior
-            if (bgHtml5QrCode) {
-                try {
-                    if (bgHtml5QrCode.isScanning) {
-                        await bgHtml5QrCode.stop();
-                    }
-                } catch(e) {}
-                bgCameraActive = false;
-            }
-
-            // Formatos essenciais focados em máxima velocidade (QR Code e Códigos de Barras 1D padrão)
-            let formats = [0, 9, 5, 3]; // QR_CODE, EAN_13, CODE_128, CODE_39
-            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-                formats = [
-                    Html5QrcodeSupportedFormats.QR_CODE,
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39
-                ];
-            }
-
-            if (!bgHtml5QrCode) {
-                bgHtml5QrCode = new Html5Qrcode("scan-camera-reader", {
-                    formatsToSupport: formats,
-                    verbose: false,
-                    experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true // BarcodeDetector nativo via hardware GPU
-                    }
-                });
-            }
-
-            // Descobre câmeras disponíveis para popular o seletor
-            try {
-                const devices = await Html5Qrcode.getCameras();
-                if (devices && devices.length > 0) {
-                    availableCameras = devices;
-                    populateCameraSelect(devices);
-                }
-            } catch(e) {
-                console.warn('[Scan] Não foi possível enumerar câmeras:', e);
-            }
-
-            // Escolhe a câmera correta
-            let cameraConfig = { facingMode: "environment" };
-            if (preferredCameraId) {
-                cameraConfig = preferredCameraId;
-                selectedCameraId = preferredCameraId;
-            } else if (availableCameras && availableCameras.length > 0) {
-                const saved = localStorage.getItem('scan_preferred_camera');
-                const foundSaved = availableCameras.find(c => c.id === saved);
-                if (foundSaved) {
-                    cameraConfig = foundSaved.id;
-                    selectedCameraId = foundSaved.id;
-                } else {
-                    const backCam = availableCameras.find(c =>
-                        (c.label || '').toLowerCase().includes('back') ||
-                        (c.label || '').toLowerCase().includes('traseira') ||
-                        (c.label || '').toLowerCase().includes('environment')
-                    );
-                    const chosen = backCam || availableCameras[0];
-                    cameraConfig = chosen.id;
-                    selectedCameraId = chosen.id;
-                }
-            }
-
-            // Sincroniza o select visual
-            const camSelect = document.getElementById('scan-camera-select');
-            if (camSelect && selectedCameraId && typeof cameraConfig === 'string') {
-                camSelect.value = selectedCameraId;
-            }
-
-            // Configuração para máxima velocidade e leitura no sensor inteiro
-            const config = {
-                fps: 25, // Taxa de quadros alta para reconhecimento instantâneo
-                disableFlip: false,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
-                },
-                videoConstraints: {
-                    facingMode: { ideal: "environment" },
-                    focusMode: { ideal: "continuous" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-
-            await bgHtml5QrCode.start(
-                cameraConfig,
-                config,
-                function(decodedText) {
-                    const cleanCode = extractCleanCode(decodedText);
-                    if (!cleanCode) return;
-                    const now = Date.now();
-                    if (cleanCode !== bgLastScannedCode || (now - bgLastScannedTime) > BG_SCAN_DEBOUNCE_MS) {
-                        bgLastScannedCode = cleanCode;
-                        bgLastScannedTime = now;
-                        addScanItem(cleanCode, 'camera');
-                    }
-                },
-                function() {} // ignora frames sem detecção
-            );
-
-            bgCameraActive = true;
-            // Oculta placeholder e exibe overlay
-            const placeholder = document.getElementById('scan-camera-placeholder');
-            if (placeholder) placeholder.classList.add('hidden');
-            const overlay = document.getElementById('scan-camera-overlay');
-            if (overlay) overlay.classList.remove('hidden');
-
-            updateCamDot(true, 'Câmera ativa lendo códigos');
-            updateScanDevicesBtn();
-        } catch (err) {
-            console.warn('[Scan] Câmera não pôde iniciar automaticamente:', err.message || err);
-            bgCameraActive = false;
-            updateCamDot(false, 'Câmera: ' + (err.message || 'Permissão necessária'));
-            updateScanDevicesBtn();
+        // Se modal de vincular cliente estiver aberto, não interfere
+        const linkModal = document.getElementById('link-user-modal');
+        if (linkModal && !linkModal.classList.contains('hidden')) {
+            return;
         }
+
+        // Foco padrão da página: campo do leitor de código de barras
+        const scanInput = document.getElementById('scan-manual-input');
+        if (!scanInput) return;
+
+        if (force || !isUserTypingElsewhere()) {
+            if (document.activeElement !== scanInput) {
+                scanInput.focus();
+            }
+        }
+        updateScannerFocusBadge(document.activeElement === scanInput);
     }
 
-    function populateCameraSelect(devices) {
-        const camSelect = document.getElementById('scan-camera-select');
-        if (!camSelect) return;
-        camSelect.innerHTML = '';
-        devices.forEach((dev, idx) => {
-            const opt = document.createElement('option');
-            opt.value = dev.id;
-            let label = dev.label || ('Câmera ' + (idx + 1));
-            if (label.length > 22) label = label.substring(0, 20) + '...';
-            opt.textContent = label;
-            camSelect.appendChild(opt);
-        });
-        if (devices.length > 1) {
-            camSelect.classList.remove('hidden');
+    function updateScannerFocusBadge(isFocused) {
+        const badge = document.getElementById('scanner-focus-badge');
+        const text = document.getElementById('scanner-focus-text');
+        if (!badge || !text) return;
+
+        if (isFocused) {
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
+            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>FOCO ATIVO`;
         } else {
-            camSelect.classList.add('hidden');
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 border border-gray-300 text-gray-600 text-[10px] font-bold select-none cursor-pointer transition active:scale-95 hover:bg-emerald-50 hover:text-emerald-700";
+            text.innerHTML = `<i class="fas fa-crosshairs text-[9px] mr-0.5"></i> Refocar`;
         }
     }
 
-    async function changeScanCamera(cameraId) {
-        if (!cameraId) return;
-        selectedCameraId = cameraId;
-        localStorage.setItem('scan_preferred_camera', cameraId);
-        await stopScanCamera();
-        await initScanCamera(cameraId);
-    }
-
-    async function stopScanCamera() {
-        if (bgHtml5QrCode) {
-            try {
-                if (bgHtml5QrCode.isScanning) {
-                    await bgHtml5QrCode.stop();
-                }
-            } catch(e) {}
-            bgCameraActive = false;
-
-            const placeholder = document.getElementById('scan-camera-placeholder');
-            if (placeholder) placeholder.classList.remove('hidden');
-            const overlay = document.getElementById('scan-camera-overlay');
-            if (overlay) overlay.classList.add('hidden');
-
-            updateCamDot(false, 'Câmera parada');
-            updateScanDevicesBtn();
+    function initScannerFocusEvents() {
+        const scanInput = document.getElementById('scan-manual-input');
+        if (scanInput) {
+            scanInput.addEventListener('focus', () => updateScannerFocusBadge(true));
+            scanInput.addEventListener('blur', () => {
+                updateScannerFocusBadge(false);
+                setTimeout(() => {
+                    ensureScannerFocus(false);
+                }, 150);
+            });
         }
-    }
 
-    async function switchScanCamera() {
-        if (!availableCameras || availableCameras.length <= 1) return;
-        const currentIdx = availableCameras.findIndex(c => c.id === selectedCameraId);
-        const nextIdx = (currentIdx + 1) % availableCameras.length;
-        const nextCam = availableCameras[nextIdx];
-        await changeScanCamera(nextCam.id);
-    }
-
-    let cameraViewCollapsed = false;
-    function toggleCameraViewSize() {
-        cameraViewCollapsed = !cameraViewCollapsed;
-        const wrapper = document.getElementById('scan-camera-wrapper');
-        const icon = document.getElementById('cam-size-icon');
-        if (wrapper) {
-            if (cameraViewCollapsed) {
-                wrapper.classList.add('hidden');
-                if (icon) icon.className = "fas fa-chevron-down text-[10px]";
-            } else {
-                wrapper.classList.remove('hidden');
-                if (icon) icon.className = "fas fa-chevron-up text-[10px]";
+        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco de volta imediatamente
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            if (!target) return;
+            const tag = (target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a' || target.closest('button') || target.closest('a') || target.closest('input')) {
+                return;
             }
-        }
-    }
+            ensureScannerFocus(false);
+        });
 
-    function startScanDevices() {
-        initScanCamera();
-        initScanSpeech();
-    }
+        // Quando a janela volta a ter foco (ex: trocou de aba ou programa)
+        window.addEventListener('focus', function() {
+            ensureScannerFocus(false);
+        });
 
-    function updateCamDot(active, title) {
-        const dot = document.getElementById('cam-status-dot');
-        const badge = document.getElementById('scan-cam-active-badge');
-        if (dot) {
-            dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
-            dot.title = title || (active ? 'Câmera ativa' : 'Câmera inativa');
-        }
-        if (badge) {
-            badge.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-gray-300'}`;
-        }
+        // Verificação periódica leve para garantir foco constante no leitor
+        setInterval(function() {
+            ensureScannerFocus(false);
+        }, 1000);
+
+        // Foco inicial imediato
+        ensureScannerFocus(true);
     }
 
     /* ---- Reconhecimento de Voz Inteligente (SpeechRecognition) ------------ */
@@ -3406,8 +3280,8 @@
     }
     function initScanSystem() {
         loadInitialLinkedLiveItems();
-        initScanCamera();
         initScanSpeech();
+        initScannerFocusEvents();
     }
 
     // Paleta de cores vibrantes para avatares sem foto
@@ -4107,12 +3981,6 @@
             autoCloseToggle.checked = autoCloseAfterScan;
         }
 
-        // Se a câmera do card lateral estiver ativa, pausa temporariamente para evitar conflito de hardware
-        if (bgCameraActive) {
-            sidebarCamPausedForModal = true;
-            stopScanCamera();
-        }
-
         document.getElementById("online-qr-modal").classList.remove("hidden");
         if (manualInput) manualInput.focus();
 
@@ -4126,8 +3994,6 @@
             startOnlineQrCamera();
         }
     }
-
-    let sidebarCamPausedForModal = false;
 
     function quickBeepForUser(userId, username, clientName, code) {
         if (!userId || userId === 'null' || userId === 'undefined') {
@@ -4158,11 +4024,8 @@
         }
         document.getElementById("online-qr-modal").classList.add("hidden");
         
-        // Se a câmera do card lateral estava ligada antes de abrir o modal, reativa-a suavemente
-        if (sidebarCamPausedForModal) {
-            sidebarCamPausedForModal = false;
-            setTimeout(() => initScanCamera(), 300);
-        }
+        // Devolve o foco imediatamente para o campo do leitor de código de barras
+        setTimeout(() => ensureScannerFocus(true), 100);
 
         fetchChatFeed();
     }
