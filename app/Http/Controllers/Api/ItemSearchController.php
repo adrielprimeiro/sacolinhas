@@ -10,7 +10,7 @@ class ItemSearchController extends Controller
 {
     public function search(Request $request)
     {
-        $searchTerm = $request->get('q', '');
+        $searchTerm = trim($request->get('q', ''));
         
         if (empty($searchTerm)) {
             return response()->json([
@@ -20,14 +20,38 @@ class ItemSearchController extends Controller
         }
 
         try {
-            $items = DB::table('items')
-                        ->where('nome_do_produto', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('descricao', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('codigo', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('marca', 'LIKE', "%{$searchTerm}%")
-                        ->where('status', 'disponivel') // Apenas itens disponíveis
-                        ->limit(10)
-                        ->get();
+            $cleanTerm = ltrim($searchTerm, '#');
+            $cleanTerm = trim($cleanTerm);
+
+            // 1. Tentar correspondência exata por código ou ID primeiro
+            $exactItem = DB::table('items')
+                ->where(function($q) use ($searchTerm, $cleanTerm) {
+                    $q->where('codigo', $searchTerm)
+                      ->orWhere('codigo', $cleanTerm)
+                      ->orWhere('codigo', mb_strtoupper($searchTerm, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanTerm, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($searchTerm, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanTerm, 'UTF-8'));
+                    if (is_numeric($cleanTerm)) {
+                        $q->orWhere('id', (int)$cleanTerm);
+                    }
+                })
+                ->first();
+
+            if ($exactItem) {
+                $items = collect([$exactItem]);
+            } else {
+                $items = DB::table('items')
+                    ->where(function($q) use ($searchTerm, $cleanTerm) {
+                        $q->where('nome_do_produto', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('descricao', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('codigo', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('codigo', 'LIKE', "%{$cleanTerm}%")
+                          ->orWhere('marca', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->limit(10)
+                    ->get();
+            }
 
             $result = $items->map(function($item) {
                 return [

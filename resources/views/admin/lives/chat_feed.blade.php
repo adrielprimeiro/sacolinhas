@@ -471,6 +471,7 @@
                         <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
                             placeholder="Aguardando bip do leitor..."
                             class="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                            oninput="handleManualScanInput(event)"
                             onkeydown="handleManualScan(event)">
                         <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
                     </div>
@@ -641,7 +642,7 @@
                     <span>Leitor de Código de Barras / Digitação (Enter Automático)</span>
                 </h4>
                 <div class="relative">
-                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Aguardando bip ou digite o código e aperte Enter..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" oninput="handleOnlineQrManualInput(event)" onkeydown="handleOnlineQrKeyDown(event)" placeholder="Aguardando bip ou digite o código..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
                     <i class="fas fa-barcode absolute left-3 top-3.5 text-indigo-400 text-sm"></i>
                 </div>
             </div>
@@ -1589,7 +1590,11 @@
     }
 
     function syncLinkItemToLive(itemId, code, liveCode) {
-        if (!liveId) return;
+        if (!liveId) {
+            console.warn('[Scan] Não há live ativa/selecionada para vincular o item.');
+            showToast('⚠️ Selecione uma live no topo para vincular itens!', 'warning');
+            return;
+        }
         fetch('/admin/live-chat/link-item-live', {
             method: 'POST',
             headers: {
@@ -2519,18 +2524,41 @@
         lastSpokenTime = 0;
     }
 
+    let manualScanDebounceTimer = null;
+
+    function handleManualScanInput(event) {
+        if (manualScanDebounceTimer) clearTimeout(manualScanDebounceTimer);
+        const val = event.target ? event.target.value.trim() : '';
+        if (!val) return;
+
+        // Auto-enter: Quando o leitor bipa, ele preenche os caracteres em rajada rápida.
+        // Após 120ms de silêncio, processa e anexa o item automaticamente sem precisar de Enter manual!
+        manualScanDebounceTimer = setTimeout(() => {
+            addManualCode();
+        }, 120);
+    }
+
     function handleManualScan(event) {
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' || event.key === 'Tab') {
             event.preventDefault();
+            if (manualScanDebounceTimer) clearTimeout(manualScanDebounceTimer);
             addManualCode();
         }
     }
 
     function addManualCode() {
+        if (manualScanDebounceTimer) {
+            clearTimeout(manualScanDebounceTimer);
+            manualScanDebounceTimer = null;
+        }
         const input = document.getElementById('scan-manual-input');
         if (!input) return;
-        const code = extractCleanCode(input.value).toUpperCase();
-        if (!code) return;
+        const rawVal = input.value;
+        const code = extractCleanCode(rawVal).toUpperCase();
+        if (!code) {
+            input.value = '';
+            return;
+        }
         addScanItem(code, 'manual');
         input.value = '';
         input.focus();
@@ -2541,44 +2569,95 @@
     // =========================================================================
     let usbScanBuffer = "";
     let usbLastKeyTime = 0;
-    const USB_MAX_INTERVAL_MS = 65; // Leitores físicos USB disparam teclas em < 40ms
+    let usbScanTimer = null;
+    const USB_MAX_INTERVAL_MS = 75; // Leitores físicos USB disparam teclas em < 50ms
 
     window.addEventListener('keydown', function(event) {
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-        const isEditingText = (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select');
-        const isOurManualInput = document.activeElement && document.activeElement.id === 'scan-manual-input';
+        const isEditingOtherText = document.activeElement && (
+            document.activeElement.id === 'feed-search-input' ||
+            document.activeElement.id === 'modal-search-input' ||
+            document.activeElement.id === 'scan-live-code' ||
+            document.activeElement.id === 'online-qr-phone-input' ||
+            activeTag === 'textarea'
+        );
+
+        if (isEditingOtherText) {
+            usbScanBuffer = "";
+            return;
+        }
+
+        const isOurManualInput = document.activeElement && (
+            document.activeElement.id === 'scan-manual-input' ||
+            document.activeElement.id === 'online-qr-manual-input'
+        );
 
         const now = Date.now();
         const diff = now - usbLastKeyTime;
 
-        if (event.key === 'Enter') {
-            if (usbScanBuffer.length >= 2 && (diff < 120 || isOurManualInput)) {
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            if (usbScanTimer) clearTimeout(usbScanTimer);
+            if (usbScanBuffer.length >= 1) {
                 event.preventDefault();
                 event.stopPropagation();
                 const cleanCode = extractCleanCode(usbScanBuffer);
                 if (cleanCode) {
-                    addScanItem(cleanCode, 'usb');
+                    const onlineModal = document.getElementById('online-qr-modal');
+                    if (onlineModal && !onlineModal.classList.contains('hidden')) {
+                        handleOnlineQrScan(cleanCode);
+                    } else {
+                        addScanItem(cleanCode, 'usb');
+                    }
                     const manualInput = document.getElementById('scan-manual-input');
                     if (manualInput) manualInput.value = '';
                 }
                 usbScanBuffer = "";
                 return;
             }
+            if (isOurManualInput) {
+                event.preventDefault();
+                if (document.activeElement.id === 'online-qr-manual-input') {
+                    const onlineInput = document.getElementById('online-qr-manual-input');
+                    if (onlineInput && onlineInput.value.trim()) {
+                        const code = onlineInput.value.trim();
+                        onlineInput.value = '';
+                        handleOnlineQrScan(code);
+                    }
+                } else {
+                    addManualCode();
+                }
+                return;
+            }
             usbScanBuffer = "";
             return;
         }
 
-        if (diff > 90) {
+        if (diff > 120 && !isOurManualInput) {
             usbScanBuffer = "";
         }
 
         if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-            if (isEditingText && !isOurManualInput && diff > USB_MAX_INTERVAL_MS) {
-                usbScanBuffer = "";
-                return;
-            }
             usbScanBuffer += event.key;
             usbLastKeyTime = now;
+
+            // Debounce automático caso o leitor físico USB não envie a tecla Enter ao final
+            if (usbScanTimer) clearTimeout(usbScanTimer);
+            usbScanTimer = setTimeout(() => {
+                if (usbScanBuffer.length >= 1 && (Date.now() - usbLastKeyTime >= 120)) {
+                    const cleanCode = extractCleanCode(usbScanBuffer);
+                    if (cleanCode) {
+                        const onlineModal = document.getElementById('online-qr-modal');
+                        if (onlineModal && !onlineModal.classList.contains('hidden')) {
+                            handleOnlineQrScan(cleanCode);
+                        } else {
+                            addScanItem(cleanCode, 'usb');
+                        }
+                        const manualInput = document.getElementById('scan-manual-input');
+                        if (manualInput) manualInput.value = '';
+                    }
+                    usbScanBuffer = "";
+                }
+            }, 130);
         }
     }, true);
 
@@ -4051,6 +4130,38 @@
             const input = document.getElementById("online-qr-manual-input");
             if (input) input.value = code;
             handleOnlineQrScan(code);
+        }
+    }
+
+    let onlineQrManualDebounceTimer = null;
+
+    function handleOnlineQrManualInput(event) {
+        if (onlineQrManualDebounceTimer) clearTimeout(onlineQrManualDebounceTimer);
+        const val = event.target ? event.target.value.trim() : '';
+        if (!val) return;
+        onlineQrManualDebounceTimer = setTimeout(() => {
+            const input = document.getElementById("online-qr-manual-input");
+            if (input && input.value.trim()) {
+                const code = input.value.trim();
+                input.value = '';
+                handleOnlineQrScan(code);
+            }
+        }, 120);
+    }
+
+    function handleOnlineQrKeyDown(event) {
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            if (onlineQrManualDebounceTimer) {
+                clearTimeout(onlineQrManualDebounceTimer);
+                onlineQrManualDebounceTimer = null;
+            }
+            const input = document.getElementById("online-qr-manual-input");
+            if (input && input.value.trim()) {
+                const code = input.value.trim();
+                input.value = '';
+                handleOnlineQrScan(code);
+            }
         }
     }
 
