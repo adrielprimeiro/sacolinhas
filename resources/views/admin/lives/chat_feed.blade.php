@@ -44,9 +44,11 @@
     }
 
     .live-feed-page-wrapper {
-        max-width: 1750px;
-        margin: 0 auto;
-        height: calc(100vh - 85px);
+        width: 100%;
+        max-width: 100% !important;
+        margin: 0;
+        padding: 0 8px;
+        height: calc(100vh - 78px);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -205,19 +207,19 @@
     }
 </style>
 
-<div class="container mx-auto px-2 sm:px-4 py-2 live-feed-page-wrapper">
+<div class="w-full max-w-full px-1 sm:px-2 py-1 live-feed-page-wrapper">
     <!-- Top Bar com Controles de Leitura e Filtros (Card 1) -->
-    <div id="feed-top-header" class="mb-2.5 bg-gray-900 text-white p-3 sm:p-3.5 rounded-2xl shadow-lg border border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
+    <div id="feed-top-header" class="mb-2 bg-gray-900 text-white p-2.5 sm:p-3 rounded-2xl shadow-lg border border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 shrink-0">
         <!-- Título & Live Ativa -->
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+            <div class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
                 <i class="fas fa-comments"></i>
             </div>
             <div>
                 <div class="flex items-center gap-2">
-                    <h1 class="text-base sm:text-lg font-black text-white tracking-tight">Chat da Transmissão</h1>
+                    <h1 class="text-sm sm:text-base font-black text-white tracking-tight">Chat da Transmissão</h1>
                     @if($activeLive && $activeLive->ativo)
-                        <span class="bg-red-600 text-white text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
+                        <span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
                             <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO
                         </span>
                     @endif
@@ -233,42 +235,47 @@
         </div>
 
         <!-- Ferramentas: Zoom de Fonte, Tema e Atalhos -->
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <!-- Controle de Tamanho da Fonte (A- / Normal / A+ / A++) -->
             <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 shadow-inner">
-                <span class="text-xs text-gray-400 font-bold px-2 hidden sm:inline"><i class="fas fa-font"></i> Tamanho:</span>
-                <button type="button" onclick="setFontSize('sm')" id="btn-font-sm" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A-</button>
-                <button type="button" onclick="setFontSize('md')" id="btn-font-md" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow cursor-pointer">Normal</button>
-                <button type="button" onclick="setFontSize('lg')" id="btn-font-lg" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A+</button>
-                <button type="button" onclick="setFontSize('xl')" id="btn-font-xl" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A++</button>
+                <span class="text-xs text-gray-400 font-bold px-2 hidden sm:inline"><i class="fas fa-font"></i></span>
+                <button type="button" onclick="setFontSize('sm')" id="btn-font-sm" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A-</button>
+                <button type="button" onclick="setFontSize('md')" id="btn-font-md" class="px-2 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow cursor-pointer">Normal</button>
+                <button type="button" onclick="setFontSize('lg')" id="btn-font-lg" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A+</button>
+                <button type="button" onclick="setFontSize('xl')" id="btn-font-xl" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A++</button>
             </div>
 
             <!-- Alternador de Tema Escuro / Claro -->
-            <button type="button" onclick="toggleTheme()" id="btn-theme-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+            <button type="button" onclick="toggleTheme()" id="btn-theme-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
                 <i class="fas fa-moon text-yellow-400" id="theme-icon"></i>
                 <span id="theme-text" class="hidden sm:inline">Modo Escuro</span>
             </button>
 
             <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
-            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
                 <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
                 <span id="autoscroll-text">Rolagem: Ativa</span>
             </button>
 
-            <!-- Botão Tela Cheia -->
-            <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                <i class="fas fa-expand"></i>
-                <span class="hidden sm:inline">Tela Cheia</span>
+            <!-- Botão Alternador Painel de Bipagem (Expansão do Chat) -->
+            <button type="button" onclick="toggleScanPanel()" id="btn-toggle-scan-panel" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar ou mostrar o painel lateral de bipagem para expandir a área do chat">
+                <i class="fas fa-barcode text-emerald-400"></i>
+                <span class="hidden sm:inline" id="scan-panel-btn-text">Ocultar Bipagem</span>
             </button>
 
             <!-- Botão Ocultar 2 Primeiros Cards -->
-            <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
+            <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
                 <i class="fas fa-chevron-up text-indigo-400"></i>
-                <span class="hidden sm:inline">Ocultar Cards</span>
+                <span class="hidden sm:inline">Ocultar Topo</span>
+            </button>
+
+            <!-- Botão Tela Cheia -->
+            <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                <i class="fas fa-expand"></i>
             </button>
 
             <!-- Integração OBS Studio -->
-            <button type="button" onclick="openObsSettingsModal()" id="btn-obs-status" class="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm" title="Conexão com o OBS Studio para cortes automáticos">
+            <button type="button" onclick="openObsSettingsModal()" id="btn-obs-status" class="bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm" title="Conexão com o OBS Studio para cortes automáticos">
                 <span id="obs-status-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
                 <span id="obs-status-text">OBS: Desconectado</span>
             </button>
@@ -356,12 +363,20 @@
     <div class="flex gap-2.5 flex-1" style="min-height:0;">
 
         <!-- FEED PRINCIPAL DO CHAT (LEITURA ULTRA FÁCIL & AVATAR EM DESTAQUE) -->
-        <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700" style="min-height: 0;">
+        <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
             <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
             <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
                 <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
                     <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
-                    <span>Mostrar Cards / Filtros</span>
+                    <span>Mostrar Topo / Filtros</span>
+                </button>
+            </div>
+
+            <!-- Botão Flutuante para Reabrir Painel de Bipagem (quando oculto) -->
+            <div id="floating-show-scan-panel-btn" class="absolute top-3 right-52 z-40 hidden transition-all">
+                <button type="button" onclick="toggleScanPanel()" class="bg-emerald-600/95 hover:bg-emerald-500 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-emerald-300 cursor-pointer active:scale-95 transition-all hover:scale-105">
+                    <i class="fas fa-barcode"></i>
+                    <span>Abrir Bipador</span>
                 </button>
             </div>
 
@@ -391,36 +406,36 @@
         </div>
 
         <!-- ============================================================
-             PAINEL DIREITO — BIPAGEM DE ITENS (CÂMERA + VOZ)
+             PAINEL DIREITO — BIPAGEM DE ITENS (VOZ + LEITOR FÍSICO)
              ============================================================ -->
-        <div id="scan-panel" class="w-80 sm:w-96 shrink-0 flex flex-col gap-2.5 h-full pb-0 overflow-hidden" style="min-height:0;">
+        <div id="scan-panel" class="w-72 sm:w-80 md:w-80 lg:w-80 xl:w-88 shrink-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
 
             <!-- Card 1: Código da Live (capturado por voz) -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 p-2.5 shrink-0">
-                <div class="flex items-center justify-between gap-1.5 mb-1.5">
+            <div class="bg-white rounded-2xl shadow border border-gray-200 p-2 shrink-0">
+                <div class="flex items-center justify-between gap-1 mb-1">
                     <div class="flex items-center gap-1.5">
-                        <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[11px]">
+                        <div class="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[10px]">
                             <i class="fas fa-microphone"></i>
                         </div>
-                        <span class="text-xs font-black text-gray-800">Código da Live (Voz)</span>
+                        <span class="text-[11px] font-black text-gray-800">Código da Live (Voz)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span id="mic-status-label" class="text-[10px] font-bold text-gray-400">Inativo</span>
+                        <span id="mic-status-label" class="text-[9.5px] font-bold text-gray-400">Inativo</span>
                         <div id="mic-status-dot" class="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
                     </div>
                 </div>
-                <div class="flex gap-1.5">
-                    <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'O código é ...' ou digite"
+                <div class="flex gap-1">
+                    <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'Código 15' ou digite"
                         onkeydown="if(event.key==='Enter'){event.preventDefault(); applySpokenLiveCode(this.value);}"
-                        class="flex-1 px-2.5 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
+                        class="flex-1 px-2.5 py-1 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
                     <button type="button" onclick="clearLiveCode()" title="Limpar código"
-                        class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
-                        <i class="fas fa-times"></i>
+                        class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
+                        <i class="fas fa-times text-[10px]"></i>
                     </button>
                 </div>
                 <!-- Feedback ao vivo do que o microfone está ouvindo -->
-                <div id="mic-transcript-preview" class="mt-1.5 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-[10px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
-                    <i class="fas fa-wave-square text-[9px] text-indigo-500 animate-pulse shrink-0"></i>
+                <div id="mic-transcript-preview" class="mt-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[9.5px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
+                    <i class="fas fa-wave-square text-[8px] text-indigo-500 animate-pulse shrink-0"></i>
                     <span class="truncate">Ouvindo: <span id="mic-transcript-text" class="text-indigo-900 italic font-bold"></span></span>
                 </div>
             </div>
@@ -429,20 +444,25 @@
             <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
 
                 <!-- Cabeçalho do Leitor com Status de Foco Automático -->
-                <div class="p-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 via-emerald-50/20 to-indigo-50/20 shrink-0">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md text-xs">
+                <div class="p-2.5 pb-1.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 via-emerald-50/20 to-indigo-50/20 shrink-0">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-md text-[11px] shrink-0">
                                 <i class="fas fa-barcode"></i>
                             </div>
-                            <div>
-                                <h3 class="text-xs font-black text-gray-900 leading-tight">Leitor de Código de Barras</h3>
-                                <p class="text-[10px] text-gray-500 font-semibold">Bipe as etiquetas diretamente</p>
+                            <div class="min-w-0">
+                                <h3 class="text-[11px] font-black text-gray-900 leading-tight truncate">Leitor de Código de Barras</h3>
+                                <p class="text-[9px] text-gray-500 font-semibold truncate">Bipe as etiquetas diretamente</p>
                             </div>
                         </div>
-                        <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                            <span id="scanner-focus-text">FOCO ATIVO</span>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                <span id="scanner-focus-text">FOCO ATIVO</span>
+                            </div>
+                            <button type="button" onclick="toggleScanPanel()" title="Recolher painel de bipagem para expandir o chat" class="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-[10px]">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -950,6 +970,39 @@
         topCardsHidden = !topCardsHidden;
         localStorage.setItem('live_chat_top_cards_hidden', topCardsHidden ? 'true' : 'false');
         updateTopCardsUI();
+    }
+
+    let scanPanelHidden = localStorage.getItem('live_chat_scan_panel_hidden') === 'true';
+
+    function updateScanPanelUI() {
+        const scanPanel = document.getElementById('scan-panel');
+        const floatBtn  = document.getElementById('floating-show-scan-panel-btn');
+        const toggleBtn = document.getElementById('btn-toggle-scan-panel');
+        const btnText   = document.getElementById('scan-panel-btn-text');
+
+        if (scanPanelHidden) {
+            if (scanPanel) scanPanel.classList.add('hidden');
+            if (floatBtn)  floatBtn.classList.remove('hidden');
+            if (btnText)   btnText.textContent = 'Mostrar Bipagem';
+            if (toggleBtn) {
+                toggleBtn.classList.add('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
+                toggleBtn.classList.remove('bg-gray-800', 'text-gray-200');
+            }
+        } else {
+            if (scanPanel) scanPanel.classList.remove('hidden');
+            if (floatBtn)  floatBtn.classList.add('hidden');
+            if (btnText)   btnText.textContent = 'Ocultar Bipagem';
+            if (toggleBtn) {
+                toggleBtn.classList.remove('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
+                toggleBtn.classList.add('bg-gray-800', 'text-gray-200');
+            }
+        }
+    }
+
+    function toggleScanPanel() {
+        scanPanelHidden = !scanPanelHidden;
+        localStorage.setItem('live_chat_scan_panel_hidden', scanPanelHidden ? 'true' : 'false');
+        updateScanPanelUI();
     }
 
     // =========================================================================
@@ -3381,6 +3434,7 @@
         applyTheme(currentTheme);
         updateAutoScrollUI();
         updateTopCardsUI();
+        updateScanPanelUI();
         loadInitialLinkedLiveItems();
         updateObsStatusUI();
         updateCutVoiceTriggerUI();
