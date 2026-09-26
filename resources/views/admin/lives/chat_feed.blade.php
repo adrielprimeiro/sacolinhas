@@ -450,13 +450,9 @@
                     <div class="relative">
                         <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
                             placeholder="Aguardando bip do leitor..."
-                            class="w-full pl-9 pr-16 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
                             onkeydown="handleManualScan(event)">
                         <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
-                        <button type="button" onclick="addManualCode()" title="Bipar código digitado"
-                            class="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg text-xs shadow transition active:scale-95 flex items-center justify-center cursor-pointer">
-                            Bipar
-                        </button>
                     </div>
                 </div>
 
@@ -489,9 +485,9 @@
                         <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
                         <span>Itens Bipados: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
                     </span>
-                    <button type="button" onclick="ensureScannerFocus(true)" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
-                        <i class="fas fa-crosshairs"></i> Manter Foco
-                    </button>
+                    <span class="text-[10px] text-gray-400 font-semibold flex items-center gap-1">
+                        <i class="fas fa-keyboard text-[9px] text-gray-400"></i> Enter automático
+                    </span>
                 </div>
 
                 <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA MÁXIMA) -->
@@ -621,14 +617,12 @@
             <!-- Box de Entrada Manual / Leitor USB -->
             <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2.5">
                 <h4 class="text-xs font-extrabold text-white flex items-center gap-2">
-                    <i class="fas fa-keyboard text-indigo-400 text-sm"></i>
-                    <span>Bipador USB / Entrada Manual de Código</span>
+                    <i class="fas fa-barcode text-indigo-400 text-sm"></i>
+                    <span>Leitor de Código de Barras / Digitação (Enter Automático)</span>
                 </h4>
-                <div class="flex gap-2">
-                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Ex: 0001, 73254 ou SKU..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
-                    <button type="button" onclick="handleOnlineQrScan(document.getElementById('online-qr-manual-input').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-lg hover:shadow-indigo-500/25 transition-all duration-150 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
-                        <i class="fas fa-plus"></i> Bipar
-                    </button>
+                <div class="relative">
+                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeydown="if(event.key==='Enter') handleOnlineQrScan(this.value)" placeholder="Aguardando bip ou digite o código e aperte Enter..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <i class="fas fa-barcode absolute left-3 top-3.5 text-indigo-400 text-sm"></i>
                 </div>
             </div>
 
