@@ -26,12 +26,12 @@ import { config as dotenvConfig } from 'dotenv';
 dotenvConfig(); // carrega .env se existir
 
 // ─── CONFIGURAÇÃO ───────────────────────────────────────────────────────────
-const SERVER_URL   = process.env.SERVER_URL   || 'https://vps55549.publiccloud.com.br';
+const SERVER_URL   = process.env.SERVER_URL   || 'https://minhamania.net';
 const SERVER_TOKEN = process.env.SERVER_TOKEN || '';   // Preencha com um token de API
 const OBS_HOST     = process.env.OBS_HOST     || '127.0.0.1';
 const OBS_PORT     = process.env.OBS_PORT     || '4455';
 const OBS_PASSWORD = process.env.OBS_PASSWORD || '';
-const POLL_MS      = parseInt(process.env.POLL_MS || '1500');
+const POLL_MS      = parseInt(process.env.POLL_MS || '1000');
 const AGENT_ID     = process.env.AGENT_ID     || 'agent-' + randomUUID().slice(0, 8);
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ async function executeCommand(cmd) {
 
     if (!obsConnected) {
         console.warn(`[CMD] OBS não conectado. Reportando erro para #${id}`);
-        await serverPost(`/admin/obs-relay/${id}/done`, {
+        await serverPost(`/api/obs-relay/${id}/done`, {
             error: true,
             result: { error: 'OBS não conectado no agente' },
         });
@@ -145,10 +145,10 @@ async function executeCommand(cmd) {
             throw new Error('Comando desconhecido: ' + command_type);
         }
 
-        await serverPost(`/admin/obs-relay/${id}/done`, { error: false, result });
+        await serverPost(`/api/obs-relay/${id}/done`, { error: false, result });
     } catch (e) {
         console.error(`[CMD] ❌ Erro ao executar #${id}:`, e.message);
-        await serverPost(`/admin/obs-relay/${id}/done`, {
+        await serverPost(`/api/obs-relay/${id}/done`, {
             error: true,
             result: { error: e.message },
         });
@@ -159,7 +159,7 @@ async function executeCommand(cmd) {
 
 async function pollLoop() {
     try {
-        const data = await serverGet('/admin/obs-relay/pending');
+        const data = await serverGet('/api/obs-relay/pending');
         if (data.commands && data.commands.length > 0) {
             // Executa os comandos em sequência (não paralelo, para preservar ordem)
             for (const cmd of data.commands) {

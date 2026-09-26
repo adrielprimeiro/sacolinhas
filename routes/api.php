@@ -12,4 +12,9 @@ Route::match(['POST', 'OPTIONS'], '/live-chat/message', [\App\Http\Controllers\A
 Route::match(['POST', 'OPTIONS'], '/live-chat/message-batch', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessageBatch']);
 Route::match(['GET', 'OPTIONS'], '/active-tiktok-lives', [\App\Http\Controllers\Admin\LiveChatController::class, 'getActiveTiktokLives']);
 
+// OBS Relay para o agente local Node.js
+Route::match(['GET', 'OPTIONS'], '/obs-relay/pending', [\App\Http\Controllers\Admin\ObsRelayController::class, 'pollPending']);
+Route::match(['POST', 'OPTIONS'], '/obs-relay/{id}/done', [\App\Http\Controllers\Admin\ObsRelayController::class, 'markDone']);
+Route::match(['GET', 'OPTIONS'], '/obs-relay/health', [\App\Http\Controllers\Admin\ObsRelayController::class, 'health']);
+
 
