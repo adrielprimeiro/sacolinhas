@@ -1188,22 +1188,8 @@
 
         if (!clean) return null;
 
-        // Se a fala inteira for puramente um número em dígitos (ex: "15", "120", "P15", "A1")
-        const directNumMatch = clean.match(/^[a-z]?\d{1,5}$/i);
-        if (directNumMatch) {
-            return directNumMatch[0].toUpperCase();
-        }
-
-        // Se a fala inteira for um número por extenso (ex: "quinze", "vinte e cinco")
-        const directTokens = clean.split(' ').filter(Boolean);
-        const directWordNum = parsePortugueseWordsFromTokens(directTokens);
-        if (directWordNum !== null && directTokens.length <= 4) {
-            const isPureNum = directTokens.every(t => t === 'e' || ptSpeechUnits[t] !== undefined || ptSpeechTens[t] !== undefined || ptSpeechHundreds[t] !== undefined);
-            if (isPureNum) return String(directWordNum);
-        }
-
-        // Procura pelo gatilho: "codigo", "cod", "peca", "item", "numero", "num"
-        const triggerMatch = clean.match(/\b(?:codigo|cod|peca|item|numero|num)\b/i);
+        // OBRIGATÓRIO: Códigos são APENAS o que vem após a palavra "código" ou "cod"
+        const triggerMatch = clean.match(/\b(?:codigo|cod)\b/i);
         if (!triggerMatch) return null;
 
         const triggerIndex = clean.indexOf(triggerMatch[0]);
@@ -1214,7 +1200,7 @@
         if (rawTokens.length === 0) return null;
 
         // Remove palavras conectoras iniciais (ex: "é", "eh", "o", "a", "de", "da", "do", etc.)
-        const leadStopWords = ['e', 'eh', 'o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'foi'];
+        const leadStopWords = ['e', 'eh', 'o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'foi', 'para', 'pra'];
         let startIndex = 0;
         while (startIndex < rawTokens.length && leadStopWords.includes(rawTokens[startIndex])) {
             startIndex++;
@@ -1222,7 +1208,13 @@
         const tokens = rawTokens.slice(startIndex);
         if (tokens.length === 0) return null;
 
-        // Se após o gatilho for um número por extenso (ex: "código vinte e cinco")
+        // Se após "código" houver um número em dígitos direto (ex: "código 15", "código 203", "código P12")
+        const firstToken = tokens[0];
+        if (/^[a-z]?\d{1,6}$/i.test(firstToken)) {
+            return firstToken.toUpperCase();
+        }
+
+        // Se após o gatilho "código" for um número por extenso (ex: "código vinte e cinco", "código dez")
         const isPureNumPhrase = tokens.every(t => t === 'e' || ptSpeechUnits[t] !== undefined || ptSpeechTens[t] !== undefined || ptSpeechHundreds[t] !== undefined || t === 'mil' || /^\d+$/.test(t));
         if (isPureNumPhrase) {
             const wordsNum = parsePortugueseWordsFromTokens(tokens);
@@ -1231,7 +1223,13 @@
             }
         }
 
-        // Pega até 3 palavras significativas para o código (ex: "VESTIDO AZUL CURTO", "CALCA JEANS 38")
+        // Caso contenha número por extenso ou alfanumérico após "código" (ex: "código B doze" => B12)
+        const wordsNum = parsePortugueseWordsFromTokens(tokens);
+        if (wordsNum !== null) {
+            return String(wordsNum);
+        }
+
+        // Pega até 3 palavras significativas após a palavra "código"
         const trailingStopWords = ['viu', 'gente', 'meninas', 'meninos', 'pessoal', 'por', 'favor', 'ta', 'ok', 'agora', 'vamos', 'para', 'proximo', 'proxima'];
         const codeWords = [];
         for (let i = 0; i < tokens.length && codeWords.length < 3; i++) {
