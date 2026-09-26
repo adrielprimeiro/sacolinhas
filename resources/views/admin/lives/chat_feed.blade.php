@@ -4483,28 +4483,68 @@
     }
 
     // =========================================================================
-    // NOTIFICAÇÃO TOAST
+    // NOTIFICAÇÃO TOAST (ALTO CONTRASTE E LEGIBILIDADE MÁXIMA)
     // =========================================================================
     function showToast(message, type = 'success') {
         const toast = document.createElement("div");
-        const isWarning = type === 'warning' || type === 'error';
-        const bgClass = isWarning ? "bg-gradient-to-r from-red-600 to-amber-600 text-white border-amber-300" : "bg-emerald-600 text-white border-emerald-400";
-        const iconClass = isWarning ? "fa-exclamation-triangle text-amber-200" : "fa-check-circle text-emerald-200";
-        toast.className = `fixed bottom-5 right-5 ${bgClass} px-5 py-3 rounded-2xl shadow-2xl z-50 transition-all duration-300 translate-y-5 opacity-0 text-sm font-extrabold flex items-center gap-2.5 border`;
-        toast.style.zIndex = "999999";
-        toast.innerHTML = `<i class="fas ${iconClass} text-base shrink-0"></i> <span>${escapeHtml(message)}</span>`;
+        
+        let bgColor = '#065f46'; // emerald 800
+        let borderColor = '#34d399'; // emerald 400
+        let textColor = '#ffffff';
+        let iconHtml = '<i class="fas fa-check-circle" style="color:#6ee7b7; font-size:16px; flex-shrink:0;"></i>';
+
+        if (type === 'warning') {
+            bgColor = '#78350f'; // amber 900
+            borderColor = '#fbbf24'; // amber 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-exclamation-triangle" style="color:#fde047; font-size:16px; flex-shrink:0;"></i>';
+        } else if (type === 'error') {
+            bgColor = '#7f1d1d'; // red 900
+            borderColor = '#f87171'; // red 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-times-circle" style="color:#fca5a5; font-size:16px; flex-shrink:0;"></i>';
+        } else if (type === 'info') {
+            bgColor = '#1e1b4b'; // indigo 950
+            borderColor = '#818cf8'; // indigo 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-info-circle" style="color:#a5b4fc; font-size:16px; flex-shrink:0;"></i>';
+        }
+
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.backgroundColor = bgColor;
+        toast.style.color = textColor;
+        toast.style.border = `2px solid ${borderColor}`;
+        toast.style.borderRadius = '16px';
+        toast.style.padding = '12px 20px';
+        toast.style.fontSize = '13px';
+        toast.style.fontWeight = '800';
+        toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)';
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'center';
+        toast.style.gap = '10px';
+        toast.style.zIndex = '9999999';
+        toast.style.maxWidth = '460px';
+        toast.style.lineHeight = '1.4';
+        toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.opacity = '0';
+
+        toast.innerHTML = `${iconHtml} <span style="color:#ffffff !important; font-weight:800 !important; text-shadow:0 1px 2px rgba(0,0,0,0.4);">${escapeHtml(message)}</span>`;
         document.body.appendChild(toast);
         
-        setTimeout(() => {
-            toast.style.transform = "translateY(0)";
-            toast.style.opacity = "1";
-        }, 100);
+        requestAnimationFrame(() => {
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+        });
 
+        const duration = (type === 'warning' || type === 'error') ? 6000 : 3500;
         setTimeout(() => {
-            toast.style.transform = "translateY(5px)";
-            toast.style.opacity = "0";
+            toast.style.transform = 'translateY(10px)';
+            toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
-        }, isWarning ? 6000 : 3500);
+        }, duration);
     }
 
     // =========================================================================
