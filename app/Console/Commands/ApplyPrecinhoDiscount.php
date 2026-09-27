@@ -89,7 +89,7 @@ class ApplyPrecinhoDiscount extends Command
         $updatedCount = 0;
         $skippedCount = 0;
 
-        DB::transaction(function () use ($sacolinhas, &$updatedCount, &$skippedCount) {
+        DB::transaction(function () use ($sacolinhas, &$updatedCount, &$skippedCount, $liveId) {
             foreach ($sacolinhas as $s) {
                 $sacolinhaPrice = (float) $s->sacolinha_price;
                 $originalPrice = (float) $s->item_original_price;
