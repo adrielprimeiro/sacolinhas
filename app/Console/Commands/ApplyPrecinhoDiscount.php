@@ -114,12 +114,21 @@ class ApplyPrecinhoDiscount extends Command
                     $this->line("<info>[ATUALIZADO]</info> Cliente: {$s->user_name} | Item: {$s->nome_do_produto} | R$ " . number_format($originalPrice, 2, ',', '.') . " -> R$ " . number_format($newPrice, 2, ',', '.'));
                 }
             }
+
+            // Atualiza o tipo da live para 'precinho' caso ainda não esteja
+            DB::table('lives')
+                ->where('id', $liveId)
+                ->update([
+                    'tipo_live' => 'precinho',
+                    'updated_at' => now()
+                ]);
         });
 
         $this->newLine();
         $this->info("=== PROCESSO CONCLUÍDO ===");
         $this->info("Itens atualizados (desconto de 50% aplicado): {$updatedCount}");
         $this->info("Itens pulados (já editados anteriormente): {$skippedCount}");
+        $this->info("Tipo da Live definido como 'precinho'.");
         $this->info("Os limites dos clientes foram atualizados automaticamente via triggers do banco de dados.");
 
         return Command::SUCCESS;
