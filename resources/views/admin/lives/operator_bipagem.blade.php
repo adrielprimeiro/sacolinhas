@@ -408,12 +408,15 @@
     // =========================================================================
     // POLLING DE DADOS (PESSOAS ONLINE & COMENTÁRIOS)
     // =========================================================================
+    let isFetchingBipagemData = false;
     function fetchChatAndOnlineData() {
-        if (!liveId) return;
+        if (!liveId || isFetchingBipagemData) return;
+        isFetchingBipagemData = true;
 
         fetch(`/admin/lives/${liveId}/chat-data`)
             .then(res => res.json())
             .then(data => {
+                isFetchingBipagemData = false;
                 if (data.success) {
                     allLiveMessages = data.messages || [];
                     rawOnlineUsers = data.online_users || [];
@@ -445,7 +448,10 @@
                     }
                 }
             })
-            .catch(err => console.error("Erro no polling da live:", err));
+            .catch(err => {
+                isFetchingBipagemData = false;
+                console.error("Erro no polling da live:", err);
+            });
     }
 
     // =========================================================================

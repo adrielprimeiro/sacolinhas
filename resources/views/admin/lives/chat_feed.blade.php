@@ -3556,12 +3556,15 @@
     // =========================================================================
     // POLLING EM TEMPO REAL
     // =========================================================================
+    let isFetchingChatFeed = false;
     function fetchChatFeed() {
-        if (!liveId) return;
+        if (!liveId || isFetchingChatFeed) return;
+        isFetchingChatFeed = true;
 
         fetch(`/admin/lives/${liveId}/chat-data`)
             .then(res => res.json())
             .then(data => {
+                isFetchingChatFeed = false;
                 if (data.success) {
                     allLiveMessages = data.messages || [];
                     rawOnlineUsers = data.online_users || [];
@@ -3583,6 +3586,7 @@
                 }
             })
             .catch(err => {
+                isFetchingChatFeed = false;
                 console.error("Erro no polling do chat:", err);
                 const statusEl = document.getElementById("chat-stream-status");
                 if (statusEl) {

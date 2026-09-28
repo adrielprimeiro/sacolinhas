@@ -7,7 +7,7 @@ use App\Jobs\PollGeminiBatchStatusJob;
 use Illuminate\Support\Facades\Schedule;
 
 // Verifica os jobs a cada 5 minutos
-Schedule::command('gemini:check-batches')->everyFiveMinutes();
+// Schedule::command('gemini:check-batches')->everyFiveMinutes();
 
 //Schedule::job(new PollGeminiBatchStatusJob())->everyMinute();
 

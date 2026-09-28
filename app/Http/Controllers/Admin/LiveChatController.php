@@ -949,13 +949,22 @@ class LiveChatController extends Controller
         $allUsernames = $onlineRaw->pluck('username')->merge($rawMessages->pluck('username'))->unique()->filter()->values()->toArray();
 
         $matchedUsersCollection = !empty($allUsernames) ? Cache::remember('matched_users_' . md5(implode(',', $allUsernames)), 20, function() use ($allUsernames) {
-            return User::whereIn('tiktok', $allUsernames)
-              ->orWhereIn('instagram', $allUsernames)
-              ->orWhereIn('apelido', $allUsernames)
-              ->orWhereIn('nome_cliente', $allUsernames)
-              ->orWhereIn('name', $allUsernames)
+            return User::select('id', 'name', 'photo', 'tiktok', 'instagram', 'apelido', 'nome_cliente', 'whatsapp', 'phone')
+              ->where(function($q) use ($allUsernames) {
+                  $q->whereIn('tiktok', $allUsernames)
+                    ->orWhereIn('instagram', $allUsernames)
+                    ->orWhereIn('apelido', $allUsernames)
+                    ->orWhereIn('nome_cliente', $allUsernames)
+                    ->orWhereIn('name', $allUsernames);
+              })
               ->get();
         }) : collect([]);
+
+        // Mapear avatares recentes já carregados nas mensagens para evitar consultas N+1
+        $avatarsFromMessages = $rawMessages->whereNotNull('avatar_url')
+            ->where('avatar_url', '!=', '')
+            ->pluck('avatar_url', 'username')
+            ->mapWithKeys(fn($url, $un) => [strtolower(trim($un)) => $url]);
 
         // Construir mapa de avatares com resolução inteligente e suporte a storage local permanente
         $avatarMap = [];
@@ -985,9 +994,6 @@ class LiveChatController extends Controller
             $filename = "avatars/{$uLower}.jpg";
             if (Storage::disk('public')->exists($filename)) {
                 $avatarMap[$uLower] = asset('storage/' . $filename);
-                if ($uMatched && empty($uMatched->photo)) {
-                    $uMatched->update(['photo' => $filename]);
-                }
                 continue;
             }
 
@@ -1005,15 +1011,9 @@ class LiveChatController extends Controller
                 continue;
             }
 
-            // 5. Última URL salva em live_messages
-            $lastMsgAvatar = LiveMessage::where('username', $uClean)
-                ->whereNotNull('avatar_url')
-                ->where('avatar_url', '!=', '')
-                ->orderByDesc('id')
-                ->value('avatar_url');
-
-            if ($lastMsgAvatar) {
-                $avatarMap[$uLower] = $lastMsgAvatar;
+            // 5. Última URL salva em live_messages (resolvida da coleção em memória)
+            if (isset($avatarsFromMessages[$uLower])) {
+                $avatarMap[$uLower] = $avatarsFromMessages[$uLower];
             }
         }
 

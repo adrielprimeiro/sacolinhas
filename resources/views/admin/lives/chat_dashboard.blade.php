@@ -710,12 +710,15 @@
     setTimeout(updateChatAutoScrollUI, 50);
 
     // Buscar dados do chat da live via AJAX
+    let isFetchingChatData = false;
     function fetchChatData() {
-        if (!liveId) return;
+        if (!liveId || isFetchingChatData) return;
+        isFetchingChatData = true;
         
         fetch(`/admin/lives/${liveId}/chat-data`)
             .then(res => res.json())
             .then(data => {
+                isFetchingChatData = false;
                 if (data.success) {
                     if (typeof updatePauseState === 'function') updatePauseState(data.is_paused);
                     updateInstagramState(data.insta_active);
@@ -746,7 +749,10 @@
                     }
                 }
             })
-            .catch(err => console.error("Erro no polling da live:", err));
+            .catch(err => {
+                isFetchingChatData = false;
+                console.error("Erro no polling da live:", err);
+            });
     }
 
     // Filtros de Chat
