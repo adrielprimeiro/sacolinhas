@@ -1752,21 +1752,37 @@
     function renderScanItemBuyerHtml(item) {
         const queue = findAllSpeakersForCode(item.liveCode, item.code);
 
-        // CASO 1: A peça JÁ FOI VINCULADA a uma cliente
+        // CASO 1: A peça JÁ FOI VINCULADA a uma cliente (ou @username da transmissão)
         if (item.buyerUsername) {
-            const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase());
+            const cleanUser = String(item.buyerUsername).replace(/^@/, '');
+            const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase() && q.username.toLowerCase() !== cleanUser.toLowerCase());
+            const isRegistered = !!item.buyerUserId;
+
             return `
                 <div class="flex flex-col gap-1 items-start">
-                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs justify-start text-left">
-                        <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
-                            <i class="fas fa-check"></i>
-                        </span>
-                        <span class="font-black text-emerald-950 truncate max-w-[120px]">@${escapeHtml(item.buyerUsername)}</span>
-                        ${item.buyerName ? `<span class="text-[10.5px] font-semibold text-emerald-800 truncate max-w-[80px]">(${escapeHtml(item.buyerName)})</span>` : ''}
-                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+                    ${isRegistered ? `
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Cliente cadastrada com sacolinha aberta">
+                            <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <span class="font-black text-emerald-950 truncate max-w-[120px]">@${escapeHtml(cleanUser)}</span>
+                            ${item.buyerName ? `<span class="text-[10.5px] font-semibold text-emerald-800 truncate max-w-[80px]">(${escapeHtml(item.buyerName)})</span>` : ''}
+                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Usuário não cadastrado. Aguardando WhatsApp no chat para cadastrar cliente e abrir sacolinha">
+                            <span class="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[9px] shrink-0 animate-pulse">
+                                <i class="fas fa-clock"></i>
+                            </span>
+                            <span class="font-black text-amber-950 truncate max-w-[110px]">@${escapeHtml(cleanUser)}</span>
+                            <span class="text-[9.5px] font-extrabold bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">Esperando telefone</span>
+                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `}
                     ${otherSpeakers.length > 0 ? `
                         <div class="flex flex-col gap-1 items-start w-full">
                             ${otherSpeakers.map(q => `
@@ -2057,10 +2073,19 @@
                     })
                 });
                 const resData = await resp.json();
-                if (resData && resData.data && resData.data.item_id) {
-                    item.itemId = resData.data.item_id;
-                    const el = document.querySelector(`[data-scan-id="${scanId}"]`);
-                    if (el) el.dataset.itemId = resData.data.item_id;
+                if (resData && resData.data) {
+                    if (resData.data.item_id) {
+                        item.itemId = resData.data.item_id;
+                        const el = document.querySelector(`[data-scan-id="${scanId}"]`);
+                        if (el) el.dataset.itemId = resData.data.item_id;
+                    }
+                    if (resData.data.user_id !== undefined) {
+                        item.buyerUserId = resData.data.user_id;
+                    }
+                    if (resData.data.buyer_name) {
+                        item.buyerName = resData.data.buyer_name;
+                    }
+                    updateScanItemBuyerUI(scanId);
                 }
             } catch(e) {
                 console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
@@ -2768,6 +2793,22 @@
                         if (u.user_id) onlineUsersMap[u.user_id] = u;
                         if (u.username) onlineUsersMap[u.username.toLowerCase()] = u;
                     });
+
+                    // Sincronizar itens da live em tempo real (ex: quando auto-cadastrar por telefone detectado)
+                    if (data.live_items && Array.isArray(data.live_items)) {
+                        data.live_items.forEach(serverItem => {
+                            const localItem = bgScanItems.find(i => 
+                                (i.itemId && serverItem.item_id && i.itemId === serverItem.item_id) ||
+                                (i.code && serverItem.code && i.code.trim().toUpperCase() === serverItem.code.trim().toUpperCase())
+                            );
+                            if (localItem) {
+                                if (serverItem.item_id && !localItem.itemId) localItem.itemId = serverItem.item_id;
+                                localItem.buyerUserId = serverItem.buyer_user_id || null;
+                                if (serverItem.buyer_username) localItem.buyerUsername = serverItem.buyer_username;
+                                if (serverItem.buyer_name) localItem.buyerName = serverItem.buyer_name;
+                            }
+                        });
+                    }
 
                     updateFilterCounts(data.stats);
                     renderChatFeed();

@@ -345,6 +345,16 @@ class LiveChatController extends Controller
                 if (!$buyerName) {
                     $buyerName = $matchedUser->name;
                 }
+            } else {
+                // Tenta encontrar telefone nas mensagens da live deste usuário para auto-cadastrar
+                $phone = $this->findPhoneInUserLiveMessages($liveId, $cleanUser);
+                if ($phone) {
+                    $newUser = $this->autoRegisterClientFromLive($cleanUser, $phone, 'instagram', $liveId);
+                    if ($newUser) {
+                        $userId = $newUser->id;
+                        $buyerName = $newUser->name;
+                    }
+                }
             }
         }
 
@@ -371,7 +381,7 @@ class LiveChatController extends Controller
             $updateData
         );
 
-        // 2. Colocar o item na Sacolinha da cliente
+        // 2. Colocar o item na Sacolinha da cliente (se tiver cadastro com telefone)
         if ($userId) {
             $live = Live::find($liveId);
             $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
@@ -417,6 +427,10 @@ class LiveChatController extends Controller
             );
 
             $item->update(['status' => 'sacolinha', 'localizacao' => 'Sacolinha']);
+        } else {
+            // Sem cadastro com telefone: remove resquício de sacolinha e mantém item na live
+            DB::table('sacolinhas')->where('item_id', $itemId)->delete();
+            $item->update(['status' => 'live', 'localizacao' => 'Live']);
         }
 
         // 3. Se houver messageId e a tabela live_messages tiver os campos, atualiza a mensagem
@@ -433,16 +447,21 @@ class LiveChatController extends Controller
             }
         }
 
+        $message = $userId 
+            ? 'Item vinculado e inserido na sacolinha com sucesso!' 
+            : 'Comprador @' . ltrim($username, '@') . ' anexado à peça. Aguardando telefone no chat para cadastrar cliente e abrir sacolinha.';
+
         return response()->json([
             'success' => true,
-            'message' => 'Item vinculado e inserido na sacolinha com sucesso!',
+            'message' => $message,
             'data' => [
                 'item_id' => $itemId,
                 'live_id' => $liveId,
                 'user_id' => $userId,
                 'buyer_username' => $username,
                 'buyer_name' => $buyerName,
-                'message_id' => $messageId
+                'message_id' => $messageId,
+                'waiting_phone' => empty($userId)
             ]
         ]);
     }
@@ -1003,6 +1022,9 @@ class LiveChatController extends Controller
      */
     public function getChatData(Request $request, $liveId)
     {
+        // 0. Auto-cadastrar compradores pendentes que informaram o telefone no chat
+        $this->checkAndAutoRegisterPendingLiveItems($liveId);
+
         $limitParam = $request->query('limit', '200');
         $limit = ($limitParam === 'all' || (int)$limitParam >= 5000) ? 5000 : 200;
 
@@ -1290,7 +1312,25 @@ class LiveChatController extends Controller
 
         $tiktokActive = Cache::get('tiktok_capture_active', true) && !Cache::get('tiktok_capture_stopped', false);
 
-
+        // 6. Lista atualizada de live_items para manter a UI de bipagem sincronizada
+        $liveItems = [];
+        if (Schema::hasTable('live_items')) {
+            $hasBuyerCols = Schema::hasColumn('live_items', 'buyer_username');
+            if ($hasBuyerCols) {
+                $liveItems = DB::table('live_items')
+                    ->join('items', 'live_items.item_id', '=', 'items.id')
+                    ->where('live_items.live_id', $liveId)
+                    ->select([
+                        'live_items.id as live_item_id',
+                        'live_items.item_id',
+                        'items.codigo as code',
+                        'live_items.user_id as buyer_user_id',
+                        'live_items.buyer_username',
+                        'live_items.buyer_name'
+                    ])
+                    ->get();
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -1301,6 +1341,7 @@ class LiveChatController extends Controller
             'marked_messages' => $markedMessages,
             'online_users' => $onlineUsers,
             'code_requests' => $groupedRequests,
+            'live_items' => $liveItems,
             'stats' => [
                 'total_messages' => $totalMessages,
                 'total_instagram' => $totalInsta,
@@ -1411,6 +1452,275 @@ class LiveChatController extends Controller
                 ->orWhere('name', $uLower)
                 ->first();
         });
+    }
+
+    /**
+     * Extrai um número de telefone brasileiro válido de um texto (com DDD)
+     */
+    public static function extractPhoneNumberFromText($text)
+    {
+        if (empty($text)) return null;
+
+        $cleanText = (string) $text;
+
+        // 1. Procura formatos comuns com DDD e telefone: (11) 98888-7777, 11 98888 7777, 11 9 8888-7777, etc.
+        if (preg_match('/(?:(?:\+|00)?55\s*)?(?:\(?([1-9][0-9])\)?[\s\-\.]*)?(?:(9[\s\-\.]*\d{4})[\s\-\.]*(\d{4})|([2-9]\d{3})[\s\-\.]*(\d{4}))/i', $cleanText, $m)) {
+            $ddd = !empty($m[1]) ? $m[1] : null;
+            $numPart = '';
+            if (!empty($m[2]) && !empty($m[3])) {
+                $numPart = preg_replace('/\D/', '', $m[2] . $m[3]);
+            } elseif (!empty($m[4]) && !empty($m[5])) {
+                $numPart = preg_replace('/\D/', '', $m[4] . $m[5]);
+            }
+
+            if ($ddd && strlen($numPart) >= 8) {
+                $full = $ddd . $numPart;
+                if (strlen($full) === 10 || strlen($full) === 11) {
+                    $dddVal = (int)substr($full, 0, 2);
+                    if ($dddVal >= 11 && $dddVal <= 99) {
+                        return $full;
+                    }
+                }
+            }
+        }
+
+        // 2. Extrai sequência contínua de dígitos no texto
+        if (preg_match_all('/\d+/', $cleanText, $matches)) {
+            $joined = implode('', $matches[0]);
+            if (strlen($joined) >= 12 && substr($joined, 0, 2) === '55') {
+                $joined = substr($joined, 2);
+            }
+            if (strlen($joined) === 10 || strlen($joined) === 11) {
+                $dddVal = (int)substr($joined, 0, 2);
+                if ($dddVal >= 11 && $dddVal <= 99) {
+                    return $joined;
+                }
+            }
+
+            // Testar blocos individuais
+            foreach ($matches[0] as $chunk) {
+                $chunkClean = $chunk;
+                if (strlen($chunkClean) >= 12 && substr($chunkClean, 0, 2) === '55') {
+                    $chunkClean = substr($chunkClean, 2);
+                }
+                if (strlen($chunkClean) === 10 || strlen($chunkClean) === 11) {
+                    $dddVal = (int)substr($chunkClean, 0, 2);
+                    if ($dddVal >= 11 && $dddVal <= 99) {
+                        return $chunkClean;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Busca número de WhatsApp nas mensagens recentes do usuário na live
+     */
+    public function findPhoneInUserLiveMessages($liveId, $username)
+    {
+        $cleanUser = trim(ltrim($username, '@'));
+        if (empty($cleanUser)) return null;
+
+        $messages = LiveMessage::where('live_id', $liveId)
+            ->where(function($q) use ($cleanUser, $username) {
+                $q->where('username', $username)
+                  ->orWhere('username', '@' . $cleanUser)
+                  ->orWhere('username', $cleanUser);
+            })
+            ->orderBy('id', 'desc')
+            ->limit(100)
+            ->pluck('message');
+
+        foreach ($messages as $msg) {
+            $phone = self::extractPhoneNumberFromText($msg);
+            if ($phone) return $phone;
+        }
+
+        return null;
+    }
+
+    /**
+     * Auto-cadastra um cliente com os dados da live e telefone detectado
+     */
+    public function autoRegisterClientFromLive($username, $phone, $platform = 'instagram', $liveId = null)
+    {
+        $cleanUser = trim(ltrim($username, '@'));
+        $cleanPhone = preg_replace('/\D/', '', $phone);
+        if (empty($cleanUser) || empty($cleanPhone)) return null;
+
+        // Verificar se já existe por telefone ou username
+        $existing = User::where('whatsapp', $cleanPhone)
+            ->orWhere('phone', $cleanPhone)
+            ->orWhere('instagram', $cleanUser)
+            ->orWhere('tiktok', $cleanUser)
+            ->orWhere('apelido', $cleanUser)
+            ->first();
+
+        if ($existing) {
+            $update = [];
+            if (empty($existing->whatsapp)) $update['whatsapp'] = $cleanPhone;
+            if (empty($existing->phone)) $update['phone'] = $cleanPhone;
+            if ($platform === 'tiktok' && empty($existing->tiktok)) $update['tiktok'] = $cleanUser;
+            if ($platform !== 'tiktok' && empty($existing->instagram)) $update['instagram'] = $cleanUser;
+            if (!empty($update)) {
+                $existing->update($update);
+            }
+            Cache::forget("find_user_{$platform}_" . strtolower($cleanUser));
+            return $existing;
+        }
+
+        $email = "{$cleanUser}_{$cleanPhone}@live.sacolinhas.local";
+        if (User::where('email', $email)->exists()) {
+            $email = "{$cleanUser}_{$cleanPhone}_" . uniqid() . "@live.sacolinhas.local";
+        }
+
+        $live = $liveId ? Live::find($liveId) : null;
+        $brechoId = $live ? ($live->brecho_id ?: 1) : 1;
+
+        $userData = [
+            'brecho_id' => $brechoId,
+            'name' => '@' . $cleanUser,
+            'apelido' => $cleanUser,
+            'nome_cliente' => $cleanUser,
+            'email' => $email,
+            'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
+            'role' => 'client',
+            'whatsapp' => $cleanPhone,
+            'phone' => $cleanPhone,
+        ];
+        if ($platform === 'tiktok') {
+            $userData['tiktok'] = $cleanUser;
+        } else {
+            $userData['instagram'] = $cleanUser;
+        }
+
+        $user = User::create($userData);
+
+        // Associar foto salva se existir
+        $uLower = strtolower($cleanUser);
+        $filename = "avatars/{$uLower}.jpg";
+        if (Storage::disk('public')->exists($filename)) {
+            $user->update(['photo' => $filename]);
+        }
+
+        Cache::forget("find_user_{$platform}_" . strtolower($cleanUser));
+        return $user;
+    }
+
+    /**
+     * Sincroniza todos os itens pendentes deste usuário para sua sacolinha
+     */
+    public function syncPendingItemsForUser($liveId, $user, $cleanUser)
+    {
+        $live = Live::find($liveId);
+        $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
+
+        $items = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $liveId)
+            ->whereNull('live_items.user_id')
+            ->where(function($q) use ($cleanUser) {
+                $q->whereRaw('LOWER(TRIM(LEADING "@" FROM live_items.buyer_username)) = ?', [strtolower($cleanUser)]);
+            })
+            ->select('live_items.id as live_item_id', 'live_items.item_id', 'items.preco')
+            ->get();
+
+        foreach ($items as $it) {
+            DB::table('live_items')
+                ->where('id', $it->live_item_id)
+                ->update([
+                    'user_id' => $user->id,
+                    'buyer_name' => $user->name,
+                    'updated_at' => now()
+                ]);
+
+            $price = $it->preco;
+            if ($live && $live->tipo_live === 'precinho') {
+                $price = $price * 0.5;
+            }
+
+            $existingSacolinha = Sacolinhas::where('item_id', $it->item_id)
+                ->where('live_id', $liveId)
+                ->first();
+
+            if ($existingSacolinha) {
+                $existingSacolinha->update([
+                    'user_id' => $user->id,
+                    'brecho_id' => $liveBrechoId,
+                    'price' => $price,
+                    'add_at' => now(),
+                    'status' => 'live'
+                ]);
+            } else {
+                Sacolinhas::create([
+                    'user_id' => $user->id,
+                    'item_id' => $it->item_id,
+                    'live_id' => $liveId,
+                    'brecho_id' => $liveBrechoId,
+                    'price' => $price,
+                    'add_at' => now(),
+                    'quantity' => 1,
+                    'status' => 'live'
+                ]);
+            }
+
+            Item::where('id', $it->item_id)->update(['status' => 'sacolinha', 'localizacao' => 'Sacolinha']);
+        }
+
+        if ($items->isNotEmpty()) {
+            DB::table('brecho_clientes')->updateOrInsert(
+                [
+                    'brecho_id' => $liveBrechoId,
+                    'user_id' => $user->id
+                ],
+                [
+                    'origem' => 'live',
+                    'updated_at' => now(),
+                ]
+            );
+        }
+    }
+
+    /**
+     * Verifica se há itens pendentes aguardando telefone e auto-cadastra se telefone for encontrado
+     */
+    public function checkAndAutoRegisterPendingLiveItems($liveId)
+    {
+        if (!$liveId || !Schema::hasTable('live_items')) return;
+
+        $pendingItems = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->whereNull('user_id')
+            ->whereNotNull('buyer_username')
+            ->where('buyer_username', '!=', '')
+            ->get();
+
+        if ($pendingItems->isEmpty()) return;
+
+        $usernames = $pendingItems->pluck('buyer_username')->unique()->filter();
+
+        foreach ($usernames as $rawUsername) {
+            $cleanUser = trim(ltrim($rawUsername, '@'));
+            if (empty($cleanUser)) continue;
+
+            // 1. Tenta achar usuário existente
+            $user = $this->findUserByUsername($cleanUser);
+
+            // 2. Se não encontrou, tenta achar telefone nas mensagens
+            if (!$user) {
+                $phone = $this->findPhoneInUserLiveMessages($liveId, $cleanUser);
+                if ($phone) {
+                    $user = $this->autoRegisterClientFromLive($cleanUser, $phone, 'instagram', $liveId);
+                }
+            }
+
+            // 3. Se agora temos o user, sincroniza todos os itens pendentes dele
+            if ($user) {
+                $this->syncPendingItemsForUser($liveId, $user, $cleanUser);
+            }
+        }
     }
 
     /**
