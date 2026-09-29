@@ -1300,8 +1300,8 @@
                 : '';
 
             return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center flex-wrap gap-1">
-                <i class="fas fa-tag text-[9px]"></i> Live: <span>${escapeHtml(item.liveCode)}</span>
-                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-1 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
+                <i class="fas fa-tag text-[9px]"></i> <span>${escapeHtml(item.liveCode)}</span>
+                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-0.5 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
                 ${dupBadge}
             </p>`;
         } else {
@@ -1717,8 +1717,8 @@
         if (item.buyerUsername) {
             const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase());
             return `
-                <div class="flex flex-col gap-1 items-end">
-                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs">
+                <div class="flex flex-col gap-1 items-start">
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs justify-start text-left">
                         <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
                             <i class="fas fa-check"></i>
                         </span>
@@ -1729,10 +1729,10 @@
                         </button>
                     </div>
                     ${otherSpeakers.length > 0 ? `
-                        <div class="flex flex-col gap-1 items-end w-full">
+                        <div class="flex flex-col gap-1 items-start w-full">
                             ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs w-full justify-between">
-                                    <span class="text-indigo-600 font-bold">${q.position}º</span>
+                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs w-full justify-start text-left">
+                                    <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
                                     <span class="truncate max-w-[120px]">@${escapeHtml(q.username)}</span>
                                 </button>
                             `).join('')}
@@ -1745,17 +1745,17 @@
         // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
         if (queue.length > 0) {
             return `
-                <div class="flex flex-col gap-1 items-end">
-                    <div class="flex flex-col gap-1 items-end">
+                <div class="flex flex-col gap-1 items-start">
+                    <div class="flex flex-col gap-1 items-start w-full">
                         ${queue.map(q => `
-                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-between">
-                                <span class="text-indigo-600 font-extrabold">${q.position}º</span>
+                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                                <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
                                 <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
                             </button>
                         `).join('')}
                     </div>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer text-[10px] self-end">
-                        <i class="fas fa-link text-xs"></i>
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer text-[10px] self-start flex items-center gap-1">
+                        <i class="fas fa-link text-xs"></i> <span>Avulso</span>
                     </button>
                 </div>
             `;
@@ -1764,7 +1764,7 @@
         // CASO 3: A peça NÃO tem pedidos no chat ainda
         if (item.liveCode) {
             return `
-                <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-end">
+                <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-start">
                     <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
                     <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
                     <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
@@ -1775,9 +1775,9 @@
         }
 
         return `
-            <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-end">
+            <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-start">
                 <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
-                <span class="truncate text-[11px]">Defina o código da live</span>
+                <span class="truncate text-[11px]">Defina o código</span>
                 <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
                     <i class="fas fa-link text-xs"></i>
                 </button>
