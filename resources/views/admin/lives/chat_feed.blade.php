@@ -1717,29 +1717,21 @@
         if (item.buyerUsername) {
             const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase());
             return `
-                <div class="mt-1.5 p-2 bg-emerald-50 border border-emerald-300 rounded-xl shadow-xs">
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-                                <i class="fas fa-check text-[10px]"></i>
-                            </span>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-xs font-black text-emerald-950">@${escapeHtml(item.buyerUsername)}</span>
-                                    ${item.buyerName ? `<span class="text-[11px] font-semibold text-emerald-800">(${escapeHtml(item.buyerName)})</span>` : ''}
-                                    <span class="text-[9px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider">Vinculado</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="px-2.5 py-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">
-                            <i class="fas fa-times text-[9px]"></i> Desvincular
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs">
+                        <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
+                            <i class="fas fa-check"></i>
+                        </span>
+                        <span class="font-black text-emerald-950">@${escapeHtml(item.buyerUsername)}</span>
+                        ${item.buyerName ? `<span class="text-[10.5px] font-semibold text-emerald-800 truncate max-w-[90px]">(${escapeHtml(item.buyerName)})</span>` : ''}
+                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                     ${otherSpeakers.length > 0 ? `
-                        <div class="mt-2 pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 flex-wrap text-xs">
-                            <span class="font-bold text-emerald-900 shrink-0"><i class="fas fa-list-ol text-emerald-600 mr-0.5"></i> Fila:</span>
+                        <div class="flex items-center gap-1 flex-wrap justify-end">
                             ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir peça para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs">
+                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs">
                                     <span class="text-indigo-600 font-bold">${q.position}º</span>
                                     <span>@${escapeHtml(q.username)}</span>
                                 </button>
@@ -1753,16 +1745,14 @@
         // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
         if (queue.length > 0) {
             return `
-                <div class="mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-1.5 flex-wrap text-xs flex-1 min-w-0">
-                        ${queue.map(q => `
-                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95">
-                                <span class="text-indigo-600 font-extrabold">${q.position}º</span>
-                                <span class="font-bold">@${escapeHtml(q.username)}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-white transition cursor-pointer shrink-0">
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                    ${queue.map(q => `
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95">
+                            <span class="text-indigo-600 font-extrabold">${q.position}º</span>
+                            <span class="font-bold">@${escapeHtml(q.username)}</span>
+                        </button>
+                    `).join('')}
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
                         <i class="fas fa-link text-xs"></i>
                     </button>
                 </div>
@@ -1772,26 +1762,22 @@
         // CASO 3: A peça NÃO tem pedidos no chat ainda
         if (item.liveCode) {
             return `
-                <div class="mt-1.5 p-2 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-1.5 text-gray-400 text-[10.5px] truncate">
-                        <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
-                        <span class="truncate">Aguardando pedidos de <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
-                    </div>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline shrink-0">
-                        <i class="fas fa-link text-[9px]"></i> Vincular avulso
+                <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-end">
+                    <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
+                    <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
+                        <i class="fas fa-link text-xs"></i>
                     </button>
                 </div>
             `;
         }
 
         return `
-            <div class="mt-1.5 p-2 bg-amber-50/50 border border-dashed border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                <div class="flex items-center gap-1.5 text-amber-700 text-[10.5px] truncate">
-                    <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
-                    <span class="truncate">Defina o código da live para listar quem pediu no chat</span>
-                </div>
-                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline shrink-0">
-                    <i class="fas fa-link text-[9px]"></i> Vincular
+            <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-end">
+                <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
+                <span class="truncate text-[11px]">Defina o código da live</span>
+                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
+                    <i class="fas fa-link text-xs"></i>
                 </button>
             </div>
         `;
@@ -2076,11 +2062,11 @@
         }
 
         el.innerHTML =
-            '<div class="flex items-start justify-between gap-2.5">' +
+            '<div class="flex items-center justify-between gap-3">' +
                 '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
                     '<div class="flex items-center gap-2 flex-wrap">' +
                         '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
-                        '<div class="scan-item-live-wrapper">' +
+                        '<div class="scan-item-live-wrapper inline-block">' +
                             renderLiveCodeHtml(item) +
                         '</div>' +
                     '</div>' +
@@ -2088,13 +2074,13 @@
                         detailsInitial +
                     '</div>' +
                 '</div>' +
+                '<div class="scan-item-buyer-wrapper flex items-center justify-end gap-1.5 shrink-0">' +
+                    renderScanItemBuyerHtml(item) +
+                '</div>' +
                 '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
                     'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
                     '<i class="fas fa-trash-alt text-[10px]"></i>' +
                 '</button>' +
-            '</div>' +
-            '<div class="scan-item-buyer-wrapper mt-1.5">' +
-                renderScanItemBuyerHtml(item) +
             '</div>';
 
         if (isNew) {
