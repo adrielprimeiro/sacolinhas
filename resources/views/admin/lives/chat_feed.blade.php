@@ -2055,9 +2055,9 @@
             window._scanBannerTimeout = setTimeout(() => banner.classList.add('hidden'), 3500);
         }
 
-        if (liveId && item.itemId) {
+        if (liveId && (item.itemId || item.code)) {
             try {
-                await fetch('/admin/live-chat/link-item-buyer', {
+                const resp = await fetch('/admin/live-chat/link-item-buyer', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2065,13 +2065,20 @@
                     },
                     body: JSON.stringify({
                         live_id: liveId,
-                        item_id: item.itemId,
+                        item_id: item.itemId || null,
+                        code: item.code || null,
                         username: username,
                         buyer_name: displayName || '',
                         user_id: userId || null,
                         message_id: msgId || null
                     })
                 });
+                const resData = await resp.json();
+                if (resData && resData.data && resData.data.item_id) {
+                    item.itemId = resData.data.item_id;
+                    const el = document.querySelector(`[data-scan-id="${scanId}"]`);
+                    if (el) el.dataset.itemId = resData.data.item_id;
+                }
             } catch(e) {
                 console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
             }
@@ -2084,6 +2091,7 @@
 
         const oldMsgId = item.liveMessageId;
         const itemId = item.itemId;
+        const code = item.code;
 
         item.buyerUsername = null;
         item.buyerName = null;
@@ -2107,7 +2115,7 @@
             }
         }
 
-        if (liveId && itemId) {
+        if (liveId && (itemId || code || oldMsgId)) {
             try {
                 await fetch('/admin/live-chat/unlink-item-buyer', {
                     method: 'POST',
@@ -2117,7 +2125,9 @@
                     },
                     body: JSON.stringify({
                         live_id: liveId,
-                        item_id: itemId
+                        item_id: itemId || null,
+                        code: code || null,
+                        message_id: oldMsgId || null
                     })
                 });
             } catch(e) {

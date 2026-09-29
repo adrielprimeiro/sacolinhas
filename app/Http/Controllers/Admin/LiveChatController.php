@@ -273,15 +273,21 @@ class LiveChatController extends Controller
             }
         }
 
-        if ($itemId && Schema::hasTable('live_items')) {
-            DB::table('live_items')
-                ->where('live_id', $liveId)
-                ->where('item_id', $itemId)
-                ->delete();
+        if ($itemId) {
+            if (Schema::hasTable('live_items')) {
+                DB::table('live_items')
+                    ->where('live_id', $liveId)
+                    ->where('item_id', $itemId)
+                    ->delete();
+            }
+
+            // Remove da sacolinha e retorna o status do item para disponível
+            DB::table('sacolinhas')->where('item_id', $itemId)->delete();
+            Item::where('id', $itemId)->update(['status' => 'disponivel', 'localizacao' => 'Estoque']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Item removido da live com sucesso.'
+                'message' => 'Item removido da live e da sacolinha com sucesso.'
             ]);
         }
 
@@ -298,7 +304,8 @@ class LiveChatController extends Controller
     {
         $request->validate([
             'live_id' => 'required|exists:lives,id',
-            'item_id' => 'required|exists:items,id',
+            'item_id' => 'nullable|exists:items,id',
+            'code' => 'nullable|string',
             'username' => 'required|string',
             'buyer_name' => 'nullable|string',
             'user_id' => 'nullable|integer',
@@ -312,7 +319,19 @@ class LiveChatController extends Controller
         $userId = $request->input('user_id') ?: null;
         $messageId = $request->input('message_id') ?: null;
 
-        $item = Item::find($itemId);
+        if (!$itemId && $request->filled('code')) {
+            $code = trim((string)$request->input('code'));
+            $foundItem = Item::where('codigo', $code)
+                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+                ->first();
+            if ($foundItem) {
+                $itemId = $foundItem->id;
+            }
+        }
+
+        $item = $itemId ? Item::find($itemId) : null;
         if (!$item) {
             return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
         }
@@ -451,6 +470,7 @@ class LiveChatController extends Controller
         $request->validate([
             'live_id' => 'required|exists:lives,id',
             'item_id' => 'nullable|exists:items,id',
+            'code' => 'nullable|string',
             'message_id' => 'nullable|integer'
         ]);
 
@@ -458,37 +478,46 @@ class LiveChatController extends Controller
         $itemId = $request->input('item_id');
         $messageId = $request->input('message_id');
 
+        if (!$itemId && $request->filled('code')) {
+            $code = trim((string)$request->input('code'));
+            $item = Item::where('codigo', $code)
+                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+                ->first();
+            if ($item) {
+                $itemId = $item->id;
+            }
+        }
+
         if (!$itemId && $messageId) {
             $existing = DB::table('live_items')->where('live_id', $liveId)->where('live_message_id', $messageId)->first();
             if ($existing) {
                 $itemId = $existing->item_id;
-            } else {
-                if (Schema::hasTable('live_messages')) {
-                    DB::table('live_messages')->where('id', $messageId)->update([
-                        'linked_item_id' => null,
-                        'linked_code' => null
-                    ]);
+            } elseif (Schema::hasTable('live_messages')) {
+                $msgRow = DB::table('live_messages')->where('id', $messageId)->first();
+                if ($msgRow && !empty($msgRow->linked_item_id)) {
+                    $itemId = $msgRow->linked_item_id;
                 }
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Desvinculado com sucesso.'
-                ]);
             }
         }
 
-        $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
-        $messageId = $messageId ?: ($existing ? ($existing->live_message_id ?? null) : null);
+        if ($itemId && Schema::hasTable('live_items')) {
+            $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
+            $messageId = $messageId ?: ($existing ? ($existing->live_message_id ?? null) : null);
 
-        $updateData = ['updated_at' => now()];
-        if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
-        if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = null;
-        if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = null;
-        if (Schema::hasColumn('live_items', 'live_message_id')) $updateData['live_message_id'] = null;
+            $updateData = ['updated_at' => now()];
+            if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
+            if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = null;
+            if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = null;
+            if (Schema::hasColumn('live_items', 'live_message_id')) $updateData['live_message_id'] = null;
 
-        DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+            DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+        }
 
         if ($itemId) {
-            Sacolinhas::where('item_id', $itemId)->where('live_id', $liveId)->delete();
+            // Remove da sacolinha de forma direta no banco para evitar scopes que possam esconder o registro
+            DB::table('sacolinhas')->where('item_id', $itemId)->delete();
             Item::where('id', $itemId)->update(['status' => 'live', 'localizacao' => 'Live']);
         }
 
