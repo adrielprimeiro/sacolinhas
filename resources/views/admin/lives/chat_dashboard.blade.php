@@ -26,6 +26,13 @@
                 <span>Bipagem Contínua / QR Code</span>
             </a>
 
+            @if($activeLive)
+                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+                    <i class="fas fa-film text-base text-teal-200"></i>
+                    <span>Cortes & Vídeos</span>
+                </a>
+            @endif
+
             @if($activeLive && $activeLive->ativo)
                 <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
                     <i class="fas fa-stop-circle text-sm"></i>

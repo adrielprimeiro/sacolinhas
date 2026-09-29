@@ -296,6 +296,15 @@ Route::middleware('auth')->group(function () {
         Route::post('obs-relay/{id}/done', [\App\Http\Controllers\Admin\ObsRelayController::class, 'markDone'])->name('admin.obs-relay.done');
         Route::get('obs-relay/{id}/status', [\App\Http\Controllers\Admin\ObsRelayController::class, 'getCommandStatus'])->name('admin.obs-relay.status');
 
+        // ===== FATIADOR DE VÍDEOS & CORTES PÓS-LIVE =====
+        Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');
+        Route::post('lives/{liveId}/cortes/upload-video', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'uploadVideo'])->name('admin.lives.cortes.upload-video');
+        Route::post('lives/{liveId}/cortes/save-transcription', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveTranscription'])->name('admin.lives.cortes.save-transcription');
+        Route::post('lives/{liveId}/cortes/auto-detect', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'autoDetectTimestamps'])->name('admin.lives.cortes.auto-detect');
+        Route::post('lives/{liveId}/cortes/save-timestamp/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveItemTimestamp'])->name('admin.lives.cortes.save-timestamp');
+        Route::post('lives/{liveId}/cortes/generate-single/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSingleClip'])->name('admin.lives.cortes.generate-single');
+        Route::post('lives/{liveId}/cortes/generate-batch', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateBatchClips'])->name('admin.lives.cortes.generate-batch');
+
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
              ->name("admin.items.update-status");
