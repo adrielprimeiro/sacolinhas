@@ -542,6 +542,55 @@
     </div>
 </div>
 
+<!-- MODAL DE BUSCA DE CLIENTE AVULSO PARA ANEXAR À PEÇA -->
+<div id="manual-buyer-search-modal" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-indigo-700 via-indigo-800 to-purple-800 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-user-tag"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-extrabold tracking-tight text-white">Vincular Cliente à Peça</h3>
+                    <p id="manual-buyer-modal-item-info" class="text-xs text-indigo-200 font-semibold truncate max-w-xs">Peça selecionada</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeManualBuyerSearchModal()" class="text-indigo-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Campo de Busca -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
+                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)">
+                <button type="button" id="manual-buyer-search-clear" onclick="clearManualBuyerSearch()" class="hidden absolute right-3.5 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 cursor-pointer">
+                    <i class="fas fa-times-circle text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Resultados -->
+        <div id="manual-buyer-results-container" class="flex-1 overflow-y-auto p-4 space-y-2 min-h-[220px] max-h-[380px]">
+            <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                <i class="fas fa-search text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Digite para buscar uma cliente cadastrada</p>
+                <p class="text-[11px] text-gray-400">ou digite o @arroba para vincular diretamente.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500">
+            <span class="text-[11px]">Dica: Pressione <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">ESC</kbd> para fechar</span>
+            <button type="button" onclick="closeManualBuyerSearchModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl transition cursor-pointer">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
 <div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
     <!-- Cabeçalho Fullscreen Elegante -->
@@ -1724,6 +1773,9 @@
                             `).join('')}
                         </div>
                     ` : ''}
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar outro cliente para anexar" class="text-[10px] text-gray-400 hover:text-indigo-600 font-bold self-start mt-0.5 px-1.5 py-0.5 hover:bg-gray-100 rounded transition cursor-pointer flex items-center gap-1">
+                        <i class="fas fa-search text-[9px]"></i> <span>Avulso</span>
+                    </button>
                 </div>
             `;
         }
@@ -1738,6 +1790,9 @@
                             <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
                         </button>
                     `).join('')}
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2.5 py-1 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold transition cursor-pointer shadow-2xs w-full justify-center">
+                        <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                    </button>
                 </div>
             `;
         }
@@ -1745,20 +1800,207 @@
         // CASO 3: A peça NÃO tem pedidos no chat ainda
         if (item.liveCode) {
             return `
-                <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-start">
-                    <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
-                    <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
+                <div class="flex flex-col gap-1 items-start">
+                    <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-start">
+                        <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
+                        <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
+                    </div>
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2 py-0.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-md text-[11px] font-bold transition cursor-pointer shadow-2xs">
+                        <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                    </button>
                 </div>
             `;
         }
 
         return `
-            <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-start">
-                <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
-                <span class="truncate text-[11px]">Defina o código</span>
+            <div class="flex flex-col gap-1 items-start">
+                <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-start">
+                    <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
+                    <span class="truncate text-[11px]">Defina o código</span>
+                </div>
+                <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2 py-0.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-md text-[11px] font-bold transition cursor-pointer shadow-2xs">
+                    <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                </button>
             </div>
         `;
     }
+
+    /* ---- Modal de Busca de Cliente Avulso ------------------------------- */
+    let currentManualBuyerScanId = null;
+    let manualBuyerSearchTimeout = null;
+
+    function openManualBuyerSearchModal(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        currentManualBuyerScanId = scanId;
+        const modal = document.getElementById('manual-buyer-search-modal');
+        const input = document.getElementById('manual-buyer-search-input');
+        const itemInfo = document.getElementById('manual-buyer-modal-item-info');
+
+        let label = '#' + item.code;
+        if (item.liveCode) label += ' • ' + item.liveCode;
+        if (item.productName) label += ' (' + item.productName + ')';
+        if (itemInfo) itemInfo.textContent = label;
+
+        if (input) {
+            input.value = '';
+            setTimeout(() => input.focus(), 150);
+        }
+
+        renderManualBuyerEmptyState();
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeManualBuyerSearchModal() {
+        const modal = document.getElementById('manual-buyer-search-modal');
+        if (modal) modal.classList.add('hidden');
+        currentManualBuyerScanId = null;
+    }
+
+    function clearManualBuyerSearch() {
+        const input = document.getElementById('manual-buyer-search-input');
+        const clearBtn = document.getElementById('manual-buyer-search-clear');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        if (clearBtn) clearBtn.classList.add('hidden');
+        renderManualBuyerEmptyState();
+    }
+
+    function renderManualBuyerEmptyState() {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                <i class="fas fa-search text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Digite para buscar uma cliente cadastrada</p>
+                <p class="text-[11px] text-gray-400">ou digite o @arroba para vincular diretamente.</p>
+            </div>
+        `;
+    }
+
+    function handleManualBuyerSearchInput(val) {
+        const clearBtn = document.getElementById('manual-buyer-search-clear');
+        if (clearBtn) {
+            if (val.trim()) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        clearTimeout(manualBuyerSearchTimeout);
+        const query = val.trim();
+        if (!query) {
+            renderManualBuyerEmptyState();
+            return;
+        }
+
+        manualBuyerSearchTimeout = setTimeout(() => {
+            executeManualBuyerSearch(query);
+        }, 250);
+    }
+
+    async function executeManualBuyerSearch(query) {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-10 text-indigo-500">
+                <i class="fas fa-spinner fa-spin text-2xl mr-2"></i>
+                <span class="text-xs font-bold text-gray-500">Buscando clientes...</span>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/users/search?q=${encodeURIComponent(query)}`);
+            const json = await response.json();
+            const users = (json.success && Array.isArray(json.data)) ? json.data : [];
+
+            let html = '';
+
+            // Opção para vincular diretamente com o arroba/nome digitado
+            const cleanCustom = query.replace(/^@/, '').trim();
+            if (cleanCustom) {
+                html += `
+                    <div onclick="selectManualBuyerUser(null, '${escapeHtml(cleanCustom)}', '${escapeHtml(cleanCustom)}')" class="p-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
+                                <i class="fas fa-user-tag"></i>
+                            </div>
+                            <div class="truncate">
+                                <div class="text-xs font-bold text-indigo-900 dark:text-indigo-200">Vincular como "@${escapeHtml(cleanCustom)}"</div>
+                                <div class="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Cliente avulso / Instagram</div>
+                            </div>
+                        </div>
+                        <button type="button" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shrink-0 transition shadow-xs">
+                            Vincular
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (users.length > 0) {
+                users.forEach(u => {
+                    const username = u.instagram || u.tiktok || u.name || ('cliente_' + u.id);
+                    const displayName = u.name || u.apelido || username;
+                    const initials = (u.name || username).slice(0, 2).toUpperCase();
+                    const cleanPhone = u.whatsapp || u.phone || '';
+
+                    html += `
+                        <div onclick="selectManualBuyerUser(${u.id}, '${escapeHtml(username)}', '${escapeHtml(displayName)}')" class="p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
+                                    ${escapeHtml(initials)}
+                                </div>
+                                <div class="truncate">
+                                    <div class="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                        <span class="truncate">${escapeHtml(displayName)}</span>
+                                        ${u.instagram ? `<span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">@${escapeHtml(u.instagram)}</span>` : ''}
+                                    </div>
+                                    <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
+                                        ${cleanPhone ? `<span><i class="fab fa-whatsapp text-emerald-500"></i> ${escapeHtml(cleanPhone)}</span>` : ''}
+                                        ${u.cpf ? `<span>CPF: ${escapeHtml(u.cpf)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-indigo-600 hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl shrink-0 transition">
+                                Vincular
+                            </button>
+                        </div>
+                    `;
+                });
+            } else if (!cleanCustom) {
+                html += `
+                    <div class="text-center py-8 text-gray-400 text-xs font-semibold">
+                        Nenhum cliente encontrado para "${escapeHtml(query)}"
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        } catch(e) {
+            console.error('[ManualBuyer] Erro na busca:', e);
+            container.innerHTML = `
+                <div class="text-center py-6 text-red-500 text-xs font-bold">
+                    Erro ao realizar busca de clientes.
+                </div>
+            `;
+        }
+    }
+
+    function selectManualBuyerUser(userId, username, displayName) {
+        if (!currentManualBuyerScanId) return;
+        const scanId = currentManualBuyerScanId;
+        closeManualBuyerSearchModal();
+        linkItemToBuyer(scanId, username, displayName, userId, null);
+    }
+
+    // Fechar modal ao pressionar tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            closeManualBuyerSearchModal();
+        }
+    });
 
     function updateScanItemBuyerUI(scanId) {
         const itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
