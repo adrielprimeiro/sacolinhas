@@ -615,10 +615,38 @@ class LiveVideoCutsController extends Controller
 
 
     /**
-     * Salva Manualmente os Timestamps de um Item
+     * Extrai trecho do texto da transcrição correspondente ao intervalo de tempo especificado
+     */
+    protected function getSnippetForTimeRange(Live $live, float $start, float $end): string
+    {
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        if (empty($sentences)) {
+            return '';
+        }
+
+        $matchedTexts = [];
+        foreach ($sentences as $s) {
+            $sStart = (float) ($s['start'] ?? 0);
+            $sEnd = (float) ($s['end'] ?? 0);
+
+            // Verifica se a frase intercepta o intervalo (com 1.0s de margem de tolerância)
+            if ($sEnd >= ($start - 1.0) && $sStart <= ($end + 1.0)) {
+                $text = trim($s['text'] ?? '');
+                if (!empty($text)) {
+                    $matchedTexts[] = $text;
+                }
+            }
+        }
+
+        return implode(' ', $matchedTexts);
+    }
+
+    /**
+     * Salva Manualmente os Timestamps de um Item e Atualiza o Texto da Fala Correspondente
      */
     public function saveItemTimestamp(Request $request, $liveId, $liveItemId)
     {
+        $live = Live::findOrFail($liveId);
         $startRaw = $request->input('cut_start_sec');
         $endRaw = $request->input('cut_end_sec');
 
@@ -632,25 +660,30 @@ class LiveVideoCutsController extends Controller
             ], 422);
         }
 
+        $snippet = $this->getSnippetForTimeRange($live, $start, $end);
+
         DB::table('live_items')
             ->where('id', $liveItemId)
             ->where('live_id', $liveId)
             ->update([
                 'cut_start_sec' => round($start, 2),
                 'cut_end_sec' => round($end, 2),
+                'transcription_snippet' => $snippet,
                 'updated_at' => now()
             ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Minutagem do corte salva com sucesso!',
+            'message' => 'Minutagem e texto da fala correspondente atualizados com sucesso!',
             'cut_start_sec' => round($start, 2),
             'cut_end_sec' => round($end, 2),
             'cut_start_formatted' => $this->formatSecondsToTime($start),
             'cut_end_formatted' => $this->formatSecondsToTime($end),
-            'duration_sec' => round($end - $start, 1)
+            'duration_sec' => round($end - $start, 1),
+            'snippet' => $snippet
         ]);
     }
+
 
     /**
      * Converte string HH:MM:SS, MM:SS ou valor numérico em segundos (float)

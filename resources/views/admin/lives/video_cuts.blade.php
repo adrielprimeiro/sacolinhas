@@ -320,13 +320,11 @@
 
                         </div>
 
-                        <!-- Snippet de Transcrição (se houver) -->
-                        @if(!empty($item['transcription_snippet']))
-                            <div class="mt-2.5 pt-2 border-t border-gray-100 text-[11px] text-gray-600 italic bg-gray-50/70 p-2 rounded-lg">
-                                <i class="fas fa-quote-left text-[9px] text-indigo-500 mr-1"></i>
-                                {{ $item['transcription_snippet'] }}
-                            </div>
-                        @endif
+                        <!-- Snippet de Transcrição -->
+                        <div id="snippet-container-{{ $item['live_item_id'] }}" class="mt-2.5 pt-2 border-t border-gray-100 text-[11px] text-gray-600 italic bg-gray-50/70 p-2 rounded-lg {{ empty($item['transcription_snippet']) ? 'hidden' : '' }}">
+                            <i class="fas fa-quote-left text-[9px] text-indigo-500 mr-1"></i>
+                            <span id="snippet-text-{{ $item['live_item_id'] }}">{{ $item['transcription_snippet'] ?? '' }}</span>
+                        </div>
 
                     </div>
                 @empty
@@ -625,6 +623,17 @@
                 if (card) card.classList.add('border-indigo-400');
                 if (startInput && data.cut_start_formatted) startInput.value = data.cut_start_formatted;
                 if (endInput && data.cut_end_formatted) endInput.value = data.cut_end_formatted;
+
+                const snipBox = document.getElementById(`snippet-container-${itemId}`);
+                const snipText = document.getElementById(`snippet-text-${itemId}`);
+                if (snipText && data.snippet !== undefined) snipText.textContent = data.snippet;
+                if (snipBox) {
+                    if (data.snippet && data.snippet.trim() !== '') {
+                        snipBox.classList.remove('hidden');
+                    } else {
+                        snipBox.classList.add('hidden');
+                    }
+                }
             }
         } catch (e) {
             console.error("Erro ao salvar minutagem:", e);
