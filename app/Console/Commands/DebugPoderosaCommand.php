@@ -21,7 +21,7 @@ class DebugPoderosaCommand extends Command
         $this->line(json_encode($items, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         $this->info("=== LIVES RECENTES ===");
-        $lives = DB::table('lives')->orderBy('id', 'desc')->limit(5)->get(['id', 'data_live', 'titulo', 'status']);
+        $lives = DB::table('lives')->orderBy('id', 'desc')->limit(5)->get();
         $this->line(json_encode($lives, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         $this->info("=== LIVE ITEMS DA LIVE 334 ===");
