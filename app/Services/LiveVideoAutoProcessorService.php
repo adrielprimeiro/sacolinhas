@@ -155,22 +155,26 @@ class LiveVideoAutoProcessorService
     }
 
     /**
-     * Extrai áudio e transcreve com timestamps usando Whisper / Groq / Gemini
+     * Extrai áudio e transcreve com timestamps usando Whisper / Groq
      */
     public function transcribeVideoAudio(Live $live, string $videoPath)
     {
-        $audioPath = storage_path('app/public/live_recordings/audio_' . $live->id . '.mp3');
+        $destFolder = storage_path('app/public/live_recordings');
+        if (!is_dir($destFolder)) {
+            mkdir($destFolder, 0775, true);
+        }
+        $audioPath = $destFolder . DIRECTORY_SEPARATOR . 'audio_' . $live->id . '.mp3';
 
-        // Extrai áudio comprimido otimizado para fala
+        // Extrai áudio comprimido otimizado para voz (mono 16kHz 32kbps)
         $ffmpegCmd = sprintf(
-            'ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 48k -y %s 2>&1',
+            'ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 32k -y %s 2>&1',
             escapeshellarg($videoPath),
             escapeshellarg($audioPath)
         );
-        exec($ffmpegCmd);
+        exec($ffmpegCmd, $ffOutput, $ffCode);
 
         if (!file_exists($audioPath) || filesize($audioPath) < 1000) {
-            Log::warning("[AutoProcessor] Falha ao extrair áudio com FFmpeg.");
+            Log::warning("[AutoProcessor] Falha ao extrair áudio com FFmpeg: " . implode("\n", $ffOutput ?? []));
             return false;
         }
 
@@ -180,30 +184,39 @@ class LiveVideoAutoProcessorService
         // 1. Tentar Groq Whisper (rápido e com timestamps por segmento)
         if (!empty($groqKey)) {
             try {
-                if (filesize($audioPath) < 25000000) {
-                    $response = Http::withToken($groqKey)
-                        ->timeout(180)
-                        ->attach('file', file_get_contents($audioPath), 'audio.mp3')
-                        ->post('https://api.groq.com/openai/v1/audio/transcriptions', [
-                            'model' => 'whisper-large-v3',
-                            'response_format' => 'verbose_json',
-                            'temperature' => 0,
-                            'language' => 'pt',
-                            'timestamp_granularities' => ['segment']
-                        ]);
+                if (filesize($audioPath) > 24000000) {
+                    $audioSmall = $destFolder . DIRECTORY_SEPARATOR . 'audio_' . $live->id . '_small.mp3';
+                    exec(sprintf('ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 20k -y %s 2>&1', escapeshellarg($videoPath), escapeshellarg($audioSmall)));
+                    if (file_exists($audioSmall) && filesize($audioSmall) > 1000) {
+                        @unlink($audioPath);
+                        $audioPath = $audioSmall;
+                    }
+                }
 
-                    if ($response->successful()) {
-                        $data = $response->json();
-                        if (!empty($data['segments'])) {
-                            foreach ($data['segments'] as $seg) {
-                                $sentences[] = [
-                                    'start' => (float) ($seg['start'] ?? 0),
-                                    'end' => (float) ($seg['end'] ?? 0),
-                                    'text' => trim($seg['text'] ?? '')
-                                ];
-                            }
+                $response = Http::withToken($groqKey)
+                    ->timeout(240)
+                    ->attach('file', file_get_contents($audioPath), 'audio.mp3')
+                    ->post('https://api.groq.com/openai/v1/audio/transcriptions', [
+                        'model' => 'whisper-large-v3',
+                        'response_format' => 'verbose_json',
+                        'temperature' => 0,
+                        'language' => 'pt',
+                        'timestamp_granularities' => ['segment']
+                    ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    if (!empty($data['segments'])) {
+                        foreach ($data['segments'] as $seg) {
+                            $sentences[] = [
+                                'start' => (float) ($seg['start'] ?? 0),
+                                'end' => (float) ($seg['end'] ?? 0),
+                                'text' => trim($seg['text'] ?? '')
+                            ];
                         }
                     }
+                } else {
+                    Log::warning("[AutoProcessor] Groq API response error: " . $response->body());
                 }
             } catch (\Exception $e) {
                 Log::warning("[AutoProcessor] Groq Whisper falhou: " . $e->getMessage());
@@ -222,3 +235,4 @@ class LiveVideoAutoProcessorService
         return false;
     }
 }
+

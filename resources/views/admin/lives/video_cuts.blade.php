@@ -341,14 +341,21 @@
             @endforelse
         </div>
 
-        <div class="pt-4 mt-3 border-t border-gray-200 shrink-0 flex justify-between items-center gap-2">
-            <button type="button" onclick="promptPasteTranscription()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
-                <i class="fas fa-paste"></i> Colar JSON de Transcrição
-            </button>
+        <div class="pt-4 mt-3 border-t border-gray-200 shrink-0 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="transcribeAudioWithAI()" id="btn-transcribe-ai" class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer" style="background-color: #0d9488; color: #ffffff !important;">
+                    <i class="fas fa-microphone-lines text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Transcrever Áudio com IA</span>
+                </button>
+                <button type="button" onclick="promptPasteTranscription()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
+                    <i class="fas fa-paste"></i> Colar JSON
+                </button>
+            </div>
             <button type="button" onclick="toggleTranscriptionModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2 rounded-xl transition border border-gray-200">Fechar</button>
         </div>
     </div>
 </div>
+
 
 @push('scripts')
 <script>
@@ -478,11 +485,51 @@
         }
     }
 
+    async function transcribeAudioWithAI() {
+        if (!confirm("Deseja extrair o áudio e gerar a transcrição completa com IA agora?")) return;
+
+        const btn = document.getElementById("btn-transcribe-ai");
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Transcrevendo...`;
+        }
+
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/transcribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                alert("✅ " + data.message + ` (${data.total_sentences || 0} frases geradas)`);
+                window.location.reload();
+            } else {
+                alert("Atenção: " + data.message);
+            }
+        } catch (e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro ao comunicar com o servidor para transcrição de áudio.");
+        }
+    }
+
     async function autoDetectWithAI() {
         const btn = document.getElementById("btn-auto-detect");
         const oldHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Detectando...`;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Transcrevendo & Detectando...`;
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-detect`, {
@@ -498,7 +545,7 @@
             btn.innerHTML = oldHtml;
 
             if (data.success) {
-                alert(data.message);
+                alert("✅ " + data.message);
                 window.location.reload();
             } else {
                 alert("Atenção: " + data.message);
@@ -509,6 +556,7 @@
             alert("Erro de comunicação ao processar detecção automática.");
         }
     }
+
 
     async function generateSingleClip(itemId) {
         const btn = document.getElementById(`btn-cut-${itemId}`);

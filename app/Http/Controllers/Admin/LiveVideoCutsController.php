@@ -365,12 +365,84 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
+     * Localiza o caminho absoluto do arquivo de vídeo no servidor
+
+     */
+    protected function getLocalVideoPath(Live $live): ?string
+    {
+        if (empty($live->recording_path)) return null;
+
+        $path = $live->recording_path;
+        if (file_exists($path) && filesize($path) > 100000) {
+            return $path;
+        }
+
+        $publicPath = Storage::disk('public')->path($path);
+        if (file_exists($publicPath) && filesize($publicPath) > 100000) {
+            return $publicPath;
+        }
+
+        $storageAppPublic = storage_path('app/public/' . ltrim($path, '/'));
+        if (file_exists($storageAppPublic) && filesize($storageAppPublic) > 100000) {
+            return $storageAppPublic;
+        }
+
+        return null;
+    }
+
+    /**
+     * Transcreve o áudio do vídeo da Live com IA (Whisper)
+     */
+    public function transcribeAudio(Request $request, $liveId)
+    {
+        $live = Live::findOrFail($liveId);
+        $videoPath = $this->getLocalVideoPath($live);
+
+        if (!$videoPath) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nenhum arquivo de vídeo local encontrado para transcrição. Faça o upload ou download do vídeo primeiro.'
+            ], 400);
+        }
+
+        $processor = new \App\Services\LiveVideoAutoProcessorService();
+        $ok = $processor->transcribeVideoAudio($live, $videoPath);
+
+        if ($ok) {
+            $live->refresh();
+            $sentences = json_decode($live->transcription_raw, true) ?: [];
+            return response()->json([
+                'success' => true,
+                'message' => 'Áudio transcrito com sucesso via IA!',
+                'total_sentences' => count($sentences),
+                'sentences' => $sentences
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Falha ao transcrever o áudio com IA. Verifique se o vídeo possui áudio válido e tente novamente.'
+        ], 500);
+    }
+
+    /**
      * Algoritmo de Detecção Automática de Início e Fim por Código / Transcrição
      */
     public function autoDetectTimestamps(Request $request, $liveId)
     {
         $live = Live::findOrFail($liveId);
         $sentences = json_decode($live->transcription_raw, true) ?: [];
+
+        // Se a transcrição estiver vazia, tenta transcrever o vídeo automaticamente
+        if (empty($sentences)) {
+            $videoPath = $this->getLocalVideoPath($live);
+            if ($videoPath) {
+                $processor = new \App\Services\LiveVideoAutoProcessorService();
+                $processor->transcribeVideoAudio($live, $videoPath);
+                $live->refresh();
+                $sentences = json_decode($live->transcription_raw, true) ?: [];
+            }
+        }
 
         $liveItems = DB::table('live_items')
             ->where('live_id', $liveId)
@@ -379,9 +451,10 @@ class LiveVideoCutsController extends Controller
         if (empty($sentences)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nenhuma transcrição encontrada para esta live. Adicione ou importe a transcrição primeiro.'
+                'message' => 'Nenhuma transcrição encontrada e não foi possível transcrever automaticamente. Verifique se o vídeo foi carregado.'
             ], 400);
         }
+
 
         $updatedCount = 0;
         $results = [];
