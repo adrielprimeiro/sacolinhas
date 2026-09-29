@@ -8,36 +8,35 @@ use Illuminate\Support\Facades\DB;
 class DebugPoderosaCommand extends Command
 {
     protected $signature = 'app:debug-poderosa';
-    protected $description = 'Debug poderosa and live items';
+    protected $description = 'Debug poderosa';
 
     public function handle()
     {
-        $this->info("=== ITEMS COM PODEROSA ===");
-        $items = DB::table('items')
-            ->where('nome_do_produto', 'like', '%poderosa%')
-            ->orWhere('descricao', 'like', '%poderosa%')
-            ->orWhere('codigo', 'like', '%poderosa%')
-            ->get(['id', 'codigo', 'nome_do_produto', 'descricao', 'status']);
-        $this->line(json_encode($items, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $this->info("=== TODAS AS LIVES RECENTES E SEUS ITENS ===");
+        $lives = DB::table('lives')->orderBy('id', 'desc')->limit(3)->get();
+        foreach ($lives as $l) {
+            $this->info("LIVE #{$l->id} (Data: {$l->data}, Tipo: {$l->tipo_live})");
+            $items = DB::table('live_items')
+                ->leftJoin('items', 'items.id', '=', 'live_items.item_id')
+                ->where('live_items.live_id', $l->id)
+                ->get([
+                    'live_items.id as live_item_id',
+                    'live_items.item_id',
+                    'live_items.codigo_live',
+                    'items.codigo as sku',
+                    'items.nome_do_produto',
+                    'live_items.buyer_username',
+                    'live_items.buyer_name',
+                    'live_items.cut_start_sec',
+                    'live_items.cut_end_sec',
+                    'live_items.created_at'
+                ]);
+            $this->line(json_encode($items, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        }
 
-        $this->info("=== LIVES RECENTES ===");
-        $lives = DB::table('lives')->orderBy('id', 'desc')->limit(5)->get();
-        $this->line(json_encode($lives, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-
-        $this->info("=== LIVE ITEMS DA LIVE 334 ===");
-        $liveItems = DB::table('live_items')
-            ->leftJoin('items', 'items.id', '=', 'live_items.item_id')
-            ->where('live_items.live_id', 334)
-            ->get(['live_items.id', 'live_items.live_id', 'live_items.item_id', 'live_items.codigo_live', 'items.codigo', 'items.nome_do_produto', 'live_items.cut_start_sec', 'live_items.cut_end_sec', 'live_items.transcription_snippet']);
-        $this->line(json_encode($liveItems, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-
-        $this->info("=== TODAS AS LIVE_ITEMS COM PODEROSA ===");
-        $allPoderosa = DB::table('live_items')
-            ->leftJoin('items', 'items.id', '=', 'live_items.item_id')
-            ->where('live_items.codigo_live', 'like', '%poderosa%')
-            ->orWhere('live_items.transcription_snippet', 'like', '%poderosa%')
-            ->get(['live_items.id', 'live_items.live_id', 'live_items.item_id', 'live_items.codigo_live', 'items.codigo', 'items.nome_do_produto']);
-        $this->line(json_encode($allPoderosa, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $this->info("=== TESTE BUSCA USUÁRIOS COM 'ana' ===");
+        $users = \App\Models\Cliente::clientes()->buscar('ana')->limit(5)->get(['id', 'name', 'apelido', 'instagram', 'whatsapp', 'cpf']);
+        $this->line(json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         return 0;
     }
