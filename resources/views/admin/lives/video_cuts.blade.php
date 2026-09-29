@@ -56,10 +56,26 @@
                 <span style="color: #ffffff !important; font-weight: 800;">Gerar Todos os Cortes (FFmpeg)</span>
             </button>
         </div>
+    <!-- BANNER DE PROGRESSO IA ASSÍNCRONO -->
+    <div id="ai-process-progress-box" class="hidden mb-6 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-lg border border-purple-700">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-brain text-2xl text-teal-300 animate-pulse"></i>
+                <div>
+                    <h4 class="text-sm font-black text-white">Processamento de Áudio & IA em Segundo Plano (Suporte 3h+)</h4>
+                    <p id="ai-process-text" class="text-xs text-purple-200 mt-0.5">Iniciando extração e transcrição do áudio...</p>
+                </div>
+            </div>
+            <span id="ai-process-pct" class="text-lg font-black text-teal-300 font-mono">0%</span>
+        </div>
+        <div class="w-full bg-purple-950/80 rounded-full h-3 overflow-hidden border border-purple-600/40">
+            <div id="ai-process-bar" class="bg-gradient-to-r from-teal-400 to-indigo-400 h-full w-0 transition-all duration-300"></div>
+        </div>
     </div>
 
     <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
 
         <!-- COLUNA ESQUERDA: PLAYER DE VÍDEO & TRANSCRIÇÃO (LARGURA 5) -->
         <div class="lg:col-span-5 space-y-5">
@@ -485,14 +501,64 @@
         }
     }
 
+    let transcribePollTimer = null;
+
+    function startTranscriptionPolling() {
+        const progressBox = document.getElementById("ai-process-progress-box");
+        if (progressBox) progressBox.classList.remove("hidden");
+
+        const btnAuto = document.getElementById("btn-auto-detect");
+        if (btnAuto) {
+            btnAuto.disabled = true;
+            btnAuto.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando com IA...`;
+        }
+
+        if (transcribePollTimer) clearInterval(transcribePollTimer);
+
+        transcribePollTimer = setInterval(async () => {
+            try {
+                const res = await fetch(`/admin/lives/${liveId}/cortes/transcribe-status`);
+                const data = await res.json();
+
+                if (data.status === 'processing') {
+                    const textEl = document.getElementById("ai-process-text");
+                    const pctEl = document.getElementById("ai-process-pct");
+                    const barEl = document.getElementById("ai-process-bar");
+                    if (textEl) textEl.textContent = data.message || 'Processando áudio com IA...';
+                    if (pctEl) pctEl.textContent = `${data.progress || 0}%`;
+                    if (barEl) barEl.style.width = `${data.progress || 0}%`;
+                } else if (data.status === 'completed') {
+                    clearInterval(transcribePollTimer);
+                    const barEl = document.getElementById("ai-process-bar");
+                    if (barEl) barEl.style.width = '100%';
+                    const textEl = document.getElementById("ai-process-text");
+                    if (textEl) textEl.textContent = '✅ ' + (data.message || 'Concluído! Recarregando...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else if (data.status === 'error') {
+                    clearInterval(transcribePollTimer);
+                    alert("Atenção: " + (data.message || 'Erro ao processar áudio com IA.'));
+                    if (progressBox) progressBox.classList.add("hidden");
+                    if (btnAuto) {
+                        btnAuto.disabled = false;
+                        btnAuto.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao consultar status:", e);
+            }
+        }, 2500);
+    }
+
     async function transcribeAudioWithAI() {
-        if (!confirm("Deseja extrair o áudio e gerar a transcrição completa com IA agora?")) return;
+        if (!confirm("Deseja extrair o áudio e gerar a transcrição completa com IA em segundo plano?")) return;
 
         const btn = document.getElementById("btn-transcribe-ai");
         const oldHtml = btn ? btn.innerHTML : '';
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Transcrevendo...`;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
         }
 
         try {
@@ -510,8 +576,11 @@
                 btn.innerHTML = oldHtml;
             }
 
-            if (data.success) {
-                alert("✅ " + data.message + ` (${data.total_sentences || 0} frases geradas)`);
+            if (data.is_async) {
+                toggleTranscriptionModal();
+                startTranscriptionPolling();
+            } else if (data.success) {
+                alert("✅ " + data.message);
                 window.location.reload();
             } else {
                 alert("Atenção: " + data.message);
@@ -529,7 +598,7 @@
         const btn = document.getElementById("btn-auto-detect");
         const oldHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Transcrevendo & Detectando...`;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-detect`, {
@@ -541,13 +610,17 @@
                 }
             });
             const data = await res.json();
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
 
-            if (data.success) {
+            if (data.is_async) {
+                startTranscriptionPolling();
+            } else if (data.success) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
                 alert("✅ " + data.message);
                 window.location.reload();
             } else {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
                 alert("Atenção: " + data.message);
             }
         } catch (e) {
@@ -556,6 +629,7 @@
             alert("Erro de comunicação ao processar detecção automática.");
         }
     }
+
 
 
     async function generateSingleClip(itemId) {

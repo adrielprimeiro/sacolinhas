@@ -391,7 +391,7 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
-     * Transcreve o áudio do vídeo da Live com IA (Whisper)
+     * Transcreve o áudio do vídeo da Live com IA (Whisper) - Disparo Assíncrono para suportar lives longas (3h+)
      */
     public function transcribeAudio(Request $request, $liveId)
     {
@@ -405,24 +405,42 @@ class LiveVideoCutsController extends Controller
             ], 400);
         }
 
-        $processor = new \App\Services\LiveVideoAutoProcessorService();
-        $ok = $processor->transcribeVideoAudio($live, $videoPath);
+        \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$liveId}", [
+            'status' => 'processing',
+            'progress' => 5,
+            'message' => 'Iniciando extração e fatiamento do áudio...'
+        ], 3600);
 
-        if ($ok) {
-            $live->refresh();
-            $sentences = json_decode($live->transcription_raw, true) ?: [];
-            return response()->json([
-                'success' => true,
-                'message' => 'Áudio transcrito com sucesso via IA!',
-                'total_sentences' => count($sentences),
-                'sentences' => $sentences
-            ]);
-        }
+        $artisan = base_path('artisan');
+        $cmd = sprintf('nohup php %s app:transcribe-live-video --live_id=%d --auto_detect=0 > /dev/null 2>&1 &', escapeshellarg($artisan), $liveId);
+        exec($cmd);
 
         return response()->json([
-            'success' => false,
-            'message' => 'Falha ao transcrever o áudio com IA. Verifique se o vídeo possui áudio válido e tente novamente.'
-        ], 500);
+            'success' => true,
+            'is_async' => true,
+            'message' => 'Transcrição de áudio iniciada em segundo plano!',
+            'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+        ]);
+    }
+
+    /**
+     * Consulta o status do processamento da transcrição/detecção em tempo real
+     */
+    public function getTranscriptionStatus($liveId)
+    {
+        $info = \Illuminate\Support\Facades\Cache::get("live_transcription_status_{$liveId}");
+        if (!$info) {
+            $live = Live::find($liveId);
+            if ($live && $live->transcription_status === 'completed') {
+                return response()->json([
+                    'status' => 'completed',
+                    'progress' => 100,
+                    'message' => 'Transcrição e minutagens concluídas!'
+                ]);
+            }
+            return response()->json(['status' => 'idle', 'progress' => 0]);
+        }
+        return response()->json($info);
     }
 
     /**
@@ -433,27 +451,34 @@ class LiveVideoCutsController extends Controller
         $live = Live::findOrFail($liveId);
         $sentences = json_decode($live->transcription_raw, true) ?: [];
 
-        // Se a transcrição estiver vazia, tenta transcrever o vídeo automaticamente
+        // Se a transcrição estiver vazia, dispara transcrição assíncrona com auto_detect
         if (empty($sentences)) {
             $videoPath = $this->getLocalVideoPath($live);
             if ($videoPath) {
-                $processor = new \App\Services\LiveVideoAutoProcessorService();
-                $processor->transcribeVideoAudio($live, $videoPath);
-                $live->refresh();
-                $sentences = json_decode($live->transcription_raw, true) ?: [];
+                \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$liveId}", [
+                    'status' => 'processing',
+                    'progress' => 5,
+                    'message' => 'Iniciando extração do áudio e detecção inteligente...'
+                ], 3600);
+
+                $artisan = base_path('artisan');
+                $cmd = sprintf('nohup php %s app:transcribe-live-video --live_id=%d --auto_detect=1 > /dev/null 2>&1 &', escapeshellarg($artisan), $liveId);
+                exec($cmd);
+
+                return response()->json([
+                    'success' => true,
+                    'is_async' => true,
+                    'message' => 'Transcrição e detecção iniciadas em segundo plano!',
+                    'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+                ]);
             }
-        }
 
-        $liveItems = DB::table('live_items')
-            ->where('live_id', $liveId)
-            ->get();
-
-        if (empty($sentences)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nenhuma transcrição encontrada e não foi possível transcrever automaticamente. Verifique se o vídeo foi carregado.'
+                'message' => 'Nenhum vídeo carregado para esta live. Carregue o vídeo primeiro ou clique em Auto-Processar Instagram.'
             ], 400);
         }
+
 
 
         $updatedCount = 0;

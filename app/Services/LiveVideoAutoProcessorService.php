@@ -155,47 +155,71 @@ class LiveVideoAutoProcessorService
     }
 
     /**
-     * Extrai áudio e transcreve com timestamps usando Whisper / Groq
+     * Extrai áudio e transcreve com timestamps usando Whisper / Groq (com suporte a lives longas via chunking)
+     *
+     * @param Live $live
+     * @param string $videoPath
+     * @param callable|null $progressCallback
+     * @return bool
      */
-    public function transcribeVideoAudio(Live $live, string $videoPath)
+    public function transcribeVideoAudio(Live $live, string $videoPath, ?callable $progressCallback = null)
     {
         $destFolder = storage_path('app/public/live_recordings');
         if (!is_dir($destFolder)) {
             mkdir($destFolder, 0775, true);
         }
-        $audioPath = $destFolder . DIRECTORY_SEPARATOR . 'audio_' . $live->id . '.mp3';
 
-        // Extrai áudio comprimido otimizado para voz (mono 16kHz 32kbps)
+        $chunksDir = $destFolder . DIRECTORY_SEPARATOR . 'chunks_' . $live->id . '_' . time();
+        if (!is_dir($chunksDir)) {
+            mkdir($chunksDir, 0775, true);
+        }
+
+        if ($progressCallback) {
+            $progressCallback(15, 'Extraindo e segmentando faixas de áudio com FFmpeg...');
+        }
+
+        // Segmenta áudio em blocos de 600s (10 minutos) otimizados para voz (mono 16kHz 32kbps)
+        $chunkPattern = $chunksDir . DIRECTORY_SEPARATOR . 'chunk_%03d.mp3';
         $ffmpegCmd = sprintf(
-            'ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 32k -y %s 2>&1',
+            'ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 32k -f segment -segment_time 600 -reset_timestamps 1 %s 2>&1',
             escapeshellarg($videoPath),
-            escapeshellarg($audioPath)
+            escapeshellarg($chunkPattern)
         );
         exec($ffmpegCmd, $ffOutput, $ffCode);
 
-        if (!file_exists($audioPath) || filesize($audioPath) < 1000) {
-            Log::warning("[AutoProcessor] Falha ao extrair áudio com FFmpeg: " . implode("\n", $ffOutput ?? []));
+        $chunkFiles = glob($chunksDir . DIRECTORY_SEPARATOR . 'chunk_*.mp3');
+        sort($chunkFiles);
+
+        if (empty($chunkFiles)) {
+            Log::warning("[AutoProcessor] Falha ao extrair chunks de áudio com FFmpeg: " . implode("\n", $ffOutput ?? []));
+            @rmdir($chunksDir);
             return false;
         }
 
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
+        if (empty($groqKey)) {
+            Log::error("[AutoProcessor] GROQ_API_KEY não configurada.");
+            return false;
+        }
+
+        $totalChunks = count($chunkFiles);
         $sentences = [];
+        $currentOffset = 0.0;
 
-        // 1. Tentar Groq Whisper (rápido e com timestamps por segmento)
-        if (!empty($groqKey)) {
+        foreach ($chunkFiles as $idx => $chunkFile) {
+            $chunkNumber = $idx + 1;
+            $pct = round(20 + (($idx / $totalChunks) * 65));
+
+            if ($progressCallback) {
+                $progressCallback($pct, "Transcrevendo parte {$chunkNumber} de {$totalChunks} com IA (Groq Whisper)...");
+            }
+
+            Log::info("[AutoProcessor] Transcrevendo parte {$chunkNumber}/{$totalChunks} ({$chunkFile})...");
+
             try {
-                if (filesize($audioPath) > 24000000) {
-                    $audioSmall = $destFolder . DIRECTORY_SEPARATOR . 'audio_' . $live->id . '_small.mp3';
-                    exec(sprintf('ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 20k -y %s 2>&1', escapeshellarg($videoPath), escapeshellarg($audioSmall)));
-                    if (file_exists($audioSmall) && filesize($audioSmall) > 1000) {
-                        @unlink($audioPath);
-                        $audioPath = $audioSmall;
-                    }
-                }
-
                 $response = Http::withToken($groqKey)
                     ->timeout(240)
-                    ->attach('file', file_get_contents($audioPath), 'audio.mp3')
+                    ->attach('file', file_get_contents($chunkFile), 'audio.mp3')
                     ->post('https://api.groq.com/openai/v1/audio/transcriptions', [
                         'model' => 'whisper-large-v3',
                         'response_format' => 'verbose_json',
@@ -208,31 +232,47 @@ class LiveVideoAutoProcessorService
                     $data = $response->json();
                     if (!empty($data['segments'])) {
                         foreach ($data['segments'] as $seg) {
-                            $sentences[] = [
-                                'start' => (float) ($seg['start'] ?? 0),
-                                'end' => (float) ($seg['end'] ?? 0),
-                                'text' => trim($seg['text'] ?? '')
-                            ];
+                            $start = round($currentOffset + (float) ($seg['start'] ?? 0), 2);
+                            $end = round($currentOffset + (float) ($seg['end'] ?? 0), 2);
+                            $text = trim($seg['text'] ?? '');
+                            if (!empty($text)) {
+                                $sentences[] = [
+                                    'start' => $start,
+                                    'end' => $end,
+                                    'text' => $text
+                                ];
+                            }
                         }
                     }
                 } else {
-                    Log::warning("[AutoProcessor] Groq API response error: " . $response->body());
+                    Log::warning("[AutoProcessor] Groq Whisper falhou no chunk {$chunkNumber}: " . $response->body());
                 }
             } catch (\Exception $e) {
-                Log::warning("[AutoProcessor] Groq Whisper falhou: " . $e->getMessage());
+                Log::warning("[AutoProcessor] Erro na requisição do chunk {$chunkNumber}: " . $e->getMessage());
             }
+
+            // Descobrir a duração exata do chunk para o offset do próximo
+            $durOutput = [];
+            exec(sprintf('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s', escapeshellarg($chunkFile)), $durOutput);
+            $duration = !empty($durOutput[0]) ? (float) trim($durOutput[0]) : 600.0;
+            $currentOffset += $duration;
+
+            @unlink($chunkFile);
         }
+
+        @rmdir($chunksDir);
 
         if (!empty($sentences)) {
             $live->transcription_raw = json_encode($sentences, JSON_UNESCAPED_UNICODE);
             $live->transcription_status = 'completed';
             $live->save();
 
-            @unlink($audioPath);
+            Log::info("[AutoProcessor] Transcrição concluída: " . count($sentences) . " frases gravadas.");
             return true;
         }
 
         return false;
     }
 }
+
 
