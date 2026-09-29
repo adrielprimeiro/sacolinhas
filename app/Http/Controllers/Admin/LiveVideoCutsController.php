@@ -42,19 +42,21 @@ class LiveVideoCutsController extends Controller
                 'live_items.video_cut_duration',
                 'live_items.video_cut_status',
                 'live_items.created_at as linked_at',
-                'items.name as item_name',
-                'items.sku as item_sku',
+                'items.nome_do_produto as item_nome',
+                'items.descricao as item_descricao',
                 'items.codigo as item_codigo',
-                'items.price as item_price',
+                'items.preco as item_price',
                 'items.image as item_image',
-                'items.foto as item_foto',
                 'users.name as user_full_name'
             )
             ->orderBy('live_items.id', 'asc');
 
         $liveItems = $query->get()->map(function ($row) {
+            // Nome do produto
+            $name = $row->item_nome ?: ($row->item_descricao ?: 'Produto #' . $row->item_id);
+
             // Foto / Imagem do item
-            $image = $row->item_image ?: $row->item_foto;
+            $image = $row->item_image;
             if ($image && !str_starts_with($image, 'http') && !str_starts_with($image, '/storage/')) {
                 $image = '/storage/' . ltrim($image, '/');
             }
@@ -72,9 +74,9 @@ class LiveVideoCutsController extends Controller
             return [
                 'live_item_id' => $row->live_item_id,
                 'item_id' => $row->item_id,
-                'codigo_live' => $row->codigo_live ?: $row->item_sku,
-                'item_name' => $row->item_name,
-                'item_sku' => $row->item_sku,
+                'codigo_live' => $row->codigo_live ?: $row->item_codigo,
+                'item_name' => $name,
+                'item_sku' => $row->item_codigo,
                 'item_codigo' => $row->item_codigo,
                 'item_price' => number_format((float) ($row->item_price ?: 0), 2, ',', '.'),
                 'item_image' => $image ?: 'https://placehold.co/100x100?text=Sem+Foto',
