@@ -444,7 +444,131 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
-     * Algoritmo de Detecção Automática de Início e Fim por Código / Transcrição
+     * Executa a lógica de auto-detecção em cima de uma Live já transcrita
+     */
+    public function performAutoDetection(Live $live): array
+    {
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        if (empty($sentences)) {
+            return [];
+        }
+
+        $liveItems = DB::table('live_items')
+            ->where('live_id', $live->id)
+            ->get();
+
+        $updatedCount = 0;
+        $results = [];
+
+        $openingPatterns = [
+            'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
+            'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
+            'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
+            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'tamanho', 'tecido'
+        ];
+
+        $closingPatterns = [
+            'entregando', 'vou entregar', 'passando', 'próxima', 'próximo', 'anotou',
+            'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar', 'comenta código',
+            'um beijo', 'boa noite', 'de onde você é'
+        ];
+
+        foreach ($liveItems as $li) {
+            $code = trim(strtolower($li->codigo_live ?: ''));
+            if (!$code) continue;
+
+            $mentionIndex = null;
+            $mentionTime = null;
+
+            foreach ($sentences as $idx => $s) {
+                $textLower = mb_strtolower($s['text'] ?? '');
+                if (str_contains($textLower, $code) || str_contains($textLower, 'código ' . $code) || str_contains($textLower, 'codigo ' . $code)) {
+                    $mentionIndex = $idx;
+                    $mentionTime = (float) ($s['start'] ?? 0);
+                    break;
+                }
+            }
+
+            if ($mentionIndex === null) {
+                continue;
+            }
+
+            $startIndex = max(0, $mentionIndex - 5);
+            $startTime = (float) ($sentences[$mentionIndex]['start'] ?? 0);
+
+            for ($i = $mentionIndex; $i >= $startIndex; $i--) {
+                $sText = mb_strtolower($sentences[$i]['text'] ?? '');
+                $sStart = (float) ($sentences[$i]['start'] ?? 0);
+
+                if (($mentionTime - $sStart) > 60) break;
+
+                $startTime = $sStart;
+
+                foreach ($openingPatterns as $pat) {
+                    if (str_contains($sText, $pat)) {
+                        $startTime = $sStart;
+                        break 2;
+                    }
+                }
+            }
+
+            $endIndex = min(count($sentences) - 1, $mentionIndex + 6);
+            $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 25));
+
+            for ($j = $mentionIndex; $j <= $endIndex; $j++) {
+                $sText = mb_strtolower($sentences[$j]['text'] ?? '');
+                $sEnd = (float) ($sentences[$j]['end'] ?? 0);
+
+                if (($sEnd - $startTime) > 75) break;
+
+                $endTime = $sEnd;
+
+                foreach ($closingPatterns as $cpat) {
+                    if (str_contains($sText, $cpat)) {
+                        $endTime = $sEnd;
+                        break 2;
+                    }
+                }
+            }
+
+            $finalStart = max(0, round($startTime - 0.3, 1));
+            $finalEnd = round($endTime + 0.5, 1);
+
+            $snippetArr = [];
+            for ($k = $startIndex; $k <= $endIndex; $k++) {
+                if (isset($sentences[$k]['text'])) {
+                    $snippetArr[] = $sentences[$k]['text'];
+                }
+            }
+            $snippet = implode(' ', $snippetArr);
+
+            DB::table('live_items')
+                ->where('id', $li->id)
+                ->update([
+                    'cut_start_sec' => $finalStart,
+                    'cut_end_sec' => $finalEnd,
+                    'transcription_snippet' => $snippet,
+                    'updated_at' => now()
+                ]);
+
+            $updatedCount++;
+            $results[] = [
+                'live_item_id' => $li->id,
+                'codigo_live' => $li->codigo_live,
+                'cut_start_sec' => $finalStart,
+                'cut_end_sec' => $finalEnd,
+                'cut_start_formatted' => $this->formatSecondsToTime($finalStart),
+                'cut_end_formatted' => $this->formatSecondsToTime($finalEnd),
+                'duration_sec' => round($finalEnd - $finalStart, 1),
+                'snippet' => $snippet
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Endpoint de Detecção Automática de Início e Fim por Código / Transcrição
      */
     public function autoDetectTimestamps(Request $request, $liveId)
     {
@@ -479,135 +603,16 @@ class LiveVideoCutsController extends Controller
             ], 400);
         }
 
-
-
-        $updatedCount = 0;
-        $results = [];
-
-        // Padrões de fala para Início (Abertura de Peça)
-        $openingPatterns = [
-            'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
-            'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
-            'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
-            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'tamanho', 'tecido'
-        ];
-
-        // Padrões de fala para Fim (Fechamento de Peça)
-        $closingPatterns = [
-            'entregando', 'vou entregar', 'passando', 'próxima', 'próximo', 'anotou',
-            'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar', 'comenta código',
-            'um beijo', 'boa noite', 'de onde você é'
-        ];
-
-        foreach ($liveItems as $li) {
-            $code = trim(strtolower($li->codigo_live ?: ''));
-            if (!$code) continue;
-
-            // Encontrar a frase que menciona o código
-            $mentionIndex = null;
-            $mentionTime = null;
-
-            foreach ($sentences as $idx => $s) {
-                $textLower = mb_strtolower($s['text'] ?? '');
-                // Busca código exato ou menção
-                if (str_contains($textLower, $code) || str_contains($textLower, 'código ' . $code) || str_contains($textLower, 'codigo ' . $code)) {
-                    $mentionIndex = $idx;
-                    $mentionTime = (float) ($s['start'] ?? 0);
-                    break;
-                }
-            }
-
-            if ($mentionIndex === null) {
-                continue; // Código não encontrado na transcrição
-            }
-
-            // 1. DEFINIR O INÍCIO (Start): Varrer para trás a partir da menção (até 60s antes)
-            $startIndex = max(0, $mentionIndex - 5);
-            $startTime = (float) ($sentences[$mentionIndex]['start'] ?? 0);
-
-            for ($i = $mentionIndex; $i >= $startIndex; $i--) {
-                $sText = mb_strtolower($sentences[$i]['text'] ?? '');
-                $sStart = (float) ($sentences[$i]['start'] ?? 0);
-
-                // Se a diferença de tempo passar de 60s, para
-                if (($mentionTime - $sStart) > 60) break;
-
-                $startTime = $sStart;
-
-                // Se encontrou gatilho forte de abertura, esse é o início!
-                foreach ($openingPatterns as $pat) {
-                    if (str_contains($sText, $pat)) {
-                        $startTime = $sStart;
-                        break 2;
-                    }
-                }
-            }
-
-            // 2. DEFINIR O FIM (End): Varrer para frente a partir da menção (até 50s depois)
-            $endIndex = min(count($sentences) - 1, $mentionIndex + 6);
-            $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 25));
-
-            for ($j = $mentionIndex; $j <= $endIndex; $j++) {
-                $sText = mb_strtolower($sentences[$j]['text'] ?? '');
-                $sEnd = (float) ($sentences[$j]['end'] ?? 0);
-
-                // Se a diferença de tempo passar de 75s desde o início, limita
-                if (($sEnd - $startTime) > 75) break;
-
-                $endTime = $sEnd;
-
-                // Se encontrou gatilho de fechamento, crava o fim
-                foreach ($closingPatterns as $cpat) {
-                    if (str_contains($sText, $cpat)) {
-                        $endTime = $sEnd;
-                        break 2;
-                    }
-                }
-            }
-
-            // Ajuste de margem de segurança (0.3s antes e 0.5s depois)
-            $finalStart = max(0, round($startTime - 0.3, 1));
-            $finalEnd = round($endTime + 0.5, 1);
-
-            // Coletar snippet da transcrição
-            $snippetArr = [];
-            for ($k = $startIndex; $k <= $endIndex; $k++) {
-                if (isset($sentences[$k]['text'])) {
-                    $snippetArr[] = $sentences[$k]['text'];
-                }
-            }
-            $snippet = implode(' ', $snippetArr);
-
-            // Atualizar no banco
-            DB::table('live_items')
-                ->where('id', $li->id)
-                ->update([
-                    'cut_start_sec' => $finalStart,
-                    'cut_end_sec' => $finalEnd,
-                    'transcription_snippet' => $snippet,
-                    'updated_at' => now()
-                ]);
-
-            $updatedCount++;
-            $results[] = [
-                'live_item_id' => $li->id,
-                'codigo_live' => $li->codigo_live,
-                'cut_start_sec' => $finalStart,
-                'cut_end_sec' => $finalEnd,
-                'cut_start_formatted' => $this->formatSecondsToTime($finalStart),
-                'cut_end_formatted' => $this->formatSecondsToTime($finalEnd),
-                'duration_sec' => round($finalEnd - $finalStart, 1),
-                'snippet' => $snippet
-            ];
-        }
+        $results = $this->performAutoDetection($live);
 
         return response()->json([
             'success' => true,
-            'message' => "Minutagem detectada automaticamente para {$updatedCount} itens!",
-            'updated_count' => $updatedCount,
+            'message' => 'Minutagem detectada automaticamente para ' . count($results) . ' itens!',
+            'updated_count' => count($results),
             'items' => $results
         ]);
     }
+
 
     /**
      * Salva Manualmente os Timestamps de um Item

@@ -98,6 +98,8 @@ class TranscribeLiveVideoCommand extends Command
                 return Command::FAILURE;
             }
 
+            $live->refresh();
+
             if ($autoDetect) {
                 Cache::put("live_transcription_status_{$liveId}", [
                     'status' => 'processing',
@@ -106,10 +108,9 @@ class TranscribeLiveVideoCommand extends Command
                 ], 3600);
 
                 $controller = new LiveVideoCutsController();
-                $controller->autoDetectTimestamps(new Request(), $live->id);
+                $controller->performAutoDetection($live);
             }
 
-            $live->refresh();
             $sentences = json_decode($live->transcription_raw, true) ?: [];
 
             Cache::put("live_transcription_status_{$liveId}", [
