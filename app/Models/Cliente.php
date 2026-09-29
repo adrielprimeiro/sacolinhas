@@ -165,17 +165,51 @@ class Cliente extends Model
 
     public function scopeBuscar($query, $termo)
     {
-        return $query->where(function($q) use ($termo) {
-            $q->where('name', 'like', "%{$termo}%")
-              ->orWhere('nome_cliente', 'like', "%{$termo}%")
-              ->orWhere('apelido', 'like', "%{$termo}%")
-              ->orWhere('email', 'like', "%{$termo}%")
-              ->orWhere('cpf', 'like', "%{$termo}%")
-              ->orWhere('codigo_cliente', 'like', "%{$termo}%")
-              ->orWhere('telefone_principal', 'like', "%{$termo}%")
-              ->orWhere('whatsapp', 'like', "%{$termo}%")
-              ->orWhere('instagram', 'like', "%{$termo}%")
-              ->orWhere('tiktok', 'like', "%{$termo}%");
+        $rawTermo = trim($termo);
+        if (empty($rawTermo)) return $query;
+
+        $cleanWithoutAt = ltrim($rawTermo, '@');
+        $onlyDigits = preg_replace('/\D/', '', $rawTermo);
+        $words = array_filter(explode(' ', $cleanWithoutAt), fn($w) => mb_strlen(trim($w)) >= 2);
+
+        return $query->where(function($q) use ($rawTermo, $cleanWithoutAt, $onlyDigits, $words) {
+            // Busca pelo termo completo original e sem @
+            $q->where('name', 'like', "%{$rawTermo}%")
+              ->orWhere('nome_cliente', 'like', "%{$rawTermo}%")
+              ->orWhere('apelido', 'like', "%{$rawTermo}%")
+              ->orWhere('email', 'like', "%{$rawTermo}%")
+              ->orWhere('instagram', 'like', "%{$rawTermo}%")
+              ->orWhere('tiktok', 'like', "%{$rawTermo}%");
+
+            if ($cleanWithoutAt !== $rawTermo) {
+                $q->orWhere('name', 'like', "%{$cleanWithoutAt}%")
+                  ->orWhere('nome_cliente', 'like', "%{$cleanWithoutAt}%")
+                  ->orWhere('apelido', 'like', "%{$cleanWithoutAt}%")
+                  ->orWhere('instagram', 'like', "%{$cleanWithoutAt}%")
+                  ->orWhere('tiktok', 'like', "%{$cleanWithoutAt}%");
+            }
+
+            // Busca por dígitos (WhatsApp, CPF, Código do Cliente, Telefone)
+            if (!empty($onlyDigits)) {
+                $q->orWhere('whatsapp', 'like', "%{$onlyDigits}%")
+                  ->orWhere('telefone_principal', 'like', "%{$onlyDigits}%")
+                  ->orWhere('telefone_2', 'like', "%{$onlyDigits}%")
+                  ->orWhere('cpf', 'like', "%{$onlyDigits}%")
+                  ->orWhere('codigo_cliente', 'like', "%{$onlyDigits}%");
+            }
+
+            // Se digitou múltiplos nomes (ex: "Adriana Silva"), busca todos os fragmentos no nome
+            if (count($words) > 1) {
+                $q->orWhere(function($subQ) use ($words) {
+                    foreach ($words as $w) {
+                        $subQ->where(function($wQ) use ($w) {
+                            $wQ->where('name', 'like', "%{$w}%")
+                               ->orWhere('nome_cliente', 'like', "%{$w}%")
+                               ->orWhere('apelido', 'like', "%{$w}%");
+                        });
+                    }
+                });
+            }
         });
     }
 

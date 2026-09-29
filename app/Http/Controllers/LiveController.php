@@ -622,29 +622,55 @@ class LiveController extends Controller
 			
 			$usersQuery = User::where('role', $role);
 
-			// ✅ BUSCA EM AMBOS OS CAMPOS (antigos e novos)
+			$rawQuery = trim($query);
+			$cleanWithoutAt = ltrim($rawQuery, '@');
+			$onlyDigits = preg_replace('/\D/', '', $rawQuery);
+			$words = array_filter(explode(' ', $cleanWithoutAt), fn($w) => mb_strlen(trim($w)) >= 2);
+
 			$users = $usersQuery
-				->where(function($q) use ($query) {
-					$searchTerm = "%{$query}%";
+				->where(function($q) use ($rawQuery, $cleanWithoutAt, $onlyDigits, $words) {
+					$searchTerm = "%{$rawQuery}%";
 					
 					// Dados pessoais
 					$q->where('name', 'LIKE', $searchTerm)
+					  ->orWhere('nome_cliente', 'LIKE', $searchTerm)
 					  ->orWhere('email', 'LIKE', $searchTerm)
 					  ->orWhere('apelido', 'LIKE', $searchTerm)
-					  
-					  // ✅ CAMPOS NOVOS (prioridade)
 					  ->orWhere('instagram', 'LIKE', $searchTerm)
-					  ->orWhere('tiktok', 'LIKE', $searchTerm)
-					  ->orWhere('whatsapp', 'LIKE', $searchTerm)
+					  ->orWhere('tiktok', 'LIKE', $searchTerm);
 					  
-					  // ✅ CAMPOS ANTIGOS (compatibilidade)
-					  ->orWhere('remember_token', 'LIKE', $searchTerm)
-					  ->orWhere('nome_cliente', 'LIKE', $searchTerm)
-					  ->orWhere('phone', 'LIKE', $searchTerm);
+					if ($cleanWithoutAt !== $rawQuery) {
+						$cleanTerm = "%{$cleanWithoutAt}%";
+						$q->orWhere('name', 'LIKE', $cleanTerm)
+						  ->orWhere('nome_cliente', 'LIKE', $cleanTerm)
+						  ->orWhere('apelido', 'LIKE', $cleanTerm)
+						  ->orWhere('instagram', 'LIKE', $cleanTerm)
+						  ->orWhere('tiktok', 'LIKE', $cleanTerm);
+					}
+					
+					if (!empty($onlyDigits)) {
+						$q->orWhere('whatsapp', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('phone', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('telefone_principal', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('cpf', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('codigo_cliente', 'LIKE', "%{$onlyDigits}%");
+					}
+
+					if (count($words) > 1) {
+						$q->orWhere(function($subQ) use ($words) {
+							foreach ($words as $w) {
+								$subQ->where(function($wQ) use ($w) {
+									$wQ->where('name', 'LIKE', "%{$w}%")
+									   ->orWhere('nome_cliente', 'LIKE', "%{$w}%")
+									   ->orWhere('apelido', 'LIKE', "%{$w}%");
+								});
+							}
+						});
+					}
 					
 					// Buscar por ID se for número
-					if (is_numeric($query)) {
-						$q->orWhere('id', $query);
+					if (is_numeric($rawQuery)) {
+						$q->orWhere('id', (int) $rawQuery);
 					}
 				})
 				->limit(10)
