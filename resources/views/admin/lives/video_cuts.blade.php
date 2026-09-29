@@ -111,22 +111,83 @@
                     @endif
                 </div>
 
-                <!-- Controles Rápidos de Marcação -->
-                <div class="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-mono font-bold text-indigo-700" id="player-current-time">00:00</span>
-                        <span class="text-[10px] text-gray-400">/</span>
-                        <span class="text-[10px] font-mono text-gray-500" id="player-duration">00:00</span>
+                <!-- Controles Avançados do Player -->
+                <div class="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
+                    
+                    <!-- Linha 1: Display de Tempo & Pulos Rápidos -->
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <!-- Play/Pause & Tempo -->
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="togglePlayPause()" id="btn-play-pause" title="Play / Pause (Espaço)" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-xs shadow-xs transition active:scale-95 cursor-pointer">
+                                <i class="fas fa-play" id="icon-play-pause"></i>
+                            </button>
+                            <div class="flex items-center gap-1 font-mono text-xs font-black">
+                                <span class="text-indigo-700" id="player-current-time">00:00:00</span>
+                                <span class="text-gray-400">/</span>
+                                <span class="text-gray-500 text-[11px]" id="player-duration">00:00:00</span>
+                            </div>
+                        </div>
+
+                        <!-- Pulos de Tempo -->
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="jumpVideo(-10)" title="Voltar 10s" class="px-2 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                -10s
+                            </button>
+                            <button type="button" onclick="jumpVideo(-5)" title="Voltar 5s (←)" class="px-2 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                -5s
+                            </button>
+                            <button type="button" onclick="jumpVideo(-1)" title="Voltar 1s (Shift+←)" class="px-1.5 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                -1s
+                            </button>
+                            <button type="button" onclick="jumpVideo(1)" title="Avançar 1s (Shift+→)" class="px-1.5 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                +1s
+                            </button>
+                            <button type="button" onclick="jumpVideo(5)" title="Avançar 5s (→)" class="px-2 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                +5s
+                            </button>
+                            <button type="button" onclick="jumpVideo(10)" title="Avançar 10s" class="px-2 py-1 bg-white hover:bg-gray-200 text-gray-700 font-extrabold text-[10px] rounded-lg border border-gray-300 transition active:scale-95 cursor-pointer shadow-2xs">
+                                +10s
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="markCurrentTimeToActiveItem('start')" title="Definir tempo atual como início do item selecionado" class="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 text-xs font-extrabold px-3 py-1.5 rounded-lg transition flex items-center gap-1 active:scale-95 cursor-pointer">
-                            <i class="fas fa-step-forward text-[10px]"></i> Início
-                        </button>
-                        <button type="button" onclick="markCurrentTimeToActiveItem('end')" title="Definir tempo atual como fim do item selecionado" class="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 text-xs font-extrabold px-3 py-1.5 rounded-lg transition flex items-center gap-1 active:scale-95 cursor-pointer">
-                            <i class="fas fa-stop text-[10px]"></i> Fim
-                        </button>
+                    <!-- Linha 2: Velocidade de Reprodução & Botões de Marcação -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-200">
+                        <!-- Seletor de Velocidade -->
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase mr-0.5">Velocidade:</span>
+                            @foreach([0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as $speed)
+                                <button type="button" onclick="setPlaybackRate({{ $speed }})" id="btn-speed-{{ str_replace('.', '_', $speed) }}" class="speed-btn px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer {{ $speed == 1.0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100' }}">
+                                    {{ $speed }}x
+                                </button>
+                            @endforeach
+                        </div>
+
+                        <!-- Botões de Marcação Rápida -->
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="markCurrentTimeToActiveItem('start')" title="Marcar tempo atual como Início (I)" class="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 text-xs font-extrabold px-2.5 py-1 rounded-lg transition flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs">
+                                <i class="fas fa-step-forward text-[10px]"></i> Início
+                            </button>
+                            <button type="button" onclick="markCurrentTimeToActiveItem('end')" title="Marcar tempo atual como Fim (O)" class="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 text-xs font-extrabold px-2.5 py-1 rounded-lg transition flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs">
+                                <i class="fas fa-stop text-[10px]"></i> Fim
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Linha 3: Dica de Atalhos de Teclado -->
+                    <div class="pt-1.5 border-t border-gray-200 flex items-center justify-between text-[10px] text-gray-500 font-medium">
+                        <span class="flex items-center gap-1 font-semibold text-gray-600">
+                            <i class="fas fa-keyboard text-indigo-500"></i> Atalhos:
+                        </span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">Espaço</kbd> Play/Pause</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">← / →</kbd> ±5s</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">I</kbd> Início</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">O</kbd> Fim</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">P</kbd> Prévia</span>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Ações IA de Transcrição -->
@@ -176,7 +237,7 @@
                         $isRendered = $item['video_cut_status'] === 'recorded' && !empty($item['video_cut_url']);
                     @endphp
                     <div id="item-card-{{ $item['live_item_id'] }}" 
-                         onclick="selectActiveItem({{ $item['live_item_id'] }}, {{ $item['cut_start_sec'] ?? 0 }})"
+                         onclick="selectActiveItem({{ $item['live_item_id'] }}, '{{ $item['cut_start_formatted'] ?: ($item['cut_start_sec'] ?? 0) }}')"
                          class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-gray-200') }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -187,7 +248,7 @@
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">
-                                            #{{ $item['codigo_live'] }}
+                                             #{{ $item['codigo_live'] }}
                                         </span>
                                         @if($item['buyer_name'])
                                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-green-100 text-green-800 border border-green-200 truncate max-w-[160px]">
@@ -212,11 +273,11 @@
                                     <!-- Início -->
                                     <div class="text-center">
                                         <label class="block text-[9px] font-bold uppercase text-gray-500">Início</label>
-                                        <input type="number" step="0.1" min="0" 
+                                        <input type="text"
                                                id="input-start-{{ $item['live_item_id'] }}"
-                                               value="{{ $item['cut_start_sec'] ?? '' }}" 
-                                               placeholder="0.0"
-                                               class="w-16 px-1.5 py-1 text-xs font-mono font-bold text-center bg-white text-green-700 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500">
+                                               value="{{ $item['cut_start_formatted'] ?? '' }}" 
+                                               placeholder="00:00:00"
+                                               class="w-20 px-1.5 py-1 text-xs font-mono font-bold text-center bg-white text-green-700 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 shadow-2xs">
                                     </div>
 
                                     <span class="text-gray-400 font-bold text-xs mt-3">➔</span>
@@ -224,18 +285,19 @@
                                     <!-- Fim -->
                                     <div class="text-center">
                                         <label class="block text-[9px] font-bold uppercase text-gray-500">Fim</label>
-                                        <input type="number" step="0.1" min="0" 
+                                        <input type="text"
                                                id="input-end-{{ $item['live_item_id'] }}"
-                                               value="{{ $item['cut_end_sec'] ?? '' }}" 
-                                               placeholder="0.0"
-                                               class="w-16 px-1.5 py-1 text-xs font-mono font-bold text-center bg-white text-amber-700 rounded-lg border border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                                               value="{{ $item['cut_end_formatted'] ?? '' }}" 
+                                               placeholder="00:00:00"
+                                               class="w-20 px-1.5 py-1 text-xs font-mono font-bold text-center bg-white text-amber-700 rounded-lg border border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-2xs">
                                     </div>
 
                                     <!-- Salvar Tempo -->
-                                    <button type="button" onclick="saveItemCutTime({{ $item['live_item_id'] }})" title="Salvar Minutagem" class="mt-3 p-1.5 text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition border border-gray-200 shadow-xs">
+                                    <button type="button" onclick="saveItemCutTime({{ $item['live_item_id'] }})" title="Salvar Minutagem (Enter)" class="mt-3 p-1.5 text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition border border-gray-200 shadow-xs cursor-pointer">
                                         <i class="fas fa-save text-xs"></i>
                                     </button>
                                 </div>
+
 
                                 <!-- Ações de Vídeo -->
                                 <div class="flex items-center gap-1.5">
@@ -396,14 +458,73 @@
             const dur = document.getElementById("player-duration");
             if (dur) dur.textContent = formatTime(player.duration);
         });
+
+        player.addEventListener('play', updatePlayPauseIcon);
+        player.addEventListener('pause', updatePlayPauseIcon);
     }
 
     function formatTime(sec) {
-        if (!sec || isNaN(sec)) return "00:00";
+        if (!sec || isNaN(sec)) return "00:00:00";
         const s = Math.floor(sec);
-        const m = Math.floor(s / 60);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
         const rem = s % 60;
-        return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    function parseTimeToSec(val) {
+        if (val === null || val === undefined || val === '') return null;
+        if (typeof val === 'number') return val;
+        val = String(val).trim().replace(',', '.');
+        if (!val.includes(':')) {
+            const num = parseFloat(val);
+            return isNaN(num) ? null : num;
+        }
+        const parts = val.split(':').map(p => parseFloat(p.trim()) || 0);
+        if (parts.length === 3) {
+            return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+        } else if (parts.length === 2) {
+            return (parts[0] * 60) + parts[1];
+        }
+        return null;
+    }
+
+    function togglePlayPause() {
+        if (!player) return;
+        if (player.paused) {
+            player.play().catch(() => {});
+        } else {
+            player.pause();
+        }
+    }
+
+    function updatePlayPauseIcon() {
+        const icon = document.getElementById("icon-play-pause");
+        if (!icon || !player) return;
+        if (player.paused) {
+            icon.className = "fas fa-play";
+        } else {
+            icon.className = "fas fa-pause";
+        }
+    }
+
+    function jumpVideo(deltaSec) {
+        if (!player) return;
+        player.currentTime = Math.max(0, Math.min(player.duration || 999999, player.currentTime + deltaSec));
+    }
+
+    function setPlaybackRate(rate) {
+        if (!player) return;
+        player.playbackRate = rate;
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-2xs');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+        });
+        const activeBtn = document.getElementById(`btn-speed-${String(rate).replace('.', '_')}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-2xs');
+        }
     }
 
     function selectActiveItem(itemId, startTime) {
@@ -416,8 +537,9 @@
             activeCard.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50/40');
         }
 
-        if (player && startTime !== null && startTime !== undefined) {
-            player.currentTime = parseFloat(startTime);
+        if (player && startTime !== null && startTime !== undefined && startTime !== '') {
+            const sec = parseTimeToSec(startTime);
+            if (sec !== null) player.currentTime = sec;
         }
     }
 
@@ -428,10 +550,10 @@
         }
         if (!player) return;
 
-        const time = Math.round(player.currentTime * 10) / 10;
+        const formatted = formatTime(player.currentTime);
         const input = document.getElementById(`input-${type}-${activeLiveItemId}`);
         if (input) {
-            input.value = time;
+            input.value = formatted;
             saveItemCutTime(activeLiveItemId);
         }
     }
@@ -452,11 +574,11 @@
 
         const startInput = document.getElementById(`input-start-${itemId}`);
         const endInput = document.getElementById(`input-end-${itemId}`);
-        const start = parseFloat(startInput ? startInput.value : 0);
-        const end = parseFloat(endInput ? endInput.value : 0);
+        const start = parseTimeToSec(startInput ? startInput.value : '');
+        const end = parseTimeToSec(endInput ? endInput.value : '');
 
-        if (isNaN(start) || isNaN(end) || end <= start) {
-            alert("Defina os tempos de início e fim válidos para visualizar o corte.");
+        if (start === null || end === null || end <= start) {
+            alert("Defina os tempos de início e fim válidos no formato HH:MM:SS ou MM:SS (ex: 01:15:20 ou 10:30).");
             return;
         }
 
@@ -474,10 +596,13 @@
     async function saveItemCutTime(itemId) {
         const startInput = document.getElementById(`input-start-${itemId}`);
         const endInput = document.getElementById(`input-end-${itemId}`);
-        const start = parseFloat(startInput ? startInput.value : 0);
-        const end = parseFloat(endInput ? endInput.value : 0);
+        const startVal = startInput ? startInput.value.trim() : '';
+        const endVal = endInput ? endInput.value.trim() : '';
 
-        if (isNaN(start) || isNaN(end) || end <= start) {
+        const start = parseTimeToSec(startVal);
+        const end = parseTimeToSec(endVal);
+
+        if (start === null || end === null || end <= start) {
             return;
         }
 
@@ -490,21 +615,66 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    cut_start_sec: start,
-                    cut_end_sec: end
+                    cut_start_sec: startVal,
+                    cut_end_sec: endVal
                 })
             });
             const data = await res.json();
             if (data.success) {
                 const card = document.getElementById(`item-card-${itemId}`);
                 if (card) card.classList.add('border-indigo-400');
+                if (startInput && data.cut_start_formatted) startInput.value = data.cut_start_formatted;
+                if (endInput && data.cut_end_formatted) endInput.value = data.cut_end_formatted;
             }
         } catch (e) {
             console.error("Erro ao salvar minutagem:", e);
         }
     }
 
+    // Atalhos globais de teclado para edição rápida
+    document.addEventListener('keydown', (e) => {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            if (e.key === 'Enter' && activeLiveItemId) {
+                saveItemCutTime(activeLiveItemId);
+            }
+            return;
+        }
+
+        if (!player) return;
+
+        if (e.code === 'Space' || e.key === 'k') {
+            e.preventDefault();
+            togglePlayPause();
+        } else if (e.key === 'ArrowLeft' || e.key === 'j') {
+            e.preventDefault();
+            jumpVideo(e.shiftKey ? -1 : -5);
+        } else if (e.key === 'ArrowRight' || e.key === 'l') {
+            e.preventDefault();
+            jumpVideo(e.shiftKey ? 1 : 5);
+        } else if (e.key.toLowerCase() === 'i' || e.key === '[') {
+            e.preventDefault();
+            markCurrentTimeToActiveItem('start');
+        } else if (e.key.toLowerCase() === 'o' || e.key === ']') {
+            e.preventDefault();
+            markCurrentTimeToActiveItem('end');
+        } else if (e.key.toLowerCase() === 'p' && activeLiveItemId) {
+            e.preventDefault();
+            previewItemClip(activeLiveItemId);
+        } else if (e.key === '1') {
+            setPlaybackRate(1.0);
+        } else if (e.key === '2') {
+            setPlaybackRate(1.25);
+        } else if (e.key === '3') {
+            setPlaybackRate(1.5);
+        } else if (e.key === '4') {
+            setPlaybackRate(2.0);
+        } else if (e.key === '5') {
+            setPlaybackRate(0.75);
+        }
+    });
+
     let transcribePollTimer = null;
+
 
     function startTranscriptionPolling() {
         const progressBox = document.getElementById("ai-process-progress-box");

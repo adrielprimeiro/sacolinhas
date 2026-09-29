@@ -619,33 +619,59 @@ class LiveVideoCutsController extends Controller
      */
     public function saveItemTimestamp(Request $request, $liveId, $liveItemId)
     {
-        $request->validate([
-            'cut_start_sec' => 'required|numeric|min:0',
-            'cut_end_sec' => 'required|numeric|gt:cut_start_sec',
-        ]);
+        $startRaw = $request->input('cut_start_sec');
+        $endRaw = $request->input('cut_end_sec');
 
-        $start = (float) $request->input('cut_start_sec');
-        $end = (float) $request->input('cut_end_sec');
+        $start = $this->parseTimeToSeconds($startRaw);
+        $end = $this->parseTimeToSeconds($endRaw);
+
+        if ($start === null || $end === null || $end <= $start) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O tempo de fim deve ser maior que o tempo de início.'
+            ], 422);
+        }
 
         DB::table('live_items')
             ->where('id', $liveItemId)
             ->where('live_id', $liveId)
             ->update([
-                'cut_start_sec' => $start,
-                'cut_end_sec' => $end,
+                'cut_start_sec' => round($start, 2),
+                'cut_end_sec' => round($end, 2),
                 'updated_at' => now()
             ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Minutagem do corte salva com sucesso!',
-            'cut_start_sec' => $start,
-            'cut_end_sec' => $end,
+            'cut_start_sec' => round($start, 2),
+            'cut_end_sec' => round($end, 2),
             'cut_start_formatted' => $this->formatSecondsToTime($start),
             'cut_end_formatted' => $this->formatSecondsToTime($end),
             'duration_sec' => round($end - $start, 1)
         ]);
     }
+
+    /**
+     * Converte string HH:MM:SS, MM:SS ou valor numérico em segundos (float)
+     */
+    private function parseTimeToSeconds($time): ?float
+    {
+        if ($time === null || $time === '') return null;
+        if (is_numeric($time)) return (float) $time;
+
+        $time = str_replace(',', '.', trim((string) $time));
+        $parts = explode(':', $time);
+
+        if (count($parts) === 3) {
+            return ((float) $parts[0] * 3600) + ((float) $parts[1] * 60) + (float) $parts[2];
+        } elseif (count($parts) === 2) {
+            return ((float) $parts[0] * 60) + (float) $parts[1];
+        }
+
+        return is_numeric($time) ? (float) $time : null;
+    }
+
 
     /**
      * Gera o Corte de Vídeo de um Único Item via FFmpeg
