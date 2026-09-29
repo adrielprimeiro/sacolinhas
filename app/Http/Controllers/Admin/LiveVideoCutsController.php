@@ -155,7 +155,61 @@ class LiveVideoCutsController extends Controller
         }
 
         if ($request->filled('video_path_manual')) {
-            $path = $request->input('video_path_manual');
+            $path = trim((string) $request->input('video_path_manual'));
+
+            // Se for uma URL externa (Instagram, TikTok, YouTube, ou link web)
+            if (preg_match('/^https?:\/\//i', $path)) {
+                $isSocialOrWebUrl = preg_match('/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|twitter\.com|x\.com/i', $path)
+                    || !preg_match('/\.(mp4|webm|mov|mkv|avi)(\?.*)?$/i', $path);
+
+                if ($isSocialOrWebUrl) {
+                    try {
+                        set_time_limit(600); // Até 10 minutos para download e processamento de lives
+                        $filename = 'live_' . $liveId . '_' . time() . '.mp4';
+                        $destFolder = storage_path('app/public/live_recordings');
+                        if (!is_dir($destFolder)) {
+                            mkdir($destFolder, 0775, true);
+                        }
+                        $destPath = $destFolder . DIRECTORY_SEPARATOR . $filename;
+
+                        $escapedUrl = escapeshellarg($path);
+                        $escapedDest = escapeshellarg($destPath);
+                        $cmd = "yt-dlp -f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" --merge-output-format mp4 --no-warnings --no-playlist -o {$escapedDest} {$escapedUrl} 2>&1";
+
+                        $output = [];
+                        $returnCode = 0;
+                        exec($cmd, $output, $returnCode);
+
+                        if ($returnCode !== 0 || !file_exists($destPath) || filesize($destPath) < 1000) {
+                            $cmdFallback = "yt-dlp --no-warnings --no-playlist -o {$escapedDest} {$escapedUrl} 2>&1";
+                            exec($cmdFallback, $output, $returnCode);
+                        }
+
+                        if (file_exists($destPath) && filesize($destPath) > 1000) {
+                            $storageRelPath = 'live_recordings/' . $filename;
+                            $live->recording_path = $storageRelPath;
+                            $live->recording_filename = $filename;
+                            $live->save();
+
+                            return response()->json([
+                                'success' => true,
+                                'message' => 'Vídeo baixado do link com sucesso e vinculado à live!',
+                                'recording_path' => $storageRelPath,
+                                'recording_url' => Storage::url($storageRelPath)
+                            ]);
+                        } else {
+                            Log::warning("Falha no download yt-dlp: " . implode("\n", $output));
+                            throw new \Exception("Não foi possível baixar o vídeo desse link. Verifique se o link/post é público ou tente novamente.");
+                        }
+                    } catch (\Exception $e) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Erro ao baixar vídeo: ' . $e->getMessage()
+                        ], 422);
+                    }
+                }
+            }
+
             $live->recording_path = $path;
             $live->recording_filename = basename($path);
             $live->save();

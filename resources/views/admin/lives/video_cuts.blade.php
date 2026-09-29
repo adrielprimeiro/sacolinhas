@@ -276,18 +276,22 @@
 
             <div class="relative flex py-2 items-center">
                 <div class="flex-grow border-t border-gray-200"></div>
-                <span class="flex-shrink mx-3 text-gray-400 text-[10px] uppercase font-bold">OU Caminho Local no Servidor</span>
+                <span class="flex-shrink mx-3 text-gray-400 text-[10px] uppercase font-bold">OU LINK / CAMINHO DO VÍDEO</span>
                 <div class="flex-grow border-t border-gray-200"></div>
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1.5">Caminho ou URL do Vídeo:</label>
-                <input type="text" id="video-path-manual-input" name="video_path_manual" placeholder="/var/www/sacolinhas/storage/..." class="w-full px-3 py-2 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-500 font-medium">
+                <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                    <span>Link do Instagram / TikTok / YouTube ou Caminho:</span>
+                    <span class="text-[10px] text-indigo-700 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">✨ Download Automático</span>
+                </label>
+                <input type="text" id="video-path-manual-input" name="video_path_manual" placeholder="Ex: https://www.instagram.com/p/... ou /var/www/..." class="w-full px-3 py-2 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-500 font-medium">
+                <p class="text-[10px] text-gray-500 mt-1">Cole a URL do post/vídeo do Instagram, TikTok ou YouTube para baixar diretamente no servidor.</p>
             </div>
 
             <div id="upload-progress-box" class="hidden space-y-1">
                 <div class="flex justify-between text-[11px] text-gray-700 font-bold">
-                    <span id="upload-progress-text">Enviando vídeo...</span>
+                    <span id="upload-progress-text">Processando vídeo...</span>
                     <span id="upload-progress-pct">0%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
@@ -589,13 +593,22 @@
             formData.append('video_path_manual', pathInput.value.trim());
         }
 
+        const isLink = /^https?:\/\//i.test(pathInput.value.trim());
         btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...`;
+        btn.innerHTML = isLink 
+            ? `<i class="fas fa-spinner fa-spin mr-1"></i> Baixando do link...`
+            : `<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...`;
 
         const progressBox = document.getElementById("upload-progress-box");
         const progressBar = document.getElementById("upload-progress-bar");
         const progressPct = document.getElementById("upload-progress-pct");
+        const progressText = document.getElementById("upload-progress-text");
         if (progressBox) progressBox.classList.remove("hidden");
+        if (progressText) {
+            progressText.textContent = isLink 
+                ? "Baixando e processando vídeo do Instagram/Link... (aguarde alguns instantes)"
+                : "Enviando arquivo de vídeo...";
+        }
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `/admin/lives/${liveId}/cortes/upload-video`, true);
