@@ -257,6 +257,12 @@
                 <span id="autoscroll-text">Rolagem: Ativa</span>
             </button>
 
+            <!-- Alternador de Histórico: 200 Recentes / Todas as Mensagens -->
+            <button type="button" onclick="toggleChatHistoryMode()" id="btn-history-mode-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Alternar entre ver 200 mensagens recentes (mais leve e rápido) ou todas as mensagens da live">
+                <i class="fas fa-history text-indigo-400" id="history-mode-icon"></i>
+                <span id="history-mode-text" class="hidden sm:inline">200 Recentes</span>
+            </button>
+
             <!-- Botão Alternador Painel de Bipagem (Expansão do Chat) -->
             <button type="button" onclick="toggleScanPanel()" id="btn-toggle-scan-panel" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar ou mostrar o painel lateral de bipagem para expandir a área do chat">
                 <i class="fas fa-barcode text-emerald-400"></i>
@@ -2614,14 +2620,36 @@
     });
 
     // =========================================================================
-    // POLLING EM TEMPO REAL
+    // POLLING EM TEMPO REAL & CONTROLE DE HISTÓRICO (200 vs TODAS)
     // =========================================================================
+    let chatHistoryMode = 'recent'; // 'recent' (200) ou 'all' (todas até 5000)
     let isFetchingChatFeed = false;
-    function fetchChatFeed() {
-        if (!liveId || isFetchingChatFeed) return;
+
+    function toggleChatHistoryMode() {
+        chatHistoryMode = (chatHistoryMode === 'recent') ? 'all' : 'recent';
+        const btn = document.getElementById('btn-history-mode-toggle');
+        const text = document.getElementById('history-mode-text');
+        const icon = document.getElementById('history-mode-icon');
+        if (chatHistoryMode === 'all') {
+            if (btn) btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md";
+            if (text) text.textContent = "Todas as Mensagens";
+            if (icon) icon.className = "fas fa-infinity text-yellow-300";
+            showToast("Carregando todas as mensagens da live...", "info");
+        } else {
+            if (btn) btn.className = "bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+            if (text) text.textContent = "200 Recentes";
+            if (icon) icon.className = "fas fa-history text-indigo-400";
+            showToast("Modo 200 mensagens recentes ativado (mais rápido)", "info");
+        }
+        fetchChatFeed(true);
+    }
+
+    function fetchChatFeed(force) {
+        if (!liveId || (isFetchingChatFeed && !force)) return;
         isFetchingChatFeed = true;
 
-        fetch(`/admin/lives/${liveId}/chat-data`)
+        const limitQuery = chatHistoryMode === 'all' ? 'all' : '200';
+        fetch(`/admin/lives/${liveId}/chat-data?limit=${limitQuery}`)
             .then(res => res.json())
             .then(data => {
                 isFetchingChatFeed = false;

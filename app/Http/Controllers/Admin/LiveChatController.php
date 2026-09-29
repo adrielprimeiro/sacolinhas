@@ -927,10 +927,13 @@ class LiveChatController extends Controller
      */
     public function getChatData(Request $request, $liveId)
     {
-        // 1. Mensagens recentes (últimas 200)
+        $limitParam = $request->query('limit', '200');
+        $limit = ($limitParam === 'all' || (int)$limitParam >= 5000) ? 5000 : 200;
+
+        // 1. Mensagens da live (200 recentes ou todas até 5000)
         $rawMessages = LiveMessage::where('live_id', $liveId)
             ->orderBy('id', 'desc')
-            ->limit(200)
+            ->limit($limit)
             ->get();
 
         $userCounts = LiveMessage::where('live_id', $liveId)
