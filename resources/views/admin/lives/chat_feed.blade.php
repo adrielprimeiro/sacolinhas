@@ -1772,13 +1772,13 @@
                             </button>
                         </div>
                     ` : `
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Usuário não cadastrado. Aguardando WhatsApp no chat para cadastrar cliente e abrir sacolinha">
-                            <span class="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[9px] shrink-0 animate-pulse">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Usuário não cadastrado. Aguardando WhatsApp no chat para cadastrar cliente e abrir sacolinha">
+                            <span class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0 animate-pulse">
                                 <i class="fas fa-clock"></i>
                             </span>
-                            <span class="font-black text-amber-950 truncate max-w-[110px]">@${escapeHtml(cleanUser)}</span>
-                            <span class="text-[9.5px] font-extrabold bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">Esperando telefone</span>
-                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
+                            <span class="font-black text-red-950 truncate max-w-[110px]">@${escapeHtml(cleanUser)}</span>
+                            <span class="text-[9.5px] font-extrabold bg-red-600 text-white px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">Esperando telefone</span>
+                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="text-gray-400 hover:text-red-700 ml-1 text-[10px] cursor-pointer">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
