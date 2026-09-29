@@ -1242,15 +1242,14 @@
         if (prod.tamanho && String(prod.tamanho).toLowerCase() !== 'null') safePush('Tam: ' + prod.tamanho);
         if (prod.marca && String(prod.marca).toLowerCase() !== 'null') safePush(prod.marca);
         if (prod.cor && String(prod.cor).toLowerCase() !== 'null') safePush(prod.cor);
-        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') safePush(prod.formatted_price);
+        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') {
+            safePush('<span class="text-emerald-700 font-extrabold">' + escapeHtml(prod.formatted_price) + '</span>');
+        }
 
         const detailsText = detailParts.join(' • ');
         const nameHtml = escapeHtml(prod.name || 'Produto');
 
-        return `
-            <div class="font-bold text-gray-900 leading-tight text-[11px]">${nameHtml}</div>
-            ${detailsText ? `<div class="text-[9.5px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
-        `;
+        return `<strong class="text-gray-900 font-black text-[12px]">${nameHtml}</strong>${detailsText ? `<span class="text-gray-400 font-light mx-1">•</span><span class="text-gray-600 font-semibold text-[11px]">${detailsText}</span>` : ''}`;
     }
 
     function checkLiveCodeDuplicate(code, excludeScanId = null, excludeCode = null, excludeItemId = null) {
@@ -1299,17 +1298,17 @@
                    </span>`
                 : '';
 
-            return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center flex-wrap gap-1">
-                <i class="fas fa-tag text-[9px]"></i> Live: <span>${escapeHtml(item.liveCode)}</span>
-                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-1 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
+            return `<span class="text-[11.5px] text-indigo-700 font-extrabold scan-item-live-code inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                <i class="fas fa-tag text-[9px] text-indigo-500"></i> Live: <strong class="text-indigo-900 font-mono">${escapeHtml(item.liveCode)}</strong>
+                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-0.5 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
                 ${dupBadge}
-            </p>`;
+            </span>`;
         } else {
             const scanId = item ? item.id : '';
-            return `<p class="text-[10px] text-amber-600 font-bold italic scan-item-live-code flex items-center gap-1">
-                <i class="fas fa-clock text-[9px]"></i> Aguardando código da live
-                <button type="button" onclick="editItemLiveCode('${scanId}')" title="Inserir código da live" class="text-amber-500 hover:text-amber-700 ml-1 p-0.5 cursor-pointer"><i class="fas fa-plus-circle text-[9px]"></i></button>
-            </p>`;
+            return `<span class="text-[10.5px] text-amber-700 font-bold italic scan-item-live-code inline-flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                <i class="fas fa-clock text-[9px] text-amber-500"></i> Aguardando live
+                <button type="button" onclick="editItemLiveCode('${scanId}')" title="Inserir código da live" class="text-amber-600 hover:text-amber-800 ml-0.5 p-0.5 cursor-pointer"><i class="fas fa-plus-circle text-[9px]"></i></button>
+            </span>`;
         }
     }
 
@@ -1717,36 +1716,33 @@
         if (item.buyerUsername) {
             const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase());
             return `
-                <div class="mt-1.5 p-2 bg-emerald-50 border border-emerald-300 rounded-xl shadow-xs">
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-                                <i class="fas fa-check text-[10px]"></i>
-                            </span>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-xs font-black text-emerald-950">@${escapeHtml(item.buyerUsername)}</span>
-                                    ${item.buyerName ? `<span class="text-[11px] font-semibold text-emerald-800">(${escapeHtml(item.buyerName)})</span>` : ''}
-                                    <span class="text-[9px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider">Vinculado</span>
-                                </div>
-                            </div>
+                <div class="p-2 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-[10px] shrink-0">
+                            <i class="fas fa-check text-[9px]"></i>
+                        </span>
+                        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span class="text-xs font-black text-emerald-950">@${escapeHtml(item.buyerUsername)}</span>
+                            ${item.buyerName ? `<span class="text-[11px] font-semibold text-emerald-800">(${escapeHtml(item.buyerName)})</span>` : ''}
+                            <span class="text-[9px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider">Vinculado</span>
                         </div>
-                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="px-2.5 py-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0">
+                        ${otherSpeakers.length > 0 ? `
+                            <div class="flex items-center gap-1 text-[10.5px]">
+                                <i class="fas fa-list-ol text-gray-400 mr-0.5" title="Lista de interessados"></i>
+                                ${otherSpeakers.map(q => `
+                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir para ${q.position}º @${escapeHtml(q.username)} (${escapeHtml(q.text)} às ${q.time})" class="px-1.5 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded text-[9.5px] font-bold transition cursor-pointer">
+                                        ${q.position}º @${escapeHtml(q.username)}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="px-2 py-0.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
                             <i class="fas fa-times text-[9px]"></i> Desvincular
                         </button>
                     </div>
-                    ${otherSpeakers.length > 0 ? `
-                        <div class="mt-2 pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 flex-wrap text-[10px]">
-                            <span class="font-bold text-emerald-900 shrink-0"><i class="fas fa-users text-emerald-600 mr-0.5"></i> Fila de espera (${otherSpeakers.length}):</span>
-                            ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir peça para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; às ${q.time}" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
-                                    <strong class="text-indigo-600">${q.position}º</strong>
-                                    <span>@${escapeHtml(q.username)}</span>
-                                    <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
-                                </button>
-                            `).join('')}
-                        </div>
-                    ` : ''}
                 </div>
             `;
         }
@@ -1757,48 +1753,39 @@
             const others = queue.slice(1);
 
             return `
-                <div class="mt-1.5 space-y-1.5">
-                    <!-- 1º da Fila (Destaque Ouro / Campeão com Ação Rápida de 1 Clique) -->
-                    <div class="p-2.5 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border-2 border-amber-400 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm">
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                            <span class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs ring-2 ring-amber-300">
-                                1º
+                <div class="p-2 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                    <!-- Lado Esquerdo: 1º Lugar com destaque e botão Vincular -->
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <span class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                            1º
+                        </span>
+                        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span class="text-xs font-black text-amber-950">@${escapeHtml(first.username)}</span>
+                            ${first.displayName && first.displayName !== first.username ? `<span class="text-[11px] font-semibold text-amber-800">(${escapeHtml(first.displayName)})</span>` : ''}
+                            <span class="text-[10px] text-gray-400 font-medium">(${first.time})</span>
+                            <span class="text-[10.5px] text-amber-900 italic font-semibold truncate max-w-xs">
+                                "${escapeHtml(first.text)}"
                             </span>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-xs font-black text-amber-950">@${escapeHtml(first.username)}</span>
-                                    ${first.displayName && first.displayName !== first.username ? `<span class="text-[11px] font-semibold text-amber-800">(${escapeHtml(first.displayName)})</span>` : ''}
-                                    <span class="text-[9px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.2 rounded-full">${first.time}</span>
-                                </div>
-                                <div class="text-[10.5px] text-amber-900 font-medium italic truncate mt-0.5">
-                                    <i class="fas fa-comment-dots text-amber-500 mr-1 text-[9px]"></i>"${escapeHtml(first.text)}"
-                                </div>
-                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(first.username)}', '${escapeHtml(first.displayName)}', '${first.userId || ''}', ${first.id})" title="Vincular à 1ª pessoa que pediu (${escapeHtml(first.text)})" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow active:scale-95">
-                                <i class="fas fa-bolt text-yellow-300"></i>
-                                <span>Vincular 1º</span>
+                        <div class="flex items-center gap-1 shrink-0 ml-1">
+                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(first.username)}', '${escapeHtml(first.displayName)}', '${first.userId || ''}', ${first.id})" title="Vincular à 1ª pessoa que pediu (${escapeHtml(first.text)})" class="px-2.5 py-1 rounded-lg text-xs font-black transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95" style="background-color:#059669; color:#ffffff;">
+                                <i class="fas fa-bolt text-yellow-300 text-[10px]"></i>
+                                <span>Vincular</span>
                             </button>
-                            <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-white transition cursor-pointer">
-                                <i class="fas fa-link text-xs"></i>
+                            <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou pesquisar cliente" class="p-1 text-gray-400 hover:text-indigo-600 rounded transition cursor-pointer">
+                                <i class="fas fa-link text-[11px]"></i>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Demais na Fila (2º, 3º, 4º...) por Ordem de Pedido -->
+                    <!-- Lado Direito: Demais da fila com ícone de lista, sem texto 'Fila de...', apenas posição e @ig -->
                     ${others.length > 0 ? `
-                        <div class="p-1.5 bg-gray-50/80 border border-gray-200 rounded-xl">
-                            <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
-                                <span class="font-extrabold text-gray-600 shrink-0 flex items-center gap-1">
-                                    <i class="fas fa-list-ol text-indigo-500 text-[9px]"></i> Fila de Espera (${others.length}):
-                                </span>
+                        <div class="flex items-center gap-1.5 shrink-0 pl-2 border-l border-amber-200">
+                            <i class="fas fa-list-ol text-indigo-500 text-xs" title="Lista de pedidos seguintes"></i>
+                            <div class="flex items-center gap-1 flex-wrap">
                                 ${others.map(q => `
-                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}ª pessoa (${escapeHtml(q.text)} às ${q.time})" class="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-indigo-50 text-gray-700 hover:text-indigo-900 border border-gray-200 hover:border-indigo-300 rounded-lg text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
-                                        <strong class="text-indigo-600 font-bold">${q.position}º</strong>
-                                        <span class="font-bold">@${escapeHtml(q.username)}</span>
-                                        <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
-                                        <span class="text-indigo-600 font-black text-[9px] ml-0.5 hover:underline">&bull; Vincular</span>
+                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="px-2 py-0.5 bg-white hover:bg-indigo-50 text-gray-700 hover:text-indigo-900 border border-gray-200 hover:border-indigo-300 rounded text-[10px] font-bold transition cursor-pointer shadow-2xs">
+                                        <span class="text-indigo-600 font-extrabold">${q.position}º</span> @${escapeHtml(q.username)}
                                     </button>
                                 `).join('')}
                             </div>
@@ -1811,8 +1798,8 @@
         // CASO 3: A peça NÃO tem pedidos no chat ainda
         if (item.liveCode) {
             return `
-                <div class="mt-1.5 p-2 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-1.5 text-gray-400 text-[10.5px] truncate">
+                <div class="p-2 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-1.5 text-gray-400 text-[11px] truncate">
                         <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
                         <span class="truncate">Aguardando pedidos de <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
                     </div>
@@ -1824,8 +1811,8 @@
         }
 
         return `
-            <div class="mt-1.5 p-2 bg-amber-50/50 border border-dashed border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
-                <div class="flex items-center gap-1.5 text-amber-700 text-[10.5px] truncate">
+            <div class="p-2 bg-amber-50/50 border border-dashed border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5 text-amber-700 text-[11px] truncate">
                     <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
                     <span class="truncate">Defina o código da live para listar quem pediu no chat</span>
                 </div>
@@ -2115,15 +2102,14 @@
         }
 
         el.innerHTML =
-            '<div class="flex items-start justify-between gap-2.5">' +
-                '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
-                    '<div class="flex items-center gap-2 flex-wrap">' +
-                        '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
-                        '<div class="scan-item-live-wrapper">' +
-                            renderLiveCodeHtml(item) +
-                        '</div>' +
+            '<div class="flex items-center justify-between gap-2">' +
+                '<div class="flex items-center gap-2 flex-wrap min-w-0 flex-1 scan-item-info cursor-pointer">' +
+                    '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
+                    '<div class="scan-item-live-wrapper inline-block">' +
+                        renderLiveCodeHtml(item) +
                     '</div>' +
-                    '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                    '<span class="text-gray-300 font-light mx-0.5">|</span>' +
+                    '<div class="scan-item-details inline-flex items-center flex-wrap gap-1 text-xs min-w-0 flex-1">' +
                         detailsInitial +
                     '</div>' +
                 '</div>' +
