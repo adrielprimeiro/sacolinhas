@@ -56,8 +56,11 @@
                 <span style="color: #ffffff !important; font-weight: 800;">Gerar Todos os Cortes (FFmpeg)</span>
             </button>
         </div>
+    </div>
+
     <!-- BANNER DE PROGRESSO IA ASSÍNCRONO -->
     <div id="ai-process-progress-box" class="hidden mb-6 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-lg border border-purple-700">
+
         <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-3">
                 <i class="fas fa-brain text-2xl text-teal-300 animate-pulse"></i>
