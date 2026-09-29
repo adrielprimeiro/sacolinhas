@@ -349,11 +349,11 @@
         </button>
     </div>
 
-    <!-- Área principal: Feed + Painel de Bipagem (lado a lado) -->
-    <div class="flex gap-2.5 flex-1" style="min-height:0;">
+    <!-- Área principal: Feed (1/3) + Painel de Bipagem e Itens (2/3) -->
+    <div class="flex flex-col lg:flex-row gap-2.5 flex-1" style="min-height:0;">
 
-        <!-- FEED PRINCIPAL DO CHAT (LEITURA ULTRA FÁCIL & AVATAR EM DESTAQUE) -->
-        <div id="feed-outer-wrapper" class="theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
+        <!-- FEED PRINCIPAL DO CHAT (1/3 DO ESPAÇO DA TELA) -->
+        <div id="feed-outer-wrapper" class="theme-dark relative w-full lg:w-1/3 xl:w-1/3 shrink-0 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
             <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
             <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
                 <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
@@ -366,12 +366,12 @@
             <div id="floating-show-scan-panel-btn" class="absolute top-3 right-52 z-40 hidden transition-all">
                 <button type="button" onclick="toggleScanPanel()" class="bg-emerald-600/95 hover:bg-emerald-500 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-emerald-300 cursor-pointer active:scale-95 transition-all hover:scale-105">
                     <i class="fas fa-barcode"></i>
-                    <span>Abrir Bipador</span>
+                    <span>Abrir Painel de Itens</span>
                 </button>
             </div>
 
             <!-- Container com Scroll -->
-            <div id="feed-messages-container" class="flex-1 p-3 sm:p-5 overflow-y-auto space-y-3 font-sans" onscroll="handleContainerScroll()">
+            <div id="feed-messages-container" class="flex-1 p-3 sm:p-4 overflow-y-auto space-y-2.5 font-sans" onscroll="handleContainerScroll()">
                 @if(!$activeLive)
                     <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
                         <i class="fas fa-video-slash text-4xl mb-3 text-gray-500"></i>
@@ -396,76 +396,75 @@
         </div>
 
         <!-- ============================================================
-             PAINEL DIREITO — BIPAGEM DE ITENS (VOZ + LEITOR FÍSICO)
+             PAINEL PRINCIPAL DE ITENS & BIPAGEM (2/3 DO ESPAÇO DA TELA)
              ============================================================ -->
-        <div id="scan-panel" class="w-72 sm:w-80 md:w-80 lg:w-80 xl:w-88 shrink-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
+        <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
 
-            <!-- Card 1: Código da Live (capturado por voz) -->
-            <div class="bg-white rounded-2xl shadow border border-gray-200 p-2 shrink-0">
-                <div class="flex items-center justify-between gap-1 mb-1">
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[10px]">
-                            <i class="fas fa-microphone"></i>
+            <!-- BARRA SUPERIOR: CÓDIGO DA LIVE (VOZ) + LEITOR DE CÓDIGO DE BARRAS (LADO A LADO) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 shrink-0">
+                <!-- Card 1: Código da Live (capturado por voz ou manual) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 flex flex-col justify-between">
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[10px]">
+                                <i class="fas fa-microphone"></i>
+                            </div>
+                            <span class="text-[11px] font-black text-gray-800">Código da Live (Voz / Manual)</span>
                         </div>
-                        <span class="text-[11px] font-black text-gray-800">Código da Live (Voz)</span>
+                        <div class="flex items-center gap-1.5">
+                            <span id="mic-status-label" class="text-[9.5px] font-bold text-gray-400">Inativo</span>
+                            <div id="mic-status-dot" class="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <span id="mic-status-label" class="text-[9.5px] font-bold text-gray-400">Inativo</span>
-                        <div id="mic-status-dot" class="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
+                    <div class="flex gap-1">
+                        <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'Código 15' ou digite"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); applySpokenLiveCode(this.value);}"
+                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
+                        <button type="button" onclick="clearLiveCode()" title="Limpar código"
+                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                    <!-- Feedback ao vivo do que o microfone está ouvindo -->
+                    <div id="mic-transcript-preview" class="mt-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[9.5px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
+                        <i class="fas fa-wave-square text-[8px] text-indigo-500 animate-pulse shrink-0"></i>
+                        <span class="truncate">Ouvindo: <span id="mic-transcript-text" class="text-indigo-900 italic font-bold"></span></span>
                     </div>
                 </div>
-                <div class="flex gap-1">
-                    <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'Código 15' ou digite"
-                        onkeydown="if(event.key==='Enter'){event.preventDefault(); applySpokenLiveCode(this.value);}"
-                        class="flex-1 px-2.5 py-1 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
-                    <button type="button" onclick="clearLiveCode()" title="Limpar código"
-                        class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
-                        <i class="fas fa-times text-[10px]"></i>
-                    </button>
-                </div>
-                <!-- Feedback ao vivo do que o microfone está ouvindo -->
-                <div id="mic-transcript-preview" class="mt-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[9.5px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
-                    <i class="fas fa-wave-square text-[8px] text-indigo-500 animate-pulse shrink-0"></i>
-                    <span class="truncate">Ouvindo: <span id="mic-transcript-text" class="text-indigo-900 italic font-bold"></span></span>
-                </div>
-            </div>
 
-            <!-- Card 2: Leitor de Código de Barras (Bipador USB / Físico) + Lista de Itens Bipados -->
-            <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
-
-                <!-- Cabeçalho do Leitor com Status de Foco Automático -->
-                <div class="p-2.5 pb-1.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 via-emerald-50/20 to-indigo-50/20 shrink-0">
-                    <div class="flex items-center justify-between mb-1.5">
+                <!-- Card 2: Leitor de Código de Barras (Bipador USB / Físico) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-1.5 min-w-0">
-                            <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-md text-[11px] shrink-0">
+                            <div class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm text-[10px] shrink-0">
                                 <i class="fas fa-barcode"></i>
                             </div>
-                            <div class="min-w-0">
-                                <h3 class="text-[11px] font-black text-gray-900 leading-tight truncate">Leitor de Código de Barras</h3>
-                                <p class="text-[9px] text-gray-500 font-semibold truncate">Bipe as etiquetas diretamente</p>
-                            </div>
+                            <h3 class="text-[11px] font-black text-gray-900 leading-tight truncate">Leitor de Código de Barras</h3>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
                             <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                                 <span id="scanner-focus-text">FOCO ATIVO</span>
                             </div>
-                            <button type="button" onclick="toggleScanPanel()" title="Recolher painel de bipagem para expandir o chat" class="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-[10px]">
+                            <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-[10px]">
                                 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
                     </div>
-
                     <!-- Campo de Entrada com Destaque Máximo para o Leitor -->
                     <div class="relative">
                         <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
                             placeholder="Aguardando bip do leitor..."
-                            class="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                            class="w-full pl-8 pr-3 py-1.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-xs font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
                             oninput="handleManualScanInput(event)"
                             onkeydown="handleManualScan(event)">
-                        <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
+                        <i class="fas fa-barcode absolute left-2.5 top-2.5 text-emerald-600 text-xs"></i>
                     </div>
                 </div>
+            </div>
+
+            <!-- Card Principal: Lista de Itens Bipados e Fila de Pedidos do Chat -->
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
 
                 <!-- BANNER DE CONFIRMAÇÃO DO ÚLTIMO ITEM BIPADO (FLASH VERDE) -->
                 <div id="scan-last-item-banner" class="hidden mx-2 my-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-xl flex items-center justify-between text-xs font-black shadow-md shrink-0">
@@ -490,23 +489,27 @@
                     </button>
                 </div>
 
-                <!-- Barra de Contador de Itens Bipados -->
-                <div class="px-3 py-1.5 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
-                    <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
-                        <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
-                        <span>Itens Bipados: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
-                    </span>
-                    <span class="text-[10px] text-gray-400 font-semibold flex items-center gap-1">
-                        <i class="fas fa-keyboard text-[9px] text-gray-400"></i> Enter automático
-                    </span>
+                <!-- Barra de Contador de Itens Bipados e Ações Rápidas -->
+                <div class="px-3 py-2 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
+                            <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
+                            <span>Itens Bipados na Live: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="copyScanList()" title="Copiar lista de itens da live" class="text-[10px] font-bold text-gray-600 hover:text-indigo-700 bg-white hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer shadow-2xs">
+                            <i class="fas fa-copy text-[9px]"></i> Copiar Lista
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Lista de itens bipados (COM SCROLL GARANTIDO E ALTURA MÁXIMA) -->
-                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2 space-y-1.5" style="min-height: 0;">
-                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">
-                        <i class="fas fa-barcode text-3xl mb-1 text-gray-300"></i>
-                        <p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>
-                        <p class="text-[10px] text-gray-400 mt-0.5 text-center">Aponte o leitor para o código de barras<br>ou digite e aperte Enter</p>
+                <!-- Lista de itens bipados com Fila de Pedidos -->
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2.5 space-y-2" style="min-height: 0;">
+                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-12 text-gray-300">
+                        <i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>
+                        <p class="text-xs font-bold text-gray-400">Nenhum item bipado ainda nesta live</p>
+                        <p class="text-[10.5px] text-gray-400 mt-0.5 text-center">Bipe as peças com o leitor físico ou digite o código.<br>Os clientes que pediram cada peça aparecerão na fila automaticamente por ordem de chegada!</p>
                     </div>
                 </div>
             </div>
@@ -765,22 +768,31 @@
         const floatBtn  = document.getElementById('floating-show-scan-panel-btn');
         const toggleBtn = document.getElementById('btn-toggle-scan-panel');
         const btnText   = document.getElementById('scan-panel-btn-text');
+        const feedOuter = document.getElementById('feed-outer-wrapper');
 
         if (scanPanelHidden) {
             if (scanPanel) scanPanel.classList.add('hidden');
             if (floatBtn)  floatBtn.classList.remove('hidden');
-            if (btnText)   btnText.textContent = 'Mostrar Bipagem';
+            if (btnText)   btnText.textContent = 'Mostrar Painel de Itens';
             if (toggleBtn) {
                 toggleBtn.classList.add('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
                 toggleBtn.classList.remove('bg-gray-800', 'text-gray-200');
             }
+            if (feedOuter) {
+                feedOuter.classList.remove('lg:w-1/3', 'xl:w-1/3', 'shrink-0');
+                feedOuter.classList.add('w-full', 'flex-1');
+            }
         } else {
             if (scanPanel) scanPanel.classList.remove('hidden');
             if (floatBtn)  floatBtn.classList.add('hidden');
-            if (btnText)   btnText.textContent = 'Ocultar Bipagem';
+            if (btnText)   btnText.textContent = 'Ocultar Painel de Itens';
             if (toggleBtn) {
                 toggleBtn.classList.remove('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
                 toggleBtn.classList.add('bg-gray-800', 'text-gray-200');
+            }
+            if (feedOuter) {
+                feedOuter.classList.remove('flex-1');
+                feedOuter.classList.add('w-full', 'lg:w-1/3', 'xl:w-1/3', 'shrink-0');
             }
         }
     }
@@ -1338,6 +1350,7 @@
         if (wrapper) {
             wrapper.innerHTML = renderLiveCodeHtml(it || { id: scanId, liveCode: liveCode });
         }
+        updateScanItemBuyerUI(scanId);
     }
 
     function refreshAllScanItemsLiveCodeUI() {
@@ -1625,79 +1638,199 @@
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    function findFirstSpeakerForCode(liveCode, code) {
-        if (!allLiveMessages || allLiveMessages.length === 0) return null;
+    /**
+     * Procura no chat todos os clientes que comentaram o código da live ou código do item.
+     * Retorna a fila em ordem cronológica exata de quem pediu primeiro para o último.
+     */
+    function findAllSpeakersForCode(liveCode, code) {
+        if (!allLiveMessages || allLiveMessages.length === 0) return [];
 
         const targets = [];
         if (liveCode && String(liveCode).trim()) {
-            targets.push(String(liveCode).trim().toLowerCase());
+            const lc = String(liveCode).trim().toLowerCase();
+            if (lc) targets.push(lc);
+            if (/^\d+$/.test(lc)) {
+                const num = parseInt(lc, 10);
+                const rawNum = String(num);
+                if (!targets.includes(rawNum)) targets.push(rawNum);
+                const paddedNum = rawNum.length === 1 ? '0' + rawNum : rawNum;
+                if (!targets.includes(paddedNum)) targets.push(paddedNum);
+            }
         }
         if (code && String(code).trim()) {
             const c = String(code).replace(/^[#\s]+/, '').trim().toLowerCase();
             if (c && !targets.includes(c)) targets.push(c);
         }
-        if (targets.length === 0) return null;
+        if (targets.length === 0) return [];
+
+        const queue = [];
+        const seenUsers = new Set();
 
         for (let i = 0; i < allLiveMessages.length; i++) {
             const msg = allLiveMessages[i];
             if (!msg || !msg.message) continue;
+            const cleanUser = (msg.username || 'usuario').trim().toLowerCase();
+            if (seenUsers.has(cleanUser)) continue;
+
             const msgText = msg.message.toLowerCase();
+            let matched = false;
 
             for (const target of targets) {
                 const regex = new RegExp('(?:^|[^a-z0-9])' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
                 if (regex.test(msgText) || msgText.trim() === target) {
-                    const cleanUser = msg.username || 'usuario';
-                    const displayName = msg.user_name || msg.user_apelido || cleanUser;
-                    return {
-                        id: msg.id,
-                        username: cleanUser,
-                        displayName: displayName,
-                        userId: msg.user_id || null,
-                        text: msg.message
-                    };
+                    matched = true;
+                    break;
                 }
             }
+
+            if (matched) {
+                seenUsers.add(cleanUser);
+                const displayName = msg.user_name || msg.user_apelido || msg.username || 'usuario';
+                let formattedTime = '';
+                try {
+                    if (msg.created_at) {
+                        formattedTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    }
+                } catch(e) {}
+
+                queue.push({
+                    position: queue.length + 1,
+                    id: msg.id,
+                    username: msg.username || 'usuario',
+                    displayName: displayName,
+                    userId: msg.user_id || null,
+                    whatsapp: msg.user_whatsapp || '',
+                    plataforma: msg.plataforma || 'instagram',
+                    text: msg.message,
+                    time: formattedTime
+                });
+            }
         }
-        return null;
+
+        return queue;
     }
 
     function renderScanItemBuyerHtml(item) {
+        const queue = findAllSpeakersForCode(item.liveCode, item.code);
+
+        // CASO 1: A peça JÁ FOI VINCULADA a uma cliente
         if (item.buyerUsername) {
+            const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase());
             return `
-                <div class="mt-1 p-1 px-1.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between text-[10px]">
-                    <div class="flex items-center gap-1 truncate">
-                        <i class="fas fa-user-check text-emerald-600 text-[9px] shrink-0"></i>
-                        <span class="font-black text-emerald-950 truncate text-[10px]">
-                            @${escapeHtml(item.buyerUsername)} ${item.buyerName ? '<span class="font-normal text-emerald-800 text-[9px]">(' + escapeHtml(item.buyerName) + ')</span>' : ''}
-                        </span>
+                <div class="mt-1.5 p-2 bg-emerald-50 border border-emerald-300 rounded-xl shadow-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                                <i class="fas fa-check text-[10px]"></i>
+                            </span>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-xs font-black text-emerald-950">@${escapeHtml(item.buyerUsername)}</span>
+                                    ${item.buyerName ? `<span class="text-[11px] font-semibold text-emerald-800">(${escapeHtml(item.buyerName)})</span>` : ''}
+                                    <span class="text-[9px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider">Vinculado</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="px-2.5 py-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">
+                            <i class="fas fa-times text-[9px]"></i> Desvincular
+                        </button>
                     </div>
-                    <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente desta peça" class="text-emerald-700 hover:text-red-600 p-0.5 ml-1 transition cursor-pointer">
-                        <i class="fas fa-times text-[9px]"></i>
-                    </button>
+                    ${otherSpeakers.length > 0 ? `
+                        <div class="mt-2 pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 flex-wrap text-[10px]">
+                            <span class="font-bold text-emerald-900 shrink-0"><i class="fas fa-users text-emerald-600 mr-0.5"></i> Fila de espera (${otherSpeakers.length}):</span>
+                            ${otherSpeakers.map(q => `
+                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir peça para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; às ${q.time}" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
+                                    <strong class="text-indigo-600">${q.position}º</strong>
+                                    <span>@${escapeHtml(q.username)}</span>
+                                    <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }
 
-        const firstSpeaker = findFirstSpeakerForCode(item.liveCode, item.code);
-        if (firstSpeaker) {
+        // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
+        if (queue.length > 0) {
+            const first = queue[0];
+            const others = queue.slice(1);
+
             return `
-                <div class="mt-0.5 flex items-center gap-1">
-                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(firstSpeaker.username)}', '${escapeHtml(firstSpeaker.displayName)}', '${firstSpeaker.userId || ''}', ${firstSpeaker.id})" title="Vincular à 1ª pessoa que pediu no chat (${escapeHtml(firstSpeaker.text)})" class="text-[9.5px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 px-1.5 py-0.5 rounded font-black flex items-center gap-1 cursor-pointer transition shadow-2xs truncate">
-                        <i class="fas fa-trophy text-amber-500 text-[8px]"></i>
-                        <span class="truncate">1ª: @${escapeHtml(firstSpeaker.username)}</span>
-                        <span class="text-amber-700 font-bold ml-0.5">&bull; Vincular</span>
-                    </button>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat" class="text-[9px] text-gray-400 hover:text-indigo-600 p-0.5 cursor-pointer">
-                        <i class="fas fa-link text-[8px]"></i>
+                <div class="mt-1.5 space-y-1.5">
+                    <!-- 1º da Fila (Destaque Ouro / Campeão com Ação Rápida de 1 Clique) -->
+                    <div class="p-2.5 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border-2 border-amber-400 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs ring-2 ring-amber-300">
+                                1º
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-xs font-black text-amber-950">@${escapeHtml(first.username)}</span>
+                                    ${first.displayName && first.displayName !== first.username ? `<span class="text-[11px] font-semibold text-amber-800">(${escapeHtml(first.displayName)})</span>` : ''}
+                                    <span class="text-[9px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.2 rounded-full">${first.time}</span>
+                                </div>
+                                <div class="text-[10.5px] text-amber-900 font-medium italic truncate mt-0.5">
+                                    <i class="fas fa-comment-dots text-amber-500 mr-1 text-[9px]"></i>"${escapeHtml(first.text)}"
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(first.username)}', '${escapeHtml(first.displayName)}', '${first.userId || ''}', ${first.id})" title="Vincular à 1ª pessoa que pediu (${escapeHtml(first.text)})" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow active:scale-95">
+                                <i class="fas fa-bolt text-yellow-300"></i>
+                                <span>Vincular 1º</span>
+                            </button>
+                            <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-white transition cursor-pointer">
+                                <i class="fas fa-link text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Demais na Fila (2º, 3º, 4º...) por Ordem de Pedido -->
+                    ${others.length > 0 ? `
+                        <div class="p-1.5 bg-gray-50/80 border border-gray-200 rounded-xl">
+                            <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                <span class="font-extrabold text-gray-600 shrink-0 flex items-center gap-1">
+                                    <i class="fas fa-list-ol text-indigo-500 text-[9px]"></i> Fila de Espera (${others.length}):
+                                </span>
+                                ${others.map(q => `
+                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}ª pessoa (${escapeHtml(q.text)} às ${q.time})" class="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-indigo-50 text-gray-700 hover:text-indigo-900 border border-gray-200 hover:border-indigo-300 rounded-lg text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
+                                        <strong class="text-indigo-600 font-bold">${q.position}º</strong>
+                                        <span class="font-bold">@${escapeHtml(q.username)}</span>
+                                        <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
+                                        <span class="text-indigo-600 font-black text-[9px] ml-0.5 hover:underline">&bull; Vincular</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // CASO 3: A peça NÃO tem pedidos no chat ainda
+        if (item.liveCode) {
+            return `
+                <div class="mt-1.5 p-2 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-1.5 text-gray-400 text-[10.5px] truncate">
+                        <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
+                        <span class="truncate">Aguardando pedidos de <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
+                    </div>
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline shrink-0">
+                        <i class="fas fa-link text-[9px]"></i> Vincular avulso
                     </button>
                 </div>
             `;
         }
 
         return `
-            <div class="mt-0.5 flex items-center gap-1">
-                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar este item para vincular a uma cliente" class="text-[9.5px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer hover:underline">
-                    <i class="fas fa-link text-[8.5px]"></i> Vincular cliente
+            <div class="mt-1.5 p-2 bg-amber-50/50 border border-dashed border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5 text-amber-700 text-[10.5px] truncate">
+                    <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
+                    <span class="truncate">Defina o código da live para listar quem pediu no chat</span>
+                </div>
+                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline shrink-0">
+                    <i class="fas fa-link text-[9px]"></i> Vincular
                 </button>
             </div>
         `;
@@ -1715,9 +1848,7 @@
 
     function refreshAllScanItemsBuyerUI() {
         bgScanItems.forEach(item => {
-            if (!item.buyerUsername) {
-                updateScanItemBuyerUI(item.id);
-            }
+            updateScanItemBuyerUI(item.id);
         });
     }
 
@@ -1958,13 +2089,13 @@
         const isDuplicate = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
         el.className = isNew
             ? (isDuplicate
-                ? 'flex items-start gap-2 bg-amber-50 border border-amber-400 ring-2 ring-amber-300 rounded-xl p-2.5 group transition-all duration-500 scan-item'
-                : 'flex items-start gap-2 bg-emerald-50 border border-emerald-400 ring-2 ring-emerald-300 rounded-xl p-2.5 group transition-all duration-500 scan-item')
+                ? 'p-3 bg-amber-50 border-2 border-amber-400 ring-2 ring-amber-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm'
+                : 'p-3 bg-emerald-50 border-2 border-emerald-400 ring-2 ring-emerald-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm')
             : (isSelected
-                ? 'flex items-start gap-2 bg-emerald-50 border border-emerald-500 ring-4 ring-emerald-400 rounded-xl p-2.5 group transition scan-item linking-selected'
+                ? 'p-3 bg-emerald-50 border-2 border-emerald-500 ring-4 ring-emerald-400 rounded-2xl group transition scan-item linking-selected shadow-md'
                 : (isDuplicate
-                    ? 'flex items-start gap-2 bg-red-50/40 border border-red-200 rounded-xl p-2.5 group hover:border-red-400 hover:bg-red-50/60 transition scan-item'
-                    : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item'));
+                    ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
+                    : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs'));
         el.dataset.code = item.code;
         el.dataset.scanId = item.id;
         if (item.itemId) el.dataset.itemId = item.itemId;
@@ -1984,31 +2115,33 @@
         }
 
         el.innerHTML =
-            '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
-                '<div class="flex items-center justify-between gap-1">' +
-                    '<span class="text-[11.5px] font-black text-gray-900 font-mono tracking-wider truncate">' + escapeHtml(item.code) + '</span>' +
+            '<div class="flex items-start justify-between gap-2.5">' +
+                '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
+                    '<div class="flex items-center gap-2 flex-wrap">' +
+                        '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
+                        '<div class="scan-item-live-wrapper">' +
+                            renderLiveCodeHtml(item) +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                        detailsInitial +
+                    '</div>' +
                 '</div>' +
-                '<div class="scan-item-live-wrapper mt-0.5">' +
-                    renderLiveCodeHtml(item) +
-                '</div>' +
-                '<div class="scan-item-details text-[10px] text-gray-600 leading-snug mt-0.5">' +
-                    detailsInitial +
-                '</div>' +
-                '<div class="scan-item-buyer-wrapper">' +
-                    renderScanItemBuyerHtml(item) +
-                '</div>' +
+                '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
+                    'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
+                    '<i class="fas fa-trash-alt text-[10px]"></i>' +
+                '</button>' +
             '</div>' +
-            '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
-                'class="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
-                '<i class="fas fa-trash-alt text-[9px]"></i>' +
-            '</button>';
+            '<div class="scan-item-buyer-wrapper mt-1.5">' +
+                renderScanItemBuyerHtml(item) +
+            '</div>';
 
         if (isNew) {
             setTimeout(function() {
                 const stillDup = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
                 el.className = stillDup
-                    ? 'flex items-start gap-2 bg-red-50/40 border border-red-200 rounded-xl p-2.5 group hover:border-red-400 hover:bg-red-50/60 transition scan-item'
-                    : 'flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5 group hover:border-emerald-400 hover:bg-emerald-50/20 transition scan-item';
+                    ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
+                    : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs';
             }, 2500);
         }
 
