@@ -1421,7 +1421,7 @@
                         (item.sku && item.sku.toLowerCase() === clean) ||
                         (item.codigo && item.codigo.toLowerCase() === clean) ||
                         String(item.id) === clean
-                    ) || data.data[0];
+                    ) || (data.data.length === 1 ? data.data[0] : null);
                     scanProductCache[code] = prod;
                 } else {
                     scanProductCache[code] = null;
@@ -1439,7 +1439,7 @@
 
         const detailsEl = itemEl.querySelector('.scan-item-details');
 
-        if (prod) {
+        if (prod && prod.id) {
             // Verificar se outro item diferente nesta live já possui este mesmo produto
             const existingInList = bgScanItems.find(x => x.id !== scanId && x.itemId && x.itemId === prod.id);
             if (existingInList) {
@@ -2102,19 +2102,17 @@
         const clean = String(code).replace(/^[#\s]+/, '').trim().toUpperCase();
         if (!clean) return null;
 
-        // 1. Procura diretamente na lista por código/SKU ou itemId
+        // 1. Procura diretamente na lista por código exato
         let found = bgScanItems.find(i => 
-            (i.code && i.code.trim().toUpperCase() === clean) ||
-            (i.itemId && String(i.itemId) === clean)
+            (i.code && String(i.code).trim().toUpperCase() === clean)
         );
         if (found) return found;
 
-        // 2. Se temos cache desse produto, checa se o id ou código já está na lista
+        // 2. Se temos cache desse produto com id válido, checa se esse itemId já existe na lista
         const cached = scanProductCache[clean] || scanProductCache[code];
-        if (cached) {
+        if (cached && cached.id) {
             found = bgScanItems.find(i => 
-                (cached.id && i.itemId && i.itemId === cached.id) ||
-                (cached.codigo && i.code && i.code.trim().toUpperCase() === String(cached.codigo).trim().toUpperCase())
+                (i.itemId && i.itemId === cached.id)
             );
             if (found) return found;
         }
