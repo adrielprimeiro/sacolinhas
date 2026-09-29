@@ -2120,10 +2120,21 @@
         return null;
     }
 
+    let lastProcessedScanCode = null;
+    let lastProcessedScanTime = 0;
+
     function addScanItem(code, source) {
         source = source || 'manual';
         const cleanCode = extractCleanCode(code).toUpperCase();
         if (!cleanCode) return;
+
+        const nowMs = Date.now();
+        // Previne disparo duplo do mesmo código pelo leitor físico USB em rajada rápida
+        if (cleanCode === lastProcessedScanCode && (nowMs - lastProcessedScanTime < 1000)) {
+            return;
+        }
+        lastProcessedScanCode = cleanCode;
+        lastProcessedScanTime = nowMs;
 
         // NÃO ADICIONAR O MESMO ITEM BIPANDO MAIS DE UMA VEZ NA LIVE:
         const existingItem = findExistingScanItem(cleanCode);
@@ -2361,11 +2372,10 @@
         const val = event.target ? event.target.value.trim() : '';
         if (!val) return;
 
-        // Auto-enter: Quando o leitor bipa, ele preenche os caracteres em rajada rápida.
-        // Após 120ms de silêncio, processa e anexa o item automaticamente sem precisar de Enter manual!
+        // Auto-enter de segurança caso o leitor não envie Enter
         manualScanDebounceTimer = setTimeout(() => {
             addManualCode();
-        }, 120);
+        }, 250);
     }
 
     function handleManualScan(event) {
@@ -2381,16 +2391,18 @@
             clearTimeout(manualScanDebounceTimer);
             manualScanDebounceTimer = null;
         }
+        if (usbScanTimer) {
+            clearTimeout(usbScanTimer);
+            usbScanTimer = null;
+        }
+        usbScanBuffer = "";
         const input = document.getElementById('scan-manual-input');
         if (!input) return;
         const rawVal = input.value;
-        const code = extractCleanCode(rawVal).toUpperCase();
-        if (!code) {
-            input.value = '';
-            return;
-        }
-        addScanItem(code, 'manual');
         input.value = '';
+        const code = extractCleanCode(rawVal).toUpperCase();
+        if (!code) return;
+        addScanItem(code, 'manual');
         input.focus();
     }
 
