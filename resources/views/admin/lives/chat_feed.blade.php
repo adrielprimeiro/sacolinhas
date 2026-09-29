@@ -1736,13 +1736,12 @@
                         </button>
                     </div>
                     ${otherSpeakers.length > 0 ? `
-                        <div class="mt-2 pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 flex-wrap text-[10px]">
-                            <span class="font-bold text-emerald-900 shrink-0"><i class="fas fa-users text-emerald-600 mr-0.5"></i> Fila de espera (${otherSpeakers.length}):</span>
+                        <div class="mt-2 pt-1.5 border-t border-emerald-200/60 flex items-center gap-1.5 flex-wrap text-xs">
+                            <span class="font-bold text-emerald-900 shrink-0"><i class="fas fa-list-ol text-emerald-600 mr-0.5"></i> Fila:</span>
                             ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir peça para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; às ${q.time}" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
-                                    <strong class="text-indigo-600">${q.position}º</strong>
+                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir peça para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs">
+                                    <span class="text-indigo-600 font-bold">${q.position}º</span>
                                     <span>@${escapeHtml(q.username)}</span>
-                                    <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
                                 </button>
                             `).join('')}
                         </div>
@@ -1753,57 +1752,19 @@
 
         // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
         if (queue.length > 0) {
-            const first = queue[0];
-            const others = queue.slice(1);
-
             return `
-                <div class="mt-1.5 space-y-1.5">
-                    <!-- 1º da Fila (Destaque Ouro / Campeão com Ação Rápida de 1 Clique) -->
-                    <div class="p-2.5 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border-2 border-amber-400 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-sm">
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                            <span class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs ring-2 ring-amber-300">
-                                1º
-                            </span>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-xs font-black text-amber-950">@${escapeHtml(first.username)}</span>
-                                    ${first.displayName && first.displayName !== first.username ? `<span class="text-[11px] font-semibold text-amber-800">(${escapeHtml(first.displayName)})</span>` : ''}
-                                    <span class="text-[9px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.2 rounded-full">${first.time}</span>
-                                </div>
-                                <div class="text-[10.5px] text-amber-900 font-medium italic truncate mt-0.5">
-                                    <i class="fas fa-comment-dots text-amber-500 mr-1 text-[9px]"></i>"${escapeHtml(first.text)}"
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(first.username)}', '${escapeHtml(first.displayName)}', '${first.userId || ''}', ${first.id})" title="Vincular à 1ª pessoa que pediu (${escapeHtml(first.text)})" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow active:scale-95">
-                                <i class="fas fa-bolt text-yellow-300"></i>
-                                <span>Vincular 1º</span>
+                <div class="mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap text-xs flex-1 min-w-0">
+                        ${queue.map(q => `
+                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95">
+                                <span class="text-indigo-600 font-extrabold">${q.position}º</span>
+                                <span class="font-bold">@${escapeHtml(q.username)}</span>
                             </button>
-                            <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-white transition cursor-pointer">
-                                <i class="fas fa-link text-xs"></i>
-                            </button>
-                        </div>
+                        `).join('')}
                     </div>
-
-                    <!-- Demais na Fila (2º, 3º, 4º...) por Ordem de Pedido -->
-                    ${others.length > 0 ? `
-                        <div class="p-1.5 bg-gray-50/80 border border-gray-200 rounded-xl">
-                            <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
-                                <span class="font-extrabold text-gray-600 shrink-0 flex items-center gap-1">
-                                    <i class="fas fa-list-ol text-indigo-500 text-[9px]"></i> Fila de Espera (${others.length}):
-                                </span>
-                                ${others.map(q => `
-                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}ª pessoa (${escapeHtml(q.text)} às ${q.time})" class="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-indigo-50 text-gray-700 hover:text-indigo-900 border border-gray-200 hover:border-indigo-300 rounded-lg text-[9.5px] font-semibold transition cursor-pointer shadow-2xs">
-                                        <strong class="text-indigo-600 font-bold">${q.position}º</strong>
-                                        <span class="font-bold">@${escapeHtml(q.username)}</span>
-                                        <span class="text-gray-400 text-[8.5px]">(${q.time})</span>
-                                        <span class="text-indigo-600 font-black text-[9px] ml-0.5 hover:underline">&bull; Vincular</span>
-                                    </button>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
+                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-white transition cursor-pointer shrink-0">
+                        <i class="fas fa-link text-xs"></i>
+                    </button>
                 </div>
             `;
         }
