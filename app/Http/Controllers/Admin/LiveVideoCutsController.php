@@ -164,47 +164,48 @@ class LiveVideoCutsController extends Controller
 
                 if ($isSocialOrWebUrl) {
                     try {
-                        set_time_limit(600); // Até 10 minutos para download e processamento de lives
                         $filename = 'live_' . $liveId . '_' . time() . '.mp4';
                         $destFolder = storage_path('app/public/live_recordings');
                         if (!is_dir($destFolder)) {
                             mkdir($destFolder, 0775, true);
                         }
                         $destPath = $destFolder . DIRECTORY_SEPARATOR . $filename;
+                        $logPath = $destFolder . DIRECTORY_SEPARATOR . 'download_' . $liveId . '.log';
+
+                        // Limpa log anterior
+                        if (file_exists($logPath)) {
+                            @unlink($logPath);
+                        }
+
+                        // Grava estado inicial no cache
+                        \Illuminate\Support\Facades\Cache::put("live_video_download_{$liveId}", [
+                            'status' => 'downloading',
+                            'filename' => $filename,
+                            'dest_path' => $destPath,
+                            'log_path' => $logPath,
+                            'rel_path' => 'live_recordings/' . $filename,
+                            'url' => $path,
+                            'started_at' => now()->toDateTimeString()
+                        ], 3600);
 
                         $escapedUrl = escapeshellarg($path);
                         $escapedDest = escapeshellarg($destPath);
-                        $cmd = "yt-dlp -f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" --merge-output-format mp4 --no-warnings --no-playlist -o {$escapedDest} {$escapedUrl} 2>&1";
+                        $escapedLog = escapeshellarg($logPath);
 
-                        $output = [];
-                        $returnCode = 0;
-                        exec($cmd, $output, $returnCode);
+                        // Dispara em background via nohup com --newline para log limpo de progresso
+                        $cmd = "nohup yt-dlp -f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" --merge-output-format mp4 --no-warnings --no-playlist --newline -o {$escapedDest} {$escapedUrl} > {$escapedLog} 2>&1 &";
+                        exec($cmd);
 
-                        if ($returnCode !== 0 || !file_exists($destPath) || filesize($destPath) < 1000) {
-                            $cmdFallback = "yt-dlp --no-warnings --no-playlist -o {$escapedDest} {$escapedUrl} 2>&1";
-                            exec($cmdFallback, $output, $returnCode);
-                        }
-
-                        if (file_exists($destPath) && filesize($destPath) > 1000) {
-                            $storageRelPath = 'live_recordings/' . $filename;
-                            $live->recording_path = $storageRelPath;
-                            $live->recording_filename = $filename;
-                            $live->save();
-
-                            return response()->json([
-                                'success' => true,
-                                'message' => 'Vídeo baixado do link com sucesso e vinculado à live!',
-                                'recording_path' => $storageRelPath,
-                                'recording_url' => Storage::url($storageRelPath)
-                            ]);
-                        } else {
-                            Log::warning("Falha no download yt-dlp: " . implode("\n", $output));
-                            throw new \Exception("Não foi possível baixar o vídeo desse link. Verifique se o link/post é público ou tente novamente.");
-                        }
+                        return response()->json([
+                            'success' => true,
+                            'is_async' => true,
+                            'message' => 'Download do vídeo iniciado em segundo plano!',
+                            'status_url' => route('admin.lives.cortes.video-download-status', ['liveId' => $liveId])
+                        ]);
                     } catch (\Exception $e) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Erro ao baixar vídeo: ' . $e->getMessage()
+                            'message' => 'Erro ao iniciar download: ' . $e->getMessage()
                         ], 422);
                     }
                 }
@@ -223,6 +224,109 @@ class LiveVideoCutsController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Nenhum arquivo ou caminho fornecido.'], 400);
+    }
+
+    /**
+     * Consulta o status do download em background do vídeo
+     */
+    public function getVideoDownloadStatus($liveId)
+    {
+        $info = \Illuminate\Support\Facades\Cache::get("live_video_download_{$liveId}");
+        if (!$info) {
+            $live = Live::find($liveId);
+            if ($live && $live->recording_path) {
+                return response()->json([
+                    'status' => 'completed',
+                    'progress' => 100,
+                    'message' => 'Vídeo já vinculado!',
+                    'recording_url' => str_starts_with($live->recording_path, 'http') ? $live->recording_path : Storage::url($live->recording_path)
+                ]);
+            }
+            return response()->json(['status' => 'idle', 'progress' => 0]);
+        }
+
+        $logPath = $info['log_path'] ?? null;
+        $destPath = $info['dest_path'] ?? null;
+        $relPath = $info['rel_path'] ?? null;
+        $filename = $info['filename'] ?? null;
+
+        $progressPct = 0;
+        $statusText = 'Baixando vídeo...';
+        $isCompleted = false;
+        $isError = false;
+        $errorMessage = null;
+
+        if ($logPath && file_exists($logPath)) {
+            $content = file_get_contents($logPath);
+            $lines = array_filter(explode("\n", trim($content)));
+
+            if (!empty($lines)) {
+                $lastLines = array_slice($lines, -15);
+                foreach (array_reverse($lastLines) as $line) {
+                    // Erro
+                    if (str_contains($line, 'ERROR:') || str_contains($line, 'Permission denied')) {
+                        $isError = true;
+                        $errorMessage = $line;
+                        break;
+                    }
+                    // Concluído / Merging
+                    if (str_contains($line, '[Merger] Merging formats into') || str_contains($line, '100% of')) {
+                        $progressPct = 99;
+                        $statusText = 'Finalizando junção de áudio e vídeo...';
+                    }
+                    // Progresso download
+                    if (preg_match('/\[download\]\s+([\d\.]+)%\s+of\s+([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/', $line, $m)) {
+                        $progressPct = (float) $m[1];
+                        $totalSize = $m[2];
+                        $speed = $m[3];
+                        $eta = $m[4];
+                        $statusText = "Baixando: {$progressPct}% de {$totalSize} ({$speed} - Restam {$eta})";
+                        break;
+                    } elseif (preg_match('/\[download\]\s+([\d\.]+)%/', $line, $m)) {
+                        $progressPct = (float) $m[1];
+                        $statusText = "Baixando: {$progressPct}%...";
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Verificar se arquivo final existe e foi mesclado
+        if ($destPath && file_exists($destPath) && filesize($destPath) > 500000) {
+            $logContent = file_exists($logPath) ? file_get_contents($logPath) : '';
+            if (str_contains($logContent, '[Merger] Merging formats into') || str_contains($logContent, 'Deleting original file')) {
+                $live = Live::find($liveId);
+                if ($live) {
+                    $live->recording_path = $relPath;
+                    $live->recording_filename = $filename;
+                    $live->save();
+                }
+
+                \Illuminate\Support\Facades\Cache::forget("live_video_download_{$liveId}");
+
+                return response()->json([
+                    'status' => 'completed',
+                    'progress' => 100,
+                    'message' => 'Vídeo baixado e vinculado com sucesso!',
+                    'recording_url' => Storage::url($relPath)
+                ]);
+            }
+        }
+
+        if ($isError) {
+            \Illuminate\Support\Facades\Cache::forget("live_video_download_{$liveId}");
+            return response()->json([
+                'status' => 'error',
+                'progress' => 0,
+                'message' => $errorMessage ?: 'Falha ao baixar vídeo do link.'
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'downloading',
+            'progress' => $progressPct,
+            'message' => $statusText
+        ]);
     }
 
     /**

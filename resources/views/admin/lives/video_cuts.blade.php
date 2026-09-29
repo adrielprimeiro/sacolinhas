@@ -624,10 +624,15 @@
         };
 
         xhr.onload = function() {
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fas fa-check mr-1"></i> Salvar Vídeo`;
             try {
                 const data = JSON.parse(xhr.responseText);
+                if (data.is_async && data.status_url) {
+                    // Download em segundo plano iniciado - monitorar progresso
+                    pollVideoDownloadProgress(data.status_url);
+                    return;
+                }
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-check mr-1"></i> Salvar Vídeo`;
                 if (data.success) {
                     alert(data.message);
                     window.location.reload();
@@ -635,6 +640,8 @@
                     alert("Erro: " + (data.message || 'Falha ao salvar vídeo'));
                 }
             } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-check mr-1"></i> Salvar Vídeo`;
                 alert("Resposta inválida do servidor.");
             }
         };
@@ -646,6 +653,46 @@
         };
 
         xhr.send(formData);
+    }
+
+    function pollVideoDownloadProgress(statusUrl) {
+        const progressBox = document.getElementById("upload-progress-box");
+        const progressBar = document.getElementById("upload-progress-bar");
+        const progressPct = document.getElementById("upload-progress-pct");
+        const progressText = document.getElementById("upload-progress-text");
+        const btn = document.getElementById("btn-submit-upload");
+
+        if (progressBox) progressBox.classList.remove("hidden");
+
+        const timer = setInterval(async () => {
+            try {
+                const res = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+
+                if (data.status === 'downloading') {
+                    const pct = Math.min(99, Math.round(data.progress || 0));
+                    if (progressBar) progressBar.style.width = Math.max(5, pct) + '%';
+                    if (progressPct) progressPct.textContent = pct + '%';
+                    if (progressText) progressText.textContent = data.message || "Baixando vídeo...";
+                } else if (data.status === 'completed') {
+                    clearInterval(timer);
+                    if (progressBar) progressBar.style.width = '100%';
+                    if (progressPct) progressPct.textContent = '100%';
+                    if (progressText) progressText.textContent = 'Download concluído! Atualizando player...';
+                    setTimeout(() => {
+                        alert(data.message || "Vídeo baixado e vinculado com sucesso!");
+                        window.location.reload();
+                    }, 1000);
+                } else if (data.status === 'error') {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-check mr-1"></i> Salvar Vídeo`;
+                    alert("Erro ao baixar vídeo: " + (data.message || 'Falha desconhecida.'));
+                }
+            } catch (e) {
+                console.warn("Erro ao consultar progresso:", e);
+            }
+        }, 2500);
     }
 
     async function promptPasteTranscription() {
