@@ -330,6 +330,18 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
+     * Dispara o processamento automático completo (Download Instagram + Transcrição + Minutagem + Cortes)
+     */
+    public function autoProcessLive(Request $request, $liveId)
+    {
+        $username = $request->input('username', 'de_minha_mania');
+        $processor = new \App\Services\LiveVideoAutoProcessorService();
+        $result = $processor->processLiveVideo($liveId, $username);
+
+        return response()->json($result);
+    }
+
+    /**
      * Salva ou Atualiza a Transcrição da Live (com timestamps)
      */
     public function saveTranscription(Request $request, $liveId)

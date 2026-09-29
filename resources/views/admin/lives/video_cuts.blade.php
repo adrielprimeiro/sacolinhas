@@ -46,6 +46,11 @@
                 </div>
             </div>
 
+            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-md flex items-center gap-2 transition active:scale-95 cursor-pointer">
+                <i class="fab fa-instagram text-white"></i>
+                <span class="text-white font-black">Auto-Processar Instagram</span>
+            </button>
+
             <button type="button" onclick="generateAllClips()" id="btn-batch-clips" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-md flex items-center gap-2 transition active:scale-95 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
                 <i class="fas fa-scissors text-white"></i>
                 <span style="color: #ffffff !important; font-weight: 800;">Gerar Todos os Cortes (FFmpeg)</span>
@@ -719,6 +724,41 @@
             }
         } catch(e) {
             alert("JSON inválido: " + e.message);
+        }
+    }
+
+    async function triggerAutoProcess() {
+        if (!confirm("Deseja buscar a gravação mais recente no perfil @de_minha_mania, transcrever e gerar todos os cortes das peças automaticamente?")) return;
+
+        const btn = document.getElementById("btn-auto-process");
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando Tudo com IA...`;
+
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/auto-process`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ username: 'de_minha_mania' })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+
+            if (data.success) {
+                alert("✅ " + data.message);
+                window.location.reload();
+            } else {
+                alert("⚠️ " + (data.message || 'Falha no processamento automático.'));
+            }
+        } catch(e) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+            alert("Erro de comunicação ao disparar o processamento.");
         }
     }
 </script>

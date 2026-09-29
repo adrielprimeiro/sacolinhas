@@ -300,6 +300,7 @@ Route::middleware('auth')->group(function () {
         Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');
         Route::post('lives/{liveId}/cortes/upload-video', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'uploadVideo'])->name('admin.lives.cortes.upload-video');
         Route::get('lives/{liveId}/cortes/video-download-status', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'getVideoDownloadStatus'])->name('admin.lives.cortes.video-download-status');
+        Route::post('lives/{liveId}/cortes/auto-process', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'autoProcessLive'])->name('admin.lives.cortes.auto-process');
         Route::post('lives/{liveId}/cortes/save-transcription', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveTranscription'])->name('admin.lives.cortes.save-transcription');
         Route::post('lives/{liveId}/cortes/auto-detect', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'autoDetectTimestamps'])->name('admin.lives.cortes.auto-detect');
         Route::post('lives/{liveId}/cortes/save-timestamp/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveItemTimestamp'])->name('admin.lives.cortes.save-timestamp');
