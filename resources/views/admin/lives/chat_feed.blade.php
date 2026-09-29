@@ -1920,29 +1920,6 @@
             const json = await response.json();
             const users = (json.success && Array.isArray(json.data)) ? json.data : [];
 
-            let html = '';
-
-            // Opção para vincular diretamente com o arroba/nome digitado
-            const cleanCustom = query.replace(/^@/, '').trim();
-            if (cleanCustom) {
-                html += `
-                    <div onclick="selectManualBuyerUser(null, '${escapeHtml(cleanCustom)}', '${escapeHtml(cleanCustom)}')" class="p-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
-                                <i class="fas fa-user-tag"></i>
-                            </div>
-                            <div class="truncate">
-                                <div class="text-xs font-bold text-indigo-900 dark:text-indigo-200">Vincular como "@${escapeHtml(cleanCustom)}"</div>
-                                <div class="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Cliente avulso / Instagram</div>
-                            </div>
-                        </div>
-                        <button type="button" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shrink-0 transition shadow-xs">
-                            Vincular
-                        </button>
-                    </div>
-                `;
-            }
-
             if (users.length > 0) {
                 users.forEach(u => {
                     const username = u.instagram || u.tiktok || u.name || ('cliente_' + u.id);
@@ -1973,10 +1950,12 @@
                         </div>
                     `;
                 });
-            } else if (!cleanCustom) {
+            } else {
                 html += `
-                    <div class="text-center py-8 text-gray-400 text-xs font-semibold">
-                        Nenhum cliente encontrado para "${escapeHtml(query)}"
+                    <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                        <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                        <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">Verifique o nome, @instagram ou WhatsApp digitado.</p>
                     </div>
                 `;
             }

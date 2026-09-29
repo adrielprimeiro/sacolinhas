@@ -336,7 +336,7 @@ class LiveChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
         }
 
-        // Se user_id não foi passado, tenta encontrar cliente pelo username ou criar cliente provisório
+        // Se user_id não foi passado, tenta encontrar cliente pelo username cadastrado
         if (!$userId) {
             $cleanUser = trim(ltrim($username, '@'));
             $matchedUser = $this->findUserByUsername($cleanUser);
@@ -344,21 +344,6 @@ class LiveChatController extends Controller
                 $userId = $matchedUser->id;
                 if (!$buyerName) {
                     $buyerName = $matchedUser->name;
-                }
-            } else {
-                try {
-                    $randomEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $cleanUser)) . '_' . uniqid() . '@live.sacolinhas.local';
-                    $createdUser = User::create([
-                        'name' => $buyerName ?: $cleanUser,
-                        'instagram' => $cleanUser,
-                        'role' => 'cliente',
-                        'status' => 'active',
-                        'email' => $randomEmail,
-                        'password' => bcrypt(uniqid('cli_', true))
-                    ]);
-                    $userId = $createdUser->id;
-                } catch (\Exception $e) {
-                    Log::warning("[LiveChat] Não foi possível auto-criar cliente {$cleanUser}: " . $e->getMessage());
                 }
             }
         }
