@@ -2142,52 +2142,41 @@
         lastProcessedScanCode = cleanCode;
         lastProcessedScanTime = nowMs;
 
-        // NÃO ADICIONAR O MESMO ITEM BIPANDO MAIS DE UMA VEZ NA LIVE:
+        // Se o item já existe na lista desta live:
         const existingItem = findExistingScanItem(cleanCode);
         if (existingItem) {
-            playErrorBeep();
+            const liveInput = document.getElementById('scan-live-code');
+            const liveCodeInField = liveInput ? liveInput.value.trim().toUpperCase() : '';
 
-            // Aumenta o debounce da câmera para não disparar continuamente
-            bgLastScannedCode = cleanCode;
-            bgLastScannedTime = Date.now() + 2000;
-
-            const liveCodeMsg = existingItem.liveCode ? ` (Live: ${existingItem.liveCode})` : '';
-            const bannerMsg = `Peça #${existingItem.code}${liveCodeMsg} já foi bipada nesta live!`;
-
-            // Alerta sonoro e visual imediato
-            const banner = document.getElementById('scan-duplicate-warning-banner');
-            const bannerText = document.getElementById('scan-duplicate-warning-text');
-            if (banner && bannerText) {
-                bannerText.textContent = bannerMsg;
-                banner.classList.remove('hidden');
-                clearTimeout(window._scanDupBannerTimeout);
-                window._scanDupBannerTimeout = setTimeout(() => {
-                    banner.classList.add('hidden');
-                }, 8000);
+            // Se havia um novo código de live falado/digitado, atualiza nesta peça existente
+            if (liveCodeInField && existingItem.liveCode !== liveCodeInField) {
+                existingItem.liveCode = liveCodeInField;
+                updateItemLiveCodeUI(existingItem.id, liveCodeInField);
+                refreshAllScanItemsLiveCodeUI();
+                syncLinkItemToLive(existingItem.itemId || null, existingItem.code, liveCodeInField);
+                clearLiveCode();
             }
 
-            showToast(`⚠️ Peça #${existingItem.code}${liveCodeMsg} já está na live! Não foi duplicada.`, 'warning');
+            // Seleciona a peça na lista e destaca visualmente
+            handleScanItemClick(existingItem.id);
 
-            // Localiza e destaca o item já existente na lista
             let existingEl = document.querySelector(`[data-scan-id="${existingItem.id}"]`);
             if (!existingEl && existingItem.code) {
                 existingEl = document.querySelector(`[data-code="${existingItem.code}"]`);
             }
             if (existingEl) {
                 existingEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                existingEl.classList.remove('bg-gray-50', 'bg-emerald-50');
-                existingEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                existingEl.classList.add('ring-4', 'ring-indigo-400');
                 setTimeout(() => {
-                    existingEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
-                    existingEl.classList.add('bg-gray-50');
-                }, 3000);
+                    existingEl.classList.remove('ring-4', 'ring-indigo-400');
+                }, 2000);
             }
 
-            // Limpa o input manual se foi usado
             const manualInput = document.getElementById('scan-manual-input');
             if (manualInput) manualInput.value = '';
 
-            return; // Bloqueia a adição do item repetido!
+            playSuccessBeep();
+            return;
         }
 
         const emptyState = document.getElementById('scan-empty-state');

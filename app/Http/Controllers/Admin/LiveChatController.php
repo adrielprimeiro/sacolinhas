@@ -317,20 +317,29 @@ class LiveChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
         }
 
-        // Se user_id não foi passado, tenta encontrar cliente pelo username
+        // Se user_id não foi passado, tenta encontrar cliente pelo username ou criar cliente provisório
         if (!$userId) {
             $cleanUser = trim(ltrim($username, '@'));
-            $matchedUser = User::where(function($q) use ($cleanUser) {
-                $q->where('instagram', $cleanUser)
-                  ->orWhere('tiktok', $cleanUser)
-                  ->orWhere('apelido', $cleanUser)
-                  ->orWhere('nome_cliente', $cleanUser)
-                  ->orWhere('name', $cleanUser);
-            })->first();
+            $matchedUser = $this->findUserByUsername($cleanUser);
             if ($matchedUser) {
                 $userId = $matchedUser->id;
                 if (!$buyerName) {
                     $buyerName = $matchedUser->name;
+                }
+            } else {
+                try {
+                    $randomEmail = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $cleanUser)) . '_' . uniqid() . '@live.sacolinhas.local';
+                    $createdUser = User::create([
+                        'name' => $buyerName ?: $cleanUser,
+                        'instagram' => $cleanUser,
+                        'role' => 'cliente',
+                        'status' => 'active',
+                        'email' => $randomEmail,
+                        'password' => bcrypt(uniqid('cli_', true))
+                    ]);
+                    $userId = $createdUser->id;
+                } catch (\Exception $e) {
+                    Log::warning("[LiveChat] Não foi possível auto-criar cliente {$cleanUser}: " . $e->getMessage());
                 }
             }
         }
@@ -358,7 +367,55 @@ class LiveChatController extends Controller
             $updateData
         );
 
-        // 2. Se houver messageId e a tabela live_messages tiver os campos, atualiza a mensagem
+        // 2. Colocar o item na Sacolinha da cliente
+        if ($userId) {
+            $live = Live::find($liveId);
+            $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
+            $price = $item->preco;
+            if ($live && $live->tipo_live === 'precinho') {
+                $price = $price * 0.5;
+            }
+
+            $existingSacolinha = Sacolinhas::where('item_id', $itemId)
+                ->where('live_id', $liveId)
+                ->first();
+
+            if ($existingSacolinha) {
+                $existingSacolinha->update([
+                    'user_id' => $userId,
+                    'brecho_id' => $liveBrechoId,
+                    'price' => $price,
+                    'add_at' => now(),
+                    'status' => 'live'
+                ]);
+            } else {
+                Sacolinhas::create([
+                    'user_id' => $userId,
+                    'item_id' => $itemId,
+                    'live_id' => $liveId,
+                    'brecho_id' => $liveBrechoId,
+                    'price' => $price,
+                    'add_at' => now(),
+                    'quantity' => 1,
+                    'status' => 'live'
+                ]);
+            }
+
+            DB::table('brecho_clientes')->updateOrInsert(
+                [
+                    'brecho_id' => $liveBrechoId,
+                    'user_id' => $userId
+                ],
+                [
+                    'origem' => 'live',
+                    'updated_at' => now(),
+                ]
+            );
+
+            $item->update(['status' => 'sacolinha', 'localizacao' => 'Sacolinha']);
+        }
+
+        // 3. Se houver messageId e a tabela live_messages tiver os campos, atualiza a mensagem
         if ($messageId && Schema::hasTable('live_messages')) {
             $msgUpdate = [];
             if (Schema::hasColumn('live_messages', 'linked_item_id')) {
@@ -374,7 +431,7 @@ class LiveChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Item vinculado ao comprador com sucesso!',
+            'message' => 'Item vinculado e inserido na sacolinha com sucesso!',
             'data' => [
                 'item_id' => $itemId,
                 'live_id' => $liveId,
@@ -387,7 +444,7 @@ class LiveChatController extends Controller
     }
 
     /**
-     * Remove o comprador vinculado a um item da live
+     * Remove o comprador vinculado a um item da live e remove da sacolinha
      */
     public function unlinkItemBuyer(Request $request)
     {
@@ -430,6 +487,11 @@ class LiveChatController extends Controller
 
         DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
 
+        if ($itemId) {
+            Sacolinhas::where('item_id', $itemId)->where('live_id', $liveId)->delete();
+            Item::where('id', $itemId)->update(['status' => 'live', 'localizacao' => 'Live']);
+        }
+
         if ($messageId && Schema::hasTable('live_messages')) {
             $msgUpdate = [];
             if (Schema::hasColumn('live_messages', 'linked_item_id')) $msgUpdate['linked_item_id'] = null;
@@ -441,7 +503,7 @@ class LiveChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Comprador desvinculado do item com sucesso.'
+            'message' => 'Comprador desvinculado e item retirado da sacolinha.'
         ]);
     }
 
