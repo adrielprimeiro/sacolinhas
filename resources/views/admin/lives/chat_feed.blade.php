@@ -565,7 +565,7 @@
         <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             <div class="relative">
                 <i class="fas fa-search absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
-                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)">
+                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)" onkeydown="event.stopPropagation()">
                 <button type="button" id="manual-buyer-search-clear" onclick="clearManualBuyerSearch()" class="hidden absolute right-3.5 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 cursor-pointer">
                     <i class="fas fa-times-circle text-sm"></i>
                 </button>
@@ -875,22 +875,26 @@
     function isUserTypingElsewhere() {
         const el = document.activeElement;
         if (!el) return false;
+        if (el.closest && (el.closest('#manual-buyer-search-modal') || el.closest('#link-user-modal'))) {
+            return true;
+        }
         const tag = (el.tagName || '').toLowerCase();
         if (tag === 'textarea' || tag === 'select') return true;
         if (tag === 'input') {
             const id = el.id || '';
-            // Campos de texto intencionais onde o usuário pode estar digitando
-            if (id === 'feed-search-input' || id === 'scan-live-code' || id === 'modal-search-input' || id === 'online-qr-phone-input' || id === 'online-qr-manual-input') {
-                return true;
-            }
-            if (id !== 'scan-manual-input' && (el.type === 'text' || el.type === 'search' || el.type === 'tel' || el.type === 'password' || el.type === 'number')) {
-                return true;
-            }
+            if (id === 'scan-manual-input') return false;
+            return true;
         }
         return false;
     }
 
     function ensureScannerFocus(force = false) {
+        // Se modal do cliente avulso estiver aberto, não interfere
+        const manualBuyerModal = document.getElementById('manual-buyer-search-modal');
+        if (manualBuyerModal && !manualBuyerModal.classList.contains('hidden')) {
+            return;
+        }
+
         // Se modal da pessoa online estiver aberto, foca no input manual dele
         const onlineModal = document.getElementById('online-qr-modal');
         if (onlineModal && !onlineModal.classList.contains('hidden')) {
@@ -2539,13 +2543,18 @@
     const USB_MAX_INTERVAL_MS = 75; // Leitores físicos USB disparam teclas em < 50ms
 
     window.addEventListener('keydown', function(event) {
-        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-        const isEditingOtherText = document.activeElement && (
-            document.activeElement.id === 'feed-search-input' ||
-            document.activeElement.id === 'modal-search-input' ||
-            document.activeElement.id === 'scan-live-code' ||
-            document.activeElement.id === 'online-qr-phone-input' ||
-            activeTag === 'textarea'
+        const activeEl = document.activeElement;
+        const activeTag = activeEl ? (activeEl.tagName || '').toLowerCase() : '';
+        const isEditingOtherText = activeEl && (
+            activeEl.id !== 'scan-manual-input' &&
+            activeEl.id !== 'online-qr-manual-input' &&
+            (
+                activeTag === 'input' || 
+                activeTag === 'textarea' || 
+                activeTag === 'select' || 
+                activeEl.isContentEditable ||
+                Boolean(activeEl.closest && (activeEl.closest('#manual-buyer-search-modal') || activeEl.closest('#link-user-modal')))
+            )
         );
 
         if (isEditingOtherText) {
