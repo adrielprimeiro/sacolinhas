@@ -9,7 +9,12 @@ use Illuminate\Support\Facades\Schedule;
 // Verifica os jobs a cada 5 minutos
 // Schedule::command('gemini:check-batches')->everyFiveMinutes();
 
-//Schedule::job(new PollGeminiBatchStatusJob())->everyMinute();
+// Schedule::job(new PollGeminiBatchStatusJob())->everyMinute();
+
+// Processamento automático de cortes e vídeos do Instagram após o término da live (a cada 5 min)
+Schedule::command('app:auto-process-live-video --username=de_minha_mania')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

@@ -22,14 +22,40 @@ class LiveVideoAutoProcessorService
     public function processLiveVideo($liveId = null, $instagramHandle = 'de_minha_mania')
     {
         // 1. Obter a live
-        $live = $liveId ? Live::find($liveId) : Live::where('ativo', true)->orderBy('id', 'desc')->first();
-        if (!$live) {
-            $live = Live::orderBy('id', 'desc')->first();
+        if ($liveId) {
+            $live = Live::find($liveId);
+        } else {
+            // Busca a live mais recente (últimas 48h) que tenha itens e ainda esteja pendente de processamento
+            $live = Live::where('created_at', '>=', now()->subHours(48))
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                          ->from('live_items')
+                          ->whereColumn('live_items.live_id', 'lives.id');
+                })
+                ->where(function($q) {
+                    $q->whereNull('recording_path')
+                      ->orWhere('transcription_status', '!=', 'completed')
+                      ->orWhereNotExists(function($subQuery) {
+                          $subQuery->select(DB::raw(1))
+                                   ->from('live_items')
+                                   ->whereColumn('live_items.live_id', 'lives.id')
+                                   ->whereNotNull('video_cut_path');
+                      });
+                })
+                ->orderBy('id', 'desc')
+                ->first();
+
+            // Se não encontrou nenhuma das últimas 48h pendente, verifica se há live ativa
+            if (!$live) {
+                $live = Live::where('ativo', true)->orderBy('id', 'desc')->first();
+            }
         }
 
         if (!$live) {
+            Log::info("[AutoProcessor] Nenhuma live recente pendente de processamento encontrada.");
             return ['success' => false, 'message' => 'Nenhuma live encontrada para processar.'];
         }
+
 
         Log::info("[AutoProcessor] Iniciando verificação para Live #{$live->id} no Instagram @{$instagramHandle}");
 
