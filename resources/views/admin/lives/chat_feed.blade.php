@@ -103,14 +103,6 @@
         box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15) !important;
     }
 
-    /* Mensagem selecionada para vinculação: destaque azul com glow */
-    .chat-card.linking-selected {
-        border-left: 6px solid #3b82f6 !important;
-        border-color: #60a5fa !important;
-        outline: 3px solid #3b82f6 !important;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
-        background-color: rgba(30, 58, 138, 0.25) !important;
-    }
 
     .chat-card.marked {
         background-color: var(--card-marked-bg) !important;
@@ -344,16 +336,6 @@
         </div>
     </div>
 
-    <!-- BANNER DE VINCULAÇÃO ATIVA ENTRE MENSAGEM E PEÇA -->
-    <div id="linking-active-banner" class="hidden mb-2.5 px-3.5 py-2.5 bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 text-white rounded-2xl shadow-xl flex items-center justify-between text-xs font-bold shrink-0 border border-indigo-400">
-        <div class="flex items-center gap-2 truncate">
-            <span class="w-2.5 h-2.5 rounded-full bg-yellow-300 animate-ping shrink-0"></span>
-            <span id="linking-active-text" class="truncate">Modo de Vinculação Ativo</span>
-        </div>
-        <button type="button" onclick="clearLinkingSelection()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ml-2 shadow-sm">
-            <i class="fas fa-times mr-1"></i> Cancelar
-        </button>
-    </div>
 
     <!-- Área principal: Feed (1/3) + Painel de Bipagem e Itens (2/3) -->
     <div class="flex flex-col lg:flex-row gap-2.5 flex-1" style="min-height:0;">
@@ -814,8 +796,6 @@
     // =========================================================================
     const initialLinkedLiveItems = @json($linkedLiveItems ?? []);
     const bgScanItems = [];           // [{id, itemId, code, liveCode, buyerUsername, buyerName, buyerUserId, liveMessageId, time, source, productName, productDetails, ...}]
-    let selectedChatMsg = null;       // { id, username, displayName, userId }
-    let selectedScanItem = null;      // { id }
     let bgSpeechRecog = null;
     let bgSpeechActive = false;
 
@@ -1751,18 +1731,13 @@
         // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
         if (queue.length > 0) {
             return `
-                <div class="flex flex-col gap-1 items-start">
-                    <div class="flex flex-col gap-1 items-start w-full">
-                        ${queue.map(q => `
-                            <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
-                                <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
-                                <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar outra pessoa no chat ou buscar cliente" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer text-[10px] self-start flex items-center gap-1">
-                        <i class="fas fa-link text-xs"></i> <span>Avulso</span>
-                    </button>
+                <div class="flex flex-col gap-1 items-start w-full">
+                    ${queue.map(q => `
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                            <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
+                            <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
+                        </button>
+                    `).join('')}
                 </div>
             `;
         }
@@ -1773,9 +1748,6 @@
                 <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-start">
                     <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
                     <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
-                    <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
-                        <i class="fas fa-link text-xs"></i>
-                    </button>
                 </div>
             `;
         }
@@ -1784,9 +1756,6 @@
             <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-start">
                 <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
                 <span class="truncate text-[11px]">Defina o código</span>
-                <button type="button" onclick="event.stopPropagation(); selectScanItemForLinking('${item.id}')" title="Selecionar uma cliente avulsa no chat" class="p-1 text-gray-400 hover:text-indigo-600 rounded hover:bg-gray-100 transition cursor-pointer shrink-0">
-                    <i class="fas fa-link text-xs"></i>
-                </button>
             </div>
         `;
     }
@@ -1834,7 +1803,6 @@
         }
 
         playSuccessBeep();
-        clearLinkingSelection();
 
         const banner = document.getElementById('scan-last-item-banner');
         const bannerText = document.getElementById('scan-last-item-text');
@@ -1916,92 +1884,6 @@
         }
     }
 
-    function updateLinkingBannerUI() {
-        const banner = document.getElementById('linking-active-banner');
-        const text = document.getElementById('linking-active-text');
-        if (!banner || !text) return;
-
-        if (selectedChatMsg) {
-            text.innerHTML = `<strong>Mensagem de @${escapeHtml(selectedChatMsg.username)} selecionada!</strong> Clique em uma peça da lista para vincular.`;
-            banner.classList.remove('hidden');
-        } else if (selectedScanItem) {
-            const item = bgScanItems.find(x => x.id === selectedScanItem.id);
-            const codeLabel = item ? (item.code + (item.liveCode ? ' • Live: ' + item.liveCode : '')) : '';
-            text.innerHTML = `<strong>Peça #${escapeHtml(codeLabel)} selecionada!</strong> Clique em um comentário do chat para vincular à cliente.`;
-            banner.classList.remove('hidden');
-        } else {
-            banner.classList.add('hidden');
-        }
-    }
-
-    function clearLinkingSelection() {
-        selectedChatMsg = null;
-        selectedScanItem = null;
-        updateLinkingBannerUI();
-        document.querySelectorAll('.chat-card.linking-selected').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-indigo-500'));
-        document.querySelectorAll('.scan-item.linking-selected').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-emerald-500'));
-        renderChatFeed();
-    }
-
-    function selectMessageForLinking(msgId, username, displayName, userId) {
-        if (selectedScanItem) {
-            linkItemToBuyer(selectedScanItem.id, username, displayName, userId, msgId);
-            return;
-        }
-        selectedChatMsg = { id: msgId, username, displayName, userId };
-        selectedScanItem = null;
-        updateLinkingBannerUI();
-        renderChatFeed();
-    }
-
-    function toggleSelectMessageForLinking(msgId, username, displayName, userId) {
-        if (selectedChatMsg && selectedChatMsg.id === msgId) {
-            clearLinkingSelection();
-        } else {
-            selectMessageForLinking(msgId, username, displayName, userId);
-        }
-    }
-
-    function selectScanItemForLinking(scanId) {
-        if (selectedChatMsg) {
-            linkItemToBuyer(scanId, selectedChatMsg.username, selectedChatMsg.displayName, selectedChatMsg.userId, selectedChatMsg.id);
-            return;
-        }
-        const item = bgScanItems.find(x => x.id === scanId);
-        if (!item) return;
-
-        if (selectedScanItem && selectedScanItem.id === scanId) {
-            clearLinkingSelection();
-        } else {
-            selectedScanItem = { id: scanId };
-            selectedChatMsg = null;
-            updateLinkingBannerUI();
-
-            document.querySelectorAll('.scan-item').forEach(el => el.classList.remove('linking-selected', 'ring-4', 'ring-emerald-500'));
-            const el = document.querySelector(`[data-scan-id="${scanId}"]`);
-            if (el) el.classList.add('linking-selected', 'ring-4', 'ring-emerald-500');
-        }
-    }
-
-    function handleScanItemClick(scanId) {
-        if (selectedChatMsg) {
-            linkItemToBuyer(scanId, selectedChatMsg.username, selectedChatMsg.displayName, selectedChatMsg.userId, selectedChatMsg.id);
-            return;
-        }
-        selectScanItemForLinking(scanId);
-    }
-
-    function handleMessageCardClick(msgId, username, displayName, userId) {
-        // 1. Se uma peça já foi selecionada na lista de bipagem, vincula diretamente a ela
-        if (selectedScanItem) {
-            linkItemToBuyer(selectedScanItem.id, username, displayName, userId, msgId);
-            return;
-        }
-
-        // 2. Se NÃO tem peça selecionada: apenas alterna a seleção desta mensagem (destacando com borda azul)
-        toggleSelectMessageForLinking(msgId, username, displayName, userId);
-    }
-
     async function unlinkItemBuyerByMsgId(msgId) {
         const item = bgScanItems.find(x => x.liveMessageId === msgId);
         if (item) {
@@ -2040,21 +1922,17 @@
     /* ---- Lista de Itens Bipados ------------------------------------------ */
     function createScanItemElement(item, isNew) {
         const el = document.createElement('div');
-        const isSelected = selectedScanItem && selectedScanItem.id === item.id;
         const isDuplicate = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
         el.className = isNew
             ? (isDuplicate
                 ? 'p-3 bg-amber-50 border-2 border-amber-400 ring-2 ring-amber-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm'
                 : 'p-3 bg-emerald-50 border-2 border-emerald-400 ring-2 ring-emerald-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm')
-            : (isSelected
-                ? 'p-3 bg-emerald-50 border-2 border-emerald-500 ring-4 ring-emerald-400 rounded-2xl group transition scan-item linking-selected shadow-md'
-                : (isDuplicate
-                    ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
-                    : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs'));
+            : (isDuplicate
+                ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
+                : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs');
         el.dataset.code = item.code;
         el.dataset.scanId = item.id;
         if (item.itemId) el.dataset.itemId = item.itemId;
-        el.setAttribute('onclick', `handleScanItemClick('${item.id}')`);
 
         let detailsInitial = '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>';
         if (item.productName) {
@@ -2157,8 +2035,7 @@
                 clearLiveCode();
             }
 
-            // Seleciona a peça na lista e destaca visualmente
-            handleScanItemClick(existingItem.id);
+            // Destaca visualmente a peça na lista
 
             let existingEl = document.querySelector(`[data-scan-id="${existingItem.id}"]`);
             if (!existingEl && existingItem.code) {
@@ -2804,10 +2681,8 @@
         }
 
         const avatarHash = list.map(m => (m.avatar_url ? m.avatar_url.length : 0)).join(',');
-        const selectedMsgHash = selectedChatMsg ? selectedChatMsg.id : 0;
-        const selectedItemHash = selectedScanItem ? selectedScanItem.id : 0;
         const linkedHash = list.map(m => m.linked_code || '').join(',');
-        const currentHash = `${currentFilter}:${currentSearchTerm}:${list.length}:${list.length > 0 ? list[list.length - 1].id : 0}:${list.filter(m => m.is_marked).length}:${avatarHash}:${currentFontSize}:${currentTheme}:${selectedMsgHash}:${selectedItemHash}:${linkedHash}`;
+        const currentHash = `${currentFilter}:${currentSearchTerm}:${list.length}:${list.length > 0 ? list[list.length - 1].id : 0}:${list.filter(m => m.is_marked).length}:${avatarHash}:${currentFontSize}:${currentTheme}:${linkedHash}`;
         if (currentHash === lastRenderedHash && container.innerHTML.trim().length > 50) {
             return; // Sem alterações
         }
@@ -2885,14 +2760,8 @@
             const initials = cleanUser.slice(0, 2).toUpperCase();
             const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const isMarked = !!msg.is_marked;
-            const isSelectedMsg = selectedChatMsg && selectedChatMsg.id === msg.id;
             const isLinkedMsg = !!(msg.linked_code || msg.linked_item_id);
-            let cardSelectionClass = '';
-            if (isSelectedMsg) {
-                cardSelectionClass = 'linking-selected';
-            } else if (isLinkedMsg) {
-                cardSelectionClass = 'is-linked-msg';
-            }
+            const cardSelectionClass = isLinkedMsg ? 'is-linked-msg' : '';
 
             // Foto de perfil com avatar grande e nítido (Prioridade: Foto Real -> Persona Ilustrada -> Iniciais em Gradiente)
             const gradientBg = getGradientForUser(cleanUser);
@@ -2948,7 +2817,7 @@
                 cleanLiveCode = String(msg.linked_live_code).trim();
             }
 
-            // No lugar do Vincular: Exibe os códigos da peça vinculada (sem o texto 'Live:')
+            // Tag de Peça Vinculada (se houver)
             let vincularBtn = '';
             if (isLinkedMsg) {
                 let codeDisplay = cleanItemCode ? ('#' + escapeHtml(cleanItemCode)) : '';
@@ -2960,13 +2829,6 @@
                         <i class="fas fa-tag text-[10px] text-blue-400"></i>
                         <span>${codeDisplay || 'Vinculado'}</span>
                     </span>
-                `;
-            } else {
-                vincularBtn = `
-                    <button type="button" onclick="event.stopPropagation(); toggleSelectMessageForLinking(${msg.id}, '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}', '${msg.user_id || ''}')" title="${isSelectedMsg ? 'Cancelar seleção desta mensagem' : 'Selecionar mensagem para vincular a uma peça'}" class="${isSelectedMsg ? 'bg-blue-600 text-white ring-2 ring-blue-300 font-extrabold shadow-md' : 'bg-gray-800 hover:bg-blue-600 text-gray-200 hover:text-white font-bold border border-gray-700'} text-xs px-2.5 py-1 rounded-xl transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm">
-                        <i class="fas fa-link text-[10px]"></i>
-                        <span>${isSelectedMsg ? 'Selecionada' : 'Vincular'}</span>
-                    </button>
                 `;
             }
 
@@ -3018,10 +2880,8 @@
             const userClass = isTikTok ? 'chat-user-tiktok' : 'chat-user-insta';
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
 
-            const cardClickAction = `onclick="handleMessageCardClick(${msg.id}, '${escapeHtml(cleanUser)}', '${escapeHtml(displayName)}', '${msg.user_id || ''}')"`;
-
             html += `
-                <div ${cardClickAction} class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group cursor-pointer transition-all duration-100 hover:shadow-lg active:scale-[0.995]" style="padding: ${fontSizes.padding};" title="${selectedScanItem ? 'Clique para vincular este comentário à peça selecionada' : (isLinkedMsg ? 'Peça #' + escapeHtml(msg.linked_code) + ' vinculada a este comentário' : 'Clique para vincular a uma peça')}">
+                <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Peça #' + escapeHtml(msg.linked_code) + ' vinculada a este comentário' : ''}">
                     <!-- Avatar com Badge de Plataforma -->
                     <div class="relative flex-shrink-0">
                         ${avatarHtml}
