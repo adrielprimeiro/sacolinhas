@@ -750,19 +750,34 @@ class LiveVideoCutsController extends Controller
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
 
-        // Comando FFmpeg com corte rápido e reencodificação otimizada
+        // 1. Tentar corte ultrarrápido sem perda (Stream Copy - ~0.2 segundos)
         $cmd = sprintf(
-            'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -movflags +faststart -y %s 2>&1',
+            'ffmpeg -ss %s -i %s -t %s -c copy -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
             escapeshellarg($start),
             escapeshellarg($inputPath),
             escapeshellarg($duration),
             escapeshellarg($outputPath)
         );
 
-        Log::info("Executando FFmpeg: " . $cmd);
+        Log::info("Executando FFmpeg (Fast Copy): " . $cmd);
         exec($cmd, $output, $returnCode);
 
-        if ($returnCode !== 0 || !file_exists($outputPath)) {
+        // 2. Fallback caso stream copy falhe: reencodificação ultrafast (1 a 2 segundos)
+        if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
+            $outputFallback = [];
+            $cmdFallback = sprintf(
+                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset ultrafast -crf 24 -c:a aac -b:a 128k -movflags +faststart -y %s 2>&1',
+                escapeshellarg($start),
+                escapeshellarg($inputPath),
+                escapeshellarg($duration),
+                escapeshellarg($outputPath)
+            );
+            Log::info("Executando FFmpeg (Fallback Ultrafast): " . $cmdFallback);
+            exec($cmdFallback, $outputFallback, $returnCode);
+            $output = $outputFallback;
+        }
+
+        if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             Log::error("Erro no FFmpeg: " . implode("\n", $output));
             return response()->json([
                 'success' => false,
