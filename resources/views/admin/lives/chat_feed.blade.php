@@ -405,10 +405,10 @@
                         </div>
                     </div>
                     <div class="flex gap-1">
-                        <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="Diga: 'Código 15' ou digite"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault(); applySpokenLiveCode(this.value);}"
-                            class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-black text-indigo-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 tracking-wider uppercase transition-all duration-300">
-                        <button type="button" onclick="clearLiveCode()" title="Limpar código"
+                        <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="1º Digite o Código da Live (ou fale)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); applyLiveCodeAndFocusScanner(this.value);}"
+                            class="flex-1 px-3 py-1.5 rounded-xl border-2 border-indigo-300 bg-indigo-50/40 text-xs font-black text-indigo-700 placeholder-indigo-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 tracking-wider uppercase transition-all duration-300">
+                        <button type="button" onclick="clearLiveCode(); focusLiveCodeInput(true);" title="Limpar código"
                             class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
                             <i class="fas fa-times text-xs"></i>
                         </button>
@@ -877,81 +877,120 @@
         if (!el) return false;
         if (el.closest && (el.closest('#manual-buyer-search-modal') || el.closest('#link-user-modal'))) {
             return true;
-        }
+    function isUserTypingElsewhere() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (isModalOpen()) return true;
         const tag = (el.tagName || '').toLowerCase();
         if (tag === 'textarea' || tag === 'select') return true;
         if (tag === 'input') {
             const id = el.id || '';
-            if (id === 'scan-manual-input') return false;
+            if (id === 'scan-manual-input' || id === 'scan-live-code') return false;
             return true;
         }
         return false;
     }
 
-    function ensureScannerFocus(force = false) {
-        // Se modal do cliente avulso estiver aberto, não interfere
+    function isModalOpen() {
         const manualBuyerModal = document.getElementById('manual-buyer-search-modal');
-        if (manualBuyerModal && !manualBuyerModal.classList.contains('hidden')) {
-            return;
-        }
+        if (manualBuyerModal && !manualBuyerModal.classList.contains('hidden')) return true;
 
-        // Se modal da pessoa online estiver aberto, foca no input manual dele
-        const onlineModal = document.getElementById('online-qr-modal');
-        if (onlineModal && !onlineModal.classList.contains('hidden')) {
-            const modalInput = document.getElementById('online-qr-manual-input');
-            if (modalInput && (force || document.activeElement !== modalInput)) {
-                if (force || !isUserTypingElsewhere()) {
-                    modalInput.focus();
-                }
-            }
-            return;
-        }
-
-        // Se modal de vincular cliente estiver aberto, não interfere
         const linkModal = document.getElementById('link-user-modal');
-        if (linkModal && !linkModal.classList.contains('hidden')) {
-            return;
+        if (linkModal && !linkModal.classList.contains('hidden')) return true;
+
+        const qrModal = document.getElementById('online-qr-modal');
+        if (qrModal && !qrModal.classList.contains('hidden')) return true;
+
+        return false;
+    }
+
+    function applyLiveCodeAndFocusScanner(code) {
+        if (code && String(code).trim()) {
+            applySpokenLiveCode(code);
         }
+        setTimeout(() => {
+            focusScannerInput(true);
+        }, 50);
+    }
 
-        // Foco padrão da página: campo do leitor de código de barras
+    function focusLiveCodeInput(select = true) {
+        if (isModalOpen()) return;
+        const liveInput = document.getElementById('scan-live-code');
+        if (liveInput) {
+            if (document.activeElement !== liveInput) {
+                liveInput.focus();
+            }
+            if (select) {
+                liveInput.select();
+            }
+            updateScannerFocusBadge(false);
+        }
+    }
+
+    function focusScannerInput(select = true) {
+        if (isModalOpen()) return;
         const scanInput = document.getElementById('scan-manual-input');
-        if (!scanInput) return;
-
-        if (force || !isUserTypingElsewhere()) {
+        if (scanInput) {
             if (document.activeElement !== scanInput) {
                 scanInput.focus();
             }
+            if (select) {
+                scanInput.select();
+            }
+            updateScannerFocusBadge(true);
         }
-        updateScannerFocusBadge(document.activeElement === scanInput);
     }
 
-    function updateScannerFocusBadge(isFocused) {
+    function ensureScannerFocus(force = false) {
+        if (isModalOpen()) return;
+        if (!force && isUserTypingElsewhere()) return;
+
+        const liveInput = document.getElementById('scan-live-code');
+        const scanInput = document.getElementById('scan-manual-input');
+        if (!liveInput && !scanInput) return;
+
+        // Se já tem código da live preenchido, o foco vai para o leitor de código de barras
+        if (liveInput && liveInput.value.trim() !== '') {
+            if (document.activeElement !== scanInput) {
+                scanInput.focus();
+            }
+            updateScannerFocusBadge(true);
+        } else {
+            // Se o código da live está vazio, o 1º passo é focar no Código da Live
+            if (document.activeElement !== liveInput) {
+                liveInput.focus();
+            }
+            updateScannerFocusBadge(false);
+        }
+    }
+
+    function updateScannerFocusBadge(isScannerFocused) {
         const badge = document.getElementById('scanner-focus-badge');
         const text = document.getElementById('scanner-focus-text');
         if (!badge || !text) return;
 
-        if (isFocused) {
+        if (isScannerFocused) {
             badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
-            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>FOCO ATIVO`;
+            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>2º BIPAR PEÇA`;
         } else {
-            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 border border-gray-300 text-gray-600 text-[10px] font-bold select-none cursor-pointer transition active:scale-95 hover:bg-emerald-50 hover:text-emerald-700";
-            text.innerHTML = `<i class="fas fa-crosshairs text-[9px] mr-0.5"></i> Refocar`;
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 border border-indigo-300 text-indigo-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
+            text.innerHTML = `<i class="fas fa-keyboard text-[9px] mr-1"></i>1º CÓDIGO LIVE`;
         }
     }
 
     function initScannerFocusEvents() {
+        const liveInput = document.getElementById('scan-live-code');
         const scanInput = document.getElementById('scan-manual-input');
-        if (scanInput) {
-            scanInput.addEventListener('focus', () => updateScannerFocusBadge(true));
-            scanInput.addEventListener('blur', () => {
-                updateScannerFocusBadge(false);
-                setTimeout(() => {
-                    ensureScannerFocus(false);
-                }, 150);
-            });
+
+        if (liveInput) {
+            liveInput.addEventListener('focus', () => updateScannerFocusBadge(false));
         }
 
-        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco de volta imediatamente
+        if (scanInput) {
+            scanInput.addEventListener('focus', () => updateScannerFocusBadge(true));
+        }
+
+        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco inteligente de volta
         document.addEventListener('click', function(e) {
             const target = e.target;
             if (!target) return;
@@ -967,13 +1006,10 @@
             ensureScannerFocus(false);
         });
 
-        // Verificação periódica leve para garantir foco constante no leitor
-        setInterval(function() {
-            ensureScannerFocus(false);
-        }, 1000);
-
-        // Foco inicial imediato
-        ensureScannerFocus(true);
+        // Foco inicial imediato no Código da Live (1º passo)
+        setTimeout(() => {
+            focusLiveCodeInput(true);
+        }, 150);
     }
 
     /* ---- Reconhecimento de Voz Inteligente (SpeechRecognition) ------------ */
@@ -2387,10 +2423,8 @@
         };
         bgScanItems.unshift(item);
 
-        // Se havia código no campo do áudio, já inseriu no item e agora limpa o campo!
-        if (liveCodeInField) {
-            clearLiveCode();
-        }
+        // Limpa o campo do código da live e reseta para o próximo ciclo
+        clearLiveCode();
 
         const list = document.getElementById('scan-items-list');
         const el = createScanItemElement(item, true);
@@ -2400,9 +2434,7 @@
             list.scrollTop = 0; // Rola a lista automaticamente para o topo
         }
 
-        if (liveCodeInField) {
-            refreshAllScanItemsLiveCodeUI();
-        }
+        refreshAllScanItemsLiveCodeUI();
 
         // Busca assíncrona dos dados do produto para exibir Descrição e Detalhes
         fetchAndRenderItemDetails(cleanCode, scanUniqueId);
@@ -2429,6 +2461,11 @@
         }
 
         updateScanCount();
+
+        // Retorna o foco automaticamente para o Código da Live (1º passo do ciclo)
+        setTimeout(() => {
+            focusLiveCodeInput(true);
+        }, 80);
     }
 
     function removeScanItem(btn) {
@@ -2563,9 +2600,11 @@
         const rawVal = input.value;
         input.value = '';
         const code = extractCleanCode(rawVal).toUpperCase();
-        if (!code) return;
+        if (!code) {
+            focusLiveCodeInput(true);
+            return;
+        }
         addScanItem(code, 'manual');
-        input.focus();
     }
 
     // =========================================================================
