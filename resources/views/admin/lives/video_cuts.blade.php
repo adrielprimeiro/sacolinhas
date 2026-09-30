@@ -84,7 +84,7 @@
         <div class="lg:col-span-5 space-y-5">
             
             <!-- Card Player de Vídeo -->
-            <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm sticky top-6">
+            <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
                 <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
                     <h3 class="font-black text-sm text-gray-800 flex items-center gap-2">
                         <i class="fas fa-play-circle text-indigo-600"></i>
@@ -95,10 +95,10 @@
                     </button>
                 </div>
 
-                <!-- Video Container -->
-                <div class="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-gray-300">
+                <!-- Video Container (Adaptado para Vídeos Verticais e Horizontais) -->
+                <div class="relative bg-black rounded-xl overflow-hidden flex items-center justify-center border border-gray-300" style="max-height: 42vh; height: 360px;">
                     @if($recordingUrl)
-                        <video id="live-main-player" src="{{ $recordingUrl }}" controls class="w-full h-full object-contain" preload="metadata"></video>
+                        <video id="live-main-player" src="{{ $recordingUrl }}" controls class="w-full h-full object-contain max-h-[42vh]" preload="metadata"></video>
                     @else
                         <div id="no-video-placeholder" class="text-center p-6 text-gray-400">
                             <i class="fas fa-video-slash text-4xl mb-3 text-gray-300"></i>
