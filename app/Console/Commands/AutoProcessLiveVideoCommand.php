@@ -12,7 +12,7 @@ class AutoProcessLiveVideoCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'app:auto-process-live-video {--live_id= : ID da live a processar} {--username=de_minha_mania : @ do Instagram}';
+    protected $signature = 'app:auto-process-live-video {--live_id= : ID da live a processar} {--username=de_minha_mania : @ do Instagram} {--url= : URL direta do vídeo da live (Instagram/TikTok/Reel)}';
 
     /**
      * The console command description.
@@ -28,12 +28,16 @@ class AutoProcessLiveVideoCommand extends Command
     {
         $liveId = $this->option('live_id');
         $username = $this->option('username') ?: 'de_minha_mania';
+        $directUrl = $this->option('url');
 
         $this->info("Iniciando processamento automático de vídeo da live...");
         $this->line("Live ID: " . ($liveId ?: 'Última ativa'));
         $this->line("Instagram: @{$username}");
+        if ($directUrl) {
+            $this->line("URL Direta: {$directUrl}");
+        }
 
-        $result = $processor->processLiveVideo($liveId, $username);
+        $result = $processor->processLiveVideo($liveId, $username, $directUrl);
 
         if (!empty($result['success'])) {
             $this->info("✅ " . $result['message']);

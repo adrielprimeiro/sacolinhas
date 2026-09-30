@@ -17,9 +17,10 @@ class LiveVideoAutoProcessorService
      * 
      * @param int|null $liveId
      * @param string $instagramHandle
+     * @param string|null $directVideoUrl
      * @return array
      */
-    public function processLiveVideo($liveId = null, $instagramHandle = 'de_minha_mania')
+    public function processLiveVideo($liveId = null, $instagramHandle = 'de_minha_mania', $directVideoUrl = null)
     {
         // 1. Obter a live
         if ($liveId) {
@@ -73,32 +74,35 @@ class LiveVideoAutoProcessorService
             }
         }
 
-        // 3. Buscar vídeo mais recente do Instagram via yt-dlp
+        // 3. Buscar vídeo mais recente do Instagram via yt-dlp ou URL direta
         if (!$videoPath) {
-            Log::info("[AutoProcessor] Buscando último vídeo do perfil @{$instagramHandle}...");
-            $profileUrl = "https://www.instagram.com/{$instagramHandle}/reels/";
-            $escapedProfile = escapeshellarg($profileUrl);
+            $latestVideoUrl = $directVideoUrl;
 
-            // yt-dlp flat-playlist para obter URLs recentes
-            $cmd = "yt-dlp --dump-json --flat-playlist --playlist-end 3 {$escapedProfile} 2>&1";
-            $output = [];
-            $returnCode = 0;
-            exec($cmd, $output, $returnCode);
+            if (!$latestVideoUrl) {
+                Log::info("[AutoProcessor] Buscando último vídeo do perfil @{$instagramHandle}...");
+                $profileUrl = "https://www.instagram.com/{$instagramHandle}/reels/";
+                $escapedProfile = escapeshellarg($profileUrl);
 
-            $latestVideoUrl = null;
-            foreach ($output as $line) {
-                $json = json_decode($line, true);
-                if (!empty($json['url'])) {
-                    $latestVideoUrl = $json['url'];
-                    break;
-                } elseif (!empty($json['webpage_url'])) {
-                    $latestVideoUrl = $json['webpage_url'];
-                    break;
+                // yt-dlp flat-playlist para obter URLs recentes
+                $cmd = "yt-dlp --dump-json --flat-playlist --playlist-end 3 {$escapedProfile} 2>&1";
+                $output = [];
+                $returnCode = 0;
+                exec($cmd, $output, $returnCode);
+
+                foreach ($output as $line) {
+                    $json = json_decode($line, true);
+                    if (!empty($json['url'])) {
+                        $latestVideoUrl = $json['url'];
+                        break;
+                    } elseif (!empty($json['webpage_url'])) {
+                        $latestVideoUrl = $json['webpage_url'];
+                        break;
+                    }
                 }
             }
 
             if (!$latestVideoUrl) {
-                return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}."];
+                return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça a URL do post diretamente."];
             }
 
             Log::info("[AutoProcessor] Novo vídeo detectado: {$latestVideoUrl}. Iniciando download...");
