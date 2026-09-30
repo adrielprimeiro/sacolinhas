@@ -448,13 +448,14 @@ class AvaliacaoController extends Controller
 
                 $payout = $pagamento === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
 
-                // 1. Cadastra o item no estoque (tabela items) se o preço de venda > 0
+                // 1. Cadastra ou atualiza o item no estoque (tabela items) se o preço de venda > 0
                 if ($item->preco_venda > 0) {
                     $uniqueCode = 'DES-' . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . '-' . str_pad($item->id, 3, '0', STR_PAD_LEFT);
-                    
+                    $brechoId = $avaliacao->brecho_id ?: (auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1);
                     $marcaTxt = $item->marcaRel ? $item->marcaRel->nome : ($item->marca ?: 'Sem Marca');
 
-                    $newItem = Item::create([
+                    $itemData = [
+                        'brecho_id' => $brechoId,
                         'codigo' => $uniqueCode,
                         'nome_do_produto' => $item->nome,
                         'custo' => $payout,
@@ -464,8 +465,22 @@ class AvaliacaoController extends Controller
                         'estado' => $item->estado,
                         'cor' => $item->cor,
                         'tamanho' => $item->tamanho,
-                        'status' => 'disponivel',
-                    ]);
+                    ];
+
+                    $newItem = null;
+                    if ($item->item_id) {
+                        $newItem = Item::where('id', $item->item_id)->first();
+                    }
+                    if (!$newItem) {
+                        $newItem = Item::where('brecho_id', $brechoId)->where('codigo', $uniqueCode)->first();
+                    }
+
+                    if ($newItem) {
+                        $newItem->update($itemData);
+                    } else {
+                        $itemData['status'] = 'disponivel';
+                        $newItem = Item::create($itemData);
+                    }
 
                     // Vincula categoria na tabela pivô se existir relacionamento belongsToMany
                     if ($item->categoria_id) {

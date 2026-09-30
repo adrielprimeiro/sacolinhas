@@ -255,6 +255,8 @@ class ItemController extends Controller
             $validated['image'] = $request->file('image')->store('items', 'public');
         }
 
+        $validated['brecho_id'] = $brechoId;
+
         $item = Item::create($validated);
         
         if ($request->has('categorias')) {

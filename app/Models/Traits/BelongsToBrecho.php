@@ -17,12 +17,13 @@ trait BelongsToBrecho
         // Aplica o TenantScope para isolamento automático de consultas
         static::addGlobalScope(new TenantScope());
 
-        // Ao criar um novo registro, preenche brecho_id automaticamente caso o usuário logado pertença a um brechó
+        // Ao criar um novo registro, preenche brecho_id automaticamente
         static::creating(function ($model) {
-            if (empty($model->brecho_id) && Auth::check()) {
-                $user = Auth::user();
-                if (!empty($user->brecho_id)) {
-                    $model->brecho_id = $user->brecho_id;
+            if (empty($model->brecho_id)) {
+                if (Auth::check() && !empty(Auth::user()->brecho_id)) {
+                    $model->brecho_id = Auth::user()->brecho_id;
+                } else {
+                    $model->brecho_id = 1;
                 }
             }
         });
