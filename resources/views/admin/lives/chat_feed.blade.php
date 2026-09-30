@@ -875,11 +875,6 @@
     function isUserTypingElsewhere() {
         const el = document.activeElement;
         if (!el) return false;
-        if (el.closest && (el.closest('#manual-buyer-search-modal') || el.closest('#link-user-modal'))) {
-            return true;
-    function isUserTypingElsewhere() {
-        const el = document.activeElement;
-        if (!el) return false;
         if (isModalOpen()) return true;
         const tag = (el.tagName || '').toLowerCase();
         if (tag === 'textarea' || tag === 'select') return true;
@@ -2567,14 +2562,8 @@
     let manualScanDebounceTimer = null;
 
     function handleManualScanInput(event) {
+        // Digitação manual aguarda a tecla Enter no handleManualScan
         if (manualScanDebounceTimer) clearTimeout(manualScanDebounceTimer);
-        const val = event.target ? event.target.value.trim() : '';
-        if (!val) return;
-
-        // Auto-enter de segurança caso o leitor não envie Enter
-        manualScanDebounceTimer = setTimeout(() => {
-            addManualCode();
-        }, 250);
     }
 
     function handleManualScan(event) {
