@@ -1932,9 +1932,14 @@
         `;
 
         try {
-            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
             const json = await response.json();
-            const users = (json.success && Array.isArray(json.data)) ? json.data : [];
+            const users = (json && json.success && Array.isArray(json.data)) ? json.data : [];
 
             let html = '';
             if (users.length > 0) {
@@ -1973,11 +1978,15 @@
                     `;
                 });
             } else {
+                const cleanUserTerm = query.trim().replace(/^@/, '');
                 html = `
-                    <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                    <div class="flex flex-col items-center justify-center py-8 text-gray-400 text-center">
                         <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                        <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado</p>
-                        <p class="text-[11px] text-gray-400 mt-0.5">Verifique o nome, @instagram ou WhatsApp digitado.</p>
+                        <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado com "${escapeHtml(query)}"</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5 mb-3">Deseja vincular diretamente como novo comprador?</p>
+                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fas fa-user-plus"></i> Vincular @${escapeHtml(cleanUserTerm)} à Peça
+                        </button>
                     </div>
                 `;
             }
@@ -1985,9 +1994,13 @@
             container.innerHTML = html;
         } catch(e) {
             console.error('[ManualBuyer] Erro na busca:', e);
+            const cleanUserTerm = query.trim().replace(/^@/, '');
             container.innerHTML = `
                 <div class="text-center py-6 text-red-500 text-xs font-bold">
-                    Erro ao realizar busca de clientes.
+                    <p class="mb-2">Erro ao conectar com a busca de clientes.</p>
+                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
+                        Vincular @${escapeHtml(cleanUserTerm)} diretamente
+                    </button>
                 </div>
             `;
         }
