@@ -528,7 +528,7 @@
 
         <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente por Nome, Apelido ou Celular:</label>
-            <input type="text" id="modal-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" onkeyup="searchClients(this.value)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
+            <input type="text" id="modal-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" oninput="searchClients(this.value)" onkeydown="handleLinkUserSearchKeydown(event)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
         </div>
 
         <div id="modal-search-results" class="max-h-48 overflow-y-auto space-y-2 border border-gray-100 rounded-xl p-2 bg-gray-50">
@@ -536,7 +536,8 @@
             <p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>
         </div>
         
-        <div class="mt-5 flex justify-end gap-3 border-t border-gray-100 pt-4">
+        <div class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+            <span class="text-[11px] text-gray-400">Dica: <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">↑</kbd> <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">↓</kbd> navega, <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">Enter</kbd> vincula</span>
             <button onclick="closeLinkModal()" class="px-4 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition cursor-pointer">Cancelar</button>
         </div>
     </div>
@@ -565,7 +566,7 @@
         <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
             <div class="relative">
                 <i class="fas fa-search absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
-                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)" onkeydown="event.stopPropagation()">
+                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)" onkeydown="handleManualBuyerSearchKeydown(event)">
                 <button type="button" id="manual-buyer-search-clear" onclick="clearManualBuyerSearch()" class="hidden absolute right-3.5 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 cursor-pointer">
                     <i class="fas fa-times-circle text-sm"></i>
                 </button>
@@ -583,7 +584,7 @@
 
         <!-- Footer -->
         <div class="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500">
-            <span class="text-[11px]">Dica: Pressione <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">ESC</kbd> para fechar</span>
+            <span class="text-[11px]">Dica: Use <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">↑</kbd> <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">↓</kbd> para navegar, <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">Enter</kbd> para vincular e <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">ESC</kbd> para fechar</span>
             <button type="button" onclick="closeManualBuyerSearchModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl transition cursor-pointer">
                 Fechar
             </button>
@@ -1932,6 +1933,67 @@
         `;
     }
 
+    let manualBuyerSelectedIndex = 0;
+
+    function handleManualBuyerSearchKeydown(e) {
+        e.stopPropagation();
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+
+        const items = container.querySelectorAll('.manual-buyer-result-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            manualBuyerSelectedIndex = (manualBuyerSelectedIndex + 1) % items.length;
+            updateManualBuyerSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            manualBuyerSelectedIndex = (manualBuyerSelectedIndex - 1 + items.length) % items.length;
+            updateManualBuyerSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (items.length > 0) {
+                const targetIdx = (manualBuyerSelectedIndex >= 0 && manualBuyerSelectedIndex < items.length) ? manualBuyerSelectedIndex : 0;
+                items[targetIdx].click();
+                return;
+            }
+            const directBtn = container.querySelector('.manual-buyer-fallback-btn');
+            if (directBtn) {
+                directBtn.click();
+                return;
+            }
+        }
+
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            closeManualBuyerSearchModal();
+        }
+    }
+
+    function updateManualBuyerSelectedHighlight() {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+        const items = container.querySelectorAll('.manual-buyer-result-item');
+        items.forEach((item, idx) => {
+            if (idx === manualBuyerSelectedIndex) {
+                item.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/60', 'border-indigo-400');
+                item.classList.remove('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                item.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/60', 'border-indigo-400');
+                item.classList.add('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700');
+            }
+        });
+    }
+
     function handleManualBuyerSearchInput(val) {
         const clearBtn = document.getElementById('manual-buyer-search-clear');
         if (clearBtn) {
@@ -1948,7 +2010,7 @@
 
         manualBuyerSearchTimeout = setTimeout(() => {
             executeManualBuyerSearch(query);
-        }, 250);
+        }, 200);
     }
 
     async function executeManualBuyerSearch(query) {
@@ -1986,7 +2048,7 @@
                     }));
 
                     html += `
-                        <div onclick="handleSelectManualBuyerClick(this)" data-user="${userPayload}" class="p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs group">
+                        <div onclick="handleSelectManualBuyerClick(this)" data-user="${userPayload}" class="manual-buyer-result-item p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs group">
                             <div class="flex items-center gap-2.5 min-w-0 pointer-events-none">
                                 <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
                                     ${escapeHtml(initials)}
@@ -2015,7 +2077,7 @@
                         <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
                         <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado com "${escapeHtml(query)}"</p>
                         <p class="text-[11px] text-gray-400 mt-0.5 mb-3">Deseja vincular diretamente como novo comprador?</p>
-                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="manual-buyer-fallback-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                             <i class="fas fa-user-plus"></i> Vincular @${escapeHtml(cleanUserTerm)} à Peça
                         </button>
                     </div>
@@ -2023,17 +2085,20 @@
             }
 
             container.innerHTML = html;
+            manualBuyerSelectedIndex = 0;
+            updateManualBuyerSelectedHighlight();
         } catch(e) {
             console.error('[ManualBuyer] Erro na busca:', e);
             const cleanUserTerm = query.trim().replace(/^@/, '');
             container.innerHTML = `
                 <div class="text-center py-6 text-red-500 text-xs font-bold">
                     <p class="mb-2">Erro ao conectar com a busca de clientes.</p>
-                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
+                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="manual-buyer-fallback-btn px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
                         Vincular @${escapeHtml(cleanUserTerm)} diretamente
                     </button>
                 </div>
             `;
+            manualBuyerSelectedIndex = 0;
         }
     }
 
@@ -3797,6 +3862,62 @@
         document.getElementById("link-user-modal").classList.add("hidden");
     }
 
+    let linkUserSelectedIndex = 0;
+
+    function handleLinkUserSearchKeydown(e) {
+        e.stopPropagation();
+        const container = document.getElementById("modal-search-results");
+        if (!container) return;
+
+        const items = container.querySelectorAll('.link-user-result-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            linkUserSelectedIndex = (linkUserSelectedIndex + 1) % items.length;
+            updateLinkUserSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            linkUserSelectedIndex = (linkUserSelectedIndex - 1 + items.length) % items.length;
+            updateLinkUserSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (items.length > 0) {
+                const targetIdx = (linkUserSelectedIndex >= 0 && linkUserSelectedIndex < items.length) ? linkUserSelectedIndex : 0;
+                items[targetIdx].click();
+            }
+            return;
+        }
+
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            closeLinkModal();
+        }
+    }
+
+    function updateLinkUserSelectedHighlight() {
+        const container = document.getElementById("modal-search-results");
+        if (!container) return;
+        const items = container.querySelectorAll('.link-user-result-item');
+        items.forEach((item, idx) => {
+            if (idx === linkUserSelectedIndex) {
+                item.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'border-indigo-400');
+                item.classList.remove('bg-white', 'border-gray-200');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                item.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'border-indigo-400');
+                item.classList.add('bg-white', 'border-gray-200');
+            }
+        });
+    }
+
     function searchClients(query) {
         const resultsContainer = document.getElementById("modal-search-results");
         if (query.trim().length < 2) {
@@ -3811,7 +3932,7 @@
                     let html = '';
                     data.data.forEach(user => {
                         html += `
-                            <div onclick="linkUserToProfile('${user.id}')" class="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition duration-150 cursor-pointer flex justify-between items-center">
+                            <div onclick="linkUserToProfile('${user.id}')" class="link-user-result-item p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition duration-150 cursor-pointer flex justify-between items-center">
                                 <div>
                                     <h4 class="font-bold text-xs text-gray-800">${escapeHtml(user.name)}</h4>
                                     <span class="text-[10px] text-gray-500">${user.whatsapp ? 'WhatsApp: ' + escapeHtml(user.whatsapp) : 'Sem número'}</span>
@@ -3822,8 +3943,11 @@
                         `;
                     });
                     resultsContainer.innerHTML = html;
+                    linkUserSelectedIndex = 0;
+                    updateLinkUserSelectedHighlight();
                 } else {
                     resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Nenhum cliente cadastrado encontrado.</p>`;
+                    linkUserSelectedIndex = 0;
                 }
             })
             .catch(err => console.error("Erro na busca de usuários:", err));
