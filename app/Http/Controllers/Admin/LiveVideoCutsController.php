@@ -735,10 +735,11 @@ class LiveVideoCutsController extends Controller
             return response()->json(['success' => false, 'message' => 'Arquivo de vídeo original não encontrado no servidor.'], 404);
         }
 
-        // Criar diretório de saída
+        // Criar diretório de saída com permissões adequadas
         $outputDir = storage_path('app/public/live_cuts/live_' . $liveId);
         if (!file_exists($outputDir)) {
-            mkdir($outputDir, 0775, true);
+            @mkdir($outputDir, 0777, true);
+            @chmod($outputDir, 0777);
         }
 
         $codeClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $liveItem->codigo_live ?: 'item_' . $liveItem->item_id);

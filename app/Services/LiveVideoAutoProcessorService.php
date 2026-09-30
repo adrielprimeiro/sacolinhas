@@ -62,7 +62,8 @@ class LiveVideoAutoProcessorService
 
         $destFolder = storage_path('app/public/live_recordings');
         if (!is_dir($destFolder)) {
-            mkdir($destFolder, 0775, true);
+            @mkdir($destFolder, 0777, true);
+            @chmod($destFolder, 0777);
         }
 
         // 2. Verificar se já tem vídeo local
