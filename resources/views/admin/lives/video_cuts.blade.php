@@ -1032,12 +1032,21 @@
     }
 
     async function triggerAutoProcess() {
-        if (!confirm("Deseja buscar a gravação mais recente no perfil @de_minha_mania, transcrever e gerar todos os cortes das peças automaticamente?")) return;
+        const hasVideo = !!document.getElementById('live-main-player');
+        let videoUrl = '';
+
+        if (!hasVideo) {
+            const inputUrl = prompt("Insira o link da publicação/vídeo no Instagram (ex: https://www.instagram.com/p/...):\n\nO sistema irá baixar, transcrever e gerar todos os cortes automaticamente.", "");
+            if (inputUrl === null) return;
+            videoUrl = inputUrl.trim();
+        } else {
+            if (!confirm("O vídeo da live já está carregado. Deseja executar a transcrição inteligente e gerar todos os cortes automaticamente?")) return;
+        }
 
         const btn = document.getElementById("btn-auto-process");
         const oldHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando Tudo com IA...`;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando com IA...`;
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-process`, {
@@ -1047,7 +1056,10 @@
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ username: 'de_minha_mania' })
+                body: JSON.stringify({ 
+                    username: 'de_minha_mania',
+                    url: videoUrl || undefined
+                })
             });
             const data = await res.json();
             btn.disabled = false;

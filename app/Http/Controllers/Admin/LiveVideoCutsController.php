@@ -335,8 +335,9 @@ class LiveVideoCutsController extends Controller
     public function autoProcessLive(Request $request, $liveId)
     {
         $username = $request->input('username', 'de_minha_mania');
+        $url = $request->input('url');
         $processor = new \App\Services\LiveVideoAutoProcessorService();
-        $result = $processor->processLiveVideo($liveId, $username);
+        $result = $processor->processLiveVideo($liveId, $username, $url);
 
         return response()->json($result);
     }
