@@ -1936,16 +1936,22 @@
             const json = await response.json();
             const users = (json.success && Array.isArray(json.data)) ? json.data : [];
 
+            let html = '';
             if (users.length > 0) {
                 users.forEach(u => {
                     const username = u.instagram || u.tiktok || u.name || ('cliente_' + u.id);
                     const displayName = u.name || u.apelido || username;
                     const initials = (u.name || username).slice(0, 2).toUpperCase();
                     const cleanPhone = u.whatsapp || u.phone || '';
+                    const userPayload = encodeURIComponent(JSON.stringify({
+                        id: u.id,
+                        username: username,
+                        displayName: displayName
+                    }));
 
                     html += `
-                        <div onclick="selectManualBuyerUser(${u.id}, '${escapeHtml(username)}', '${escapeHtml(displayName)}')" class="p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs">
-                            <div class="flex items-center gap-2.5 min-w-0">
+                        <div onclick="handleSelectManualBuyerClick(this)" data-user="${userPayload}" class="p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs group">
+                            <div class="flex items-center gap-2.5 min-w-0 pointer-events-none">
                                 <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
                                     ${escapeHtml(initials)}
                                 </div>
@@ -1960,14 +1966,14 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-indigo-600 hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl shrink-0 transition">
+                            <button type="button" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 group-hover:bg-indigo-600 group-hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl shrink-0 transition pointer-events-none">
                                 Vincular
                             </button>
                         </div>
                     `;
                 });
             } else {
-                html += `
+                html = `
                     <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
                         <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
                         <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado</p>
@@ -1984,6 +1990,17 @@
                     Erro ao realizar busca de clientes.
                 </div>
             `;
+        }
+    }
+
+    function handleSelectManualBuyerClick(el) {
+        try {
+            const raw = el.getAttribute('data-user');
+            if (!raw) return;
+            const data = JSON.parse(decodeURIComponent(raw));
+            selectManualBuyerUser(data.id, data.username, data.displayName);
+        } catch(err) {
+            console.error('[ManualBuyer] Erro ao selecionar usuário:', err);
         }
     }
 
