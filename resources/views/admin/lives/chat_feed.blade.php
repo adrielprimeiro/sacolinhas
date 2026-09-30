@@ -1932,7 +1932,7 @@
         `;
 
         try {
-            const response = await fetch(`/users/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
             const json = await response.json();
             const users = (json.success && Array.isArray(json.data)) ? json.data : [];
 
