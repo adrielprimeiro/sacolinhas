@@ -847,37 +847,74 @@
     }
 
     async function generateAllClips() {
-        if (!confirm("Deseja gerar todos os cortes marcados com FFmpeg agora?")) return;
+        const itemCards = document.querySelectorAll('.item-card');
+        const itemsToProcess = [];
+
+        itemCards.forEach(card => {
+            const idMatch = card.id ? card.id.match(/^item-card-(\d+)$/) : null;
+            if (!idMatch) return;
+            const itemId = idMatch[1];
+            const startInput = document.getElementById(`input-start-${itemId}`);
+            const endInput = document.getElementById(`input-end-${itemId}`);
+            const codeBadge = card.querySelector('.bg-indigo-600')?.textContent?.trim() || (`#${itemId}`);
+
+            if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
+                itemsToProcess.push({
+                    id: itemId,
+                    code: codeBadge
+                });
+            }
+        });
+
+        if (itemsToProcess.length === 0) {
+            alert("Nenhum item com minutagem definida para cortar.");
+            return;
+        }
+
+        if (!confirm(`Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`)) return;
 
         const btn = document.getElementById("btn-batch-clips");
         const oldHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando Cortes...`;
 
-        try {
-            const res = await fetch(`/admin/lives/${liveId}/cortes/generate-batch`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < itemsToProcess.length; i++) {
+            const item = itemsToProcess[i];
+            const pct = Math.round(((i + 1) / itemsToProcess.length) * 100);
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Cortando ${i + 1}/${itemsToProcess.length} (${item.code} - ${pct}%)...`;
+
+            try {
+                const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${item.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    successCount++;
+                    const card = document.getElementById(`item-card-${item.id}`);
+                    if (card) {
+                        card.classList.remove('border-gray-200', 'border-indigo-300');
+                        card.classList.add('border-green-400', 'bg-green-50/20');
+                    }
+                } else {
+                    failCount++;
                 }
-            });
-            const data = await res.json();
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
-
-            if (data.success) {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert("Erro: " + data.message);
+            } catch (e) {
+                failCount++;
             }
-        } catch (e) {
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
-            alert("Erro ao gerar cortes em lote.");
         }
+
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+
+        alert(`✅ Processamento concluído: ${successCount} cortes gerados com sucesso!` + (failCount > 0 ? ` (${failCount} falhas)` : ''));
+        window.location.reload();
     }
 
     function toggleUploadModal() {
