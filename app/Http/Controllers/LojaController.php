@@ -93,6 +93,13 @@ class LojaController extends Controller
             $query->where('preco', '<=', $precoMax);
         }
 
+        // Apenas produtos com vídeo
+        if ($request->boolean('com_video') || $request->input('com_video') === '1') {
+            $query->whereHas('medias', function ($q) {
+                $q->where('media_type', 'video');
+            });
+        }
+
         $items = $query
             ->with([
                 'medias' => function ($q) {

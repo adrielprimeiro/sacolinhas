@@ -187,6 +187,21 @@
                     >
                 </div>
 
+                <div class="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5">
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            name="com_video"
+                            value="1"
+                            {{ request('com_video') == '1' ? 'checked' : '' }}
+                            class="h-4 w-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                        >
+                        <span class="text-sm font-semibold text-purple-900 flex items-center gap-2">
+                            <i class="fas fa-video text-purple-600"></i> Apenas com Vídeo
+                        </span>
+                    </label>
+                </div>
+
 
                 <div>
                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
@@ -329,19 +344,41 @@
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onclick="openFilterMenu()"
-                        class="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
-                    >
-                        <i class="fas fa-bars"></i>
-                        <span>Filtros</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        @php
+                            $videoParams = request()->except('page');
+                            $hasVideoFilter = request('com_video') == '1';
+                            if ($hasVideoFilter) {
+                                unset($videoParams['com_video']);
+                            } else {
+                                $videoParams['com_video'] = '1';
+                            }
+                        @endphp
+                        <a
+                            href="{{ route('loja.index', $videoParams) }}"
+                            class="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-all shadow-sm
+                                {{ $hasVideoFilter ? 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700 shadow-purple-200' : 'bg-white text-zinc-700 border-zinc-300 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700' }}"
+                            title="{{ $hasVideoFilter ? 'Remover filtro de vídeo' : 'Filtrar apenas itens com vídeo' }}"
+                        >
+                            <i class="fas fa-video {{ $hasVideoFilter ? 'text-white' : 'text-purple-600' }}"></i>
+                            <span>{{ $hasVideoFilter ? 'Com Vídeo ✓' : 'Com Vídeo' }}</span>
+                        </a>
+
+                        <button
+                            type="button"
+                            onclick="openFilterMenu()"
+                            class="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+                        >
+                            <i class="fas fa-bars"></i>
+                            <span>Filtros</span>
+                        </button>
+                    </div>
                 </div>
 
                 @if(
                     request()->filled('q') ||
                     request()->filled('categoria') ||
+                    request()->filled('com_video') ||
                     request()->filled('marca') ||
                     request()->filled('cor') ||
                     request()->filled('tamanho') ||
@@ -350,6 +387,17 @@
                     request()->filled('preco_max')
                 )
                     <div class="mt-4 flex flex-wrap gap-2">
+                        @if(request('com_video') == '1')
+                            <a
+                                href="{{ route('loja.index', request()->except('com_video', 'page')) }}"
+                                class="inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-700 transition-colors"
+                            >
+                                <i class="fas fa-video"></i>
+                                <span>Apenas com Vídeo</span>
+                                <i class="fas fa-times text-[10px] opacity-80"></i>
+                            </a>
+                        @endif
+
                         @if(request('q'))
                             <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
                                 Busca: {{ request('q') }}
