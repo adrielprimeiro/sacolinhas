@@ -161,19 +161,23 @@ class LiveChatController extends Controller
         $liveId = $request->input('live_id');
         $itemId = $request->input('item_id');
         $codigoLive = trim((string) $request->input('codigo_live'));
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
             $code = trim($request->input('code'));
             $cleanCode = ltrim($code, '#');
             $cleanCode = trim($cleanCode);
 
-            $item = Item::where('codigo', $code)
-                ->orWhere('codigo', $cleanCode)
-                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
-                ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
-                ->orWhere('id', is_numeric($cleanCode) ? (int)$cleanCode : (is_numeric($code) ? (int)$code : -1))
+            $item = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($code, $cleanCode) {
+                    $q->where('codigo', $code)
+                      ->orWhere('codigo', $cleanCode)
+                      ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                      ->orWhere('id', is_numeric($cleanCode) ? (int)$cleanCode : (is_numeric($code) ? (int)$code : -1));
+                })
                 ->first();
             if ($item) {
                 $itemId = $item->id;
@@ -260,13 +264,23 @@ class LiveChatController extends Controller
 
         $liveId = $request->input('live_id');
         $itemId = $request->input('item_id');
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
             $code = trim($request->input('code'));
-            $item = Item::where('codigo', $code)
-                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
-                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+            $cleanCode = ltrim($code, '#');
+            $cleanCode = trim($cleanCode);
+
+            $item = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($code, $cleanCode) {
+                    $q->where('codigo', $code)
+                      ->orWhere('codigo', $cleanCode)
+                      ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                      ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
+                })
                 ->first();
             if ($item) {
                 $itemId = $item->id;
@@ -318,13 +332,23 @@ class LiveChatController extends Controller
         $buyerName = trim((string) $request->input('buyer_name'));
         $userId = $request->input('user_id') ?: null;
         $messageId = $request->input('message_id') ?: null;
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
             $code = trim((string)$request->input('code'));
-            $foundItem = Item::where('codigo', $code)
-                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
-                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+            $cleanCode = ltrim($code, '#');
+            $cleanCode = trim($cleanCode);
+
+            $foundItem = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($code, $cleanCode) {
+                    $q->where('codigo', $code)
+                      ->orWhere('codigo', $cleanCode)
+                      ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                      ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
+                })
                 ->first();
             if ($foundItem) {
                 $itemId = $foundItem->id;
@@ -481,13 +505,23 @@ class LiveChatController extends Controller
         $liveId = $request->input('live_id');
         $itemId = $request->input('item_id');
         $messageId = $request->input('message_id');
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
             $code = trim((string)$request->input('code'));
-            $item = Item::where('codigo', $code)
-                ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
-                ->orWhere('id', is_numeric($code) ? (int)$code : -1)
+            $cleanCode = ltrim($code, '#');
+            $cleanCode = trim($cleanCode);
+
+            $item = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($code, $cleanCode) {
+                    $q->where('codigo', $code)
+                      ->orWhere('codigo', $cleanCode)
+                      ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                      ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
+                })
                 ->first();
             if ($item) {
                 $itemId = $item->id;

@@ -7,10 +7,60 @@
 @section('content')
 <div class="space-y-6" x-data="sacolinhaAdmin()">
 
+    {{-- Seletor de Brechós para Matriz (Minha Mania) --}}
+    @if(empty($isParceiro) && isset($brechos) && count($brechos) > 1)
+        <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200 w-fit">
+            <span class="text-xs font-bold text-gray-500 uppercase px-2">Visualizando Sacolinha:</span>
+            @foreach($brechos as $b)
+                <a href="{{ route('admin.sacolinha.show', ['user' => $user->id, 'brecho_id' => $b->id]) }}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ ($brechoId == $b->id) ? 'bg-indigo-600 text-white shadow' : 'bg-transparent text-gray-700 hover:bg-gray-200' }}">
+                    <i class="fas fa-store text-[10px]"></i> {{ $b->nome }}
+                </a>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- Alerta de Sacolinhas Abertas em Outros Brechós --}}
+    @if(isset($outrasSacolinhas) && $outrasSacolinhas->isNotEmpty())
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-100 text-amber-700 rounded-lg">
+                        <i class="fas fa-exclamation-triangle text-lg"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-amber-900">Sacolinha aberta em outro brechó detectada!</h4>
+                        <p class="text-xs text-amber-700 mt-0.5">
+                            Esta cliente também possui itens em aberto em outro brechó:
+                            @foreach($outrasSacolinhas as $outra)
+                                <span class="font-bold underline">{{ $outra->brecho_nome }}</span> ({{ $outra->total_itens }} {{ $outra->total_itens == 1 ? 'item' : 'itens' }} - R$ {{ number_format($outra->total_valor, 2, ',', '.') }}){{ !$loop->last ? ',' : '' }}
+                            @endforeach
+                        </p>
+                    </div>
+                </div>
+                @if(empty($isParceiro))
+                    <div class="flex items-center gap-2">
+                        @foreach($outrasSacolinhas as $outra)
+                            <a href="{{ route('admin.sacolinha.show', ['user' => $user->id, 'brecho_id' => $outra->brecho_id]) }}"
+                               class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                                <i class="fas fa-external-link-alt text-[10px]"></i> Ver sacolinha {{ $outra->brecho_nome }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <!-- Cabeçalho -->
     <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between border border-gray-200">
         <div>
-            <h1 class="text-xl font-bold text-gray-800">{{ $user->name }}</h1>
+            <div class="flex items-center gap-2 mb-1">
+                <h1 class="text-xl font-bold text-gray-800">{{ $user->name }}</h1>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ ($brechoId == 1) ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800' }}">
+                    <i class="fas fa-store mr-1 text-[10px]"></i> {{ $brechoAtual->nome ?? 'Minha Mania' }}
+                </span>
+            </div>
             <p class="text-gray-600 text-sm">
                 <span class="font-bold">{{ $itens->count() }}</span> {{ $itens->count() == 1 ? 'Item' : 'Itens' }}
             </p>
@@ -19,7 +69,7 @@
                     <p class="text-xs text-gray-500 uppercase font-semibold">Total Itens:</p>
                     <p class="text-xl font-bold text-gray-900">R$ {{ number_format($total ?? 0, 2, ',', '.') }}</p>
                 </div>
-                @if(empty($isParceiro))
+                @if(empty($isParceiro) && ($brechoId == 1))
                 <div class="flex items-center gap-2">
                     <div class="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-100">
                         <i class="fas fa-wallet text-green-600 text-[10px]"></i>
@@ -40,7 +90,7 @@
                         <span class="text-sm font-bold text-blue-700">R$ <span x-text="parseFloat(selectedTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span></span>
                     </div>
                 </div>
-                @if(empty($isParceiro) && !empty($user->sacolinha_autorizada_por))
+                @if(empty($isParceiro) && ($brechoId == 1) && !empty($user->sacolinha_autorizada_por))
                     <div style="background-color: #fffbeb; border-color: #fde68a;" class="mt-3 border rounded-xl p-3 flex gap-3 items-start max-w-md">
                         <div style="background-color: #fef3c7; color: #92400e;" class="p-2 rounded-lg flex-shrink-0">
                             <i class="fas fa-unlock-alt text-sm"></i>
@@ -79,7 +129,7 @@
                     class="notranslate w-full text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
                 <i class="fas fa-check-circle notranslate" translate="no"></i> <span translate="no" class="notranslate">Fechar Sacolinha</span>
             </button>
-            @if(empty($isParceiro) && empty($user->sacolinha_autorizada_por))
+            @if(empty($isParceiro) && ($brechoId == 1) && empty($user->sacolinha_autorizada_por))
                 <button type="button" @click="openModalAutorizar()" 
                         style="background-color: #f59e0b;"
                         translate="no"
@@ -95,7 +145,7 @@
                     class="notranslate w-full border-2 text-xs font-bold py-1.5 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2">
                 <i class="fas fa-truck notranslate" translate="no"></i> <span translate="no" class="notranslate">Simular Frete</span>
             </button>
-            <a href="{{ route('admin.sacolinha.pdf', $user->id) }}" id="btnImprimirSacolinha" target="_blank"
+            <a href="{{ route('admin.sacolinha.pdf', ['user' => $user->id, 'brecho_id' => $brechoId]) }}" id="btnImprimirSacolinha" target="_blank"
                translate="no"
                style="background-color: #7c3aed !important; color: #ffffff !important; text-decoration: none !important;"
                class="notranslate w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider flex items-center justify-center gap-2 text-center shadow-sm">
@@ -524,7 +574,7 @@
         </div>
     </div>
 
-    @if(empty($isParceiro))
+    @if(empty($isParceiro) && ($brechoId == 1))
     <!-- Modal de Autorização de Fechamento -->
     <div x-show="modalAutorizar" 
          class="fixed inset-0 z-50 overflow-y-auto" 
@@ -680,7 +730,7 @@ function sacolinhaAdmin() {
             this.foundItem = null;
 
             try {
-                const res = await fetch(`{{ route('admin.sacolinha.searchItem') }}?codigo=${this.searchCode}`);
+                const res = await fetch(`{{ route('admin.sacolinha.searchItem') }}?codigo=${encodeURIComponent(this.searchCode)}&brecho_id={{ $brechoId }}`);
                 const data = await res.json();
                 if (data.success) {
                     this.foundItem = data.item;
@@ -708,7 +758,8 @@ function sacolinhaAdmin() {
                         user_id: {{ $user->id }},
                         item_id: this.foundItem.id,
                         price: this.editPrice,
-                        obs: this.addObs
+                        obs: this.addObs,
+                        brecho_id: {{ $brechoId }}
                     })
                 });
                 const data = await res.json();
@@ -806,7 +857,8 @@ function sacolinhaAdmin() {
                     body: JSON.stringify({ 
                         user_id: {{ $user->id }},
                         valor_frete: this.freteValor,
-                        itens: this.selectedIds
+                        itens: this.selectedIds,
+                        brecho_id: {{ $brechoId }}
                     })
                 });
                 const data = await response.json();

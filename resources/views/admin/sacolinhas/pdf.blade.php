@@ -118,7 +118,7 @@
 <body>
 
     <div class="header">
-        <h1>Sacolinha do Cliente</h1>
+        <h1>Sacolinha do Cliente - {{ $brechoAtual->nome ?? 'Minha Mania' }}</h1>
         <p>Gerado em: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 
@@ -135,8 +135,9 @@
             <td style="padding-left: 8px;">
                 <div class="box">
                     <h3>Resumo da Sacola</h3>
+                    <strong>Brechó:</strong> {{ $brechoAtual->nome ?? 'Minha Mania' }}<br>
                     <strong>Total de Itens:</strong> {{ $itens->count() }}<br>
-                    @if(empty($isParceiro))
+                    @if(empty($isParceiro) && (($brechoAtual->id ?? 1) == 1))
                     <strong>Saldo da Carteira:</strong> 
                     <span style="color: {{ $valorPago >= 0 ? '#10b981' : '#ef4444' }}; font-weight: bold;">
                         R$ {{ number_format($valorPago, 2, ',', '.') }}
@@ -178,7 +179,7 @@
                 <th>Subtotal Itens:</th>
                 <td>R$ {{ number_format($total, 2, ',', '.') }}</td>
             </tr>
-            @if(empty($isParceiro))
+            @if(empty($isParceiro) && (($brechoAtual->id ?? 1) == 1))
                 @if($valorPago > 0)
                 <tr class="wallet-row" style="color: #059669;">
                     <th>Saldo Utilizado (Desconto):</th>
@@ -193,7 +194,7 @@
             @endif
             <tr class="grand-total">
                 <th>Total Estimado a Pagar:</th>
-                <td>R$ {{ number_format(empty($isParceiro) ? max(0, $total - $valorPago) : $total, 2, ',', '.') }}</td>
+                <td>R$ {{ number_format((empty($isParceiro) && (($brechoAtual->id ?? 1) == 1)) ? max(0, $total - $valorPago) : $total, 2, ',', '.') }}</td>
             </tr>
         </table>
     </div>

@@ -268,11 +268,19 @@ class ItemController extends Controller
 
     public function show(Item $item)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+        }
+
         return view('admin.items.show', compact('item'));
     }
 
 	public function edit(Item $item)
 	{
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+        }
+
 		// Carrega o item com suas mídias, ordenadas pela coluna 'position'
 		$item->load(['medias' => function ($query) {
 			$query->orderBy('position', 'asc');
@@ -305,6 +313,10 @@ class ItemController extends Controller
 	
 	public function update(Request $request, Item $item)
 	{
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+        }
+
 		$brechoId = $item->brecho_id ?? (auth()->user()->brecho_id ?? 1);
 
 		$validated = $request->validate([
@@ -397,6 +409,10 @@ class ItemController extends Controller
 	
     public function destroy(Item $item)
     {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+        }
+
         // Deletar imagem se existir
         if ($item->image) {
             Storage::disk('public')->delete($item->image);
@@ -409,6 +425,10 @@ class ItemController extends Controller
 		
 	public function destroyMedia(Item $item, ItemMedia $medias)
 	{
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+        }
+
 		// Garante que a mídia pertence ao item (segurança)
 		if ($medias->item_id !== $item->id) {
 			return back()->with('error', 'Acesso negado.');
@@ -464,7 +484,9 @@ class ItemController extends Controller
         
         $itemBuilder = Item::query();
 
-        if ($request->filled('live_id')) {
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $itemBuilder->where('brecho_id', auth()->user()->brecho_id);
+        } elseif ($request->filled('live_id')) {
             $liveBrecho = DB::table('lives')->where('id', $request->live_id)->value('brecho_id');
             if ($liveBrecho) {
                 $itemBuilder->where(function($b) use ($liveBrecho) {
@@ -482,8 +504,6 @@ class ItemController extends Controller
                     $b->orWhereNull('brecho_id')->orWhere('brecho_id', 0);
                 }
             });
-        } elseif (auth()->check() && auth()->user()->isBrechoParceiro()) {
-            $itemBuilder->where('brecho_id', auth()->user()->brecho_id);
         }
 
         if (preg_match('/^AV(\d+)$/i', $query, $matches)) {
@@ -662,11 +682,16 @@ class ItemController extends Controller
                     $item = null;
                 }
             } else {
+                $itemQuery = Item::query();
+                if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                    $itemQuery->where('brecho_id', auth()->user()->brecho_id);
+                }
                 // Busca por código exato, maiúsculo ou minúsculo
-                $item = Item::where('codigo', $codigo)
-                    ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
-                    ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
-                    ->first();
+                $item = $itemQuery->where(function ($q) use ($codigo) {
+                    $q->where('codigo', $codigo)
+                      ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+                })->first();
             }
 
             if (!$item) {
@@ -888,11 +913,16 @@ class ItemController extends Controller
                     $item = null;
                 }
             } else {
+                $itemQuery = Item::query();
+                if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                    $itemQuery->where('brecho_id', auth()->user()->brecho_id);
+                }
                 // Busca por código exato, maiúsculo ou minúsculo
-                $item = Item::where('codigo', $codigo)
-                    ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
-                    ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
-                    ->first();
+                $item = $itemQuery->where(function ($q) use ($codigo) {
+                    $q->where('codigo', $codigo)
+                      ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+                })->first();
             }
 
             if (!$item) {
@@ -1250,6 +1280,12 @@ class ItemController extends Controller
 			'sacolinha.user' // Relacionamento aninhado
 		]);
 
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			$itemBuilder->where('brecho_id', auth()->user()->brecho_id);
+		} elseif ($request->filled('brecho_id')) {
+			$itemBuilder->where('brecho_id', $request->brecho_id);
+		}
+
 		if (preg_match('/^AV(\d+)$/i', $codigo, $matches)) {
 			$avItemId = $matches[1];
 			$avItem = \App\Models\AvaliacaoItem::find($avItemId);
@@ -1307,6 +1343,9 @@ class ItemController extends Controller
 
 	public function atualizarStatusRapido(Request $request, \App\Models\Item $item)
 	{
+		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+			abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Acesso restrito ao seu brechó.');
+		}
 		$request->validate([
 			'status' => [
 				'required', 

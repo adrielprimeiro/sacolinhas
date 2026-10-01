@@ -9,7 +9,7 @@ use Exception;
 
 class ImportItemsController extends Controller
 {
-    public function import(Request $request)
+    public function import(Request $request, $brechoId = null)
     {
         // 1. Validação dos dados de entrada (da planilha)
         $validator = Validator::make($request->all(), [
@@ -33,16 +33,23 @@ class ImportItemsController extends Controller
         DB::beginTransaction();
 
         try {
-			\Log::info('IMPORT-ITEMS HIT', [
-				'path' => request()->path(),
-				'first_item' => data_get($request->all(), 'items.0'),
-			]);
-            $brechoId = (auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1;
+            $defaultBrechoId = $brechoId 
+                ?: $request->input('brecho_id') 
+                ?: $request->query('brecho_id') 
+                ?: ((auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1);
+
+            \Log::info('IMPORT-ITEMS HIT', [
+                'path' => request()->path(),
+                'default_brecho_id' => $defaultBrechoId,
+                'first_item' => data_get($request->all(), 'items.0'),
+            ]);
 
             foreach ($request->input('items') as $itemData) {
+                $itemBrechoId = !empty($itemData['brecho_id']) ? (int)$itemData['brecho_id'] : (int)$defaultBrechoId;
+
                 // Mapeamento dos dados da planilha para os campos do banco de dados
                 $dataToUpdateOrCreate = [
-                    'brecho_id' => $brechoId,
+                    'brecho_id' => $itemBrechoId,
                     'nome_do_produto' => $itemData['nome_do_produto'],     
 					'codigo' => $itemData['codigo'],
                     'preco' => $itemData['preco'],
@@ -63,7 +70,7 @@ class ImportItemsController extends Controller
                 ];
 
                 // Condição para encontrar o item (pelo brecho_id e código)
-                $itemIdentifier = ['brecho_id' => $brechoId, 'codigo' => $itemData['codigo']];
+                $itemIdentifier = ['brecho_id' => $itemBrechoId, 'codigo' => $itemData['codigo']];
 
                 // Tenta encontrar o item pelo 'brecho_id' e 'codigo'. Se encontrar, atualiza. Se não, insere.
                 $item = DB::table('items')->where($itemIdentifier)->first();
@@ -78,7 +85,7 @@ class ImportItemsController extends Controller
 				$check = DB::table('items')->where($itemIdentifier)->first();
 
 				\Log::info('IMPORT-ITEMS AFTER SAVE', [
-					'brecho_id' => $brechoId,
+					'brecho_id' => $itemBrechoId,
 					'codigo' => $itemData['codigo'],
 					'estado_saved' => $check->estado ?? null,
 					'status_saved' => $check->status ?? null,

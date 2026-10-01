@@ -375,7 +375,15 @@ class AdminPedidoController extends Controller
             return response()->json(['success' => false, 'data' => []]);
         }
 
-        $items = \App\Models\Item::where(function ($query) use ($q) {
+        $itemsQuery = \App\Models\Item::query();
+
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $itemsQuery->where('brecho_id', auth()->user()->brecho_id);
+        } elseif ($request->filled('brecho_id')) {
+            $itemsQuery->where('brecho_id', $request->brecho_id);
+        }
+
+        $items = $itemsQuery->where(function ($query) use ($q) {
                 $query->where('codigo', 'like', "%{$q}%")
                       ->orWhere('nome_do_produto', 'like', "%{$q}%");
             })

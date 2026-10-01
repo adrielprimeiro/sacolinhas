@@ -70,6 +70,7 @@ class LiveMovimentacaoController extends Controller
         ]);
 
         $liveId = $request->live_id;
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
         $codigos = array_unique(array_filter($request->codigos));
         $atualizados = 0;
         $naoEncontrados = [];
@@ -85,9 +86,12 @@ class LiveMovimentacaoController extends Controller
                 }
             }
 
-            $item = Item::where('codigo', $codigo)
-                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+            $item = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($codigo) {
+                    $q->where('codigo', $codigo)
+                      ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+                })
                 ->first();
 
             if (!$item) {
@@ -133,6 +137,7 @@ class LiveMovimentacaoController extends Controller
         ]);
 
         $liveId = $request->live_id;
+        $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
         $codigos = array_unique(array_filter($request->codigos));
         $destinoManual = $request->local_destino;
         
@@ -150,9 +155,12 @@ class LiveMovimentacaoController extends Controller
                 }
             }
 
-            $item = Item::where('codigo', $codigo)
-                ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
-                ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'))
+            $item = Item::where('brecho_id', $liveBrechoId)
+                ->where(function ($q) use ($codigo) {
+                    $q->where('codigo', $codigo)
+                      ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+                })
                 ->first();
 
             if (!$item) {

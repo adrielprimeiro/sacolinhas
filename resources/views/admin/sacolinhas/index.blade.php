@@ -11,8 +11,8 @@
 
 	{{-- Filtros --}}
 	<div class="bg-white shadow-lg rounded-lg p-4 mb-6">
-		<form method="GET" action="{{ route('admin.sacolinha.gestao') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-			<div class="md:col-span-3">
+		<form method="GET" action="{{ route('admin.sacolinha.gestao') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+			<div class="{{ empty($isParceiro) ? 'md:col-span-6' : 'md:col-span-9' }}">
 				@php $selectedUser = request('user_id') ? \App\Models\User::find(request('user_id')) : null; @endphp
 				<div x-data="{ 
 					open: false, 
@@ -132,7 +132,25 @@
 				</div>
 			</div>
 
-			<div class="flex items-center justify-end gap-2 pt-6">
+			@if(empty($isParceiro))
+			<div class="md:col-span-3">
+				<label class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Brechó</label>
+				<select name="brecho_id" 
+						class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+					<option value="1" {{ request('brecho_id', '1') == '1' ? 'selected' : '' }}>Minha Mania (Padrão)</option>
+					@if(isset($brechos))
+						@foreach($brechos as $b)
+							@if($b->id != 1)
+								<option value="{{ $b->id }}" {{ request('brecho_id') == $b->id ? 'selected' : '' }}>{{ $b->nome }}</option>
+							@endif
+						@endforeach
+					@endif
+					<option value="all" {{ request('brecho_id') === 'all' ? 'selected' : '' }}>Todos os Brechós (Separados)</option>
+				</select>
+			</div>
+			@endif
+
+			<div class="md:col-span-3 flex items-center justify-end gap-2 pt-6">
 				<a href="{{ route('admin.sacolinha.gestao') }}"
 				   class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md shadow-sm transition duration-300">
 					Limpar
@@ -152,6 +170,9 @@
                 <thead>
                     <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
                         <th class="py-3 px-6 text-left">Cliente</th>
+                        @if(empty($isParceiro))
+                            <th class="py-3 px-6 text-left">Brechó</th>
+                        @endif
                         <th class="py-3 px-6 text-left">Aberto em</th>
                         <th class="py-3 px-6 text-left">Itens</th>
                         <th class="py-3 px-6 text-left">Valor Total</th>
@@ -165,6 +186,20 @@
                             <td class="py-3 px-6 text-left font-medium">
                                 {{ $sacola->name ?? 'N/A' }}
                             </td>
+
+                            @if(empty($isParceiro))
+                                <td class="py-3 px-6 text-left whitespace-nowrap">
+                                    @if(($sacola->brecho_id ?? 1) == 1)
+                                        <span class="bg-purple-100 text-purple-800 py-1 px-2.5 rounded-full text-xs font-semibold">
+                                            <i class="fas fa-store mr-1 text-[10px]"></i> {{ $sacola->brecho_nome ?? 'Minha Mania' }}
+                                        </span>
+                                    @else
+                                        <span class="bg-amber-100 text-amber-800 py-1 px-2.5 rounded-full text-xs font-semibold">
+                                            <i class="fas fa-store mr-1 text-[10px]"></i> {{ $sacola->brecho_nome ?? 'Taco Balaio' }}
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
 
                             <td class="py-3 px-6 text-left whitespace-nowrap">
                                 @if (!empty($sacola->aberto_em))
@@ -186,7 +221,7 @@
 
                             <td class="py-3 px-6 text-center">
                                 <div class="flex item-center justify-center space-x-2">
-                                    <a href="{{ route('admin.sacolinha.show', $sacola->user_id) }}"
+                                    <a href="{{ route('admin.sacolinha.show', ['user' => $sacola->user_id, 'brecho_id' => $sacola->brecho_id ?? 1]) }}"
                                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-4 rounded-md shadow transition duration-300 flex items-center gap-2"
                                        title="Ver Detalhes">
                                         <i class="fas fa-eye text-sm"></i> Ver
@@ -196,7 +231,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-12 px-6 text-center text-gray-500">
+                            <td colspan="{{ empty($isParceiro) ? 6 : 5 }}" class="py-12 px-6 text-center text-gray-500">
                                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <i class="fas fa-shopping-bag text-gray-400 text-2xl"></i>
                                 </div>

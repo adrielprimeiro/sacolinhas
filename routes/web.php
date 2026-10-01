@@ -622,8 +622,7 @@ Route::get('/admin/sacolinhas/qrcode-scanner', [InventarioController::class, 'in
 
 
 
-    // Rota para a importação (sem autenticação, menos seguro)
-Route::post('/import-items', [ImportItemsController::class, 'import'])->withoutMiddleware(['web', 'csrf']);
+Route::post('/import-items/{brechoId?}', [ImportItemsController::class, 'import'])->withoutMiddleware(['web', 'csrf']);
 
 Route::post('/twilio-in', [WhatsappController::class, 'in'])->withoutMiddleware([VerifyCsrfToken::class]);
 Route::post('/twilio-out', [TwilioOutController::class, 'send'])->withoutMiddleware([VerifyCsrfToken::class]);

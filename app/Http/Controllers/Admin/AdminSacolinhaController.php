@@ -16,24 +16,43 @@ class AdminSacolinhaController extends Controller
 {
     public function index(Request $request)
     {
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+
         $query = DB::table('sacolinhas as s')
             ->join('users as u', 'u.id', '=', 's.user_id')
+            ->leftJoin('brechos as b', 'b.id', '=', 's.brecho_id')
             ->where('s.status', '!=', 'pedido')
             ->select([
                 'u.id as user_id',
                 'u.name',
+                DB::raw('COALESCE(s.brecho_id, 1) as brecho_id'),
+                DB::raw('COALESCE(b.nome, "Minha Mania") as brecho_nome'),
                 DB::raw('MIN(s.add_at) as aberto_em'),
                 DB::raw('SUM(s.price) as total_valor'),
                 DB::raw('COUNT(s.item_id) as total_itens')
             ]);
 
         // Isolamento de dados por brechó parceiro
-        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+        if ($isParceiro) {
             $query->where('s.brecho_id', auth()->user()->brecho_id);
-        } elseif (auth()->check() && auth()->user()->role !== 'admin_master') {
-            $query->where(function($q) {
-                $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
-            });
+        } else {
+            // Matriz (Minha Mania)
+            if ($request->filled('brecho_id')) {
+                if ($request->brecho_id === 'all') {
+                    // Ver todas as sacolinhas de todos os brechós separadas
+                } elseif ((int)$request->brecho_id === 1) {
+                    $query->where(function($q) {
+                        $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
+                    });
+                } else {
+                    $query->where('s.brecho_id', (int)$request->brecho_id);
+                }
+            } else {
+                // Por padrão, Minha Mania vê APENAS suas próprias sacolinhas (brecho_id = 1 ou nulo)
+                $query->where(function($q) {
+                    $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
+                });
+            }
         }
 
         if ($request->filled('user_id')) {
@@ -42,18 +61,21 @@ class AdminSacolinhaController extends Controller
             $query->where('u.name', 'like', '%' . $request->cliente . '%');
         }
 
-        $sacolinhas = $query->groupBy('u.id', 'u.name')
+        $sacolinhas = $query->groupBy('u.id', 'u.name', DB::raw('COALESCE(s.brecho_id, 1)'), 'b.nome')
             ->orderBy('aberto_em', 'asc')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.sacolinhas.index', compact('sacolinhas'));
+        $brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
+
+        return view('admin.sacolinhas.index', compact('sacolinhas', 'isParceiro', 'brechos'));
     }
 
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
-        $brechoId = null;
-        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+
+        if ($isParceiro) {
             $brechoId = auth()->user()->brecho_id;
 
             $isClientOfBrecho = DB::table('brecho_clientes')
@@ -62,22 +84,56 @@ class AdminSacolinhaController extends Controller
                 ->exists();
 
             abort_if(!$isClientOfBrecho, 403, 'Acesso restrito: este cliente não pertence ao seu brechó.');
+        } else {
+            // Matriz: brecho_id via query param, padrão 1 (Minha Mania)
+            $brechoId = $request->filled('brecho_id') ? (int) $request->brecho_id : 1;
         }
 
-        // Verificar se tem itens com status 'Em Analise'
+        // Buscar sacolinhas ativas deste cliente em OUTROS brechós para avisar o administrador
+        $outrasSacolinhas = DB::table('sacolinhas as s')
+            ->leftJoin('brechos as b', 'b.id', '=', 's.brecho_id')
+            ->where('s.user_id', $user->id)
+            ->where('s.status', '!=', 'pedido')
+            ->where(function($q) use ($brechoId) {
+                if ($brechoId == 1) {
+                    $q->where('s.brecho_id', '!=', 1)->whereNotNull('s.brecho_id');
+                } else {
+                    $q->where('s.brecho_id', '!=', $brechoId);
+                }
+            })
+            ->select([
+                DB::raw('COALESCE(s.brecho_id, 1) as brecho_id'),
+                DB::raw('COALESCE(b.nome, "Minha Mania") as brecho_nome'),
+                DB::raw('COUNT(s.item_id) as total_itens'),
+                DB::raw('SUM(s.price) as total_valor')
+            ])
+            ->groupBy(DB::raw('COALESCE(s.brecho_id, 1)'), 'b.nome')
+            ->get();
+
+        // Verificar se tem itens com status 'Em Analise' para o brechó atual
         $temEmAnaliseQuery = DB::table('sacolinhas')
             ->where('user_id', $user->id)
             ->where('status', 'em analise');
-        if ($brechoId) {
+
+        if ($brechoId == 1) {
+            $temEmAnaliseQuery->where(function($q) {
+                $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+            });
+        } else {
             $temEmAnaliseQuery->where('brecho_id', $brechoId);
         }
         $temEmAnalise = $temEmAnaliseQuery->exists();
 
-        // Calcular total dos itens em análise
+        // Calcular total dos itens em análise para o brechó atual
         $totalItensEmAnaliseQuery = DB::table('sacolinhas')
             ->where('user_id', $user->id)
             ->where('status', 'em analise');
-        if ($brechoId) {
+
+        if ($brechoId == 1) {
+            $totalItensEmAnaliseQuery->where(function($q) {
+                $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+            });
+        } else {
             $totalItensEmAnaliseQuery->where('brecho_id', $brechoId);
         }
         $totalItensEmAnalise = $totalItensEmAnaliseQuery->sum('price');
@@ -92,13 +148,9 @@ class AdminSacolinhaController extends Controller
         $valorLimite = (float) ($limitesRow->limite_credito ?? 0);
         $utilizado   = (float) ($limitesRow->limite_utilizado ?? 0);
         
-        $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
-
-        // Buscar saldo (apenas para Matriz/Mania, parceiros não utilizam carteira)
-        if ($isParceiro) {
-            $valorPago = 0.0;
-            $disponivelUI = 0.0;
-        } else {
+        // Apenas para Minha Mania (brecho_id = 1), calcula saldo e carteira
+        $isBrechoMania = ($brechoId == 1 && !$isParceiro);
+        if ($isBrechoMania) {
             $ultima = ContaCorrente::where('user_id', $user->id)
                 ->orderByDesc('data_movimentacao')
                 ->orderByDesc('id')
@@ -107,15 +159,22 @@ class AdminSacolinhaController extends Controller
             
             $valorPago   = (float) ($saldo ?? 0);
             $disponivelUI = max(0, $valorLimite + $valorPago - $utilizado);
+        } else {
+            $valorPago = 0.0;
+            $disponivelUI = 0.0;
         }
 
-        // Buscar itens da sacolinha
+        // Buscar itens da sacolinha para o brechó atual
         $itensQuery = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
             ->where('s.user_id', $user->id)
             ->where('s.status', '!=', 'pedido');
 
-        if ($brechoId) {
+        if ($brechoId == 1) {
+            $itensQuery->where(function($q) {
+                $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
+            });
+        } else {
             $itensQuery->where('s.brecho_id', $brechoId);
         }
 
@@ -128,6 +187,7 @@ class AdminSacolinhaController extends Controller
                 's.add_at',
                 's.status as sacolinha_status',
                 's.obs',
+                's.brecho_id',
                 'i.codigo',
                 'i.nome_do_produto',
                 'i.estado',
@@ -139,6 +199,8 @@ class AdminSacolinhaController extends Controller
             ->get();
 
         $total = (float) $itens->sum('price');
+        $brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
+        $brechoAtual = DB::table('brechos')->where('id', $brechoId)->first();
 
         return view('admin.sacolinhas.show', compact(
             'user', 
@@ -151,14 +213,30 @@ class AdminSacolinhaController extends Controller
             'utilizado',
             'valorPago',
             'disponivelUI',
-            'isParceiro'
+            'isParceiro',
+            'brechoId',
+            'brechoAtual',
+            'brechos',
+            'outrasSacolinhas'
         ));
     }
 
     public function searchItem(Request $request)
     {
-        $codigo = $request->query('codigo');
-        $item = Item::where('codigo', $codigo)->first();
+        $codigo = trim((string) $request->query('codigo'));
+        $query = Item::query();
+
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            $query->where('brecho_id', auth()->user()->brecho_id);
+        } elseif ($request->filled('brecho_id')) {
+            $query->where('brecho_id', $request->brecho_id);
+        }
+
+        $item = $query->where(function ($q) use ($codigo) {
+            $q->where('codigo', $codigo)
+              ->orWhere('codigo', mb_strtoupper($codigo, 'UTF-8'))
+              ->orWhere('codigo', mb_strtolower($codigo, 'UTF-8'));
+        })->first();
 
         if (!$item) {
             return response()->json(['success' => false, 'message' => 'Item não encontrado']);
@@ -189,6 +267,10 @@ class AdminSacolinhaController extends Controller
 
         $item = Item::findOrFail($validated['item_id']);
         $brechoId = auth()->check() && auth()->user()->brecho_id ? auth()->user()->brecho_id : 1;
+
+        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+            abort_if($item->brecho_id !== auth()->user()->brecho_id, 403, 'Este item não pertence ao seu brechó.');
+        }
 
         DB::transaction(function () use ($validated, $item, $brechoId) {
             $sacolinha = Sacolinhas::updateOrCreate(
@@ -274,7 +356,17 @@ class AdminSacolinhaController extends Controller
                 }
 
                 $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
-                $brechoId = $isParceiro ? auth()->user()->brecho_id : ($itensSacolinha->first()->brecho_id ?? 1);
+                $brechoId = $isParceiro ? auth()->user()->brecho_id : ($request->filled('brecho_id') ? (int)$request->brecho_id : ($itensSacolinha->first()->brecho_id ?? 1));
+
+                // Validação de segurança: garantir que nenhum item de outro brechó seja fechado junto
+                foreach ($itensSacolinha as $sItem) {
+                    $sBrecho = $sItem->brecho_id ?: 1;
+                    if ($brechoId == 1 && $sBrecho != 1) {
+                        throw new \Exception("A sacolinha contém itens de outro brechó parceiro. Os itens devem ser fechados separadamente por brechó.");
+                    } elseif ($brechoId > 1 && $sBrecho != $brechoId) {
+                        throw new \Exception("A sacolinha contém itens que não pertencem a este brechó. Feche separadamente.");
+                    }
+                }
 
                 $totalItensFrete = $subtotal + $valorFrete;
                 $isToleranceAuthorized = false;
@@ -282,7 +374,7 @@ class AdminSacolinhaController extends Controller
                 $adminName = null;
                 $toleranceObs = null;
 
-                if ($isParceiro) {
+                if ($brechoId > 1) {
                     // Brechós parceiros não possuem carteira
                     $saldoUtilizadoNoPedido = 0.00;
                     $totalFinal = $totalItensFrete;
@@ -466,10 +558,11 @@ class AdminSacolinhaController extends Controller
         ]);
     }
 
-    public function pdf(User $user)
+    public function pdf(Request $request, User $user)
     {
-        $brechoId = null;
-        if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+        $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+
+        if ($isParceiro) {
             $brechoId = auth()->user()->brecho_id;
 
             $isClientOfBrecho = DB::table('brecho_clientes')
@@ -478,6 +571,8 @@ class AdminSacolinhaController extends Controller
                 ->exists();
 
             abort_if(!$isClientOfBrecho, 403, 'Acesso restrito: este cliente não pertence ao seu brechó.');
+        } else {
+            $brechoId = $request->filled('brecho_id') ? (int) $request->brecho_id : 1;
         }
 
         $itensQuery = DB::table('sacolinhas as s')
@@ -485,7 +580,11 @@ class AdminSacolinhaController extends Controller
             ->where('s.user_id', $user->id)
             ->where('s.status', '!=', 'pedido');
 
-        if ($brechoId) {
+        if ($brechoId == 1) {
+            $itensQuery->where(function($q) {
+                $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
+            });
+        } else {
             $itensQuery->where('s.brecho_id', $brechoId);
         }
 
@@ -503,8 +602,7 @@ class AdminSacolinhaController extends Controller
 
         $total = (float) $itens->sum('price');
 
-        $isParceiro = (auth()->check() && auth()->user()->isBrechoParceiro());
-        if ($isParceiro) {
+        if ($brechoId > 1) {
             $valorPago = 0.0;
         } else {
             // Buscar saldo (apenas para Matriz/Mania)
@@ -516,7 +614,9 @@ class AdminSacolinhaController extends Controller
             $valorPago = (float) $saldo;
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago', 'isParceiro'));
+        $brechoAtual = DB::table('brechos')->where('id', $brechoId)->first();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago', 'isParceiro', 'brechoAtual'));
         return $pdf->stream("sacolinha-{$user->name}.pdf");
     }
 
