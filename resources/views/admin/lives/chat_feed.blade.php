@@ -2783,6 +2783,13 @@
         setTimeout(function() {
             try { initScanSystem(); } catch(e) { console.warn('[Scan] Erro ao iniciar:', e); }
         }, 1000);
+
+        // Sincronização instantânea quando um item é bipado em outra aba (ex: tela do Contador)
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'last_live_item_biped') {
+                fetchChatFeed();
+            }
+        });
     });
 
     // =========================================================================
@@ -2829,8 +2836,11 @@
                         if (u.username) onlineUsersMap[u.username.toLowerCase()] = u;
                     });
 
-                    // Sincronizar itens da live em tempo real (ex: quando auto-cadastrar por telefone detectado)
+                    // Sincronizar itens da live em tempo real (ex: bipados no contador, leitor contínuo, etc.)
                     if (data.live_items && Array.isArray(data.live_items)) {
+                        const list = document.getElementById('scan-items-list');
+                        let hasNewItems = false;
+
                         data.live_items.forEach(serverItem => {
                             const localItem = bgScanItems.find(i => 
                                 (i.itemId && serverItem.item_id && i.itemId === serverItem.item_id) ||
@@ -2841,8 +2851,51 @@
                                 localItem.buyerUserId = serverItem.buyer_user_id || null;
                                 if (serverItem.buyer_username) localItem.buyerUsername = serverItem.buyer_username;
                                 if (serverItem.buyer_name) localItem.buyerName = serverItem.buyer_name;
+                                if (serverItem.codigo_live) localItem.liveCode = serverItem.codigo_live;
+                            } else {
+                                // Item novo vindo do banco (bipado em outra tela como Contador ou Bipagem)
+                                const emptyState = document.getElementById('scan-empty-state');
+                                if (emptyState) emptyState.remove();
+
+                                const newItem = {
+                                    id: 'scan_db_' + (serverItem.live_item_id || Date.now()),
+                                    itemId: serverItem.item_id,
+                                    code: serverItem.code,
+                                    liveCode: serverItem.codigo_live || String(bgScanItems.length + 1),
+                                    buyerUserId: serverItem.buyer_user_id || null,
+                                    buyerUsername: serverItem.buyer_username || null,
+                                    buyerName: serverItem.buyer_name || null,
+                                    liveMessageId: serverItem.live_message_id || null,
+                                    videoCutPath: serverItem.video_cut_path || null,
+                                    videoCutFilename: serverItem.video_cut_filename || null,
+                                    videoCutDuration: serverItem.video_cut_duration || null,
+                                    videoCutStatus: serverItem.video_cut_status || null,
+                                    videoCutStartedAt: serverItem.video_cut_started_at || null,
+                                    videoCutFinishedAt: serverItem.video_cut_finished_at || null,
+                                    videoCutTrigger: serverItem.video_cut_trigger || null,
+                                    time: serverItem.time || new Date().toLocaleTimeString('pt-BR'),
+                                    timestamp: Date.now(),
+                                    source: 'live',
+                                    productName: serverItem.productName || 'Sem Nome',
+                                    productDetails: serverItem.productDetails || '',
+                                    tamanho: serverItem.tamanho || '',
+                                    marca: serverItem.marca || '',
+                                    cor: serverItem.cor || '',
+                                    productPrice: serverItem.productPrice || ''
+                                };
+
+                                bgScanItems.unshift(newItem);
+                                if (list) {
+                                    list.prepend(createScanItemElement(newItem, true));
+                                }
+                                hasNewItems = true;
                             }
                         });
+
+                        if (hasNewItems) {
+                            refreshAllScanItemsLiveCodeUI();
+                            updateScanCount();
+                        }
                     }
 
                     updateFilterCounts(data.stats);

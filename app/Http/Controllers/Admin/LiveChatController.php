@@ -281,7 +281,10 @@ class LiveChatController extends Controller
             $cleanCode = ltrim($code, '#');
             $cleanCode = trim($cleanCode);
 
-            $item = Item::where('brecho_id', $liveBrechoId)
+            $item = Item::where(function ($q) use ($liveBrechoId) {
+                    $q->where('brecho_id', $liveBrechoId)
+                      ->orWhereNull('brecho_id');
+                })
                 ->where(function ($q) use ($code, $cleanCode) {
                     $q->where('codigo', $code)
                       ->orWhere('codigo', $cleanCode)
@@ -1481,20 +1484,51 @@ class LiveChatController extends Controller
         $liveItems = [];
         if (Schema::hasTable('live_items')) {
             $hasBuyerCols = Schema::hasColumn('live_items', 'buyer_username');
-            if ($hasBuyerCols) {
-                $liveItems = DB::table('live_items')
-                    ->join('items', 'live_items.item_id', '=', 'items.id')
-                    ->where('live_items.live_id', $liveId)
-                    ->select([
-                        'live_items.id as live_item_id',
-                        'live_items.item_id',
-                        'items.codigo as code',
-                        'live_items.user_id as buyer_user_id',
-                        'live_items.buyer_username',
-                        'live_items.buyer_name'
-                    ])
-                    ->get();
+            $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
+            $hasVideoCutCols = Schema::hasColumn('live_items', 'video_cut_path');
+
+            $selects = [
+                'live_items.id as live_item_id',
+                'live_items.item_id',
+                'live_items.created_at as linked_at',
+                'items.codigo as code',
+                'items.nome_do_produto as productName',
+                'items.descricao as productDetails',
+                'items.tamanho',
+                'items.marca',
+                'items.cor',
+                'items.preco'
+            ];
+            if ($hasCodigoLiveCol) {
+                $selects[] = 'live_items.codigo_live';
             }
+            if ($hasBuyerCols) {
+                $selects[] = 'live_items.user_id as buyer_user_id';
+                $selects[] = 'live_items.buyer_username';
+                $selects[] = 'live_items.buyer_name';
+                $selects[] = 'live_items.live_message_id';
+            }
+            if ($hasVideoCutCols) {
+                $selects[] = 'live_items.video_cut_path';
+                $selects[] = 'live_items.video_cut_filename';
+                $selects[] = 'live_items.video_cut_duration';
+                $selects[] = 'live_items.video_cut_status';
+                $selects[] = 'live_items.video_cut_started_at';
+                $selects[] = 'live_items.video_cut_finished_at';
+                $selects[] = 'live_items.video_cut_trigger';
+            }
+
+            $liveItems = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $liveId)
+                ->orderBy('live_items.id', 'asc')
+                ->select($selects)
+                ->get()
+                ->map(function($row) {
+                    $row->productPrice = 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.');
+                    $row->time = $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '';
+                    return $row;
+                });
         }
 
         return response()->json([
@@ -1968,7 +2002,43 @@ class LiveChatController extends Controller
                 // 3. Atualizar status do item
                 $item->update(['status' => 'sacolinha']);
 
-                // 4. Atualizar status do pedido de código se informado
+                // 4. Sincronizar na tabela live_items para que apareça em todas as telas
+                if (Schema::hasTable('live_items')) {
+                    $buyerUser = User::find($validated['user_id']);
+                    $buyerUsername = $buyerUser ? ($buyerUser->instagram_username ?: $buyerUser->name) : null;
+                    $buyerName = $buyerUser ? $buyerUser->name : null;
+
+                    $liveItem = DB::table('live_items')
+                        ->where('live_id', $validated['live_id'])
+                        ->where('item_id', $validated['item_id'])
+                        ->first();
+
+                    if ($liveItem) {
+                        DB::table('live_items')
+                            ->where('id', $liveItem->id)
+                            ->update([
+                                'user_id' => $validated['user_id'],
+                                'buyer_username' => $buyerUsername,
+                                'buyer_name' => $buyerName,
+                                'updated_at' => now(),
+                            ]);
+                    } else {
+                        $seqCount = DB::table('live_items')->where('live_id', $validated['live_id'])->count();
+                        DB::table('live_items')->insert([
+                            'live_id' => $validated['live_id'],
+                            'item_id' => $validated['item_id'],
+                            'codigo_live' => (string)($seqCount + 1),
+                            'user_id' => $validated['user_id'],
+                            'buyer_username' => $buyerUsername,
+                            'buyer_name' => $buyerName,
+                            'status_movimentacao' => 'bipado',
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+
+                // 5. Atualizar status do pedido de código se informado
                 if (!empty($validated['code_request_id'])) {
                     LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
                 }
