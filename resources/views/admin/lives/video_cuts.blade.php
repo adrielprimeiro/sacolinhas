@@ -185,6 +185,7 @@
                             <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">I</kbd> Início</span>
                             <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">O</kbd> Fim</span>
                             <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">P</kbd> Prévia</span>
+                            <span><kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-[9px] font-mono shadow-2xs">C</kbd> Foto Capa</span>
                         </div>
                     </div>
 
@@ -244,7 +245,7 @@
                             
                             <!-- Foto & Infos do Produto -->
                             <div class="flex items-center gap-3 min-w-0">
-                                <img src="{{ $item['item_image'] }}" class="w-14 h-14 rounded-xl object-cover bg-gray-100 border border-gray-200 shrink-0" onerror="this.src='https://placehold.co/100x100?text=Sem+Foto'" />
+                                <img id="item-avatar-{{ $item['live_item_id'] }}" src="{{ $item['item_image'] }}" class="w-14 h-14 rounded-xl object-cover bg-gray-100 border border-gray-200 shrink-0" onerror="this.src='https://placehold.co/100x100?text=Sem+Foto'" />
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">
@@ -305,7 +306,7 @@
                                         <i class="fas fa-play"></i>
                                     </button>
 
-                                    <button type="button" onclick="captureThumbnailFromPlayer({{ $item['live_item_id'] }})" id="btn-thumb-{{ $item['live_item_id'] }}" title="Capturar Frame Atual do Player como Capa/Thumbnail" class="bg-amber-500 hover:bg-amber-600 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #f59e0b; color: #ffffff !important;">
+                                    <button type="button" onclick="captureThumbnailFromPlayer({{ $item['live_item_id'] }})" id="btn-thumb-{{ $item['live_item_id'] }}" title="Capturar Frame Atual do Player como Capa/Thumbnail (Atalho C)" class="bg-amber-500 hover:bg-amber-600 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #f59e0b; color: #ffffff !important;">
                                         <i class="fas fa-camera"></i>
                                     </button>
 
@@ -322,6 +323,48 @@
 
                             </div>
 
+                        </div>
+
+                        <!-- Galeria de Miniaturas Inteligentes (3 Opções ou Capturas Manuais) -->
+                        <div class="mt-3 pt-2.5 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2" onclick="event.stopPropagation();">
+                            <div class="flex items-center gap-1.5 flex-wrap" id="candidates-container-{{ $item['live_item_id'] }}">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase mr-1 flex items-center gap-1">
+                                    <i class="fas fa-images text-indigo-500"></i> Capa:
+                                </span>
+                                @if(!empty($item['thumbnail_candidates']))
+                                    @foreach($item['thumbnail_candidates'] as $cIdx => $cand)
+                                        @php
+                                            $isCandActive = !empty($cand['path']) && ($cand['path'] === $item['raw_image_path'] || str_contains($item['item_image'], basename($cand['path'])));
+                                        @endphp
+                                        <button type="button" 
+                                                onclick="selectItemCandidateThumbnail({{ $item['live_item_id'] }}, '{{ $cand['path'] }}', '{{ $cand['url'] }}', this)"
+                                                title="Clique para definir como capa oficial ({{ $cand['label'] ?? 'Opção' }})"
+                                                class="candidate-thumb-btn relative rounded-lg overflow-hidden border-2 transition active:scale-95 cursor-pointer shadow-2xs group/thumb {{ $isCandActive ? 'border-green-500 ring-2 ring-green-400/50' : 'border-gray-200 hover:border-indigo-400 opacity-75 hover:opacity-100' }}"
+                                                style="width: 52px; height: 52px;">
+                                            <img src="{{ $cand['url'] }}" class="w-full h-full object-cover" />
+                                            <span class="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-black text-white text-center py-0.5 truncate px-0.5">
+                                                {{ $cand['label'] ?? ('Opção ' . ($cIdx + 1)) }}
+                                            </span>
+                                            <span class="cand-badge-active {{ $isCandActive ? '' : 'hidden' }} absolute top-0.5 right-0.5 bg-green-600 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold shadow-xs">
+                                                <i class="fas fa-check"></i>
+                                            </span>
+                                        </button>
+                                    @endforeach
+                                @else
+                                    <span class="text-[11px] text-gray-400 italic">Miniaturas ainda não geradas</span>
+                                @endif
+                            </div>
+
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" 
+                                        onclick="generateSmartThumbnails({{ $item['live_item_id'] }})" 
+                                        id="btn-gen-thumbs-{{ $item['live_item_id'] }}"
+                                        title="Extrair 3 miniaturas inteligentes de alta nitidez com IA/FFmpeg" 
+                                        class="text-[10px] font-extrabold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer">
+                                    <i class="fas fa-wand-magic-sparkles text-indigo-600"></i>
+                                    <span>3 Miniaturas IA</span>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Snippet de Transcrição -->
@@ -673,6 +716,9 @@
         } else if (e.key.toLowerCase() === 'p' && activeLiveItemId) {
             e.preventDefault();
             previewItemClip(activeLiveItemId);
+        } else if (e.key.toLowerCase() === 'c' && activeLiveItemId) {
+            e.preventDefault();
+            captureThumbnailFromPlayer(activeLiveItemId);
         } else if (e.key === '1') {
             setPlaybackRate(1.0);
         } else if (e.key === '2') {
@@ -850,6 +896,128 @@
         }
     }
 
+    // 1. Seleciona uma miniatura candidata e define como capa oficial instantaneamente
+    async function selectItemCandidateThumbnail(itemId, thumbPath, thumbUrl, btnElement) {
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/select-thumbnail/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ thumbnail_path: thumbPath })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // Atualiza o avatar principal do produto no card
+                const avatar = document.getElementById(`item-avatar-${itemId}`);
+                if (avatar) {
+                    avatar.src = data.thumbnail_url || thumbUrl;
+                }
+
+                // Atualiza visualmente o highlight de borda e checkmark no container
+                const container = document.getElementById(`candidates-container-${itemId}`);
+                if (container) {
+                    container.querySelectorAll('.candidate-thumb-btn').forEach(btn => {
+                        btn.classList.remove('border-green-500', 'ring-2', 'ring-green-400/50', 'opacity-100');
+                        btn.classList.add('border-gray-200', 'opacity-75');
+                        const badge = btn.querySelector('.cand-badge-active');
+                        if (badge) badge.classList.add('hidden');
+                    });
+                }
+
+                if (btnElement) {
+                    btnElement.classList.remove('border-gray-200', 'opacity-75');
+                    btnElement.classList.add('border-green-500', 'ring-2', 'ring-green-400/50', 'opacity-100');
+                    const badge = btnElement.querySelector('.cand-badge-active');
+                    if (badge) badge.classList.remove('hidden');
+                }
+            } else {
+                alert("Erro ao selecionar miniatura: " + (data.message || 'Falha na requisição.'));
+            }
+        } catch (e) {
+            console.error("Erro ao selecionar miniatura:", e);
+            alert("Erro de conexão ao definir capa.");
+        }
+    }
+
+    // 2. Extrai sob demanda 3 miniaturas inteligentes de alta nitidez com IA/FFmpeg
+    async function generateSmartThumbnails(itemId) {
+        const btn = document.getElementById(`btn-gen-thumbs-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin text-indigo-600"></i> <span class="text-[10px]">Gerando...</span>`;
+        }
+
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/generate-thumbnails/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success && data.candidates) {
+                renderCandidateButtons(itemId, data.candidates, data.primary_url);
+                const avatar = document.getElementById(`item-avatar-${itemId}`);
+                if (avatar && data.primary_url) {
+                    avatar.src = data.primary_url;
+                }
+            } else {
+                alert("Atenção: " + (data.message || 'Não foi possível gerar as 3 miniaturas.'));
+            }
+        } catch (e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro ao comunicar com o servidor para geração de miniaturas.");
+        }
+    }
+
+    // 3. Renderiza os botões das miniaturas candidatas no DOM
+    function renderCandidateButtons(itemId, candidates, activeUrlOrPath) {
+        const container = document.getElementById(`candidates-container-${itemId}`);
+        if (!container) return;
+
+        let html = `
+            <span class="text-[10px] font-bold text-gray-400 uppercase mr-1 flex items-center gap-1">
+                <i class="fas fa-images text-indigo-500"></i> Capa:
+            </span>
+        `;
+
+        candidates.forEach((cand, idx) => {
+            const isActive = activeUrlOrPath && (cand.url === activeUrlOrPath || cand.path === activeUrlOrPath || (cand.path && activeUrlOrPath.includes(cand.path.split('/').pop())));
+            html += `
+                <button type="button" 
+                        onclick="selectItemCandidateThumbnail(${itemId}, '${cand.path}', '${cand.url}', this)"
+                        title="Clique para definir como capa oficial (${cand.label || 'Opção ' + (idx + 1)})"
+                        class="candidate-thumb-btn relative rounded-lg overflow-hidden border-2 transition active:scale-95 cursor-pointer shadow-2xs group/thumb ${isActive ? 'border-green-500 ring-2 ring-green-400/50 opacity-100' : 'border-gray-200 hover:border-indigo-400 opacity-75 hover:opacity-100'}"
+                        style="width: 52px; height: 52px;">
+                    <img src="${cand.url}" class="w-full h-full object-cover" />
+                    <span class="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-black text-white text-center py-0.5 truncate px-0.5">
+                        ${cand.label || ('Opção ' + (idx + 1))}
+                    </span>
+                    <span class="cand-badge-active ${isActive ? '' : 'hidden'} absolute top-0.5 right-0.5 bg-green-600 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold shadow-xs">
+                        <i class="fas fa-check"></i>
+                    </span>
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // 4. Captura manual de frame do player (com atalho C ou botão da câmera)
     async function captureThumbnailFromPlayer(itemId) {
         const player = document.getElementById('live-main-player');
         const currentTime = player ? player.currentTime : null;
@@ -884,7 +1052,19 @@
             }
 
             if (data.success) {
-                alert(`📸 Foto de capa / Thumbnail capturada com sucesso no segundo ${data.timestamp_formatted || targetTime}!`);
+                // Atualiza avatar do item
+                const avatar = document.getElementById(`item-avatar-${itemId}`);
+                if (avatar && data.thumbnail_url) {
+                    avatar.src = data.thumbnail_url;
+                }
+
+                // Atualiza a galeria de candidatas adicionando a nova captura
+                if (data.candidates && data.candidates.length > 0) {
+                    renderCandidateButtons(itemId, data.candidates, data.thumbnail_url);
+                }
+
+                // Feedback sonoro/visual discreto
+                alert(`📸 Foto de capa capturada e definida com sucesso no segundo ${data.timestamp_formatted || targetTime}!`);
             } else {
                 alert("Erro ao capturar frame: " + data.message);
             }

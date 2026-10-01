@@ -311,6 +311,8 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/generate-single/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSingleClip'])->name('admin.lives.cortes.generate-single');
         Route::post('lives/{liveId}/cortes/generate-batch', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateBatchClips'])->name('admin.lives.cortes.generate-batch');
         Route::post('lives/{liveId}/cortes/capture-frame/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'captureFrame'])->name('admin.lives.cortes.capture-frame');
+        Route::post('lives/{liveId}/cortes/select-thumbnail/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'selectThumbnail'])->name('admin.lives.cortes.select-thumbnail');
+        Route::post('lives/{liveId}/cortes/generate-thumbnails/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSmartThumbnailsAction'])->name('admin.lives.cortes.generate-thumbnails');
 
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])

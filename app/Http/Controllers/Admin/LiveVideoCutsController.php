@@ -22,34 +22,40 @@ class LiveVideoCutsController extends Controller
         $live = Live::findOrFail($liveId);
 
         // Buscar itens vinculados a esta live
+        $hasCandCol = Schema::hasColumn('live_items', 'thumbnail_candidates');
+        $selectCols = [
+            'live_items.id as live_item_id',
+            'live_items.live_id',
+            'live_items.item_id',
+            'live_items.codigo_live',
+            'live_items.user_id',
+            'live_items.buyer_username',
+            'live_items.buyer_name',
+            'live_items.cut_start_sec',
+            'live_items.cut_end_sec',
+            'live_items.transcription_snippet',
+            'live_items.video_cut_path',
+            'live_items.video_cut_filename',
+            'live_items.video_cut_url',
+            'live_items.video_cut_duration',
+            'live_items.video_cut_status',
+            'live_items.created_at as linked_at',
+            'items.nome_do_produto as item_nome',
+            'items.descricao as item_descricao',
+            'items.codigo as item_codigo',
+            'items.preco as item_price',
+            'items.image as item_image',
+            'users.name as user_full_name'
+        ];
+        if ($hasCandCol) {
+            $selectCols[] = 'live_items.thumbnail_candidates';
+        }
+
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
             ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
             ->where('live_items.live_id', $liveId)
-            ->select(
-                'live_items.id as live_item_id',
-                'live_items.live_id',
-                'live_items.item_id',
-                'live_items.codigo_live',
-                'live_items.user_id',
-                'live_items.buyer_username',
-                'live_items.buyer_name',
-                'live_items.cut_start_sec',
-                'live_items.cut_end_sec',
-                'live_items.transcription_snippet',
-                'live_items.video_cut_path',
-                'live_items.video_cut_filename',
-                'live_items.video_cut_url',
-                'live_items.video_cut_duration',
-                'live_items.video_cut_status',
-                'live_items.created_at as linked_at',
-                'items.nome_do_produto as item_nome',
-                'items.descricao as item_descricao',
-                'items.codigo as item_codigo',
-                'items.preco as item_price',
-                'items.image as item_image',
-                'users.name as user_full_name'
-            )
+            ->select($selectCols)
             ->orderBy('live_items.id', 'asc');
 
         $liveItems = $query->get()->map(function ($row) {
@@ -57,9 +63,29 @@ class LiveVideoCutsController extends Controller
             $name = $row->item_nome ?: ($row->item_descricao ?: 'Produto #' . $row->item_id);
 
             // Foto / Imagem do item
-            $image = $row->item_image;
+            $rawImage = $row->item_image;
+            $image = $rawImage;
             if ($image && !str_starts_with($image, 'http') && !str_starts_with($image, '/storage/')) {
                 $image = '/storage/' . ltrim($image, '/');
+            }
+
+            // Candidatas de Thumbnail
+            $rawCandidates = !empty($row->thumbnail_candidates) ? json_decode($row->thumbnail_candidates, true) : [];
+            $candidates = [];
+            if (is_array($rawCandidates)) {
+                foreach ($rawCandidates as $cand) {
+                    if (is_array($cand) && !empty($cand['path'])) {
+                        $cand['url'] = str_starts_with($cand['path'], 'http') ? $cand['path'] : Storage::url($cand['path']);
+                        $candidates[] = $cand;
+                    } elseif (is_string($cand)) {
+                        $candidates[] = [
+                            'path' => $cand,
+                            'url' => str_starts_with($cand, 'http') ? $cand : Storage::url($cand),
+                            'label' => 'Opção',
+                            'timestamp' => null
+                        ];
+                    }
+                }
             }
 
             // URL do corte se existir
@@ -81,6 +107,7 @@ class LiveVideoCutsController extends Controller
                 'item_codigo' => $row->item_codigo,
                 'item_price' => number_format((float) ($row->item_price ?: 0), 2, ',', '.'),
                 'item_image' => $image ?: 'https://placehold.co/100x100?text=Sem+Foto',
+                'raw_image_path' => $rawImage,
                 'buyer_name' => $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null)),
                 'buyer_username' => $row->buyer_username,
                 'cut_start_sec' => $row->cut_start_sec !== null ? (float) $row->cut_start_sec : null,
@@ -91,6 +118,7 @@ class LiveVideoCutsController extends Controller
                 'transcription_snippet' => $row->transcription_snippet,
                 'video_cut_url' => $videoUrl,
                 'video_cut_status' => $row->video_cut_status ?: 'none',
+                'thumbnail_candidates' => $candidates,
                 'linked_at' => $row->linked_at
             ];
         });
@@ -918,35 +946,31 @@ class LiveVideoCutsController extends Controller
 
         $videoUrl = Storage::url($relativeStoragePath);
 
-        // 3. Extrai thumbnail nítida no ponto ótimo do corte (~35% da duração ou +2.0s)
-        $optimalOffset = min(3.0, max(0.5, round($duration * 0.35, 2)));
-        $thumbTimestamp = round($start + $optimalOffset, 2);
-        $thumbFilename = 'thumb_' . $codeClean . '_' . time() . '.jpg';
-        $thumbPath = $outputDir . '/' . $thumbFilename;
-        $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $thumbFilename;
+        // 3. Extrai 3 Miniaturas Inteligentes com o filtro de Nitidez / Histograma do FFmpeg
+        $smartThumbs = $this->extractSmartThumbnails($inputPath, $outputDir, $liveId, $liveItemId, $codeClean, $start, $duration);
+        $candidates = $smartThumbs['candidates'];
+        $primary = $smartThumbs['primary'];
 
-        $cmdThumb = sprintf(
-            'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
-            escapeshellarg($thumbTimestamp),
-            escapeshellarg($inputPath),
-            escapeshellarg($thumbPath)
-        );
-        exec($cmdThumb);
+        $primaryPath = $primary ? $primary['path'] : null;
+        $primaryUrl = $primary ? $primary['url'] : null;
 
-        $hasThumb = file_exists($thumbPath) && filesize($thumbPath) > 1000;
-        $thumbUrl = $hasThumb ? Storage::url($relativeThumbPath) : null;
+        $updateData = [
+            'video_cut_path' => $relativeStoragePath,
+            'video_cut_filename' => $filename,
+            'video_cut_url' => $videoUrl,
+            'video_cut_duration' => round($duration),
+            'video_cut_status' => 'recorded',
+            'video_cut_finished_at' => now(),
+            'updated_at' => now()
+        ];
+
+        if (Schema::hasColumn('live_items', 'thumbnail_candidates')) {
+            $updateData['thumbnail_candidates'] = json_encode($candidates);
+        }
 
         DB::table('live_items')
             ->where('id', $liveItemId)
-            ->update([
-                'video_cut_path' => $relativeStoragePath,
-                'video_cut_filename' => $filename,
-                'video_cut_url' => $videoUrl,
-                'video_cut_duration' => round($duration),
-                'video_cut_status' => 'recorded',
-                'video_cut_finished_at' => now(),
-                'updated_at' => now()
-            ]);
+            ->update($updateData);
 
         // Vincula ou atualiza a mídia do tipo vídeo com thumbnail no cadastro do item
         if (!empty($liveItem->item_id)) {
@@ -957,27 +981,237 @@ class LiveVideoCutsController extends Controller
                 ],
                 [
                     'url' => $relativeStoragePath,
-                    'thumbnail_url' => $hasThumb ? $relativeThumbPath : null,
+                    'thumbnail_url' => $primaryPath,
                     'position' => 99,
                     'is_cover' => false,
                     'alt_text' => 'Vídeo do produto na Live'
                 ]
             );
 
-            // Se o item não tiver imagem de capa, define essa thumbnail como foto principal
+            // Se o item não tiver imagem de capa ou estiver com foto anterior, define essa thumbnail como foto principal
             $itemObj = Item::find($liveItem->item_id);
-            if ($itemObj && empty($itemObj->image) && $hasThumb) {
-                $itemObj->image = $relativeThumbPath;
+            if ($itemObj && (empty($itemObj->image) || str_contains($itemObj->image, 'live_cuts/')) && $primaryPath) {
+                $itemObj->image = $primaryPath;
                 $itemObj->save();
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Corte e Thumbnail gerados com sucesso!',
+            'message' => 'Corte e 3 Miniaturas Inteligentes geradas com sucesso!',
             'video_url' => $videoUrl,
-            'thumbnail_url' => $thumbUrl,
+            'thumbnail_url' => $primaryUrl,
+            'candidates' => $candidates,
             'duration' => $duration
+        ]);
+    }
+
+    /**
+     * Extrai 3 miniaturas inteligentes utilizando o filtro de nitidez do FFmpeg (thumbnail=N)
+     */
+    private function extractSmartThumbnails($inputPath, $outputDir, $liveId, $liveItemId, $codeClean, $start, $duration)
+    {
+        if (!file_exists($outputDir)) {
+            @mkdir($outputDir, 0777, true);
+        }
+
+        $candidates = [];
+        $timeBase = time();
+
+        // 3 Janelas estratégicas ao longo da apresentação da peça:
+        // 1. Início/Entrada da peça (20% a 30%)
+        // 2. Apresentação central / Destaque / Detalhes (45% a 60%)
+        // 3. Exibição final / Caimento (70% a 85%)
+        $windows = [
+            [
+                'index' => 1,
+                'label' => 'Início (Entrada)',
+                'offset' => max(0.2, round($duration * 0.20, 2)),
+                'scan_window' => min(2.5, max(0.5, round($duration * 0.25, 2)))
+            ],
+            [
+                'index' => 2,
+                'label' => 'Centro (Destaque)',
+                'offset' => max(0.5, round($duration * 0.50, 2)),
+                'scan_window' => min(3.0, max(0.5, round($duration * 0.30, 2)))
+            ],
+            [
+                'index' => 3,
+                'label' => 'Fim (Caimento)',
+                'offset' => max(0.8, round($duration * 0.75, 2)),
+                'scan_window' => min(2.5, max(0.5, round($duration * 0.20, 2)))
+            ],
+        ];
+
+        foreach ($windows as $win) {
+            $winStart = round($start + $win['offset'], 2);
+            $filename = sprintf('thumb_%s_%d_%d.jpg', $codeClean, $timeBase, $win['index']);
+            $thumbPath = $outputDir . '/' . $filename;
+            $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $filename;
+
+            // Filtro thumbnail=30 examina ~30-60 frames e escolhe matematicamente o quadro com maior contraste e menor borrão
+            $cmd = sprintf(
+                'ffmpeg -ss %s -t %s -i %s -vf "thumbnail=30" -frames:v 1 -q:v 2 -y %s 2>&1',
+                escapeshellarg($winStart),
+                escapeshellarg($win['scan_window']),
+                escapeshellarg($inputPath),
+                escapeshellarg($thumbPath)
+            );
+            exec($cmd);
+
+            // Fallback caso a janela seja ultracurta ou filtro falhe
+            if (!file_exists($thumbPath) || filesize($thumbPath) < 1000) {
+                $cmdFallback = sprintf(
+                    'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
+                    escapeshellarg($winStart),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($thumbPath)
+                );
+                exec($cmdFallback);
+            }
+
+            if (file_exists($thumbPath) && filesize($thumbPath) > 1000) {
+                $candidates[] = [
+                    'path' => $relativeThumbPath,
+                    'url' => Storage::url($relativeThumbPath),
+                    'label' => $win['label'],
+                    'timestamp' => $winStart,
+                    'index' => $win['index']
+                ];
+            }
+        }
+
+        // Escolhe o melhor padrão (Opção 2 - Centro/Destaque, ou Opção 1)
+        $primary = null;
+        if (!empty($candidates)) {
+            $primary = $candidates[1] ?? ($candidates[0] ?? null);
+        }
+
+        return [
+            'candidates' => $candidates,
+            'primary' => $primary
+        ];
+    }
+
+    /**
+     * Define uma das miniaturas candidatas como a foto de capa oficial do produto
+     */
+    public function selectThumbnail(Request $request, $liveId, $liveItemId)
+    {
+        $liveItem = DB::table('live_items')->where('id', $liveItemId)->where('live_id', $liveId)->first();
+        if (!$liveItem) {
+            return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
+        }
+
+        $thumbnailPath = $request->input('thumbnail_path');
+        if (empty($thumbnailPath)) {
+            return response()->json(['success' => false, 'message' => 'Caminho da miniatura não fornecido.'], 422);
+        }
+
+        // Normaliza o caminho relativo
+        $cleanPath = ltrim(parse_url($thumbnailPath, PHP_URL_PATH) ?? '', '/');
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $cleanPath = substr($cleanPath, 8);
+        }
+
+        if (!empty($liveItem->item_id)) {
+            ItemMedia::updateOrCreate(
+                [
+                    'item_id' => $liveItem->item_id,
+                    'media_type' => 'video'
+                ],
+                [
+                    'thumbnail_url' => $cleanPath
+                ]
+            );
+
+            $itemObj = Item::find($liveItem->item_id);
+            if ($itemObj) {
+                $itemObj->image = $cleanPath;
+                $itemObj->save();
+            }
+        }
+
+        $fullUrl = Storage::url($cleanPath);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto de capa atualizada com sucesso!',
+            'thumbnail_url' => $fullUrl,
+            'thumbnail_path' => $cleanPath
+        ]);
+    }
+
+    /**
+     * Gera sob demanda apenas as 3 miniaturas inteligentes para o item
+     */
+    public function generateSmartThumbnailsAction(Request $request, $liveId, $liveItemId)
+    {
+        $live = Live::findOrFail($liveId);
+        $liveItem = DB::table('live_items')->where('id', $liveItemId)->where('live_id', $liveId)->first();
+
+        if (!$liveItem || !$live->recording_path) {
+            return response()->json(['success' => false, 'message' => 'Item ou gravação não encontrados.'], 404);
+        }
+
+        $inputPath = Storage::disk('public')->path($live->recording_path);
+        if (!file_exists($inputPath) && file_exists($live->recording_path)) {
+            $inputPath = $live->recording_path;
+        }
+
+        if (!file_exists($inputPath)) {
+            return response()->json(['success' => false, 'message' => 'Arquivo de vídeo original não encontrado no servidor.'], 404);
+        }
+
+        $start = (float) $liveItem->cut_start_sec;
+        $end = (float) $liveItem->cut_end_sec;
+        $duration = max(1, round($end - $start, 2));
+
+        if ($start < 0 || $end <= $start) {
+            return response()->json(['success' => false, 'message' => 'Defina o tempo de início e fim antes de gerar as miniaturas.'], 422);
+        }
+
+        $outputDir = storage_path('app/public/live_cuts/live_' . $liveId);
+        $codeClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $liveItem->codigo_live ?: 'item_' . $liveItem->item_id);
+
+        $result = $this->extractSmartThumbnails($inputPath, $outputDir, $liveId, $liveItemId, $codeClean, $start, $duration);
+        $candidates = $result['candidates'];
+        $primary = $result['primary'];
+
+        if (empty($candidates)) {
+            return response()->json(['success' => false, 'message' => 'Não foi possível extrair os quadros do vídeo.'], 500);
+        }
+
+        if (Schema::hasColumn('live_items', 'thumbnail_candidates')) {
+            DB::table('live_items')->where('id', $liveItemId)->update([
+                'thumbnail_candidates' => json_encode($candidates),
+                'updated_at' => now()
+            ]);
+        }
+
+        if ($primary && !empty($liveItem->item_id)) {
+            ItemMedia::updateOrCreate(
+                [
+                    'item_id' => $liveItem->item_id,
+                    'media_type' => 'video'
+                ],
+                [
+                    'thumbnail_url' => $primary['path']
+                ]
+            );
+
+            $itemObj = Item::find($liveItem->item_id);
+            if ($itemObj && (empty($itemObj->image) || str_contains($itemObj->image, 'live_cuts/'))) {
+                $itemObj->image = $primary['path'];
+                $itemObj->save();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => '3 miniaturas inteligentes geradas com sucesso!',
+            'candidates' => $candidates,
+            'primary_url' => $primary ? $primary['url'] : null
         ]);
     }
 
@@ -1015,7 +1249,7 @@ class LiveVideoCutsController extends Controller
         }
 
         $codeClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $liveItem->codigo_live ?: 'item_' . $liveItem->item_id);
-        $thumbFilename = 'thumb_' . $codeClean . '_' . time() . '.jpg';
+        $thumbFilename = 'thumb_' . $codeClean . '_manual_' . time() . '.jpg';
         $thumbPath = $outputDir . '/' . $thumbFilename;
         $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $thumbFilename;
 
@@ -1032,6 +1266,26 @@ class LiveVideoCutsController extends Controller
         }
 
         $thumbUrl = Storage::url($relativeThumbPath);
+
+        // Atualiza a lista de candidatos salvando a captura manual junto
+        $existingCandidates = [];
+        if (!empty($liveItem->thumbnail_candidates)) {
+            $existingCandidates = json_decode($liveItem->thumbnail_candidates, true) ?: [];
+        }
+        $existingCandidates[] = [
+            'path' => $relativeThumbPath,
+            'url' => $thumbUrl,
+            'label' => '📸 Captura (' . $this->formatSecondsToTime($timestamp) . ')',
+            'timestamp' => $timestamp,
+            'index' => count($existingCandidates) + 1
+        ];
+
+        if (Schema::hasColumn('live_items', 'thumbnail_candidates')) {
+            DB::table('live_items')->where('id', $liveItemId)->update([
+                'thumbnail_candidates' => json_encode($existingCandidates),
+                'updated_at' => now()
+            ]);
+        }
 
         if (!empty($liveItem->item_id)) {
             ItemMedia::updateOrCreate(
@@ -1054,8 +1308,10 @@ class LiveVideoCutsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Quadro capturado com sucesso como Thumbnail!',
+            'message' => 'Quadro capturado e definido como Capa!',
             'thumbnail_url' => $thumbUrl,
+            'thumbnail_path' => $relativeThumbPath,
+            'candidates' => $existingCandidates,
             'timestamp' => $timestamp,
             'timestamp_formatted' => $this->formatSecondsToTime($timestamp)
         ]);
