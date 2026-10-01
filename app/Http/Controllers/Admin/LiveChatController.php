@@ -361,6 +361,8 @@ class LiveChatController extends Controller
             $item->save();
         }
 
+        $totalLiveItems = DB::table('live_items')->where('live_id', $liveId)->count();
+
         return response()->json([
             'success' => true,
             'message' => $duplicateWarning 
@@ -370,7 +372,12 @@ class LiveChatController extends Controller
             'data' => [
                 'item_id' => $itemId,
                 'live_id' => $liveId,
-                'codigo_live' => $codigoLive
+                'codigo_live' => $codigoLive,
+                'code' => $item->codigo,
+                'name' => $item->nome_do_produto ?: 'Produto',
+                'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
+                'total_count' => $totalLiveItems,
+                'hora' => date('H:i:s')
             ]
         ]);
     }

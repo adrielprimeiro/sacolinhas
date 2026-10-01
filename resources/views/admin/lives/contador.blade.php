@@ -105,6 +105,19 @@
         <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"+("A".repeat(100)) type="audio/wav">
     </audio>
 
+    <!-- Floating Toast Notification on Scan -->
+    <div id="scanFeedbackToast" class="fixed top-20 inset-x-0 mx-auto max-w-md w-full px-4 z-50 transition-all duration-300 pointer-events-none opacity-0 -translate-y-6">
+        <div id="toastCard" class="px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-white/20 flex items-center gap-3.5 text-white bg-zinc-900/90">
+            <div id="toastIconBox" class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg shrink-0">
+                <i id="toastIcon" class="fas fa-check"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+                <h4 id="toastTitle" class="text-sm font-black truncate text-white">Item Anexado à Live!</h4>
+                <p id="toastSubtitle" class="text-xs text-white/80 mt-0.5 truncate">#Código • Nome da Peça</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Top Floating Toolbar (Auto-hides on idle) -->
     <header id="controlsBar" class="controls-layer w-full max-w-6xl mx-auto pt-4 px-4 z-50 flex items-center justify-between gap-3">
         <!-- Live info & Selector -->
@@ -133,6 +146,11 @@
                     @endforeach
                 </select>
             </form>
+
+            <div class="hidden lg:flex items-center gap-1.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-bold">
+                <i class="fas fa-barcode text-purple-400"></i>
+                <span>Leitor Ativo</span>
+            </div>
         </div>
 
         <!-- Action Controls -->
@@ -252,13 +270,17 @@
     </footer>
 
     <script>
-        // State
+        // State & Configuration
         const activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
+        const csrfToken = "{{ csrf_token() }}";
+        const linkItemUrl = "{{ route('admin.live-chat.link-item') }}";
         let currentCount = {{ $initialCount }};
-        let soundEnabled = false;
+        let soundEnabled = true; // Habilitado por padrão para feedback ao bipar
         let showDetails = true;
         let isPolling = false;
+        let isProcessingScan = false;
         let idleTimer = null;
+        let toastTimer = null;
 
         const counterEl = document.getElementById('counterNumber');
         const lastItemContainer = document.getElementById('lastItemContainer');
@@ -270,26 +292,62 @@
         const syncIndicator = document.getElementById('syncIndicator');
         const bodyEl = document.getElementById('bodyEl');
 
-        // Web Audio API Beep Synthesizer
+        // Web Audio API Synthesizer (Som de Sucesso ao Bipar)
         function playChime() {
             if (!soundEnabled) return;
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+                
+                // Nota 1 (D5 - 587Hz)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(587.33, now);
+                gain1.gain.setValueAtTime(0.25, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.18);
+
+                // Nota 2 (A5 - 880Hz)
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, now + 0.08);
+                gain2.gain.setValueAtTime(0.35, now + 0.08);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.08);
+                osc2.stop(now + 0.35);
+            } catch (e) {
+                console.warn('Audio Context error:', e);
+            }
+        }
+
+        // Web Audio API Synthesizer (Som de Erro / Alerta)
+        function playErrorTone() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
 
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(140, now + 0.12);
 
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
 
                 osc.connect(gain);
                 gain.connect(ctx.destination);
 
-                osc.start();
-                osc.stop(ctx.currentTime + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.3);
             } catch (e) {
                 console.warn('Audio Context error:', e);
             }
@@ -299,15 +357,171 @@
         function animateCounterChange(newVal) {
             counterEl.textContent = newVal;
             counterEl.classList.remove('animate-pop');
-            // force reflow
-            void counterEl.offsetWidth;
+            void counterEl.offsetWidth; // force reflow
             counterEl.classList.add('animate-pop');
-            playChime();
         }
 
-        // Fetch Live Counter Data
+        // Floating Toast Notification
+        function showScanToast(type, title, subtitle) {
+            const toast = document.getElementById('scanFeedbackToast');
+            const toastCard = document.getElementById('toastCard');
+            const iconBox = document.getElementById('toastIconBox');
+            const icon = document.getElementById('toastIcon');
+            const titleEl = document.getElementById('toastTitle');
+            const subEl = document.getElementById('toastSubtitle');
+
+            if (!toast) return;
+
+            if (type === 'success') {
+                toastCard.className = 'px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-emerald-500/40 flex items-center gap-3.5 text-white bg-emerald-950/90';
+                iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-lg shrink-0';
+                icon.className = 'fas fa-check';
+            } else {
+                toastCard.className = 'px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-rose-500/40 flex items-center gap-3.5 text-white bg-rose-950/90';
+                iconBox.className = 'w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-lg shrink-0';
+                icon.className = 'fas fa-exclamation-triangle';
+            }
+
+            titleEl.textContent = title;
+            subEl.textContent = subtitle;
+
+            toast.classList.remove('opacity-0', '-translate-y-6');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-6');
+            }, 3500);
+        }
+
+        // Processar Bipagem de Código de Barras
+        async function processBipagem(barcode) {
+            if (!activeLiveId) {
+                showScanToast('error', 'Nenhuma Live Selecionada', 'Selecione uma live ativa no topo para bipar.');
+                playErrorTone();
+                return;
+            }
+
+            if (isProcessingScan) return;
+            isProcessingScan = true;
+
+            try {
+                const res = await fetch(linkItemUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        live_id: activeLiveId,
+                        code: barcode
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success && data.data) {
+                    const item = data.data;
+
+                    // 1. Atualiza o contador gigante com animação
+                    if (item.total_count !== undefined) {
+                        currentCount = item.total_count;
+                    } else {
+                        currentCount++;
+                    }
+                    animateCounterChange(currentCount);
+
+                    // 2. Atualiza os dados do Último Item Bipado
+                    lastItemCode.textContent = '#' + (item.codigo_live || item.code || barcode);
+                    lastItemName.textContent = item.name || 'Produto';
+                    lastItemPrice.textContent = item.price || '';
+                    lastItemTime.textContent = item.hora || new Date().toLocaleTimeString('pt-BR');
+                    if (showDetails) {
+                        lastItemContainer.classList.remove('hidden');
+                    }
+
+                    // 3. Exibe o Toast de sucesso na tela
+                    const seqInfo = item.codigo_live ? `Sequência #${item.codigo_live}` : '';
+                    const priceInfo = item.price ? ` • ${item.price}` : '';
+                    showScanToast('success', `Item #${item.code || barcode} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
+
+                    // 4. Toca som de confirmação
+                    playChime();
+
+                    // 5. Notifica outras abas (Chat, OBS, etc)
+                    localStorage.setItem('last_live_item_biped', Date.now());
+                } else {
+                    showScanToast('error', 'Item Não Vinculado', data.message || `Código #${barcode} não encontrado.`);
+                    playErrorTone();
+                }
+            } catch (err) {
+                console.error("Erro na bipagem:", err);
+                showScanToast('error', 'Falha na Conexão', `Não foi possível registrar o código #${barcode}.`);
+                playErrorTone();
+            } finally {
+                isProcessingScan = false;
+            }
+        }
+
+        // ZERO-FOCUS BARCODE SCANNER LISTENER
+        // O leitor de código de barras digita os caracteres rapidamente e pressiona Enter
+        let scanBuffer = '';
+        let lastKeyTime = 0;
+
+        document.addEventListener('keydown', (e) => {
+            // Ignora se estiver interagindo com um input/select aberto
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                return;
+            }
+
+            const now = Date.now();
+            const timeDiff = now - lastKeyTime;
+
+            // Ao pressionar Enter, se houver buffer de leitor, executa a bipagem
+            if (e.key === 'Enter') {
+                const code = scanBuffer.trim();
+                scanBuffer = '';
+                if (code.length >= 1) {
+                    e.preventDefault();
+                    processBipagem(code);
+                    return;
+                }
+            }
+
+            // Se o intervalo entre teclas for grande (> 400ms), limpa o buffer
+            if (timeDiff > 400) {
+                scanBuffer = '';
+            }
+
+            // Acumula caracteres imprimíveis
+            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                scanBuffer += e.key;
+                lastKeyTime = now;
+            }
+
+            // Atalhos normais de teclado (F, D, S) somente se não for um leitor digitando em rajada
+            if (scanBuffer.length === 1) {
+                const singleKey = e.key;
+                setTimeout(() => {
+                    if (scanBuffer.length === 1 && scanBuffer === singleKey) {
+                        if (singleKey === 'f' || singleKey === 'F') {
+                            toggleFullScreen();
+                        } else if (singleKey === 'd' || singleKey === 'D') {
+                            toggleDetails();
+                        } else if (singleKey === 's' || singleKey === 'S') {
+                            toggleSound();
+                        }
+                        scanBuffer = '';
+                    }
+                }, 80);
+            }
+        });
+
+        // Polling de Dados em Tempo Real
         async function fetchCounterData() {
-            if (!activeLiveId || isPolling) return;
+            if (!activeLiveId || isPolling || isProcessingScan) return;
             isPolling = true;
 
             try {
@@ -317,13 +531,12 @@
                 
                 const data = await res.json();
                 if (data && data.success) {
-                    // Check if count changed
                     if (data.count !== currentCount) {
                         currentCount = data.count;
                         animateCounterChange(currentCount);
+                        playChime();
                     }
 
-                    // Update last item
                     if (data.last_item) {
                         lastItemCode.textContent = '#' + (data.last_item.codigo || '---');
                         lastItemName.textContent = data.last_item.nome || 'Produto';
@@ -334,7 +547,6 @@
                         }
                     }
 
-                    // Sync pulse
                     syncIndicator.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Sincronizado`;
                 }
             } catch (err) {
@@ -344,10 +556,10 @@
             }
         }
 
-        // Poll every 1.5s
-        setInterval(fetchCounterData, 1500);
+        // Sincronização periódica a cada 2 segundos
+        setInterval(fetchCounterData, 2000);
 
-        // Instant local sync from operator bipagem in the same browser
+        // Sincronização instantânea via storage local
         window.addEventListener('storage', (e) => {
             if (e.key === 'last_live_item_biped') {
                 fetchCounterData();
@@ -360,7 +572,6 @@
             localStorage.setItem('live_contador_theme', themeClass);
         }
 
-        // Load saved theme
         const savedTheme = localStorage.getItem('live_contador_theme');
         if (savedTheme) {
             document.getElementById('themeSelect').value = savedTheme;
@@ -396,8 +607,16 @@
             localStorage.setItem('live_contador_sound', soundEnabled ? '1' : '0');
         }
 
-        if (localStorage.getItem('live_contador_sound') === '1') {
+        if (localStorage.getItem('live_contador_sound') === '0') {
             toggleSound();
+        } else {
+            // Ativa som por padrão
+            const icon = document.getElementById('soundIcon');
+            const btn = document.getElementById('toggleSoundBtn');
+            if (icon && btn) {
+                icon.className = 'fas fa-volume-up text-[11px] text-emerald-400';
+                btn.classList.add('bg-white/10');
+            }
         }
 
         // Fullscreen Toggle
@@ -412,17 +631,6 @@
                 }
             }
         }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'f' || e.key === 'F') {
-                toggleFullScreen();
-            } else if (e.key === 'd' || e.key === 'D') {
-                toggleDetails();
-            } else if (e.key === 's' || e.key === 'S') {
-                toggleSound();
-            }
-        });
 
         // Double click fullscreen
         document.body.addEventListener('dblclick', (e) => {
