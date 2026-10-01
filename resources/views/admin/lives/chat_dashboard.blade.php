@@ -26,6 +26,11 @@
                 <span>Bipagem Contínua / QR Code</span>
             </a>
 
+            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+                <i class="fas fa-calculator text-base text-emerald-200"></i>
+                <span>Contador (Telão)</span>
+            </a>
+
             @if($activeLive)
                 <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-teal-700 hover:bg-teal-800 text-white font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-teal-600" style="background-color: #0f766e; color: #ffffff !important;">
                     <i class="fas fa-film text-sm text-teal-200"></i>

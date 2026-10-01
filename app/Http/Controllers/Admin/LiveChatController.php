@@ -62,6 +62,108 @@ class LiveChatController extends Controller
     }
 
     /**
+     * Exibe a tela de Contador Gigante de Itens Bipados na Live
+     */
+    public function contador(Request $request)
+    {
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
+
+        $lives = Live::orderBy('id', 'desc')->limit(30)->get();
+        $activeLive = null;
+        
+        $liveId = $request->query('live_id');
+        if ($liveId) {
+            $activeLive = Live::find($liveId);
+        } else {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first()
+                ?? Live::orderBy('id', 'desc')->first();
+        }
+
+        $initialCount = 0;
+        $lastItem = null;
+        if ($activeLive && Schema::hasTable('live_items')) {
+            $initialCount = DB::table('live_items')
+                ->where('live_id', $activeLive->id)
+                ->count();
+
+            $lastRow = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $activeLive->id)
+                ->orderBy('live_items.id', 'desc')
+                ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+                ->first();
+
+            if ($lastRow) {
+                $lastItem = [
+                    'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
+                    'nome' => $lastRow->nome_do_produto ?: 'Produto',
+                    'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
+                    'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
+                ];
+            }
+        }
+
+        return view('admin.lives.contador', compact('lives', 'activeLive', 'initialCount', 'lastItem'));
+    }
+
+    /**
+     * Retorna os dados em tempo real para o contador gigante
+     */
+    public function getContadorData(Request $request)
+    {
+        $liveId = $request->query('live_id');
+        $activeLive = null;
+
+        if ($liveId) {
+            $activeLive = Live::find($liveId);
+        } else {
+            $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first()
+                ?? Live::orderBy('id', 'desc')->first();
+        }
+
+        if (!$activeLive || !Schema::hasTable('live_items')) {
+            return response()->json([
+                'success' => true,
+                'live_id' => null,
+                'live_name' => 'Nenhuma live selecionada',
+                'live_active' => false,
+                'count' => 0,
+                'last_item' => null
+            ]);
+        }
+
+        $count = DB::table('live_items')
+            ->where('live_id', $activeLive->id)
+            ->count();
+
+        $lastRow = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $activeLive->id)
+            ->orderBy('live_items.id', 'desc')
+            ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+            ->first();
+
+        $lastItem = null;
+        if ($lastRow) {
+            $lastItem = [
+                'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
+                'nome' => $lastRow->nome_do_produto ?: 'Produto',
+                'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
+                'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'live_id' => $activeLive->id,
+            'live_name' => $activeLive->nome ?: ('Live #' . $activeLive->id),
+            'live_active' => (bool)$activeLive->ativo,
+            'count' => $count,
+            'last_item' => $lastItem
+        ]);
+    }
+
+    /**
      * Exibe a página exclusiva de visualização do Chat da Transmissão (Modo Leitura / Display)
      */
     public function feed(Request $request)

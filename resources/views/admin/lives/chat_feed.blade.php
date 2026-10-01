@@ -272,6 +272,12 @@
                 <i class="fas fa-expand"></i>
             </button>
 
+            <!-- Botão Contador (Telão) -->
+            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
+                <i class="fas fa-calculator text-xs text-emerald-200"></i>
+                <span>Contador</span>
+            </a>
+
             @if($activeLive)
                 <!-- Central de Cortes da Live -->
                 <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">

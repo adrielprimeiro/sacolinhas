@@ -132,6 +132,9 @@
                         <a href="{{ route('admin.live-chat.bipagem') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.bipagem') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-qrcode mr-1.5 text-emerald-500"></i> Bipagem Contínua / QR Code
                         </a>
+                        <a href="{{ route('admin.live-chat.contador') }}" target="_blank" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-purple-600 hover:bg-white {{ request()->routeIs('admin.live-chat.contador') ? 'font-bold text-purple-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-calculator mr-1.5 text-purple-500"></i> Contador de Itens (Telão)
+                        </a>
 						@endif
                         <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live

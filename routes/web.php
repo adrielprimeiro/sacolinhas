@@ -271,6 +271,8 @@ Route::middleware('auth')->group(function () {
         Route::get('live-chat', [\App\Http\Controllers\Admin\LiveChatController::class, 'dashboard'])->name('admin.live-chat.dashboard');
         Route::get('live-feed', [\App\Http\Controllers\Admin\LiveChatController::class, 'feed'])->name('admin.live-chat.feed');
         Route::get('live-bipagem', [\App\Http\Controllers\Admin\LiveChatController::class, 'bipagem'])->name('admin.live-chat.bipagem');
+        Route::get('live-contador', [\App\Http\Controllers\Admin\LiveChatController::class, 'contador'])->name('admin.live-chat.contador');
+        Route::get('live-contador/data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getContadorData'])->name('admin.live-chat.contador-data');
         Route::get('lives/{liveId}/chat-data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getChatData'])->name('admin.live-chat.data');
         Route::post('live-chat/add-to-bag', [\App\Http\Controllers\Admin\LiveChatController::class, 'addToBag'])->name('admin.live-chat.add-to-bag');
         Route::post('live-chat/ignore', [\App\Http\Controllers\Admin\LiveChatController::class, 'ignoreRequest'])->name('admin.live-chat.ignore');

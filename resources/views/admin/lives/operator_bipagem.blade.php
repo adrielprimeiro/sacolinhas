@@ -35,6 +35,12 @@
                 <span>Config Captura</span>
             </a>
 
+            <!-- Link para Contador (Telão) -->
+            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fas fa-calculator text-emerald-200"></i>
+                <span>Contador (Telão)</span>
+            </a>
+
             @if($activeLive && $activeLive->ativo)
                 <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95">
                     <i class="fas fa-stop-circle text-sm"></i>
