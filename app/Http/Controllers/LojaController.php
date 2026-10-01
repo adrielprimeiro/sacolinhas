@@ -14,9 +14,12 @@ class LojaController extends Controller
     public function index(Request $request)
     {
         $query = Item::query()
-            ->whereIn('status', ['loja', 'estoque'])
-            ->whereHas('medias', function ($q) {
-                $q->where('media_type', 'image');
+            ->whereIn('status', ['loja', 'estoque', 'disponivel'])
+            ->where(function ($q) {
+                $q->has('medias')
+                  ->orWhere(function ($sq) {
+                      $sq->whereNotNull('image')->where('image', '!=', '');
+                  });
             });
 
         // Busca geral
@@ -93,8 +96,7 @@ class LojaController extends Controller
         $items = $query
             ->with([
                 'medias' => function ($q) {
-                    $q->where('media_type', 'image')
-                        ->orderByDesc('is_cover')
+                    $q->orderByDesc('is_cover')
                         ->orderBy('position')
                         ->orderBy('id');
                 },
@@ -104,10 +106,10 @@ class LojaController extends Controller
             ->paginate(24)
             ->withQueryString();
 
-        // 1. Encontrar todos os IDs de categorias que possuem itens com status 'loja'
+        // 1. Encontrar todos os IDs de categorias que possuem itens com status válido
         $categoriesWithItems = DB::table('categoria_item')
             ->join('items', 'items.id', '=', 'categoria_item.item_id')
-            ->where('items.status', 'loja')
+            ->whereIn('items.status', ['loja', 'estoque', 'disponivel'])
             ->distinct()
             ->pluck('categoria_id')
             ->toArray();
@@ -136,17 +138,17 @@ class LojaController extends Controller
             ->whereIn('id', $allVisibleCategoryIds)
             ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                 $query->whereIn('id', $allVisibleCategoryIds)
-                    ->withCount(['items' => function($q) { $q->where('status', 'loja'); }])
+                    ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
                     ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                         $query->whereIn('id', $allVisibleCategoryIds)
-                            ->withCount(['items' => function($q) { $q->where('status', 'loja'); }])
+                            ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
                             ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                                 $query->whereIn('id', $allVisibleCategoryIds)
-                                    ->withCount(['items' => function($q) { $q->where('status', 'loja'); }]);
+                                    ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }]);
                             }]);
                     }]);
             }])
-            ->withCount(['items' => function($q) { $q->where('status', 'loja'); }])
+            ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
             ->get();
 
         // Função para calcular total de itens na árvore (recursivo) e ordenar filhos
@@ -197,14 +199,13 @@ class LojaController extends Controller
 
     public function show(Item $item)
     {
-        if (!in_array($item->status, ['loja', 'estoque']) || !$item->medias()->where('media_type', 'image')->exists()) {
+        if (!in_array($item->status, ['loja', 'estoque', 'disponivel']) || (!$item->medias()->exists() && empty($item->image))) {
             abort(404);
         }
 
         $item->load([
             'medias' => function ($q) {
-                $q->where('media_type', 'image')
-                    ->orderByDesc('is_cover')
+                $q->orderByDesc('is_cover')
                     ->orderBy('position')
                     ->orderBy('id');
             },

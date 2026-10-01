@@ -431,18 +431,20 @@
                             <a href="{{ route('loja.show', $item) }}" class="block">
                                 <div class="relative aspect-[4/5] w-full overflow-hidden bg-zinc-100">
                                     @php
-                                        $mediasOrdenadas = $item->medias
+                                        $imageCover = $item->medias
                                             ->where('media_type', 'image')
                                             ->sortBy([
                                                 ['is_cover', 'desc'],
                                                 ['position', 'asc'],
                                                 ['id', 'asc'],
-                                            ]);
+                                            ])->first();
 
-                                        $cover = $mediasOrdenadas->first();
-                                        $path = $cover?->thumbnail_url ?: $cover?->url;
-                                        $publicUrl = $path ? \Illuminate\Support\Facades\Storage::url($path) : null;
-                                        $alt = $cover?->alt_text ?: $item->nome_do_produto;
+                                        $videoCover = $item->medias->firstWhere('media_type', 'video');
+                                        
+                                        $path = $imageCover?->thumbnail_url ?: $imageCover?->url ?: $item->image;
+                                        $publicUrl = $path ? (str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::url($path)) : null;
+                                        $videoUrl = $videoCover?->url ? (str_starts_with($videoCover->url, 'http') ? $videoCover->url : \Illuminate\Support\Facades\Storage::url($videoCover->url)) : null;
+                                        $alt = $imageCover?->alt_text ?: $item->nome_do_produto;
                                     @endphp
 
                                     @if($publicUrl)
@@ -452,6 +454,15 @@
                                             class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                                             loading="lazy"
                                         />
+                                    @elseif($videoUrl)
+                                        <div class="relative w-full h-full bg-zinc-900 flex items-center justify-center">
+                                            <video src="{{ $videoUrl }}" class="h-full w-full object-cover" preload="metadata" muted playsinline></video>
+                                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                                                <div class="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                                                    <svg class="w-5 h-5 text-zinc-900 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                </div>
+                                            </div>
+                                        </div>
                                     @else
                                         <div class="flex h-full w-full items-center justify-center text-sm text-zinc-400">
                                             Sem imagem
