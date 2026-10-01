@@ -394,42 +394,19 @@
              ============================================================ -->
         <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
 
-            <!-- BARRA SUPERIOR: LEITOR DE CÓDIGO DE BARRAS DIRETO COM SEQUÊNCIA AUTOMÁTICA -->
-            <div class="bg-white rounded-2xl shadow-sm border border-emerald-200 p-2.5 shrink-0">
-                <div class="flex items-center justify-between gap-2 mb-1.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm text-xs shrink-0">
-                            <i class="fas fa-barcode"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-black text-gray-900 leading-tight">Leitor de Código de Barras (USB / Físico)</h3>
-                            <p class="text-[10px] text-gray-500 font-medium">Bipe as peças em sequência. O código da live é gerado automaticamente.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <div class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-black">
-                            <i class="fas fa-hashtag text-[10px] text-indigo-500"></i>
-                            <span>Próxima Peça: <strong id="next-seq-badge" class="text-indigo-600 text-sm">1</strong></span>
-                        </div>
-                        <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                            <span id="scanner-focus-text">LEITOR PRONTO (FOCO ATIVO)</span>
-                        </div>
-                        <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Campo de Entrada com Destaque Máximo para o Leitor -->
-                <div class="relative">
+            <!-- CAMPO DIRETO DO LEITOR DE CÓDIGO DE BARRAS -->
+            <div class="bg-white rounded-2xl shadow-sm border border-emerald-300 p-2 shrink-0 flex items-center gap-2">
+                <div class="relative flex-1">
                     <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                        placeholder="Aguardando bip do leitor... (Código da live automático: #1)"
-                        class="w-full pl-9 pr-3 py-2 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                        placeholder="Aguardando bip do leitor de código de barras..."
+                        class="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
                         oninput="handleManualScanInput(event)"
                         onkeydown="handleManualScan(event)">
-                    <i class="fas fa-barcode absolute left-3 top-3 text-emerald-600 text-sm"></i>
+                    <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
                 </div>
+                <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
 
             <!-- Card Principal: Lista de Itens Bipados e Fila de Pedidos do Chat -->
