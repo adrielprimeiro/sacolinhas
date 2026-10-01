@@ -273,7 +273,7 @@
         // State & Configuration
         const activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
         const csrfToken = "{{ csrf_token() }}";
-        const linkItemUrl = "{{ route('admin.live-chat.link-item') }}";
+        const linkItemUrl = "{{ route('admin.live-chat.link-item-live') }}";
         let currentCount = {{ $initialCount }};
         let soundEnabled = true; // Habilitado por padrão para feedback ao bipar
         let showDetails = true;
