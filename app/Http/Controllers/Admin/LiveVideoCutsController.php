@@ -880,29 +880,29 @@ class LiveVideoCutsController extends Controller
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
 
-        // 1. Tentar corte ultrarrápido sem perda (Stream Copy - ~0.2 segundos)
+        // 1. Corte de vídeo ultrarrápido sem perda visual (-c:v copy) com áudio tratado e equalizado (-af "afftdn,loudnorm")
         $cmd = sprintf(
-            'ffmpeg -ss %s -i %s -t %s -c copy -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+            'ffmpeg -ss %s -i %s -t %s -c:v copy -af "afftdn=nf=-20,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
             escapeshellarg($start),
             escapeshellarg($inputPath),
             escapeshellarg($duration),
             escapeshellarg($outputPath)
         );
 
-        Log::info("Executando FFmpeg (Fast Copy): " . $cmd);
+        Log::info("Executando FFmpeg (Video Copy + Audio Enhanced): " . $cmd);
         exec($cmd, $output, $returnCode);
 
-        // 2. Fallback caso stream copy falhe: reencodificação ultrafast (1 a 2 segundos)
+        // 2. Fallback caso copy falhe: reencodificação total ultrafast com áudio tratado
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             $outputFallback = [];
             $cmdFallback = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset ultrafast -crf 24 -c:a aac -b:a 128k -movflags +faststart -y %s 2>&1',
+                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset ultrafast -crf 24 -af "afftdn=nf=-20,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 128k -movflags +faststart -y %s 2>&1',
                 escapeshellarg($start),
                 escapeshellarg($inputPath),
                 escapeshellarg($duration),
                 escapeshellarg($outputPath)
             );
-            Log::info("Executando FFmpeg (Fallback Ultrafast): " . $cmdFallback);
+            Log::info("Executando FFmpeg (Fallback Ultrafast + Audio Enhanced): " . $cmdFallback);
             exec($cmdFallback, $outputFallback, $returnCode);
             $output = $outputFallback;
         }
