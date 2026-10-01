@@ -554,6 +554,7 @@ Route::middleware('auth')->group(function () {
 Route::post('/loja/adicionar-item', [LojaController::class, 'adicionarItemSacola'])->name('loja.adicionar_item');
 
 Route::get('/api/lives/all', [App\Http\Controllers\LiveController::class, 'getAllLives'])->name('api.lives.all');
+Route::get('/api/live-contador/data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getContadorData'])->name('api.live-contador.data');
 
 Route::get('admin/sacolinhas', [LiveController::class, 'showLiveBagsOverview'])->name('admin.sacolinhas.index')->middleware(['auth', 'check.admin']);
 

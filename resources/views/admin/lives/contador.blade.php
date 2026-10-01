@@ -311,7 +311,7 @@
             isPolling = true;
 
             try {
-                const url = `{{ route('admin.live-chat.contador-data') }}?live_id=${encodeURIComponent(activeLiveId)}&_t=${Date.now()}`;
+                const url = `{{ route('api.live-contador.data') }}?live_id=${encodeURIComponent(activeLiveId)}&_t=${Date.now()}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 
