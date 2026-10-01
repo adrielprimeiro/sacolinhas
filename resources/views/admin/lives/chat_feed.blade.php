@@ -2327,18 +2327,9 @@
         return null;
     }
 
-    // Retorna o próximo número sequencial da live (1, 2, 3...)
+    // Retorna o próximo número sequencial da live (quantidade de itens na live + 1)
     function getNextSequentialLiveCode() {
-        let maxNum = 0;
-        for (const item of bgScanItems) {
-            if (item && item.liveCode) {
-                const parsed = parseInt(String(item.liveCode).trim(), 10);
-                if (!isNaN(parsed) && parsed > maxNum) {
-                    maxNum = parsed;
-                }
-            }
-        }
-        return maxNum > 0 ? String(maxNum + 1) : String(bgScanItems.length + 1);
+        return String((bgScanItems ? bgScanItems.length : 0) + 1);
     }
 
     function updateNextSeqBadge() {
@@ -2347,7 +2338,7 @@
         const nextSeq = getNextSequentialLiveCode();
         if (badge) badge.textContent = nextSeq;
         if (input) {
-            input.placeholder = `Aguardando bip do leitor... (Código da live automático: #${nextSeq})`;
+            input.placeholder = `Aguardando bip do leitor... (Código da live: #${nextSeq})`;
         }
     }
 
