@@ -75,11 +75,22 @@
 					</div>
 
 					@php
+						$isVideo = ($media->media_type === 'video');
 						$rawUrl = $media->thumbnail_url ?: $media->url;
 						$finalUrl = str_starts_with($rawUrl, 'http') ? $rawUrl : asset('storage/' . ltrim($rawUrl, '/'));
 					@endphp
 
-					<img src="{{ $finalUrl }}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+					@if($isVideo)
+						<div class="relative w-full h-24 bg-zinc-900 rounded-md border border-gray-200 flex items-center justify-center overflow-hidden">
+							<video src="{{ $finalUrl }}" class="w-full h-full object-cover" preload="metadata"></video>
+							<div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center pointer-events-none">
+								<i class="fas fa-play text-white text-lg drop-shadow"></i>
+								<span class="text-white text-[9px] font-bold mt-1 uppercase tracking-wider">Vídeo</span>
+							</div>
+						</div>
+					@else
+						<img src="{{ $finalUrl }}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+					@endif
 
 					<!-- Estrela de Capa (Canto Inferior Direito para não sobrepor a alça) -->
 					@if ($media->is_cover)

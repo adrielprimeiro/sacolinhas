@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use App\Models\Live;
 use App\Models\Item;
+use App\Models\ItemMedia;
 
 class LiveVideoCutsController extends Controller
 {
@@ -799,6 +800,22 @@ class LiveVideoCutsController extends Controller
                 'video_cut_finished_at' => now(),
                 'updated_at' => now()
             ]);
+
+        // Vincula ou atualiza a mídia do tipo vídeo no cadastro do item
+        if (!empty($liveItem->item_id)) {
+            ItemMedia::updateOrCreate(
+                [
+                    'item_id' => $liveItem->item_id,
+                    'media_type' => 'video'
+                ],
+                [
+                    'url' => $relativeStoragePath,
+                    'position' => 99,
+                    'is_cover' => false,
+                    'alt_text' => 'Vídeo do produto na Live'
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,

@@ -458,11 +458,24 @@
                                         </div>
                                     @endif
 
-                                    <div class="absolute left-3 top-3">
+                                    @php
+                                        $hasVideo = $item->medias->contains('media_type', 'video');
+                                    @endphp
+
+                                    <div class="absolute left-3 top-3 flex items-center gap-1.5">
                                         <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 shadow-sm ring-1 ring-zinc-200">
                                             {{ $item->estado }}
                                         </span>
                                     </div>
+
+                                    @if($hasVideo)
+                                        <div class="absolute right-3 top-3">
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-black/80 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white/20">
+                                                <svg class="w-3 h-3 text-red-500 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                Vídeo
+                                            </span>
+                                        </div>
+                                    @endif
 
                                     @if($hasPromotion)
                                         @php

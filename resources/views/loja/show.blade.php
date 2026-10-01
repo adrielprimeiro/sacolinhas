@@ -63,41 +63,59 @@
             <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
                 @php
                     $medias = $item->medias
-                        ->where('media_type', 'image')
                         ->sortBy([
                             ['is_cover', 'desc'],
                             ['position', 'asc'],
                             ['id', 'asc'],
                         ])->values();
 
-                    $first = $medias->first();
-                    $firstFull = $first?->url ? \Illuminate\Support\Facades\Storage::url($first->url) : null;
+                    // Se não tiver mídias na tabela item_media, mas tiver o campo image legado
+                    if ($medias->isEmpty() && $item->image) {
+                        $firstFull = str_starts_with($item->image, 'http') ? $item->image : \Illuminate\Support\Facades\Storage::url($item->image);
+                        $firstIsVideo = false;
+                        $firstAlt = $item->nome_do_produto;
+                    } else {
+                        $first = $medias->first();
+                        $firstPath = $first?->url;
+                        $firstFull = $firstPath ? (str_starts_with($firstPath, 'http') ? $firstPath : \Illuminate\Support\Facades\Storage::url($firstPath)) : null;
+                        $firstIsVideo = ($first?->media_type === 'video');
+                        $firstAlt = $first?->alt_text ?? $item->nome_do_produto;
+                    }
                 @endphp
 
                 <section class="lg:col-span-7">
                     <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-                        <div id="mainImageWrap" class="relative aspect-[4/5] w-full bg-zinc-100">
-                            @if($firstFull)
-                                <img
-                                    id="mainImage"
-                                    src="{{ $firstFull }}"
-                                    alt="{{ $first?->alt_text ?? $item->nome_do_produto }}"
-                                    class="h-full w-full object-cover cursor-pointer select-none"
-                                />
+                        <div id="mainImageWrap" class="relative aspect-[4/5] w-full bg-zinc-900 flex items-center justify-center overflow-hidden">
+                            <img
+                                id="mainImage"
+                                src="{{ !$firstIsVideo && $firstFull ? $firstFull : '' }}"
+                                alt="{{ $firstAlt }}"
+                                class="h-full w-full object-cover cursor-pointer select-none {{ $firstIsVideo || !$firstFull ? 'hidden' : '' }}"
+                            />
 
-                                @if($item->final_price < $item->preco)
-                                    @php
-                                        $percent = round(100 - ($item->final_price / $item->preco * 100));
-                                    @endphp
-                                    <div class="absolute right-4 bottom-4">
-                                        <span class="inline-flex items-center rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xl ring-1 ring-red-700">
-                                            -{{ $percent }}% OFF
-                                        </span>
-                                    </div>
-                                @endif
-                            @else
-                                <div class="flex h-full w-full items-center justify-center text-sm text-zinc-400">
+                            <video
+                                id="mainVideo"
+                                src="{{ $firstIsVideo && $firstFull ? $firstFull : '' }}"
+                                controls
+                                playsinline
+                                preload="metadata"
+                                class="h-full w-full object-contain bg-black {{ $firstIsVideo ? '' : 'hidden' }}"
+                            ></video>
+
+                            @if(!$firstFull)
+                                <div id="noMediaNotice" class="flex h-full w-full items-center justify-center text-sm text-zinc-400 bg-zinc-100">
                                     Sem imagem
+                                </div>
+                            @endif
+
+                            @if($item->final_price < $item->preco)
+                                @php
+                                    $percent = round(100 - ($item->final_price / $item->preco * 100));
+                                @endphp
+                                <div class="absolute right-4 bottom-4 z-10 pointer-events-none">
+                                    <span class="inline-flex items-center rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xl ring-1 ring-red-700">
+                                        -{{ $percent }}% OFF
+                                    </span>
                                 </div>
                             @endif
                         </div>
@@ -107,20 +125,28 @@
                                 <div class="grid grid-cols-5 gap-3 sm:grid-cols-6">
                                     @foreach($medias as $index => $m)
                                         @php
-                                            $thumbPath = $m->thumbnail_url ?: $m->url;
-                                            $thumbUrl = $thumbPath ? \Illuminate\Support\Facades\Storage::url($thumbPath) : null;
-                                            $fullUrl  = $m->url ? \Illuminate\Support\Facades\Storage::url($m->url) : null;
+                                            $isVideo = ($m->media_type === 'video');
+                                            $rawUrl = $m->url;
+                                            $fullUrl = $rawUrl ? (str_starts_with($rawUrl, 'http') ? $rawUrl : \Illuminate\Support\Facades\Storage::url($rawUrl)) : null;
+                                            $thumbRaw = $m->thumbnail_url ?: ($isVideo ? null : $m->url);
+                                            $thumbUrl = $thumbRaw ? (str_starts_with($thumbRaw, 'http') ? $thumbRaw : \Illuminate\Support\Facades\Storage::url($thumbRaw)) : null;
                                         @endphp
 
                                         <button
                                             type="button"
-                                            class="thumb-btn overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                                            class="thumb-btn relative overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition {{ $index === 0 ? 'ring-2 ring-zinc-900' : '' }}"
                                             data-full="{{ $fullUrl }}"
+                                            data-type="{{ $isVideo ? 'video' : 'image' }}"
                                             data-index="{{ $index }}"
-                                            aria-label="Selecionar imagem"
+                                            aria-label="{{ $isVideo ? 'Ver vídeo do produto' : 'Selecionar imagem' }}"
                                         >
-                                            <div class="aspect-square w-full bg-zinc-100">
-                                                @if($thumbUrl)
+                                            <div class="aspect-square w-full bg-zinc-100 relative flex items-center justify-center">
+                                                @if($isVideo)
+                                                    <div class="w-full h-full bg-zinc-900 flex flex-col items-center justify-center text-white relative">
+                                                        <svg class="w-6 h-6 text-red-500 fill-current drop-shadow" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                        <span class="text-[9px] font-bold tracking-wider uppercase mt-1">Vídeo</span>
+                                                    </div>
+                                                @elseif($thumbUrl)
                                                     <img
                                                         src="{{ $thumbUrl }}"
                                                         alt="{{ $m->alt_text ?? 'Miniatura' }}"
@@ -279,19 +305,21 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('addToBagForm');
-  const main = document.getElementById('mainImage');
+  const mainImage = document.getElementById('mainImage');
+  const mainVideo = document.getElementById('mainVideo');
   const mainWrap = document.getElementById('mainImageWrap');
   const thumbButtons = Array.from(document.querySelectorAll('.thumb-btn'));
-  const imageList = thumbButtons
-    .map((btn) => btn.getAttribute('data-full'))
-    .filter(Boolean);
+  const mediaList = thumbButtons.map((btn) => ({
+    url: btn.getAttribute('data-full'),
+    type: btn.getAttribute('data-type') || 'image'
+  })).filter(m => !!m.url);
 
   const nomeProduto = @json($item->nome_do_produto);
   const successToast = document.getElementById('successToast');
   const toastTitle = document.getElementById('toastTitle');
   const toastProgress = document.getElementById('toastProgress');
 
-  let currentImageIndex = 0;
+  let currentMediaIndex = 0;
   let touchStartX = 0;
   let touchEndX = 0;
   const swipeMinDistance = 40;
@@ -399,23 +427,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 6800);
   }
 
-  function updateCurrentIndexBySrc() {
-    if (!main || imageList.length === 0) return;
+  function setMainMediaByIndex(index) {
+    if (mediaList.length === 0) return;
+    currentMediaIndex = index;
+    const media = mediaList[currentMediaIndex];
 
-    const currentSrc = main.getAttribute('src');
-    const foundIndex = imageList.findIndex((url) => url === currentSrc);
-
-    currentImageIndex = foundIndex >= 0 ? foundIndex : 0;
-  }
-
-  function setMainImageByIndex(index) {
-    if (!main || imageList.length === 0) return;
-
-    currentImageIndex = index;
-    main.setAttribute('src', imageList[currentImageIndex]);
+    if (media.type === 'video') {
+      if (mainImage) mainImage.classList.add('hidden');
+      if (mainVideo) {
+        mainVideo.classList.remove('hidden');
+        if (mainVideo.getAttribute('src') !== media.url) {
+          mainVideo.setAttribute('src', media.url);
+          mainVideo.load();
+        }
+      }
+    } else {
+      if (mainVideo) {
+        mainVideo.pause();
+        mainVideo.classList.add('hidden');
+      }
+      if (mainImage) {
+        mainImage.classList.remove('hidden');
+        mainImage.setAttribute('src', media.url);
+      }
+    }
 
     thumbButtons.forEach((btn, i) => {
-      if (i === currentImageIndex) {
+      if (i === currentMediaIndex) {
         btn.classList.add('ring-2', 'ring-zinc-900');
       } else {
         btn.classList.remove('ring-2', 'ring-zinc-900');
@@ -423,20 +461,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function goToNextImage() {
-    if (!main || imageList.length <= 1) return;
-
-    updateCurrentIndexBySrc();
-    const nextIndex = (currentImageIndex + 1) % imageList.length;
-    setMainImageByIndex(nextIndex);
+  function goToNextMedia() {
+    if (mediaList.length <= 1) return;
+    const nextIndex = (currentMediaIndex + 1) % mediaList.length;
+    setMainMediaByIndex(nextIndex);
   }
 
-  function goToPrevImage() {
-    if (!main || imageList.length <= 1) return;
-
-    updateCurrentIndexBySrc();
-    const prevIndex = (currentImageIndex - 1 + imageList.length) % imageList.length;
-    setMainImageByIndex(prevIndex);
+  function goToPrevMedia() {
+    if (mediaList.length <= 1) return;
+    const prevIndex = (currentMediaIndex - 1 + mediaList.length) % mediaList.length;
+    setMainMediaByIndex(prevIndex);
   }
 
   if (form) {
@@ -485,40 +519,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (main) {
-    if (imageList.length > 0) {
-      updateCurrentIndexBySrc();
-      setMainImageByIndex(currentImageIndex);
-    }
-
+  if (thumbButtons.length > 0) {
     thumbButtons.forEach((thumbBtn, index) => {
       thumbBtn.addEventListener('click', () => {
-        setMainImageByIndex(index);
+        setMainMediaByIndex(index);
       });
     });
+  }
 
-    main.addEventListener('click', () => {
-      goToNextImage();
+  if (mainImage) {
+    mainImage.addEventListener('click', () => {
+      goToNextMedia();
     });
+  }
 
-    if (mainWrap) {
-      mainWrap.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].clientX;
-      }, { passive: true });
+  if (mainWrap) {
+    mainWrap.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
 
-      mainWrap.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].clientX;
-        const deltaX = touchEndX - touchStartX;
+    mainWrap.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
 
-        if (Math.abs(deltaX) < swipeMinDistance) return;
+      if (Math.abs(deltaX) < swipeMinDistance) return;
 
-        if (deltaX < 0) {
-          goToNextImage();
-        } else {
-          goToPrevImage();
-        }
-      }, { passive: true });
-    }
+      if (deltaX < 0) {
+        goToNextMedia();
+      } else {
+        goToPrevMedia();
+      }
+    }, { passive: true });
   }
 });
 </script>
