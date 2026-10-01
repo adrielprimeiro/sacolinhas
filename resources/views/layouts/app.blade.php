@@ -122,6 +122,7 @@
                         <a href="{{ route('bags.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('bags.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-broadcast-tower mr-1.5 text-indigo-400"></i> Lives
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.live-chat.feed') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.feed') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-comment-dots mr-1.5 text-pink-500"></i> Chat da Transmissão
                         </a>
@@ -131,6 +132,7 @@
                         <a href="{{ route('admin.live-chat.bipagem') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.bipagem') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-qrcode mr-1.5 text-emerald-500"></i> Bipagem Contínua / QR Code
                         </a>
+						@endif
                         <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live
                         </a>
@@ -146,10 +148,10 @@
                         <a href="{{ route('admin.pedido.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.pedido.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
                         </a>
+						@if(!$isBrecho)
                         <a href="{{ route('admin.fiscal.configuracoes') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.fiscal.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-file-invoice-dollar mr-1.5 text-purple-500"></i> Configurações NF-e
                         </a>
-						@if(!$isBrecho)
                         <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos
                         </a>

@@ -24,6 +24,8 @@ class LiveChatController extends Controller
      */
     public function dashboard(Request $request)
     {
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
+
         $lives = Live::orderBy('id', 'desc')->limit(30)->get();
         $activeLive = null;
         
@@ -43,6 +45,8 @@ class LiveChatController extends Controller
      */
     public function bipagem(Request $request)
     {
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
+
         $lives = Live::orderBy('id', 'desc')->limit(30)->get();
         $activeLive = null;
         
@@ -62,6 +66,8 @@ class LiveChatController extends Controller
      */
     public function feed(Request $request)
     {
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
+
         $lives = Live::orderBy('id', 'desc')->limit(30)->get();
         $activeLive = null;
         

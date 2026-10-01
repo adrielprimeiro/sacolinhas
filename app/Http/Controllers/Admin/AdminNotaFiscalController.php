@@ -118,10 +118,9 @@ class AdminNotaFiscalController extends Controller
      */
     public function configuracoes()
     {
-        $brechoId = (auth()->check() && auth()->user()->isBrechoParceiro())
-            ? auth()->user()->brecho_id
-            : 1;
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
 
+        $brechoId = 1;
         $brecho = Brecho::findOrNew($brechoId);
 
         return view('admin.fiscal.configuracoes', compact('brecho'));
@@ -132,10 +131,9 @@ class AdminNotaFiscalController extends Controller
      */
     public function salvarConfiguracoes(Request $request)
     {
-        $brechoId = (auth()->check() && auth()->user()->isBrechoParceiro())
-            ? auth()->user()->brecho_id
-            : 1;
+        abort_if(auth()->check() && auth()->user()->isBrechoParceiro(), 403, 'Acesso exclusivo da Matriz.');
 
+        $brechoId = 1;
         $brecho = Brecho::findOrFail($brechoId);
 
         $validated = $request->validate([
