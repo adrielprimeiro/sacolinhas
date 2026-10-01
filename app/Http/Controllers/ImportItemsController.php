@@ -33,10 +33,13 @@ class ImportItemsController extends Controller
         DB::beginTransaction();
 
         try {
-            $defaultBrechoId = $brechoId 
-                ?: $request->input('brecho_id') 
-                ?: $request->query('brecho_id') 
-                ?: ((auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1);
+            // Apenas a Minha Mania (brecho_id = 1) utiliza a importação via planilha
+            $defaultBrechoId = 1;
+            if ($brechoId && is_numeric($brechoId) && (int)$brechoId > 0) {
+                $defaultBrechoId = (int)$brechoId;
+            } elseif ($request->filled('brecho_id') && is_numeric($request->input('brecho_id')) && (int)$request->input('brecho_id') > 0) {
+                $defaultBrechoId = (int)$request->input('brecho_id');
+            }
 
             \Log::info('IMPORT-ITEMS HIT', [
                 'path' => request()->path(),
