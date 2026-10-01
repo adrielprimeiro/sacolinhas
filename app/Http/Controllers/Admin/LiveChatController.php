@@ -222,12 +222,17 @@ class LiveChatController extends Controller
                 $selects[] = 'live_items.video_cut_trigger';
             }
 
-            $linkedLiveItems = $query->select($selects)->get()->map(function($row) use ($hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
+            $rows = $query->select($selects)->get();
+            $totalCount = $rows->count();
+            $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
+                // Como está ordenado desc (mais recente primeiro), o número sequencial é totalCount - index
+                $seqNumber = (string)($totalCount - $index);
+                $liveCode = ($hasCodigoLiveCol && !empty($row->codigo_live)) ? $row->codigo_live : $seqNumber;
                 return [
                     'id' => 'scan_db_' . $row->live_item_id,
                     'itemId' => $row->item_id,
                     'code' => $row->codigo,
-                    'liveCode' => $hasCodigoLiveCol ? ($row->codigo_live ?? '') : '',
+                    'liveCode' => $liveCode,
                     'buyerUserId' => $hasBuyerCols ? ($row->buyer_user_id ?? null) : null,
                     'buyerUsername' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
                     'buyerName' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
@@ -297,6 +302,17 @@ class LiveChatController extends Controller
                 'success' => false,
                 'message' => 'Item não encontrado para vincular à live.'
             ], 404);
+        }
+
+        // Auto-atribuir código sequencial da live se não foi enviado
+        if (empty($codigoLive) && Schema::hasColumn('live_items', 'codigo_live')) {
+            $existingLiveItem = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
+            if ($existingLiveItem && !empty($existingLiveItem->codigo_live)) {
+                $codigoLive = $existingLiveItem->codigo_live;
+            } else {
+                $seqCount = DB::table('live_items')->where('live_id', $liveId)->count();
+                $codigoLive = (string)($seqCount + 1);
+            }
         }
 
         $item = Item::find($itemId);

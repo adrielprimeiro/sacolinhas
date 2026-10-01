@@ -394,66 +394,41 @@
              ============================================================ -->
         <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
 
-            <!-- BARRA SUPERIOR: CÓDIGO DA LIVE (VOZ) + LEITOR DE CÓDIGO DE BARRAS (LADO A LADO) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 shrink-0">
-                <!-- Card 1: Código da Live (capturado por voz ou manual) -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 flex flex-col justify-between">
-                    <div class="flex items-center justify-between gap-1 mb-1">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-5 h-5 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm text-white text-[10px]">
-                                <i class="fas fa-microphone"></i>
-                            </div>
-                            <span class="text-[11px] font-black text-gray-800">Código da Live (Voz / Manual)</span>
+            <!-- BARRA SUPERIOR: LEITOR DE CÓDIGO DE BARRAS DIRETO COM SEQUÊNCIA AUTOMÁTICA -->
+            <div class="bg-white rounded-2xl shadow-sm border border-emerald-200 p-2.5 shrink-0">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm text-xs shrink-0">
+                            <i class="fas fa-barcode"></i>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span id="mic-status-label" class="text-[9.5px] font-bold text-gray-400">Inativo</span>
-                            <div id="mic-status-dot" class="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Microfone inativo"></div>
+                        <div>
+                            <h3 class="text-xs font-black text-gray-900 leading-tight">Leitor de Código de Barras (USB / Físico)</h3>
+                            <p class="text-[10px] text-gray-500 font-medium">Bipe as peças em sequência. O código da live é gerado automaticamente.</p>
                         </div>
                     </div>
-                    <div class="flex gap-1">
-                        <input type="text" id="scan-live-code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="1º Digite o Código da Live (ou fale)"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault(); applyLiveCodeAndFocusScanner(this.value);}"
-                            class="flex-1 px-3 py-1.5 rounded-xl border-2 border-indigo-300 bg-indigo-50/40 text-xs font-black text-indigo-700 placeholder-indigo-400/80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 tracking-wider uppercase transition-all duration-300">
-                        <button type="button" onclick="clearLiveCode(); focusLiveCodeInput(true);" title="Limpar código"
-                            class="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-400 hover:text-red-500 transition cursor-pointer text-xs shrink-0">
-                            <i class="fas fa-times text-xs"></i>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-black">
+                            <i class="fas fa-hashtag text-[10px] text-indigo-500"></i>
+                            <span>Próxima Peça: <strong id="next-seq-badge" class="text-indigo-600 text-sm">1</strong></span>
+                        </div>
+                        <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span id="scanner-focus-text">LEITOR PRONTO (FOCO ATIVO)</span>
+                        </div>
+                        <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-7 h-7 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs">
+                            <i class="fas fa-chevron-right"></i>
                         </button>
-                    </div>
-                    <!-- Feedback ao vivo do que o microfone está ouvindo -->
-                    <div id="mic-transcript-preview" class="mt-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[9.5px] text-gray-500 font-medium truncate flex items-center gap-1.5 hidden transition-all">
-                        <i class="fas fa-wave-square text-[8px] text-indigo-500 animate-pulse shrink-0"></i>
-                        <span class="truncate">Ouvindo: <span id="mic-transcript-text" class="text-indigo-900 italic font-bold"></span></span>
                     </div>
                 </div>
 
-                <!-- Card 2: Leitor de Código de Barras (Bipador USB / Físico) -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <div class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm text-[10px] shrink-0">
-                                <i class="fas fa-barcode"></i>
-                            </div>
-                            <h3 class="text-[11px] font-black text-gray-900 leading-tight truncate">Leitor de Código de Barras</h3>
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <div id="scanner-focus-badge" onclick="ensureScannerFocus(true)" title="Clique para focar no leitor" class="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black shadow-xs select-none cursor-pointer transition active:scale-95">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                                <span id="scanner-focus-text">FOCO ATIVO</span>
-                            </div>
-                            <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-[10px]">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <!-- Campo de Entrada com Destaque Máximo para o Leitor -->
-                    <div class="relative">
-                        <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                            placeholder="Aguardando bip do leitor..."
-                            class="w-full pl-8 pr-3 py-1.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-xs font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
-                            oninput="handleManualScanInput(event)"
-                            onkeydown="handleManualScan(event)">
-                        <i class="fas fa-barcode absolute left-2.5 top-2.5 text-emerald-600 text-xs"></i>
-                    </div>
+                <!-- Campo de Entrada com Destaque Máximo para o Leitor -->
+                <div class="relative">
+                    <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+                        placeholder="Aguardando bip do leitor... (Código da live automático: #1)"
+                        class="w-full pl-9 pr-3 py-2 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                        oninput="handleManualScanInput(event)"
+                        onkeydown="handleManualScan(event)">
+                    <i class="fas fa-barcode absolute left-3 top-3 text-emerald-600 text-sm"></i>
                 </div>
             </div>
 
@@ -483,18 +458,13 @@
                     </button>
                 </div>
 
-                <!-- Barra de Contador de Itens Bipados e Ações Rápidas -->
+                <!-- Barra de Contador de Itens Bipados -->
                 <div class="px-3 py-2 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
                             <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
                             <span>Itens Bipados na Live: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
                         </span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="copyScanList()" title="Copiar lista de itens da live" class="text-[10px] font-bold text-gray-600 hover:text-indigo-700 bg-white hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer shadow-2xs">
-                            <i class="fas fa-copy text-[9px]"></i> Copiar Lista
-                        </button>
                     </div>
                 </div>
 
@@ -877,6 +847,7 @@
     }
 
     // =========================================================================
+    // =========================================================================
     // GERENCIAMENTO INTELIGENTE DE FOCO DO LEITOR DE CÓDIGO DE BARRAS
     // =========================================================================
     function isUserTypingElsewhere() {
@@ -887,7 +858,7 @@
         if (tag === 'textarea' || tag === 'select') return true;
         if (tag === 'input') {
             const id = el.id || '';
-            if (id === 'scan-manual-input' || id === 'scan-live-code') return false;
+            if (id === 'scan-manual-input') return false;
             return true;
         }
         return false;
@@ -916,17 +887,8 @@
     }
 
     function focusLiveCodeInput(select = true) {
-        if (isModalOpen()) return;
-        const liveInput = document.getElementById('scan-live-code');
-        if (liveInput) {
-            if (document.activeElement !== liveInput) {
-                liveInput.focus();
-            }
-            if (select) {
-                liveInput.select();
-            }
-            updateScannerFocusBadge(false);
-        }
+        // Agora o foco principal é sempre no leitor de código de barras
+        focusScannerInput(select);
     }
 
     function focusScannerInput(select = true) {
@@ -947,22 +909,12 @@
         if (isModalOpen()) return;
         if (!force && isUserTypingElsewhere()) return;
 
-        const liveInput = document.getElementById('scan-live-code');
         const scanInput = document.getElementById('scan-manual-input');
-        if (!liveInput && !scanInput) return;
-
-        // Se já tem código da live preenchido, o foco vai para o leitor de código de barras
-        if (liveInput && liveInput.value.trim() !== '') {
+        if (scanInput) {
             if (document.activeElement !== scanInput) {
                 scanInput.focus();
             }
             updateScannerFocusBadge(true);
-        } else {
-            // Se o código da live está vazio, o 1º passo é focar no Código da Live
-            if (document.activeElement !== liveInput) {
-                liveInput.focus();
-            }
-            updateScannerFocusBadge(false);
         }
     }
 
@@ -973,26 +925,28 @@
 
         if (isScannerFocused) {
             badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
-            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>2º BIPAR PEÇA`;
+            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>LEITOR PRONTO (FOCO ATIVO)`;
         } else {
-            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-100 border border-indigo-300 text-indigo-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
-            text.innerHTML = `<i class="fas fa-keyboard text-[9px] mr-1"></i>1º CÓDIGO LIVE`;
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
+            text.innerHTML = `<i class="fas fa-mouse-pointer text-[9px] mr-1"></i>CLIQUE PARA FOCAR NO LEITOR`;
         }
     }
 
     function initScannerFocusEvents() {
-        const liveInput = document.getElementById('scan-live-code');
         const scanInput = document.getElementById('scan-manual-input');
-
-        if (liveInput) {
-            liveInput.addEventListener('focus', () => updateScannerFocusBadge(false));
-        }
 
         if (scanInput) {
             scanInput.addEventListener('focus', () => updateScannerFocusBadge(true));
+            scanInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!isUserTypingElsewhere()) {
+                        updateScannerFocusBadge(false);
+                    }
+                }, 100);
+            });
         }
 
-        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco inteligente de volta
+        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco de volta para o leitor
         document.addEventListener('click', function(e) {
             const target = e.target;
             if (!target) return;
@@ -1008,9 +962,9 @@
             ensureScannerFocus(false);
         });
 
-        // Foco inicial imediato no Código da Live (1º passo)
+        // Foco inicial imediato no leitor de código de barras
         setTimeout(() => {
-            focusLiveCodeInput(true);
+            ensureScannerFocus(true);
         }, 150);
     }
 
@@ -2396,6 +2350,30 @@
         return null;
     }
 
+    // Retorna o próximo número sequencial da live (1, 2, 3...)
+    function getNextSequentialLiveCode() {
+        let maxNum = 0;
+        for (const item of bgScanItems) {
+            if (item && item.liveCode) {
+                const parsed = parseInt(String(item.liveCode).trim(), 10);
+                if (!isNaN(parsed) && parsed > maxNum) {
+                    maxNum = parsed;
+                }
+            }
+        }
+        return maxNum > 0 ? String(maxNum + 1) : String(bgScanItems.length + 1);
+    }
+
+    function updateNextSeqBadge() {
+        const badge = document.getElementById('next-seq-badge');
+        const input = document.getElementById('scan-manual-input');
+        const nextSeq = getNextSequentialLiveCode();
+        if (badge) badge.textContent = nextSeq;
+        if (input) {
+            input.placeholder = `Aguardando bip do leitor... (Código da live automático: #${nextSeq})`;
+        }
+    }
+
     let lastProcessedScanCode = null;
     let lastProcessedScanTime = 0;
 
@@ -2415,20 +2393,7 @@
         // Se o item já existe na lista desta live:
         const existingItem = findExistingScanItem(cleanCode);
         if (existingItem) {
-            const liveInput = document.getElementById('scan-live-code');
-            const liveCodeInField = liveInput ? liveInput.value.trim().toUpperCase() : '';
-
-            // Se havia um novo código de live falado/digitado, atualiza nesta peça existente
-            if (liveCodeInField && existingItem.liveCode !== liveCodeInField) {
-                existingItem.liveCode = liveCodeInField;
-                updateItemLiveCodeUI(existingItem.id, liveCodeInField);
-                refreshAllScanItemsLiveCodeUI();
-                syncLinkItemToLive(existingItem.itemId || null, existingItem.code, liveCodeInField);
-                clearLiveCode();
-            }
-
             // Destaca visualmente a peça na lista
-
             let existingEl = document.querySelector(`[data-scan-id="${existingItem.id}"]`);
             if (!existingEl && existingItem.code) {
                 existingEl = document.querySelector(`[data-code="${existingItem.code}"]`);
@@ -2445,6 +2410,7 @@
             if (manualInput) manualInput.value = '';
 
             playSuccessBeep();
+            setTimeout(() => ensureScannerFocus(true), 50);
             return;
         }
 
@@ -2453,22 +2419,13 @@
 
         const now = new Date();
         const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const liveInput = document.getElementById('scan-live-code');
-        const liveCodeInField = liveInput ? liveInput.value.trim().toUpperCase() : '';
+        const autoLiveCode = getNextSequentialLiveCode();
         const scanUniqueId = 'scan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-
-        let dupItem = null;
-        if (liveCodeInField) {
-            dupItem = checkLiveCodeDuplicate(liveCodeInField);
-            if (dupItem) {
-                triggerDuplicateLiveCodeAlert(liveCodeInField, dupItem);
-            }
-        }
 
         const item = {
             id: scanUniqueId,
             code: cleanCode,
-            liveCode: liveCodeInField,
+            liveCode: autoLiveCode,
             buyerUserId: null,
             buyerUsername: null,
             buyerName: null,
@@ -2489,9 +2446,6 @@
         };
         bgScanItems.unshift(item);
 
-        // Limpa o campo do código da live e reseta para o próximo ciclo
-        clearLiveCode();
-
         const list = document.getElementById('scan-items-list');
         const el = createScanItemElement(item, true);
 
@@ -2508,30 +2462,27 @@
         // Já sincroniza com a tabela live_items
         syncLinkItemToLive(null, cleanCode, item.liveCode);
 
-
-        // Exibe o banner de confirmação com destaque no topo se não for duplicado
-        if (!dupItem) {
-            const banner = document.getElementById('scan-last-item-banner');
-            const bannerText = document.getElementById('scan-last-item-text');
-            const bannerTime = document.getElementById('scan-last-item-time');
-            if (banner && bannerText) {
-                bannerText.textContent = cleanCode + (item.liveCode ? ' • Live: ' + item.liveCode : '');
-                if (bannerTime) bannerTime.textContent = timeStr;
-                banner.classList.remove('hidden');
-                clearTimeout(window._scanBannerTimeout);
-                window._scanBannerTimeout = setTimeout(function() {
-                    banner.classList.add('hidden');
-                }, 3000);
-            }
-            playSuccessBeep();
+        // Exibe o banner de confirmação com destaque no topo
+        const banner = document.getElementById('scan-last-item-banner');
+        const bannerText = document.getElementById('scan-last-item-text');
+        const bannerTime = document.getElementById('scan-last-item-time');
+        if (banner && bannerText) {
+            bannerText.textContent = `${cleanCode} • Código da Live: #${item.liveCode}`;
+            if (bannerTime) bannerTime.textContent = timeStr;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanBannerTimeout);
+            window._scanBannerTimeout = setTimeout(function() {
+                banner.classList.add('hidden');
+            }, 3000);
         }
+        playSuccessBeep();
 
         updateScanCount();
 
-        // Retorna o foco automaticamente para o Código da Live (1º passo do ciclo)
+        // Foco garantido e contínuo no leitor de código de barras
         setTimeout(() => {
-            focusLiveCodeInput(true);
-        }, 80);
+            ensureScannerFocus(true);
+        }, 50);
     }
 
     function removeScanItem(btn) {
@@ -2621,6 +2572,9 @@
     function updateScanCount() {
         const el = document.getElementById('scan-count');
         if (el) el.textContent = bgScanItems.length;
+        if (typeof updateNextSeqBadge === 'function') {
+            updateNextSeqBadge();
+        }
     }
 
     function clearLiveCode() {
@@ -2769,23 +2723,7 @@
         }
     }, true);
 
-    function copyScanList() {
-        if (bgScanItems.length === 0) return;
-        const lines = bgScanItems.map(function(i) {
-            const prodInfo = (i.productName ? i.productName + (i.productDetails ? ' (' + i.productDetails + ')' : '') : '-');
-            return (i.code + '\t' + (i.liveCode || '-') + '\t' + prodInfo + '\t' + (i.productPrice || '-'));
-        });
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText('CÓDIGO\tCÓDIGO_LIVE\tPRODUTO_DETALHES\tVALOR\n' + lines.join('\n')).then(function() {
-                const btn = document.querySelector('[onclick="copyScanList()"]');
-                if (btn) {
-                    const orig = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-check text-emerald-500"></i> Copiado!';
-                    setTimeout(function() { btn.innerHTML = orig; }, 1500);
-                }
-            }).catch(function() {});
-        }
-    }
+
 
 
     function initScanSystem() {
