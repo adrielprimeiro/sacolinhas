@@ -789,6 +789,24 @@ class LiveVideoCutsController extends Controller
 
         $videoUrl = Storage::url($relativeStoragePath);
 
+        // 3. Extrai thumbnail nítida no ponto ótimo do corte (~35% da duração ou +2.0s)
+        $optimalOffset = min(3.0, max(0.5, round($duration * 0.35, 2)));
+        $thumbTimestamp = round($start + $optimalOffset, 2);
+        $thumbFilename = 'thumb_' . $codeClean . '_' . time() . '.jpg';
+        $thumbPath = $outputDir . '/' . $thumbFilename;
+        $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $thumbFilename;
+
+        $cmdThumb = sprintf(
+            'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
+            escapeshellarg($thumbTimestamp),
+            escapeshellarg($inputPath),
+            escapeshellarg($thumbPath)
+        );
+        exec($cmdThumb);
+
+        $hasThumb = file_exists($thumbPath) && filesize($thumbPath) > 1000;
+        $thumbUrl = $hasThumb ? Storage::url($relativeThumbPath) : null;
+
         DB::table('live_items')
             ->where('id', $liveItemId)
             ->update([
@@ -801,7 +819,7 @@ class LiveVideoCutsController extends Controller
                 'updated_at' => now()
             ]);
 
-        // Vincula ou atualiza a mídia do tipo vídeo no cadastro do item
+        // Vincula ou atualiza a mídia do tipo vídeo com thumbnail no cadastro do item
         if (!empty($liveItem->item_id)) {
             ItemMedia::updateOrCreate(
                 [
@@ -810,18 +828,107 @@ class LiveVideoCutsController extends Controller
                 ],
                 [
                     'url' => $relativeStoragePath,
+                    'thumbnail_url' => $hasThumb ? $relativeThumbPath : null,
                     'position' => 99,
                     'is_cover' => false,
                     'alt_text' => 'Vídeo do produto na Live'
                 ]
             );
+
+            // Se o item não tiver imagem de capa, define essa thumbnail como foto principal
+            $itemObj = Item::find($liveItem->item_id);
+            if ($itemObj && empty($itemObj->image) && $hasThumb) {
+                $itemObj->image = $relativeThumbPath;
+                $itemObj->save();
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Corte gerado com sucesso!',
+            'message' => 'Corte e Thumbnail gerados com sucesso!',
             'video_url' => $videoUrl,
+            'thumbnail_url' => $thumbUrl,
             'duration' => $duration
+        ]);
+    }
+
+    /**
+     * Captura um frame específico do vídeo no timestamp fornecido como Thumbnail do Item
+     */
+    public function captureFrame(Request $request, $liveId, $liveItemId)
+    {
+        $live = Live::findOrFail($liveId);
+        $liveItem = DB::table('live_items')->where('id', $liveItemId)->where('live_id', $liveId)->first();
+
+        if (!$liveItem || !$live->recording_path) {
+            return response()->json(['success' => false, 'message' => 'Item ou gravação não encontrados.'], 404);
+        }
+
+        $inputPath = Storage::disk('public')->path($live->recording_path);
+        if (!file_exists($inputPath) && file_exists($live->recording_path)) {
+            $inputPath = $live->recording_path;
+        }
+
+        if (!file_exists($inputPath)) {
+            return response()->json(['success' => false, 'message' => 'Arquivo de vídeo original não encontrado no servidor.'], 404);
+        }
+
+        $timestampRaw = $request->input('timestamp');
+        $timestamp = $this->parseTimeToSeconds($timestampRaw);
+
+        if ($timestamp === null || $timestamp < 0) {
+            return response()->json(['success' => false, 'message' => 'Tempo do frame inválido.'], 422);
+        }
+
+        $outputDir = storage_path('app/public/live_cuts/live_' . $liveId);
+        if (!file_exists($outputDir)) {
+            @mkdir($outputDir, 0777, true);
+        }
+
+        $codeClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $liveItem->codigo_live ?: 'item_' . $liveItem->item_id);
+        $thumbFilename = 'thumb_' . $codeClean . '_' . time() . '.jpg';
+        $thumbPath = $outputDir . '/' . $thumbFilename;
+        $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $thumbFilename;
+
+        $cmd = sprintf(
+            'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
+            escapeshellarg($timestamp),
+            escapeshellarg($inputPath),
+            escapeshellarg($thumbPath)
+        );
+        exec($cmd, $output, $returnCode);
+
+        if (!file_exists($thumbPath) || filesize($thumbPath) < 1000) {
+            return response()->json(['success' => false, 'message' => 'Falha ao capturar o frame do vídeo.'], 500);
+        }
+
+        $thumbUrl = Storage::url($relativeThumbPath);
+
+        if (!empty($liveItem->item_id)) {
+            ItemMedia::updateOrCreate(
+                [
+                    'item_id' => $liveItem->item_id,
+                    'media_type' => 'video'
+                ],
+                [
+                    'thumbnail_url' => $relativeThumbPath
+                ]
+            );
+
+            // Atualiza a imagem principal do item caso esteja vazia ou se solicitado
+            $itemObj = Item::find($liveItem->item_id);
+            if ($itemObj && (empty($itemObj->image) || $request->boolean('set_as_cover'))) {
+                $itemObj->image = $relativeThumbPath;
+                $itemObj->save();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quadro capturado com sucesso como Thumbnail!',
+            'thumbnail_url' => $thumbUrl,
+            'timestamp' => $timestamp,
+            'timestamp_formatted' => $this->formatSecondsToTime($timestamp)
         ]);
     }
 

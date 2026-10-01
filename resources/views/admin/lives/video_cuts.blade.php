@@ -305,7 +305,11 @@
                                         <i class="fas fa-play"></i>
                                     </button>
 
-                                    <button type="button" onclick="generateSingleClip({{ $item['live_item_id'] }})" id="btn-cut-{{ $item['live_item_id'] }}" title="Gerar Corte Individual com FFmpeg" class="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #0d9488; color: #ffffff !important;">
+                                    <button type="button" onclick="captureThumbnailFromPlayer({{ $item['live_item_id'] }})" id="btn-thumb-{{ $item['live_item_id'] }}" title="Capturar Frame Atual do Player como Capa/Thumbnail" class="bg-amber-500 hover:bg-amber-600 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #f59e0b; color: #ffffff !important;">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+
+                                    <button type="button" onclick="generateSingleClip({{ $item['live_item_id'] }})" id="btn-cut-{{ $item['live_item_id'] }}" title="Gerar Corte Individual & Thumbnail com FFmpeg" class="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #0d9488; color: #ffffff !important;">
                                         <i class="fas fa-scissors"></i>
                                     </button>
 
@@ -843,6 +847,53 @@
             btn.disabled = false;
             btn.innerHTML = oldHtml;
             alert("Erro ao comunicar com o servidor para fatiamento de vídeo.");
+        }
+    }
+
+    async function captureThumbnailFromPlayer(itemId) {
+        const player = document.getElementById('live-main-player');
+        const currentTime = player ? player.currentTime : null;
+        const btn = document.getElementById(`btn-thumb-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '<i class="fas fa-camera"></i>';
+        
+        let targetTime = currentTime;
+        if (!targetTime || targetTime <= 0) {
+            const startInput = document.getElementById(`input-start-${itemId}`);
+            targetTime = startInput ? startInput.value : 0;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/capture-frame/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ timestamp: targetTime, set_as_cover: true })
+            });
+            const data = await resp.json();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                alert(`📸 Foto de capa / Thumbnail capturada com sucesso no segundo ${data.timestamp_formatted || targetTime}!`);
+            } else {
+                alert("Erro ao capturar frame: " + data.message);
+            }
+        } catch (e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Falha na conexão ao capturar frame do vídeo.");
         }
     }
 

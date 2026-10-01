@@ -308,6 +308,7 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/save-timestamp/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveItemTimestamp'])->name('admin.lives.cortes.save-timestamp');
         Route::post('lives/{liveId}/cortes/generate-single/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSingleClip'])->name('admin.lives.cortes.generate-single');
         Route::post('lives/{liveId}/cortes/generate-batch', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateBatchClips'])->name('admin.lives.cortes.generate-batch');
+        Route::post('lives/{liveId}/cortes/capture-frame/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'captureFrame'])->name('admin.lives.cortes.capture-frame');
 
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
