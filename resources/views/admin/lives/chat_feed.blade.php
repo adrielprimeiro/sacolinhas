@@ -1396,6 +1396,7 @@
                 if (found) {
                     found.itemId = data.data.item_id;
                 }
+                localStorage.setItem('last_live_item_biped', Date.now());
             }
         })
         .catch(err => console.warn('[Scan] Erro ao sincronizar item à live:', err));
@@ -1414,7 +1415,11 @@
                 item_id: itemId || null,
                 code: code || null
             })
-        }).catch(err => console.warn('[Scan] Erro ao desvincular item:', err));
+        })
+        .then(() => {
+            localStorage.setItem('last_live_item_biped', Date.now());
+        })
+        .catch(err => console.warn('[Scan] Erro ao desvincular item:', err));
     }
 
     async function fetchAndRenderItemDetails(code, scanId) {

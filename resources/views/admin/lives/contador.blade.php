@@ -269,9 +269,20 @@
         <span class="hidden sm:inline text-white/20">Pressione 'F' para Tela Cheia</span>
     </footer>
 
+    <!-- Invisible Auto-Focus Input for USB / Bluetooth Barcode Scanners -->
+    <input 
+        type="text" 
+        id="barcodeWedgeInput" 
+        autocomplete="off" 
+        autocorrect="off" 
+        autocapitalize="off" 
+        spellcheck="false" 
+        style="position: fixed; top: -1000px; left: -1000px; opacity: 0; pointer-events: none; width: 1px; height: 1px;"
+    />
+
     <script>
         // State & Configuration
-        const activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
+        let activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
         const csrfToken = "{{ csrf_token() }}";
         const linkItemUrl = "{{ route('admin.live-chat.link-item-live') }}";
         let currentCount = {{ $initialCount }};
@@ -291,6 +302,18 @@
         const controlsBar = document.getElementById('controlsBar');
         const syncIndicator = document.getElementById('syncIndicator');
         const bodyEl = document.getElementById('bodyEl');
+        const barcodeInput = document.getElementById('barcodeWedgeInput');
+
+        // Garante foco permanente no leitor de código de barras
+        function ensureScannerFocus() {
+            if (!barcodeInput) return;
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            if (activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
+                barcodeInput.focus();
+            }
+        }
+        setInterval(ensureScannerFocus, 1000);
+        document.addEventListener('click', () => setTimeout(ensureScannerFocus, 50));
 
         // Web Audio API Synthesizer (Som de Sucesso ao Bipar)
         function playChime() {
@@ -397,11 +420,9 @@
 
         // Processar Bipagem de Código de Barras
         async function processBipagem(barcode) {
-            if (!activeLiveId) {
-                showScanToast('error', 'Nenhuma Live Selecionada', 'Selecione uma live ativa no topo para bipar.');
-                playErrorTone();
-                return;
-            }
+            if (!barcode) return;
+            let cleanBar = String(barcode).trim().replace(/^[\r\n\s]+|[\r\n\s]+$/g, '');
+            if (!cleanBar) return;
 
             if (isProcessingScan) return;
             isProcessingScan = true;
@@ -415,8 +436,8 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        live_id: activeLiveId,
-                        code: barcode
+                        live_id: activeLiveId || null,
+                        code: cleanBar
                     })
                 });
 
@@ -424,6 +445,10 @@
 
                 if (data.success && data.data) {
                     const item = data.data;
+
+                    if (item.live_id && !activeLiveId) {
+                        activeLiveId = item.live_id;
+                    }
 
                     // 1. Atualiza o contador gigante com animação
                     if (item.total_count !== undefined) {
@@ -434,7 +459,7 @@
                     animateCounterChange(currentCount);
 
                     // 2. Atualiza os dados do Último Item Bipado
-                    lastItemCode.textContent = '#' + (item.codigo_live || item.code || barcode);
+                    lastItemCode.textContent = '#' + (item.codigo_live || item.code || cleanBar);
                     lastItemName.textContent = item.name || 'Produto';
                     lastItemPrice.textContent = item.price || '';
                     lastItemTime.textContent = item.hora || new Date().toLocaleTimeString('pt-BR');
@@ -445,7 +470,7 @@
                     // 3. Exibe o Toast de sucesso na tela
                     const seqInfo = item.codigo_live ? `Sequência #${item.codigo_live}` : '';
                     const priceInfo = item.price ? ` • ${item.price}` : '';
-                    showScanToast('success', `Item #${item.code || barcode} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
+                    showScanToast('success', `Item #${item.code || cleanBar} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
 
                     // 4. Toca som de confirmação
                     playChime();
@@ -453,36 +478,52 @@
                     // 5. Notifica outras abas (Chat, OBS, etc)
                     localStorage.setItem('last_live_item_biped', Date.now());
                 } else {
-                    showScanToast('error', 'Item Não Vinculado', data.message || `Código #${barcode} não encontrado.`);
+                    showScanToast('error', 'Item Não Vinculado', data.message || `Código #${cleanBar} não encontrado.`);
                     playErrorTone();
                 }
             } catch (err) {
                 console.error("Erro na bipagem:", err);
-                showScanToast('error', 'Falha na Conexão', `Não foi possível registrar o código #${barcode}.`);
+                showScanToast('error', 'Falha na Conexão', `Não foi possível registrar o código #${cleanBar}.`);
                 playErrorTone();
             } finally {
                 isProcessingScan = false;
+                if (barcodeInput) barcodeInput.value = '';
+                ensureScannerFocus();
             }
         }
 
-        // ZERO-FOCUS BARCODE SCANNER LISTENER
-        // O leitor de código de barras digita os caracteres rapidamente e pressiona Enter
+        // Listener no input invisível (para leitores que agem como teclado)
+        if (barcodeInput) {
+            barcodeInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const code = barcodeInput.value.trim();
+                    barcodeInput.value = '';
+                    if (code.length > 0) {
+                        processBipagem(code);
+                    }
+                }
+            });
+        }
+
+        // ZERO-FOCUS BARCODE SCANNER LISTENER GLOBAL
         let scanBuffer = '';
         let lastKeyTime = 0;
 
         document.addEventListener('keydown', (e) => {
-            // Ignora se estiver interagindo com um input/select aberto
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            // Ignora se o usuário estiver digitando no select de temas ou lives
+            if (e.target && e.target.tagName === 'SELECT') {
                 return;
             }
 
             const now = Date.now();
             const timeDiff = now - lastKeyTime;
 
-            // Ao pressionar Enter, se houver buffer de leitor, executa a bipagem
+            // Ao pressionar Enter, executa a bipagem se houver código no buffer
             if (e.key === 'Enter') {
-                const code = scanBuffer.trim();
+                const code = (scanBuffer || (barcodeInput ? barcodeInput.value : '')).trim();
                 scanBuffer = '';
+                if (barcodeInput) barcodeInput.value = '';
                 if (code.length >= 1) {
                     e.preventDefault();
                     processBipagem(code);
@@ -490,9 +531,23 @@
                 }
             }
 
-            // Se o intervalo entre teclas for grande (> 400ms), limpa o buffer
-            if (timeDiff > 400) {
+            // Se o intervalo entre teclas for muito longo (> 600ms), limpa o buffer
+            if (timeDiff > 600) {
                 scanBuffer = '';
+            }
+
+            // Atalhos rápidos somente se não houver números sendo digitados
+            if (scanBuffer.length === 0 && !/\d/.test(e.key)) {
+                if (e.key === 'f' || e.key === 'F') {
+                    toggleFullScreen();
+                    return;
+                } else if (e.key === 'd' || e.key === 'D') {
+                    toggleDetails();
+                    return;
+                } else if (e.key === 's' || e.key === 'S') {
+                    toggleSound();
+                    return;
+                }
             }
 
             // Acumula caracteres imprimíveis
@@ -500,37 +555,25 @@
                 scanBuffer += e.key;
                 lastKeyTime = now;
             }
-
-            // Atalhos normais de teclado (F, D, S) somente se não for um leitor digitando em rajada
-            if (scanBuffer.length === 1) {
-                const singleKey = e.key;
-                setTimeout(() => {
-                    if (scanBuffer.length === 1 && scanBuffer === singleKey) {
-                        if (singleKey === 'f' || singleKey === 'F') {
-                            toggleFullScreen();
-                        } else if (singleKey === 'd' || singleKey === 'D') {
-                            toggleDetails();
-                        } else if (singleKey === 's' || singleKey === 'S') {
-                            toggleSound();
-                        }
-                        scanBuffer = '';
-                    }
-                }, 80);
-            }
         });
 
         // Polling de Dados em Tempo Real
         async function fetchCounterData() {
-            if (!activeLiveId || isPolling || isProcessingScan) return;
+            if (isPolling || isProcessingScan) return;
             isPolling = true;
 
             try {
-                const url = `{{ route('api.live-contador.data') }}?live_id=${encodeURIComponent(activeLiveId)}&_t=${Date.now()}`;
+                const liveParam = activeLiveId ? `live_id=${encodeURIComponent(activeLiveId)}&` : '';
+                const url = `{{ route('api.live-contador.data') }}?${liveParam}_t=${Date.now()}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 
                 const data = await res.json();
                 if (data && data.success) {
+                    if (data.live_id && !activeLiveId) {
+                        activeLiveId = data.live_id;
+                    }
+
                     if (data.count !== currentCount) {
                         currentCount = data.count;
                         animateCounterChange(currentCount);
