@@ -307,9 +307,14 @@ class LiveChatController extends Controller
             ], 404);
         }
 
+        // Verificar se o item já existe nesta live
+        $existingLiveItem = Schema::hasTable('live_items') 
+            ? DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first()
+            : null;
+        $isAlreadyInLive = (bool)$existingLiveItem;
+
         // Auto-atribuir código sequencial da live se não foi enviado
         if (empty($codigoLive) && Schema::hasColumn('live_items', 'codigo_live')) {
-            $existingLiveItem = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
             if ($existingLiveItem && !empty($existingLiveItem->codigo_live)) {
                 $codigoLive = $existingLiveItem->codigo_live;
             } else {
@@ -345,8 +350,10 @@ class LiveChatController extends Controller
         $updateData = [
             'status_movimentacao' => 'enviado',
             'updated_at' => now(),
-            'created_at' => now()
         ];
+        if (!$existingLiveItem) {
+            $updateData['created_at'] = now();
+        }
         if (Schema::hasColumn('live_items', 'codigo_live')) {
             $updateData['codigo_live'] = $codigoLive ?: null;
         }
@@ -366,11 +373,16 @@ class LiveChatController extends Controller
 
         $totalLiveItems = DB::table('live_items')->where('live_id', $liveId)->count();
 
+        $message = $isAlreadyInLive 
+            ? "Produto já cadastrado na live! Código Live: #{$codigoLive}"
+            : ($duplicateWarning 
+                ? "Atenção: O código de live '{$codigoLive}' já está em uso na peça #{$duplicateWarning['code']}!" 
+                : 'Item vinculado à live com sucesso!');
+
         return response()->json([
             'success' => true,
-            'message' => $duplicateWarning 
-                ? "Atenção: O código de live '{$codigoLive}' já está em uso na peça #{$duplicateWarning['code']}!" 
-                : 'Item vinculado à live com sucesso!',
+            'is_already_in_live' => $isAlreadyInLive,
+            'message' => $message,
             'duplicate_warning' => $duplicateWarning,
             'data' => [
                 'item_id' => $itemId,
@@ -380,6 +392,9 @@ class LiveChatController extends Controller
                 'name' => $item->nome_do_produto ?: 'Produto',
                 'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
                 'total_count' => $totalLiveItems,
+                'is_already_in_live' => $isAlreadyInLive,
+                'buyer_username' => $existingLiveItem->buyer_username ?? null,
+                'buyer_name' => $existingLiveItem->buyer_name ?? null,
                 'hora' => date('H:i:s')
             ]
         ]);

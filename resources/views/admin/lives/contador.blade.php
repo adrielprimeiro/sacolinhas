@@ -399,6 +399,10 @@
                 toastCard.className = 'px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-emerald-500/40 flex items-center gap-3.5 text-white bg-emerald-950/90';
                 iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-lg shrink-0';
                 icon.className = 'fas fa-check';
+            } else if (type === 'warning' || type === 'already_biped') {
+                toastCard.className = 'px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-amber-500/50 flex items-center gap-3.5 text-white bg-amber-950/95 ring-2 ring-amber-400/30';
+                iconBox.className = 'w-10 h-10 rounded-xl bg-amber-500/25 border border-amber-500/50 text-amber-300 flex items-center justify-center text-lg shrink-0';
+                icon.className = 'fas fa-history';
             } else {
                 toastCard.className = 'px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-rose-500/40 flex items-center gap-3.5 text-white bg-rose-950/90';
                 iconBox.className = 'w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-lg shrink-0';
@@ -415,7 +419,7 @@
             toastTimer = setTimeout(() => {
                 toast.classList.remove('opacity-100', 'translate-y-0');
                 toast.classList.add('opacity-0', '-translate-y-6');
-            }, 3500);
+            }, 4000);
         }
 
         // Processar Bipagem de Código de Barras
@@ -450,11 +454,9 @@
                         activeLiveId = item.live_id;
                     }
 
-                    // 1. Atualiza o contador gigante com animação
+                    // 1. Atualiza o contador gigante com animação (mantém contagem se já cadastrado)
                     if (item.total_count !== undefined) {
                         currentCount = item.total_count;
-                    } else {
-                        currentCount++;
                     }
                     animateCounterChange(currentCount);
 
@@ -467,10 +469,15 @@
                         lastItemContainer.classList.remove('hidden');
                     }
 
-                    // 3. Exibe o Toast de sucesso na tela
-                    const seqInfo = item.codigo_live ? `Sequência #${item.codigo_live}` : '';
-                    const priceInfo = item.price ? ` • ${item.price}` : '';
-                    showScanToast('success', `Item #${item.code || cleanBar} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
+                    // 3. Exibe o Toast adequado (Novo vs Já Cadastrado)
+                    if (item.is_already_in_live) {
+                        const buyerText = item.buyer_username ? ` • Sacola de @${item.buyer_username}` : '';
+                        showScanToast('warning', `⚠️ Item #${item.code || cleanBar} Já Cadastrado!`, `Código da Live: #${item.codigo_live} • ${item.name || 'Produto'}${item.price ? ' (' + item.price + ')' : ''}${buyerText}`);
+                    } else {
+                        const seqInfo = item.codigo_live ? `Sequência #${item.codigo_live}` : '';
+                        const priceInfo = item.price ? ` • ${item.price}` : '';
+                        showScanToast('success', `Item #${item.code || cleanBar} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
+                    }
 
                     // 4. Toca som de confirmação
                     playChime();
