@@ -183,10 +183,13 @@ class LiveVideoAutoProcessorService
             $progressCallback(15, 'Extraindo e segmentando faixas de áudio com FFmpeg...');
         }
 
-        // Segmenta áudio em blocos de 600s (10 minutos) otimizados para voz (mono 16kHz 32kbps)
+        // Segmenta áudio em blocos de 600s (10 minutos) com filtros avançados de limpeza vocal (ASR Audio Pre-processing):
+        // 1. highpass=120, lowpass=3800: Filtra frequências fora da fala humana
+        // 2. afftdn=nf=-25: Redução de ruído de fundo / chiado de microfone
+        // 3. loudnorm: Normalização de volume EBU R128 para a voz ficar uniforme e clara
         $chunkPattern = $chunksDir . DIRECTORY_SEPARATOR . 'chunk_%03d.mp3';
         $ffmpegCmd = sprintf(
-            'ffmpeg -i %s -vn -ar 16000 -ac 1 -b:a 32k -f segment -segment_time 600 -reset_timestamps 1 %s 2>&1',
+            'ffmpeg -y -i %s -vn -af "highpass=f=120,lowpass=f=3800,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11" -ar 16000 -ac 1 -b:a 48k -f segment -segment_time 600 -reset_timestamps 1 %s 2>&1',
             escapeshellarg($videoPath),
             escapeshellarg($chunkPattern)
         );
@@ -211,12 +214,14 @@ class LiveVideoAutoProcessorService
         $sentences = [];
         $currentOffset = 0.0;
 
+        $whisperPrompt = "Transcrição de Live Shopping de Brechó Minha Mania. Roupas, vestidos, calças, casacos, saias, croppeds, marcas (Farm, Zara, Shein, Animale, Colcci, Cantão, Le Lis Blanc, Renner, C&A, Marisa), tamanhos PP, P, M, G, GG, cores, valores em reais e códigos: código 1, código 2, código 3, código 4, código 5, peça 1, peça 2, peça 3, quem quer comenta eu, código.";
+
         foreach ($chunkFiles as $idx => $chunkFile) {
             $chunkNumber = $idx + 1;
             $pct = round(20 + (($idx / $totalChunks) * 65));
 
             if ($progressCallback) {
-                $progressCallback($pct, "Transcrevendo parte {$chunkNumber} de {$totalChunks} com IA (Groq Whisper)...");
+                $progressCallback($pct, "Transcrevendo parte {$chunkNumber} de {$totalChunks} com IA (Groq Whisper ASR)...");
             }
 
             Log::info("[AutoProcessor] Transcrevendo parte {$chunkNumber}/{$totalChunks} ({$chunkFile})...");
@@ -230,6 +235,7 @@ class LiveVideoAutoProcessorService
                         'response_format' => 'verbose_json',
                         'temperature' => 0,
                         'language' => 'pt',
+                        'prompt' => $whisperPrompt,
                         'timestamp_granularities' => ['segment']
                     ]);
 

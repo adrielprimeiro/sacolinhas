@@ -448,6 +448,84 @@ class LiveVideoCutsController extends Controller
     /**
      * Executa a lógica de auto-detecção em cima de uma Live já transcrita
      */
+    /**
+     * Converte número em representações textuais em Português
+     */
+    protected function numberToPortugueseWords(int $num): array
+    {
+        $units = [
+            0 => 'zero', 1 => 'um', 2 => 'dois', 3 => 'três', 4 => 'quatro',
+            5 => 'cinco', 6 => 'seis', 7 => 'sete', 8 => 'oito', 9 => 'nove',
+            10 => 'dez', 11 => 'onze', 12 => 'doze', 13 => 'treze', 14 => 'quatorze',
+            15 => 'quinze', 16 => 'dezesseis', 17 => 'dezessete', 18 => 'dezoito', 19 => 'dezenove'
+        ];
+        $tens = [
+            20 => 'vinte', 30 => 'trinta', 40 => 'quarenta', 50 => 'cinquenta',
+            60 => 'sessenta', 70 => 'setenta', 80 => 'oitenta', 90 => 'noventa'
+        ];
+        $hundreds = [
+            100 => 'cem', 200 => 'duzentos', 300 => 'trezentos', 400 => 'quatrocentos',
+            500 => 'quinhentos', 600 => 'seiscentos', 700 => 'setecentos', 800 => 'oitocentos', 900 => 'novecentos'
+        ];
+
+        $results = [];
+
+        if ($num < 20) {
+            $results[] = $units[$num] ?? (string)$num;
+            if ($num === 1) { $results[] = 'uma'; }
+            if ($num === 2) { $results[] = 'duas'; }
+            if ($num === 3) { $results[] = 'tres'; }
+            if ($num === 6) { $results[] = 'meia'; }
+        } elseif ($num < 100) {
+            $t = (int) (floor($num / 10) * 10);
+            $u = $num % 10;
+            if ($u === 0) {
+                $results[] = $tens[$t] ?? (string)$num;
+            } else {
+                $uWords = $this->numberToPortugueseWords($u);
+                foreach ($uWords as $uw) {
+                    $results[] = ($tens[$t] ?? '') . ' e ' . $uw;
+                }
+            }
+        } elseif ($num === 100) {
+            $results[] = 'cem';
+        } elseif ($num < 1000) {
+            $h = (int) (floor($num / 100) * 100);
+            $rest = $num % 100;
+            $hPrefix = ($h === 100) ? 'cento' : ($hundreds[$h] ?? '');
+            if ($rest === 0) {
+                $results[] = $hPrefix;
+            } else {
+                $restWords = $this->numberToPortugueseWords($rest);
+                foreach ($restWords as $rw) {
+                    $results[] = $hPrefix . ' e ' . $rw;
+                }
+            }
+        }
+
+        return array_unique($results);
+    }
+
+    /**
+     * Retorna todas as variações faladas e numéricas de um código
+     */
+    protected function getCodeSearchVariations(string $code): array
+    {
+        $clean = trim($code);
+        $variations = [$clean];
+        if (is_numeric($clean)) {
+            $intVal = (int) $clean;
+            $variations[] = (string) $intVal;
+            $variations[] = sprintf('%02d', $intVal);
+            $words = $this->numberToPortugueseWords($intVal);
+            $variations = array_merge($variations, $words);
+        }
+        return array_unique(array_filter($variations));
+    }
+
+    /**
+     * Algoritmo inteligente de correspondência de transcrição fonética + Timeline da Bipagem
+     */
     public function performAutoDetection(Live $live): array
     {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
@@ -457,7 +535,21 @@ class LiveVideoCutsController extends Controller
 
         $liveItems = DB::table('live_items')
             ->where('live_id', $live->id)
+            ->orderBy('id', 'asc')
             ->get();
+
+        if ($liveItems->isEmpty()) {
+            return [];
+        }
+
+        // Determina momento inicial da live para ancoragem temporal
+        $firstItemTime = null;
+        foreach ($liveItems as $li) {
+            if ($li->created_at) {
+                $firstItemTime = strtotime($li->created_at);
+                break;
+            }
+        }
 
         $updatedCount = 0;
         $results = [];
@@ -466,35 +558,71 @@ class LiveVideoCutsController extends Controller
             'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
             'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
             'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
-            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'tamanho', 'tecido'
+            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'tamanho', 'tecido', 'marca', 'valor'
         ];
 
         $closingPatterns = [
             'entregando', 'vou entregar', 'passando', 'próxima', 'próximo', 'anotou',
             'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar', 'comenta código',
-            'um beijo', 'boa noite', 'de onde você é'
+            'um beijo', 'boa noite'
         ];
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
             if (!$code) continue;
 
-            $mentionIndex = null;
-            $mentionTime = null;
+            $variations = $this->getCodeSearchVariations($code);
+            $regexPatterns = [];
+            foreach ($variations as $var) {
+                $escaped = preg_quote($var, '/');
+                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)?\s*' . $escaped;
+            }
+            $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
 
-            foreach ($sentences as $idx => $s) {
-                $textLower = mb_strtolower($s['text'] ?? '');
-                if (str_contains($textLower, $code) || str_contains($textLower, 'código ' . $code) || str_contains($textLower, 'codigo ' . $code)) {
-                    $mentionIndex = $idx;
-                    $mentionTime = (float) ($s['start'] ?? 0);
-                    break;
+            // Estimativa de tempo no vídeo pelo horário que o operador bipou a peça
+            $estimatedVideoSec = null;
+            if ($firstItemTime && $li->created_at) {
+                $itemBipTime = strtotime($li->created_at);
+                $diff = $itemBipTime - $firstItemTime;
+                if ($diff >= 0) {
+                    $estimatedVideoSec = (float) $diff;
                 }
             }
 
-            if ($mentionIndex === null) {
+            $candidateMentions = [];
+            foreach ($sentences as $idx => $s) {
+                $text = $s['text'] ?? '';
+                if (preg_match($combinedRegex, $text)) {
+                    $candidateMentions[] = [
+                        'index' => $idx,
+                        'start' => (float) ($s['start'] ?? 0),
+                        'end' => (float) ($s['end'] ?? 0),
+                        'text' => $text
+                    ];
+                }
+            }
+
+            if (empty($candidateMentions)) {
                 continue;
             }
 
+            // Seleciona o mention mais próximo do horário da bipagem, ou o primeiro
+            $chosenMention = $candidateMentions[0];
+            if ($estimatedVideoSec !== null && count($candidateMentions) > 1) {
+                $bestDiff = PHP_INT_MAX;
+                foreach ($candidateMentions as $cand) {
+                    $dist = abs($cand['start'] - $estimatedVideoSec);
+                    if ($dist < $bestDiff) {
+                        $bestDiff = $dist;
+                        $chosenMention = $cand;
+                    }
+                }
+            }
+
+            $mentionIndex = $chosenMention['index'];
+            $mentionTime = $chosenMention['start'];
+
+            // Busca início do bloco (introdução da peça) até 45s antes
             $startIndex = max(0, $mentionIndex - 5);
             $startTime = (float) ($sentences[$mentionIndex]['start'] ?? 0);
 
@@ -502,7 +630,7 @@ class LiveVideoCutsController extends Controller
                 $sText = mb_strtolower($sentences[$i]['text'] ?? '');
                 $sStart = (float) ($sentences[$i]['start'] ?? 0);
 
-                if (($mentionTime - $sStart) > 60) break;
+                if (($mentionTime - $sStart) > 50) break;
 
                 $startTime = $sStart;
 
@@ -514,6 +642,7 @@ class LiveVideoCutsController extends Controller
                 }
             }
 
+            // Busca fim do bloco (fechamento/transição) até 60s depois
             $endIndex = min(count($sentences) - 1, $mentionIndex + 6);
             $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 25));
 
@@ -533,8 +662,8 @@ class LiveVideoCutsController extends Controller
                 }
             }
 
-            $finalStart = max(0, round($startTime - 0.3, 1));
-            $finalEnd = round($endTime + 0.5, 1);
+            $finalStart = max(0, round($startTime - 0.5, 1));
+            $finalEnd = round($endTime + 0.8, 1);
 
             $snippetArr = [];
             for ($k = $startIndex; $k <= $endIndex; $k++) {
