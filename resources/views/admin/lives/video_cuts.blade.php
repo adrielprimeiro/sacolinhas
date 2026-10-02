@@ -59,20 +59,19 @@
     </div>
 
     <!-- BANNER DE PROGRESSO IA ASSÍNCRONO -->
-    <div id="ai-process-progress-box" class="hidden mb-6 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-lg border border-purple-700">
-
+    <div id="ai-process-progress-box" class="hidden mb-6 bg-slate-900 text-white rounded-2xl p-5 shadow-xl border border-indigo-500/40">
         <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-3">
-                <i class="fas fa-brain text-2xl text-teal-300 animate-pulse"></i>
+                <i class="fas fa-robot text-2xl text-emerald-400 animate-pulse"></i>
                 <div>
-                    <h4 class="text-sm font-black text-white">Processamento de Áudio & IA em Segundo Plano (Suporte 3h+)</h4>
-                    <p id="ai-process-text" class="text-xs text-purple-200 mt-0.5">Iniciando extração e transcrição do áudio...</p>
+                    <h4 class="text-sm font-black text-white">Processamento Automático com IA</h4>
+                    <p id="ai-process-text" class="text-xs text-slate-300 mt-0.5">Iniciando extração e transcrição do áudio...</p>
                 </div>
             </div>
-            <span id="ai-process-pct" class="text-lg font-black text-teal-300 font-mono">0%</span>
+            <span id="ai-process-pct" class="text-lg font-black text-emerald-400 font-mono">0%</span>
         </div>
-        <div class="w-full bg-purple-950/80 rounded-full h-3 overflow-hidden border border-purple-600/40">
-            <div id="ai-process-bar" class="bg-gradient-to-r from-teal-400 to-indigo-400 h-full w-0 transition-all duration-300"></div>
+        <div class="w-full bg-slate-800 rounded-full h-3.5 overflow-hidden border border-slate-700">
+            <div id="ai-process-bar" class="h-full w-0 transition-all duration-300 rounded-full" style="background: linear-gradient(90deg, #10b981 0%, #06b6d4 100%);"></div>
         </div>
     </div>
 
