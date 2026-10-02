@@ -114,6 +114,9 @@ class ClienteController extends Controller
 			'name' => 'nullable|string|max:255',
 			'instagram' => 'nullable|string|max:255',
 			'tiktok' => 'nullable|string|max:255',
+			'telefone' => 'nullable|string|max:50',
+			'whatsapp' => 'nullable|string|max:50',
+			'phone' => 'nullable|string|max:50',
 			'limite_credito' => 'nullable|numeric|min:0',
 		], [
 			'name.max' => 'O nome não pode ter mais de 255 caracteres.',
@@ -139,6 +142,9 @@ class ClienteController extends Controller
 					$nomeCliente = $tiktok;
 				} else {
 					// Se todos estiverem vazios, dar erro
+					if ($request->ajax() || $request->wantsJson()) {
+						return response()->json(['success' => false, 'message' => 'Preencha pelo menos o Nome, Instagram ou TikTok.'], 422);
+					}
 					return redirect()->back()
 								   ->withErrors(['name' => 'Preencha pelo menos o Nome, Instagram ou TikTok'])
 								   ->withInput();
@@ -147,8 +153,17 @@ class ClienteController extends Controller
 			
 			// ✅ GERAÇÃO AUTOMÁTICA DE EMAIL (igual ao original)
 			$nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $nomeCliente));
-			$emailAutomatico = $nomeParaEmail . '@mania.com';
+			$emailAutomatico = ($nomeParaEmail ?: 'cliente' . time()) . '@mania.com';
 			
+			// Garante que o e-mail seja único
+			if (User::where('email', $emailAutomatico)->exists()) {
+				$emailAutomatico = ($nomeParaEmail ?: 'cliente') . '_' . time() . '@mania.com';
+			}
+
+			// Telefone / WhatsApp sanitizado
+			$rawPhone = $request->input('telefone') ?: ($request->input('whatsapp') ?: $request->input('phone'));
+			$phoneDigits = $rawPhone ? preg_replace('/\D/', '', $rawPhone) : null;
+
 			// ✅ SALVAR COM CAMPOS CORRETOS
 			$cliente = Cliente::create([
 				'name' => $nomeCliente,              // Nome final
@@ -156,10 +171,12 @@ class ClienteController extends Controller
 				'password' => Hash::make('123456'),  // Senha padrão
 				'role' => 'client',
 				
-				// ✅ CAMPOS CORRETOS PARA REDES SOCIAIS
-				'instagram' => $instagram,           // Campo correto
-				'tiktok' => $tiktok,                // Campo correto
-				'whatsapp' => null,                 // Pode ser preenchido depois
+				// ✅ CAMPOS CORRETOS PARA REDES SOCIAIS E CONTATO
+				'instagram' => $instagram ?: null,
+				'tiktok' => $tiktok ?: null,
+				'whatsapp' => $phoneDigits,
+				'phone' => $phoneDigits,
+				'telefone_principal' => $phoneDigits,
 			]);
 
 			// Criar limite de crédito
@@ -185,6 +202,21 @@ class ClienteController extends Controller
 
 			DB::commit();
 
+			if ($request->ajax() || $request->wantsJson()) {
+				return response()->json([
+					'success' => true,
+					'message' => 'Cliente cadastrado com sucesso!',
+					'client' => [
+						'id' => $cliente->id,
+						'name' => $cliente->name,
+						'instagram' => $cliente->instagram,
+						'tiktok' => $cliente->tiktok,
+						'whatsapp' => $cliente->whatsapp,
+						'phone' => $cliente->phone,
+					]
+				]);
+			}
+
 			return redirect()->route('admin.clientes.index')
 						   ->with('success', 'Cliente criado com sucesso!');
 
@@ -192,6 +224,10 @@ class ClienteController extends Controller
 			DB::rollBack();
 			Log::error('Erro ao criar cliente: ' . $e->getMessage());
 			
+			if ($request->ajax() || $request->wantsJson()) {
+				return response()->json(['success' => false, 'message' => 'Erro ao criar cliente: ' . $e->getMessage()], 500);
+			}
+
 			return redirect()->back()
 						   ->with('error', 'Erro ao criar cliente.')
 						   ->withInput();

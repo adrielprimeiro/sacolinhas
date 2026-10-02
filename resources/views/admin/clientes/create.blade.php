@@ -76,19 +76,35 @@
                 </div>
             </div>
 
-            {{-- Limite de Crédito --}}
-            <div>
-                <label for="limite_credito" class="block text-xs font-bold text-gray-500 uppercase mb-1">
-                    <i class="fas fa-wallet text-indigo-500 mr-1"></i> Limite de Crédito (R$)
-                </label>
-                <div class="flex">
-                    <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">R$</span>
-                    <input type="number" step="0.01" min="0" name="limite_credito" id="limite_credito" 
-                           value="{{ old('limite_credito', '300.00') }}"
-                           placeholder="300,00"
-                           class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none @error('limite_credito') border-red-500 @enderror">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {{-- Telefone / WhatsApp --}}
+                <div>
+                    <label for="telefone" class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        <i class="fab fa-whatsapp text-emerald-500 mr-1"></i> Telefone / WhatsApp
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm"><i class="fas fa-phone"></i></span>
+                        <input type="text" name="telefone" id="telefone" value="{{ old('telefone', old('phone', old('whatsapp'))) }}"
+                               placeholder="(11) 99999-9999"
+                               class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none @error('telefone') border-red-500 @enderror">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Celular com DDD para mensagens e avisos</p>
                 </div>
-                <p class="text-[10px] text-gray-400 mt-1">Limite inicial disponível para compras em sacolas ou lives (Padrão: R$ 300,00)</p>
+
+                {{-- Limite de Crédito --}}
+                <div>
+                    <label for="limite_credito" class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        <i class="fas fa-wallet text-indigo-500 mr-1"></i> Limite de Crédito (R$)
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">R$</span>
+                        <input type="number" step="0.01" min="0" name="limite_credito" id="limite_credito" 
+                               value="{{ old('limite_credito', '300.00') }}"
+                               placeholder="300,00"
+                               class="w-full border border-gray-200 rounded-r-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none @error('limite_credito') border-red-500 @enderror">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Limite inicial (Padrão: R$ 300,00)</p>
+                </div>
             </div>
 
             {{-- Caixa de Preview em Tempo Real --}}

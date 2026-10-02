@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ItemController;
 use App\Models\Live;
 use App\Models\LiveMessage;
 use App\Models\LiveCodeRequest;
 use App\Models\User;
+use App\Models\Cliente;
 use App\Models\Item;
 use App\Models\Sacolinhas;
 use Illuminate\Http\Request;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Hash;
 
 class LiveChatController extends Controller
 {
@@ -2391,5 +2394,198 @@ class LiveChatController extends Controller
 
             return null;
         });
+    }
+
+    /**
+     * Cadastro Rápido de Cliente direto do Chat da Transmissão
+     */
+    public function quickStoreClient(Request $request)
+    {
+        $request->validate([
+            'name' => 'nullable|string|max:255',
+            'instagram' => 'nullable|string|max:255',
+            'tiktok' => 'nullable|string|max:255',
+            'telefone' => 'nullable|string|max:50',
+            'whatsapp' => 'nullable|string|max:50',
+            'limite_credito' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $nomeCliente = trim($request->input('name') ?: '');
+            $instagram = trim($request->input('instagram') ?: '');
+            $tiktok = trim($request->input('tiktok') ?: '');
+
+            if (empty($nomeCliente)) {
+                if (!empty($instagram)) {
+                    $nomeCliente = $instagram;
+                } elseif (!empty($tiktok)) {
+                    $nomeCliente = $tiktok;
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Preencha pelo menos o Nome, Instagram ou TikTok.'
+                    ], 422);
+                }
+            }
+
+            $nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $nomeCliente));
+            $emailAutomatico = ($nomeParaEmail ?: 'cliente' . time()) . '@mania.com';
+            if (User::where('email', $emailAutomatico)->exists()) {
+                $emailAutomatico = ($nomeParaEmail ?: 'cliente') . '_' . time() . '@mania.com';
+            }
+
+            $rawPhone = $request->input('telefone') ?: ($request->input('whatsapp') ?: $request->input('phone'));
+            $phoneDigits = $rawPhone ? preg_replace('/\D/', '', $rawPhone) : null;
+
+            $cliente = Cliente::create([
+                'name' => $nomeCliente,
+                'email' => $emailAutomatico,
+                'password' => Hash::make('123456'),
+                'role' => 'client',
+                'instagram' => $instagram ?: null,
+                'tiktok' => $tiktok ?: null,
+                'whatsapp' => $phoneDigits,
+                'phone' => $phoneDigits,
+                'telefone_principal' => $phoneDigits,
+            ]);
+
+            $limiteCredito = $request->filled('limite_credito') ? (float) $request->limite_credito : 300.00;
+            \App\Models\ClienteLimite::create([
+                'user_id' => $cliente->id,
+                'limite_credito' => $limiteCredito,
+                'limite_utilizado' => 0.00,
+                'limite_disponivel' => $limiteCredito,
+                'ativo' => true,
+            ]);
+
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                DB::table('brecho_clientes')->insertOrIgnore([
+                    'brecho_id' => auth()->user()->brecho_id,
+                    'user_id' => $cliente->id,
+                    'origem' => 'live_chat',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Cliente {$cliente->name} cadastrado com sucesso!",
+                'client' => [
+                    'id' => $cliente->id,
+                    'name' => $cliente->name,
+                    'instagram' => $cliente->instagram,
+                    'tiktok' => $cliente->tiktok,
+                    'whatsapp' => $cliente->whatsapp,
+                    'phone' => $cliente->phone,
+                    'limite_credito' => $limiteCredito
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("[LiveChat] Erro ao cadastrar cliente rápido: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao salvar cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cadastro Rápido de Produto direto do Chat da Transmissão
+     */
+    public function quickStoreProduct(Request $request)
+    {
+        $request->validate([
+            'descricao' => 'required|string|max:255',
+            'preco' => 'required',
+            'tamanho' => 'nullable|string|max:50',
+            'cor' => 'nullable|string|max:50',
+            'live_id' => 'nullable|integer',
+        ], [
+            'descricao.required' => 'Informe a descrição do produto.',
+            'preco.required' => 'Informe o preço de venda.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1;
+            $codigo = ItemController::generateNextCodigo($brechoId);
+
+            $precoRaw = $request->input('preco');
+            $precoClean = str_replace(['R$', ' ', '.'], '', $precoRaw);
+            $precoFloat = (float) str_replace(',', '.', $precoClean);
+
+            $desc = trim($request->input('descricao'));
+            $tamanho = trim($request->input('tamanho') ?: '');
+            $cor = trim($request->input('cor') ?: '');
+
+            $item = Item::create([
+                'brecho_id' => $brechoId,
+                'codigo' => $codigo,
+                'nome_do_produto' => $desc,
+                'descricao' => $desc,
+                'tamanho' => $tamanho ?: null,
+                'cor' => $cor ?: null,
+                'preco' => $precoFloat,
+                'custo' => 0.00,
+                'estado' => 'Seminovo',
+                'status' => 'disponivel',
+            ]);
+
+            $codigoLive = null;
+            $liveItemId = null;
+            $liveId = $request->input('live_id');
+
+            if ($liveId && $request->boolean('link_to_live', true)) {
+                $live = Live::find($liveId);
+                if ($live) {
+                    $lastCodigoLive = DB::table('live_items')->where('live_id', $live->id)->max('codigo_live') ?: 0;
+                    $nextCodigoLive = (int) $lastCodigoLive + 1;
+                    $codigoLive = $nextCodigoLive;
+
+                    $liveItemId = DB::table('live_items')->insertGetId([
+                        'live_id' => $live->id,
+                        'item_id' => $item->id,
+                        'codigo_live' => $nextCodigoLive,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Produto '{$item->nome_do_produto}' (Cód: {$item->codigo}) cadastrado com sucesso!",
+                'item' => [
+                    'id' => $item->id,
+                    'codigo' => $item->codigo,
+                    'nome' => $item->nome_do_produto,
+                    'descricao' => $item->descricao,
+                    'tamanho' => $item->tamanho,
+                    'cor' => $item->cor,
+                    'preco' => $item->preco,
+                    'preco_formatado' => 'R$ ' . number_format($item->preco, 2, ',', '.'),
+                    'codigo_live' => $codigoLive,
+                    'live_item_id' => $liveItemId
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("[LiveChat] Erro ao cadastrar produto rápido: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao cadastrar produto: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

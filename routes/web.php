@@ -291,6 +291,8 @@ Route::middleware('auth')->group(function () {
         Route::post('live-chat/start-video-cut', [\App\Http\Controllers\Admin\LiveChatController::class, 'startVideoCut'])->name('admin.live-chat.start-video-cut');
         Route::post('live-chat/finish-video-cut', [\App\Http\Controllers\Admin\LiveChatController::class, 'finishVideoCut'])->name('admin.live-chat.finish-video-cut');
         Route::get('live-chat/video-cuts', [\App\Http\Controllers\Admin\LiveChatController::class, 'getVideoCuts'])->name('admin.live-chat.video-cuts');
+        Route::post('live-chat/quick-store-client', [\App\Http\Controllers\Admin\LiveChatController::class, 'quickStoreClient'])->name('admin.live-chat.quick-store-client');
+        Route::post('live-chat/quick-store-product', [\App\Http\Controllers\Admin\LiveChatController::class, 'quickStoreProduct'])->name('admin.live-chat.quick-store-product');
 
         // ===== OBS RELAY — comunicação entre PC B (browser) e PC A (agente OBS) =====
         Route::get('obs-relay/health', [\App\Http\Controllers\Admin\ObsRelayController::class, 'health'])->name('admin.obs-relay.health');

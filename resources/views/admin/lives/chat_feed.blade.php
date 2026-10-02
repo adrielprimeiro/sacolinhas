@@ -272,15 +272,27 @@
                 <i class="fas fa-expand"></i>
             </button>
 
+            <!-- Botão Novo Cliente -->
+            <button type="button" onclick="openQuickClientModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Cadastrar Novo Cliente">
+                <i class="fas fa-user-plus text-xs text-emerald-200"></i>
+                <span>+ Cliente</span>
+            </button>
+
+            <!-- Botão Novo Produto -->
+            <button type="button" onclick="openQuickProductModal()" class="bg-purple-600 hover:bg-purple-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Cadastrar Novo Produto">
+                <i class="fas fa-tag text-xs text-purple-200"></i>
+                <span>+ Produto</span>
+            </button>
+
             <!-- Botão Contador (Telão) -->
-            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
-                <i class="fas fa-calculator text-xs text-emerald-200"></i>
+            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
+                <i class="fas fa-calculator text-xs text-indigo-200"></i>
                 <span>Contador</span>
             </a>
 
             @if($activeLive)
                 <!-- Central de Cortes da Live -->
-                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">
+                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-600 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">
                     <i class="fas fa-film text-xs text-indigo-200"></i>
                     <span>Cortes & Vídeos</span>
                 </a>
@@ -541,7 +553,156 @@
             <button type="button" onclick="closeManualBuyerSearchModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl transition cursor-pointer">
                 Fechar
             </button>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE CLIENTE -->
+<div id="modal-quick-client" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-extrabold tracking-tight text-white">Cadastrar Novo Cliente</h3>
+                    <p class="text-[11px] text-emerald-100 font-medium">Disponível imediatamente para vincular compras</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickClientModal()" class="text-emerald-100 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
         </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickClient(event)" class="p-5 space-y-3.5">
+            <div>
+                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Nome Completo</label>
+                <input type="text" id="quick-client-name" placeholder="Ex: Maria Eduarda Silva" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-500 focus:outline-none">
+                <p class="text-[10px] text-gray-400 mt-0.5">Se vazio, usará o @ do Instagram/TikTok.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                        <i class="fab fa-instagram text-pink-500 mr-0.5"></i> Instagram
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">@</span>
+                        <input type="text" id="quick-client-instagram" placeholder="usuario" class="w-full px-2.5 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                        <i class="fab fa-tiktok text-black mr-0.5"></i> TikTok
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">@</span>
+                        <input type="text" id="quick-client-tiktok" placeholder="usuario" class="w-full px-2.5 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                        <i class="fab fa-whatsapp text-emerald-500 mr-0.5"></i> Telefone / WhatsApp
+                    </label>
+                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                        <i class="fas fa-wallet text-indigo-500 mr-0.5"></i> Limite de Crédito
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">R$</span>
+                        <input type="number" step="0.01" min="0" id="quick-client-limite" value="300.00" class="w-full px-2.5 py-2 text-xs font-bold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                <button type="button" onclick="closeQuickClientModal()" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-client" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                    <i class="fas fa-check"></i> Salvar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE PRODUTO -->
+<div id="modal-quick-product" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-tag"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-extrabold tracking-tight text-white">Cadastrar Novo Produto</h3>
+                    <p class="text-[11px] text-purple-100 font-medium">Gera código de barras automaticamente para bipar na live</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickProductModal()" class="text-purple-100 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickProduct(event)" class="p-5 space-y-3.5">
+            <div>
+                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                    Descrição do Produto <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:border-purple-500 focus:outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Tamanho</label>
+                    <input type="text" id="quick-prod-tamanho" placeholder="Ex: M, 38, G, Único" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Cor</label>
+                    <input type="text" id="quick-prod-cor" placeholder="Ex: Azul, Preto, Estampado" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
+                    Preço de Venda (R$) <span class="text-red-500">*</span>
+                </label>
+                <div class="flex">
+                    <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-600 text-xs font-bold">R$</span>
+                    <input type="text" id="quick-prod-preco" required placeholder="45,00" class="w-full px-3 py-2 text-sm font-black text-gray-900 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                </div>
+            </div>
+
+            @if($activeLive)
+                <label class="flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer">
+                    <input type="checkbox" id="quick-prod-link-live" checked class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                    <span class="text-xs font-bold text-purple-900">
+                        Vincular automaticamente à Live #{{ $activeLive->id }} (Gera Código da Live)
+                    </span>
+                </label>
+            @endif
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                <button type="button" onclick="closeQuickProductModal()" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-prod" class="bg-purple-600 hover:bg-purple-700 text-white font-black px-5 py-2 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                    <i class="fas fa-barcode"></i> Cadastrar e Gerar Código
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1090,120 +1251,16 @@
     let micTranscriptTimer = null;
 
     function initScanSpeech() {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) {
-            console.warn('[Scan] SpeechRecognition não suportado neste navegador.');
-            updateMicDot(false, 'Voz não suportada neste navegador');
-            return;
-        }
-
-        if (bgSpeechRecog && bgSpeechActive) return;
-
-        try {
-            bgSpeechRecog = new SR();
-            bgSpeechRecog.lang = 'pt-BR';
-            bgSpeechRecog.continuous = true;
-            bgSpeechRecog.interimResults = true;
-            bgSpeechRecog.maxAlternatives = 5;
-
-            bgSpeechRecog.onresult = function(event) {
-                let currentPreview = '';
-                let foundCodeInTurn = null;
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    const res = event.results[i];
-                    if (res[0]) {
-                        currentPreview = res[0].transcript;
-                    }
-
-                    // Percorre todas as alternativas oferecidas pelo reconhecimento
-                    for (let a = 0; a < res.length; a++) {
-                        const transcript = res[a].transcript;
-
-
-                        const detectedCode = extractCodeFromSpokenText(transcript);
-                        if (detectedCode) {
-                            foundCodeInTurn = detectedCode;
-                            break;
-                        }
-                    }
-                    if (foundCodeInTurn) break;
-                }
-
-                // Se identificou um código válido
-                if (foundCodeInTurn) {
-                    const now = Date.now();
-                    const liveInput = document.getElementById('scan-live-code');
-                    const isDifferentOrEmpty = !liveInput || !liveInput.value || liveInput.value.trim().toUpperCase() !== foundCodeInTurn;
-
-                    if (isDifferentOrEmpty || (now - lastSpokenTime) > 1500) {
-                        lastSpokenCode = foundCodeInTurn;
-                        lastSpokenTime = now;
-                        applySpokenLiveCode(foundCodeInTurn);
-                    }
-                }
-
-                // Atualiza o feedback visual do que o microfone está ouvindo em tempo real
-                if (currentPreview) {
-                    showMicTranscript(currentPreview, foundCodeInTurn);
-                }
-            };
-
-            bgSpeechRecog.onerror = function(e) {
-                if (e.error !== 'no-speech') {
-                    console.warn('[Scan] Speech error:', e.error);
-                    if (e.error === 'not-allowed') {
-                        updateMicDot(false, 'Microfone bloqueado: autorize no navegador');
-                    }
-                }
-            };
-
-            bgSpeechRecog.onend = function() {
-                // Reinicia continuamente se ativo para manter a escuta sem interrupções
-                if (bgSpeechActive) {
-                    setTimeout(function() {
-                        try {
-                            if (bgSpeechActive) bgSpeechRecog.start();
-                        } catch(e) {}
-                    }, 200);
-                }
-            };
-
-            bgSpeechRecog.start();
-            bgSpeechActive = true;
-            updateMicDot(true, 'Microfone super sensível ouvindo...');
-            updateScanDevicesBtn();
-        } catch(e) {
-            console.warn('[Scan] Erro ao iniciar microfone:', e.message);
-            updateMicDot(false, 'Microfone: ' + e.message);
-            updateScanDevicesBtn();
-        }
+        // Opção de voz desativada conforme solicitação
+        return;
     }
 
     function showMicTranscript(text, detectedCode) {
-        const preview = document.getElementById('mic-transcript-preview');
-        const textEl = document.getElementById('mic-transcript-text');
-        if (preview && textEl) {
-            if (detectedCode) {
-                textEl.innerHTML = `"${escapeHtml(text.trim())}" &rarr; <span class="text-emerald-700 font-extrabold bg-emerald-100 px-1.5 py-0.5 rounded shadow-sm">Código: ${escapeHtml(detectedCode)}</span>`;
-            } else {
-                textEl.textContent = `"${text.trim()}"`;
-            }
-            preview.classList.remove('hidden');
-            clearTimeout(micTranscriptTimer);
-            micTranscriptTimer = setTimeout(() => {
-                preview.classList.add('hidden');
-            }, 3500);
-        }
+        // Desativado
     }
 
     function stopScanSpeech() {
-        if (bgSpeechRecog) {
-            bgSpeechActive = false;
-            try { bgSpeechRecog.stop(); } catch(e) {}
-            updateMicDot(false, 'Microfone parado');
-            updateScanDevicesBtn();
-        }
+        // Desativado
     }
 
     function updateMicDot(active, label) {
@@ -1619,14 +1676,12 @@
         }
     }
 
-    /* ---- Controle Unificado (Ativar / Desativar Câmera e Voz) ------------- */
+    /* ---- Controle Câmera ------------- */
     function toggleScanDevices() {
-        if (!bgCameraActive || !bgSpeechActive) {
+        if (!bgCameraActive) {
             initScanCamera();
-            initScanSpeech();
         } else {
             stopScanCamera();
-            stopScanSpeech();
         }
     }
 
@@ -1635,15 +1690,12 @@
         const text = document.getElementById('scan-devices-btn-text');
         if (!btn) return;
 
-        if (bgCameraActive && bgSpeechActive) {
+        if (bgCameraActive) {
             btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition cursor-pointer";
-            if (text) text.textContent = "Desativar Dispositivos";
-        } else if (bgCameraActive || bgSpeechActive) {
-            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-indigo-700 hover:bg-indigo-50 transition cursor-pointer";
-            if (text) text.textContent = bgCameraActive ? "+ Ativar Microfone" : "+ Ativar Câmera";
+            if (text) text.textContent = "Desativar Câmera";
         } else {
             btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition cursor-pointer font-extrabold";
-            if (text) text.textContent = "Ativar Câmera e Voz";
+            if (text) text.textContent = "Ativar Câmera";
         }
     }
 
@@ -2675,7 +2727,12 @@
                 activeTag === 'textarea' || 
                 activeTag === 'select' || 
                 activeEl.isContentEditable ||
-                Boolean(activeEl.closest && (activeEl.closest('#manual-buyer-search-modal') || activeEl.closest('#link-user-modal')))
+                Boolean(activeEl.closest && (
+                    activeEl.closest('#manual-buyer-search-modal') || 
+                    activeEl.closest('#link-user-modal') ||
+                    activeEl.closest('#modal-quick-client') ||
+                    activeEl.closest('#modal-quick-product')
+                ))
             )
         );
 
@@ -2763,7 +2820,6 @@
 
     function initScanSystem() {
         loadInitialLinkedLiveItems();
-        initScanSpeech();
         initScannerFocusEvents();
     }
 
@@ -4144,6 +4200,169 @@
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
         }, duration);
+    }
+
+    // =========================================================================
+    // MODAIS DE CADASTRO RÁPIDO (CLIENTE & PRODUTO)
+    // =========================================================================
+    function openQuickClientModal() {
+        const nameEl = document.getElementById('quick-client-name');
+        const instaEl = document.getElementById('quick-client-instagram');
+        const tiktokEl = document.getElementById('quick-client-tiktok');
+        const phoneEl = document.getElementById('quick-client-phone');
+        const limiteEl = document.getElementById('quick-client-limite');
+
+        if (nameEl) nameEl.value = '';
+        if (instaEl) instaEl.value = '';
+        if (tiktokEl) tiktokEl.value = '';
+        if (phoneEl) phoneEl.value = '';
+        if (limiteEl) limiteEl.value = '300.00';
+
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (nameEl) nameEl.focus();
+        }, 100);
+    }
+
+    function closeQuickClientModal() {
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickClient(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-client');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const name = (document.getElementById('quick-client-name')?.value || '').trim();
+        const instagram = (document.getElementById('quick-client-instagram')?.value || '').trim().replace(/^@/, '');
+        const tiktok = (document.getElementById('quick-client-tiktok')?.value || '').trim().replace(/^@/, '');
+        const phone = (document.getElementById('quick-client-phone')?.value || '').trim();
+        const limite = (document.getElementById('quick-client-limite')?.value || '').trim();
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-client') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    instagram: instagram,
+                    tiktok: tiktok,
+                    phone: phone,
+                    limite_credito: limite
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                showToast(data.message || 'Cliente cadastrado com sucesso!', 'success');
+                closeQuickClientModal();
+                // Se a busca avulsa de cliente estiver aberta, refresca a busca
+                const searchInput = document.getElementById('manual-buyer-search-input');
+                if (searchInput && searchInput.value) {
+                    handleManualBuyerSearchInput(searchInput.value);
+                }
+            } else {
+                showToast(data.message || 'Erro ao cadastrar cliente.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao cadastrar cliente:', err);
+            showToast('Erro de conexão ao cadastrar cliente.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Salvar Cliente';
+            }
+        }
+    }
+
+    function openQuickProductModal() {
+        const descEl = document.getElementById('quick-prod-descricao');
+        const tamEl = document.getElementById('quick-prod-tamanho');
+        const corEl = document.getElementById('quick-prod-cor');
+        const precoEl = document.getElementById('quick-prod-preco');
+        const linkCheck = document.getElementById('quick-prod-link-live');
+
+        if (descEl) descEl.value = '';
+        if (tamEl) tamEl.value = '';
+        if (corEl) corEl.value = '';
+        if (precoEl) precoEl.value = '';
+        if (linkCheck) linkCheck.checked = true;
+
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (descEl) descEl.focus();
+        }, 100);
+    }
+
+    function closeQuickProductModal() {
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickProduct(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-product') || event.target.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const descricao = (document.getElementById('quick-prod-descricao')?.value || '').trim();
+        const tamanho = (document.getElementById('quick-prod-tamanho')?.value || '').trim();
+        const cor = (document.getElementById('quick-prod-cor')?.value || '').trim();
+        const preco = (document.getElementById('quick-prod-preco')?.value || '').trim();
+        const linkLive = document.getElementById('quick-prod-link-live') ? document.getElementById('quick-prod-link-live').checked : false;
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-product') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    descricao: descricao,
+                    tamanho: tamanho,
+                    cor: cor,
+                    preco: preco,
+                    live_id: {{ $activeLive ? $activeLive->id : 'null' }},
+                    link_to_live: linkLive
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                const code = data.item ? data.item.codigo : '';
+                showToast(`Produto ${code} cadastrado com sucesso!`, 'success');
+                closeQuickProductModal();
+                if (code) {
+                    addScanItem(code, 'manual');
+                }
+            } else {
+                showToast(data.message || 'Erro ao cadastrar produto.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao cadastrar produto:', err);
+            showToast('Erro de conexão ao cadastrar produto.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Salvar Produto';
+            }
+        }
     }
 
     // =========================================================================
