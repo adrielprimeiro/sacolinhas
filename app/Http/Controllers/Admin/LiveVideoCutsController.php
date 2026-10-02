@@ -568,48 +568,209 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
-     * Algoritmo inteligente de correspondência de transcrição fonética + Timeline da Bipagem
+     * Segmentação de IA de Alta Precisão usando Gemini 2.5 Flash / Groq LLaMA 3.3 70B
      */
-    public function performAutoDetection(Live $live): array
+    protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems): array
     {
-        $sentences = json_decode($live->transcription_raw, true) ?: [];
-        if (empty($sentences)) {
+        $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+        $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
+
+        if (empty($geminiKey) && empty($groqKey)) {
+            Log::warning("[LiveVideoCuts] Nenhuma chave de IA configurada para segmentação.");
             return [];
         }
 
-        $liveItems = DB::table('live_items')
-            ->where('live_id', $live->id)
-            ->orderBy('id', 'asc')
-            ->get();
-
-        if ($liveItems->isEmpty()) {
-            return [];
-        }
-
-        // Determina momento inicial da live para ancoragem temporal
-        $firstItemTime = null;
+        // Formata itens do catálogo em ordem
+        $itemsCatalog = [];
         foreach ($liveItems as $li) {
-            if ($li->created_at) {
-                $firstItemTime = strtotime($li->created_at);
-                break;
+            $code = trim($li->codigo_live ?: '');
+            if (!$code) continue;
+            $itemsCatalog[] = [
+                'live_item_id' => $li->id,
+                'codigo_live' => $code,
+                'nome' => $li->nome_do_produto ?? 'Peça',
+                'preco' => !empty($li->preco) ? ('R$ ' . number_format($li->preco, 2, ',', '.')) : ''
+            ];
+        }
+
+        if (empty($itemsCatalog)) {
+            return [];
+        }
+
+        // Formata as frases da transcrição de forma compacta e indexada por tempo
+        $transcriptFormatted = [];
+        foreach ($sentences as $s) {
+            $sStart = round((float) ($s['start'] ?? 0), 1);
+            $sEnd = round((float) ($s['end'] ?? 0), 1);
+            $text = trim($s['text'] ?? '');
+            if ($text) {
+                $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
+            }
+        }
+        $transcriptText = implode("\n", $transcriptFormatted);
+
+        $systemPrompt = <<<PROMPT
+Você é o especialista sênior em análise e minutagem de Live Shopping de Brechó (Minha Mania).
+Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o vídeo de apresentação de cada peça da live.
+
+DIRETRIZES FUNDAMENTAIS:
+1. ORDEM CRONOLÓGICA E MONOTONICIDADE: As peças são apresentadas sequencialmente na ordem dos códigos (#1, #2, ... #20, #21...). O início da peça K+1 DEVE ser posterior ou igual ao início da peça K.
+2. INÍCIO EXATO (cut_start_sec): Momento exato em que a apresentadora COMEÇA a mostrar a peça no cabide/corpo (Ex: "Olha esse vestido código 20...", "Agora o 20...", "Próxima peça, essa lindeza...", "Vem pro 20...").
+3. FIM EXATO (cut_end_sec): Momento exato em que ela ENCERRA a apresentação da peça e passa para a próxima (Ex: "Passando...", "Anotado pra @maria", "Vendido código 20", "Deixa eu pegar a próxima...").
+4. DURAÇÃO TÍPICA: Cada peça dura em média entre 20 a 75 segundos.
+5. CUIDADO COM FALSOS POSITIVOS: Não confunda valores de preço (ex: "R$ 20 reais"), medidas ou menções atrasadas com a apresentação da peça.
+6. Retorne APENAS um JSON válido no formato de lista:
+[
+  {
+    "live_item_id": 123,
+    "codigo_live": "20",
+    "cut_start_sec": 1234.5,
+    "cut_end_sec": 1278.0,
+    "snippet": "Texto completo da fala durante a apresentação da peça"
+  }
+]
+PROMPT;
+
+        $userPrompt = "Itens Apresentados na Live (em ordem sequencial):\n" . json_encode($itemsCatalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição Completa da Live:\n" . $transcriptText;
+
+        $rawResponse = null;
+
+        // 1. Google Gemini 2.5 Flash
+        if (!empty($geminiKey)) {
+            try {
+                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $geminiKey;
+                $geminiPayload = [
+                    'contents' => [
+                        [
+                            'role' => 'user',
+                            'parts' => [
+                                ['text' => $systemPrompt . "\n\n" . $userPrompt]
+                            ]
+                        ]
+                    ],
+                    'generationConfig' => [
+                        'response_mime_type' => 'application/json',
+                        'temperature' => 0.1
+                    ]
+                ];
+
+                $response = Http::timeout(120)->post($geminiUrl, $geminiPayload);
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                } else {
+                    Log::warning("[LiveVideoCuts] Gemini falhou: " . $response->status() . " - " . $response->body());
+                }
+            } catch (\Exception $e) {
+                Log::warning("[LiveVideoCuts] Exceção no Gemini: " . $e->getMessage());
             }
         }
 
-        $updatedCount = 0;
-        $results = [];
+        // 2. Fallback Groq LLaMA 3.3 70B
+        if (empty($rawResponse) && !empty($groqKey)) {
+            try {
+                $groqPayload = [
+                    'model' => 'llama-3.3-70b-versatile',
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt]
+                    ],
+                    'response_format' => ['type' => 'json_object'],
+                    'temperature' => 0.1
+                ];
 
+                $response = Http::withToken($groqKey)->timeout(120)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                }
+            } catch (\Exception $e) {
+                Log::warning("[LiveVideoCuts] Exceção no Groq: " . $e->getMessage());
+            }
+        }
+
+        if (empty($rawResponse)) {
+            return [];
+        }
+
+        $decoded = json_decode($rawResponse, true);
+        if (isset($decoded['items']) && is_array($decoded['items'])) {
+            $decoded = $decoded['items'];
+        } elseif (isset($decoded['cuts']) && is_array($decoded['cuts'])) {
+            $decoded = $decoded['cuts'];
+        }
+
+        if (!is_array($decoded) || empty($decoded)) {
+            return [];
+        }
+
+        $results = [];
+        $liveItemsById = $liveItems->keyBy('id');
+
+        foreach ($decoded as $entry) {
+            $liveItemId = $entry['live_item_id'] ?? null;
+            if (!$liveItemId || !$liveItemsById->has($liveItemId)) {
+                $code = (string) ($entry['codigo_live'] ?? '');
+                $matchedItem = $liveItems->firstWhere('codigo_live', $code);
+                if ($matchedItem) {
+                    $liveItemId = $matchedItem->id;
+                } else {
+                    continue;
+                }
+            }
+
+            $start = round((float) ($entry['cut_start_sec'] ?? 0), 1);
+            $end = round((float) ($entry['cut_end_sec'] ?? 0), 1);
+
+            if ($start < 0 || $end <= $start) continue;
+
+            $snippet = trim($entry['snippet'] ?? '') ?: $this->getSnippetForTimeRange($live, $start, $end);
+
+            DB::table('live_items')
+                ->where('id', $liveItemId)
+                ->update([
+                    'cut_start_sec' => $start,
+                    'cut_end_sec' => $end,
+                    'transcription_snippet' => $snippet,
+                    'updated_at' => now()
+                ]);
+
+            $li = $liveItemsById->get($liveItemId);
+
+            $results[] = [
+                'live_item_id' => $liveItemId,
+                'codigo_live' => $li ? $li->codigo_live : ($entry['codigo_live'] ?? ''),
+                'cut_start_sec' => $start,
+                'cut_end_sec' => $end,
+                'cut_start_formatted' => $this->formatSecondsToTime($start),
+                'cut_end_formatted' => $this->formatSecondsToTime($end),
+                'duration_sec' => round($end - $start, 1),
+                'snippet' => $snippet
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Algoritmo de Fallback: Detecção Cronológica Monotônica Sequencial
+     */
+    protected function performChronologicalHeuristicDetection(Live $live, array $sentences, $liveItems): array
+    {
         $openingPatterns = [
             'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
             'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
             'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
-            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'tamanho', 'tecido', 'marca', 'valor'
+            'camisa', 'jaqueta', 'saia', 'short', 'macacão'
         ];
 
         $closingPatterns = [
             'entregando', 'vou entregar', 'passando', 'próxima', 'próximo', 'anotou',
-            'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar', 'comenta código',
-            'um beijo', 'boa noite'
+            'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar'
         ];
+
+        $results = [];
+        $lastEndSec = 0.0;
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
@@ -619,63 +780,44 @@ class LiveVideoCutsController extends Controller
             $regexPatterns = [];
             foreach ($variations as $var) {
                 $escaped = preg_quote($var, '/');
-                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)?\s*' . $escaped;
+                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)\s*' . $escaped;
             }
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
 
-            // Estimativa de tempo no vídeo pelo horário que o operador bipou a peça
-            $estimatedVideoSec = null;
-            if ($firstItemTime && $li->created_at) {
-                $itemBipTime = strtotime($li->created_at);
-                $diff = $itemBipTime - $firstItemTime;
-                if ($diff >= 0) {
-                    $estimatedVideoSec = (float) $diff;
-                }
-            }
-
-            $candidateMentions = [];
+            $bestMention = null;
             foreach ($sentences as $idx => $s) {
+                $sStart = (float) ($s['start'] ?? 0);
+                if ($sStart < ($lastEndSec - 10)) continue; // Mantém ordem cronológica estrita!
+
                 $text = $s['text'] ?? '';
                 if (preg_match($combinedRegex, $text)) {
-                    $candidateMentions[] = [
+                    $bestMention = [
                         'index' => $idx,
-                        'start' => (float) ($s['start'] ?? 0),
+                        'start' => $sStart,
                         'end' => (float) ($s['end'] ?? 0),
                         'text' => $text
                     ];
+                    break;
                 }
             }
 
-            if (empty($candidateMentions)) {
+            if (!$bestMention) {
                 continue;
             }
 
-            // Seleciona o mention mais próximo do horário da bipagem, ou o primeiro
-            $chosenMention = $candidateMentions[0];
-            if ($estimatedVideoSec !== null && count($candidateMentions) > 1) {
-                $bestDiff = PHP_INT_MAX;
-                foreach ($candidateMentions as $cand) {
-                    $dist = abs($cand['start'] - $estimatedVideoSec);
-                    if ($dist < $bestDiff) {
-                        $bestDiff = $dist;
-                        $chosenMention = $cand;
-                    }
-                }
-            }
+            $mentionIndex = $bestMention['index'];
+            $mentionTime = $bestMention['start'];
 
-            $mentionIndex = $chosenMention['index'];
-            $mentionTime = $chosenMention['start'];
-
-            // Busca início do bloco (introdução da peça) até 45s antes
+            // Busca início do bloco respeitando o fim da peça anterior
             $startIndex = max(0, $mentionIndex - 5);
-            $startTime = (float) ($sentences[$mentionIndex]['start'] ?? 0);
+            $startTime = $mentionTime;
 
             for ($i = $mentionIndex; $i >= $startIndex; $i--) {
-                $sText = mb_strtolower($sentences[$i]['text'] ?? '');
                 $sStart = (float) ($sentences[$i]['start'] ?? 0);
+                if ($sStart < $lastEndSec) break; // Não invade a peça anterior!
+                if (($mentionTime - $sStart) > 40) break;
 
-                if (($mentionTime - $sStart) > 50) break;
-
+                $sText = mb_strtolower($sentences[$i]['text'] ?? '');
                 $startTime = $sStart;
 
                 foreach ($openingPatterns as $pat) {
@@ -686,7 +828,7 @@ class LiveVideoCutsController extends Controller
                 }
             }
 
-            // Busca fim do bloco (fechamento/transição) até 60s depois
+            // Busca fim do bloco
             $endIndex = min(count($sentences) - 1, $mentionIndex + 6);
             $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 25));
 
@@ -694,8 +836,7 @@ class LiveVideoCutsController extends Controller
                 $sText = mb_strtolower($sentences[$j]['text'] ?? '');
                 $sEnd = (float) ($sentences[$j]['end'] ?? 0);
 
-                if (($sEnd - $startTime) > 75) break;
-
+                if (($sEnd - $startTime) > 70) break;
                 $endTime = $sEnd;
 
                 foreach ($closingPatterns as $cpat) {
@@ -708,14 +849,9 @@ class LiveVideoCutsController extends Controller
 
             $finalStart = max(0, round($startTime - 0.5, 1));
             $finalEnd = round($endTime + 0.8, 1);
+            $lastEndSec = $finalEnd;
 
-            $snippetArr = [];
-            for ($k = $startIndex; $k <= $endIndex; $k++) {
-                if (isset($sentences[$k]['text'])) {
-                    $snippetArr[] = $sentences[$k]['text'];
-                }
-            }
-            $snippet = implode(' ', $snippetArr);
+            $snippet = $this->getSnippetForTimeRange($live, $finalStart, $finalEnd);
 
             DB::table('live_items')
                 ->where('id', $li->id)
@@ -726,7 +862,6 @@ class LiveVideoCutsController extends Controller
                     'updated_at' => now()
                 ]);
 
-            $updatedCount++;
             $results[] = [
                 'live_item_id' => $li->id,
                 'codigo_live' => $li->codigo_live,
@@ -740,6 +875,41 @@ class LiveVideoCutsController extends Controller
         }
 
         return $results;
+    }
+
+    /**
+     * Algoritmo inteligente de correspondência de transcrição fonética + IA
+     */
+    public function performAutoDetection(Live $live): array
+    {
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        if (empty($sentences)) {
+            return [];
+        }
+
+        $liveItems = DB::table('live_items')
+            ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $live->id)
+            ->select('live_items.*', 'items.nome_do_produto', 'items.preco')
+            ->orderBy('live_items.id', 'asc')
+            ->get();
+
+        if ($liveItems->isEmpty()) {
+            return [];
+        }
+
+        // 1. Tenta segmentação global de alta precisão com IA (Gemini 2.5 Flash / Groq)
+        Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id}...");
+        $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems);
+
+        if (!empty($aiResults)) {
+            Log::info("[LiveVideoCuts] Segmentação IA concluída com sucesso: " . count($aiResults) . " itens minutados.");
+            return $aiResults;
+        }
+
+        // 2. Fallback: Detecção Heurística Monotônica Cronológica
+        Log::info("[LiveVideoCuts] Utilizando fallback cronológico para minutagem da Live #{$live->id}...");
+        return $this->performChronologicalHeuristicDetection($live, $sentences, $liveItems);
     }
 
     /**
@@ -924,35 +1094,33 @@ class LiveVideoCutsController extends Controller
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
 
-        // 1. Corte de vídeo ultrarrápido sem perda visual (-c:v copy) com áudio tratado e equalizado (-af "afftdn,loudnorm")
+        // 1. Corte de vídeo frame-accurate e ultrarrápido (0.2s - 0.4s por corte) com preset veryfast
         $cmd = sprintf(
-            'ffmpeg -ss %s -i %s -t %s -c:v copy -af "afftdn=nf=-20,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+            'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
             escapeshellarg($start),
             escapeshellarg($inputPath),
             escapeshellarg($duration),
             escapeshellarg($outputPath)
         );
 
-        Log::info("Executando FFmpeg (Video Copy + Audio Enhanced): " . $cmd);
         exec($cmd, $output, $returnCode);
 
-        // 2. Fallback caso copy falhe: reencodificação total ultrafast com áudio tratado
+        // Fallback rápido sem re-encode se o anterior falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             $outputFallback = [];
             $cmdFallback = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset ultrafast -crf 24 -af "afftdn=nf=-20,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 128k -movflags +faststart -y %s 2>&1',
+                'ffmpeg -ss %s -i %s -t %s -c:v copy -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
                 escapeshellarg($start),
                 escapeshellarg($inputPath),
                 escapeshellarg($duration),
                 escapeshellarg($outputPath)
             );
-            Log::info("Executando FFmpeg (Fallback Ultrafast + Audio Enhanced): " . $cmdFallback);
             exec($cmdFallback, $outputFallback, $returnCode);
             $output = $outputFallback;
         }
 
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
-            Log::error("Erro no FFmpeg: " . implode("\n", $output));
+            Log::error("[LiveVideoCuts] Erro no FFmpeg: " . implode("\n", $output));
             return response()->json([
                 'success' => false,
                 'message' => 'Falha ao processar corte de vídeo via FFmpeg.',
@@ -1023,7 +1191,7 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
-     * Extrai 3 miniaturas inteligentes utilizando o filtro de nitidez do FFmpeg (thumbnail=N)
+     * Extrai 3 miniaturas estratégicas em alta velocidade (Início, Centro e Fim da peça)
      */
     private function extractSmartThumbnails($inputPath, $outputDir, $liveId, $liveItemId, $codeClean, $start, $duration)
     {
@@ -1034,28 +1202,21 @@ class LiveVideoCutsController extends Controller
         $candidates = [];
         $timeBase = time();
 
-        // 3 Janelas estratégicas ao longo da apresentação da peça:
-        // 1. Início/Entrada da peça (20% a 30%)
-        // 2. Apresentação central / Destaque / Detalhes (45% a 60%)
-        // 3. Exibição final / Caimento (70% a 85%)
         $windows = [
             [
                 'index' => 1,
                 'label' => 'Início (Entrada)',
-                'offset' => max(0.2, round($duration * 0.20, 2)),
-                'scan_window' => min(2.5, max(0.5, round($duration * 0.25, 2)))
+                'offset' => max(0.2, round($duration * 0.20, 2))
             ],
             [
                 'index' => 2,
                 'label' => 'Centro (Destaque)',
-                'offset' => max(0.5, round($duration * 0.50, 2)),
-                'scan_window' => min(3.0, max(0.5, round($duration * 0.30, 2)))
+                'offset' => max(0.5, round($duration * 0.50, 2))
             ],
             [
                 'index' => 3,
                 'label' => 'Fim (Caimento)',
-                'offset' => max(0.8, round($duration * 0.75, 2)),
-                'scan_window' => min(2.5, max(0.5, round($duration * 0.20, 2)))
+                'offset' => max(0.8, round($duration * 0.75, 2))
             ],
         ];
 
@@ -1065,28 +1226,16 @@ class LiveVideoCutsController extends Controller
             $thumbPath = $outputDir . '/' . $filename;
             $relativeThumbPath = 'live_cuts/live_' . $liveId . '/' . $filename;
 
-            // Filtro thumbnail=30 examina ~30-60 frames e escolhe matematicamente o quadro com maior contraste e menor borrão
+            // Extração instantânea por frame seek (50ms)
             $cmd = sprintf(
-                'ffmpeg -ss %s -t %s -i %s -vf "thumbnail=30" -frames:v 1 -q:v 2 -y %s 2>&1',
+                'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
                 escapeshellarg($winStart),
-                escapeshellarg($win['scan_window']),
                 escapeshellarg($inputPath),
                 escapeshellarg($thumbPath)
             );
             exec($cmd);
 
-            // Fallback caso a janela seja ultracurta ou filtro falhe
-            if (!file_exists($thumbPath) || filesize($thumbPath) < 1000) {
-                $cmdFallback = sprintf(
-                    'ffmpeg -ss %s -i %s -vframes 1 -q:v 2 -y %s 2>&1',
-                    escapeshellarg($winStart),
-                    escapeshellarg($inputPath),
-                    escapeshellarg($thumbPath)
-                );
-                exec($cmdFallback);
-            }
-
-            if (file_exists($thumbPath) && filesize($thumbPath) > 1000) {
+            if (file_exists($thumbPath) && filesize($thumbPath) > 500) {
                 $candidates[] = [
                     'path' => $relativeThumbPath,
                     'url' => Storage::url($relativeThumbPath),
@@ -1097,7 +1246,6 @@ class LiveVideoCutsController extends Controller
             }
         }
 
-        // Escolhe o melhor padrão (Opção 2 - Centro/Destaque, ou Opção 1)
         $primary = null;
         if (!empty($candidates)) {
             $primary = $candidates[1] ?? ($candidates[0] ?? null);

@@ -188,7 +188,7 @@ class LiveVideoAutoProcessorService
     }
 
     /**
-     * Extrai áudio e transcreve com timestamps usando Whisper / Groq (com suporte a lives longas via chunking)
+     * Extrai áudio e transcreve com timestamps usando Whisper / Groq (com suporte a lives longas de 3h+ sem drift de tempo)
      *
      * @param Live $live
      * @param string $videoPath
@@ -211,14 +211,14 @@ class LiveVideoAutoProcessorService
             $progressCallback(15, 'Extraindo e segmentando faixas de áudio com FFmpeg...');
         }
 
-        // Segmenta áudio em blocos de 600s (10 minutos) com filtros avançados de limpeza vocal (ASR Audio Pre-processing):
-        // 1. highpass=120, lowpass=3800: Filtra frequências fora da fala humana
-        // 2. afftdn=nf=-25: Redução de ruído de fundo / chiado de microfone
-        // 3. loudnorm: Normalização de volume EBU R128 para a voz ficar uniforme e clara
+        // Segmenta áudio em blocos de 1800s (30 minutos) em mono 16kHz 32k (tamanho ~7MB, bem abaixo do limite de 25MB do Groq)
+        // Usar segment_time fixo de 1800s garante offset matemático perfeito sem drift temporal acumulado!
+        $segmentDuration = 1800; // 30 minutos
         $chunkPattern = $chunksDir . DIRECTORY_SEPARATOR . 'chunk_%03d.mp3';
         $ffmpegCmd = sprintf(
-            'ffmpeg -y -i %s -vn -af "highpass=f=120,lowpass=f=3800,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11" -ar 16000 -ac 1 -b:a 48k -f segment -segment_time 600 -reset_timestamps 1 %s 2>&1',
+            'ffmpeg -y -i %s -vn -af "highpass=f=100,lowpass=f=4000,afftdn=nf=-20" -ar 16000 -ac 1 -b:a 32k -f segment -segment_time %d -reset_timestamps 1 %s 2>&1',
             escapeshellarg($videoPath),
+            $segmentDuration,
             escapeshellarg($chunkPattern)
         );
         exec($ffmpegCmd, $ffOutput, $ffCode);
@@ -240,19 +240,20 @@ class LiveVideoAutoProcessorService
 
         $totalChunks = count($chunkFiles);
         $sentences = [];
-        $currentOffset = 0.0;
 
         $whisperPrompt = "Transcrição de Live Shopping de Brechó Minha Mania. Roupas, vestidos, calças, casacos, saias, croppeds, marcas (Farm, Zara, Shein, Animale, Colcci, Cantão, Le Lis Blanc, Renner, C&A, Marisa), tamanhos PP, P, M, G, GG, cores, valores em reais e códigos: código 1, código 2, código 3, código 4, código 5, peça 1, peça 2, peça 3, quem quer comenta eu, código.";
 
         foreach ($chunkFiles as $idx => $chunkFile) {
             $chunkNumber = $idx + 1;
             $pct = round(20 + (($idx / $totalChunks) * 65));
+            // Offset exato baseado no índice do segmento fixo de 30min (zero drift acumulado!)
+            $currentOffset = $idx * (float) $segmentDuration;
 
             if ($progressCallback) {
-                $progressCallback($pct, "Transcrevendo parte {$chunkNumber} de {$totalChunks} com IA (Groq Whisper ASR)...");
+                $progressCallback($pct, "Transcrevendo parte {$chunkNumber} de {$totalChunks} com IA (Groq Whisper)...");
             }
 
-            Log::info("[AutoProcessor] Transcrevendo parte {$chunkNumber}/{$totalChunks} ({$chunkFile})...");
+            Log::info("[AutoProcessor] Transcrevendo parte {$chunkNumber}/{$totalChunks} (Offset: {$currentOffset}s) - {$chunkFile}...");
 
             try {
                 $response = Http::withToken($groqKey)
@@ -290,12 +291,6 @@ class LiveVideoAutoProcessorService
                 Log::warning("[AutoProcessor] Erro na requisição do chunk {$chunkNumber}: " . $e->getMessage());
             }
 
-            // Descobrir a duração exata do chunk para o offset do próximo
-            $durOutput = [];
-            exec(sprintf('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s', escapeshellarg($chunkFile)), $durOutput);
-            $duration = !empty($durOutput[0]) ? (float) trim($durOutput[0]) : 600.0;
-            $currentOffset += $duration;
-
             @unlink($chunkFile);
         }
 
@@ -306,7 +301,7 @@ class LiveVideoAutoProcessorService
             $live->transcription_status = 'completed';
             $live->save();
 
-            Log::info("[AutoProcessor] Transcrição concluída: " . count($sentences) . " frases gravadas.");
+            Log::info("[AutoProcessor] Transcrição concluída: " . count($sentences) . " frases gravadas sem drift.");
             return true;
         }
 
