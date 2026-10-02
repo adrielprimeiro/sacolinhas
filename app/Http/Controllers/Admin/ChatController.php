@@ -226,6 +226,34 @@ class ChatController extends Controller
 		return response()->json(['success' => true, 'message' => 'Conversa atribuída com sucesso.']);
 	}
 
+	public function getTwilioBalance()
+	{
+		$accountSid = config('services.twilio.account_sid');
+		$authToken  = config('services.twilio.auth_token');
+
+		if (!$accountSid || !$authToken) {
+			return response()->json(['success' => false, 'error' => 'Credenciais não configuradas.']);
+		}
+
+		try {
+			$resp = \Illuminate\Support\Facades\Http::withBasicAuth($accountSid, $authToken)
+				->get("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Balance.json");
+
+			if ($resp->successful()) {
+				$data = $resp->json();
+				return response()->json([
+					'success' => true, 
+					'balance' => $data['balance'] ?? 0, 
+					'currency' => $data['currency'] ?? 'USD'
+				]);
+			}
+
+			return response()->json(['success' => false, 'error' => 'Erro na API Twilio.']);
+		} catch (\Exception $e) {
+			return response()->json(['success' => false, 'error' => $e->getMessage()]);
+		}
+	}
+
 
 
 	public function sendMessage(Request $request)

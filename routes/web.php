@@ -662,6 +662,7 @@ Route::post('/lives/{liveId}/sacolas/{userId}/whatsapp/first', [LiveController::
     Route::get('/chat/api/conversations', [ChatController::class, 'getConversations'])->name('admin.chat.api.conversations');
     Route::get('/chat/api/messages/{userId}', [ChatController::class, 'getMessages'])->name('admin.chat.api.messages');
     Route::post('/chat/api/send', [ChatController::class, 'sendMessage'])->name('admin.chat.api.send');
+    Route::get('/twilio-balance', [ChatController::class, 'getTwilioBalance'])->name('admin.twilio.balance');
 });
 */
 // (Opcional) Agrupa rotas do admin para proteger com senha depois
@@ -677,7 +678,7 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     
     // NOVA ROTA: Download de mídia (anexos)
     Route::get('/chat/download/{id}', [ChatController::class, 'downloadMedia'])->name('admin.chat.download');
-    
+    Route::get('/chat/api/twilio-balance', [ChatController::class, 'getTwilioBalance'])->name('admin.chat.api.twilio-balance');
 })->withoutMiddleware([VerifyCsrfToken::class]);
 
 

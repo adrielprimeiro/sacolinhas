@@ -27,6 +27,9 @@
             <span class="spinner-border spinner-border-sm d-none" role="status"></span>
             Atualizar
         </button>
+        <div id="twilio-balance-badge" class="btn btn-outline-info btn-sm ms-2" onclick="fetchTwilioBalance()">
+            <i class="fas fa-wallet"></i> <span id="twilio-balance-text">Saldo Twilio: Carregando...</span>
+        </div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -239,9 +242,29 @@ function startAutoRefresh() {
     autoRefreshInterval = setInterval(loadStats, 30000); // 30 segundos
 }
 
+async function fetchTwilioBalance() {
+    const badge = document.getElementById('twilio-balance-text');
+    if (!badge) return;
+    badge.innerText = "Calculando...";
+    try {
+        const res = await fetch('{{ route("admin.chat.api.twilio-balance") }}', {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+            badge.innerText = `Saldo Twilio: ${data.currency} ${data.balance}`;
+        } else {
+            badge.innerText = "Erro ao carregar saldo";
+        }
+    } catch (e) {
+        badge.innerText = "Erro de rede";
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     startAutoRefresh();
+    fetchTwilioBalance();
 });
 </script>
 </body>

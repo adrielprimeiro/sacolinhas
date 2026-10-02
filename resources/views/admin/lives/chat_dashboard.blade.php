@@ -45,6 +45,11 @@
                 </button>
             @endif
 
+            <div id="twilio-balance-badge" class="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer" onclick="fetchTwilioBalance()">
+                <i class="fas fa-wallet"></i>
+                <span id="twilio-balance-text">Saldo Twilio: Carregando...</span>
+            </div>
+
             <div class="flex items-center gap-3 bg-white p-2.5 rounded-xl shadow-sm border border-gray-200">
                 <label for="live-select" class="text-xs font-bold text-gray-600">Live Ativa:</label>
                 <form action="{{ route('admin.live-chat.dashboard') }}" method="GET" class="flex gap-2">
@@ -2608,5 +2613,28 @@
         };
         return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
     }
+
+    async function fetchTwilioBalance() {
+        const badge = document.getElementById('twilio-balance-text');
+        if (!badge) return;
+        badge.innerText = "Calculando...";
+        try {
+            const res = await fetch('{{ route("admin.chat.api.twilio-balance") }}', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                badge.innerText = `Saldo Twilio: ${data.currency} ${data.balance}`;
+            } else {
+                badge.innerText = "Erro ao carregar saldo";
+            }
+        } catch (e) {
+            badge.innerText = "Erro de rede";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchTwilioBalance();
+    });
 </script>
 @endpush
