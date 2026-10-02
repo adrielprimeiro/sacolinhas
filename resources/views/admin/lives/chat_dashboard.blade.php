@@ -1709,8 +1709,9 @@
         } finally {
             setTimeout(() => {
                 isDashboardBarcodeProcessing = false;
+                const anyModalOpen = document.querySelector('#modal-quick-product:not(.hidden), #modal-quick-client:not(.hidden), #link-user-modal:not(.hidden), #online-qr-modal:not(.hidden), #insta-login-modal:not(.hidden)');
                 const input = document.getElementById("dashboard-barcode-input");
-                if (input && document.activeElement !== document.getElementById("avulso-search-input") && document.activeElement !== document.getElementById("modal-search-input")) {
+                if (input && !anyModalOpen && (!document.activeElement || (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'))) {
                     input.focus();
                 }
             }, 350);
@@ -1719,22 +1720,18 @@
 
     // Listener global para capturar leitor de código de barras físico USB / Sem fio
     window.addEventListener('keydown', function(e) {
-        const activeEl = document.activeElement;
-        const isEditingOtherInput = activeEl && (
-            activeEl.id === 'avulso-search-input' ||
-            activeEl.id === 'modal-search-input' ||
-            activeEl.id === 'online-qr-manual-input' ||
-            activeEl.id === 'online-qr-phone-input' ||
-            activeEl.tagName === 'TEXTAREA'
-        );
-
-        if (isEditingOtherInput) {
-            return; // Operador está usando outro campo de texto explicitamente
+        // Se qualquer modal estiver aberto, ignora completamente o leitor global
+        const anyModalOpen = document.querySelector('#modal-quick-product:not(.hidden), #modal-quick-client:not(.hidden), #link-user-modal:not(.hidden), #online-qr-modal:not(.hidden), #insta-login-modal:not(.hidden)');
+        if (anyModalOpen) {
+            globalBarcodeBuffer = "";
+            return;
         }
 
-        const barcodeInput = document.getElementById("dashboard-barcode-input");
-        if (activeEl === barcodeInput) {
-            return; // Já no campo de barcode
+        const activeEl = document.activeElement;
+        // Se o operador está com foco em qualquer campo de entrada, formulário ou textarea
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable)) {
+            globalBarcodeBuffer = "";
+            return; // Operador está digitando em um campo de texto explicitamente
         }
 
         const now = Date.now();
@@ -2417,6 +2414,12 @@
     // MODAIS DE CADASTRO RÁPIDO (CLIENTE & PRODUTO)
     // =========================================================================
     function openQuickClientModal() {
+        globalBarcodeBuffer = "";
+        if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
+
+        const barcodeInput = document.getElementById('dashboard-barcode-input');
+        if (barcodeInput) barcodeInput.blur();
+
         const nameEl = document.getElementById('quick-client-name');
         const instaEl = document.getElementById('quick-client-instagram');
         const tiktokEl = document.getElementById('quick-client-tiktok');
@@ -2433,8 +2436,11 @@
         if (modal) modal.classList.remove('hidden');
 
         setTimeout(() => {
-            if (nameEl) nameEl.focus();
-        }, 100);
+            if (nameEl) {
+                nameEl.focus();
+                nameEl.select();
+            }
+        }, 120);
     }
 
     function closeQuickClientModal() {
@@ -2501,6 +2507,15 @@
     }
 
     function openQuickProductModal() {
+        globalBarcodeBuffer = "";
+        if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
+
+        const barcodeInput = document.getElementById('dashboard-barcode-input');
+        if (barcodeInput) {
+            barcodeInput.value = '';
+            barcodeInput.blur();
+        }
+
         const descEl = document.getElementById('quick-prod-descricao');
         const tamEl = document.getElementById('quick-prod-tamanho');
         const corEl = document.getElementById('quick-prod-cor');
@@ -2517,8 +2532,11 @@
         if (modal) modal.classList.remove('hidden');
 
         setTimeout(() => {
-            if (descEl) descEl.focus();
-        }, 100);
+            if (descEl) {
+                descEl.focus();
+                descEl.select();
+            }
+        }, 120);
     }
 
     function closeQuickProductModal() {
