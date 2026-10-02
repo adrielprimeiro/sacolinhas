@@ -79,7 +79,8 @@ class LiveChatController extends Controller
                 ?? Live::orderBy('id', 'desc')->first();
         }
 
-        $initialCount = 0;
+        $initialPieceCode = 0;
+        $sacolinhasItensCount = 0;
         $initialTotalValue = 0;
         $initialTotalValueFormatted = 'R$ 0,00';
         $initialBipadosCount = 0;
@@ -93,7 +94,7 @@ class LiveChatController extends Controller
                 ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
                 ->first();
 
-            $initialCount = (int) ($sacolinhasTotals->total_itens ?? 0);
+            $sacolinhasItensCount = (int) ($sacolinhasTotals->total_itens ?? 0);
             $initialTotalValue = (float) ($sacolinhasTotals->total_valor ?? 0);
             $initialTotalValueFormatted = 'R$ ' . number_format($initialTotalValue, 2, ',', '.');
 
@@ -110,12 +111,15 @@ class LiveChatController extends Controller
                     ->first();
 
                 if ($lastRow) {
+                    $initialPieceCode = $lastRow->codigo_live ?: $lastRow->codigo;
                     $lastItem = [
-                        'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
+                        'codigo' => $initialPieceCode,
                         'nome' => $lastRow->nome_do_produto ?: 'Produto',
                         'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
                         'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
                     ];
+                } else {
+                    $initialPieceCode = $initialBipadosCount;
                 }
             }
         }
@@ -123,7 +127,8 @@ class LiveChatController extends Controller
         return view('admin.lives.contador', compact(
             'lives', 
             'activeLive', 
-            'initialCount', 
+            'initialPieceCode',
+            'sacolinhasItensCount', 
             'initialBipadosCount',
             'initialTotalValue', 
             'initialTotalValueFormatted', 
@@ -152,6 +157,7 @@ class LiveChatController extends Controller
                 'live_id' => null,
                 'live_name' => 'Nenhuma live selecionada',
                 'live_active' => false,
+                'piece_code' => 0,
                 'count' => 0,
                 'total_sacolinhas_itens' => 0,
                 'total_bipados' => 0,
@@ -168,7 +174,7 @@ class LiveChatController extends Controller
             ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
             ->first();
 
-        $count = (int) ($sacolinhasTotals->total_itens ?? 0);
+        $sacolinhasItensCount = (int) ($sacolinhasTotals->total_itens ?? 0);
         $totalValue = (float) ($sacolinhasTotals->total_valor ?? 0);
         $totalValueFormatted = 'R$ ' . number_format($totalValue, 2, ',', '.');
 
@@ -196,13 +202,16 @@ class LiveChatController extends Controller
             }
         }
 
+        $pieceCode = $lastItem ? $lastItem['codigo'] : $bipadosCount;
+
         return response()->json([
             'success' => true,
             'live_id' => $activeLive->id,
             'live_name' => $activeLive->nome ?: ('Live #' . $activeLive->id),
             'live_active' => (bool)$activeLive->ativo,
-            'count' => $count,
-            'total_sacolinhas_itens' => $count,
+            'piece_code' => $pieceCode,
+            'count' => $pieceCode,
+            'total_sacolinhas_itens' => $sacolinhasItensCount,
             'total_bipados' => $bipadosCount,
             'total_valor' => $totalValue,
             'total_valor_formatado' => $totalValueFormatted,
@@ -447,7 +456,8 @@ class LiveChatController extends Controller
                 'code' => $item->codigo,
                 'name' => $item->nome_do_produto ?: 'Produto',
                 'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
-                'total_count' => $totalLiveItems,
+                'total_count' => $codigoLive ?: $item->codigo,
+                'piece_code' => $codigoLive ?: $item->codigo,
                 'total_sacolinhas_itens' => $totalLiveItems,
                 'total_bipados' => $totalBipadosCount,
                 'total_valor' => $totalLiveValue,

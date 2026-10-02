@@ -224,7 +224,7 @@
         <div class="mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-3">
             <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
                 <i class="fas fa-shopping-bag text-purple-400"></i>
-                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $initialCount }}</strong> <span class="text-white/70">itens</span></span>
+                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $sacolinhasItensCount }}</strong> <span class="text-white/70">itens</span></span>
             </div>
 
             <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
@@ -239,13 +239,13 @@
             </div>
         </div>
 
-        <!-- The GIANT Number -->
+        <!-- The GIANT Number (Código da Peça / Sequência da Live) -->
         <div 
             id="counterNumber" 
             class="counter-num font-mono-numbers font-black tracking-tighter leading-none select-none my-auto"
             style="font-size: clamp(10rem, 28vw, 36rem);"
         >
-            {{ $initialCount }}
+            {{ $initialPieceCode }}
         </div>
 
         <!-- Subtitle / Last Biped Item Info (Collapsible) -->
@@ -298,7 +298,7 @@
         let activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
         const csrfToken = "{{ csrf_token() }}";
         const linkItemUrl = "{{ route('admin.live-chat.link-item-live') }}";
-        let currentCount = {{ $initialCount }};
+        let currentPieceCode = "{{ $initialPieceCode }}";
         let soundEnabled = true; // Habilitado por padrão para feedback ao bipar
         let showDetails = true;
         let isPolling = false;
@@ -396,7 +396,6 @@
         // Trigger Pop Animation on Counter & Count Badge
         function animateCounterChange(newVal) {
             counterEl.textContent = newVal;
-            if (totalItemsCountEl) totalItemsCountEl.textContent = newVal;
             counterEl.classList.remove('animate-pop');
             void counterEl.offsetWidth; // force reflow
             counterEl.classList.add('animate-pop');
@@ -486,15 +485,20 @@
                         activeLiveId = item.live_id;
                     }
 
-                    // 1. Atualiza o contador gigante e badges
-                    if (item.total_count !== undefined) {
-                        currentCount = item.total_count;
+                    // 1. Atualiza o contador gigante (código da peça)
+                    const pieceNum = item.piece_code || item.codigo_live || item.code || cleanBar;
+                    if (pieceNum !== undefined) {
+                        currentPieceCode = pieceNum;
+                        animateCounterChange(currentPieceCode);
                     }
-                    animateCounterChange(currentCount);
 
-                    // Atualiza o valor total acumulado
+                    // Atualiza o valor total acumulado e itens na sacola
                     if (item.total_valor_formatado) {
                         animateTotalValueChange(item.total_valor_formatado);
+                    }
+
+                    if (item.total_sacolinhas_itens !== undefined && totalItemsCountEl) {
+                        totalItemsCountEl.textContent = item.total_sacolinhas_itens;
                     }
 
                     if (item.total_bipados !== undefined && totalBipadosCountEl) {
@@ -622,10 +626,15 @@
                         activeLiveId = data.live_id;
                     }
 
-                    if (data.count !== currentCount) {
-                        currentCount = data.count;
-                        animateCounterChange(currentCount);
+                    const pieceNum = data.piece_code !== undefined ? data.piece_code : data.count;
+                    if (pieceNum !== undefined && String(pieceNum) !== String(currentPieceCode)) {
+                        currentPieceCode = pieceNum;
+                        animateCounterChange(currentPieceCode);
                         playChime();
+                    }
+
+                    if (data.total_sacolinhas_itens !== undefined && totalItemsCountEl) {
+                        totalItemsCountEl.textContent = data.total_sacolinhas_itens;
                     }
 
                     if (data.total_valor_formatado) {
