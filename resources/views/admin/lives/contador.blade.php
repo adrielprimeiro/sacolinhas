@@ -220,10 +220,18 @@
     <!-- Center Stage: GIANT COUNTER NUMBER -->
     <main class="flex-1 flex flex-col justify-center items-center w-full px-4 text-center cursor-pointer" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
         
-        <!-- Live Title Badge -->
-        <div id="liveBadge" class="mb-2 sm:mb-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur text-xs sm:text-sm font-bold uppercase tracking-widest text-white/70">
-            <i class="fas fa-barcode text-purple-400"></i>
-            <span>Itens Bipados na Live</span>
+        <!-- Live Stats Badges (Quantidade de Itens & Valor Total) -->
+        <div class="mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-3">
+            <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
+                <i class="fas fa-tshirt text-purple-400"></i>
+                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $initialCount }}</strong> <span class="text-white/70">peças</span></span>
+            </div>
+
+            <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
+                <i class="fas fa-coins text-emerald-400"></i>
+                <span class="text-white/70">Total:</span>
+                <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-sm sm:text-base">{{ $initialTotalValueFormatted }}</strong>
+            </div>
         </div>
 
         <!-- The GIANT Number -->
@@ -294,6 +302,9 @@
         let toastTimer = null;
 
         const counterEl = document.getElementById('counterNumber');
+        const totalItemsCountEl = document.getElementById('totalItemsCount');
+        const totalLiveValueTextEl = document.getElementById('totalLiveValueText');
+        const liveTotalValueBadge = document.getElementById('liveTotalValueBadge');
         const lastItemContainer = document.getElementById('lastItemContainer');
         const lastItemCode = document.getElementById('lastItemCode');
         const lastItemName = document.getElementById('lastItemName');
@@ -376,12 +387,27 @@
             }
         }
 
-        // Trigger Pop Animation on Counter
+        // Trigger Pop Animation on Counter & Count Badge
         function animateCounterChange(newVal) {
             counterEl.textContent = newVal;
+            if (totalItemsCountEl) totalItemsCountEl.textContent = newVal;
             counterEl.classList.remove('animate-pop');
             void counterEl.offsetWidth; // force reflow
             counterEl.classList.add('animate-pop');
+        }
+
+        // Trigger Pop Animation on Total Value Badge
+        function animateTotalValueChange(formattedVal) {
+            if (!totalLiveValueTextEl || !formattedVal) return;
+            totalLiveValueTextEl.textContent = formattedVal;
+            if (liveTotalValueBadge) {
+                liveTotalValueBadge.classList.remove('scale-105', 'bg-emerald-500/25');
+                void liveTotalValueBadge.offsetWidth;
+                liveTotalValueBadge.classList.add('scale-105', 'bg-emerald-500/25');
+                setTimeout(() => {
+                    liveTotalValueBadge.classList.remove('scale-105', 'bg-emerald-500/25');
+                }, 350);
+            }
         }
 
         // Floating Toast Notification
@@ -454,11 +480,16 @@
                         activeLiveId = item.live_id;
                     }
 
-                    // 1. Atualiza o contador gigante com animação (mantém contagem se já cadastrado)
+                    // 1. Atualiza o contador gigante e badges
                     if (item.total_count !== undefined) {
                         currentCount = item.total_count;
                     }
                     animateCounterChange(currentCount);
+
+                    // Atualiza o valor total acumulado
+                    if (item.total_valor_formatado) {
+                        animateTotalValueChange(item.total_valor_formatado);
+                    }
 
                     // 2. Atualiza os dados do Último Item Bipado
                     lastItemCode.textContent = '#' + (item.codigo_live || item.code || cleanBar);
@@ -585,6 +616,10 @@
                         currentCount = data.count;
                         animateCounterChange(currentCount);
                         playChime();
+                    }
+
+                    if (data.total_valor_formatado) {
+                        animateTotalValueChange(data.total_valor_formatado);
                     }
 
                     if (data.last_item) {

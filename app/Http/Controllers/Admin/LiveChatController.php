@@ -80,11 +80,20 @@ class LiveChatController extends Controller
         }
 
         $initialCount = 0;
+        $initialTotalValue = 0;
+        $initialTotalValueFormatted = 'R$ 0,00';
         $lastItem = null;
         if ($activeLive && Schema::hasTable('live_items')) {
             $initialCount = DB::table('live_items')
                 ->where('live_id', $activeLive->id)
                 ->count();
+
+            $initialTotalValue = (float) (DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $activeLive->id)
+                ->sum('items.preco') ?? 0);
+
+            $initialTotalValueFormatted = 'R$ ' . number_format($initialTotalValue, 2, ',', '.');
 
             $lastRow = DB::table('live_items')
                 ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -103,7 +112,14 @@ class LiveChatController extends Controller
             }
         }
 
-        return view('admin.lives.contador', compact('lives', 'activeLive', 'initialCount', 'lastItem'));
+        return view('admin.lives.contador', compact(
+            'lives', 
+            'activeLive', 
+            'initialCount', 
+            'initialTotalValue', 
+            'initialTotalValueFormatted', 
+            'lastItem'
+        ));
     }
 
     /**
@@ -128,6 +144,8 @@ class LiveChatController extends Controller
                 'live_name' => 'Nenhuma live selecionada',
                 'live_active' => false,
                 'count' => 0,
+                'total_valor' => 0,
+                'total_valor_formatado' => 'R$ 0,00',
                 'last_item' => null
             ]);
         }
@@ -135,6 +153,13 @@ class LiveChatController extends Controller
         $count = DB::table('live_items')
             ->where('live_id', $activeLive->id)
             ->count();
+
+        $totalValue = (float) (DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $activeLive->id)
+            ->sum('items.preco') ?? 0);
+
+        $totalValueFormatted = 'R$ ' . number_format($totalValue, 2, ',', '.');
 
         $lastRow = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -159,6 +184,8 @@ class LiveChatController extends Controller
             'live_name' => $activeLive->nome ?: ('Live #' . $activeLive->id),
             'live_active' => (bool)$activeLive->ativo,
             'count' => $count,
+            'total_valor' => $totalValue,
+            'total_valor_formatado' => $totalValueFormatted,
             'last_item' => $lastItem
         ]);
     }
@@ -372,6 +399,11 @@ class LiveChatController extends Controller
         }
 
         $totalLiveItems = DB::table('live_items')->where('live_id', $liveId)->count();
+        $totalLiveValue = (float) (DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $liveId)
+            ->sum('items.preco') ?? 0);
+        $totalLiveValueFormatted = 'R$ ' . number_format($totalLiveValue, 2, ',', '.');
 
         $message = $isAlreadyInLive 
             ? "Produto já cadastrado na live! Código Live: #{$codigoLive}"
@@ -392,6 +424,8 @@ class LiveChatController extends Controller
                 'name' => $item->nome_do_produto ?: 'Produto',
                 'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
                 'total_count' => $totalLiveItems,
+                'total_valor' => $totalLiveValue,
+                'total_valor_formatado' => $totalLiveValueFormatted,
                 'is_already_in_live' => $isAlreadyInLive,
                 'buyer_username' => $existingLiveItem->buyer_username ?? null,
                 'buyer_name' => $existingLiveItem->buyer_name ?? null,
