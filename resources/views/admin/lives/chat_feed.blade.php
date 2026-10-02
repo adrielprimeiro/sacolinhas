@@ -1652,22 +1652,29 @@
     }
 
     /**
-     * Procura no chat todos os clientes que comentaram o código da live ou código do item.
-     * Retorna a fila em ordem cronológica exata de quem pediu primeiro para o último.
+     * Procura no chat todos os clientes que comentaram querendo o código da live ou código do item.
+     * Ignora terminantemente mensagens que são telefones/WhatsApp ou comentários genéricos de conversa.
      */
-    function findAllSpeakersForCode(liveCode, code) {
+    function findAllSpeakersForCode(liveCode, code, itemTimestamp) {
         if (!allLiveMessages || allLiveMessages.length === 0) return [];
 
         const targets = [];
+        const shortLiveCodes = [];
+
         if (liveCode && String(liveCode).trim()) {
             const lc = String(liveCode).trim().toLowerCase();
-            if (lc) targets.push(lc);
-            if (/^\d+$/.test(lc)) {
-                const num = parseInt(lc, 10);
-                const rawNum = String(num);
-                if (!targets.includes(rawNum)) targets.push(rawNum);
-                const paddedNum = rawNum.length === 1 ? '0' + rawNum : rawNum;
-                if (!targets.includes(paddedNum)) targets.push(paddedNum);
+            if (lc) {
+                targets.push(lc);
+                if (/^\d+$/.test(lc)) {
+                    shortLiveCodes.push(lc);
+                    const num = parseInt(lc, 10);
+                    const rawNum = String(num);
+                    if (!targets.includes(rawNum)) targets.push(rawNum);
+                    if (!shortLiveCodes.includes(rawNum)) shortLiveCodes.push(rawNum);
+                    const paddedNum = rawNum.length === 1 ? '0' + rawNum : rawNum;
+                    if (!targets.includes(paddedNum)) targets.push(paddedNum);
+                    if (!shortLiveCodes.includes(paddedNum)) shortLiveCodes.push(paddedNum);
+                }
             }
         }
         if (code && String(code).trim()) {
@@ -1679,20 +1686,75 @@
         const queue = [];
         const seenUsers = new Set();
 
+        const itemTimeMs = itemTimestamp ? Number(itemTimestamp) : null;
+
         for (let i = 0; i < allLiveMessages.length; i++) {
             const msg = allLiveMessages[i];
             if (!msg || !msg.message) continue;
+
             const cleanUser = (msg.username || 'usuario').trim().toLowerCase();
             if (seenUsers.has(cleanUser)) continue;
 
-            const msgText = msg.message.toLowerCase();
+            const rawMsg = msg.message.trim();
+            const msgText = rawMsg.toLowerCase();
+
+            // 1. FILTRAR TELEFONES: Se a mensagem tiver 7 ou mais dígitos totais, é telefone de cadastro, não pedido!
+            const digitsOnly = msgText.replace(/\D/g, '');
+            if (digitsOnly.length >= 7) continue;
+
+            // 2. FILTRAR PADRÕES TELEFÔNICOS BRASILEIROS (ex: 19 9999-9999, (11) 98888-8888, 9999-8888)
+            if (/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s.]?\d{4}/.test(msgText) || /\b\d{4,5}[-\s.]\d{4}\b/.test(msgText)) {
+                continue;
+            }
+
+            // 3. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
+            if (itemTimeMs && msg.created_at) {
+                const msgTimeMs = new Date(msg.created_at).getTime();
+                if (msgTimeMs && (itemTimeMs - msgTimeMs) > (25 * 60 * 1000)) {
+                    continue;
+                }
+            }
+
             let matched = false;
 
+            // 4. Testar correspondência precisa com os alvos
             for (const target of targets) {
-                const regex = new RegExp('(?:^|[^a-z0-9])' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
-                if (regex.test(msgText) || msgText.trim() === target) {
+                // Caso A: Mensagem é EXATAMENTE o código ou #código (ex: "22", "#22", " 22 ", "022")
+                const cleanMsgOnly = msgText.replace(/^[#\s]+|[#\s]+$/g, '');
+                if (cleanMsgOnly === target || cleanMsgOnly === ('#' + target)) {
                     matched = true;
                     break;
+                }
+
+                // Caso B: Se for código curto de live (ex: "22", "19", "5"), validar intenção de compra ou separação estrita
+                if (shortLiveCodes.includes(target)) {
+                    // Ignora se for parte de preço, horas ou medidas
+                    if (new RegExp('(?:^|\\s)' + escapeRegex(target) + '(?:h|hrs|horas|reais|conto|\\$|cm|kg|m|g|%)(?:\\s|$)', 'i').test(msgText) ||
+                        new RegExp('(?:r\\$|\\$|custa|valor|preço|paguei)\\s*' + escapeRegex(target), 'i').test(msgText) ||
+                        new RegExp('(?:tenho|com)\\s*' + escapeRegex(target) + '\\s*(?:anos|ano)', 'i').test(msgText)) {
+                        continue;
+                    }
+
+                    // Padrões claros de pedido: "quero 22", "22 eu", "eu 22", "22 meu", "meu 22", "22 pra mim", "22 p", "22 m", "22 g", "22 k", "#22"
+                    const buyIntentRegex = new RegExp('(?:^|\\b)(?:quero|eu|meu|minha|leva|fica|pego|separa|reserva)?\\s*#?' + escapeRegex(target) + '\\s*(?:eu|quero|meu|minha|pra\\s*mim|por\\s*favor|p|m|g|gg|k|pfv)?(?:$|\\b)', 'i');
+                    
+                    // Regex de palavra isolada (delimitada por pontuação ou espaço)
+                    const isolatedRegex = new RegExp('(?:^|[^a-z0-9])#?' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
+
+                    if (buyIntentRegex.test(msgText) || isolatedRegex.test(msgText)) {
+                        // Certificar de que não é apenas um texto longo de conversa
+                        if (msgText.length <= 40) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // Caso C: SKU de produto mais longo (4 a 6 dígitos, ex: 63586)
+                    const skuRegex = new RegExp('(?:^|[^a-z0-9])#?' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
+                    if (skuRegex.test(msgText)) {
+                        matched = true;
+                        break;
+                    }
                 }
             }
 
@@ -1724,7 +1786,7 @@
     }
 
     function renderScanItemBuyerHtml(item) {
-        const queue = findAllSpeakersForCode(item.liveCode, item.code);
+        const queue = findAllSpeakersForCode(item.liveCode, item.code, item.timestamp);
 
         // CASO 1: A peça JÁ FOI VINCULADA a uma cliente (ou @username da transmissão)
         if (item.buyerUsername) {
