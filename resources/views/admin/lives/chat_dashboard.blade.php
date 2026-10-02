@@ -108,8 +108,8 @@
             </div>
         </div>
 
-        <!-- COLUNA 1: CHAT EM TEMPO REAL (ESQUERDA - LARGURA 4) -->
-        <div class="lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
+        <!-- COLUNA 1: CHAT EM TEMPO REAL (ESQUERDA - LARGURA 6) -->
+        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
             <div class="bg-gray-800 px-4 py-3.5 flex items-center justify-between text-white">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-comment-alt text-indigo-400"></i>
@@ -157,64 +157,8 @@
             </div>
         </div>
 
-        <!-- COLUNA 2: TRANSCRIÇÃO DE ÁUDIO / VOZ DA LIVE (MEIO - LARGURA 4) -->
-        <div class="lg:col-span-4 flex flex-col rounded-2xl shadow-md border border-gray-200 overflow-hidden" style="height: 78vh; background-color: #0f172a;">
-            <!-- Header da Coluna com Cores Vivas e Alto Contraste -->
-            <div class="px-4 py-3.5 flex items-center justify-between text-white shadow-sm" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); border-bottom: 1px solid #059669;">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background-color: rgba(255, 255, 255, 0.2);">
-                        <i class="fas fa-microphone-alt text-base text-white"></i>
-                    </div>
-                    <div>
-                        <h2 class="font-bold text-sm leading-tight text-white" style="color: #ffffff;">Áudio & Voz da Live</h2>
-                        <div class="flex items-center gap-1.5 mt-0.5">
-                            <span id="audio-pulse-dot" class="w-2 h-2 rounded-full inline-block" style="background-color: #9ca3af;"></span>
-                            <span id="audio-status-label" class="text-[11px] font-medium" style="color: #d1fae5;">Microfone Desligado</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="btn-toggle-audio-rec" onclick="toggleAudioRecording()" class="text-xs font-bold px-3.5 py-1.5 rounded-xl shadow transition duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95" style="background-color: #10b981; color: #ffffff; border: 1px solid #34d399;">
-                        <i class="fas fa-play" id="btn-audio-icon" style="color: #ffffff;"></i>
-                        <span id="btn-audio-text" style="color: #ffffff;">Gravar</span>
-                    </button>
-                    <button type="button" onclick="clearAudioTranscripts()" title="Limpar Transcrição" class="p-1.5 rounded-lg transition text-white hover:bg-emerald-700 cursor-pointer" style="background-color: rgba(255,255,255,0.15); color: #ffffff;">
-                        <i class="fas fa-trash-alt text-xs" style="color: #ffffff;"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Live Interim / Speech Feed -->
-            <div class="flex-1 flex flex-col p-3 overflow-hidden" style="background-color: #0f172a; color: #f8fafc;">
-                <!-- Preview fala em tempo real (Interim) -->
-                <div id="audio-interim-box" class="p-3 mb-2.5 rounded-xl shrink-0 min-h-[52px] flex items-center gap-2.5 transition-all shadow-inner" style="background-color: #1e293b; border: 1px solid #334155;">
-                    <div class="w-2.5 h-2.5 rounded-full shrink-0 hidden" id="audio-speaking-indicator" style="background-color: #10b981;"></div>
-                    <div class="flex-1 overflow-hidden">
-                        <p id="audio-interim-text" class="text-xs font-mono truncate" style="color: #94a3b8; font-style: italic;">Clique em "Gravar" e fale no microfone...</p>
-                    </div>
-                </div>
-
-                <!-- Histórico de Frases Transcritas (Apenas Matches de Venda) -->
-                <div id="audio-transcripts-stream" class="flex-1 overflow-y-auto space-y-2 pr-1">
-                    <div id="audio-empty-placeholder" class="flex flex-col items-center justify-center h-full py-10" style="color: #64748b;">
-                        <i class="fas fa-shopping-bag text-3xl mb-2" style="color: #475569;"></i>
-                        <p class="text-xs text-center font-medium" style="color: #94a3b8;">Aguardando vendas faladas na live...</p>
-                        <p class="text-[11px] mt-1.5 font-semibold text-center" style="color: #34d399;">Fale: <em>"Saiu para [Nome]"</em>, <em>"Foi para [Nome]"</em> ou <em>"Foi pra [Nome]"</em></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer Informativo / Dica -->
-            <div class="px-3.5 py-2.5 text-[11px] flex items-center justify-between shadow-inner" style="background-color: #020617; border-top: 1px solid #1e293b; color: #94a3b8;">
-                <span class="flex items-center gap-1.5 font-medium" style="color: #34d399;">
-                    <i class="fas fa-check-double text-xs"></i> Filtro: <em>Apenas Vendas Detectadas</em>
-                </span>
-                <span id="audio-sentences-count" class="text-[10px] font-mono" style="color: #64748b;">0 vendas</span>
-            </div>
-        </div>
-
-        <!-- COLUNA 3: INTEGRAÇÃO / PARTICIPANTES (DIREITA - LARGURA 4) -->
-        <div class="lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
+        <!-- COLUNA 2: INTEGRAÇÃO / PARTICIPANTES (DIREITA - LARGURA 6) -->
+        <div class="lg:col-span-6 flex flex-col bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden" style="height: 78vh;">
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 bg-gray-50">
                 <button id="tab-btn-bookmarklet" onclick="switchTab('bookmarklet')" class="flex-1 py-3 px-3 text-center font-semibold text-xs border-b-2 border-indigo-600 text-indigo-600">
@@ -301,14 +245,20 @@
 
                 <!-- Tab: Pessoas Online -->
                 <div id="tab-content-online" class="hidden flex flex-col h-full">
-                    <!-- Busca de Cliente Avulso -->
-                    <div class="relative z-20 shrink-0 mb-3">
-                        <div class="relative">
-                            <input type="text" id="avulso-search-input" placeholder="Buscar cliente por nome, apelido, cel..." class="w-full p-3 pl-10 rounded-xl border-2 border-indigo-100 bg-indigo-50/30 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold text-gray-700 placeholder-indigo-300 transition-all">
-                            <i class="fas fa-search absolute left-3.5 top-3.5 text-indigo-400"></i>
+                    <!-- Busca de Cliente Avulso + Botões de Ação Rápida -->
+                    <div class="relative z-20 shrink-0 mb-3 flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="avulso-search-input" placeholder="Buscar cliente por nome, apelido, cel..." class="w-full p-2.5 pl-9 rounded-xl border-2 border-indigo-100 bg-indigo-50/30 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-bold text-gray-800 placeholder-indigo-400 transition-all">
+                            <i class="fas fa-search absolute left-3 top-3 text-indigo-400 text-xs"></i>
+                            <div id="avulso-search-results" class="absolute left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden flex flex-col z-30">
+                            </div>
                         </div>
-                        <div id="avulso-search-results" class="absolute w-full mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden flex flex-col">
-                        </div>
+                        <button type="button" onclick="openQuickClientModal()" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer" title="Cadastrar Novo Cliente">
+                            <i class="fas fa-user-plus text-xs"></i> <span class="hidden sm:inline">Cliente</span>
+                        </button>
+                        <button type="button" onclick="openQuickProductModal()" class="px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer" title="Cadastrar Novo Produto">
+                            <i class="fas fa-tag text-xs"></i> <span class="hidden sm:inline">Produto</span>
+                        </button>
                     </div>
 
                     <!-- Banner de Cliente Selecionada para Bipar com Leitor -->
@@ -531,6 +481,157 @@
                 </button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE CLIENTE -->
+<div id="modal-quick-client" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Cliente</h3>
+                    <p style="color: #a7f3d0 !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Disponível imediatamente para vincular compras</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickClientModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickClient(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Nome Completo</label>
+                <input type="text" id="quick-client-name" placeholder="Ex: Maria Eduarda Silva" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                <p style="color: #64748b !important; font-size: 10.5px; margin: 4px 0 0 0;">Se vazio, usará o @ do Instagram/TikTok.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-instagram" style="color: #e1306c; margin-right: 2px;"></i> Instagram
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-instagram" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-tiktok" style="color: #000000; margin-right: 2px;"></i> TikTok
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-tiktok" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-whatsapp" style="color: #10b981; margin-right: 2px;"></i> Telefone / Whats
+                    </label>
+                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fas fa-wallet" style="color: #6366f1; margin-right: 2px;"></i> Limite Crédito
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">R$</span>
+                        <input type="number" step="0.01" min="0" id="quick-client-limite" value="300.00" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 800; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickClientModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-client" style="background-color: #047857 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #065f46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #a7f3d0 !important;"></i> Salvar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE PRODUTO -->
+<div id="modal-quick-product" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-tag"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Produto</h3>
+                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código de barras e vincula à live/sacola</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickProduct(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Descrição do Produto <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Tamanho</label>
+                    <input type="text" id="quick-prod-tamanho" placeholder="Ex: M, 38, G, Único" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Cor</label>
+                    <input type="text" id="quick-prod-cor" placeholder="Ex: Azul, Preto, Estampado" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 12px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 13px; font-weight: 800;">R$</span>
+                    <input type="text" id="quick-prod-preco" required placeholder="45,00" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 900; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            @if($activeLive)
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background-color: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 10px; cursor: pointer;">
+                    <input type="checkbox" id="quick-prod-link-live" checked style="width: 16px; height: 16px; accent-color: #7c3aed; cursor: pointer;">
+                    <span style="font-size: 12px; font-weight: 800; color: #4c1d95 !important;">
+                        Vincular à Live #{{ $activeLive->id }} (Gera Código Sequencial da Live)
+                    </span>
+                </label>
+            @endif
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickProductModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-prod" style="background-color: #6d28d9 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #5b21b6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-barcode" style="color: #ddd6fe !important;"></i> Cadastrar e Gerar Código
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1431,21 +1532,24 @@
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
-                            <span class="bg-emerald-600 text-white font-extrabold text-[9px] px-1.5 py-0.2 rounded uppercase tracking-wider shadow-xs">
+                            <span class="bg-emerald-700 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs">
                                 <i class="fas fa-check-circle mr-0.5"></i> Cliente Ativa
                             </span>
                         </div>
                         <div class="text-xs font-black text-gray-900 truncate mt-0.5">
                             @${escapeHtml(selectedParticipant.username)}
                         </div>
-                        ${selectedParticipant.clientName && selectedParticipant.clientName !== selectedParticipant.username ? `<div class="text-[11px] text-emerald-800 font-semibold truncate">${escapeHtml(selectedParticipant.clientName)}</div>` : ''}
+                        ${selectedParticipant.clientName && selectedParticipant.clientName !== selectedParticipant.username ? `<div class="text-[11px] text-emerald-900 font-bold truncate">${escapeHtml(selectedParticipant.clientName)}</div>` : ''}
                     </div>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="openOnlineQrModal('${selectedParticipant.userId}', '${escapeHtml(selectedParticipant.username)}', '${escapeHtml(selectedParticipant.clientName)}')" title="Abrir Câmera / QRCode" class="bg-white/90 hover:bg-white text-emerald-700 border border-emerald-200 p-2 rounded-xl text-xs transition shadow-xs">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="openQuickProductModal()" title="Cadastrar Produto Rápido" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-tag"></i> <span class="text-[11px]">Novo Produto</span>
+                    </button>
+                    <button type="button" onclick="openOnlineQrModal('${selectedParticipant.userId}', '${escapeHtml(selectedParticipant.username)}', '${escapeHtml(selectedParticipant.clientName)}')" title="Abrir Câmera / QRCode" class="bg-white hover:bg-gray-100 text-emerald-700 border border-emerald-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer">
                         <i class="fas fa-camera"></i>
                     </button>
-                    <button type="button" onclick="clearSelectedParticipant()" title="Desmarcar cliente" class="bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-200 p-2 rounded-xl text-xs transition shadow-xs">
+                    <button type="button" onclick="clearSelectedParticipant()" title="Desmarcar cliente" class="bg-white hover:bg-red-50 text-gray-600 hover:text-red-700 border border-gray-300 hover:border-red-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1454,18 +1558,18 @@
             <div class="space-y-2">
                 <div class="relative">
                     <input type="text" id="dashboard-barcode-input" 
-                           placeholder="Bipe com o leitor ou digite o código/SKU..." 
+                           placeholder="Bipe com o leitor ou tecle [Enter] vazio p/ cadastrar rápido..." 
                            oninput="handleDashboardBarcodeInput(event)"
                            onkeydown="handleDashboardBarcodeKeyDown(event)"
-                           class="w-full pl-9 pr-8 py-2 bg-white rounded-xl border-2 border-emerald-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 text-xs font-bold text-gray-900 placeholder-gray-400 shadow-sm transition" 
+                           class="w-full pl-9 pr-8 py-2.5 bg-white rounded-xl border-2 border-emerald-500 focus:border-emerald-700 focus:ring-4 focus:ring-emerald-500/20 text-xs font-black text-gray-900 placeholder-gray-500 shadow-sm transition" 
                            autocomplete="off" />
-                    <i class="fas fa-barcode absolute left-3 top-2.5 text-emerald-600 text-sm"></i>
-                    <button type="button" onclick="processDashboardBarcodeScan(document.getElementById('dashboard-barcode-input').value)" class="absolute right-1.5 top-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2 py-1 text-[10px] font-bold shadow-xs">
+                    <i class="fas fa-barcode absolute left-3 top-3 text-emerald-600 text-sm"></i>
+                    <button type="button" onclick="processDashboardBarcodeScan(document.getElementById('dashboard-barcode-input').value)" class="absolute right-1.5 top-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2 py-1.5 text-[10px] font-bold shadow-xs cursor-pointer">
                         <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
-                <div id="dashboard-barcode-status" class="text-[11px] text-emerald-800 font-semibold flex items-center justify-between min-h-[18px]">
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Aguardando bipe do leitor de código de barras...</span>
+                <div id="dashboard-barcode-status" class="text-[11px] text-emerald-900 font-bold flex items-center justify-between min-h-[18px]">
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Aguardando bipe do leitor de código de barras ou [Enter]...</span>
                 </div>
             </div>
         `;
@@ -1486,7 +1590,12 @@
         if (e.key === 'Enter') {
             e.preventDefault();
             if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
-            processDashboardBarcodeScan(e.target.value);
+            const val = (e.target.value || '').trim();
+            if (!val) {
+                openQuickProductModal();
+                return;
+            }
+            processDashboardBarcodeScan(val);
         }
     }
 
@@ -2304,296 +2413,223 @@
             x[i].classList.add("bg-white");
         }
     }
-    // ==========================================
-    // RECONHECIMENTO DE VOZ / ÁUDIO DA LIVE
-    // ==========================================
-    let speechRecognizer = null;
-    let isAudioRecording = false;
-    let shouldKeepAudioRecording = false;
-    let audioSentencesCount = 0;
+    // =========================================================================
+    // MODAIS DE CADASTRO RÁPIDO (CLIENTE & PRODUTO)
+    // =========================================================================
+    function openQuickClientModal() {
+        const nameEl = document.getElementById('quick-client-name');
+        const instaEl = document.getElementById('quick-client-instagram');
+        const tiktokEl = document.getElementById('quick-client-tiktok');
+        const phoneEl = document.getElementById('quick-client-phone');
+        const limiteEl = document.getElementById('quick-client-limite');
 
-    function initAudioSpeechRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Seu navegador não possui suporte ao reconhecimento de voz nativo. Por favor, utilize o Google Chrome ou Microsoft Edge no computador.");
-            return null;
-        }
+        if (nameEl) nameEl.value = '';
+        if (instaEl) instaEl.value = '';
+        if (tiktokEl) tiktokEl.value = '';
+        if (phoneEl) phoneEl.value = '';
+        if (limiteEl) limiteEl.value = '300.00';
 
-        const recognizer = new SpeechRecognition();
-        recognizer.continuous = true;
-        recognizer.interimResults = true;
-        recognizer.lang = 'pt-BR';
-        recognizer.maxAlternatives = 1;
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.remove('hidden');
 
-        recognizer.onstart = function() {
-            isAudioRecording = true;
-            updateAudioRecUI(true);
-        };
-
-        recognizer.onresult = function(event) {
-            let interimText = '';
-            let finalText = '';
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    finalText += transcript;
-                } else {
-                    interimText += transcript;
-                }
-            }
-
-            const interimBox = document.getElementById("audio-interim-text");
-            const speakingDot = document.getElementById("audio-speaking-indicator");
-
-            if (interimText.trim().length > 0) {
-                interimBox.textContent = `"${interimText.trim()}"`;
-                interimBox.classList.remove("italic", "text-slate-300");
-                interimBox.classList.add("text-emerald-300", "font-medium");
-                speakingDot.classList.remove("hidden");
-            }
-
-            if (finalText.trim().length > 0) {
-                handleFinalTranscribedSentence(finalText.trim());
-                interimBox.textContent = 'Ouvindo microfone...';
-                interimBox.classList.add("italic", "text-slate-300");
-                interimBox.classList.remove("text-emerald-300", "font-medium");
-                speakingDot.classList.add("hidden");
-            }
-        };
-
-        recognizer.onerror = function(event) {
-            console.warn("[Voz Live] Erro de reconhecimento:", event.error);
-            if (event.error === 'not-allowed') {
-                alert("Permissão de microfone negada. Clique no ícone de cadeado na barra de endereços do navegador e permita o microfone.");
-                shouldKeepAudioRecording = false;
-                stopAudioRecording();
-            }
-        };
-
-        recognizer.onend = function() {
-            if (shouldKeepAudioRecording) {
-                // Auto-reiniciar imediatamente caso o Chrome pause após silêncio
-                setTimeout(() => {
-                    if (shouldKeepAudioRecording) {
-                        try {
-                            recognizer.start();
-                        } catch (e) {
-                            console.log("[Voz Live] Reiniciando escuta...");
-                        }
-                    }
-                }, 250);
-            } else {
-                isAudioRecording = false;
-                updateAudioRecUI(false);
-            }
-        };
-
-        return recognizer;
+        setTimeout(() => {
+            if (nameEl) nameEl.focus();
+        }, 100);
     }
 
-    function toggleAudioRecording() {
-        if (!speechRecognizer) {
-            speechRecognizer = initAudioSpeechRecognition();
-            if (!speechRecognizer) return;
-        }
-
-        if (!isAudioRecording) {
-            startAudioRecording();
-        } else {
-            stopAudioRecording();
-        }
+    function closeQuickClientModal() {
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.add('hidden');
     }
 
-    function startAudioRecording() {
+    async function submitQuickClient(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-client') || (event.target ? event.target.querySelector('button[type="submit"]') : null);
+        const originalBtnHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const name = (document.getElementById('quick-client-name')?.value || '').trim();
+        const instagram = (document.getElementById('quick-client-instagram')?.value || '').trim().replace(/^@/, '');
+        const tiktok = (document.getElementById('quick-client-tiktok')?.value || '').trim().replace(/^@/, '');
+        const phone = (document.getElementById('quick-client-phone')?.value || '').trim();
+        const limite = (document.getElementById('quick-client-limite')?.value || '').trim();
+
         try {
-            shouldKeepAudioRecording = true;
-            speechRecognizer.start();
-        } catch (e) {
-            console.warn("[Voz Live] Falha ao iniciar:", e);
-        }
-    }
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-client') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    instagram: instagram,
+                    tiktok: tiktok,
+                    phone: phone,
+                    limite_credito: limite
+                })
+            });
 
-    function stopAudioRecording() {
-        shouldKeepAudioRecording = false;
-        if (speechRecognizer) {
-            try {
-                speechRecognizer.stop();
-            } catch(e) {}
-        }
-        isAudioRecording = false;
-        updateAudioRecUI(false);
-    }
+            const data = await resp.json();
+            if (data.success && data.client) {
+                playSuccessBeep();
+                showToast(data.message || 'Cliente cadastrado com sucesso!');
+                closeQuickClientModal();
 
-    function updateAudioRecUI(recording) {
-        const btn = document.getElementById("btn-toggle-audio-rec");
-        const btnText = document.getElementById("btn-audio-text");
-        const btnIcon = document.getElementById("btn-audio-icon");
-        const pulseDot = document.getElementById("audio-pulse-dot");
-        const statusLabel = document.getElementById("audio-status-label");
-        const interimBox = document.getElementById("audio-interim-text");
-        const speakingDot = document.getElementById("audio-speaking-indicator");
-
-        if (recording) {
-            btn.style.backgroundColor = "#dc2626";
-            btn.style.borderColor = "#ef4444";
-            btn.style.color = "#ffffff";
-            btn.classList.add("animate-pulse");
-            btnText.textContent = "Parar";
-            btnText.style.color = "#ffffff";
-            btnIcon.className = "fas fa-stop";
-            btnIcon.style.color = "#ffffff";
-
-            pulseDot.style.backgroundColor = "#10b981";
-            pulseDot.className = "w-2 h-2 rounded-full inline-block animate-ping";
-            statusLabel.textContent = "Gravando & Ouvindo...";
-            statusLabel.style.color = "#a7f3d0";
-            statusLabel.style.fontWeight = "bold";
-            interimBox.textContent = "Ouvindo microfone... Fale algo!";
-            interimBox.style.color = "#34d399";
-        } else {
-            btn.style.backgroundColor = "#10b981";
-            btn.style.borderColor = "#34d399";
-            btn.style.color = "#ffffff";
-            btn.classList.remove("animate-pulse");
-            btnText.textContent = "Gravar";
-            btnText.style.color = "#ffffff";
-            btnIcon.className = "fas fa-play";
-            btnIcon.style.color = "#ffffff";
-
-            pulseDot.style.backgroundColor = "#9ca3af";
-            pulseDot.className = "w-2 h-2 rounded-full inline-block";
-            statusLabel.textContent = "Microfone Desligado";
-            statusLabel.style.color = "#d1fae5";
-            statusLabel.style.fontWeight = "normal";
-            interimBox.textContent = "Clique em \"Gravar\" e fale no microfone...";
-            interimBox.style.color = "#94a3b8";
-            speakingDot.classList.add("hidden");
-        }
-    }
-
-    function clearAudioTranscripts() {
-        const stream = document.getElementById("audio-transcripts-stream");
-        stream.innerHTML = `
-            <div id="audio-empty-placeholder" class="flex flex-col items-center justify-center h-full py-10" style="color: #64748b;">
-                <i class="fas fa-broadcast-tower text-3xl mb-2" style="color: #475569;"></i>
-                <p class="text-xs text-center" style="color: #94a3b8;">As frases faladas aparecerão aqui em tempo real.</p>
-                <p class="text-[11px] mt-1.5 font-semibold" style="color: #34d399;">Exemplo: <em>"Ficou para Claudia"</em></p>
-            </div>
-        `;
-        audioSentencesCount = 0;
-        document.getElementById("audio-sentences-count").textContent = "0 frases";
-    }
-
-    function handleFinalTranscribedSentence(sentence) {
-        if (!sentence || sentence.trim().length === 0) return;
-
-        const cleanSentence = sentence.trim();
-        const lower = cleanSentence.toLowerCase();
-
-        // Gatilhos de Venda Prioritários: "saiu para", "saiu pra", "foi para", "foi pra", e variações
-        const matchTriggers = [
-            'saiu para', 'saiu pra', 'saiu pro',
-            'foi para', 'foi pra', 'foi pro',
-            'ficou para', 'ficou pra', 'ficou pro',
-            'vai para', 'vai pra', 'vai pro',
-            'vendido para', 'vendido pra', 'vendida para', 'vendida pra',
-            'marca para', 'marca pra', 'anota para', 'anota pra'
-        ];
-
-        let hasMatch = false;
-        let triggerFound = '';
-        let detectedTarget = '';
-
-        for (let t of matchTriggers) {
-            const idx = lower.indexOf(t);
-            if (idx !== -1) {
-                hasMatch = true;
-                triggerFound = t;
-                // Extrai o nome/texto após o gatilho
-                const after = cleanSentence.substring(idx + t.length).trim();
-                detectedTarget = after.replace(/^(?:a|o|as|os|da|do|de|uma|um)\s+/i, '').replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?!]/g, '').trim();
-                break;
+                const newClient = data.client;
+                const primaryUsername = newClient.instagram || newClient.tiktok || newClient.name;
+                const platform = newClient.instagram ? 'instagram' : (newClient.tiktok ? 'tiktok' : 'instagram');
+                selectOnlineParticipant(newClient.id, primaryUsername, newClient.name, platform, '');
+            } else {
+                playErrorBeep();
+                showToast(data.message || 'Erro ao cadastrar cliente.');
+            }
+        } catch (err) {
+            playErrorBeep();
+            console.error('Erro ao cadastrar cliente:', err);
+            showToast('Erro de conexão ao cadastrar cliente.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml || '<i class="fas fa-check"></i> Salvar Cliente';
             }
         }
-
-        // Se não tiver o gatilho, ignora a fala comum
-        if (!hasMatch) {
-            console.log("[Voz Live - Ignorado (sem gatilho)]:", cleanSentence);
-            return;
-        }
-
-        const stream = document.getElementById("audio-transcripts-stream");
-        const emptyPlaceholder = document.getElementById("audio-empty-placeholder");
-        if (emptyPlaceholder) {
-            emptyPlaceholder.remove();
-        }
-
-        audioSentencesCount++;
-        document.getElementById("audio-sentences-count").textContent = `${audioSentencesCount} venda${audioSentencesCount > 1 ? 's' : ''}`;
-
-        const time = new Date().toLocaleTimeString();
-
-        // Destacar o gatilho ("foi para", "foi pra") dentro da frase
-        let formattedSentence = escapeHtml(cleanSentence);
-        if (triggerFound) {
-            const regExp = new RegExp(`(${triggerFound})`, 'gi');
-            formattedSentence = formattedSentence.replace(regExp, '<span style="color: #34d399; font-weight: 800; text-decoration: underline;">$1</span>');
-        }
-
-        // Criar card de venda detectada com a frase inteira
-        const card = document.createElement("div");
-        card.style.padding = "12px";
-        card.style.borderRadius = "12px";
-        card.style.marginBottom = "10px";
-        card.style.backgroundColor = "#064e3b";
-        card.style.border = "1.5px solid #10b981";
-        card.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.25)";
-        card.style.transition = "all 0.2s ease";
-
-        let searchButtonHtml = '';
-        if (detectedTarget && detectedTarget.length >= 2) {
-            searchButtonHtml = `
-                <button type="button" onclick="triggerVoiceQuickSearch('${escapeHtml(detectedTarget)}')" style="background-color: #10b981; color: #022c22; font-weight: 800; font-size: 11px; padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); shrink-0;">
-                    <i class="fas fa-search"></i> Buscar Cliente
-                </button>
-            `;
-        }
-
-        card.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #a7f3d0; margin-bottom: 6px; font-family: monospace;">
-                <span style="display: flex; align-items: center; gap: 5px; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-                    <i class="fas fa-check-circle text-emerald-400"></i> Venda Detectada
-                </span>
-                <span style="color: #94a3b8;">${time}</span>
-            </div>
-            
-            <p style="font-size: 14px; color: #f8fafc; line-height: 1.5; margin: 0 0 10px 0; font-weight: 500;">
-                "${formattedSentence}"
-            </p>
-
-            <div style="padding-top: 8px; border-top: 1px solid rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-                    <span style="font-size: 13px; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        👤 ${detectedTarget ? escapeHtml(detectedTarget) : 'Cliente'}
-                    </span>
-                </div>
-                ${searchButtonHtml}
-            </div>
-        `;
-
-        stream.appendChild(card);
-        stream.scrollTop = stream.scrollHeight;
     }
 
-    // Atalho quando clica no botão "Buscar" do áudio detectado
-    function triggerVoiceQuickSearch(targetName) {
-        switchTab('online');
-        const input = document.getElementById("avulso-search-input");
-        if (input) {
-            input.value = targetName;
-            input.focus();
-            searchAvulsoClients(targetName);
+    function openQuickProductModal() {
+        const descEl = document.getElementById('quick-prod-descricao');
+        const tamEl = document.getElementById('quick-prod-tamanho');
+        const corEl = document.getElementById('quick-prod-cor');
+        const precoEl = document.getElementById('quick-prod-preco');
+        const linkCheck = document.getElementById('quick-prod-link-live');
+
+        if (descEl) descEl.value = '';
+        if (tamEl) tamEl.value = '';
+        if (corEl) corEl.value = '';
+        if (precoEl) precoEl.value = '';
+        if (linkCheck) linkCheck.checked = true;
+
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (descEl) descEl.focus();
+        }, 100);
+    }
+
+    function closeQuickProductModal() {
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickProduct(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-prod') || (event.target ? event.target.querySelector('button[type="submit"]') : null);
+        const originalBtnHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const descricao = (document.getElementById('quick-prod-descricao')?.value || '').trim();
+        const tamanho = (document.getElementById('quick-prod-tamanho')?.value || '').trim();
+        const cor = (document.getElementById('quick-prod-cor')?.value || '').trim();
+        const preco = (document.getElementById('quick-prod-preco')?.value || '').trim();
+        const linkLive = document.getElementById('quick-prod-link-live') ? document.getElementById('quick-prod-link-live').checked : false;
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-product') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    descricao: descricao,
+                    tamanho: tamanho,
+                    cor: cor,
+                    preco: preco,
+                    live_id: {{ $activeLive ? $activeLive->id : 'null' }},
+                    link_to_live: linkLive
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                const item = data.item;
+                const code = item ? item.codigo : '';
+                showToast(`Produto #${code} cadastrado com sucesso!`);
+                closeQuickProductModal();
+
+                if (selectedParticipant && item) {
+                    const statusEl = document.getElementById("dashboard-barcode-status");
+                    if (statusEl) {
+                        statusEl.innerHTML = `<span class="text-blue-700 font-bold flex items-center gap-1.5"><i class="fas fa-spinner fa-spin"></i> Adicionando à sacola de @${escapeHtml(selectedParticipant.username)}...</span>`;
+                    }
+
+                    try {
+                        const addResponse = await fetch('/admin/live-chat/add-to-bag', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({
+                                code_request_id: null,
+                                user_id: selectedParticipant.userId,
+                                item_id: item.id,
+                                live_id: liveId
+                            })
+                        });
+
+                        const addData = await addResponse.json();
+                        if (addData.success) {
+                            playSuccessBeep();
+                            showToast(`🎉 ${item.name} adicionado à sacola de @${selectedParticipant.username}!`);
+                            if (statusEl) {
+                                statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold flex items-center gap-1.5 truncate"><i class="fas fa-check-circle text-emerald-600"></i> ${escapeHtml(item.name)} (${item.formatted_price || 'R$ ' + item.price}) adicionado!</span>`;
+                            }
+                            fetchChatData();
+                        } else {
+                            playErrorBeep();
+                            showToast(`⚠️ ${addData.message || 'Erro ao adicionar item à sacola'}`);
+                            if (statusEl) {
+                                statusEl.innerHTML = `<span class="text-amber-700 font-bold flex items-center gap-1.5"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(addData.message || 'Falha ao adicionar.')}</span>`;
+                            }
+                        }
+                    } catch(addErr) {
+                        playErrorBeep();
+                        console.error("Erro ao adicionar produto rápido à sacola:", addErr);
+                    }
+                } else {
+                    playSuccessBeep();
+                }
+
+                setTimeout(() => {
+                    const bInput = document.getElementById('dashboard-barcode-input');
+                    if (bInput) {
+                        bInput.value = '';
+                        bInput.focus();
+                    }
+                }, 150);
+            } else {
+                playErrorBeep();
+                showToast(data.message || 'Erro ao cadastrar produto.');
+            }
+        } catch (err) {
+            playErrorBeep();
+            console.error('Erro ao cadastrar produto:', err);
+            showToast('Erro de conexão ao cadastrar produto.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml || '<i class="fas fa-barcode"></i> Cadastrar e Gerar Código';
+            }
         }
     }
 
