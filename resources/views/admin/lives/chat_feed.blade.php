@@ -406,15 +406,15 @@
                 </div>
 
                 <!-- Botão + Cliente -->
-                <button type="button" onclick="openQuickClientModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" title="Cadastrar Novo Cliente">
-                    <i class="fas fa-user-plus text-xs text-emerald-200"></i>
-                    <span>+ Cliente</span>
+                <button type="button" onclick="openQuickClientModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #047857 !important; color: #ffffff !important; border: 1px solid #065f46;" title="Cadastrar Novo Cliente">
+                    <i class="fas fa-user-plus text-xs" style="color: #a7f3d0 !important;"></i>
+                    <span style="color: #ffffff !important; font-weight: 900;">+ Cliente</span>
                 </button>
 
                 <!-- Botão + Produto -->
-                <button type="button" onclick="openQuickProductModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" title="Cadastrar Novo Produto">
-                    <i class="fas fa-tag text-xs text-purple-200"></i>
-                    <span>+ Produto</span>
+                <button type="button" onclick="openQuickProductModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #6d28d9 !important; color: #ffffff !important; border: 1px solid #5b21b6;" title="Cadastrar Novo Produto">
+                    <i class="fas fa-tag text-xs" style="color: #ddd6fe !important;"></i>
+                    <span style="color: #ffffff !important; font-weight: 900;">+ Produto</span>
                 </button>
 
                 <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
@@ -559,79 +559,79 @@
 </div>
 
 <!-- MODAL CADASTRO RÁPIDO DE CLIENTE -->
-<div id="modal-quick-client" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
-    <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+<div id="modal-quick-client" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
         <!-- Header -->
-        <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white flex items-center justify-between shadow-md">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+        <div style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
                     <i class="fas fa-user-plus"></i>
                 </div>
                 <div>
-                    <h3 class="text-sm font-extrabold tracking-tight text-white">Cadastrar Novo Cliente</h3>
-                    <p class="text-[11px] text-emerald-100 font-medium">Disponível imediatamente para vincular compras</p>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Cliente</h3>
+                    <p style="color: #a7f3d0 !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Disponível imediatamente para vincular compras</p>
                 </div>
             </div>
-            <button type="button" onclick="closeQuickClientModal()" class="text-emerald-100 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
-                <i class="fas fa-times text-base"></i>
+            <button type="button" onclick="closeQuickClientModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
             </button>
         </div>
 
         <!-- Form -->
-        <form onsubmit="submitQuickClient(event)" class="p-5 space-y-3.5">
+        <form onsubmit="submitQuickClient(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
             <div>
-                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Nome Completo</label>
-                <input type="text" id="quick-client-name" placeholder="Ex: Maria Eduarda Silva" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-500 focus:outline-none">
-                <p class="text-[10px] text-gray-400 mt-0.5">Se vazio, usará o @ do Instagram/TikTok.</p>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Nome Completo</label>
+                <input type="text" id="quick-client-name" placeholder="Ex: Maria Eduarda Silva" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                <p style="color: #64748b !important; font-size: 10.5px; margin: 4px 0 0 0;">Se vazio, usará o @ do Instagram/TikTok.</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                        <i class="fab fa-instagram text-pink-500 mr-0.5"></i> Instagram
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-instagram" style="color: #e1306c; margin-right: 2px;"></i> Instagram
                     </label>
-                    <div class="flex">
-                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">@</span>
-                        <input type="text" id="quick-client-instagram" placeholder="usuario" class="w-full px-2.5 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-instagram" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                        <i class="fab fa-tiktok text-black mr-0.5"></i> TikTok
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-tiktok" style="color: #000000; margin-right: 2px;"></i> TikTok
                     </label>
-                    <div class="flex">
-                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">@</span>
-                        <input type="text" id="quick-client-tiktok" placeholder="usuario" class="w-full px-2.5 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-tiktok" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                        <i class="fab fa-whatsapp text-emerald-500 mr-0.5"></i> Telefone / WhatsApp
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-whatsapp" style="color: #10b981; margin-right: 2px;"></i> Telefone / Whats
                     </label>
-                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                        <i class="fas fa-wallet text-indigo-500 mr-0.5"></i> Limite de Crédito
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fas fa-wallet" style="color: #6366f1; margin-right: 2px;"></i> Limite Crédito
                     </label>
-                    <div class="flex">
-                        <span class="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-xs font-bold">R$</span>
-                        <input type="number" step="0.01" min="0" id="quick-client-limite" value="300.00" class="w-full px-2.5 py-2 text-xs font-bold text-gray-800 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:outline-none">
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">R$</span>
+                        <input type="number" step="0.01" min="0" id="quick-client-limite" value="300.00" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 800; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                <button type="button" onclick="closeQuickClientModal()" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer">
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickClientModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
                     Cancelar
                 </button>
-                <button type="submit" id="btn-save-quick-client" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
-                    <i class="fas fa-check"></i> Salvar Cliente
+                <button type="submit" id="btn-save-quick-client" style="background-color: #047857 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #065f46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #a7f3d0 !important;"></i> Salvar Cliente
                 </button>
             </div>
         </form>
@@ -639,70 +639,70 @@
 </div>
 
 <!-- MODAL CADASTRO RÁPIDO DE PRODUTO -->
-<div id="modal-quick-product" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
-    <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+<div id="modal-quick-product" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
         <!-- Header -->
-        <div class="px-5 py-4 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white flex items-center justify-between shadow-md">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+        <div style="background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
                     <i class="fas fa-tag"></i>
                 </div>
                 <div>
-                    <h3 class="text-sm font-extrabold tracking-tight text-white">Cadastrar Novo Produto</h3>
-                    <p class="text-[11px] text-purple-100 font-medium">Gera código de barras automaticamente para bipar na live</p>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Produto</h3>
+                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código de barras e adiciona à live</p>
                 </div>
             </div>
-            <button type="button" onclick="closeQuickProductModal()" class="text-purple-100 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
-                <i class="fas fa-times text-base"></i>
+            <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
             </button>
         </div>
 
         <!-- Form -->
-        <form onsubmit="submitQuickProduct(event)" class="p-5 space-y-3.5">
+        <form onsubmit="submitQuickProduct(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
             <div>
-                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                    Descrição do Produto <span class="text-red-500">*</span>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Descrição do Produto <span style="color: #dc2626;">*</span>
                 </label>
-                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:border-purple-500 focus:outline-none">
+                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Tamanho</label>
-                    <input type="text" id="quick-prod-tamanho" placeholder="Ex: M, 38, G, Único" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Tamanho</label>
+                    <input type="text" id="quick-prod-tamanho" placeholder="Ex: M, 38, G, Único" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">Cor</label>
-                    <input type="text" id="quick-prod-cor" placeholder="Ex: Azul, Preto, Estampado" class="w-full px-3 py-2 text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Cor</label>
+                    <input type="text" id="quick-prod-cor" placeholder="Ex: Azul, Preto, Estampado" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
                 </div>
             </div>
 
             <div>
-                <label class="block text-[11px] font-bold uppercase text-gray-600 mb-1">
-                    Preço de Venda (R$) <span class="text-red-500">*</span>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Preço de Venda (R$) <span style="color: #dc2626;">*</span>
                 </label>
-                <div class="flex">
-                    <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-300 bg-gray-100 text-gray-600 text-xs font-bold">R$</span>
-                    <input type="text" id="quick-prod-preco" required placeholder="45,00" class="w-full px-3 py-2 text-sm font-black text-gray-900 bg-gray-50 border border-gray-300 rounded-r-xl focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                <div style="display: flex;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 12px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 13px; font-weight: 800;">R$</span>
+                    <input type="text" id="quick-prod-preco" required placeholder="45,00" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 900; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
                 </div>
             </div>
 
             @if($activeLive)
-                <label class="flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer">
-                    <input type="checkbox" id="quick-prod-link-live" checked class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
-                    <span class="text-xs font-bold text-purple-900">
-                        Vincular automaticamente à Live #{{ $activeLive->id }} (Gera Código da Live)
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background-color: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 10px; cursor: pointer;">
+                    <input type="checkbox" id="quick-prod-link-live" checked style="width: 16px; height: 16px; accent-color: #7c3aed; cursor: pointer;">
+                    <span style="font-size: 12px; font-weight: 800; color: #4c1d95 !important;">
+                        Vincular à Live #{{ $activeLive->id }} (Gera Código Sequencial da Live)
                     </span>
                 </label>
             @endif
 
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                <button type="button" onclick="closeQuickProductModal()" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer">
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickProductModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
                     Cancelar
                 </button>
-                <button type="submit" id="btn-save-quick-prod" class="bg-purple-600 hover:bg-purple-700 text-white font-black px-5 py-2 rounded-xl text-xs shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
-                    <i class="fas fa-barcode"></i> Cadastrar e Gerar Código
+                <button type="submit" id="btn-save-quick-prod" style="background-color: #6d28d9 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #5b21b6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-barcode" style="color: #ddd6fe !important;"></i> Cadastrar e Gerar Código
                 </button>
             </div>
         </form>
