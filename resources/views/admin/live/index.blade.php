@@ -37,9 +37,15 @@
                 </div>
             </div>
 
-            <button type="button" id="toggle-live" class="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2" onclick="handleToggleLiveClick()">
-                <i class="fas fa-plus"></i> Nova Live
-            </button>
+            <div class="flex flex-col sm:flex-row w-full lg:w-auto gap-3 items-end">
+                <button type="button" id="toggle-live" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2" onclick="handleToggleLiveClick()">
+                    <i class="fas fa-plus"></i> Nova Live
+                </button>
+                <div id="twilio-balance-badge" class="bg-blue-50 border border-blue-200 text-blue-700 font-semibold py-2 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto" onclick="fetchTwilioBalance()">
+                    <i class="fas fa-wallet"></i>
+                    <span id="twilio-balance-text">Saldo Twilio: Carregando...</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -736,8 +742,12 @@
                                     <span class="ml-3 text-gray-500 font-medium">Plataformas: ${data.live.plataformas}</span>
                                 </div>
                             </div>
-                            <div>
-                                <span class="text-xs font-semibold text-gray-400 mr-3">ID: ${data.live.id}</span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-semibold text-gray-400">ID: ${data.live.id}</span>
+                                <div class="bg-blue-50 border border-blue-200 text-blue-700 font-semibold py-1 px-3 rounded-lg text-xs flex items-center gap-1 shadow-sm cursor-pointer twilio-balance-badge" onclick="fetchTwilioBalance()">
+                                    <i class="fas fa-wallet"></i>
+                                    <span class="twilio-balance-text">Twilio: Calculando...</span>
+                                </div>
                                 <button class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-lg text-xs transition duration-200 inline-flex items-center gap-1 shadow-sm" onclick="encerrarLive(${data.live.id})" title="Encerrar Live">
                                     <i class="fas fa-times"></i> Encerrar Live
                                 </button>
@@ -747,6 +757,7 @@
                 `;
                 
                 setTimeout(() => {
+                    fetchTwilioBalance();
                     carregarSacolas(data.live.id);
                 }, 500);
                 
@@ -1071,5 +1082,42 @@
             document.dispatchEvent(new CustomEvent('itemCleared'));
         }
     }
+
+    async function fetchTwilioBalance() {
+        let badges = Array.from(document.querySelectorAll('.twilio-balance-text'));
+        
+        const badgeId = document.getElementById('twilio-balance-text');
+        if (badgeId && !badges.includes(badgeId)) {
+            badges.push(badgeId);
+        }
+
+        if (badges.length === 0) return;
+
+        badges.forEach(b => b.innerText = "Calculando...");
+
+        try {
+            const res = await fetch('{{ route("admin.chat.api.twilio-balance") }}', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.success) {
+                badges.forEach(b => b.innerText = `Saldo Twilio: ${data.currency} ${data.balance}`);
+                const badgeId = document.getElementById('twilio-balance-text');
+                if (badgeId) badgeId.innerText = `Saldo Twilio: ${data.currency} ${data.balance}`;
+            } else {
+                badges.forEach(b => b.innerText = "Erro");
+                const badgeId = document.getElementById('twilio-balance-text');
+                if (badgeId) badgeId.innerText = "Erro";
+            }
+        } catch (e) {
+            badges.forEach(b => b.innerText = "Erro de rede");
+            const badgeId = document.getElementById('twilio-balance-text');
+            if (badgeId) badgeId.innerText = "Erro de rede";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchTwilioBalance();
+    });
 </script>
 @endpush
