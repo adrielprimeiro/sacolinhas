@@ -220,17 +220,22 @@
     <!-- Center Stage: GIANT COUNTER NUMBER -->
     <main class="flex-1 flex flex-col justify-center items-center w-full px-4 text-center cursor-pointer" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
         
-        <!-- Live Stats Badges (Quantidade de Itens & Valor Total) -->
+        <!-- Live Stats Badges (Quantidade de Itens em Sacolinhas & Valor Total) -->
         <div class="mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-3">
-            <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
-                <i class="fas fa-tshirt text-purple-400"></i>
-                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $initialCount }}</strong> <span class="text-white/70">peças</span></span>
+            <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
+                <i class="fas fa-shopping-bag text-purple-400"></i>
+                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $initialCount }}</strong> <span class="text-white/70">itens</span></span>
             </div>
 
             <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
                 <i class="fas fa-coins text-emerald-400"></i>
                 <span class="text-white/70">Total:</span>
                 <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-sm sm:text-base">{{ $initialTotalValueFormatted }}</strong>
+            </div>
+
+            <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur text-xs font-semibold text-white/50 shadow-xs">
+                <i class="fas fa-barcode text-purple-400 text-xs"></i>
+                <span><strong id="totalBipadosCount" class="text-white/80 font-mono">{{ $initialBipadosCount }}</strong> bipados</span>
             </div>
         </div>
 
@@ -303,6 +308,7 @@
 
         const counterEl = document.getElementById('counterNumber');
         const totalItemsCountEl = document.getElementById('totalItemsCount');
+        const totalBipadosCountEl = document.getElementById('totalBipadosCount');
         const totalLiveValueTextEl = document.getElementById('totalLiveValueText');
         const liveTotalValueBadge = document.getElementById('liveTotalValueBadge');
         const lastItemContainer = document.getElementById('lastItemContainer');
@@ -491,6 +497,10 @@
                         animateTotalValueChange(item.total_valor_formatado);
                     }
 
+                    if (item.total_bipados !== undefined && totalBipadosCountEl) {
+                        totalBipadosCountEl.textContent = item.total_bipados;
+                    }
+
                     // 2. Atualiza os dados do Último Item Bipado
                     lastItemCode.textContent = '#' + (item.codigo_live || item.code || cleanBar);
                     lastItemName.textContent = item.name || 'Produto';
@@ -620,6 +630,10 @@
 
                     if (data.total_valor_formatado) {
                         animateTotalValueChange(data.total_valor_formatado);
+                    }
+
+                    if (data.total_bipados !== undefined && totalBipadosCountEl) {
+                        totalBipadosCountEl.textContent = data.total_bipados;
                     }
 
                     if (data.last_item) {

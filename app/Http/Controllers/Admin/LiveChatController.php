@@ -82,33 +82,41 @@ class LiveChatController extends Controller
         $initialCount = 0;
         $initialTotalValue = 0;
         $initialTotalValueFormatted = 'R$ 0,00';
+        $initialBipadosCount = 0;
         $lastItem = null;
-        if ($activeLive && Schema::hasTable('live_items')) {
-            $initialCount = DB::table('live_items')
+
+        if ($activeLive) {
+            // Totais reais das sacolinhas da live (Itens Vendidos e Faturamento)
+            $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
                 ->where('live_id', $activeLive->id)
-                ->count();
-
-            $initialTotalValue = (float) (DB::table('live_items')
-                ->join('items', 'live_items.item_id', '=', 'items.id')
-                ->where('live_items.live_id', $activeLive->id)
-                ->sum('items.preco') ?? 0);
-
-            $initialTotalValueFormatted = 'R$ ' . number_format($initialTotalValue, 2, ',', '.');
-
-            $lastRow = DB::table('live_items')
-                ->join('items', 'live_items.item_id', '=', 'items.id')
-                ->where('live_items.live_id', $activeLive->id)
-                ->orderBy('live_items.id', 'desc')
-                ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+                ->where('status', '!=', 'pedido')
+                ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
                 ->first();
 
-            if ($lastRow) {
-                $lastItem = [
-                    'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
-                    'nome' => $lastRow->nome_do_produto ?: 'Produto',
-                    'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
-                    'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
-                ];
+            $initialCount = (int) ($sacolinhasTotals->total_itens ?? 0);
+            $initialTotalValue = (float) ($sacolinhasTotals->total_valor ?? 0);
+            $initialTotalValueFormatted = 'R$ ' . number_format($initialTotalValue, 2, ',', '.');
+
+            if (Schema::hasTable('live_items')) {
+                $initialBipadosCount = DB::table('live_items')
+                    ->where('live_id', $activeLive->id)
+                    ->count();
+
+                $lastRow = DB::table('live_items')
+                    ->join('items', 'live_items.item_id', '=', 'items.id')
+                    ->where('live_items.live_id', $activeLive->id)
+                    ->orderBy('live_items.id', 'desc')
+                    ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+                    ->first();
+
+                if ($lastRow) {
+                    $lastItem = [
+                        'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
+                        'nome' => $lastRow->nome_do_produto ?: 'Produto',
+                        'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
+                        'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
+                    ];
+                }
             }
         }
 
@@ -116,6 +124,7 @@ class LiveChatController extends Controller
             'lives', 
             'activeLive', 
             'initialCount', 
+            'initialBipadosCount',
             'initialTotalValue', 
             'initialTotalValueFormatted', 
             'lastItem'
@@ -137,45 +146,54 @@ class LiveChatController extends Controller
                 ?? Live::orderBy('id', 'desc')->first();
         }
 
-        if (!$activeLive || !Schema::hasTable('live_items')) {
+        if (!$activeLive) {
             return response()->json([
                 'success' => true,
                 'live_id' => null,
                 'live_name' => 'Nenhuma live selecionada',
                 'live_active' => false,
                 'count' => 0,
+                'total_sacolinhas_itens' => 0,
+                'total_bipados' => 0,
                 'total_valor' => 0,
                 'total_valor_formatado' => 'R$ 0,00',
                 'last_item' => null
             ]);
         }
 
-        $count = DB::table('live_items')
+        // Totais das sacolinhas
+        $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
             ->where('live_id', $activeLive->id)
-            ->count();
-
-        $totalValue = (float) (DB::table('live_items')
-            ->join('items', 'live_items.item_id', '=', 'items.id')
-            ->where('live_items.live_id', $activeLive->id)
-            ->sum('items.preco') ?? 0);
-
-        $totalValueFormatted = 'R$ ' . number_format($totalValue, 2, ',', '.');
-
-        $lastRow = DB::table('live_items')
-            ->join('items', 'live_items.item_id', '=', 'items.id')
-            ->where('live_items.live_id', $activeLive->id)
-            ->orderBy('live_items.id', 'desc')
-            ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+            ->where('status', '!=', 'pedido')
+            ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
             ->first();
 
+        $count = (int) ($sacolinhasTotals->total_itens ?? 0);
+        $totalValue = (float) ($sacolinhasTotals->total_valor ?? 0);
+        $totalValueFormatted = 'R$ ' . number_format($totalValue, 2, ',', '.');
+
+        $bipadosCount = 0;
         $lastItem = null;
-        if ($lastRow) {
-            $lastItem = [
-                'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
-                'nome' => $lastRow->nome_do_produto ?: 'Produto',
-                'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
-                'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
-            ];
+        if (Schema::hasTable('live_items')) {
+            $bipadosCount = DB::table('live_items')
+                ->where('live_id', $activeLive->id)
+                ->count();
+
+            $lastRow = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $activeLive->id)
+                ->orderBy('live_items.id', 'desc')
+                ->select('items.codigo', 'items.nome_do_produto', 'items.preco', 'live_items.codigo_live', 'live_items.created_at')
+                ->first();
+
+            if ($lastRow) {
+                $lastItem = [
+                    'codigo' => $lastRow->codigo_live ?: $lastRow->codigo,
+                    'nome' => $lastRow->nome_do_produto ?: 'Produto',
+                    'preco' => 'R$ ' . number_format($lastRow->preco ?? 0, 2, ',', '.'),
+                    'hora' => $lastRow->created_at ? date('H:i:s', strtotime($lastRow->created_at)) : ''
+                ];
+            }
         }
 
         return response()->json([
@@ -184,6 +202,8 @@ class LiveChatController extends Controller
             'live_name' => $activeLive->nome ?: ('Live #' . $activeLive->id),
             'live_active' => (bool)$activeLive->ativo,
             'count' => $count,
+            'total_sacolinhas_itens' => $count,
+            'total_bipados' => $bipadosCount,
             'total_valor' => $totalValue,
             'total_valor_formatado' => $totalValueFormatted,
             'last_item' => $lastItem
@@ -398,12 +418,16 @@ class LiveChatController extends Controller
             $item->save();
         }
 
-        $totalLiveItems = DB::table('live_items')->where('live_id', $liveId)->count();
-        $totalLiveValue = (float) (DB::table('live_items')
-            ->join('items', 'live_items.item_id', '=', 'items.id')
-            ->where('live_items.live_id', $liveId)
-            ->sum('items.preco') ?? 0);
+        $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+            ->first();
+
+        $totalLiveItems = (int) ($sacolinhasTotals->total_itens ?? 0);
+        $totalLiveValue = (float) ($sacolinhasTotals->total_valor ?? 0);
         $totalLiveValueFormatted = 'R$ ' . number_format($totalLiveValue, 2, ',', '.');
+        $totalBipadosCount = DB::table('live_items')->where('live_id', $liveId)->count();
 
         $message = $isAlreadyInLive 
             ? "Produto já cadastrado na live! Código Live: #{$codigoLive}"
@@ -424,6 +448,8 @@ class LiveChatController extends Controller
                 'name' => $item->nome_do_produto ?: 'Produto',
                 'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
                 'total_count' => $totalLiveItems,
+                'total_sacolinhas_itens' => $totalLiveItems,
+                'total_bipados' => $totalBipadosCount,
                 'total_valor' => $totalLiveValue,
                 'total_valor_formatado' => $totalLiveValueFormatted,
                 'is_already_in_live' => $isAlreadyInLive,
