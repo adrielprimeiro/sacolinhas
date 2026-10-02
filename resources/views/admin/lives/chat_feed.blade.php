@@ -272,18 +272,6 @@
                 <i class="fas fa-expand"></i>
             </button>
 
-            <!-- Botão Novo Cliente -->
-            <button type="button" onclick="openQuickClientModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Cadastrar Novo Cliente">
-                <i class="fas fa-user-plus text-xs text-emerald-200"></i>
-                <span>+ Cliente</span>
-            </button>
-
-            <!-- Botão Novo Produto -->
-            <button type="button" onclick="openQuickProductModal()" class="bg-purple-600 hover:bg-purple-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Cadastrar Novo Produto">
-                <i class="fas fa-tag text-xs text-purple-200"></i>
-                <span>+ Produto</span>
-            </button>
-
             <!-- Botão Contador (Telão) -->
             <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
                 <i class="fas fa-calculator text-xs text-indigo-200"></i>
@@ -416,6 +404,19 @@
                         onkeydown="handleManualScan(event)">
                     <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm"></i>
                 </div>
+
+                <!-- Botão + Cliente -->
+                <button type="button" onclick="openQuickClientModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" title="Cadastrar Novo Cliente">
+                    <i class="fas fa-user-plus text-xs text-emerald-200"></i>
+                    <span>+ Cliente</span>
+                </button>
+
+                <!-- Botão + Produto -->
+                <button type="button" onclick="openQuickProductModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" title="Cadastrar Novo Produto">
+                    <i class="fas fa-tag text-xs text-purple-200"></i>
+                    <span>+ Produto</span>
+                </button>
+
                 <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
                     <i class="fas fa-chevron-right"></i>
                 </button>
@@ -553,6 +554,8 @@
             <button type="button" onclick="closeManualBuyerSearchModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl transition cursor-pointer">
                 Fechar
             </button>
+        </div>
+    </div>
 </div>
 
 <!-- MODAL CADASTRO RÁPIDO DE CLIENTE -->
