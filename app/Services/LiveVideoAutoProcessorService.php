@@ -13,14 +13,34 @@ use Illuminate\Http\Request;
 class LiveVideoAutoProcessorService
 {
     /**
+     * Atualiza o cache de status e invoca callback de progresso
+     */
+    protected function updateStatus(Live $live, int $progress, string $message, string $status = 'processing', ?callable $progressCallback = null)
+    {
+        Log::info("[AutoProcessor][Live #{$live->id}][{$progress}%] {$message}");
+        
+        \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$live->id}", [
+            'status' => $status,
+            'progress' => $progress,
+            'message' => $message,
+            'updated_at' => now()->toIso8601String()
+        ], 3600);
+
+        if ($progressCallback) {
+            $progressCallback($progress, $message);
+        }
+    }
+
+    /**
      * Verifica o Instagram por um novo vídeo da live, baixa, transcreve e gera os cortes
      * 
      * @param int|null $liveId
      * @param string $instagramHandle
      * @param string|null $directVideoUrl
+     * @param callable|null $progressCallback
      * @return array
      */
-    public function processLiveVideo($liveId = null, $instagramHandle = 'de_minha_mania', $directVideoUrl = null)
+    public function processLiveVideo($liveId = null, $instagramHandle = 'de_minha_mania', $directVideoUrl = null, ?callable $progressCallback = null)
     {
         // 1. Obter a live
         if ($liveId) {
@@ -57,8 +77,7 @@ class LiveVideoAutoProcessorService
             return ['success' => false, 'message' => 'Nenhuma live encontrada para processar.'];
         }
 
-
-        Log::info("[AutoProcessor] Iniciando verificação para Live #{$live->id} no Instagram @{$instagramHandle}");
+        $this->updateStatus($live, 5, "Iniciando verificação para Live #{$live->id}...", 'processing', $progressCallback);
 
         $destFolder = storage_path('app/public/live_recordings');
         if (!is_dir($destFolder)) {
@@ -80,7 +99,7 @@ class LiveVideoAutoProcessorService
             $latestVideoUrl = $directVideoUrl;
 
             if (!$latestVideoUrl) {
-                Log::info("[AutoProcessor] Buscando último vídeo do perfil @{$instagramHandle}...");
+                $this->updateStatus($live, 10, "Buscando publicação de vídeo mais recente no perfil @{$instagramHandle}...", 'processing', $progressCallback);
                 $profileUrl = "https://www.instagram.com/{$instagramHandle}/reels/";
                 $escapedProfile = escapeshellarg($profileUrl);
 
@@ -103,10 +122,11 @@ class LiveVideoAutoProcessorService
             }
 
             if (!$latestVideoUrl) {
+                $this->updateStatus($live, 0, "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação.", 'error', $progressCallback);
                 return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça a URL do post diretamente."];
             }
 
-            Log::info("[AutoProcessor] Novo vídeo detectado: {$latestVideoUrl}. Iniciando download...");
+            $this->updateStatus($live, 15, "Baixando gravação do Instagram em alta resolução...", 'processing', $progressCallback);
 
             $filename = 'live_' . $live->id . '_' . time() . '.mp4';
             $destPath = $destFolder . DIRECTORY_SEPARATOR . $filename;
@@ -123,6 +143,7 @@ class LiveVideoAutoProcessorService
 
             if (!file_exists($destPath) || filesize($destPath) < 100000) {
                 Log::error("[AutoProcessor] Falha ao baixar vídeo: " . implode("\n", $dlOutput));
+                $this->updateStatus($live, 0, "Falha ao baixar vídeo do Instagram. Verifique o link.", 'error', $progressCallback);
                 return ['success' => false, 'message' => 'Falha ao baixar vídeo do Instagram.'];
             }
 
@@ -135,20 +156,27 @@ class LiveVideoAutoProcessorService
 
         // 4. Transcrição de áudio com timestamps
         if (empty($live->transcription_raw) || $live->transcription_status !== 'completed') {
-            Log::info("[AutoProcessor] Extraindo áudio e gerando transcrição com IA...");
-            $this->transcribeVideoAudio($live, $videoPath);
+            $this->updateStatus($live, 25, "Vídeo pronto. Extraindo áudio e transcrevendo com IA...", 'processing', $progressCallback);
+            $transcribed = $this->transcribeVideoAudio($live, $videoPath, function($pct, $msg) use ($live, $progressCallback) {
+                $this->updateStatus($live, $pct, $msg, 'processing', $progressCallback);
+            });
+
+            if (!$transcribed) {
+                $this->updateStatus($live, 0, "Falha na transcrição do áudio com IA (Whisper).", 'error', $progressCallback);
+                return ['success' => false, 'message' => 'Falha na transcrição de áudio com IA.'];
+            }
         }
 
         // 5. Detectar Minutagem das Peças Automaticamente
-        Log::info("[AutoProcessor] Executando detecção inteligente de minutagem das peças...");
+        $this->updateStatus($live, 80, "Transcrição pronta! Detectando minutagem inteligente das peças...", 'processing', $progressCallback);
         $controller = new LiveVideoCutsController();
         $controller->autoDetectTimestamps(new Request(), $live->id);
 
         // 6. Gerar Cortes em Lote com FFmpeg
-        Log::info("[AutoProcessor] Gerando cortes de vídeo individuais com FFmpeg...");
+        $this->updateStatus($live, 90, "Gerando cortes de vídeo individuais com FFmpeg...", 'processing', $progressCallback);
         $batchResult = $controller->generateBatchClips(new Request(), $live->id);
 
-        Log::info("[AutoProcessor] Pipeline concluído com sucesso para Live #{$live->id}!");
+        $this->updateStatus($live, 100, "Cortes de vídeo e minutagens gerados com sucesso!", 'completed', $progressCallback);
 
         return [
             'success' => true,

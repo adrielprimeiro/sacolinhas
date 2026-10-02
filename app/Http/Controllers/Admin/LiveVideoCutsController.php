@@ -363,12 +363,28 @@ class LiveVideoCutsController extends Controller
      */
     public function autoProcessLive(Request $request, $liveId)
     {
+        $live = Live::findOrFail($liveId);
         $username = $request->input('username', 'de_minha_mania');
         $url = $request->input('url');
-        $processor = new \App\Services\LiveVideoAutoProcessorService();
-        $result = $processor->processLiveVideo($liveId, $username, $url);
 
-        return response()->json($result);
+        \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$liveId}", [
+            'status' => 'processing',
+            'progress' => 5,
+            'message' => 'Iniciando verificação e download do vídeo da live...'
+        ], 3600);
+
+        $artisan = base_path('artisan');
+        $urlArg = $url ? sprintf('--url=%s', escapeshellarg($url)) : '';
+        $userArg = sprintf('--username=%s', escapeshellarg($username));
+        $cmd = sprintf('nohup php %s app:auto-process-live-video --live_id=%d %s %s > /dev/null 2>&1 &', escapeshellarg($artisan), $liveId, $userArg, $urlArg);
+        exec($cmd);
+
+        return response()->json([
+            'success' => true,
+            'is_async' => true,
+            'message' => 'Processamento automático iniciado em segundo plano!',
+            'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+        ]);
     }
 
     /**

@@ -1304,17 +1304,19 @@
         let videoUrl = '';
 
         if (!hasVideo) {
-            const inputUrl = prompt("Insira o link da publicação/vídeo no Instagram (ex: https://www.instagram.com/p/...):\n\nO sistema irá baixar, transcrever e gerar todos os cortes automaticamente.", "");
+            const inputUrl = prompt("Insira o link da publicação/vídeo no Instagram (ex: https://www.instagram.com/p/... ou https://www.instagram.com/reel/...):\n\nO sistema irá baixar, transcrever e gerar todos os cortes automaticamente.", "");
             if (inputUrl === null) return;
             videoUrl = inputUrl.trim();
         } else {
-            if (!confirm("O vídeo da live já está carregado. Deseja executar a transcrição inteligente e gerar todos os cortes automaticamente?")) return;
+            if (!confirm("Deseja executar a verificação inteligente, transcrição com IA e gerar todos os cortes automaticamente?")) return;
         }
 
         const btn = document.getElementById("btn-auto-process");
-        const oldHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando com IA...`;
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
+        }
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-process`, {
@@ -1330,18 +1332,24 @@
                 })
             });
             const data = await res.json();
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
 
-            if (data.success) {
+            if (data.is_async) {
+                startTranscriptionPolling();
+            } else if (data.success) {
                 alert("✅ " + data.message);
                 window.location.reload();
             } else {
                 alert("⚠️ " + (data.message || 'Falha no processamento automático.'));
             }
         } catch(e) {
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
             alert("Erro de comunicação ao disparar o processamento.");
         }
     }

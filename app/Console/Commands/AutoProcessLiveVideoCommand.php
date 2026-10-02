@@ -37,7 +37,9 @@ class AutoProcessLiveVideoCommand extends Command
             $this->line("URL Direta: {$directUrl}");
         }
 
-        $result = $processor->processLiveVideo($liveId, $username, $directUrl);
+        $result = $processor->processLiveVideo($liveId, $username, $directUrl, function($pct, $msg) {
+            $this->line("[{$pct}%] {$msg}");
+        });
 
         if (!empty($result['success'])) {
             $this->info("✅ " . $result['message']);
