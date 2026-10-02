@@ -2270,12 +2270,32 @@ class LiveChatController extends Controller
     public function toggleInstagram(Request $request)
     {
         $action = $request->input('action');
+        $username = $request->input('username', 'de_minha_mania');
+
         if ($action === 'stop') {
             Cache::put('instagram_capture_stopped', true, 86400);
             Cache::put('insta_capture_active', false);
+            try {
+                Http::timeout(3)->post('http://172.17.0.1:3002/disconnect');
+            } catch (\Exception $e) {
+                try {
+                    Http::timeout(2)->post('http://127.0.0.1:3002/disconnect');
+                } catch (\Exception $e2) {}
+            }
         } else {
             Cache::forget('instagram_capture_stopped');
             Cache::put('insta_capture_active', true, 86400);
+            try {
+                Http::timeout(5)->post('http://172.17.0.1:3002/connect', [
+                    'username' => $username
+                ]);
+            } catch (\Exception $e) {
+                try {
+                    Http::timeout(3)->post('http://127.0.0.1:3002/connect', [
+                        'username' => $username
+                    ]);
+                } catch (\Exception $e2) {}
+            }
         }
         return response()->json([
             'success' => true,

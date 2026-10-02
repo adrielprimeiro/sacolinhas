@@ -134,12 +134,16 @@ let flushTimer = null;
 function flushBatch() {
     if (batchQueue.length === 0) return;
     const batch = batchQueue.splice(0, 50);
+    console.log(`[Insta Service] 🚀 Enviando lote de ${batch.length} mensagem(ns) para Laravel...`);
     fetch(LARAVEL_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: batch })
+    }).then(async res => {
+        const text = await res.text();
+        console.log(`[Insta Service] ✅ Resposta Laravel (${res.status}): ${text}`);
     }).catch(err => {
-        console.error('[Insta Service] Erro ao enviar lote para Laravel:', err.message);
+        console.error('[Insta Service] ❌ Erro ao enviar lote para Laravel:', err.message);
     });
 }
 
@@ -243,6 +247,7 @@ app.post('/connect', async (req, res) => {
 
         await pageInstance.exposeFunction('onInstagramComment', (data) => {
             if (!data || !data.username || !data.message) return;
+            console.log(`[Insta Service] 💬 @${data.username}: "${data.message}"`);
             batchQueue.push({
                 live_id: 'auto',
                 username: data.username,
