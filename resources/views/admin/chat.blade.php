@@ -227,7 +227,7 @@
 				<span id="chatSidebarTitle" class="me-1">Conversas</span>
 			</div>
 			<div id="filterAdminContainer" style="display:none; margin-right: 10px;">
-				<select id="filterAdminSelector" class="form-select form-select-sm font-weight-bold" style="font-size: 0.75rem; padding: 2px 24px 2px 8px; width: auto;" onchange="renderConversations()">
+				<select id="filterAdminSelector" class="form-select font-weight-bold" style="font-size: 0.65rem; padding: 0px 18px 0px 4px; width: auto; height: 20px; line-height: 1;" onchange="renderConversations()">
 					<option value="">Todas</option>
 					<option value="unassigned">Não atribuídas</option>
 				</select>
@@ -453,9 +453,9 @@ setInterval(() => {
 			el.textContent = 'Fechada';
 			return;
 		}
-		const now = new Date();
-		const expiry = new Date(el.dataset.expires);
-		const diff = expiry.getTime() - now.getTime();
+		const now = new Date().getTime();
+		const expiry = parseInt(el.dataset.expires, 10);
+		const diff = expiry - now;
 		
 		if (diff <= 0) {
 			el.textContent = 'Fechada';
@@ -554,8 +554,8 @@ function renderConversations() {
 		if (info.innerHTML !== infoHTML) info.innerHTML = infoHTML;
 
 		const time = item.querySelector('.conversation-time');
-		if (conv.window_expires_at) {
-			time.dataset.expires = conv.window_expires_at;
+		if (conv.window_expires_timestamp) {
+			time.dataset.expires = conv.window_expires_timestamp;
 			// Update text manually if needed or let the interval handle it
 		} else {
 			time.removeAttribute('data-expires');
@@ -744,6 +744,9 @@ function renderMessages(messages, scrollToBottom = true) {
 
 	if (scrollToBottom || wasAtBottom) {
 		box.scrollTop = box.scrollHeight;
+		setTimeout(() => {
+			box.scrollTop = box.scrollHeight;
+		}, 100);
 	}
 }
 

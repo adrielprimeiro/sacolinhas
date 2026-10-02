@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'admin/obs-relay/*',
             'api/*',
+            'twilio-in',
+            'twilio-out',
+            'twilio-status',
+            'mercadopago/webhook'
         ]);
 
         // REGISTRO DOS MIDDLEWARES AQUI DENTRO

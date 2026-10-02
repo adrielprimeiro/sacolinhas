@@ -73,9 +73,12 @@ class ChatController extends Controller
 
 			// A janela oficial do WhatsApp de 24h é baseada estritamente na última mensagem recebida
 			if ($conv->last_inbound_at) {
-				$conv->window_expires_at = Carbon::parse($conv->last_inbound_at)->addHours(24)->toDateTimeString();
+				$expires = Carbon::parse($conv->last_inbound_at)->addHours(24);
+				$conv->window_expires_at = $expires->toDateTimeString();
+				$conv->window_expires_timestamp = $expires->timestamp * 1000;
 			} else {
 				$conv->window_expires_at = null;
+				$conv->window_expires_timestamp = null;
 			}
 			
 			// Formata a prévia da última mensagem se for template
