@@ -806,26 +806,34 @@
 
     function startTranscriptionPolling() {
         const progressBox = document.getElementById("ai-process-progress-box");
-        if (progressBox) progressBox.classList.remove("hidden");
-
-        const btnAuto = document.getElementById("btn-auto-detect");
-        if (btnAuto) {
-            btnAuto.disabled = true;
-            btnAuto.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando com IA...`;
+        if (progressBox) {
+            progressBox.classList.remove("hidden");
+            progressBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+
+        const btns = [
+            document.getElementById("btn-auto-detect-header"),
+            document.getElementById("btn-auto-detect")
+        ].filter(Boolean);
+
+        btns.forEach(b => {
+            b.disabled = true;
+            b.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Minutando com Severino...`;
+        });
 
         if (transcribePollTimer) clearInterval(transcribePollTimer);
 
         transcribePollTimer = setInterval(async () => {
             try {
                 const res = await fetch(`/admin/lives/${liveId}/cortes/transcribe-status`);
+                if (!res.ok) return;
                 const data = await res.json();
 
                 if (data.status === 'processing') {
                     const textEl = document.getElementById("ai-process-text");
                     const pctEl = document.getElementById("ai-process-pct");
                     const barEl = document.getElementById("ai-process-bar");
-                    if (textEl) textEl.textContent = data.message || 'Processando áudio com IA...';
+                    if (textEl) textEl.textContent = data.message || 'Processando minutagens com Severino IA...';
                     if (pctEl) pctEl.textContent = `${data.progress || 0}%`;
                     if (barEl) barEl.style.width = `${data.progress || 0}%`;
                 } else if (data.status === 'completed') {
@@ -833,23 +841,23 @@
                     const barEl = document.getElementById("ai-process-bar");
                     if (barEl) barEl.style.width = '100%';
                     const textEl = document.getElementById("ai-process-text");
-                    if (textEl) textEl.textContent = '✅ ' + (data.message || 'Concluído! Recarregando...');
+                    if (textEl) textEl.textContent = '✅ ' + (data.message || 'Minutagem concluída com sucesso! Recarregando...');
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else if (data.status === 'error') {
                     clearInterval(transcribePollTimer);
-                    alert("Atenção: " + (data.message || 'Erro ao processar áudio com IA.'));
+                    alert("Atenção: " + (data.message || 'Erro durante a minutagem com IA.'));
                     if (progressBox) progressBox.classList.add("hidden");
-                    if (btnAuto) {
-                        btnAuto.disabled = false;
-                        btnAuto.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
-                    }
+                    btns.forEach(b => {
+                        b.disabled = false;
+                        b.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
+                    });
                 }
             } catch (e) {
                 console.error("Erro ao consultar status:", e);
             }
-        }, 2500);
+        }, 2000);
     }
 
     async function transcribeAudioWithAI() {
@@ -906,12 +914,15 @@
 
         if (!confirm(confirmMsg)) return;
 
-        const btn = document.getElementById("btn-auto-detect-header") || document.getElementById("btn-auto-detect");
-        const oldHtml = btn ? btn.innerHTML : '';
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Analisando com Severino...`;
-        }
+        const btns = [
+            document.getElementById("btn-auto-detect-header"),
+            document.getElementById("btn-auto-detect")
+        ].filter(Boolean);
+
+        btns.forEach(b => {
+            b.disabled = true;
+            b.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando Severino...`;
+        });
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-detect`, {
@@ -925,30 +936,36 @@
                     start_code: startCode
                 })
             });
-            const data = await res.json();
+
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                throw new Error(`Servidor retornou resposta inesperada (${res.status} ${res.statusText})`);
+            }
 
             if (data.is_async) {
                 startTranscriptionPolling();
             } else if (data.success) {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = oldHtml;
-                }
+                btns.forEach(b => {
+                    b.disabled = false;
+                    b.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
+                });
                 alert("✅ " + data.message);
                 window.location.reload();
             } else {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = oldHtml;
-                }
+                btns.forEach(b => {
+                    b.disabled = false;
+                    b.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
+                });
                 alert("Atenção: " + data.message);
             }
         } catch (e) {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
-            }
-            alert("Erro de comunicação ao processar detecção automática.");
+            btns.forEach(b => {
+                b.disabled = false;
+                b.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
+            });
+            alert("Erro ao disparar detecção automática: " + e.message);
         }
     }
 

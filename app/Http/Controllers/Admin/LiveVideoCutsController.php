@@ -578,7 +578,7 @@ class LiveVideoCutsController extends Controller
     /**
      * Segmentação de IA de Alta Precisão usando Gemini 2.5 Flash / Groq LLaMA 3.3 70B com Aprendizado Severino (Few-Shot Feedback)
      */
-    protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems, ?int $startCode = null, bool $onlyUnreviewed = false): array
+    protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems, ?int $startCode = null, bool $onlyUnreviewed = false, ?callable $progressCallback = null): array
     {
         $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
@@ -591,6 +591,7 @@ class LiveVideoCutsController extends Controller
         // Filtra itens se houver startCode ou onlyUnreviewed
         $targetItems = $liveItems;
         $anchorContext = '';
+        $initialAnchorSec = null;
 
         if ($startCode !== null) {
             // Acha o último item anterior a startCode para servir como âncora de tempo inicial
@@ -599,6 +600,7 @@ class LiveVideoCutsController extends Controller
             })->sortByDesc('cut_end_sec')->first();
 
             if ($priorItem && !empty($priorItem->cut_end_sec)) {
+                $initialAnchorSec = (float) $priorItem->cut_end_sec;
                 $anchorContext = "\nÂNCORA TEMPORAL: Os itens anteriores já estão fixados. A peça #{$priorItem->codigo_live} encerrou em {$priorItem->cut_end_sec}s. Portanto, a peça #{$startCode} COMEÇA a partir de {$priorItem->cut_end_sec}s em diante.\n";
             }
 
@@ -649,7 +651,7 @@ class LiveVideoCutsController extends Controller
                 ->whereNotNull('start_sentence_snippet')
                 ->where('cut_end_sec', '>', DB::raw('cut_start_sec'))
                 ->orderBy('id', 'desc')
-                ->limit(10)
+                ->limit(8)
                 ->get();
 
             if ($feedbacks->isNotEmpty()) {
@@ -689,122 +691,138 @@ Retorne APENAS um JSON válido no formato de lista:
 ]
 PROMPT;
 
-        $userPrompt = "{$anchorContext}Itens a Segmentar na Live (em ordem sequencial):\n" . json_encode($itemsCatalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição Completa da Live:\n" . $transcriptText;
-
-        $rawResponse = null;
-
-        // 1. Google Gemini 2.5 Flash
-        if (!empty($geminiKey)) {
-            try {
-                $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $geminiKey;
-                $geminiPayload = [
-                    'contents' => [
-                        [
-                            'role' => 'user',
-                            'parts' => [
-                                ['text' => $systemPrompt . "\n\n" . $userPrompt]
-                            ]
-                        ]
-                    ],
-                    'generationConfig' => [
-                        'response_mime_type' => 'application/json',
-                        'temperature' => 0.1
-                    ]
-                ];
-
-                $response = Http::timeout(120)->post($geminiUrl, $geminiPayload);
-                if ($response->successful()) {
-                    $json = $response->json();
-                    $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                } else {
-                    Log::warning("[LiveVideoCuts] Gemini falhou: " . $response->status() . " - " . $response->body());
-                }
-            } catch (\Exception $e) {
-                Log::warning("[LiveVideoCuts] Exceção no Gemini: " . $e->getMessage());
-            }
-        }
-
-        // 2. Fallback Groq LLaMA 3.3 70B
-        if (empty($rawResponse) && !empty($groqKey)) {
-            try {
-                $groqPayload = [
-                    'model' => 'llama-3.3-70b-versatile',
-                    'messages' => [
-                        ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $userPrompt]
-                    ],
-                    'response_format' => ['type' => 'json_object'],
-                    'temperature' => 0.1
-                ];
-
-                $response = Http::withToken($groqKey)->timeout(120)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
-                if ($response->successful()) {
-                    $json = $response->json();
-                    $rawResponse = $json['choices'][0]['message']['content'] ?? null;
-                }
-            } catch (\Exception $e) {
-                Log::warning("[LiveVideoCuts] Exceção no Groq: " . $e->getMessage());
-            }
-        }
-
-        if (empty($rawResponse)) {
-            return [];
-        }
-
-        $decoded = json_decode($rawResponse, true);
-        if (isset($decoded['items']) && is_array($decoded['items'])) {
-            $decoded = $decoded['items'];
-        } elseif (isset($decoded['cuts']) && is_array($decoded['cuts'])) {
-            $decoded = $decoded['cuts'];
-        }
-
-        if (!is_array($decoded) || empty($decoded)) {
-            return [];
-        }
-
         $results = [];
         $liveItemsById = $liveItems->keyBy('id');
+        $itemChunks = array_chunk($itemsCatalog, 20);
+        $totalChunks = count($itemChunks);
+        $lastKnownEndSec = $initialAnchorSec;
 
-        foreach ($decoded as $entry) {
-            $liveItemId = $entry['live_item_id'] ?? null;
-            if (!$liveItemId || !$liveItemsById->has($liveItemId)) {
-                $code = (string) ($entry['codigo_live'] ?? '');
-                $matchedItem = $liveItems->firstWhere('codigo_live', $code);
-                if ($matchedItem) {
-                    $liveItemId = $matchedItem->id;
-                } else {
-                    continue;
+        foreach ($itemChunks as $chunkIdx => $chunk) {
+            $chunkNumber = $chunkIdx + 1;
+            $currentAnchor = '';
+            if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
+                $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
+            }
+
+            $userPrompt = "{$currentAnchor}Itens a Segmentar na Live (Lote {$chunkNumber}/{$totalChunks}):\n" . json_encode($chunk, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição da Live:\n" . $transcriptText;
+
+            $rawResponse = null;
+
+            // 1. Google Gemini 2.5 Flash
+            if (!empty($geminiKey)) {
+                try {
+                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $geminiKey;
+                    $geminiPayload = [
+                        'contents' => [
+                            [
+                                'role' => 'user',
+                                'parts' => [
+                                    ['text' => $systemPrompt . "\n\n" . $userPrompt]
+                                ]
+                            ]
+                        ],
+                        'generationConfig' => [
+                            'response_mime_type' => 'application/json',
+                            'temperature' => 0.1
+                        ]
+                    ];
+
+                    $response = Http::timeout(60)->post($geminiUrl, $geminiPayload);
+                    if ($response->successful()) {
+                        $json = $response->json();
+                        $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                    } else {
+                        Log::warning("[LiveVideoCuts] Gemini falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                    }
+                } catch (\Exception $e) {
+                    Log::warning("[LiveVideoCuts] Exceção no Gemini (Lote {$chunkNumber}): " . $e->getMessage());
                 }
             }
 
-            $start = round((float) ($entry['cut_start_sec'] ?? 0), 1);
-            $end = round((float) ($entry['cut_end_sec'] ?? 0), 1);
+            // 2. Fallback Groq LLaMA 3.3 70B
+            if (empty($rawResponse) && !empty($groqKey)) {
+                try {
+                    $groqPayload = [
+                        'model' => 'llama-3.3-70b-versatile',
+                        'messages' => [
+                            ['role' => 'system', 'content' => $systemPrompt],
+                            ['role' => 'user', 'content' => $userPrompt]
+                        ],
+                        'response_format' => ['type' => 'json_object'],
+                        'temperature' => 0.1
+                    ];
 
-            if ($start < 0 || $end <= $start) continue;
+                    $response = Http::withToken($groqKey)->timeout(60)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                    if ($response->successful()) {
+                        $json = $response->json();
+                        $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                    }
+                } catch (\Exception $e) {
+                    Log::warning("[LiveVideoCuts] Exceção no Groq (Lote {$chunkNumber}): " . $e->getMessage());
+                }
+            }
 
-            $snippet = trim($entry['snippet'] ?? '') ?: $this->getSnippetForTimeRange($live, $start, $end);
+            $decoded = null;
+            if (!empty($rawResponse)) {
+                $decoded = json_decode($rawResponse, true);
+                if (isset($decoded['items']) && is_array($decoded['items'])) {
+                    $decoded = $decoded['items'];
+                } elseif (isset($decoded['cuts']) && is_array($decoded['cuts'])) {
+                    $decoded = $decoded['cuts'];
+                }
+            }
 
-            DB::table('live_items')
-                ->where('id', $liveItemId)
-                ->update([
-                    'cut_start_sec' => $start,
-                    'cut_end_sec' => $end,
-                    'transcription_snippet' => $snippet,
-                    'updated_at' => now()
-                ]);
+            if (is_array($decoded) && !empty($decoded)) {
+                foreach ($decoded as $entry) {
+                    $liveItemId = $entry['live_item_id'] ?? null;
+                    if (!$liveItemId || !$liveItemsById->has($liveItemId)) {
+                        $code = (string) ($entry['codigo_live'] ?? '');
+                        $matchedItem = $liveItems->firstWhere('codigo_live', $code);
+                        if ($matchedItem) {
+                            $liveItemId = $matchedItem->id;
+                        } else {
+                            continue;
+                        }
+                    }
 
-            $li = $liveItemsById->get($liveItemId);
+                    $start = round((float) ($entry['cut_start_sec'] ?? 0), 1);
+                    $end = round((float) ($entry['cut_end_sec'] ?? 0), 1);
 
-            $results[] = [
-                'live_item_id' => $liveItemId,
-                'codigo_live' => $li ? $li->codigo_live : ($entry['codigo_live'] ?? ''),
-                'cut_start_sec' => $start,
-                'cut_end_sec' => $end,
-                'cut_start_formatted' => $this->formatSecondsToTime($start),
-                'cut_end_formatted' => $this->formatSecondsToTime($end),
-                'duration_sec' => round($end - $start, 1),
-                'snippet' => $snippet
-            ];
+                    if ($start < 0 || $end <= $start) continue;
+
+                    $snippet = trim($entry['snippet'] ?? '') ?: $this->getSnippetForTimeRange($live, $start, $end);
+
+                    DB::table('live_items')
+                        ->where('id', $liveItemId)
+                        ->update([
+                            'cut_start_sec' => $start,
+                            'cut_end_sec' => $end,
+                            'transcription_snippet' => $snippet,
+                            'updated_at' => now()
+                        ]);
+
+                    $li = $liveItemsById->get($liveItemId);
+                    $lastKnownEndSec = $end;
+
+                    $results[] = [
+                        'live_item_id' => $liveItemId,
+                        'codigo_live' => $li ? $li->codigo_live : ($entry['codigo_live'] ?? ''),
+                        'cut_start_sec' => $start,
+                        'cut_end_sec' => $end,
+                        'cut_start_formatted' => $this->formatSecondsToTime($start),
+                        'cut_end_formatted' => $this->formatSecondsToTime($end),
+                        'duration_sec' => round($end - $start, 1),
+                        'snippet' => $snippet
+                    ];
+                }
+            }
+
+            if ($progressCallback) {
+                $pct = min(95, 10 + (int) round(($chunkNumber / $totalChunks) * 85));
+                $firstCode = $chunk[0]['codigo_live'] ?? '';
+                $lastCode = end($chunk)['codigo_live'] ?? '';
+                $progressCallback($pct, "Severino IA minutando peças #{$firstCode} a #{$lastCode} (Lote {$chunkNumber}/{$totalChunks})...");
+            }
         }
 
         return $results;
@@ -938,7 +956,7 @@ PROMPT;
     /**
      * Algoritmo inteligente de correspondência de transcrição fonética + IA
      */
-    public function performAutoDetection(Live $live, ?int $startCode = null, bool $onlyUnreviewed = false): array
+    public function performAutoDetection(Live $live, ?int $startCode = null, bool $onlyUnreviewed = false, ?callable $progressCallback = null): array
     {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
         if (empty($sentences)) {
@@ -956,9 +974,9 @@ PROMPT;
             return [];
         }
 
-        // 1. Tenta segmentação global de alta precisão com IA (Gemini 2.5 Flash / Groq)
+        // 1. Segmentação global / em lote com IA (Gemini 2.5 Flash / Groq)
         Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id} (startCode: " . ($startCode ?: 'todos') . ")...");
-        $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems, $startCode, $onlyUnreviewed);
+        $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems, $startCode, $onlyUnreviewed, $progressCallback);
 
         if (!empty($aiResults)) {
             Log::info("[LiveVideoCuts] Segmentação IA concluída com sucesso: " . count($aiResults) . " itens minutados.");
@@ -980,14 +998,14 @@ PROMPT;
         $startCode = $request->input('start_code') ? (int) $request->input('start_code') : null;
         $onlyUnreviewed = (bool) $request->input('only_unreviewed');
 
-        // Se a transcrição estiver vazia, dispara transcrição assíncrona com auto_detect
+        // Se a transcrição estiver vazia, dispara transcrição assíncrona do vídeo
         if (empty($sentences)) {
             $videoPath = $this->getLocalVideoPath($live);
             if ($videoPath) {
-                \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$liveId}", [
+                Cache::put("live_transcription_status_{$liveId}", [
                     'status' => 'processing',
                     'progress' => 5,
-                    'message' => 'Iniciando extração do áudio e detecção inteligente...'
+                    'message' => 'Iniciando extração do áudio e transcrição da live...'
                 ], 3600);
 
                 $artisan = base_path('artisan');
@@ -1008,13 +1026,28 @@ PROMPT;
             ], 400);
         }
 
-        $results = $this->performAutoDetection($live, $startCode, $onlyUnreviewed);
+        // Se já possui transcrição, dispara a minutagem assíncrona com Severino IA
+        Cache::put("live_transcription_status_{$liveId}", [
+            'status' => 'processing',
+            'progress' => 10,
+            'message' => 'Severino IA iniciando análise de minutagem dos cortes...'
+        ], 3600);
+
+        $artisan = base_path('artisan');
+        $cmd = sprintf(
+            'nohup php %s app:auto-detect-live-cuts --live_id=%d %s %s > /dev/null 2>&1 &',
+            escapeshellarg($artisan),
+            $liveId,
+            $startCode ? '--start_code=' . $startCode : '',
+            $onlyUnreviewed ? '--only_unreviewed=1' : ''
+        );
+        exec($cmd);
 
         return response()->json([
             'success' => true,
-            'message' => 'Minutagem detectada automaticamente para ' . count($results) . ' itens!',
-            'updated_count' => count($results),
-            'items' => $results
+            'is_async' => true,
+            'message' => 'Minutagem com Severino IA iniciada em segundo plano!',
+            'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
         ]);
     }
 
