@@ -427,6 +427,7 @@ class AvaliacaoController extends Controller
 
             $totalVenda = 0;
             $totalPayout = 0;
+            $seqIndex = 1;
 
             foreach ($items as $item) {
                 // Recalcula pra ter certeza absoluta
@@ -450,7 +451,7 @@ class AvaliacaoController extends Controller
 
                 // 1. Cadastra ou atualiza o item no estoque (tabela items) se o preço de venda > 0
                 if ($item->preco_venda > 0) {
-                    $uniqueCode = 'DES-' . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . '-' . str_pad($item->id, 3, '0', STR_PAD_LEFT);
+                    $uniqueCode = 'DES-' . $avaliacao->id . '-' . str_pad($seqIndex, 3, '0', STR_PAD_LEFT);
                     $brechoId = $avaliacao->brecho_id ?: (auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1);
                     $marcaTxt = $item->marcaRel ? $item->marcaRel->nome : ($item->marca ?: 'Sem Marca');
 
@@ -492,6 +493,8 @@ class AvaliacaoController extends Controller
 
                 $totalVenda += $item->preco_venda;
                 $totalPayout += $payout;
+                
+                $seqIndex++;
             }
 
             // 2. Realiza o lançamento contábil/carteira do repasse
