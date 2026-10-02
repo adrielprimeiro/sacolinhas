@@ -1217,15 +1217,27 @@ class LiveChatController extends Controller
                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
-        $messages = $request->input('messages', []);
+        $messages = $request->input('messages');
+        if (empty($messages)) {
+            $messages = $request->json('messages');
+        }
+        if (empty($messages)) {
+            $raw = json_decode($request->getContent(), true);
+            if (isset($raw['messages'])) {
+                $messages = $raw['messages'];
+            } elseif (is_array($raw) && !empty($raw) && isset($raw[0])) {
+                $messages = $raw;
+            }
+        }
+
         if (!is_array($messages) || empty($messages)) {
             return response()->json(['success' => false, 'message' => 'Lote vazio'])
                 ->header('Access-Control-Allow-Origin', '*');
         }
 
         $liveIdInput = $request->input('live_id');
-        if ($liveIdInput && \App\Models\Live::where('id', $liveIdInput)->exists()) {
-            $liveId = $liveIdInput;
+        if ($liveIdInput && is_numeric($liveIdInput) && \App\Models\Live::where('id', $liveIdInput)->exists()) {
+            $liveId = (int)$liveIdInput;
         } else {
             $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() 
                        ?? \App\Models\Live::orderBy('id', 'desc')->first();
@@ -1246,8 +1258,14 @@ class LiveChatController extends Controller
                     $messageText = trim($item['message']);
                     $plat = strtolower((string) ($item['platform'] ?? 'instagram'));
                     $platform = str_contains($plat, 'tiktok') ? 'tiktok' : 'instagram';
-                    if ($platform === 'instagram' && Cache::get('instagram_capture_stopped', false)) continue;
-                    if ($platform === 'instagram') Cache::put('insta_capture_active', true, 86400);
+                    
+                    if ($platform === 'instagram') {
+                        if (Cache::get('instagram_capture_stopped', false)) continue;
+                        Cache::put('insta_capture_active', true, 86400);
+                    } elseif ($platform === 'tiktok') {
+                        if (Cache::get('tiktok_capture_stopped', false)) continue;
+                        Cache::put('tiktok_capture_active', true, 86400);
+                    }
 
                     $rawAvatar = $item['avatar_url']
                         ?? $item['profile_picture']
@@ -2274,16 +2292,26 @@ class LiveChatController extends Controller
             Cache::put('tiktok_capture_stopped', true, 86400);
             Cache::put('tiktok_capture_active', false);
             try {
-                Http::timeout(3)->post('http://127.0.0.1:3001/disconnect');
-            } catch (\Exception $e) {}
+                Http::timeout(3)->post('http://172.17.0.1:3001/disconnect');
+            } catch (\Exception $e) {
+                try {
+                    Http::timeout(2)->post('http://127.0.0.1:3001/disconnect');
+                } catch (\Exception $e2) {}
+            }
         } else {
             Cache::forget('tiktok_capture_stopped');
             Cache::put('tiktok_capture_active', true, 86400);
             try {
-                Http::timeout(5)->post('http://127.0.0.1:3001/connect', [
+                Http::timeout(5)->post('http://172.17.0.1:3001/connect', [
                     'username' => $username
                 ]);
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+                try {
+                    Http::timeout(3)->post('http://127.0.0.1:3001/connect', [
+                        'username' => $username
+                    ]);
+                } catch (\Exception $e2) {}
+            }
         }
 
         return response()->json([
