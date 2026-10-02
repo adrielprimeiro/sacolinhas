@@ -52,6 +52,12 @@ class LiveVideoCutsController extends Controller
         if ($hasCandCol) {
             $selectCols[] = 'live_items.thumbnail_candidates';
         }
+        if (Schema::hasColumn('live_items', 'is_reviewed')) {
+            $selectCols[] = 'live_items.is_reviewed';
+        }
+        if (Schema::hasColumn('live_items', 'review_quality')) {
+            $selectCols[] = 'live_items.review_quality';
+        }
 
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -570,9 +576,9 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
-     * Segmentação de IA de Alta Precisão usando Gemini 2.5 Flash / Groq LLaMA 3.3 70B
+     * Segmentação de IA de Alta Precisão usando Gemini 2.5 Flash / Groq LLaMA 3.3 70B com Aprendizado Severino (Few-Shot Feedback)
      */
-    protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems): array
+    protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems, ?int $startCode = null, bool $onlyUnreviewed = false): array
     {
         $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
@@ -582,9 +588,34 @@ class LiveVideoCutsController extends Controller
             return [];
         }
 
+        // Filtra itens se houver startCode ou onlyUnreviewed
+        $targetItems = $liveItems;
+        $anchorContext = '';
+
+        if ($startCode !== null) {
+            // Acha o último item anterior a startCode para servir como âncora de tempo inicial
+            $priorItem = $liveItems->filter(function($li) use ($startCode) {
+                return (int) $li->codigo_live < $startCode && !empty($li->cut_end_sec);
+            })->sortByDesc('cut_end_sec')->first();
+
+            if ($priorItem && !empty($priorItem->cut_end_sec)) {
+                $anchorContext = "\nÂNCORA TEMPORAL: Os itens anteriores já estão fixados. A peça #{$priorItem->codigo_live} encerrou em {$priorItem->cut_end_sec}s. Portanto, a peça #{$startCode} COMEÇA a partir de {$priorItem->cut_end_sec}s em diante.\n";
+            }
+
+            $targetItems = $liveItems->filter(function($li) use ($startCode) {
+                return (int) $li->codigo_live >= $startCode;
+            });
+        }
+
+        if ($onlyUnreviewed && Schema::hasColumn('live_items', 'is_reviewed')) {
+            $targetItems = $targetItems->filter(function($li) {
+                return empty($li->is_reviewed);
+            });
+        }
+
         // Formata itens do catálogo em ordem
         $itemsCatalog = [];
-        foreach ($liveItems as $li) {
+        foreach ($targetItems as $li) {
             $code = trim($li->codigo_live ?: '');
             if (!$code) continue;
             $itemsCatalog[] = [
@@ -611,17 +642,42 @@ class LiveVideoCutsController extends Controller
         }
         $transcriptText = implode("\n", $transcriptFormatted);
 
+        // Busca na memória do Severino os cortes aprovados por humanos (Few-Shot Exemplars)
+        $fewShotSection = '';
+        if (Schema::hasTable('live_cut_feedbacks')) {
+            $feedbacks = DB::table('live_cut_feedbacks')
+                ->whereNotNull('start_sentence_snippet')
+                ->where('cut_end_sec', '>', DB::raw('cut_start_sec'))
+                ->orderBy('id', 'desc')
+                ->limit(10)
+                ->get();
+
+            if ($feedbacks->isNotEmpty()) {
+                $examples = [];
+                foreach ($feedbacks as $fb) {
+                    $prodName = $fb->product_name ?: 'Peça';
+                    $cCode = $fb->codigo_live ?: '?';
+                    $dur = round($fb->cut_end_sec - $fb->cut_start_sec, 1);
+                    $startTxt = addslashes(trim(mb_substr($fb->start_sentence_snippet, 0, 120)));
+                    $endTxt = addslashes(trim(mb_substr($fb->end_sentence_snippet, 0, 120)));
+                    $examples[] = "- Exemplo (#{$cCode} - {$prodName}):\n  * Início da fala: \"{$startTxt}\"\n  * Fim da fala: \"{$endTxt}\"\n  * Duração: {$dur}s";
+                }
+                $fewShotSection = "\n\n### PADRÕES DE CORTES PADRÃO-OURO REVISADOS POR HUMANOS (APRENDA COM ESTE ESTILO REAL DA APRESENTADORA):\n" . implode("\n", $examples);
+            }
+        }
+
         $systemPrompt = <<<PROMPT
-Você é o especialista sênior em análise e minutagem de Live Shopping de Brechó (Minha Mania).
+Você é o Severino, o especialista sênior em IA para análise e minutagem de Live Shopping de Brechó (Minha Mania).
 Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o vídeo de apresentação de cada peça da live.
 
 DIRETRIZES FUNDAMENTAIS:
 1. ORDEM CRONOLÓGICA E MONOTONICIDADE: As peças são apresentadas sequencialmente na ordem dos códigos (#1, #2, ... #20, #21...). O início da peça K+1 DEVE ser posterior ou igual ao início da peça K.
 2. INÍCIO EXATO (cut_start_sec): Momento exato em que a apresentadora COMEÇA a mostrar a peça no cabide/corpo (Ex: "Olha esse vestido código 20...", "Agora o 20...", "Próxima peça, essa lindeza...", "Vem pro 20...").
-3. FIM EXATO (cut_end_sec): Momento exato em que ela ENCERRA a apresentação da peça e passa para a próxima (Ex: "Passando...", "Anotado pra @maria", "Vendido código 20", "Deixa eu pegar a próxima...").
+3. FIM EXATO (cut_end_sec): Momento exato em que ela ENCERRA a apresentação da peça e passa para a próxima (Ex: "Passando...", "Anotado pra @maria", "Vendido código 20", "Deixa eu pegar a próxima...", "Vou bipar").
 4. DURAÇÃO TÍPICA: Cada peça dura em média entre 20 a 75 segundos.
-5. CUIDADO COM FALSOS POSITIVOS: Não confunda valores de preço (ex: "R$ 20 reais"), medidas ou menções atrasadas com a apresentação da peça.
-6. Retorne APENAS um JSON válido no formato de lista:
+5. CUIDADO COM FALSOS POSITIVOS: Não confunda valores de preço (ex: "R$ 20 reais"), medidas ou menções atrasadas com a apresentação da peça.{$fewShotSection}
+
+Retorne APENAS um JSON válido no formato de lista:
 [
   {
     "live_item_id": 123,
@@ -633,7 +689,7 @@ DIRETRIZES FUNDAMENTAIS:
 ]
 PROMPT;
 
-        $userPrompt = "Itens Apresentados na Live (em ordem sequencial):\n" . json_encode($itemsCatalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição Completa da Live:\n" . $transcriptText;
+        $userPrompt = "{$anchorContext}Itens a Segmentar na Live (em ordem sequencial):\n" . json_encode($itemsCatalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição Completa da Live:\n" . $transcriptText;
 
         $rawResponse = null;
 
@@ -882,7 +938,7 @@ PROMPT;
     /**
      * Algoritmo inteligente de correspondência de transcrição fonética + IA
      */
-    public function performAutoDetection(Live $live): array
+    public function performAutoDetection(Live $live, ?int $startCode = null, bool $onlyUnreviewed = false): array
     {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
         if (empty($sentences)) {
@@ -901,8 +957,8 @@ PROMPT;
         }
 
         // 1. Tenta segmentação global de alta precisão com IA (Gemini 2.5 Flash / Groq)
-        Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id}...");
-        $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems);
+        Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id} (startCode: " . ($startCode ?: 'todos') . ")...");
+        $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems, $startCode, $onlyUnreviewed);
 
         if (!empty($aiResults)) {
             Log::info("[LiveVideoCuts] Segmentação IA concluída com sucesso: " . count($aiResults) . " itens minutados.");
@@ -921,6 +977,8 @@ PROMPT;
     {
         $live = Live::findOrFail($liveId);
         $sentences = json_decode($live->transcription_raw, true) ?: [];
+        $startCode = $request->input('start_code') ? (int) $request->input('start_code') : null;
+        $onlyUnreviewed = (bool) $request->input('only_unreviewed');
 
         // Se a transcrição estiver vazia, dispara transcrição assíncrona com auto_detect
         if (empty($sentences)) {
@@ -950,7 +1008,7 @@ PROMPT;
             ], 400);
         }
 
-        $results = $this->performAutoDetection($live);
+        $results = $this->performAutoDetection($live, $startCode, $onlyUnreviewed);
 
         return response()->json([
             'success' => true,
@@ -960,36 +1018,54 @@ PROMPT;
         ]);
     }
 
+    /**
+     * Extrai trecho do texto da transcrição e limites de frases de início e fim
+     */
+    protected function extractBoundarySentences(Live $live, float $start, float $end): array
+    {
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        if (empty($sentences)) {
+            return ['start_sentence' => '', 'end_sentence' => '', 'full_text' => ''];
+        }
+
+        $matchedTexts = [];
+        $firstSentence = '';
+        $lastSentence = '';
+
+        foreach ($sentences as $s) {
+            $sStart = (float) ($s['start'] ?? 0);
+            $sEnd = (float) ($s['end'] ?? 0);
+
+            if ($sEnd >= ($start - 1.0) && $sStart <= ($end + 1.0)) {
+                $text = trim($s['text'] ?? '');
+                if (!empty($text)) {
+                    if (empty($firstSentence)) {
+                        $firstSentence = $text;
+                    }
+                    $lastSentence = $text;
+                    $matchedTexts[] = $text;
+                }
+            }
+        }
+
+        return [
+            'start_sentence' => $firstSentence,
+            'end_sentence' => $lastSentence,
+            'full_text' => implode(' ', $matchedTexts)
+        ];
+    }
 
     /**
      * Extrai trecho do texto da transcrição correspondente ao intervalo de tempo especificado
      */
     protected function getSnippetForTimeRange(Live $live, float $start, float $end): string
     {
-        $sentences = json_decode($live->transcription_raw, true) ?: [];
-        if (empty($sentences)) {
-            return '';
-        }
-
-        $matchedTexts = [];
-        foreach ($sentences as $s) {
-            $sStart = (float) ($s['start'] ?? 0);
-            $sEnd = (float) ($s['end'] ?? 0);
-
-            // Verifica se a frase intercepta o intervalo (com 1.0s de margem de tolerância)
-            if ($sEnd >= ($start - 1.0) && $sStart <= ($end + 1.0)) {
-                $text = trim($s['text'] ?? '');
-                if (!empty($text)) {
-                    $matchedTexts[] = $text;
-                }
-            }
-        }
-
-        return implode(' ', $matchedTexts);
+        $res = $this->extractBoundarySentences($live, $start, $end);
+        return $res['full_text'];
     }
 
     /**
-     * Salva Manualmente os Timestamps de um Item e Atualiza o Texto da Fala Correspondente
+     * Salva Manualmente os Timestamps de um Item e Alimenta o Aprendizado do Severino
      */
     public function saveItemTimestamp(Request $request, $liveId, $liveItemId)
     {
@@ -1007,27 +1083,129 @@ PROMPT;
             ], 422);
         }
 
-        $snippet = $this->getSnippetForTimeRange($live, $start, $end);
+        $boundaries = $this->extractBoundarySentences($live, $start, $end);
+
+        $updateData = [
+            'cut_start_sec' => round($start, 2),
+            'cut_end_sec' => round($end, 2),
+            'transcription_snippet' => $boundaries['full_text'],
+            'updated_at' => now()
+        ];
+
+        if (Schema::hasColumn('live_items', 'is_reviewed')) {
+            $updateData['is_reviewed'] = true;
+        }
+        if (Schema::hasColumn('live_items', 'review_quality')) {
+            $updateData['review_quality'] = 'human_adjusted';
+        }
 
         DB::table('live_items')
             ->where('id', $liveItemId)
             ->where('live_id', $liveId)
-            ->update([
-                'cut_start_sec' => round($start, 2),
-                'cut_end_sec' => round($end, 2),
-                'transcription_snippet' => $snippet,
-                'updated_at' => now()
-            ]);
+            ->update($updateData);
+
+        // Alimenta a memória do Severino (Few-Shot Feedback)
+        $liveItem = DB::table('live_items')
+            ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.id', $liveItemId)
+            ->select('live_items.*', 'items.nome_do_produto', 'items.preco')
+            ->first();
+
+        if ($liveItem && Schema::hasTable('live_cut_feedbacks')) {
+            DB::table('live_cut_feedbacks')->updateOrInsert(
+                ['live_item_id' => $liveItemId],
+                [
+                    'live_id' => $liveId,
+                    'item_id' => $liveItem->item_id,
+                    'codigo_live' => $liveItem->codigo_live,
+                    'product_name' => $liveItem->nome_do_produto,
+                    'product_price' => $liveItem->preco,
+                    'cut_start_sec' => round($start, 2),
+                    'cut_end_sec' => round($end, 2),
+                    'start_sentence_snippet' => $boundaries['start_sentence'],
+                    'end_sentence_snippet' => $boundaries['end_sentence'],
+                    'full_transcription_snippet' => $boundaries['full_text'],
+                    'feedback_type' => 'human_adjusted',
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Minutagem e texto da fala correspondente atualizados com sucesso!',
+            'message' => 'Minutagem salva e memorizada pelo Severino!',
             'cut_start_sec' => round($start, 2),
             'cut_end_sec' => round($end, 2),
             'cut_start_formatted' => $this->formatSecondsToTime($start),
             'cut_end_formatted' => $this->formatSecondsToTime($end),
             'duration_sec' => round($end - $start, 1),
-            'snippet' => $snippet
+            'snippet' => $boundaries['full_text'],
+            'is_reviewed' => true,
+            'review_quality' => 'human_adjusted'
+        ]);
+    }
+
+    /**
+     * Aprova um Corte como Padrão-Ouro (Severino grava como exemplo de alta qualidade)
+     */
+    public function approveItemCut(Request $request, $liveId, $liveItemId)
+    {
+        $live = Live::findOrFail($liveId);
+        $liveItem = DB::table('live_items')
+            ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.id', $liveItemId)
+            ->where('live_items.live_id', $liveId)
+            ->select('live_items.*', 'items.nome_do_produto', 'items.preco')
+            ->first();
+
+        if (!$liveItem || empty($liveItem->cut_start_sec) || empty($liveItem->cut_end_sec)) {
+            return response()->json(['success' => false, 'message' => 'Item não possui minutagem definida para aprovar.'], 422);
+        }
+
+        $start = (float) $liveItem->cut_start_sec;
+        $end = (float) $liveItem->cut_end_sec;
+        $boundaries = $this->extractBoundarySentences($live, $start, $end);
+
+        $updateData = [
+            'transcription_snippet' => $boundaries['full_text'],
+            'updated_at' => now()
+        ];
+        if (Schema::hasColumn('live_items', 'is_reviewed')) {
+            $updateData['is_reviewed'] = true;
+        }
+        if (Schema::hasColumn('live_items', 'review_quality')) {
+            $updateData['review_quality'] = 'gold';
+        }
+
+        DB::table('live_items')->where('id', $liveItemId)->update($updateData);
+
+        if (Schema::hasTable('live_cut_feedbacks')) {
+            DB::table('live_cut_feedbacks')->updateOrInsert(
+                ['live_item_id' => $liveItemId],
+                [
+                    'live_id' => $liveId,
+                    'item_id' => $liveItem->item_id,
+                    'codigo_live' => $liveItem->codigo_live,
+                    'product_name' => $liveItem->nome_do_produto,
+                    'product_price' => $liveItem->preco,
+                    'cut_start_sec' => round($start, 2),
+                    'cut_end_sec' => round($end, 2),
+                    'start_sentence_snippet' => $boundaries['start_sentence'],
+                    'end_sentence_snippet' => $boundaries['end_sentence'],
+                    'full_transcription_snippet' => $boundaries['full_text'],
+                    'feedback_type' => 'human_approved',
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Corte da Peça #{$liveItem->codigo_live} aprovado como Padrão-Ouro e memorizado pelo Severino!",
+            'is_reviewed' => true,
+            'review_quality' => 'gold'
         ]);
     }
 
@@ -1489,11 +1667,23 @@ PROMPT;
     public function generateBatchClips(Request $request, $liveId)
     {
         $live = Live::findOrFail($liveId);
-        $items = DB::table('live_items')
+        $startCode = $request->input('start_code') ? (int) $request->input('start_code') : null;
+        $onlyUnreviewed = (bool) $request->input('only_unreviewed');
+
+        $query = DB::table('live_items')
             ->where('live_id', $liveId)
             ->whereNotNull('cut_start_sec')
-            ->whereNotNull('cut_end_sec')
-            ->get();
+            ->whereNotNull('cut_end_sec');
+
+        if ($startCode !== null) {
+            $query->where('codigo_live', '>=', $startCode);
+        }
+
+        if ($onlyUnreviewed && Schema::hasColumn('live_items', 'is_reviewed')) {
+            $query->where('is_reviewed', false);
+        }
+
+        $items = $query->orderBy('id', 'asc')->get();
 
         if ($items->isEmpty()) {
             return response()->json(['success' => false, 'message' => 'Nenhum item com minutagem definida para cortar.'], 400);

@@ -28,32 +28,43 @@
         </div>
 
         <!-- Badges / Stats & Ação Principal -->
-        <div class="flex flex-wrap items-center gap-3">
-            <div class="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-4 shadow-xs">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <div class="bg-gray-50 border border-gray-200 px-3.5 py-1.5 rounded-xl flex items-center gap-3 shadow-xs">
                 <div class="text-center">
                     <div class="text-[10px] uppercase font-bold text-gray-500">Itens</div>
                     <div id="stat-total-items" class="text-sm font-black text-gray-900">{{ $stats['total_items'] }}</div>
                 </div>
-                <div class="w-px h-6 bg-gray-200"></div>
+                <div class="w-px h-5 bg-gray-200"></div>
                 <div class="text-center">
                     <div class="text-[10px] uppercase font-bold text-amber-600">Marcados</div>
                     <div id="stat-items-with-cuts" class="text-sm font-black text-amber-700">{{ $stats['items_with_cuts'] }}</div>
                 </div>
-                <div class="w-px h-6 bg-gray-200"></div>
+                <div class="w-px h-5 bg-gray-200"></div>
                 <div class="text-center">
                     <div class="text-[10px] uppercase font-bold text-green-600">Prontos</div>
                     <div id="stat-items-rendered" class="text-sm font-black text-green-700">{{ $stats['items_rendered'] }}</div>
                 </div>
             </div>
 
-            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-md flex items-center gap-2 transition active:scale-95 cursor-pointer">
-                <i class="fab fa-instagram text-white"></i>
-                <span class="text-white font-black">Auto-Processar Instagram</span>
+            <!-- Filtro de Início por Código -->
+            <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-xs" title="Defina um código para processar apenas dele em diante (ex: 20)">
+                <span class="text-[10px] uppercase font-extrabold text-gray-500 whitespace-nowrap">A partir do #:</span>
+                <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            </div>
+
+            <button type="button" onclick="autoDetectWithAI()" id="btn-auto-detect-header" class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0d9488; color: #ffffff !important;" title="Detectar minutagens inteligentes com Severino IA">
+                <i class="fas fa-brain text-white"></i>
+                <span style="color: #ffffff !important; font-weight: 800;">Minutar com IA</span>
             </button>
 
-            <button type="button" onclick="generateAllClips()" id="btn-batch-clips" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-md flex items-center gap-2 transition active:scale-95 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
+            <button type="button" onclick="generateAllClips()" id="btn-batch-clips" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
                 <i class="fas fa-scissors text-white"></i>
-                <span style="color: #ffffff !important; font-weight: 800;">Gerar Todos os Cortes (FFmpeg)</span>
+                <span style="color: #ffffff !important; font-weight: 800;">Gerar Cortes (FFmpeg)</span>
+            </button>
+
+            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
+                <i class="fab fa-instagram text-white"></i>
+                <span class="text-white font-black">Auto-Processar Instagram</span>
             </button>
         </div>
     </div>
@@ -255,6 +266,16 @@
                                                 👤 {{ $item['buyer_name'] }}
                                             </span>
                                         @endif
+                                        @php
+                                            $isGold = !empty($item['review_quality']) && $item['review_quality'] === 'gold';
+                                            $isAdjusted = !empty($item['is_reviewed']) && !$isGold;
+                                        @endphp
+                                        <span id="badge-gold-{{ $item['live_item_id'] }}" class="{{ $isGold ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs" title="Corte memorizado como padrão-ouro para o aprendizado do Severino">
+                                            <i class="fas fa-crown text-amber-600"></i> Padrão-Ouro
+                                        </span>
+                                        <span id="badge-adj-{{ $item['live_item_id'] }}" class="{{ $isAdjusted ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1 shadow-xs" title="Corte ajustado manualmente">
+                                            <i class="fas fa-user-check text-blue-600"></i> Revisado
+                                        </span>
                                         @if($isRendered)
                                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-green-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #16a34a; color: #ffffff !important;">
                                                 <i class="fas fa-check-circle"></i> Vídeo Pronto
@@ -293,14 +314,23 @@
                                     </div>
 
                                     <!-- Salvar Tempo -->
-                                    <button type="button" onclick="saveItemCutTime({{ $item['live_item_id'] }})" title="Salvar Minutagem (Enter)" class="mt-3 p-1.5 text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition border border-gray-200 shadow-xs cursor-pointer">
+                                    <button type="button" onclick="saveItemCutTime({{ $item['live_item_id'] }})" title="Salvar Minutagem & Ensinar Severino (Enter)" class="mt-3 p-1.5 text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition border border-gray-200 shadow-xs cursor-pointer">
                                         <i class="fas fa-save text-xs"></i>
                                     </button>
                                 </div>
 
 
-                                <!-- Ações de Vídeo -->
+                                <!-- Ações de Vídeo & Severino -->
                                 <div class="flex items-center gap-1.5">
+                                    <!-- Botão Aprovar Padrão Ouro para Treinar o Severino -->
+                                    <button type="button" 
+                                            onclick="approveItemCut({{ $item['live_item_id'] }})" 
+                                            id="btn-approve-{{ $item['live_item_id'] }}" 
+                                            title="{{ $isGold ? 'Corte já memorizado como Padrão-Ouro pelo Severino' : 'Aprovar corte como Padrão-Ouro (Severino aprende este modelo)' }}" 
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs flex items-center justify-center {{ $isGold ? 'bg-amber-500 text-white font-black' : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300' }}">
+                                        <i class="fas {{ $isGold ? 'fa-crown' : 'fa-thumbs-up' }}"></i>
+                                    </button>
+
                                     <button type="button" onclick="previewItemClip({{ $item['live_item_id'] }})" title="Reproduzir Trecho Marcado no Player" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs">
                                         <i class="fas fa-play"></i>
                                     </button>
@@ -680,9 +710,49 @@
                         snipBox.classList.add('hidden');
                     }
                 }
+
+                const badgeAdj = document.getElementById(`badge-adj-${itemId}`);
+                if (badgeAdj) badgeAdj.classList.remove('hidden');
             }
         } catch (e) {
             console.error("Erro ao salvar minutagem:", e);
+        }
+    }
+
+    async function approveItemCut(itemId) {
+        const btn = document.getElementById(`btn-approve-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/approve/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (btn) {
+                    btn.className = 'p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs flex items-center justify-center bg-amber-500 text-white font-black';
+                    btn.innerHTML = '<i class="fas fa-crown"></i>';
+                    btn.title = 'Corte memorizado como Padrão-Ouro pelo Severino';
+                }
+                const badgeGold = document.getElementById(`badge-gold-${itemId}`);
+                if (badgeGold) badgeGold.classList.remove('hidden');
+                const badgeAdj = document.getElementById(`badge-adj-${itemId}`);
+                if (badgeAdj) badgeAdj.classList.add('hidden');
+                
+                alert('🌟 ' + data.message);
+            } else {
+                if (btn) btn.innerHTML = oldHtml;
+                alert('Atenção: ' + (data.message || 'Não foi possível aprovar o corte.'));
+            }
+        } catch (e) {
+            if (btn) btn.innerHTML = oldHtml;
+            alert('Falha na conexão ao aprovar corte.');
         }
     }
 
@@ -826,10 +896,22 @@
     }
 
     async function autoDetectWithAI() {
-        const btn = document.getElementById("btn-auto-detect");
-        const oldHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
+        const startCodeInput = document.getElementById("global-start-code");
+        const startCode = startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null;
+
+        let confirmMsg = "Deseja que o Severino IA analise a transcrição e detecte automaticamente os cortes de todas as peças?";
+        if (startCode) {
+            confirmMsg = `Deseja que o Severino IA analise e detecte os cortes a partir da peça #${startCode} em diante? (Os cortes anteriores serão preservados)`;
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById("btn-auto-detect-header") || document.getElementById("btn-auto-detect");
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Analisando com Severino...`;
+        }
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-detect`, {
@@ -838,25 +920,34 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    start_code: startCode
+                })
             });
             const data = await res.json();
 
             if (data.is_async) {
                 startTranscriptionPolling();
             } else if (data.success) {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
                 alert("✅ " + data.message);
                 window.location.reload();
             } else {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
                 alert("Atenção: " + data.message);
             }
         } catch (e) {
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
             alert("Erro de comunicação ao processar detecção automática.");
         }
     }
@@ -1077,6 +1168,9 @@
     }
 
     async function generateAllClips() {
+        const startCodeInput = document.getElementById("global-start-code");
+        const startCode = startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null;
+
         const itemCards = document.querySelectorAll('.item-card');
         const itemsToProcess = [];
 
@@ -1087,6 +1181,11 @@
             const startInput = document.getElementById(`input-start-${itemId}`);
             const endInput = document.getElementById(`input-end-${itemId}`);
             const codeBadge = card.querySelector('.bg-indigo-600')?.textContent?.trim() || (`#${itemId}`);
+            const rawCode = parseInt(codeBadge.replace(/[^0-9]/g, '')) || 0;
+
+            if (startCode && rawCode > 0 && rawCode < startCode) {
+                return; // Pula os anteriores ao startCode
+            }
 
             if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
                 itemsToProcess.push({
@@ -1097,11 +1196,12 @@
         });
 
         if (itemsToProcess.length === 0) {
-            alert("Nenhum item com minutagem definida para cortar.");
+            alert(startCode ? `Nenhum item a partir da peça #${startCode} com minutagem definida para cortar.` : "Nenhum item com minutagem definida para cortar.");
             return;
         }
 
-        if (!confirm(`Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`)) return;
+        const msgConfirm = startCode ? `Deseja gerar os cortes com FFmpeg para ${itemsToProcess.length} peças (a partir da peça #${startCode})?` : `Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`;
+        if (!confirm(msgConfirm)) return;
 
         const btn = document.getElementById("btn-batch-clips");
         const oldHtml = btn.innerHTML;

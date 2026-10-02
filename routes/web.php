@@ -309,6 +309,7 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/save-transcription', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveTranscription'])->name('admin.lives.cortes.save-transcription');
         Route::post('lives/{liveId}/cortes/auto-detect', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'autoDetectTimestamps'])->name('admin.lives.cortes.auto-detect');
         Route::post('lives/{liveId}/cortes/save-timestamp/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveItemTimestamp'])->name('admin.lives.cortes.save-timestamp');
+        Route::post('lives/{liveId}/cortes/approve/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'approveItemCut'])->name('admin.lives.cortes.approve');
         Route::post('lives/{liveId}/cortes/generate-single/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSingleClip'])->name('admin.lives.cortes.generate-single');
         Route::post('lives/{liveId}/cortes/generate-batch', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateBatchClips'])->name('admin.lives.cortes.generate-batch');
         Route::post('lives/{liveId}/cortes/capture-frame/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'captureFrame'])->name('admin.lives.cortes.capture-frame');
