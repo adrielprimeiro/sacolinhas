@@ -245,6 +245,7 @@ class LiveChatController extends Controller
             $hasCodigoLiveCol = Schema::hasColumn('live_items', 'codigo_live');
             $query = DB::table('live_items')
                 ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
                 ->where('live_items.live_id', $activeLive->id)
                 ->orderBy('live_items.id', 'desc');
 
@@ -270,6 +271,9 @@ class LiveChatController extends Controller
                 $selects[] = 'live_items.buyer_username';
                 $selects[] = 'live_items.buyer_name';
                 $selects[] = 'live_items.live_message_id';
+                $selects[] = 'users.phone as buyer_phone';
+                $selects[] = 'users.whatsapp as buyer_whatsapp';
+                $selects[] = 'users.telefone_principal as buyer_telefone_principal';
             }
             if ($hasVideoCutCols) {
                 $selects[] = 'live_items.video_cut_path';
@@ -287,6 +291,10 @@ class LiveChatController extends Controller
                 // Como está ordenado desc (mais recente primeiro), o número sequencial é totalCount - index
                 $seqNumber = (string)($totalCount - $index);
                 $liveCode = ($hasCodigoLiveCol && !empty($row->codigo_live)) ? $row->codigo_live : $seqNumber;
+                $buyerPhone = null;
+                if ($hasBuyerCols) {
+                    $buyerPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
+                }
                 return [
                     'id' => 'scan_db_' . $row->live_item_id,
                     'itemId' => $row->item_id,
@@ -295,6 +303,8 @@ class LiveChatController extends Controller
                     'buyerUserId' => $hasBuyerCols ? ($row->buyer_user_id ?? null) : null,
                     'buyerUsername' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
                     'buyerName' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
+                    'buyerPhone' => $buyerPhone,
+                    'hasPhone' => !empty($buyerPhone),
                     'liveMessageId' => $hasBuyerCols ? ($row->live_message_id ?? null) : null,
                     'videoCutPath' => $hasVideoCutCols ? ($row->video_cut_path ?? null) : null,
                     'videoCutFilename' => $hasVideoCutCols ? ($row->video_cut_filename ?? null) : null,
@@ -693,9 +703,17 @@ class LiveChatController extends Controller
             }
         }
 
-        $message = $userId 
+        $buyerPhone = null;
+        if ($userId) {
+            $userObj = User::find($userId);
+            if ($userObj) {
+                $buyerPhone = $userObj->whatsapp ?: ($userObj->phone ?: ($userObj->telefone_principal ?: null));
+            }
+        }
+
+        $message = ($userId && $buyerPhone) 
             ? 'Item vinculado e inserido na sacolinha com sucesso!' 
-            : 'Comprador @' . ltrim($username, '@') . ' anexado à peça. Aguardando telefone no chat para cadastrar cliente e abrir sacolinha.';
+            : 'Comprador @' . ltrim($username, '@') . ' anexado à peça. ' . ($userId ? 'Cliente sem telefone cadastrado.' : 'Aguardando telefone no chat para cadastrar cliente e abrir sacolinha.');
 
         return response()->json([
             'success' => true,
@@ -706,8 +724,10 @@ class LiveChatController extends Controller
                 'user_id' => $userId,
                 'buyer_username' => $username,
                 'buyer_name' => $buyerName,
+                'buyer_phone' => $buyerPhone,
+                'has_phone' => !empty($buyerPhone),
                 'message_id' => $messageId,
-                'waiting_phone' => empty($userId)
+                'waiting_phone' => empty($buyerPhone)
             ]
         ]);
     }
@@ -1595,6 +1615,9 @@ class LiveChatController extends Controller
                 $selects[] = 'live_items.buyer_username';
                 $selects[] = 'live_items.buyer_name';
                 $selects[] = 'live_items.live_message_id';
+                $selects[] = 'users.phone as buyer_phone';
+                $selects[] = 'users.whatsapp as buyer_whatsapp';
+                $selects[] = 'users.telefone_principal as buyer_telefone_principal';
             }
             if ($hasVideoCutCols) {
                 $selects[] = 'live_items.video_cut_path';
@@ -1608,6 +1631,7 @@ class LiveChatController extends Controller
 
             $liveItems = DB::table('live_items')
                 ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
                 ->where('live_items.live_id', $liveId)
                 ->orderBy('live_items.id', 'asc')
                 ->select($selects)
@@ -1615,6 +1639,9 @@ class LiveChatController extends Controller
                 ->map(function($row) {
                     $row->productPrice = 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.');
                     $row->time = $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '';
+                    $buyerPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
+                    $row->buyer_phone = $buyerPhone;
+                    $row->has_phone = !empty($buyerPhone);
                     return $row;
                 });
         }

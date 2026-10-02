@@ -481,6 +481,8 @@ class ClienteController extends Controller
                                 'instagram', 
                                 'tiktok', 
                                 'whatsapp',
+                                'phone',
+                                'telefone_principal',
                                 'codigo_cliente',
                                 'cpf'
                              ]);
@@ -492,6 +494,9 @@ class ClienteController extends Controller
                                    ->exists();
                 
                 $c->tipo_cliente = $hasAssinatura ? 'clube' : 'fora_clube';
+                $phoneVal = $c->whatsapp ?: ($c->phone ?: ($c->telefone_principal ?: ''));
+                $c->phone = $phoneVal;
+                $c->has_phone = !empty($phoneVal);
                 return $c;
             });
 

@@ -1847,29 +1847,30 @@
         if (item.buyerUsername) {
             const cleanUser = String(item.buyerUsername).replace(/^@/, '');
             const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase() && q.username.toLowerCase() !== cleanUser.toLowerCase());
-            const isRegistered = !!item.buyerUserId;
+            const hasPhone = Boolean(item.buyerPhone || item.hasPhone);
 
             return `
                 <div class="flex flex-col gap-1 items-start">
-                    ${isRegistered ? `
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Cliente cadastrada com sacolinha aberta">
-                            <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
+                    ${hasPhone ? `
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-xs text-xs justify-start text-left" style="background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;" title="Cliente com telefone/WhatsApp cadastrado">
+                            <span style="width: 18px; height: 18px; border-radius: 9999px; background-color: #059669; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; flex-shrink: 0;">
                                 <i class="fas fa-check"></i>
                             </span>
-                            <span class="font-black text-emerald-950 truncate max-w-[120px]">@${escapeHtml(cleanUser)}</span>
-                            ${item.buyerName ? `<span class="text-[10.5px] font-semibold text-emerald-800 truncate max-w-[80px]">(${escapeHtml(item.buyerName)})</span>` : ''}
-                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="text-gray-400 hover:text-red-600 ml-1 text-[10px] cursor-pointer">
+                            <span class="font-black truncate max-w-[120px]" style="color: #064e3b;">@${escapeHtml(cleanUser)}</span>
+                            ${item.buyerName ? `<span class="text-[10.5px] font-semibold truncate max-w-[80px]" style="color: #047857;">(${escapeHtml(item.buyerName)})</span>` : ''}
+                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="ml-1 text-[11px] cursor-pointer" style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
                     ` : `
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-300 rounded-lg shadow-xs text-xs justify-start text-left" title="Usuário não cadastrado. Aguardando WhatsApp no chat para cadastrar cliente e abrir sacolinha">
-                            <span class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0 animate-pulse">
-                                <i class="fas fa-clock"></i>
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-xs text-xs justify-start text-left animate-pulse" style="background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;" title="Cliente SEM Telefone / WhatsApp! Aguardando telefone.">
+                            <span style="width: 18px; height: 18px; border-radius: 9999px; background-color: #dc2626; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; flex-shrink: 0;">
+                                <i class="fas fa-exclamation-triangle"></i>
                             </span>
-                            <span class="font-black text-red-950 truncate max-w-[110px]">@${escapeHtml(cleanUser)}</span>
-                            <span class="text-[9.5px] font-extrabold bg-red-600 text-white px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">Esperando telefone</span>
-                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="text-gray-400 hover:text-red-700 ml-1 text-[10px] cursor-pointer">
+                            <span class="font-black truncate max-w-[110px]" style="color: #7f1d1d;">@${escapeHtml(cleanUser)}</span>
+                            ${item.buyerName ? `<span class="text-[10px] font-bold truncate max-w-[70px]" style="color: #991b1b;">(${escapeHtml(item.buyerName)})</span>` : ''}
+                            <span style="background-color: #dc2626; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 6px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">Sem Telefone</span>
+                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="ml-1 text-[11px] cursor-pointer" style="color: #991b1b;" onmouseover="this.style.color='#7f1d1d'" onmouseout="this.style.color='#991b1b'">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -1877,7 +1878,7 @@
                     ${otherSpeakers.length > 0 ? `
                         <div class="flex flex-col gap-1 items-start w-full">
                             ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs w-full justify-start text-left">
+                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs w-full justify-start text-left">
                                     <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
                                     <span class="truncate max-w-[120px]">@${escapeHtml(q.username)}</span>
                                 </button>
@@ -1896,7 +1897,7 @@
             return `
                 <div class="flex flex-col gap-1 items-start w-full">
                     ${queue.map(q => `
-                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id})" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
                             <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
                             <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
                         </button>
@@ -2099,11 +2100,12 @@
                     const username = u.instagram || u.tiktok || u.name || ('cliente_' + u.id);
                     const displayName = u.name || u.apelido || username;
                     const initials = (u.name || username).slice(0, 2).toUpperCase();
-                    const cleanPhone = u.whatsapp || u.phone || '';
+                    const cleanPhone = u.whatsapp || u.phone || u.telefone_principal || '';
                     const userPayload = encodeURIComponent(JSON.stringify({
                         id: u.id,
                         username: username,
-                        displayName: displayName
+                        displayName: displayName,
+                        phone: cleanPhone
                     }));
 
                     html += `
@@ -2118,7 +2120,7 @@
                                         ${u.instagram ? `<span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">@${escapeHtml(u.instagram)}</span>` : ''}
                                     </div>
                                     <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
-                                        ${cleanPhone ? `<span><i class="fab fa-whatsapp text-emerald-500"></i> ${escapeHtml(cleanPhone)}</span>` : ''}
+                                        ${cleanPhone ? `<span><i class="fab fa-whatsapp text-emerald-500"></i> ${escapeHtml(cleanPhone)}</span>` : '<span class="text-red-500 font-bold"><i class="fas fa-exclamation-triangle"></i> Sem telefone</span>'}
                                         ${u.cpf ? `<span>CPF: ${escapeHtml(u.cpf)}</span>` : ''}
                                     </div>
                                 </div>
@@ -2136,7 +2138,7 @@
                         <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
                         <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado com "${escapeHtml(query)}"</p>
                         <p class="text-[11px] text-gray-400 mt-0.5 mb-3">Deseja vincular diretamente como novo comprador?</p>
-                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="manual-buyer-fallback-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}', '')" class="manual-buyer-fallback-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                             <i class="fas fa-user-plus"></i> Vincular @${escapeHtml(cleanUserTerm)} à Peça
                         </button>
                     </div>
@@ -2152,7 +2154,7 @@
             container.innerHTML = `
                 <div class="text-center py-6 text-red-500 text-xs font-bold">
                     <p class="mb-2">Erro ao conectar com a busca de clientes.</p>
-                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}')" class="manual-buyer-fallback-btn px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
+                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}', '')" class="manual-buyer-fallback-btn px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
                         Vincular @${escapeHtml(cleanUserTerm)} diretamente
                     </button>
                 </div>
@@ -2166,17 +2168,17 @@
             const raw = el.getAttribute('data-user');
             if (!raw) return;
             const data = JSON.parse(decodeURIComponent(raw));
-            selectManualBuyerUser(data.id, data.username, data.displayName);
+            selectManualBuyerUser(data.id, data.username, data.displayName, data.phone);
         } catch(err) {
             console.error('[ManualBuyer] Erro ao selecionar usuário:', err);
         }
     }
 
-    function selectManualBuyerUser(userId, username, displayName) {
+    function selectManualBuyerUser(userId, username, displayName, phone) {
         if (!currentManualBuyerScanId) return;
         const scanId = currentManualBuyerScanId;
         closeManualBuyerSearchModal();
-        linkItemToBuyer(scanId, username, displayName, userId, null);
+        linkItemToBuyer(scanId, username, displayName, userId, null, phone);
     }
 
     // Fechar modal ao pressionar tecla ESC
@@ -2202,13 +2204,15 @@
         });
     }
 
-    async function linkItemToBuyer(scanId, username, displayName, userId, msgId) {
+    async function linkItemToBuyer(scanId, username, displayName, userId, msgId, phone) {
         const item = bgScanItems.find(x => x.id === scanId);
         if (!item) return;
 
         item.buyerUsername = username;
         item.buyerName = displayName || '';
         item.buyerUserId = userId || null;
+        item.buyerPhone = phone || null;
+        item.hasPhone = Boolean(phone);
         item.liveMessageId = msgId || null;
 
         updateScanItemBuyerUI(scanId);
@@ -2269,6 +2273,12 @@
                     }
                     if (resData.data.buyer_name) {
                         item.buyerName = resData.data.buyer_name;
+                    }
+                    if (resData.data.buyer_phone !== undefined) {
+                        item.buyerPhone = resData.data.buyer_phone;
+                        item.hasPhone = Boolean(resData.data.buyer_phone);
+                    } else if (resData.data.has_phone !== undefined) {
+                        item.hasPhone = Boolean(resData.data.has_phone);
                     }
                     updateScanItemBuyerUI(scanId);
                 }
@@ -2519,6 +2529,8 @@
             buyerUserId: null,
             buyerUsername: null,
             buyerName: null,
+            buyerPhone: null,
+            hasPhone: false,
             liveMessageId: null,
             videoCutPath: null,
             videoCutFilename: null,
@@ -2977,6 +2989,8 @@
                                 localItem.buyerUserId = serverItem.buyer_user_id || null;
                                 if (serverItem.buyer_username) localItem.buyerUsername = serverItem.buyer_username;
                                 if (serverItem.buyer_name) localItem.buyerName = serverItem.buyer_name;
+                                localItem.buyerPhone = serverItem.buyer_phone || null;
+                                localItem.hasPhone = Boolean(serverItem.has_phone);
                                 if (serverItem.codigo_live) localItem.liveCode = serverItem.codigo_live;
                             } else {
                                 // Item novo vindo do banco (bipado em outra tela como Contador ou Bipagem)
@@ -2991,6 +3005,8 @@
                                     buyerUserId: serverItem.buyer_user_id || null,
                                     buyerUsername: serverItem.buyer_username || null,
                                     buyerName: serverItem.buyer_name || null,
+                                    buyerPhone: serverItem.buyer_phone || null,
+                                    hasPhone: Boolean(serverItem.has_phone),
                                     liveMessageId: serverItem.live_message_id || null,
                                     videoCutPath: serverItem.video_cut_path || null,
                                     videoCutFilename: serverItem.video_cut_filename || null,
