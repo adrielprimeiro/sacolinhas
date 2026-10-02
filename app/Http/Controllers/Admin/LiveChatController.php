@@ -2146,7 +2146,7 @@ class LiveChatController extends Controller
                             'user_id' => $validated['user_id'],
                             'buyer_username' => $buyerUsername,
                             'buyer_name' => $buyerName,
-                            'status_movimentacao' => 'bipado',
+                            'status_movimentacao' => 'enviado',
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
