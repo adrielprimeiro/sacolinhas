@@ -610,7 +610,7 @@ class SeverinoService
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
                     "default_score" => 14,
-                    "timeout" => 8
+                    "timeout" => 15
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
@@ -620,7 +620,7 @@ class SeverinoService
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
                     "default_score" => 13,
-                    "timeout" => 8
+                    "timeout" => 15
                 ];
             }
         }
@@ -658,6 +658,7 @@ class SeverinoService
         unset($p);
         
         $startTime = microtime(true);
+        $executedDataTools = [];
 
         for ($i = 0; $i < 10; $i++) { // Loop das ferramentas aumentado para 10 porque agora é super rápido com o cache
             
@@ -877,9 +878,19 @@ class SeverinoService
                     $resultado = $this->executeTool($name, $args);
                     $resumoDoResultado = $this->prepareToolContent($name, $resultado, $userPrompt);
 
+                    // Registra ferramentas que retornam dados reais de negócio
+                    if (!in_array($name, ['mapear_modulo_sistema', 'consultar_codigo_controller', 'consultar_memoria_sql', 'memorizar_regra_ou_preferencia', 'criar_ferramenta_dinamica']) && empty($resultado['erro'])) {
+                        $executedDataTools[] = $name;
+                    }
+
                     // Incentivo LATM: se rodou SQL SELECT com sucesso, estimula o registro da ferramenta dinâmica
                     if ($name === 'executar_query_select' && empty($resultado['erro'])) {
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO DE AUTONOMIA LATM]: Query executada com sucesso! Para consolidar este aprendizado e não precisar rodar SQL cru no futuro, você DEVE chamar a ferramenta `criar_ferramenta_dinamica` registrando este template SQL com nome em snake_case, descrição clara e parâmetros se houver, e em seguida entregar a resposta final ao usuário.";
+                    }
+
+                    // Bloqueio de parada prematura no mapeamento de módulo ou consulta de código:
+                    if ($name === 'mapear_modulo_sistema' || $name === 'consultar_codigo_controller') {
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Os dados acima são APENAS o mapa estrutural e regras do código. Você AINDA NÃO TEM os dados do banco! Você DEVE OBRIGATORIAMENTE chamar 'executar_query_select' para buscar os registros reais no banco antes de formular a resposta para o usuário. É TERMINANTEMENTE PROIBIDO responder ao usuário ou inventar nomes/valores de clientes fictícios antes de consultar o banco!";
                     }
                     
                     // Salva na memória de rascunho caso o loop seja interrompido (timeout/limite)
@@ -971,6 +982,21 @@ class SeverinoService
                     $payload["messages"][] = [
                         "role" => "user",
                         "content" => "[SISTEMA - ERRO DE PLACEHOLDER]: Você gerou placeholders com colchetes (ex: [NOME], [X]). Isso não é permitido! Chame a ferramenta 'executar_query_select' ou 'mapear_modulo_sistema' para buscar os dados verdadeiros e entregue os nomes e números reais."
+                    ];
+                    continue;
+                }
+
+                // 6. BLOQUEIO DE ALUCINAÇÃO DE DADOS SEM CONSULTA REAL:
+                // Se o modelo afirmou ter consultado dados ou gerou uma tabela/ranking com nomes e valores fictícios
+                // mas na verdade APENAS consultou mapas/controllers (ou não consultou o banco com dados reais)
+                $mencionouConsultaFicticia = preg_match('/(realizei uma consulta|fiz uma consulta|consultei o banco|cruzando os dados da tabela|consultando os dados da tabela|consultei as tabelas|busquei no banco)/iu', $finalText);
+                $temTabelaOuRankingComValores = preg_match('/(\b(R\$\s*\d+|\d+\.\s*[A-Z][a-z]+\s+[A-Z][a-z]+))/u', $finalText) && preg_match('/(\|.*?\|.*?\||\d+\.\s+[A-Za-z])/u', $finalText);
+
+                if (($mencionouConsultaFicticia || $temTabelaOuRankingComValores) && empty($executedDataTools) && $i < 6) {
+                    \Illuminate\Support\Facades\Log::warning("Severino tentou entregar tabela/dados fictícios sem ter executado query de dados reais na iteração {$i}. Interceptando.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - ALUCINAÇÃO DETECTADA]: Você apresentou uma tabela/lista com nomes ou valores (ou afirmou ter realizado consulta), mas você NUNCA executou a consulta de dados de verdade! Você apenas consultou a estrutura ou parou antes da query. Chame a ferramenta 'executar_query_select' AGORA para buscar os registros verdadeiros no banco de dados. NUNCA invente clientes ou valores fictícios!"
                     ];
                     continue;
                 }
@@ -2240,6 +2266,12 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
     {
         $content = is_string($result) ? $result : json_encode($result, JSON_UNESCAPED_UNICODE);
         
+        // Se a ferramenta for mapeamento de arquitetura ou código PHP, é documentação/schema cirúrgico:
+        // NÃO deve passar pelo resumidor genérico para não perder definições de colunas nem gastar tokens
+        if (in_array($toolName, ['mapear_modulo_sistema', 'consultar_codigo_controller'])) {
+            return mb_substr($content, 0, 3500);
+        }
+
         // Se a resposta da ferramenta for maior que 4500 caracteres, orquestramos um resumo para não estourar tokens
         if (mb_strlen($content) > 4500) {
             // Cortamos pra 15000 chars pra não explodir o próprio resumidor se for bizarro de grande
@@ -2255,7 +2287,7 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
                     "Content-Type" => "application/json"
-                ])->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
+                ])->timeout(8)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
                     "model" => "gemini-2.5-flash",
                     "messages" => [
                         ["role" => "system", "content" => $sys],
