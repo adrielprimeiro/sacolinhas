@@ -592,7 +592,17 @@ class SeverinoService
                     "model" => "gemini-2.5-flash",
                     "name" => "Google Gemini 2.5 Flash",
                     "default_score" => 30,
-                    "timeout" => 14
+                    "timeout" => 25
+                ];
+            }
+            if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-flash-latest'))) {
+                $providersToTry[] = [
+                    "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                    "key" => $geminiKey,
+                    "model" => "gemini-flash-latest",
+                    "name" => "Google Gemini Flash Latest",
+                    "default_score" => 29,
+                    "timeout" => 25
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.1-flash-lite'))) {
@@ -602,7 +612,7 @@ class SeverinoService
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
                     "default_score" => 28,
-                    "timeout" => 12
+                    "timeout" => 15
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
@@ -612,7 +622,7 @@ class SeverinoService
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
                     "default_score" => 26,
-                    "timeout" => 15
+                    "timeout" => 18
                 ];
             }
         }
@@ -734,6 +744,25 @@ class SeverinoService
                     $payloadToSend = $payload;
                     $payloadToSend["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
+
+                    // Se for modelo Gemini 3.x e o histórico contém tool_calls sem thought_signature,
+                    // pula o modelo para evitar o erro 400 "Function call is missing a thought_signature"
+                    if (str_contains($provider["model"], "gemini-3")) {
+                        $hasUnsigned = false;
+                        foreach ($payloadToSend["messages"] as $m) {
+                            if (!empty($m["tool_calls"])) {
+                                foreach ($m["tool_calls"] as $tc) {
+                                    if (empty($tc["extra_content"]["google"]["thought_signature"])) {
+                                        $hasUnsigned = true;
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
+                        if ($hasUnsigned) {
+                            continue;
+                        }
+                    }
 
                     // Se for Groq e o payload for muito extenso (limite de 7.000 tokens do plano gratuito do Groq),
                     // pula o Groq para não disparar 413/429
