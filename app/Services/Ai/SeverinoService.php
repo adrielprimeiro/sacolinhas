@@ -777,8 +777,8 @@ class SeverinoService
                             $hasTxt = trim((string)($msgCandidate["content"] ?? "")) !== "" || trim((string)($msgCandidate["reasoning"] ?? "")) !== "";
 
                             if ($choiceCandidate && ($hasTools || $hasTxt)) {
-                                // SUCESSO: Aumenta a pontuação em 1 (máximo 10)
-                                $provider['score'] = min($provider['score'] + 1, 10);
+                                // SUCESSO: Aumenta a pontuação em 1 (máximo 35)
+                                $provider['score'] = min($provider['score'] + 1, 35);
                                 \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
                                 $choice = $choiceCandidate;
                                 break 2; // Sucesso, sai do loop provedores e attempts
@@ -2252,11 +2252,34 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
                                 }
                             }
                             $results = DB::select($dynSql, $dynBinds);
-                            return [
+                            $resData = [
                                 "ferramenta_dinamica" => $name,
                                 "total_registros" => count($results),
                                 "dados" => $results
                             ];
+                            if ($name === 'status_regras_conciliacao_clube') {
+                                $com = 0;
+                                $sem = 0;
+                                $nomesSem = [];
+                                $nomesCom = [];
+                                foreach ($results as $r) {
+                                    if (!empty($r->regra_id)) {
+                                        $com++;
+                                        $nomesCom[] = $r->cliente;
+                                    } else {
+                                        $sem++;
+                                        $nomesSem[] = $r->cliente;
+                                    }
+                                }
+                                $resData["resumo_estatistico"] = [
+                                    "total_assinantes_ativos_clube" => count($results),
+                                    "total_com_regra_50_clube_mania" => $com,
+                                    "total_SEM_regra_50_clube_mania" => $sem,
+                                    "clientes_com_regra" => $nomesCom,
+                                    "clientes_sem_regra" => $nomesSem
+                                ];
+                            }
+                            return $resData;
                         }
                     }
                     return ["erro" => "Ferramenta {$name} não existe."];
@@ -2304,49 +2327,14 @@ DICA FUNDAMENTAL: Para ver o código-fonte PHP com todas as fórmulas e regras e
         $content = is_string($result) ? $result : json_encode($result, JSON_UNESCAPED_UNICODE);
         
         // Se a ferramenta for mapeamento de arquitetura ou código PHP, é documentação/schema cirúrgico:
-        // NÃO deve passar pelo resumidor genérico para não perder definições de colunas nem gastar tokens
         if (in_array($toolName, ['mapear_modulo_sistema', 'consultar_codigo_controller'])) {
-            return mb_substr($content, 0, 3500);
+            return mb_substr($content, 0, 4500);
         }
 
-        // Se a resposta da ferramenta for maior que 4500 caracteres, orquestramos um resumo para não estourar tokens
-        if (mb_strlen($content) > 4500) {
-            // Cortamos pra 15000 chars pra não explodir o próprio resumidor se for bizarro de grande
-            $chunk = mb_substr($content, 0, 15000); 
-            
-            $sys = "Você é um orquestrador de dados. A ferramenta '$toolName' retornou uma carga de dados gigantesca. " .
-                   "Sua tarefa é analisar esses dados crus e extrair/resumir APENAS a informação que responde a intenção do usuário. " .
-                   "Devolva um resumo ultra-conciso (fatos, números, contagens). Não explique o que você fez.";
-                   
-            $userMsg = "Intenção do usuário: '$userPrompt'\n\nDados crus da ferramenta:\n" . $chunk;
-            
-            try {
-                $response = \Illuminate\Support\Facades\Http::withHeaders([
-                    "Authorization" => "Bearer " . ($this->apiKey ?: env("GEMINI_API_KEY", "")),
-                    "Content-Type" => "application/json"
-                ])->timeout(8)->post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", [
-                    "model" => "gemini-2.5-flash",
-                    "messages" => [
-                        ["role" => "system", "content" => $sys],
-                        ["role" => "user", "content" => $userMsg]
-                    ],
-                    "temperature" => 0.0,
-                    "max_tokens" => 800
-                ]);
-
-                if ($response->successful()) {
-                    $json = $response->json();
-                    $resumo = $json['choices'][0]['message']['content'] ?? "";
-                    if (!empty($resumo)) {
-                        return "[DADOS RESUMIDOS PELO ORQUESTRADOR]: " . $resumo;
-                    }
-                }
-            } catch (\Exception $e) {
-                // fallthrough
-            }
-            
-            // Se falhar a sumarização, trunca brutalmente para proteger o loop principal
-            return "[DADOS TRUNCADOS POR TAMANHO]: " . mb_substr($content, 0, 1500);
+        // Para dados de banco ou ferramentas dinâmicas, mantemos até 25.000 caracteres (~6.000 tokens)
+        // para preservar a precisão cirúrgica de contagens, listas de clientes e registros.
+        if (mb_strlen($content) > 25000) {
+            return mb_substr($content, 0, 25000) . "\n\n... [dados truncados por excesso de registros]";
         }
         
         return $content;
