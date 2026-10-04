@@ -158,8 +158,11 @@ class SeverinoService
             "  1. Se o usuário contestar, demonstrar dúvida, estranheza ou disser algo como 'você já falou isso!', 'tá falando de X ou Y?', 'não foi isso que perguntei', 'quantos lançamentos?', RECONHEÇA IMEDIATAMENTE que a resposta anterior não foi a esperada ou foi ambígua!\n" .
             "  2. NUNCA, sob hipótese alguma, repita a mesma resposta ou frase anterior! Isso é inaceitável.\n" .
             "  3. Investigue ativamente via código (`consultar_codigo_controller`), mapa (`mapear_modulo_sistema`) ou banco (`executar_query_select`) para entender as opções.\n" .
-            "  4. SE MESMO APÓS INVESTIGAR VOCÊ NÃO SOUBER OU SE A PERGUNTA ENVOLVER CRITÉRIOS AMBÍGUOS DO NEGÓCIO:\n" .
-            "     👉 PERGUNTE DE FORMA DIRETA E OBJETIVA AO USUÁRIO o que ele realmente gostaria que você procurasse! Seja humilde e transparente, mostrando o que você encontrou no sistema e perguntando qual das opções reflete a necessidade real dele.\n" .
+            "  4. PROIBIÇÃO DE PERGUNTAS TÉCNICAS E PREGUIÇA DE CONSULTA AO USUÁRIO:\n" .
+            "     - É TERMINANTEMENTE PROIBIDO perguntar ao usuário: 'Em qual tabela ou entidade está armazenada?', 'Qual campo do banco?', 'O que significa X no banco?', ou 'Você poderia esclarecer qual regra?'.\n" .
+            "     - O usuário é um gestor / operador de brechó, NÃO é programador nem DBA!\n" .
+            "     - Se você tiver qualquer dúvida sobre onde ou como uma funcionalidade do sistema funciona, seu dever é INVESTIGAR O SISTEMA usando `consultar_codigo_controller` (ex: `ConciliacaoController`, `ClubeController`, etc.), `mapear_modulo_sistema` ou consultando o banco via `executar_query_select`!\n" .
+            "     - Você SÓ pode pedir esclarecimentos sobre preferências de negócio após ter investigado o código e o banco, e JAMAIS fazendo perguntas técnicas sobre tabelas ou colunas!\n" .
             "AUTONOMIA E RESOLUÇÃO DOS PRÓPRIOS PROBLEMAS (LATM):\n" .
             "- O Severino deve resolver seus próprios problemas e evoluir sozinho a cada conversa!\n" .
             "- Sempre que o usuário te explicar o que ele realmente procura (ou quando você descobrir a query correta no banco para uma pergunta nova):\n" .
@@ -176,6 +179,11 @@ class SeverinoService
             "  5. Lucro Bruto da live = Faturamento Bruto - Custo Total das Peças (Preço de Venda menos Preço de Compra/Custo).\n" .
             "  6. Sempre que o usuário perguntar pelo LUCRO de uma live, USE A FERRAMENTA `resumo_live` (que já entrega faturamento bruto, custo total das peças e lucro bruto apurado) e apresente esses números com clareza!\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
+            "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
+            "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
+            "  2. Cada regra associa uma `descricao_banco` a uma `pessoa_id` (cliente) e uma `classificacao_financeira_id` (categoria, ex: 'Clube Mania' ID 82), com valor (ex: R$ 50,00 da mensalidade) e tipo ('sugestao' ou 'exclusao').\n" .
+            "  3. Clientes do Clube Mania: Membros com assinatura ativa na tabela `clube_assinaturas` (`status = 'ativa'`) vinculados a `users` e `pessoas`.\n" .
+            "  4. Se o usuário perguntar quantas clientes do clube NÃO têm regra padrão de conciliação de 50,00 classificadas como Clube Mania: consulte os assinantes ativos em `clube_assinaturas`, leia o JSON de `regras_conciliacao` em `configuracoes`, verifique quais assinantes já têm essa regra de 50,00 e apresente a contagem exata e os nomes dos que ainda não possuem regra cadastrada!\n" .
             "- DISTINÇÃO OBRIGATÓRIA ENTRE TRANSAÇÃO DE EXTRATO E LANÇAMENTO FINANCEIRO:\n" .
             "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações importadas diretamente do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
             "  2. 'Lançamento Financeiro' (tabela `lancamentos`): São os títulos financeiros em aberto no sistema (contas a pagar e a receber). Se o usuário perguntar 'quantos lançamentos?', informe os títulos em aberto (tabela `lancamentos`) E diferencie das transações pendentes no extrato (`transacoes_extrato`)!\n" .
@@ -997,6 +1005,21 @@ class SeverinoService
                     $payload["messages"][] = [
                         "role" => "user",
                         "content" => "[SISTEMA - ALUCINAÇÃO DETECTADA]: Você apresentou uma tabela/lista com nomes ou valores (ou afirmou ter realizado consulta), mas você NUNCA executou a consulta de dados de verdade! Você apenas consultou a estrutura ou parou antes da query. Chame a ferramenta 'executar_query_select' AGORA para buscar os registros verdadeiros no banco de dados. NUNCA invente clientes ou valores fictícios!"
+                    ];
+                    continue;
+                }
+
+                // 7. BLOQUEIO DE PREGUIÇA / PERGUNTAS TÉCNICAS AO USUÁRIO:
+                // Impede o modelo de perguntar 'em qual tabela', 'qual campo' ou pedir esclarecimento sem antes investigar o sistema
+                $tentouPedirDadosTecnicosAoUsuario = preg_match('/(em qual tabela|qual entidade|qual tabela ou entidade|qual campo|qual regra ou campo|você poderia esclarecer|voce poderia esclarecer|o que você quer dizer|o que voce quer dizer|não entendi exatamente o que você quer dizer|nao entendi exatamente o que voce quer dizer)/iu', $finalText);
+                if ($tentouPedirDadosTecnicosAoUsuario && empty($executedDataTools) && $i < 6) {
+                    \Illuminate\Support\Facades\Log::warning("Severino tentou transferir trabalho técnico para o usuário ('{$finalText}'). Interceptando na iteração {$i}.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - INVESTIGAÇÃO OBRIGATÓRIA]: É TERMINANTEMENTE PROIBIDO perguntar ao usuário em qual tabela ou campo do banco de dados a informação está armazenada! O usuário é o gestor do brechó. Use as ferramentas do sistema para descobrir:\n" .
+                                     "1. Use 'consultar_codigo_controller' (ex: 'ConciliacaoController' ou 'ClubeController') para entender a lógica das regras e controllers no código-fonte.\n" .
+                                     "2. As regras padrão de conciliação ficam em 'configuracoes' (chave 'regras_conciliacao'). A classificação 'Clube Mania' está em 'classificacao_financeira' e os membros em 'clube_assinaturas'.\n" .
+                                     "3. Execute a consulta no banco de dados e entregue a resposta com o número exato e a lista de clientes."
                     ];
                     continue;
                 }
@@ -1825,6 +1848,10 @@ class SeverinoService
                         case "extrato":
                         case "extratos":
                         case "conciliacao":
+                        case "regras":
+                        case "regra":
+                        case "regras_conciliacao":
+                        case "regras_padrao":
                         case "banco":
                         case "bancos":
                         case "orcamento":
@@ -1850,10 +1877,19 @@ class SeverinoService
                                     if (preg_match('/### Subárea 4\.2:.*?(?=### Subárea 4\.3|$)/s', $content, $m)) {
                                         return ["mapa" => "MÓDULO ORÇAMENTO (PREVISTO X REALIZADO):\n" . trim($m[0]) . "\n\nREGRA: Use sempre a ferramenta relatorio_orcamento_previsto_realizado para apurar metas vs realizado do mês!"];
                                     }
-                                } elseif (in_array($modulo, ['conciliacao', 'extrato', 'extratos'])) {
-                                    if (preg_match('/### Subárea 4\.3:.*?(?=### Subárea 4\.4|$)/s', $content, $m)) {
-                                        return ["mapa" => "MÓDULO CONCILIAÇÃO BANCÁRIA:\n" . trim($m[0])];
+                                } elseif (in_array($modulo, ['regras', 'regra', 'regras_conciliacao', 'regras_padrao'])) {
+                                    if (preg_match('/### Subárea 4\.6:.*?(?=## 📊|$)/s', $content, $m)) {
+                                        return ["mapa" => "MÓDULO REGRAS PADRÃO DE CONCILIAÇÃO:\n" . trim($m[0])];
                                     }
+                                } elseif (in_array($modulo, ['conciliacao', 'extrato', 'extratos'])) {
+                                    $mapaConciliacao = "";
+                                    if (preg_match('/### Subárea 4\.3:.*?(?=### Subárea 4\.4|$)/s', $content, $m3)) {
+                                        $mapaConciliacao .= trim($m3[0]) . "\n\n";
+                                    }
+                                    if (preg_match('/### Subárea 4\.6:.*?(?=## 📊|$)/s', $content, $m6)) {
+                                        $mapaConciliacao .= trim($m6[0]);
+                                    }
+                                    return ["mapa" => "MÓDULO CONCILIAÇÃO BANCÁRIA & REGRAS PADRÃO:\n" . $mapaConciliacao];
                                 } elseif (in_array($modulo, ['banco', 'bancos', 'contas_bancarias'])) {
                                     if (preg_match('/### Subárea 4\.4:.*?(?=### Subárea 4\.5|$)/s', $content, $m)) {
                                         return ["mapa" => "MÓDULO CONTAS BANCÁRIAS:\n" . trim($m[0])];

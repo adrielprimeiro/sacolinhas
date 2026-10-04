@@ -143,6 +143,24 @@ O sistema financeiro da Minha Mania opera a gestão por **Competência** (DRE), 
 
 ---
 
+### Subárea 4.6: Regras Padrão de Conciliação Bancária (`regras_conciliacao`)
+* **Controller:** `ConciliacaoController` (`app/Http/Controllers/Financeiro/ConciliacaoController.php`, métodos `salvarRegra` e `excluirRegra`).
+* **Armazenamento:** Tabela `configuracoes` com `chave = 'regras_conciliacao'`. O campo `valor` armazena um JSON array com todas as regras cadastradas.
+* **Estrutura de Cada Regra:**
+  * `id`: Identificador da regra.
+  * `descricao_banco`: Texto da descrição do extrato que ativa o match automático (ex: `PIX RECEBIDO - Cp :...-NOME CLIENTE`).
+  * `classificacao_financeira_id`: FK para `classificacao_financeira.id` (ex: ID `82` para **"Clube Mania"**).
+  * `pessoa_id`: FK para `pessoas.id` (vínculo com o cadastro da cliente).
+  * `valor`: Valor monetário exato para match (ex: `50.00` para a mensalidade do Clube Mania).
+  * `tipo`: `'sugestao'` ou `'exclusao'`.
+* **Como Apurar Clientes do Clube SEM Regra Padrão de R$ 50,00:**
+  1. Clientes ativas do clube: `SELECT ca.user_id, u.name, p.id as pessoa_id FROM clube_assinaturas ca JOIN users u ON u.id = ca.user_id LEFT JOIN pessoas p ON p.user_id = u.id WHERE ca.status = 'ativa'`.
+  2. Ler o JSON de `regras_conciliacao` em `configuracoes`.
+  3. Filtrar as regras com `valor = 50.00` e `classificacao_financeira_id = 82` (Clube Mania).
+  4. Cruzar por `pessoa_id` ou nome para identificar as clientes que ainda NÃO possuem essa regra configurada.
+
+---
+
 ## 📊 3. Métricas e Fórmulas Essenciais para o Severino
 
 ### 1. Saldo Real das Contas Bancárias (Sem Alucinar `saldo_atual`)
@@ -207,4 +225,5 @@ ORDER BY o.valor_previsto DESC;
 5. ❌ **Pessoas x Usuários:** Fornecedores, parceiros e prestadores de serviço ficam na tabela `pessoas` (`pessoa_id` em `lancamentos`).
 6. ❌ **Transação de Extrato NÃO é Lançamento:** A tabela `transacoes_extrato` guarda o que veio do banco. A tabela `lancamentos` guarda os títulos financeiros (contas a pagar e a receber). Se o usuário perguntar "quantos lançamentos?", informe os lançamentos em aberto (`lancamentos WHERE status = 'pendente'`) e diferencie das transações de extrato pendentes (`transacoes_extrato WHERE status = 'pendente'`).
 7. ❌ **Sincronização NÃO é Conciliação:** Sincronização é quando novas transações bancárias entraram no sistema (`Cache` ou `MAX(created_at)` em `transacoes_extrato`). Conciliação é quando uma transação foi casada com um lançamento (`MAX(updated_at)` em `transacoes_extrato` com status 'conciliado').
+8. ❌ **Regras Padrão de Conciliação Bancária:** As regras padrão de conciliação ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`. Cada regra contém `descricao_banco`, `pessoa_id`, `classificacao_financeira_id` e `valor` (ex: 50.00). A classificação do Clube Mania possui ID 82 em `classificacao_financeira`. Para saber quais clientes do clube têm ou não têm a regra de conciliação de R$ 50,00, cruze os clientes com assinatura ativa em `clube_assinaturas` (`status = 'ativa'`) com as regras cadastradas em `regras_conciliacao`. NUNCA pergunte ao usuário onde essa regra está salva!
 
