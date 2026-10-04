@@ -183,7 +183,9 @@ class SeverinoService
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
             "  2. Cada regra associa uma `descricao_banco` a uma `pessoa_id` (cliente) e uma `classificacao_financeira_id` (categoria, ex: 'Clube Mania' ID 82), com valor (ex: R$ 50,00 da mensalidade) e tipo ('sugestao' ou 'exclusao').\n" .
             "  3. Clientes do Clube Mania: Membros com assinatura ativa na tabela `clube_assinaturas` (`status = 'ativa'`) vinculados a `users` e `pessoas`.\n" .
-            "  4. Se o usuário perguntar quantas clientes do clube NÃO têm regra padrão de conciliação de 50,00 classificadas como Clube Mania: consulte os assinantes ativos em `clube_assinaturas`, leia o JSON de `regras_conciliacao` em `configuracoes`, verifique quais assinantes já têm essa regra de 50,00 e apresente a contagem exata e os nomes dos que ainda não possuem regra cadastrada!\n" .
+            "  4. Se o usuário perguntar quantas clientes do clube NÃO têm regra padrão de conciliação de 50,00 classificadas como Clube Mania: consulte os assinantes ativos em `clube_assinaturas`, cruze com as regras salvas em `configuracoes` (onde `chave = 'regras_conciliacao'`), verifique quais assinantes já têm essa regra de 50,00 associada e apresente a contagem exata e os nomes dos que ainda não possuem regra cadastrada!\n" .
+            "  5. QUERY SQL RECOMENDADA PARA CRUZAR CLUBE E REGRAS:\n" .
+            "     SELECT ca.id as assinatura_id, ca.user_id, u.name as user_nome, p.id as pessoa_id, regras.id as regra_id, regras.valor as regra_valor FROM clube_assinaturas ca JOIN users u ON u.id = ca.user_id LEFT JOIN pessoas p ON p.user_id = u.id LEFT JOIN (SELECT jt.id, jt.pessoa_id, jt.valor FROM configuracoes c, JSON_TABLE(c.valor, '$[*]' COLUMNS (id VARCHAR(50) PATH '$.id', pessoa_id INT PATH '$.pessoa_id', classificacao_financeira_id INT PATH '$.classificacao_financeira_id', valor DECIMAL(10,2) PATH '$.valor')) AS jt WHERE c.chave = 'regras_conciliacao' AND jt.classificacao_financeira_id = 82 AND jt.valor = 50.00) regras ON regras.pessoa_id = p.id WHERE ca.status = 'ativa';\n" .
             "- DISTINÇÃO OBRIGATÓRIA ENTRE TRANSAÇÃO DE EXTRATO E LANÇAMENTO FINANCEIRO:\n" .
             "  1. 'Transação de Extrato' (tabela `transacoes_extrato`): São as movimentações importadas diretamente do banco (Banco Inter / Mercado Pago). Possuem status 'pendente' (aguardando conciliação), 'conciliado' ou 'ignorado'. NUNCA as chame de 'lançamentos'!\n" .
             "  2. 'Lançamento Financeiro' (tabela `lancamentos`): São os títulos financeiros em aberto no sistema (contas a pagar e a receber). Se o usuário perguntar 'quantos lançamentos?', informe os títulos em aberto (tabela `lancamentos`) E diferencie das transações pendentes no extrato (`transacoes_extrato`)!\n" .
@@ -470,7 +472,7 @@ class SeverinoService
         }
 
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY', '');
-        $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+        $geminiKey = config('services.gemini.paid_api_key') ?: env('GEMINI_PAID_API_KEY', config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
 
         if (empty($groqKey) && empty($geminiKey)) {
             return "Chave da API de IA (Gemini ou Groq) não configurada.";
@@ -581,44 +583,26 @@ class SeverinoService
 
         $providersToTry = [];
 
-        // 1. Groq (Prioridade 1: Ultrarrápido ~250ms a 900ms via LPU)
-        if (!empty($groqKey)) {
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-20b",
-                "name" => "Groq GPT OSS 20B",
-                "default_score" => 19,
-                "timeout" => 7
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen 27B",
-                "default_score" => 18,
-                "timeout" => 7
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B",
-                "default_score" => 16,
-                "timeout" => 9
-            ];
-        }
-
-        // 2. Google Gemini (Prioridade 2: Modelos modernos de alta precisão e cotas generosas)
+        // 1. Google Gemini (Prioridade 1: Modelos modernos com 1M+ contexto, alta capacidade de raciocínio e alta taxa de requisições com chave paga)
         if (!empty($geminiKey)) {
+            if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-2.5-flash'))) {
+                $providersToTry[] = [
+                    "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                    "key" => $geminiKey,
+                    "model" => "gemini-2.5-flash",
+                    "name" => "Google Gemini 2.5 Flash",
+                    "default_score" => 30,
+                    "timeout" => 14
+                ];
+            }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.1-flash-lite'))) {
                 $providersToTry[] = [
                     "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                     "key" => $geminiKey,
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
-                    "default_score" => 14,
-                    "timeout" => 15
+                    "default_score" => 28,
+                    "timeout" => 12
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
@@ -627,10 +611,38 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
-                    "default_score" => 13,
+                    "default_score" => 26,
                     "timeout" => 15
                 ];
             }
+        }
+
+        // 2. Groq (Prioridade 2: Ultrarrápido ~250ms a 900ms via LPU para prompts menores)
+        if (!empty($groqKey)) {
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-20b",
+                "name" => "Groq GPT OSS 20B",
+                "default_score" => 15,
+                "timeout" => 7
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen 27B",
+                "default_score" => 14,
+                "timeout" => 7
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B",
+                "default_score" => 13,
+                "timeout" => 9
+            ];
         }
 
         // 3. OpenRouter (Apenas se tiver saldo e não estiver desativado por 402)
@@ -723,37 +735,26 @@ class SeverinoService
                     $payloadToSend["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
 
-                    // Se for Google Gemini e já temos resultados de ferramentas no histórico,
-                    // converte para texto padrão para evitar o erro 400 "thought_signature" do Gemini!
-                    if (str_contains($provider["url"], "generativelanguage.googleapis.com")) {
-                        $hasTool = false;
-                        foreach ($payloadToSend["messages"] as $m) {
-                            if (($m["role"] ?? "") === "tool" || !empty($m["tool_calls"])) {
-                                $hasTool = true;
-                                break;
-                            }
+                    // Se for Groq e o payload for muito extenso (limite de 7.000 tokens do plano gratuito do Groq),
+                    // pula o Groq para não disparar 413/429
+                    if (str_contains($provider["url"], "api.groq.com")) {
+                        $approxTokens = mb_strlen(json_encode($payloadToSend)) / 3.8;
+                        if ($approxTokens > 6000) {
+                            continue;
                         }
-                        if ($hasTool) {
-                            $sanitizedGeminiMessages = [];
-                            foreach ($payloadToSend["messages"] as $m) {
-                                if (($m["role"] ?? "") === "tool") {
-                                    $sanitizedGeminiMessages[] = [
-                                        "role" => "user",
-                                        "content" => "[DADOS DA CONSULTA NO BANCO DE DADOS - FERRAMENTA '{$m['name']}']:\n{$m['content']}\n\nCom base nesses dados apurados, elabore e entregue a resposta final completa e formatada em Markdown para o usuário."
-                                    ];
-                                } elseif (!empty($m["tool_calls"])) {
-                                    $sanitizedGeminiMessages[] = [
-                                        "role" => "assistant",
-                                        "content" => "Vou consultar as ferramentas no sistema."
-                                    ];
-                                } else {
-                                    $sanitizedGeminiMessages[] = $m;
+                    }
+
+                    // Se não for Gemini, remove o campo proprietário 'extra_content' dos tool_calls para evitar erro de schema no Groq/OpenRouter
+                    if (!str_contains($provider["url"], "generativelanguage.googleapis.com")) {
+                        foreach ($payloadToSend["messages"] as &$m) {
+                            if (!empty($m["tool_calls"])) {
+                                foreach ($m["tool_calls"] as &$tc) {
+                                    unset($tc["extra_content"]);
                                 }
+                                unset($tc);
                             }
-                            $payloadToSend["messages"] = $sanitizedGeminiMessages;
-                            unset($payloadToSend["tools"]);
-                            unset($payloadToSend["tool_choice"]);
                         }
+                        unset($m);
                     }
 
                     try {
