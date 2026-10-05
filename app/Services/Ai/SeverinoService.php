@@ -139,6 +139,11 @@ class SeverinoService
             "- Sacolinha Vencida: Sacolinha aberta que contém pelo menos um item inserido há mais de 31 dias (`DATE_ADD(add_at, INTERVAL 31 DAY) < NOW()`).\n" .
             "- Sacolinha Sem Itens Vencidos (Em Dia): (Total de Sacolinhas Abertas) - (Sacolinhas Vencidas). NUNCA invente números diferentes!\n" .
             "- Sacolinha Fechada: Pedido finalizado na tabela `pedidos`.\n" .
+            "- FECHAMENTO DE SACOLINHA E PRAZO DE 30/31 DIAS:\n" .
+            "  1. A sacolinha pode ser fechada a QUALQUER MOMENTO pelo cliente ou administrador (inclusive no mesmo dia da compra). NUNCA diga que precisa esperar 30 dias para fechar!\n" .
+            "  2. O prazo de 30/31 dias é o limite MÁXIMO de permanência permitida para acumular itens na sacolinha antes da cobrança obrigatória de frete / devolução, NUNCA uma carência mínima.\n" .
+            "  3. Na interface (tanto no Painel Admin `/admin/sacolinhas/ver/{user}` quanto no Portal `/portal/sacolinha`), o botão 'Fechar Sacolinha' fica desabilitado por padrão se nenhum item estiver marcado na lista. O usuário DEVE marcar o checkbox de ao menos uma peça (ou 'Selecionar Todos') para que o botão fique verde e habilitado.\n" .
+            "  4. Para a Minha Mania (Matriz), o fechamento via Admin abate do saldo em carteira (`conta_corrente`). Se o saldo for menor que o valor do pedido e não houver autorização prévia ('Autorizar Fechamento'), o fechamento é bloqueado por saldo insuficiente.\n" .
             "REGRA OBRIGATÓRIA DA CARTEIRA DE CLIENTES (CONTA_CORRENTE):\n" .
             "- A tabela `conta_corrente` é um EXTRATO HISTÓRICO DE AUDITORIA (várias linhas por cliente). A coluna `saldo_atual` em cada linha é apenas uma fotografia do saldo naquela data passada.\n" .
             "- NUNCA faça SUM(saldo_atual) ou COUNT(*) direto em conta_corrente para calcular clientes negativos ou saldos, pois isso somará centenas de linhas antigas do mesmo cliente!\n" .

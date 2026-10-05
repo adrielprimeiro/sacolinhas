@@ -389,9 +389,9 @@ class AdminSacolinhaController extends Controller
                     $saldoAtual = (float) ($ultimaTransacao?->saldo_atual ?? 0);
 
                     // 4. Calcular total do pedido e aplicar trava de segurança rígida
-                    if ($saldoAtual < $totalItensFrete) {
+                    if (round($saldoAtual, 2) < round($totalItensFrete, 2)) {
                         if (!empty($user->sacolinha_autorizada_por)) {
-                            $valorFaltante = $totalItensFrete - $saldoAtual;
+                            $valorFaltante = round($totalItensFrete - $saldoAtual, 2);
                             $isToleranceAuthorized = true;
                             $adminName = $user->sacolinha_autorizada_por;
                             $toleranceObs = $user->sacolinha_autorizada_obs;

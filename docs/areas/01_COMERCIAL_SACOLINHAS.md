@@ -133,3 +133,5 @@ O ciclo comercial da Minha Mania segue esta esteira contínua:
 3. ❌ **Nunca busque a tabela `avaliacao_itens`:** O nome correto da tabela no banco é `avaliacao_items` (com "items").
 4. ❌ **Nunca confunda linhas com clientes:** Se houver 300 linhas em `sacolinhas`, NÃO significa que existem 300 clientes. Significa que existem 300 peças. O número de sacolas/clientes é sempre `COUNT(DISTINCT user_id)`.
 5. ❌ **Na tabela `avaliacoes`, o valor não é `valor_total_aprovado`:** As colunas reais de valor são `total_venda` e `total_payout`.
+6. ❌ **Nunca diga que uma sacolinha só pode ser fechada após 30 ou 31 dias:** O prazo de 30/31 dias é a tolerância MÁXIMA de permanência para acumular peças sem pagar frete imediato. A sacolinha pode ser fechada a **QUALQUER MOMENTO**, seja minutos após a live ou dias depois, tanto pelo cliente no portal quanto pelo admin.
+7. ❌ **Botão "Fechar Sacolinha" desabilitado:** Na tela da sacolinha (Admin ou Portal), o botão só fica habilitado quando **ao menos uma peça é selecionada** no checkbox da lista. Se nenhum item estiver marcado (`selectedIds.length === 0`), o botão permanece desabilitado por design do sistema.
