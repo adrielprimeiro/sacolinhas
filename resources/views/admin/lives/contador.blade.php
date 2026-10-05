@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel do Telão & Chat da Live • Minha Mania</title>
+    <title>Painel do Telão & Chat da Apresentadora • Minha Mania</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -22,14 +22,14 @@
 
         /* Themes */
         .theme-dark {
-            --bg-main: #09090b;
-            --panel-bg: rgba(24, 24, 27, 0.85);
-            --card-bg: #18181b;
-            --card-border: #27272a;
+            --bg-main: #06080f;
+            --panel-bg: rgba(15, 23, 42, 0.92);
+            --card-bg: #111827;
+            --card-border: #2c3b52;
             --text-primary: #ffffff;
-            --text-secondary: #a1a1aa;
+            --text-secondary: #94a3b8;
             --accent: #a855f7;
-            background-color: #09090b;
+            background-color: #06080f;
             color: #ffffff;
         }
         .theme-dark .counter-num {
@@ -39,11 +39,11 @@
 
         .theme-light {
             --bg-main: #f1f5f9;
-            --panel-bg: rgba(255, 255, 255, 0.95);
+            --panel-bg: rgba(255, 255, 255, 0.96);
             --card-bg: #ffffff;
-            --card-border: #e2e8f0;
+            --card-border: #cbd5e1;
             --text-primary: #0f172a;
-            --text-secondary: #64748b;
+            --text-secondary: #475569;
             --accent: #6366f1;
             background-color: #f1f5f9;
             color: #0f172a;
@@ -54,14 +54,14 @@
         }
 
         .theme-neon {
-            --bg-main: #030712;
-            --panel-bg: rgba(15, 23, 42, 0.9);
-            --card-bg: #0b1329;
-            --card-border: #1e293b;
+            --bg-main: #020617;
+            --panel-bg: rgba(11, 19, 43, 0.94);
+            --card-bg: #091329;
+            --card-border: #1e3a5f;
             --text-primary: #22d3ee;
             --text-secondary: #94a3b8;
             --accent: #06b6d4;
-            background-color: #030712;
+            background-color: #020617;
             color: #22d3ee;
         }
         .theme-neon .counter-num {
@@ -71,7 +71,7 @@
 
         .theme-chroma {
             --bg-main: #00ff00;
-            --panel-bg: rgba(0, 0, 0, 0.85);
+            --panel-bg: rgba(0, 0, 0, 0.88);
             --card-bg: #111827;
             --card-border: #374151;
             --text-primary: #ffffff;
@@ -87,9 +87,9 @@
 
         .theme-transparent {
             --bg-main: transparent;
-            --panel-bg: rgba(15, 23, 42, 0.8);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --card-border: rgba(255, 255, 255, 0.15);
+            --panel-bg: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --card-border: rgba(255, 255, 255, 0.2);
             --text-primary: #ffffff;
             --text-secondary: #cbd5e1;
             --accent: #818cf8;
@@ -125,56 +125,61 @@
 
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
+            background: rgba(0, 0, 0, 0.15);
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.45);
         }
 
-        /* Chat Cards High Contrast & Animations */
+        /* Chat Cards High Contrast Studio Quality */
         .telao-chat-card {
             background-color: var(--card-bg) !important;
-            border: 1.5px solid var(--card-border) !important;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+            border: 2px solid var(--card-border) !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
             transition: all 0.2s ease;
         }
 
-        .telao-chat-card:hover {
-            border-color: #818cf8 !important;
-            transform: translateX(-2px);
+        .telao-chat-card.platform-instagram {
+            border-left: 6px solid #ec4899 !important;
+        }
+
+        .telao-chat-card.platform-tiktok {
+            border-left: 6px solid #06b6d4 !important;
         }
 
         .telao-chat-card.is-marked {
-            border: 2px solid #f59e0b !important;
-            background-color: rgba(245, 158, 11, 0.12) !important;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3) !important;
+            border: 2.5px solid #f59e0b !important;
+            border-left: 8px solid #f59e0b !important;
+            background-color: rgba(245, 158, 11, 0.14) !important;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.35) !important;
         }
 
         .telao-code-badge {
             background-color: #4f46e5 !important;
             color: #ffffff !important;
             font-weight: 900 !important;
-            padding: 2px 7px !important;
-            border-radius: 6px !important;
+            padding: 3px 9px !important;
+            border-radius: 8px !important;
             display: inline-flex !important;
             align-items: center !important;
             font-family: 'JetBrains Mono', monospace !important;
-            font-size: 0.9em !important;
-            margin: 0 2px !important;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+            font-size: 0.95em !important;
+            margin: 0 3px !important;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4) !important;
+            border: 1.5px solid #818cf8 !important;
         }
 
         @keyframes msgSlideIn {
             from {
                 opacity: 0;
-                transform: translateY(12px) scale(0.98);
+                transform: translateY(14px) scale(0.98);
             }
             to {
                 opacity: 1;
@@ -183,7 +188,7 @@
         }
 
         .msg-entry-animate {
-            animation: msgSlideIn 0.25s ease-out forwards;
+            animation: msgSlideIn 0.22s ease-out forwards;
         }
     </style>
 </head>
@@ -210,7 +215,7 @@
     <!-- Top Floating Toolbar (Auto-hides on idle) -->
     <header id="controlsBar" class="controls-layer w-full max-w-7xl mx-auto pt-3 px-4 z-50 flex flex-wrap items-center justify-between gap-2.5">
         <!-- Live info & Selector -->
-        <div class="flex items-center gap-2.5 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 shadow-lg">
+        <div class="flex items-center gap-2.5 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 shadow-lg">
             <div class="flex items-center gap-2">
                 <span class="relative flex h-3 w-3">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -243,7 +248,7 @@
         </div>
 
         <!-- Action Controls -->
-        <div class="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded-2xl border border-white/10 shadow-lg">
+        <div class="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-2xl border border-white/10 shadow-lg">
             <!-- Layout Selector (Split / Contador / Chat) -->
             <div class="flex items-center bg-white/10 p-0.5 rounded-xl text-xs">
                 <button type="button" onclick="setLayoutMode('split')" id="btn-layout-split" class="px-2.5 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow-sm transition flex items-center gap-1" title="Divisão 50/50: Contador + Chat">
@@ -310,8 +315,8 @@
         </div>
     </header>
 
-    <!-- MAIN STAGE: 2-COLUMN SPLIT (CONTADOR + CHAT AO VIVO) -->
-    <main id="mainStageContainer" class="flex-1 w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch">
+    <!-- MAIN STAGE: 2-COLUMN SPLIT (CONTADOR + CHAT DA APRESENTADORA) -->
+    <main id="mainStageContainer" class="flex-1 w-full max-w-[1780px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch">
         
         <!-- ========================================== -->
         <!-- LADO ESQUERDO: CONTADOR GIGANTE & STATS   -->
@@ -320,26 +325,26 @@
             
             <!-- Live Stats Badges (Itens, Total R$, Bipados) -->
             <div class="w-full flex flex-wrap items-center justify-center gap-2.5 shrink-0 pt-1">
-                <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-purple-500/15 border border-purple-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
-                    <i class="fas fa-shopping-bag text-purple-400"></i>
-                    <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $sacolinhasItensCount }}</strong> <span class="text-white/70">itens</span></span>
+                <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-purple-500/20 border border-purple-500/40 backdrop-blur text-xs sm:text-sm font-black tracking-wider text-purple-200 shadow-md">
+                    <i class="fas fa-shopping-bag text-purple-400 text-sm"></i>
+                    <span><strong id="totalItemsCount" class="text-white font-mono text-base sm:text-lg">{{ $sacolinhasItensCount }}</strong> <span class="text-white/80">itens</span></span>
                 </div>
 
-                <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
-                    <i class="fas fa-coins text-emerald-400"></i>
-                    <span class="text-white/70">Total:</span>
-                    <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-sm sm:text-base">{{ $initialTotalValueFormatted }}</strong>
+                <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 backdrop-blur text-xs sm:text-sm font-black tracking-wide text-emerald-200 shadow-md transition-all duration-300">
+                    <i class="fas fa-coins text-emerald-400 text-sm"></i>
+                    <span class="text-white/80">Total:</span>
+                    <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-base sm:text-lg">{{ $initialTotalValueFormatted }}</strong>
                 </div>
 
-                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur text-xs font-semibold text-white/60 shadow-xs">
-                    <i class="fas fa-barcode text-purple-400 text-xs"></i>
-                    <span><strong id="totalBipadosCount" class="text-white/90 font-mono">{{ $initialBipadosCount }}</strong> bipados</span>
+                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/10 border border-white/20 backdrop-blur text-xs font-bold text-white/80 shadow-xs">
+                    <i class="fas fa-barcode text-purple-300 text-xs"></i>
+                    <span><strong id="totalBipadosCount" class="text-white font-mono text-sm">{{ $initialBipadosCount }}</strong> bipados</span>
                 </div>
             </div>
 
             <!-- The GIANT Number (Código da Peça / Sequência da Live) -->
             <div class="my-auto flex flex-col items-center justify-center text-center cursor-pointer select-none py-2" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
-                <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-purple-400/80 mb-1 flex items-center gap-1.5">
+                <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-purple-400/90 mb-1 flex items-center gap-1.5">
                     <i class="fas fa-tag text-xs"></i> Peça Atual da Live
                 </span>
                 <div 
@@ -353,119 +358,127 @@
 
             <!-- Subtitle / Last Biped Item Info (Collapsible) -->
             <div id="lastItemContainer" class="w-full shrink-0 transition-all duration-300 {{ $lastItem ? '' : 'hidden' }}">
-                <div class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-xl text-left">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="h-10 w-10 rounded-xl bg-purple-500/25 border border-purple-500/40 flex items-center justify-center text-purple-300 font-bold text-base shrink-0 shadow-inner">
+                <div class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3 rounded-2xl bg-black/50 border border-white/15 backdrop-blur-md shadow-xl text-left">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                        <div class="h-11 w-11 rounded-2xl bg-purple-500/30 border border-purple-500/50 flex items-center justify-center text-purple-300 font-black text-lg shrink-0 shadow-inner">
                             <i class="fas fa-check"></i>
                         </div>
                         <div class="min-w-0">
-                            <div class="font-bold text-white flex items-center gap-2 text-xs sm:text-sm">
-                                <span id="lastItemCode" class="text-purple-300 font-mono font-black">#{{ $lastItem['codigo'] ?? '---' }}</span>
-                                <span class="text-white/30">•</span>
-                                <span id="lastItemName" class="truncate font-extrabold text-white">{{ $lastItem['nome'] ?? '---' }}</span>
+                            <div class="font-black text-white flex items-center gap-2 text-sm sm:text-base">
+                                <span id="lastItemCode" class="text-purple-300 font-mono font-black text-base sm:text-lg">#{{ $lastItem['codigo'] ?? '---' }}</span>
+                                <span class="text-white/40">•</span>
+                                <span id="lastItemName" class="truncate font-black text-white">{{ $lastItem['nome'] ?? '---' }}</span>
                             </div>
-                            <div class="text-white/60 text-xs flex items-center gap-2 mt-0.5">
-                                <span id="lastItemPrice" class="font-black text-emerald-400">{{ $lastItem['preco'] ?? '' }}</span>
-                                <span class="text-white/30">•</span>
-                                <span id="lastItemTime" class="text-white/50 font-mono">{{ $lastItem['hora'] ?? '' }}</span>
+                            <div class="text-white/80 text-xs sm:text-sm flex items-center gap-2.5 mt-0.5 font-bold">
+                                <span id="lastItemPrice" class="font-black text-emerald-400 text-sm sm:text-base">{{ $lastItem['preco'] ?? '' }}</span>
+                                <span class="text-white/40">•</span>
+                                <span id="lastItemTime" class="text-white/60 font-mono">{{ $lastItem['hora'] ?? '' }}</span>
                             </div>
                         </div>
                     </div>
-                    <span class="text-[10px] font-bold bg-white/10 text-white/70 px-2.5 py-1 rounded-lg shrink-0 border border-white/10">Último Bipado</span>
+                    <span class="text-xs font-black bg-purple-600/30 text-purple-200 px-3 py-1 rounded-xl shrink-0 border border-purple-500/40">Último Bipado</span>
                 </div>
             </div>
         </section>
 
         <!-- ========================================== -->
-        <!-- LADO DIREITO: CHAT DA TRANSMISSÃO AO VIVO  -->
+        <!-- LADO DIREITO: CHAT DA APRESENTADORA        -->
         <!-- ========================================== -->
         <section id="col-chat-panel" class="flex flex-col h-full min-h-0 rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-300" style="background-color: var(--panel-bg);">
             
             <!-- Header do Chat -->
-            <div class="p-3 sm:p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/20">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-sm shadow-md shrink-0">
+            <div class="p-3 sm:p-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-2.5 shrink-0 bg-black/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-base shadow-md shrink-0">
                         <i class="fas fa-comments"></i>
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-xs sm:text-sm font-black text-white tracking-tight">Chat da Transmissão</h2>
+                            <h2 class="text-sm sm:text-base font-black text-white tracking-tight">Chat da Apresentadora</h2>
                             <span id="chat-live-pulse-badge" class="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
                                 <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO
                             </span>
                         </div>
-                        <p class="text-[10.5px] text-white/60 font-semibold truncate">
-                            <span id="chat-msgs-counter">0</span> comentários capturados
+                        <p class="text-xs text-white/70 font-bold truncate">
+                            <span id="chat-msgs-counter" class="text-purple-300 font-mono font-black">0</span> comentários capturados
                         </p>
                     </div>
                 </div>
 
-                <!-- Filtros Rápidos & Auto-Scroll -->
-                <div class="flex items-center gap-1.5">
+                <!-- Controles de Legibilidade & Filtros -->
+                <div class="flex items-center gap-2">
+                    <!-- Zoom de Fonte (Tamanho de Leitura da Apresentadora) -->
+                    <div class="flex bg-white/10 p-0.5 rounded-xl text-xs font-black" title="Tamanho do Texto no Telão">
+                        <button type="button" onclick="setChatFontSize('normal')" id="btn-font-normal" class="px-2.5 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition">
+                            1x
+                        </button>
+                        <button type="button" onclick="setChatFontSize('large')" id="btn-font-large" class="px-2.5 py-1 rounded-lg text-white bg-indigo-600 shadow-sm transition">
+                            1.5x
+                        </button>
+                        <button type="button" onclick="setChatFontSize('huge')" id="btn-font-huge" class="px-2.5 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition">
+                            2x
+                        </button>
+                    </div>
+
                     <!-- Filtro Tabs -->
-                    <div class="flex bg-white/10 p-0.5 rounded-xl text-[11px] font-bold">
-                        <button type="button" onclick="setChatFilter('all')" id="tab-chat-all" class="px-2 py-1 rounded-lg text-white bg-indigo-600 shadow-xs transition">
+                    <div class="flex bg-white/10 p-0.5 rounded-xl text-[11px] font-extrabold">
+                        <button type="button" onclick="setChatFilter('all')" id="tab-chat-all" class="px-2.5 py-1 rounded-lg text-white bg-purple-600 shadow-xs transition">
                             Todas
                         </button>
                         <button type="button" onclick="setChatFilter('marked')" id="tab-chat-marked" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition flex items-center gap-1" title="Mensagens Marcadas">
-                            <i class="fas fa-star text-amber-400 text-[10px]"></i>
+                            <i class="fas fa-star text-amber-400 text-xs"></i>
                         </button>
                         <button type="button" onclick="setChatFilter('instagram')" id="tab-chat-instagram" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition" title="Apenas Instagram">
-                            <i class="fab fa-instagram text-pink-400 text-[11px]"></i>
+                            <i class="fab fa-instagram text-pink-400 text-xs"></i>
                         </button>
                         <button type="button" onclick="setChatFilter('tiktok')" id="tab-chat-tiktok" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition" title="Apenas TikTok">
-                            <i class="fab fa-tiktok text-cyan-400 text-[11px]"></i>
+                            <i class="fab fa-tiktok text-cyan-400 text-xs"></i>
                         </button>
                     </div>
 
                     <!-- Auto-scroll lock toggle -->
-                    <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll" class="px-2 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10" title="Travar/Destravar Rolagem Automática">
-                        <i id="autoscroll-icon" class="fas fa-arrow-down text-[10px]"></i>
-                    </button>
-
-                    <!-- Zoom de Fonte -->
-                    <button type="button" onclick="toggleChatFontSize()" id="btn-chat-font" class="px-2 py-1 text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition border border-white/10" title="Alternar Tamanho da Fonte">
-                        <span id="chat-font-indicator">A+</span>
+                    <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll" class="px-2.5 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10" title="Travar/Destravar Rolagem Automática">
+                        <i id="autoscroll-icon" class="fas fa-arrow-down text-xs"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Feed de Mensagens Rolável -->
-            <div id="telao-chat-messages-container" class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5 relative">
+            <div id="telao-chat-messages-container" class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-4 relative">
                 <!-- Preenchido dinamicamente via JS -->
-                <div class="flex flex-col items-center justify-center h-full text-white/40 py-12 text-center">
-                    <i class="fas fa-comments text-4xl mb-3 text-white/20 animate-pulse"></i>
-                    <p class="text-xs font-bold text-white/70">Aguardando comentários da live...</p>
-                    <p class="text-[11px] text-white/40 mt-0.5">As mensagens de Instagram e TikTok aparecerão aqui em tempo real.</p>
+                <div class="flex flex-col items-center justify-center h-full text-white/40 py-16 text-center">
+                    <i class="fas fa-comments text-5xl mb-3 text-white/20 animate-pulse"></i>
+                    <p class="text-sm font-extrabold text-white/80">Aguardando comentários da live...</p>
+                    <p class="text-xs text-white/50 mt-1">As mensagens de Instagram e TikTok aparecerão aqui em tempo real com destaque para a apresentadora.</p>
                 </div>
             </div>
 
             <!-- Floating Jump-to-Bottom Pill (Quando usuário rolou para cima) -->
-            <div id="chat-jump-bottom-btn" onclick="scrollToChatBottom(true)" class="hidden absolute bottom-5 right-6 z-20 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-2xl border border-indigo-400 cursor-pointer flex items-center gap-1.5 animate-bounce">
-                <i class="fas fa-arrow-down text-xs"></i> <span>Novas mensagens</span>
+            <div id="chat-jump-bottom-btn" onclick="scrollToChatBottom(true)" class="hidden absolute bottom-5 right-6 z-20 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2 rounded-full shadow-2xl border-2 border-indigo-400 cursor-pointer flex items-center gap-2 animate-bounce">
+                <i class="fas fa-arrow-down text-xs"></i> <span>Novas mensagens abaixo</span>
             </div>
 
             <!-- Footer do Chat (Status de Conexão) -->
-            <div class="px-4 py-2 border-t border-white/10 bg-black/30 flex items-center justify-between text-[11px] text-white/40 font-medium shrink-0">
-                <span class="flex items-center gap-1.5">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span id="chat-status-text">Captura de Chat Ativa</span>
+            <div class="px-4 py-2 border-t border-white/10 bg-black/40 flex items-center justify-between text-xs text-white/50 font-semibold shrink-0">
+                <span class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="chat-status-text" class="text-emerald-300 font-bold">Captura Ativa</span>
                 </span>
-                <span id="chat-active-filter-label" class="font-bold text-white/60">Todas as redes</span>
+                <span id="chat-active-filter-label" class="font-bold text-white/70">Todas as redes • Destaque de compras ativo</span>
             </div>
         </section>
     </main>
 
     <!-- Bottom subtle bar -->
-    <footer class="w-full text-center pb-2.5 pt-1 text-[11px] text-white/40 font-medium z-10 flex items-center justify-center gap-4">
+    <footer class="w-full text-center pb-2.5 pt-1 text-xs text-white/40 font-semibold z-10 flex items-center justify-center gap-4">
         <span>Minha Mania Live Studio</span>
         <span>•</span>
-        <span id="syncIndicator" class="flex items-center gap-1.5 text-emerald-400/90 font-bold">
+        <span id="syncIndicator" class="flex items-center gap-1.5 text-emerald-400/90 font-black">
             <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Sincronizado
         </span>
         <span class="hidden sm:inline">•</span>
-        <span class="hidden sm:inline text-white/30">Pressione 'F' para Tela Cheia • '1' Telão • '2' Split • '3' Chat</span>
+        <span class="hidden sm:inline text-white/30">Pressione 'F' para Tela Cheia • '1' Só Telão • '2' Dividido • '3' Só Chat</span>
     </footer>
 
     <!-- Invisible Auto-Focus Input for USB / Bluetooth Barcode Scanners -->
@@ -499,7 +512,7 @@
         let currentChatFilter = 'all'; // 'all', 'marked', 'instagram', 'tiktok'
         let autoScrollEnabled = true;
         let isUserScrollingChat = false;
-        let chatFontSizeMode = 'normal'; // 'normal', 'large', 'huge'
+        let chatFontSizeMode = 'large'; // Default: 'large' para leitura de estúdio à distância!
         let layoutMode = 'split'; // 'split', 'counter', 'chat'
 
         // DOM Elements
@@ -816,7 +829,7 @@
         });
 
         // =========================================================================
-        // SINCRONIZAÇÃO EM TEMPO REAL (CONTADOR + CHAT DA TRANSMISSÃO)
+        // DESTAQUES DE LEITURA & INTENÇÃO DE COMPRA (QUERO / CÓDIGOS)
         // =========================================================================
         let lastRenderedChatHash = '';
 
@@ -835,11 +848,20 @@
             return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        function highlightPieceCodes(text) {
+        function highlightPresenterKeywords(text) {
             if (!text) return '';
             let safe = escapeHtml(text);
-            // Destaca códigos (#123 ou números isolados precedidos de palavras-chave)
+
+            // 1. Destaca palavras de intenção de compra da cliente (QUERO, MEU, FICO, etc.)
+            const intentRegex = /\b(QUERO|EU QUERO|MEU|MINHA|FICO|FICO COM|RESERVA|RESERVO|PEGA|PEGO|COMPRO|PASSA|ME LEVA|MINHA PECA|MINHA PEÇA)\b/gi;
+            safe = safe.replace(intentRegex, '<span class="font-black text-emerald-300 bg-emerald-500/25 border border-emerald-400/50 px-2 py-0.5 rounded-lg shadow-sm tracking-wide uppercase">$1</span>');
+
+            // 2. Destaca códigos (#123)
             safe = safe.replace(/(#\d{1,6})/gi, '<span class="telao-code-badge">$1</span>');
+
+            // 3. Destaca números isolados (ex: "quero 25", "meu 40")
+            safe = safe.replace(/(^|\s)(\d{1,5})($|\s|[.,!?])/g, '$1<span class="telao-code-badge">#$2</span>$3');
+
             return safe;
         }
 
@@ -859,7 +881,9 @@
             return gradients[Math.abs(hash) % gradients.length];
         }
 
-        // Renderização do Chat do Telão
+        // =========================================================================
+        // RENDERIZAÇÃO DO CHAT COM MÁXIMA LEGIBILIDADE PARA APRESENTADORA
+        // =========================================================================
         function renderTelaoChatFeed() {
             if (!chatContainer) return;
 
@@ -886,106 +910,130 @@
 
             if (list.length === 0) {
                 chatContainer.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full text-white/40 py-12 text-center">
-                        <i class="fas ${currentChatFilter === 'marked' ? 'fa-star text-amber-400' : 'fa-comment-slash'} text-4xl mb-3 text-white/20"></i>
-                        <p class="text-xs font-bold text-white/70">${currentChatFilter === 'marked' ? 'Nenhum comentário marcado' : 'Aguardando comentários...'}</p>
-                        <p class="text-[11px] text-white/40 mt-0.5">${currentChatFilter === 'marked' ? 'Comentários favoritados aparecerão aqui.' : 'Nenhuma mensagem recebida para este filtro.'}</p>
+                    <div class="flex flex-col items-center justify-center h-full text-white/40 py-16 text-center">
+                        <i class="fas ${currentChatFilter === 'marked' ? 'fa-star text-amber-400' : 'fa-comment-slash'} text-5xl mb-3 text-white/20"></i>
+                        <p class="text-sm font-black text-white/80">${currentChatFilter === 'marked' ? 'Nenhum comentário marcado' : 'Aguardando comentários...'}</p>
+                        <p class="text-xs text-white/50 mt-1">${currentChatFilter === 'marked' ? 'Comentários favoritados aparecerão aqui.' : 'Nenhuma mensagem recebida para este filtro.'}</p>
                     </div>
                 `;
                 return;
             }
 
-            // Configuração de tamanhos de fonte
-            let fontClasses = {
-                username: 'text-xs sm:text-sm',
-                message: 'text-sm sm:text-base',
-                time: 'text-[10px] sm:text-[11px]',
-                avatar: 'w-9 h-9 sm:w-10 sm:h-10 text-xs sm:text-sm',
-                padding: 'p-2.5 sm:p-3.5'
+            // Escala de tamanhos de fonte otimizada para o Telão
+            let fontStyles = {
+                username: 'text-sm sm:text-base font-black',
+                clientName: 'text-xs sm:text-sm font-extrabold',
+                message: 'text-base sm:text-lg font-bold leading-relaxed',
+                time: 'text-xs font-mono',
+                avatarBox: 'w-12 h-12 sm:w-14 sm:h-14',
+                avatarText: 'text-sm sm:text-base font-black',
+                padding: 'p-3.5 sm:p-4'
             };
 
             if (chatFontSizeMode === 'large') {
-                fontClasses = {
-                    username: 'text-sm sm:text-base',
-                    message: 'text-base sm:text-lg',
-                    time: 'text-xs',
-                    avatar: 'w-11 h-11 sm:w-12 sm:h-12 text-sm sm:text-base',
-                    padding: 'p-3.5 sm:p-4'
+                // 1.5x (PADRÃO RECOMENDADO PARA ESTÚDIO)
+                fontStyles = {
+                    username: 'text-base sm:text-lg font-black',
+                    clientName: 'text-sm sm:text-base font-black',
+                    message: 'text-xl sm:text-2xl font-extrabold leading-snug tracking-tight',
+                    time: 'text-xs sm:text-sm font-mono',
+                    avatarBox: 'w-14 h-14 sm:w-16 sm:h-16',
+                    avatarText: 'text-base sm:text-lg font-black',
+                    padding: 'p-4 sm:p-5'
                 };
             } else if (chatFontSizeMode === 'huge') {
-                fontClasses = {
-                    username: 'text-base sm:text-lg',
-                    message: 'text-lg sm:text-xl',
-                    time: 'text-xs sm:text-sm',
-                    avatar: 'w-12 h-12 sm:w-14 sm:h-14 text-base sm:text-lg',
-                    padding: 'p-4 sm:p-5'
+                // 2x (TELÃO GIGANTE À LONGA DISTÂNCIA)
+                fontStyles = {
+                    username: 'text-lg sm:text-xl font-black',
+                    clientName: 'text-base sm:text-lg font-black',
+                    message: 'text-2xl sm:text-3xl font-black leading-snug tracking-tight',
+                    time: 'text-sm sm:text-base font-mono',
+                    avatarBox: 'w-16 h-16 sm:w-20 sm:h-20',
+                    avatarText: 'text-lg sm:text-xl font-black',
+                    padding: 'p-5 sm:p-6'
                 };
             }
 
-            // As mensagens mais recentes ficam embaixo para leitura natural de chat ao vivo
+            // Ordem cronológica: mais recentes no final para leitura natural de chat ao vivo
             const chronologicalList = [...list].reverse();
 
             let html = '';
             chronologicalList.forEach(msg => {
                 const isTikTok = msg.plataforma === 'tiktok';
+                const platformClass = isTikTok ? 'platform-tiktok' : 'platform-instagram';
+                
                 const platformIcon = isTikTok 
                     ? '<i class="fab fa-tiktok" style="color: #22d3ee;"></i>' 
-                    : '<i class="fab fa-instagram" style="color: #ec4899;"></i>';
+                    : '<i class="fab fa-instagram" style="color: #ffffff;"></i>';
+
+                const platformBadgeStyle = isTikTok 
+                    ? 'background-color: #000000; border: 1.5px solid #22d3ee;' 
+                    : 'background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); border: 1.5px solid #ffffff;';
 
                 const cleanUser = msg.username || 'usuario';
-                const displayName = msg.user_name || msg.user_apelido || cleanUser;
+                const realClientName = msg.user_name || msg.user_apelido || '';
+                const hasRegisteredClient = !!(msg.user_id && realClientName);
                 const initials = cleanUser.slice(0, 2).toUpperCase();
                 const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
                 const isMarked = !!msg.is_marked;
-                const isClient = !!msg.user_id;
 
+                // Identificação de Origem do Canal (Minha Mania vs Loja Parceira)
                 const isPartnerAccount = msg.host_account && !['minhamania', '_minhamania', 'de_minha_mania'].includes(msg.host_account.toLowerCase().replace(/^@/, ''));
                 const hostBadge = isPartnerAccount
-                    ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5" title="Audiência da Loja Parceira (@${escapeHtml(msg.host_account)})"><i class="fas fa-store text-[8px]"></i> @${escapeHtml(msg.host_account)}</span>`
-                    : (msg.host_account ? `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">Minha Mania</span>` : '');
+                    ? `<span class="bg-amber-500/25 text-amber-300 border-2 border-amber-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm" title="Audiência da Loja Parceira (@${escapeHtml(msg.host_account)})"><i class="fas fa-store text-amber-400"></i> Loja @${escapeHtml(msg.host_account)}</span>`
+                    : (msg.host_account ? `<span class="bg-purple-500/25 text-purple-200 border-2 border-purple-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm"><i class="fas fa-crown text-purple-300"></i> Minha Mania</span>` : '');
 
-                const clientBadge = isClient
-                    ? `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5"><i class="fas fa-star text-[7.5px] text-emerald-400"></i> Cliente Cadastrada</span>`
-                    : '';
+                // Badge de Cliente Cadastrada com Nome Real em Destaque
+                const clientBadge = hasRegisteredClient
+                    ? `<span class="bg-emerald-500/25 text-emerald-300 border-2 border-emerald-400 ${fontStyles.clientName} px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm"><i class="fas fa-star text-emerald-400"></i> ${escapeHtml(realClientName)}</span>`
+                    : (msg.user_id ? `<span class="bg-emerald-500/25 text-emerald-300 border-2 border-emerald-400 text-xs sm:text-sm font-black px-2 py-0.5 rounded-xl shrink-0 flex items-center gap-1"><i class="fas fa-star text-emerald-400"></i> Cliente</span>` : '');
 
+                const handleColorClass = isTikTok ? 'text-cyan-300' : 'text-pink-300';
+
+                // Avatar com alta resolução e contraste
                 const gradientBg = getGradientForUser(cleanUser);
                 const avatarHtml = msg.avatar_url
-                    ? `<img src="${safeAttr(msg.avatar_url)}" alt="@${safeAttr(cleanUser)}" class="w-full h-full object-cover rounded-xl" onerror="this.outerHTML='<div class=\\'w-full h-full rounded-xl flex items-center justify-center font-black text-white\\' style=\\'background: ${gradientBg}\\'>${initials}</div>'">`
-                    : `<div class="w-full h-full rounded-xl flex items-center justify-center font-black text-white shadow-inner" style="background: ${gradientBg};">${initials}</div>`;
+                    ? `<img src="${safeAttr(msg.avatar_url)}" alt="@${safeAttr(cleanUser)}" class="w-full h-full object-cover rounded-2xl border-2 border-white/20" onerror="this.outerHTML='<div class=\\'w-full h-full rounded-2xl flex items-center justify-center ${fontStyles.avatarText} text-white border-2 border-white/20\\' style=\\'background: ${gradientBg}\\'>${initials}</div>'">`
+                    : `<div class="w-full h-full rounded-2xl flex items-center justify-center ${fontStyles.avatarText} text-white shadow-inner border-2 border-white/20" style="background: ${gradientBg};">${initials}</div>`;
 
-                const formattedMsg = highlightPieceCodes(msg.message);
+                const formattedMsg = highlightPresenterKeywords(msg.message);
 
                 html += `
-                    <div class="telao-chat-card ${isMarked ? 'is-marked' : ''} rounded-2xl ${fontClasses.padding} flex items-start gap-3 msg-entry-animate">
+                    <div class="telao-chat-card ${platformClass} ${isMarked ? 'is-marked' : ''} rounded-3xl ${fontStyles.padding} flex items-start gap-3.5 sm:gap-4.5 msg-entry-animate">
+                        <!-- Avatar & Platform Badge -->
                         <div class="shrink-0 relative">
-                            <div class="${fontClasses.avatar} rounded-xl overflow-hidden shadow-md">
+                            <div class="${fontStyles.avatarBox} rounded-2xl overflow-hidden shadow-lg">
                                 ${avatarHtml}
                             </div>
-                            <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/80 flex items-center justify-center text-[9px] border border-white/20 shadow">
+                            <span class="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md" style="${platformBadgeStyle}">
                                 ${platformIcon}
                             </span>
                         </div>
 
+                        <!-- Conteúdo da Mensagem -->
                         <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center justify-between gap-1.5 mb-1">
-                                <div class="flex flex-wrap items-center gap-1.5 min-w-0">
-                                    <span class="font-extrabold ${fontClasses.username} text-white tracking-tight truncate max-w-[180px] sm:max-w-[240px]">
+                            <!-- Linha 1: Identificação de Quem Fala -->
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                                    <span class="${fontStyles.username} ${handleColorClass} tracking-tight truncate max-w-[220px] sm:max-w-[320px]">
                                         @${escapeHtml(cleanUser)}
                                     </span>
                                     ${clientBadge}
                                     ${hostBadge}
                                 </div>
-                                <span class="font-mono ${fontClasses.time} text-white/50 shrink-0">${time}</span>
+                                <span class="${fontStyles.time} text-white/50 shrink-0 bg-black/30 px-2 py-0.5 rounded-lg border border-white/10 font-bold">${time}</span>
                             </div>
 
-                            <p class="${fontClasses.message} font-bold text-white leading-snug break-words">
+                            <!-- Linha 2: Texto da Mensagem (Destaque para Apresentadora) -->
+                            <p class="${fontStyles.message} text-white break-words">
                                 ${formattedMsg}
                             </p>
                         </div>
 
+                        <!-- Estrela se Marcada -->
                         ${isMarked ? `
-                            <div class="shrink-0 text-amber-400 text-sm sm:text-base pt-0.5">
-                                <i class="fas fa-star drop-shadow"></i>
+                            <div class="shrink-0 text-amber-400 text-lg sm:text-2xl pt-1">
+                                <i class="fas fa-star drop-shadow-md"></i>
                             </div>
                         ` : ''}
                     </div>
@@ -999,7 +1047,9 @@
             }
         }
 
-        // Auto-Scroll Handling
+        // =========================================================================
+        // CONTROLE DE ROLAGEM & ZOOM DE FONTE
+        // =========================================================================
         function scrollToChatBottom(smooth = false) {
             if (!chatContainer) return;
             chatContainer.scrollTo({
@@ -1014,12 +1064,12 @@
             const btn = document.getElementById('btn-autoscroll');
             const icon = document.getElementById('autoscroll-icon');
             if (autoScrollEnabled) {
-                btn.className = 'px-2 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10';
-                icon.className = 'fas fa-arrow-down text-[10px]';
+                btn.className = 'px-2.5 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10';
+                icon.className = 'fas fa-arrow-down text-xs';
                 scrollToChatBottom(true);
             } else {
-                btn.className = 'px-2 py-1 text-xs font-bold text-amber-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-amber-500/30';
-                icon.className = 'fas fa-pause text-[10px]';
+                btn.className = 'px-2.5 py-1 text-xs font-bold text-amber-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-amber-500/30';
+                icon.className = 'fas fa-pause text-xs';
             }
         }
 
@@ -1037,26 +1087,25 @@
             });
         }
 
-        // Filtro de Chat
         function setChatFilter(filter) {
             currentChatFilter = filter;
             ['all', 'marked', 'instagram', 'tiktok'].forEach(tab => {
                 const el = document.getElementById(`tab-chat-${tab}`);
                 if (!el) return;
                 if (tab === filter) {
-                    el.className = 'px-2 py-1 rounded-lg text-white bg-indigo-600 shadow-xs transition';
+                    el.className = 'px-2.5 py-1 rounded-lg text-white bg-purple-600 shadow-xs transition';
                 } else {
-                    el.className = 'px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition';
+                    el.className = 'px-2.5 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition';
                 }
             });
 
             const labelEl = document.getElementById('chat-active-filter-label');
             if (labelEl) {
                 const labels = {
-                    'all': 'Todas as redes',
-                    'marked': 'Apenas marcadas',
-                    'instagram': 'Instagram',
-                    'tiktok': 'TikTok'
+                    'all': 'Todas as redes • Destaque de compras ativo',
+                    'marked': 'Apenas marcadas • Destaque ativo',
+                    'instagram': 'Instagram • Destaque ativo',
+                    'tiktok': 'TikTok • Destaque ativo'
                 };
                 labelEl.textContent = labels[filter] || filter;
             }
@@ -1064,27 +1113,33 @@
             renderTelaoChatFeed();
         }
 
-        // Tamanho de Fonte do Chat
-        function toggleChatFontSize() {
-            if (chatFontSizeMode === 'normal') {
-                chatFontSizeMode = 'large';
-                document.getElementById('chat-font-indicator').textContent = 'A++';
-            } else if (chatFontSizeMode === 'large') {
-                chatFontSizeMode = 'huge';
-                document.getElementById('chat-font-indicator').textContent = 'A';
-            } else {
-                chatFontSizeMode = 'normal';
-                document.getElementById('chat-font-indicator').textContent = 'A+';
-            }
+        function setChatFontSize(mode) {
+            chatFontSizeMode = mode;
+            ['normal', 'large', 'huge'].forEach(m => {
+                const b = document.getElementById(`btn-font-${m}`);
+                if (!b) return;
+                if (m === mode) {
+                    b.className = 'px-2.5 py-1 rounded-lg text-white bg-indigo-600 shadow-sm transition';
+                } else {
+                    b.className = 'px-2.5 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition';
+                }
+            });
+
+            localStorage.setItem('live_telao_font_size', mode);
             lastRenderedChatHash = '';
             renderTelaoChatFeed();
         }
 
-        // Modo de Layout (Split / Counter / Chat)
+        const savedFontSize = localStorage.getItem('live_telao_font_size');
+        if (savedFontSize && ['normal', 'large', 'huge'].includes(savedFontSize)) {
+            setChatFontSize(savedFontSize);
+        } else {
+            setChatFontSize('large'); // 1.5x por padrão para apresentadora
+        }
+
         function setLayoutMode(mode) {
             layoutMode = mode;
             
-            // Atualiza botões
             ['split', 'counter', 'chat'].forEach(m => {
                 const b = document.getElementById(`btn-layout-${m}`);
                 if (!b) return;
@@ -1096,7 +1151,7 @@
             });
 
             if (mode === 'split') {
-                mainStageContainer.className = 'flex-1 w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch';
+                mainStageContainer.className = 'flex-1 w-full max-w-[1780px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch';
                 colCounterPanel.classList.remove('hidden');
                 colChatPanel.classList.remove('hidden');
                 counterEl.style.fontSize = 'clamp(8rem, 18vw, 24rem)';
@@ -1131,7 +1186,6 @@
 
             try {
                 if (activeLiveId) {
-                    // Busca chat e contagens da live
                     const chatUrl = `/admin/lives/${encodeURIComponent(activeLiveId)}/chat-data?limit=250&_t=${Date.now()}`;
                     const res = await fetch(chatUrl);
                     if (res.ok) {
@@ -1143,7 +1197,6 @@
                     }
                 }
 
-                // Busca dados do contador
                 const liveParam = activeLiveId ? `live_id=${encodeURIComponent(activeLiveId)}&` : '';
                 const counterUrl = `{{ route('api.live-contador.data') }}?${liveParam}_t=${Date.now()}`;
                 const resCounter = await fetch(counterUrl);
@@ -1194,7 +1247,6 @@
             }
         }
 
-        // Polling a cada 1.8 segundos
         setInterval(fetchLiveStudioData, 1800);
         fetchLiveStudioData();
 
