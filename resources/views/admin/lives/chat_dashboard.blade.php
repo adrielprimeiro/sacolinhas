@@ -269,10 +269,10 @@
                     <div id="selected-participant-card" class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-2.5 mb-3 shrink-0 transition-all">
                         <div class="flex items-center justify-between gap-1 mb-2 bg-gray-200/70 p-1 rounded-xl border border-gray-300/60">
                             <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer bg-purple-700 text-white shadow-xs">
-                                <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                                <i class="fas fa-tag"></i> Modo Live Externa
                             </button>
                             <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer text-indigo-950 hover:bg-indigo-200/50">
-                                <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                                <i class="fas fa-barcode"></i> Modo Estoque (Leitor)
                             </button>
                         </div>
                         <div class="flex items-center justify-center gap-2 text-gray-500 text-xs py-1 font-bold">
@@ -1584,10 +1584,10 @@
             card.innerHTML = `
                 <div class="flex items-center justify-between gap-1 mb-2 bg-gray-200/70 p-1 rounded-xl border border-gray-300/60">
                     <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${isExternal ? 'bg-purple-700 text-white shadow-xs' : 'text-purple-950 hover:bg-purple-200/50'}">
-                        <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                        <i class="fas fa-tag"></i> Modo Live Externa
                     </button>
                     <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${!isExternal ? 'bg-indigo-700 text-white shadow-xs' : 'text-indigo-950 hover:bg-indigo-200/50'}">
-                        <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                        <i class="fas fa-barcode"></i> Modo Estoque (Leitor)
                     </button>
                 </div>
                 <div class="flex items-center justify-center gap-2 text-gray-500 text-xs py-1 font-bold">
@@ -1645,10 +1645,10 @@
             <!-- Seletor de Modo de Operação (Live Externa vs Estoque com Leitor) -->
             <div class="flex items-center justify-between gap-1 mb-2 bg-emerald-100/80 p-1 rounded-xl border border-emerald-200">
                 <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${isExternal ? 'bg-purple-700 text-white shadow-xs' : 'text-purple-950 hover:bg-purple-200/50'}">
-                    <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                    <i class="fas fa-tag"></i> Modo Live Externa
                 </button>
                 <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${!isExternal ? 'bg-indigo-700 text-white shadow-xs' : 'text-indigo-950 hover:bg-indigo-200/50'}">
-                    <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                    <i class="fas fa-barcode"></i> Modo Estoque (Leitor)
                 </button>
             </div>
 
