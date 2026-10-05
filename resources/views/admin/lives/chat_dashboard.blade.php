@@ -265,11 +265,19 @@
                         </button>
                     </div>
 
-                    <!-- Banner de Cliente Selecionada para Bipar com Leitor -->
-                    <div id="selected-participant-card" class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-3 mb-3 shrink-0 transition-all">
-                        <div class="flex items-center justify-center gap-2 text-gray-400 text-xs py-1">
-                            <i class="fas fa-hand-pointer text-indigo-400"></i>
-                            <span>Clique em uma cliente abaixo para selecioná-la e bipar itens</span>
+                    <!-- Banner de Cliente Selecionada para Bipar / Cadastrar Peças -->
+                    <div id="selected-participant-card" class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-2.5 mb-3 shrink-0 transition-all">
+                        <div class="flex items-center justify-between gap-1 mb-2 bg-gray-200/70 p-1 rounded-xl border border-gray-300/60">
+                            <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer bg-purple-700 text-white shadow-xs">
+                                <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                            </button>
+                            <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer text-indigo-950 hover:bg-indigo-200/50">
+                                <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 text-gray-500 text-xs py-1 font-bold">
+                            <i class="fas fa-hand-pointer text-indigo-500"></i>
+                            <span>Clique em uma cliente na lista abaixo para selecioná-la e registrar vendas</span>
                         </div>
                     </div>
 
@@ -1571,11 +1579,20 @@
         if (!card) return;
 
         if (!selectedParticipant) {
-            card.className = "bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-3 mb-3 shrink-0 transition-all";
+            const isExternal = liveOperationMode === 'external';
+            card.className = "bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-2.5 mb-3 shrink-0 transition-all";
             card.innerHTML = `
-                <div class="flex items-center justify-center gap-2 text-gray-400 text-xs py-1">
-                    <i class="fas fa-hand-pointer text-indigo-400"></i>
-                    <span>Clique em uma cliente abaixo para selecioná-la e registrar vendas</span>
+                <div class="flex items-center justify-between gap-1 mb-2 bg-gray-200/70 p-1 rounded-xl border border-gray-300/60">
+                    <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${isExternal ? 'bg-purple-700 text-white shadow-xs' : 'text-purple-950 hover:bg-purple-200/50'}">
+                        <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                    </button>
+                    <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${!isExternal ? 'bg-indigo-700 text-white shadow-xs' : 'text-indigo-950 hover:bg-indigo-200/50'}">
+                        <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                    </button>
+                </div>
+                <div class="flex items-center justify-center gap-2 text-gray-500 text-xs py-1 font-bold">
+                    <i class="fas fa-hand-pointer text-indigo-500"></i>
+                    <span>Clique em uma cliente na lista abaixo para selecioná-la e registrar vendas</span>
                 </div>
             `;
             return;
