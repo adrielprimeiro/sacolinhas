@@ -154,6 +154,13 @@
             border-left: 6px solid #06b6d4 !important;
         }
 
+        .telao-chat-card.is-linked-msg {
+            border: 2.5px solid #3b82f6 !important;
+            border-left: 8px solid #2563eb !important;
+            background-color: rgba(37, 99, 235, 0.15) !important;
+            box-shadow: 0 0 25px rgba(37, 99, 235, 0.3) !important;
+        }
+
         .telao-chat-card.is-marked {
             border: 2.5px solid #f59e0b !important;
             border-left: 8px solid #f59e0b !important;
@@ -898,7 +905,8 @@
                 list = list.filter(m => !!m.is_marked);
             }
 
-            const currentHash = `${currentChatFilter}:${list.length}:${list.length > 0 ? list[0].id : 0}:${list.filter(m => m.is_marked).length}:${chatFontSizeMode}`;
+            const linkedHash = list.map(m => m.linked_code || m.linked_item_id || '').join(',');
+            const currentHash = `${currentChatFilter}:${list.length}:${list.length > 0 ? list[0].id : 0}:${list.filter(m => m.is_marked).length}:${chatFontSizeMode}:${linkedHash}`;
             if (currentHash === lastRenderedChatHash && chatContainer.innerHTML.trim().length > 50) {
                 return;
             }
@@ -927,7 +935,8 @@
                 time: 'text-xs font-mono',
                 avatarBox: 'w-12 h-12 sm:w-14 sm:h-14',
                 avatarText: 'text-sm sm:text-base font-black',
-                padding: 'p-3.5 sm:p-4'
+                padding: 'p-3.5 sm:p-4',
+                linkedBanner: 'text-xs sm:text-sm'
             };
 
             if (chatFontSizeMode === 'large') {
@@ -939,7 +948,8 @@
                     time: 'text-xs sm:text-sm font-mono',
                     avatarBox: 'w-14 h-14 sm:w-16 sm:h-16',
                     avatarText: 'text-base sm:text-lg font-black',
-                    padding: 'p-4 sm:p-5'
+                    padding: 'p-4 sm:p-5',
+                    linkedBanner: 'text-sm sm:text-base'
                 };
             } else if (chatFontSizeMode === 'huge') {
                 // 2x (TELÃO GIGANTE À LONGA DISTÂNCIA)
@@ -950,7 +960,8 @@
                     time: 'text-sm sm:text-base font-mono',
                     avatarBox: 'w-16 h-16 sm:w-20 sm:h-20',
                     avatarText: 'text-lg sm:text-xl font-black',
-                    padding: 'p-5 sm:p-6'
+                    padding: 'p-5 sm:p-6',
+                    linkedBanner: 'text-base sm:text-lg'
                 };
             }
 
@@ -960,7 +971,8 @@
             let html = '';
             chronologicalList.forEach(msg => {
                 const isTikTok = msg.plataforma === 'tiktok';
-                const platformClass = isTikTok ? 'platform-tiktok' : 'platform-instagram';
+                const isLinkedMsg = !!(msg.linked_code || msg.linked_item_id || msg.linked_live_code);
+                const platformClass = isLinkedMsg ? 'is-linked-msg' : (isTikTok ? 'platform-tiktok' : 'platform-instagram');
                 
                 const platformIcon = isTikTok 
                     ? '<i class="fab fa-tiktok" style="color: #22d3ee;"></i>' 
@@ -976,6 +988,69 @@
                 const initials = cleanUser.slice(0, 2).toUpperCase();
                 const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
                 const isMarked = !!msg.is_marked;
+
+                // Extração dos dados da peça vinculada (se houver)
+                let cleanItemCode = '';
+                let cleanLiveCode = '';
+                if (msg.linked_code) {
+                    const liveMatch = String(msg.linked_code).match(/\(Live:\s*([^)]+)\)/i);
+                    if (liveMatch) {
+                        cleanLiveCode = liveMatch[1].trim();
+                    } else if (msg.linked_live_code) {
+                        cleanLiveCode = String(msg.linked_live_code).trim();
+                    }
+                    cleanItemCode = String(msg.linked_code).replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim();
+                } else if (msg.linked_live_code) {
+                    cleanLiveCode = String(msg.linked_live_code).trim();
+                }
+
+                // Tag de Item no Header
+                let linkedHeaderBadge = '';
+                let linkedItemBanner = '';
+                if (isLinkedMsg) {
+                    let codeBadgeText = cleanLiveCode ? (`Seq #${cleanLiveCode}`) : (cleanItemCode ? `#${cleanItemCode}` : 'Vendido');
+                    if (cleanLiveCode && cleanItemCode && cleanLiveCode !== cleanItemCode) {
+                        codeBadgeText = `Seq #${cleanLiveCode} • #${cleanItemCode}`;
+                    }
+                    linkedHeaderBadge = `
+                        <span class="bg-blue-600 text-white border-2 border-blue-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-md animate-pulse">
+                            <i class="fas fa-shopping-bag text-blue-200"></i> ${escapeHtml(codeBadgeText)}
+                        </span>
+                    `;
+
+                    let prodName = msg.linked_product_name || 'Peça Vinculada à Sacolinha';
+                    let prodDetails = msg.linked_product_details || '';
+                    let prodTam = msg.linked_product_tamanho || '';
+                    let prodCor = msg.linked_product_cor || '';
+                    let prodPrice = msg.linked_product_preco || '';
+
+                    linkedItemBanner = `
+                        <div class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-xl border-2 border-blue-400/90 ${fontStyles.linkedBanner}">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0 text-base sm:text-xl font-black shadow-inner border border-white/30">
+                                    <i class="fas fa-tag"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-black text-white truncate flex items-center gap-2">
+                                        <span class="text-white drop-shadow">${escapeHtml(prodName)}</span>
+                                        ${cleanLiveCode ? `<span class="bg-white/25 text-blue-100 text-xs px-2 py-0.5 rounded-lg font-mono font-black border border-white/30">Live #${escapeHtml(cleanLiveCode)}</span>` : ''}
+                                    </div>
+                                    <div class="text-blue-100 font-bold flex flex-wrap items-center gap-2 mt-0.5 text-xs sm:text-sm">
+                                        ${cleanItemCode ? `<span class="font-mono bg-black/20 px-1.5 py-0.2 rounded">Cód: #${escapeHtml(cleanItemCode)}</span>` : ''}
+                                        ${prodTam ? `<span>• Tam: <strong>${escapeHtml(prodTam)}</strong></span>` : ''}
+                                        ${prodCor ? `<span>• Cor: <strong>${escapeHtml(prodCor)}</strong></span>` : ''}
+                                        ${prodPrice ? `<span class="text-emerald-300 font-black text-sm sm:text-base drop-shadow">• ${escapeHtml(prodPrice)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="shrink-0 flex items-center gap-2">
+                                <span class="bg-emerald-500 text-white font-black text-xs sm:text-sm px-3 py-1.5 rounded-xl border-2 border-emerald-300 shadow-md flex items-center gap-1.5">
+                                    <i class="fas fa-check-circle"></i> VENDIDO / NA SACOLA
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
 
                 // Identificação de Origem do Canal (Minha Mania vs Loja Parceira)
                 const isPartnerAccount = msg.host_account && !['minhamania', '_minhamania', 'de_minha_mania'].includes(msg.host_account.toLowerCase().replace(/^@/, ''));
@@ -999,7 +1074,7 @@
                 const formattedMsg = highlightPresenterKeywords(msg.message);
 
                 html += `
-                    <div class="telao-chat-card ${platformClass} ${isMarked ? 'is-marked' : ''} rounded-3xl ${fontStyles.padding} flex items-start gap-3.5 sm:gap-4.5 msg-entry-animate">
+                    <div class="telao-chat-card ${platformClass} ${isMarked ? 'is-marked' : ''} rounded-3xl ${fontStyles.padding} flex items-start gap-3.5 sm:gap-4.5 msg-entry-animate" title="${isLinkedMsg ? 'Peça vinculada a este comentário' : ''}">
                         <!-- Avatar & Platform Badge -->
                         <div class="shrink-0 relative">
                             <div class="${fontStyles.avatarBox} rounded-2xl overflow-hidden shadow-lg">
@@ -1020,6 +1095,7 @@
                                     </span>
                                     ${clientBadge}
                                     ${hostBadge}
+                                    ${linkedHeaderBadge}
                                 </div>
                                 <span class="${fontStyles.time} text-white/50 shrink-0 bg-black/30 px-2 py-0.5 rounded-lg border border-white/10 font-bold">${time}</span>
                             </div>
@@ -1028,6 +1104,9 @@
                             <p class="${fontStyles.message} text-white break-words">
                                 ${formattedMsg}
                             </p>
+
+                            <!-- Linha 3: Banner do Item Vinculado (se houver) -->
+                            ${linkedItemBanner}
                         </div>
 
                         <!-- Estrela se Marcada -->
