@@ -965,11 +965,9 @@
                 };
             }
 
-            // Ordem cronológica: mais recentes no final para leitura natural de chat ao vivo
-            const chronologicalList = [...list].reverse();
-
+            // Ordem cronológica: mensagens mais recentes embaixo (padrão de chat ao vivo)
             let html = '';
-            chronologicalList.forEach(msg => {
+            list.forEach(msg => {
                 const isTikTok = msg.plataforma === 'tiktok';
                 const isLinkedMsg = !!(msg.linked_code || msg.linked_item_id || msg.linked_live_code);
                 const platformClass = isLinkedMsg ? 'is-linked-msg' : (isTikTok ? 'platform-tiktok' : 'platform-instagram');
