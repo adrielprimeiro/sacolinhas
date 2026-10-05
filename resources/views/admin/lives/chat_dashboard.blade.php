@@ -16,36 +16,36 @@
         
         <!-- Seleção de Live e Ações -->
         <div class="flex flex-wrap items-center gap-3">
-            <a href="{{ route('admin.live-chat.feed', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+            <a href="{{ route('admin.live-chat.feed', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-purple-500" style="background-color: #9333ea !important; color: #ffffff !important;">
                 <i class="fas fa-comment-dots text-base text-purple-200"></i>
-                <span>Tela do Chat (Ao Vivo)</span>
+                <span style="color: #ffffff !important;">Tela do Chat (Ao Vivo)</span>
             </a>
 
-            <a href="{{ route('admin.live-chat.bipagem', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+            <a href="{{ route('admin.live-chat.bipagem', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-indigo-500" style="background-color: #4f46e5 !important; color: #ffffff !important;">
                 <i class="fas fa-qrcode text-base text-indigo-200"></i>
-                <span>Bipagem Contínua / QR Code</span>
+                <span style="color: #ffffff !important;">Bipagem Contínua / QR Code</span>
             </a>
 
-            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
+            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-emerald-500" style="background-color: #059669 !important; color: #ffffff !important;">
                 <i class="fas fa-calculator text-base text-emerald-200"></i>
-                <span>Contador (Telão)</span>
+                <span style="color: #ffffff !important;">Contador (Telão)</span>
             </a>
 
             @if($activeLive)
-                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-teal-700 hover:bg-teal-800 text-white font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-teal-600" style="background-color: #0f766e; color: #ffffff !important;">
+                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-teal-600" style="background-color: #0f766e !important; color: #ffffff !important;">
                     <i class="fas fa-film text-sm text-teal-200"></i>
                     <span style="color: #ffffff !important; font-weight: 800;">Cortes & Vídeos</span>
                 </a>
-                <a href="{{ route('admin.lives.relatorio-pdf', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-800 text-white font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-indigo-600" style="background-color: #4338ca; color: #ffffff !important;" title="Gerar e Baixar Relatório de Fechamento em PDF para a Loja">
+                <a href="{{ route('admin.lives.relatorio-pdf', ['liveId' => $activeLive->id]) }}" target="_blank" class="font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-indigo-600" style="background-color: #4338ca !important; color: #ffffff !important;" title="Gerar e Baixar Relatório de Fechamento em PDF para a Loja">
                     <i class="fas fa-file-pdf text-sm text-indigo-200"></i>
                     <span style="color: #ffffff !important; font-weight: 800;">Relatório PDF</span>
                 </a>
             @endif
 
             @if($activeLive && $activeLive->ativo)
-                <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95">
-                    <i class="fas fa-stop-circle text-sm"></i>
-                    <span>Encerrar Live & WhatsApp</span>
+                <button type="button" onclick="confirmEndLive({{ $activeLive->id }})" class="font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-red-600" style="background-color: #dc2626 !important; color: #ffffff !important;">
+                    <i class="fas fa-stop-circle text-sm text-red-200"></i>
+                    <span style="color: #ffffff !important;">Encerrar Live & WhatsApp</span>
                 </button>
             @endif
 
@@ -257,11 +257,11 @@
                             <div id="avulso-search-results" class="absolute left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden flex flex-col z-30">
                             </div>
                         </div>
-                        <button type="button" onclick="openQuickClientModal()" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer" title="Cadastrar Novo Cliente">
-                            <i class="fas fa-user-plus text-xs"></i> <span class="hidden sm:inline">Cliente</span>
+                        <button type="button" onclick="openQuickClientModal()" class="px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer border border-emerald-700" style="background-color: #059669 !important; color: #ffffff !important;" title="Cadastrar Novo Cliente">
+                            <i class="fas fa-user-plus text-xs" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">+ Cliente</span>
                         </button>
-                        <button type="button" onclick="openQuickProductModal()" class="px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer" title="Cadastrar Novo Produto">
-                            <i class="fas fa-tag text-xs"></i> <span class="hidden sm:inline">Produto</span>
+                        <button type="button" onclick="openQuickProductModal()" class="px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer border border-purple-700" style="background-color: #7c3aed !important; color: #ffffff !important;" title="Cadastrar Novo Produto">
+                            <i class="fas fa-tag text-xs" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">+ Produto</span>
                         </button>
                     </div>
 
@@ -1203,12 +1203,12 @@
                         ${
                             u.user_id ? 
                             (isSelected ? 
-                                `<button type="button" onclick="event.stopPropagation(); clearSelectedParticipant()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs transition duration-150 shadow-sm flex items-center gap-1.5"><i class="fas fa-check"></i> Ativa</button>`
+                                `<button type="button" onclick="event.stopPropagation(); clearSelectedParticipant()" class="font-bold px-2.5 py-1.5 rounded-xl text-xs transition duration-150 shadow-sm flex items-center gap-1.5 border border-emerald-700" style="background-color: #059669 !important; color: #ffffff !important;"><i class="fas fa-check" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">Ativa</span></button>`
                                 :
-                                `<button type="button" onclick="event.stopPropagation(); selectOnlineParticipant('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}', '${escapeHtml(u.plataforma)}', '${safeAttr(u.avatar_url || '')}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs transition duration-150 shadow-sm flex items-center gap-1"><i class="fas fa-hand-pointer"></i> Selecionar</button>`
+                                `<button type="button" onclick="event.stopPropagation(); selectOnlineParticipant('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}', '${escapeHtml(u.plataforma)}', '${safeAttr(u.avatar_url || '')}')" class="font-bold px-2.5 py-1.5 rounded-xl text-xs transition duration-150 shadow-sm flex items-center gap-1 border border-indigo-700" style="background-color: #4f46e5 !important; color: #ffffff !important;"><i class="fas fa-hand-pointer" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">Selecionar</span></button>`
                             )
                             :
-                            `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1 rounded-xl text-[11px] transition duration-150 shadow-sm flex items-center gap-1"><i class="fas fa-link"></i> Vincular</button>`
+                            `<button type="button" onclick="event.stopPropagation(); openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')" class="font-bold px-2.5 py-1 rounded-xl text-[11px] transition duration-150 shadow-sm flex items-center gap-1 border border-amber-600" style="background-color: #d97706 !important; color: #ffffff !important;"><i class="fas fa-link" style="color: #ffffff !important;"></i> <span style="color: #ffffff !important;">Vincular</span></button>`
                         }
                     </div>
                 </div>
