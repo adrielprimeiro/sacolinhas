@@ -7,23 +7,50 @@
     
     <!-- Top Header Bar -->
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('admin.live-chat.dashboard', ['live_id' => $live->id]) }}" class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <a href="{{ route('admin.live-chat.dashboard', ['live_id' => $live->id]) }}" class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition shadow-xs shrink-0" title="Voltar ao Painel da Live">
                 <i class="fas fa-arrow-left"></i>
             </a>
             <div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <span class="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
                         Cortes & Vídeos
                     </span>
                     <span class="text-xs text-gray-500 font-bold">
                         {{ $live->data ? $live->data->format('d/m/Y') : 'Data n/d' }} &bull; {{ $live->tipo_live_formatado }}
                     </span>
+                    @if($live->ativo)
+                        <span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1 shadow-xs">
+                            <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO
+                        </span>
+                    @endif
                 </div>
-                <h1 class="text-xl sm:text-2xl font-black text-gray-900 mt-1 flex items-center gap-2">
-                    <i class="fas fa-film text-indigo-600"></i>
-                    Fatiador de Vídeos da Live #{{ $live->id }}
-                </h1>
+                <div class="flex flex-wrap items-center gap-3 mt-1.5">
+                    <h1 class="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
+                        <i class="fas fa-film text-indigo-600"></i>
+                        <span>Fatiador de Vídeos</span>
+                    </h1>
+
+                    <!-- Seletor de Live -->
+                    @if(isset($lives) && count($lives) > 0)
+                        <div class="flex items-center gap-2 bg-indigo-50/70 border border-indigo-200 rounded-xl px-2.5 py-1 shadow-xs">
+                            <label for="live-selector-cuts" class="text-xs font-black text-indigo-900 flex items-center gap-1">
+                                <i class="fas fa-video text-indigo-600"></i> Live:
+                            </label>
+                            <select 
+                                id="live-selector-cuts" 
+                                onchange="if(this.value) window.location.href = '/admin/lives/' + this.value + '/cortes'"
+                                class="text-xs font-black text-gray-900 bg-white border border-indigo-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer max-w-[200px] sm:max-w-[260px] truncate"
+                            >
+                                @foreach($lives as $l)
+                                    <option value="{{ $l->id }}" {{ $l->id == $live->id ? 'selected' : '' }}>
+                                        #{{ $l->id }} - {{ $l->nome ?: 'Live de ' . date('d/m', strtotime($l->created_at)) }} {{ $l->ativo ? '🔴' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
 

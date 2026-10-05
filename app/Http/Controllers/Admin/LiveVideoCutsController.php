@@ -17,11 +17,29 @@ use App\Models\ItemMedia;
 class LiveVideoCutsController extends Controller
 {
     /**
+     * Redireciona para a tela de cortes da live mais recente
+     */
+    public function indexLatest(Request $request)
+    {
+        $liveId = $request->query('live_id');
+        if ($liveId) {
+            return redirect()->route('admin.lives.cortes', ['liveId' => $liveId]);
+        }
+        $latest = Live::where('ativo', true)->orderBy('id', 'desc')->first()
+            ?? Live::orderBy('id', 'desc')->first();
+        if (!$latest) {
+            abort(404, 'Nenhuma live cadastrada.');
+        }
+        return redirect()->route('admin.lives.cortes', ['liveId' => $latest->id]);
+    }
+
+    /**
      * Tela Principal de Gerenciamento e Revisão de Cortes da Live
      */
     public function index($liveId)
     {
         $live = Live::findOrFail($liveId);
+        $lives = Live::orderBy('id', 'desc')->limit(40)->get();
 
         // Buscar itens vinculados a esta live
         $hasCandCol = Schema::hasColumn('live_items', 'thumbnail_candidates');
@@ -152,6 +170,7 @@ class LiveVideoCutsController extends Controller
 
         return view('admin.lives.video_cuts', [
             'live' => $live,
+            'lives' => $lives,
             'liveItems' => $liveItems,
             'transcriptionData' => $transcriptionData,
             'recordingUrl' => $recordingUrl,

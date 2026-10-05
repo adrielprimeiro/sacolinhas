@@ -303,6 +303,7 @@ Route::middleware('auth')->group(function () {
         Route::get('obs-relay/{id}/status', [\App\Http\Controllers\Admin\ObsRelayController::class, 'getCommandStatus'])->name('admin.obs-relay.status');
 
         // ===== FATIADOR DE VÍDEOS & CORTES PÓS-LIVE =====
+        Route::get('lives/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'indexLatest'])->name('admin.lives.cortes.latest');
         Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');
         Route::post('lives/{liveId}/cortes/upload-video', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'uploadVideo'])->name('admin.lives.cortes.upload-video');
         Route::get('lives/{liveId}/cortes/video-download-status', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'getVideoDownloadStatus'])->name('admin.lives.cortes.video-download-status');
