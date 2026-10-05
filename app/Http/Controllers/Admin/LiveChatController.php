@@ -2597,6 +2597,16 @@ class LiveChatController extends Controller
             $precoClean = str_replace(['R$', ' ', '.'], '', $precoRaw);
             $precoFloat = (float) str_replace(',', '.', $precoClean);
 
+            $custoRaw = $request->input('custo');
+            $comissaoPercent = (float) $request->input('comissao_percent', 10);
+            if ($custoRaw !== null && $custoRaw !== '') {
+                $custoClean = str_replace(['R$', ' ', '.'], '', $custoRaw);
+                $custoFloat = (float) str_replace(',', '.', $custoClean);
+            } else {
+                // Cálculo automático: Custo = Preço - (Preço * comissão%)
+                $custoFloat = round($precoFloat * (1 - ($comissaoPercent / 100)), 2);
+            }
+
             $desc = trim($request->input('descricao'));
             $tamanho = trim($request->input('tamanho') ?: '');
             $cor = trim($request->input('cor') ?: '');
@@ -2609,7 +2619,7 @@ class LiveChatController extends Controller
                 'tamanho' => $tamanho ?: null,
                 'cor' => $cor ?: null,
                 'preco' => $precoFloat,
-                'custo' => 0.00,
+                'custo' => $custoFloat,
                 'estado' => 'Seminovo',
                 'status' => 'disponivel',
             ]);
@@ -2648,7 +2658,9 @@ class LiveChatController extends Controller
                     'tamanho' => $item->tamanho,
                     'cor' => $item->cor,
                     'preco' => $item->preco,
+                    'custo' => $item->custo,
                     'preco_formatado' => 'R$ ' . number_format($item->preco, 2, ',', '.'),
+                    'custo_formatado' => 'R$ ' . number_format($item->custo, 2, ',', '.'),
                     'codigo_live' => $codigoLive,
                     'live_item_id' => $liveItemId
                 ]
@@ -2662,5 +2674,126 @@ class LiveChatController extends Controller
                 'message' => 'Erro ao cadastrar produto: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Gera o Relatório Executivo / Dashboard em PDF da Live
+     */
+    public function generateLivePdfReport($liveId)
+    {
+        $live = Live::with(['brecho'])->findOrFail($liveId);
+
+        // 1. Buscar todas as sacolinhas geradas nesta live (vendas)
+        $sacolinhas = Sacolinhas::withoutGlobalScopes()
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->with(['item', 'user'])
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // 2. Mapear códigos sequenciais da live se existirem em live_items
+        $liveItemsSeq = [];
+        if (Schema::hasTable('live_items')) {
+            $liveItemsSeq = DB::table('live_items')
+                ->where('live_id', $liveId)
+                ->pluck('codigo_live', 'item_id')
+                ->toArray();
+        }
+
+        // 3. Totais Financeiros e Métricas
+        $totalPecas = 0;
+        $faturamentoBruto = 0.0;
+        $totalCusto = 0.0;
+
+        $itensDetalhados = [];
+        $clientesMap = [];
+
+        foreach ($sacolinhas as $sacola) {
+            $item = $sacola->item;
+            $user = $sacola->user;
+            $qtd = (int) ($sacola->quantity ?: 1);
+            $precoUnit = (float) ($sacola->price ?: ($item ? $item->preco : 0));
+            $custoUnit = (float) ($item && $item->custo > 0 ? $item->custo : round($precoUnit * 0.9, 2)); // Fallback 90% repasse (10% comissão) se custo não setado
+            
+            $subtotalVenda = $precoUnit * $qtd;
+            $subtotalCusto = $custoUnit * $qtd;
+
+            $totalPecas += $qtd;
+            $faturamentoBruto += $subtotalVenda;
+            $totalCusto += $subtotalCusto;
+
+            $userId = $sacola->user_id;
+            $userName = $user ? $user->name : ($sacola->buyer_name ?: 'Cliente Avulsa');
+            $userInsta = $user ? ($user->instagram ?: $user->instagram_username) : null;
+            $userTiktok = $user ? $user->tiktok : null;
+            $userWhats = $user ? ($user->whatsapp ?: $user->phone) : null;
+            $userApelido = $user ? $user->apelido : null;
+
+            // Agrupamento por cliente
+            if (!isset($clientesMap[$userId])) {
+                $clientesMap[$userId] = [
+                    'user_id' => $userId,
+                    'nome' => $userName,
+                    'apelido' => $userApelido,
+                    'instagram' => $userInsta,
+                    'tiktok' => $userTiktok,
+                    'whatsapp' => $userWhats,
+                    'quantidade' => 0,
+                    'total_valor' => 0.0,
+                ];
+            }
+            $clientesMap[$userId]['quantidade'] += $qtd;
+            $clientesMap[$userId]['total_valor'] += $subtotalVenda;
+
+            $codigoLive = $liveItemsSeq[$sacola->item_id] ?? null;
+
+            $itensDetalhados[] = [
+                'codigo' => $item ? $item->codigo : "ITEM-{$sacola->item_id}",
+                'codigo_live' => $codigoLive,
+                'nome' => $item ? $item->nome_do_produto : 'Produto da Live',
+                'descricao' => $item ? $item->descricao : '',
+                'tamanho' => $item ? $item->tamanho : '',
+                'cor' => $item ? $item->cor : '',
+                'preco_venda' => $precoUnit,
+                'preco_custo' => $custoUnit,
+                'quantidade' => $qtd,
+                'comprador_nome' => $userName,
+                'comprador_social' => $userInsta ?: ($userTiktok ?: ''),
+            ];
+        }
+
+        $totalComissao = max(0, $faturamentoBruto - $totalCusto);
+        $totalClientes = count($clientesMap);
+        $ticketPeca = $totalPecas > 0 ? ($faturamentoBruto / $totalPecas) : 0.0;
+        $ticketCliente = $totalClientes > 0 ? ($faturamentoBruto / $totalClientes) : 0.0;
+
+        // Total de mensagens no chat
+        $totalMensagens = LiveMessage::where('live_id', $liveId)->count();
+        $msgsInsta = LiveMessage::where('live_id', $liveId)->where('plataforma', 'instagram')->count();
+        $msgsTiktok = LiveMessage::where('live_id', $liveId)->where('plataforma', 'tiktok')->count();
+
+        $clientesAgrupados = array_values($clientesMap);
+        usort($clientesAgrupados, fn($a, $b) => $b['total_valor'] <=> $a['total_valor']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.lives.relatorio_pdf', compact(
+            'live',
+            'totalPecas',
+            'faturamentoBruto',
+            'totalCusto',
+            'totalComissao',
+            'totalClientes',
+            'ticketPeca',
+            'ticketCliente',
+            'totalMensagens',
+            'msgsInsta',
+            'msgsTiktok',
+            'clientesAgrupados',
+            'itensDetalhados'
+        ));
+
+        $pdf->setPaper('a4', 'portrait');
+
+        $dataLive = $live->data ? $live->data->format('Y-m-d') : date('Y-m-d');
+        return $pdf->stream("relatorio-live-{$live->id}-{$dataLive}.pdf");
     }
 }

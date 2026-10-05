@@ -36,6 +36,10 @@
                     <i class="fas fa-film text-sm text-teal-200"></i>
                     <span style="color: #ffffff !important; font-weight: 800;">Cortes & Vídeos</span>
                 </a>
+                <a href="{{ route('admin.lives.relatorio-pdf', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-800 text-white font-black px-4 py-2.5 rounded-xl text-xs shadow-md transition duration-150 flex items-center gap-2 cursor-pointer active:scale-95 border border-indigo-600" style="background-color: #4338ca; color: #ffffff !important;" title="Gerar e Baixar Relatório de Fechamento em PDF para a Loja">
+                    <i class="fas fa-file-pdf text-sm text-indigo-200"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Relatório PDF</span>
+                </a>
             @endif
 
             @if($activeLive && $activeLive->ativo)
@@ -574,8 +578,8 @@
                     <i class="fas fa-tag"></i>
                 </div>
                 <div>
-                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Produto</h3>
-                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código de barras e vincula à live/sacola</p>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Nova Peça Vendida</h3>
+                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código sequencial, calcula comissão e vincula à sacola</p>
                 </div>
             </div>
             <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
@@ -587,9 +591,9 @@
         <form onsubmit="submitQuickProduct(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
             <div>
                 <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
-                    Descrição do Produto <span style="color: #dc2626;">*</span>
+                    Descrição da Peça <span style="color: #dc2626;">*</span>
                 </label>
-                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Estampado Farm / Blusa Seda" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -604,13 +608,44 @@
                 </div>
             </div>
 
-            <div>
-                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
-                    Preço de Venda (R$) <span style="color: #dc2626;">*</span>
-                </label>
-                <div style="display: flex;">
-                    <span style="display: inline-flex; align-items: center; padding: 0 12px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 13px; font-weight: 800;">R$</span>
-                    <input type="text" id="quick-prod-preco" required placeholder="45,00" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 900; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+            <!-- Valores: Preço, Comissão e Custo -->
+            <div style="background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px;">
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 10px; margin-bottom: 8px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                            Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                        </label>
+                        <div style="display: flex;">
+                            <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">R$</span>
+                            <input type="text" id="quick-prod-preco" required oninput="updateQuickProductCostCalc()" placeholder="50,00" style="width: 100%; padding: 8px 10px; font-size: 14px; font-weight: 900; color: #0f172a !important; background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                            Comissão (%)
+                        </label>
+                        <div style="display: flex;">
+                            <input type="number" step="0.5" id="quick-prod-comissao-perc" value="10" oninput="updateQuickProductCostCalc()" placeholder="10" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 900; color: #0f172a !important; background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-right: none; border-radius: 10px 0 0 10px; outline: none; box-sizing: border-box;">
+                            <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-left: none; border-radius: 0 10px 10px 0; color: #475569; font-size: 12px; font-weight: 800;">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #475569 !important; margin-bottom: 4px;">
+                        Custo / Repasse da Loja (R$)
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">R$</span>
+                        <input type="text" id="quick-prod-custo" placeholder="45,00" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 800; color: #b45309 !important; background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <!-- Resumo Dinâmico do Repasse -->
+                <div id="quick-prod-calc-summary" style="margin-top: 8px; padding: 6px 10px; background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; font-size: 11px; font-weight: 800; color: #5b21b6; display: flex; justify-content: space-between;">
+                    <span>Repasse Loja: <strong id="quick-prod-calc-repasse" style="color: #b45309;">R$ 0,00</strong></span>
+                    <span>Comissão: <strong id="quick-prod-calc-comissao" style="color: #047857;">R$ 0,00 (10%)</strong></span>
                 </div>
             </div>
 
@@ -628,7 +663,7 @@
                     Cancelar
                 </button>
                 <button type="submit" id="btn-save-quick-prod" style="background-color: #6d28d9 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #5b21b6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
-                    <i class="fas fa-barcode" style="color: #ddd6fe !important;"></i> Cadastrar e Gerar Código
+                    <i class="fas fa-check-circle" style="color: #ddd6fe !important;"></i> Salvar e Adicionar à Sacola
                 </button>
             </div>
         </form>
@@ -1452,15 +1487,29 @@
     }
 
     // ==========================================
-    // GERENCIAMENTO DE CLIENTE SELECIONADA & LEITOR DE CÓDIGO DE BARRAS
+    // GERENCIAMENTO DE CLIENTE SELECIONADA & LEITOR / LIVE EXTERNA
     // ==========================================
     let selectedParticipant = null; // { userId, username, clientName, platform, avatarUrl }
+    let liveOperationMode = localStorage.getItem('live_operation_mode') || 'external'; // 'external' (padrão) ou 'stock'
     let barcodeDebounceTimer = null;
     let isDashboardBarcodeProcessing = false;
     let lastDashboardBarcode = "";
     let lastDashboardBarcodeTime = 0;
     let globalBarcodeBuffer = "";
     let globalBarcodeLastKeyTime = 0;
+
+    function setLiveOperationMode(mode) {
+        liveOperationMode = mode;
+        localStorage.setItem('live_operation_mode', mode);
+        updateSelectedParticipantUI();
+        setTimeout(() => {
+            const input = document.getElementById("dashboard-barcode-input");
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 80);
+    }
 
     function selectOnlineParticipant(userId, username, clientName, platform, avatarUrl) {
         if (!userId || userId === 'null' || userId === 'undefined') {
@@ -1482,7 +1531,7 @@
         // Garante que a aba de pessoas online esteja visível
         switchTab('online');
 
-        // Foca automaticamente no campo de bipe
+        // Foca automaticamente no campo de bipe / cadastro
         setTimeout(() => {
             const input = document.getElementById("dashboard-barcode-input");
             if (input) {
@@ -1507,7 +1556,7 @@
             card.innerHTML = `
                 <div class="flex items-center justify-center gap-2 text-gray-400 text-xs py-1">
                     <i class="fas fa-hand-pointer text-indigo-400"></i>
-                    <span>Clique em uma cliente abaixo para selecioná-la e bipar itens</span>
+                    <span>Clique em uma cliente abaixo para selecioná-la e registrar vendas</span>
                 </div>
             `;
             return;
@@ -1522,9 +1571,11 @@
             ? `<img src="${safeAttr(selectedParticipant.avatarUrl)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${illustratedAvatar}';" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm shrink-0" />`
             : `<img src="${illustratedAvatar}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm shrink-0" /><div class="w-10 h-10 rounded-full bg-indigo-100 items-center justify-center font-bold text-xs text-indigo-700 hidden shrink-0">${initials}</div>`;
 
+        const isExternal = liveOperationMode === 'external';
+
         card.className = "bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50/70 border-2 border-emerald-500 ring-2 ring-emerald-300/30 rounded-2xl p-3.5 mb-3 shrink-0 shadow-md transition-all";
         card.innerHTML = `
-            <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-emerald-200/70">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-emerald-200/70">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div class="shrink-0 relative">
                         ${avatarHtml}
@@ -1543,8 +1594,8 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    <button type="button" onclick="openQuickProductModal()" title="Cadastrar Produto Rápido" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
-                        <i class="fas fa-tag"></i> <span class="text-[11px]">Novo Produto</span>
+                    <button type="button" onclick="openQuickProductModal()" title="Cadastrar Peça Rápida [Enter]" class="bg-purple-700 hover:bg-purple-800 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-plus-circle"></i> <span class="text-[11px] font-extrabold">+ Cadastrar Peça</span>
                     </button>
                     <button type="button" onclick="openOnlineQrModal('${selectedParticipant.userId}', '${escapeHtml(selectedParticipant.username)}', '${escapeHtml(selectedParticipant.clientName)}')" title="Abrir Câmera / QRCode" class="bg-white hover:bg-gray-100 text-emerald-700 border border-emerald-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer">
                         <i class="fas fa-camera"></i>
@@ -1555,21 +1606,31 @@
                 </div>
             </div>
 
+            <!-- Seletor de Modo de Operação (Live Externa vs Estoque com Leitor) -->
+            <div class="flex items-center justify-between gap-1 mb-2 bg-emerald-100/80 p-1 rounded-xl border border-emerald-200">
+                <button type="button" onclick="setLiveOperationMode('external')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${isExternal ? 'bg-purple-700 text-white shadow-xs' : 'text-purple-950 hover:bg-purple-200/50'}">
+                    <i class="fas fa-tag"></i> Modo Live Externa (Cadastrar na Hora)
+                </button>
+                <button type="button" onclick="setLiveOperationMode('stock')" class="flex-1 py-1 px-2 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${!isExternal ? 'bg-indigo-700 text-white shadow-xs' : 'text-indigo-950 hover:bg-indigo-200/50'}">
+                    <i class="fas fa-barcode"></i> Modo Estoque (Leitor de Código)
+                </button>
+            </div>
+
             <div class="space-y-2">
                 <div class="relative">
                     <input type="text" id="dashboard-barcode-input" 
-                           placeholder="Bipe com o leitor ou tecle [Enter] vazio p/ cadastrar rápido..." 
+                           placeholder="${isExternal ? 'Tecle [Enter] p/ abrir cadastro ou digite o valor/descrição...' : 'Bipe com o leitor ou digite o código de barras + [Enter]...'}" 
                            oninput="handleDashboardBarcodeInput(event)"
                            onkeydown="handleDashboardBarcodeKeyDown(event)"
-                           class="w-full pl-9 pr-8 py-2.5 bg-white rounded-xl border-2 border-emerald-500 focus:border-emerald-700 focus:ring-4 focus:ring-emerald-500/20 text-xs font-black text-gray-900 placeholder-gray-500 shadow-sm transition" 
+                           class="w-full pl-9 pr-10 py-2.5 bg-white rounded-xl border-2 border-emerald-500 focus:border-purple-600 focus:ring-4 focus:ring-purple-500/20 text-xs font-black text-gray-900 placeholder-gray-500 shadow-sm transition" 
                            autocomplete="off" />
-                    <i class="fas fa-barcode absolute left-3 top-3 text-emerald-600 text-sm"></i>
-                    <button type="button" onclick="processDashboardBarcodeScan(document.getElementById('dashboard-barcode-input').value)" class="absolute right-1.5 top-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2 py-1.5 text-[10px] font-bold shadow-xs cursor-pointer">
-                        <i class="fas fa-arrow-right"></i>
+                    <i class="fas ${isExternal ? 'fa-tag text-purple-600' : 'fa-barcode text-emerald-600'} absolute left-3 top-3 text-sm"></i>
+                    <button type="button" onclick="${isExternal ? 'openQuickProductModal(document.getElementById(\'dashboard-barcode-input\').value)' : 'processDashboardBarcodeScan(document.getElementById(\'dashboard-barcode-input\').value)'}" title="${isExternal ? 'Cadastrar Peça [Enter]' : 'Processar Código'}" class="absolute right-1.5 top-1.5 ${isExternal ? 'bg-purple-700 hover:bg-purple-800' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold shadow-xs cursor-pointer flex items-center gap-1">
+                        <span>[Enter]</span> <i class="fas fa-arrow-right text-[9px]"></i>
                     </button>
                 </div>
                 <div id="dashboard-barcode-status" class="text-[11px] text-emerald-900 font-bold flex items-center justify-between min-h-[18px]">
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Aguardando bipe do leitor de código de barras ou [Enter]...</span>
+                    ${isExternal ? '<span class="flex items-center gap-1.5 text-purple-900 font-extrabold"><span class="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span> 💡 Tecle [Enter] para cadastrar nova peça vendida para a cliente</span>' : '<span class="flex items-center gap-1.5 text-emerald-900 font-extrabold"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Aguardando bipe do leitor de código de barras ou [Enter]...</span>'}
                 </div>
             </div>
         `;
@@ -1577,13 +1638,13 @@
 
     function handleDashboardBarcodeInput(e) {
         if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
-        const val = e.target.value;
-        if (!val || val.trim().length < 2) return;
         
-        // Leitores USB enviam caracteres em alta velocidade. Debounce de 120ms para disparo automático sem enter
-        barcodeDebounceTimer = setTimeout(() => {
-            processDashboardBarcodeScan(val);
-        }, 120);
+        // No modo Live Externa, NÃO fazemos busca automática no estoque enquanto o usuário digita
+        if (liveOperationMode === 'external') {
+            return;
+        }
+
+        // No modo Estoque, leitores enviam string rápida. Mas deixamos o Enter tratar com 100% de segurança
     }
 
     function handleDashboardBarcodeKeyDown(e) {
@@ -1591,6 +1652,14 @@
             e.preventDefault();
             if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
             const val = (e.target.value || '').trim();
+            
+            if (liveOperationMode === 'external') {
+                openQuickProductModal(val);
+                e.target.value = '';
+                return;
+            }
+
+            // Modo Estoque
             if (!val) {
                 openQuickProductModal();
                 return;
@@ -2506,7 +2575,37 @@
         }
     }
 
-    function openQuickProductModal() {
+    function updateQuickProductCostCalc() {
+        const precoInput = document.getElementById('quick-prod-preco');
+        const comissaoInput = document.getElementById('quick-prod-comissao-perc');
+        const custoInput = document.getElementById('quick-prod-custo');
+        const repasseBadge = document.getElementById('quick-prod-calc-repasse');
+        const comissaoBadge = document.getElementById('quick-prod-calc-comissao');
+
+        if (!precoInput) return;
+
+        const precoRaw = precoInput.value || '';
+        const precoClean = precoRaw.replace(/[^0-9,\.]/g, '').replace(',', '.');
+        const precoVal = parseFloat(precoClean) || 0;
+
+        const comissaoPerc = parseFloat(comissaoInput?.value || 10) || 0;
+
+        const repasseVal = Math.round(precoVal * (1 - (comissaoPerc / 100)) * 100) / 100;
+        const comissaoVal = Math.round((precoVal - repasseVal) * 100) / 100;
+
+        if (custoInput && document.activeElement !== custoInput) {
+            custoInput.value = repasseVal > 0 ? repasseVal.toFixed(2).replace('.', ',') : '';
+        }
+
+        if (repasseBadge) {
+            repasseBadge.textContent = 'R$ ' + (repasseVal > 0 ? repasseVal.toFixed(2).replace('.', ',') : '0,00');
+        }
+        if (comissaoBadge) {
+            comissaoBadge.textContent = 'R$ ' + (comissaoVal > 0 ? comissaoVal.toFixed(2).replace('.', ',') : '0,00') + ` (${comissaoPerc}%)`;
+        }
+    }
+
+    function openQuickProductModal(initialVal = '') {
         globalBarcodeBuffer = "";
         if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
 
@@ -2520,21 +2619,44 @@
         const tamEl = document.getElementById('quick-prod-tamanho');
         const corEl = document.getElementById('quick-prod-cor');
         const precoEl = document.getElementById('quick-prod-preco');
+        const custoEl = document.getElementById('quick-prod-custo');
+        const comissaoEl = document.getElementById('quick-prod-comissao-perc');
         const linkCheck = document.getElementById('quick-prod-link-live');
 
-        if (descEl) descEl.value = '';
         if (tamEl) tamEl.value = '';
         if (corEl) corEl.value = '';
-        if (precoEl) precoEl.value = '';
         if (linkCheck) linkCheck.checked = true;
+        if (comissaoEl && !comissaoEl.value) comissaoEl.value = '10';
+
+        let focusTarget = descEl;
+
+        const trimmed = (typeof initialVal === 'string' ? initialVal : '').trim();
+        if (trimmed) {
+            // Verifica se é valor numérico (ex: 50, 50.00, 50,00, R$ 50)
+            const numericMatch = trimmed.replace(/^R\$\s*/i, '').replace(',', '.');
+            if (!isNaN(numericMatch) && Number(numericMatch) > 0) {
+                if (precoEl) precoEl.value = Number(numericMatch).toFixed(2).replace('.', ',');
+                if (descEl) descEl.value = '';
+                focusTarget = descEl;
+            } else {
+                if (descEl) descEl.value = trimmed;
+                if (precoEl) precoEl.value = '';
+                focusTarget = precoEl;
+            }
+        } else {
+            if (descEl) descEl.value = '';
+            if (precoEl) precoEl.value = '';
+        }
+
+        updateQuickProductCostCalc();
 
         const modal = document.getElementById('modal-quick-product');
         if (modal) modal.classList.remove('hidden');
 
         setTimeout(() => {
-            if (descEl) {
-                descEl.focus();
-                descEl.select();
+            if (focusTarget) {
+                focusTarget.focus();
+                focusTarget.select();
             }
         }, 120);
     }
@@ -2550,13 +2672,15 @@
         const originalBtnHtml = btn ? btn.innerHTML : '';
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando e Adicionando...';
         }
 
         const descricao = (document.getElementById('quick-prod-descricao')?.value || '').trim();
         const tamanho = (document.getElementById('quick-prod-tamanho')?.value || '').trim();
         const cor = (document.getElementById('quick-prod-cor')?.value || '').trim();
         const preco = (document.getElementById('quick-prod-preco')?.value || '').trim();
+        const custo = (document.getElementById('quick-prod-custo')?.value || '').trim();
+        const comissaoPerc = (document.getElementById('quick-prod-comissao-perc')?.value || '').trim();
         const linkLive = document.getElementById('quick-prod-link-live') ? document.getElementById('quick-prod-link-live').checked : false;
 
         try {
@@ -2572,6 +2696,8 @@
                     tamanho: tamanho,
                     cor: cor,
                     preco: preco,
+                    custo: custo,
+                    comissao_percent: comissaoPerc,
                     live_id: {{ $activeLive ? $activeLive->id : 'null' }},
                     link_to_live: linkLive
                 })
@@ -2581,7 +2707,7 @@
             if (data.success) {
                 const item = data.item;
                 const code = item ? item.codigo : '';
-                showToast(`Produto #${code} cadastrado com sucesso!`);
+                showToast(`Peça #${code} cadastrada com sucesso!`);
                 closeQuickProductModal();
 
                 if (selectedParticipant && item) {
@@ -2608,9 +2734,9 @@
                         const addData = await addResponse.json();
                         if (addData.success) {
                             playSuccessBeep();
-                            showToast(`🎉 ${item.name} adicionado à sacola de @${selectedParticipant.username}!`);
+                            showToast(`🎉 ${item.nome} adicionado à sacola de @${selectedParticipant.username}!`);
                             if (statusEl) {
-                                statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold flex items-center gap-1.5 truncate"><i class="fas fa-check-circle text-emerald-600"></i> ${escapeHtml(item.name)} (${item.formatted_price || 'R$ ' + item.price}) adicionado!</span>`;
+                                statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold flex items-center gap-1.5 truncate"><i class="fas fa-check-circle text-emerald-600"></i> ${escapeHtml(item.nome)} (${item.preco_formatado || 'R$ ' + item.preco}) adicionado à sacola!</span>`;
                             }
                             fetchChatData();
                         } else {
@@ -2646,7 +2772,7 @@
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = originalBtnHtml || '<i class="fas fa-barcode"></i> Cadastrar e Gerar Código';
+                btn.innerHTML = originalBtnHtml || '<i class="fas fa-check-circle"></i> Salvar e Adicionar à Sacola';
             }
         }
     }
