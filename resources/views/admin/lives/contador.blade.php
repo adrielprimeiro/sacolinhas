@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contador da Live • Minha Mania</title>
+    <title>Painel do Telão & Chat da Live • Minha Mania</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -22,33 +22,61 @@
 
         /* Themes */
         .theme-dark {
+            --bg-main: #09090b;
+            --panel-bg: rgba(24, 24, 27, 0.85);
+            --card-bg: #18181b;
+            --card-border: #27272a;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --accent: #a855f7;
             background-color: #09090b;
             color: #ffffff;
         }
         .theme-dark .counter-num {
             color: #ffffff;
-            text-shadow: 0 0 60px rgba(168, 85, 247, 0.45), 0 0 120px rgba(168, 85, 247, 0.2);
+            text-shadow: 0 0 50px rgba(168, 85, 247, 0.5), 0 0 100px rgba(168, 85, 247, 0.25);
         }
 
         .theme-light {
-            background-color: #f8fafc;
+            --bg-main: #f1f5f9;
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --accent: #6366f1;
+            background-color: #f1f5f9;
             color: #0f172a;
         }
         .theme-light .counter-num {
             color: #0f172a;
-            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
         .theme-neon {
+            --bg-main: #030712;
+            --panel-bg: rgba(15, 23, 42, 0.9);
+            --card-bg: #0b1329;
+            --card-border: #1e293b;
+            --text-primary: #22d3ee;
+            --text-secondary: #94a3b8;
+            --accent: #06b6d4;
             background-color: #030712;
             color: #22d3ee;
         }
         .theme-neon .counter-num {
             color: #22d3ee;
-            text-shadow: 0 0 40px rgba(34, 211, 238, 0.8), 0 0 100px rgba(34, 211, 238, 0.4);
+            text-shadow: 0 0 40px rgba(34, 211, 238, 0.8), 0 0 90px rgba(34, 211, 238, 0.4);
         }
 
         .theme-chroma {
+            --bg-main: #00ff00;
+            --panel-bg: rgba(0, 0, 0, 0.85);
+            --card-bg: #111827;
+            --card-border: #374151;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --accent: #10b981;
             background-color: #00ff00 !important;
             color: #ffffff;
         }
@@ -58,6 +86,13 @@
         }
 
         .theme-transparent {
+            --bg-main: transparent;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.15);
+            --text-primary: #ffffff;
+            --text-secondary: #cbd5e1;
+            --accent: #818cf8;
             background-color: transparent !important;
             color: #ffffff;
         }
@@ -69,13 +104,13 @@
         /* Number bounce / pulse animation */
         @keyframes counterPop {
             0% { transform: scale(1); }
-            35% { transform: scale(1.16); }
-            65% { transform: scale(0.96); }
+            35% { transform: scale(1.12); }
+            65% { transform: scale(0.97); }
             100% { transform: scale(1); }
         }
 
         .animate-pop {
-            animation: counterPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: counterPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         /* Auto-hide controls */
@@ -92,9 +127,63 @@
         ::-webkit-scrollbar {
             width: 6px;
         }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
         ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        /* Chat Cards High Contrast & Animations */
+        .telao-chat-card {
+            background-color: var(--card-bg) !important;
+            border: 1.5px solid var(--card-border) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+            transition: all 0.2s ease;
+        }
+
+        .telao-chat-card:hover {
+            border-color: #818cf8 !important;
+            transform: translateX(-2px);
+        }
+
+        .telao-chat-card.is-marked {
+            border: 2px solid #f59e0b !important;
+            background-color: rgba(245, 158, 11, 0.12) !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3) !important;
+        }
+
+        .telao-code-badge {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            padding: 2px 7px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.9em !important;
+            margin: 0 2px !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+        }
+
+        @keyframes msgSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .msg-entry-animate {
+            animation: msgSlideIn 0.25s ease-out forwards;
         }
     </style>
 </head>
@@ -106,7 +195,7 @@
     </audio>
 
     <!-- Floating Toast Notification on Scan -->
-    <div id="scanFeedbackToast" class="fixed top-20 inset-x-0 mx-auto max-w-md w-full px-4 z-50 transition-all duration-300 pointer-events-none opacity-0 -translate-y-6">
+    <div id="scanFeedbackToast" class="fixed top-16 inset-x-0 mx-auto max-w-md w-full px-4 z-50 transition-all duration-300 pointer-events-none opacity-0 -translate-y-6">
         <div id="toastCard" class="px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border border-white/20 flex items-center gap-3.5 text-white bg-zinc-900/90">
             <div id="toastIconBox" class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg shrink-0">
                 <i id="toastIcon" class="fas fa-check"></i>
@@ -119,9 +208,9 @@
     </div>
 
     <!-- Top Floating Toolbar (Auto-hides on idle) -->
-    <header id="controlsBar" class="controls-layer w-full max-w-6xl mx-auto pt-4 px-4 z-50 flex items-center justify-between gap-3">
+    <header id="controlsBar" class="controls-layer w-full max-w-7xl mx-auto pt-3 px-4 z-50 flex flex-wrap items-center justify-between gap-2.5">
         <!-- Live info & Selector -->
-        <div class="flex items-center gap-3 bg-black/40 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 shadow-lg">
+        <div class="flex items-center gap-2.5 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 shadow-lg">
             <div class="flex items-center gap-2">
                 <span class="relative flex h-3 w-3">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -137,7 +226,7 @@
                     id="liveSelect"
                     name="live_id" 
                     onchange="this.form.submit()"
-                    class="bg-transparent text-xs font-semibold text-white/90 border-0 focus:ring-0 cursor-pointer outline-none max-w-[200px] sm:max-w-[280px] truncate"
+                    class="bg-transparent text-xs font-semibold text-white/90 border-0 focus:ring-0 cursor-pointer outline-none max-w-[180px] sm:max-w-[260px] truncate"
                 >
                     @foreach($lives as $live)
                         <option value="{{ $live->id }}" {{ ($activeLive && $activeLive->id == $live->id) ? 'selected' : '' }} class="bg-zinc-900 text-white">
@@ -147,19 +236,34 @@
                 </select>
             </form>
 
-            <div class="hidden lg:flex items-center gap-1.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-bold">
+            <div class="hidden lg:flex items-center gap-1.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg text-[10px] font-bold">
                 <i class="fas fa-barcode text-purple-400"></i>
-                <span>Leitor Ativo</span>
+                <span>Leitor Pronto</span>
             </div>
         </div>
 
         <!-- Action Controls -->
-        <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl border border-white/10 shadow-lg">
+        <div class="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded-2xl border border-white/10 shadow-lg">
+            <!-- Layout Selector (Split / Contador / Chat) -->
+            <div class="flex items-center bg-white/10 p-0.5 rounded-xl text-xs">
+                <button type="button" onclick="setLayoutMode('split')" id="btn-layout-split" class="px-2.5 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow-sm transition flex items-center gap-1" title="Divisão 50/50: Contador + Chat">
+                    <i class="fas fa-columns text-[10px]"></i> <span class="hidden sm:inline">Telão + Chat</span>
+                </button>
+                <button type="button" onclick="setLayoutMode('counter')" id="btn-layout-counter" class="px-2.5 py-1 rounded-lg font-bold text-white/70 hover:text-white hover:bg-white/10 transition flex items-center gap-1" title="Apenas Contador Gigante (100%)">
+                    <i class="fas fa-hashtag text-[10px]"></i> <span class="hidden sm:inline">Só Contador</span>
+                </button>
+                <button type="button" onclick="setLayoutMode('chat')" id="btn-layout-chat" class="px-2.5 py-1 rounded-lg font-bold text-white/70 hover:text-white hover:bg-white/10 transition flex items-center gap-1" title="Apenas Chat da Transmissão (100%)">
+                    <i class="fas fa-comments text-[10px]"></i> <span class="hidden sm:inline">Só Chat</span>
+                </button>
+            </div>
+
+            <div class="h-4 w-px bg-white/20"></div>
+
             <!-- Theme dropdown -->
             <select 
                 id="themeSelect" 
                 onchange="changeTheme(this.value)"
-                class="bg-transparent text-xs font-semibold text-white/90 border-0 focus:ring-0 cursor-pointer outline-none px-2 py-1"
+                class="bg-transparent text-xs font-semibold text-white/90 border-0 focus:ring-0 cursor-pointer outline-none px-1.5 py-1"
                 title="Estilo visual"
             >
                 <option value="theme-dark" class="bg-zinc-900 text-white">🌙 Dark Studio</option>
@@ -176,11 +280,11 @@
                 type="button" 
                 id="toggleDetailsBtn"
                 onclick="toggleDetails()"
-                class="px-2.5 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1.5"
+                class="px-2 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1"
                 title="Mostrar/Ocultar último item"
             >
-                <i class="fas fa-tag text-[11px]"></i>
-                <span class="hidden sm:inline">Último Item</span>
+                <i class="fas fa-tag text-[10px]"></i>
+                <span class="hidden md:inline">Item</span>
             </button>
 
             <!-- Toggle Sound button -->
@@ -188,98 +292,180 @@
                 type="button" 
                 id="toggleSoundBtn"
                 onclick="toggleSound()"
-                class="px-2.5 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1.5"
+                class="px-2 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1"
                 title="Ativar/Desativar som ao bipar"
             >
-                <i id="soundIcon" class="fas fa-volume-mute text-[11px]"></i>
+                <i id="soundIcon" class="fas fa-volume-up text-[10px] text-emerald-400"></i>
             </button>
 
             <!-- Fullscreen button -->
             <button 
                 type="button" 
                 onclick="toggleFullScreen()"
-                class="px-2.5 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1.5"
-                title="Tela Cheia (F11 ou F)"
+                class="px-2 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1"
+                title="Tela Cheia (F11 ou tecla F)"
             >
-                <i id="fsIcon" class="fas fa-expand text-[11px]"></i>
+                <i id="fsIcon" class="fas fa-expand text-[10px]"></i>
             </button>
-
-            <!-- Link to Bipagem / Feed -->
-            <a 
-                href="{{ route('admin.live-chat.bipagem', ['live_id' => $activeLive ? $activeLive->id : '']) }}"
-                target="_blank"
-                class="px-2.5 py-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow transition flex items-center gap-1"
-                title="Abrir tela de Bipagem"
-            >
-                <i class="fas fa-qrcode text-[10px]"></i>
-                <span class="hidden md:inline">Bipagem</span>
-            </a>
         </div>
     </header>
 
-    <!-- Center Stage: GIANT COUNTER NUMBER -->
-    <main class="flex-1 flex flex-col justify-center items-center w-full px-4 text-center cursor-pointer" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
+    <!-- MAIN STAGE: 2-COLUMN SPLIT (CONTADOR + CHAT AO VIVO) -->
+    <main id="mainStageContainer" class="flex-1 w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch">
         
-        <!-- Live Stats Badges (Quantidade de Itens em Sacolinhas & Valor Total) -->
-        <div class="mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-3">
-            <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
-                <i class="fas fa-shopping-bag text-purple-400"></i>
-                <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $sacolinhasItensCount }}</strong> <span class="text-white/70">itens</span></span>
-            </div>
-
-            <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
-                <i class="fas fa-coins text-emerald-400"></i>
-                <span class="text-white/70">Total:</span>
-                <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-sm sm:text-base">{{ $initialTotalValueFormatted }}</strong>
-            </div>
-
-            <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur text-xs font-semibold text-white/50 shadow-xs">
-                <i class="fas fa-barcode text-purple-400 text-xs"></i>
-                <span><strong id="totalBipadosCount" class="text-white/80 font-mono">{{ $initialBipadosCount }}</strong> bipados</span>
-            </div>
-        </div>
-
-        <!-- The GIANT Number (Código da Peça / Sequência da Live) -->
-        <div 
-            id="counterNumber" 
-            class="counter-num font-mono-numbers font-black tracking-tighter leading-none select-none my-auto"
-            style="font-size: clamp(10rem, 28vw, 36rem);"
-        >
-            {{ $initialPieceCode }}
-        </div>
-
-        <!-- Subtitle / Last Biped Item Info (Collapsible) -->
-        <div id="lastItemContainer" class="mt-2 sm:mt-6 transition-all duration-300 {{ $lastItem ? '' : 'hidden' }}">
-            <div class="inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-2xl text-left">
-                <div class="h-9 w-9 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-sm shrink-0">
-                    <i class="fas fa-check"></i>
+        <!-- ========================================== -->
+        <!-- LADO ESQUERDO: CONTADOR GIGANTE & STATS   -->
+        <!-- ========================================== -->
+        <section id="col-counter-panel" class="flex flex-col justify-between items-center h-full min-h-0 relative p-4 sm:p-6 rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300" style="background-color: var(--panel-bg);">
+            
+            <!-- Live Stats Badges (Itens, Total R$, Bipados) -->
+            <div class="w-full flex flex-wrap items-center justify-center gap-2.5 shrink-0 pt-1">
+                <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-purple-500/15 border border-purple-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wider text-purple-300 shadow-md">
+                    <i class="fas fa-shopping-bag text-purple-400"></i>
+                    <span><strong id="totalItemsCount" class="text-white font-mono text-sm sm:text-base">{{ $sacolinhasItensCount }}</strong> <span class="text-white/70">itens</span></span>
                 </div>
-                <div class="text-xs sm:text-sm">
-                    <div class="font-bold text-white flex items-center gap-2">
-                        <span id="lastItemCode" class="text-purple-300 font-mono">#{{ $lastItem['codigo'] ?? '---' }}</span>
-                        <span class="text-white/40">•</span>
-                        <span id="lastItemName" class="truncate max-w-[220px] sm:max-w-[350px]">{{ $lastItem['nome'] ?? '---' }}</span>
-                    </div>
-                    <div class="text-white/60 text-xs flex items-center gap-2 mt-0.5">
-                        <span id="lastItemPrice" class="font-semibold text-emerald-400">{{ $lastItem['preco'] ?? '' }}</span>
-                        <span class="text-white/30">•</span>
-                        <span id="lastItemTime" class="text-white/50">{{ $lastItem['hora'] ?? '' }}</span>
-                    </div>
+
+                <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 backdrop-blur text-xs sm:text-sm font-bold tracking-wide text-emerald-300 shadow-md transition-all duration-300">
+                    <i class="fas fa-coins text-emerald-400"></i>
+                    <span class="text-white/70">Total:</span>
+                    <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-sm sm:text-base">{{ $initialTotalValueFormatted }}</strong>
+                </div>
+
+                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur text-xs font-semibold text-white/60 shadow-xs">
+                    <i class="fas fa-barcode text-purple-400 text-xs"></i>
+                    <span><strong id="totalBipadosCount" class="text-white/90 font-mono">{{ $initialBipadosCount }}</strong> bipados</span>
                 </div>
             </div>
-        </div>
+
+            <!-- The GIANT Number (Código da Peça / Sequência da Live) -->
+            <div class="my-auto flex flex-col items-center justify-center text-center cursor-pointer select-none py-2" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
+                <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-purple-400/80 mb-1 flex items-center gap-1.5">
+                    <i class="fas fa-tag text-xs"></i> Peça Atual da Live
+                </span>
+                <div 
+                    id="counterNumber" 
+                    class="counter-num font-mono-numbers font-black tracking-tighter leading-none select-none"
+                    style="font-size: clamp(8rem, 18vw, 24rem);"
+                >
+                    {{ $initialPieceCode }}
+                </div>
+            </div>
+
+            <!-- Subtitle / Last Biped Item Info (Collapsible) -->
+            <div id="lastItemContainer" class="w-full shrink-0 transition-all duration-300 {{ $lastItem ? '' : 'hidden' }}">
+                <div class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md shadow-xl text-left">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="h-10 w-10 rounded-xl bg-purple-500/25 border border-purple-500/40 flex items-center justify-center text-purple-300 font-bold text-base shrink-0 shadow-inner">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-white flex items-center gap-2 text-xs sm:text-sm">
+                                <span id="lastItemCode" class="text-purple-300 font-mono font-black">#{{ $lastItem['codigo'] ?? '---' }}</span>
+                                <span class="text-white/30">•</span>
+                                <span id="lastItemName" class="truncate font-extrabold text-white">{{ $lastItem['nome'] ?? '---' }}</span>
+                            </div>
+                            <div class="text-white/60 text-xs flex items-center gap-2 mt-0.5">
+                                <span id="lastItemPrice" class="font-black text-emerald-400">{{ $lastItem['preco'] ?? '' }}</span>
+                                <span class="text-white/30">•</span>
+                                <span id="lastItemTime" class="text-white/50 font-mono">{{ $lastItem['hora'] ?? '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-white/10 text-white/70 px-2.5 py-1 rounded-lg shrink-0 border border-white/10">Último Bipado</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- LADO DIREITO: CHAT DA TRANSMISSÃO AO VIVO  -->
+        <!-- ========================================== -->
+        <section id="col-chat-panel" class="flex flex-col h-full min-h-0 rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-300" style="background-color: var(--panel-bg);">
+            
+            <!-- Header do Chat -->
+            <div class="p-3 sm:p-4 border-b border-white/10 flex items-center justify-between gap-2 shrink-0 bg-black/20">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-sm shadow-md shrink-0">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xs sm:text-sm font-black text-white tracking-tight">Chat da Transmissão</h2>
+                            <span id="chat-live-pulse-badge" class="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO
+                            </span>
+                        </div>
+                        <p class="text-[10.5px] text-white/60 font-semibold truncate">
+                            <span id="chat-msgs-counter">0</span> comentários capturados
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Filtros Rápidos & Auto-Scroll -->
+                <div class="flex items-center gap-1.5">
+                    <!-- Filtro Tabs -->
+                    <div class="flex bg-white/10 p-0.5 rounded-xl text-[11px] font-bold">
+                        <button type="button" onclick="setChatFilter('all')" id="tab-chat-all" class="px-2 py-1 rounded-lg text-white bg-indigo-600 shadow-xs transition">
+                            Todas
+                        </button>
+                        <button type="button" onclick="setChatFilter('marked')" id="tab-chat-marked" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition flex items-center gap-1" title="Mensagens Marcadas">
+                            <i class="fas fa-star text-amber-400 text-[10px]"></i>
+                        </button>
+                        <button type="button" onclick="setChatFilter('instagram')" id="tab-chat-instagram" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition" title="Apenas Instagram">
+                            <i class="fab fa-instagram text-pink-400 text-[11px]"></i>
+                        </button>
+                        <button type="button" onclick="setChatFilter('tiktok')" id="tab-chat-tiktok" class="px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition" title="Apenas TikTok">
+                            <i class="fab fa-tiktok text-cyan-400 text-[11px]"></i>
+                        </button>
+                    </div>
+
+                    <!-- Auto-scroll lock toggle -->
+                    <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll" class="px-2 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10" title="Travar/Destravar Rolagem Automática">
+                        <i id="autoscroll-icon" class="fas fa-arrow-down text-[10px]"></i>
+                    </button>
+
+                    <!-- Zoom de Fonte -->
+                    <button type="button" onclick="toggleChatFontSize()" id="btn-chat-font" class="px-2 py-1 text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition border border-white/10" title="Alternar Tamanho da Fonte">
+                        <span id="chat-font-indicator">A+</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Feed de Mensagens Rolável -->
+            <div id="telao-chat-messages-container" class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5 relative">
+                <!-- Preenchido dinamicamente via JS -->
+                <div class="flex flex-col items-center justify-center h-full text-white/40 py-12 text-center">
+                    <i class="fas fa-comments text-4xl mb-3 text-white/20 animate-pulse"></i>
+                    <p class="text-xs font-bold text-white/70">Aguardando comentários da live...</p>
+                    <p class="text-[11px] text-white/40 mt-0.5">As mensagens de Instagram e TikTok aparecerão aqui em tempo real.</p>
+                </div>
+            </div>
+
+            <!-- Floating Jump-to-Bottom Pill (Quando usuário rolou para cima) -->
+            <div id="chat-jump-bottom-btn" onclick="scrollToChatBottom(true)" class="hidden absolute bottom-5 right-6 z-20 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-full shadow-2xl border border-indigo-400 cursor-pointer flex items-center gap-1.5 animate-bounce">
+                <i class="fas fa-arrow-down text-xs"></i> <span>Novas mensagens</span>
+            </div>
+
+            <!-- Footer do Chat (Status de Conexão) -->
+            <div class="px-4 py-2 border-t border-white/10 bg-black/30 flex items-center justify-between text-[11px] text-white/40 font-medium shrink-0">
+                <span class="flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="chat-status-text">Captura de Chat Ativa</span>
+                </span>
+                <span id="chat-active-filter-label" class="font-bold text-white/60">Todas as redes</span>
+            </div>
+        </section>
     </main>
 
     <!-- Bottom subtle bar -->
-    <footer class="w-full text-center pb-3 text-[11px] text-white/30 font-medium z-10 flex items-center justify-center gap-4">
+    <footer class="w-full text-center pb-2.5 pt-1 text-[11px] text-white/40 font-medium z-10 flex items-center justify-center gap-4">
         <span>Minha Mania Live Studio</span>
         <span>•</span>
-        <span id="syncIndicator" class="flex items-center gap-1.5 text-emerald-400/80">
+        <span id="syncIndicator" class="flex items-center gap-1.5 text-emerald-400/90 font-bold">
             <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Sincronizado
         </span>
         <span class="hidden sm:inline">•</span>
-        <span class="hidden sm:inline text-white/20">Pressione 'F' para Tela Cheia</span>
+        <span class="hidden sm:inline text-white/30">Pressione 'F' para Tela Cheia • '1' Telão • '2' Split • '3' Chat</span>
     </footer>
 
     <!-- Invisible Auto-Focus Input for USB / Bluetooth Barcode Scanners -->
@@ -294,18 +480,29 @@
     />
 
     <script>
-        // State & Configuration
+        // =========================================================================
+        // ESTADO GLOBAL & CONFIGURAÇÕES
+        // =========================================================================
         let activeLiveId = "{{ $activeLive ? $activeLive->id : '' }}";
         const csrfToken = "{{ csrf_token() }}";
         const linkItemUrl = "{{ route('admin.live-chat.link-item-live') }}";
         let currentPieceCode = "{{ $initialPieceCode }}";
-        let soundEnabled = true; // Habilitado por padrão para feedback ao bipar
+        let soundEnabled = true;
         let showDetails = true;
         let isPolling = false;
         let isProcessingScan = false;
         let idleTimer = null;
         let toastTimer = null;
 
+        // Chat Feed State
+        let allLiveMessages = [];
+        let currentChatFilter = 'all'; // 'all', 'marked', 'instagram', 'tiktok'
+        let autoScrollEnabled = true;
+        let isUserScrollingChat = false;
+        let chatFontSizeMode = 'normal'; // 'normal', 'large', 'huge'
+        let layoutMode = 'split'; // 'split', 'counter', 'chat'
+
+        // DOM Elements
         const counterEl = document.getElementById('counterNumber');
         const totalItemsCountEl = document.getElementById('totalItemsCount');
         const totalBipadosCountEl = document.getElementById('totalBipadosCount');
@@ -320,26 +517,35 @@
         const syncIndicator = document.getElementById('syncIndicator');
         const bodyEl = document.getElementById('bodyEl');
         const barcodeInput = document.getElementById('barcodeWedgeInput');
+        const chatContainer = document.getElementById('telao-chat-messages-container');
+        const chatMsgsCounter = document.getElementById('chat-msgs-counter');
+        const jumpBottomBtn = document.getElementById('chat-jump-bottom-btn');
+        const mainStageContainer = document.getElementById('mainStageContainer');
+        const colCounterPanel = document.getElementById('col-counter-panel');
+        const colChatPanel = document.getElementById('col-chat-panel');
 
-        // Garante foco permanente no leitor de código de barras
+        // =========================================================================
+        // FOCO PERMANENTE NO LEITOR DE CÓDIGOS DE BARRA
+        // =========================================================================
         function ensureScannerFocus() {
             if (!barcodeInput) return;
             const activeTag = document.activeElement ? document.activeElement.tagName : '';
-            if (activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
+            if (activeTag !== 'SELECT' && activeTag !== 'TEXTAREA' && activeTag !== 'INPUT') {
                 barcodeInput.focus();
             }
         }
         setInterval(ensureScannerFocus, 1000);
         document.addEventListener('click', () => setTimeout(ensureScannerFocus, 50));
 
-        // Web Audio API Synthesizer (Som de Sucesso ao Bipar)
+        // =========================================================================
+        // SINTETIZADORES DE ÁUDIO WEB AUDIO API
+        // =========================================================================
         function playChime() {
             if (!soundEnabled) return;
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const now = ctx.currentTime;
                 
-                // Nota 1 (D5 - 587Hz)
                 const osc1 = ctx.createOscillator();
                 const gain1 = ctx.createGain();
                 osc1.type = 'sine';
@@ -351,7 +557,6 @@
                 osc1.start(now);
                 osc1.stop(now + 0.18);
 
-                // Nota 2 (A5 - 880Hz)
                 const osc2 = ctx.createOscillator();
                 const gain2 = ctx.createGain();
                 osc2.type = 'sine';
@@ -367,7 +572,6 @@
             }
         }
 
-        // Web Audio API Synthesizer (Som de Erro / Alerta)
         function playErrorTone() {
             if (!soundEnabled) return;
             try {
@@ -393,15 +597,16 @@
             }
         }
 
-        // Trigger Pop Animation on Counter & Count Badge
+        // =========================================================================
+        // ANIMAÇÃO DE CONTADOR & VALORES
+        // =========================================================================
         function animateCounterChange(newVal) {
             counterEl.textContent = newVal;
             counterEl.classList.remove('animate-pop');
-            void counterEl.offsetWidth; // force reflow
+            void counterEl.offsetWidth;
             counterEl.classList.add('animate-pop');
         }
 
-        // Trigger Pop Animation on Total Value Badge
         function animateTotalValueChange(formattedVal) {
             if (!totalLiveValueTextEl || !formattedVal) return;
             totalLiveValueTextEl.textContent = formattedVal;
@@ -415,7 +620,9 @@
             }
         }
 
-        // Floating Toast Notification
+        // =========================================================================
+        // TOAST FEEDBACK
+        // =========================================================================
         function showScanToast(type, title, subtitle) {
             const toast = document.getElementById('scanFeedbackToast');
             const toastCard = document.getElementById('toastCard');
@@ -453,7 +660,9 @@
             }, 4000);
         }
 
-        // Processar Bipagem de Código de Barras
+        // =========================================================================
+        // PROCESSAMENTO DE BIPAGEM VIA LEITOR
+        // =========================================================================
         async function processBipagem(barcode) {
             if (!barcode) return;
             let cleanBar = String(barcode).trim().replace(/^[\r\n\s]+|[\r\n\s]+$/g, '');
@@ -485,14 +694,12 @@
                         activeLiveId = item.live_id;
                     }
 
-                    // 1. Atualiza o contador gigante (código da peça)
                     const pieceNum = item.piece_code || item.codigo_live || item.code || cleanBar;
                     if (pieceNum !== undefined) {
                         currentPieceCode = pieceNum;
                         animateCounterChange(currentPieceCode);
                     }
 
-                    // Atualiza o valor total acumulado e itens na sacola
                     if (item.total_valor_formatado) {
                         animateTotalValueChange(item.total_valor_formatado);
                     }
@@ -505,7 +712,6 @@
                         totalBipadosCountEl.textContent = item.total_bipados;
                     }
 
-                    // 2. Atualiza os dados do Último Item Bipado
                     lastItemCode.textContent = '#' + (item.codigo_live || item.code || cleanBar);
                     lastItemName.textContent = item.name || 'Produto';
                     lastItemPrice.textContent = item.price || '';
@@ -514,7 +720,6 @@
                         lastItemContainer.classList.remove('hidden');
                     }
 
-                    // 3. Exibe o Toast adequado (Novo vs Já Cadastrado)
                     if (item.is_already_in_live) {
                         const buyerText = item.buyer_username ? ` • Sacola de @${item.buyer_username}` : '';
                         showScanToast('warning', `⚠️ Item #${item.code || cleanBar} Já Cadastrado!`, `Código da Live: #${item.codigo_live} • ${item.name || 'Produto'}${item.price ? ' (' + item.price + ')' : ''}${buyerText}`);
@@ -524,10 +729,7 @@
                         showScanToast('success', `Item #${item.code || cleanBar} Anexado à Live!`, `${item.name || 'Produto'}${priceInfo} ${seqInfo ? '(' + seqInfo + ')' : ''}`);
                     }
 
-                    // 4. Toca som de confirmação
                     playChime();
-
-                    // 5. Notifica outras abas (Chat, OBS, etc)
                     localStorage.setItem('last_live_item_biped', Date.now());
                 } else {
                     showScanToast('error', 'Item Não Vinculado', data.message || `Código #${cleanBar} não encontrado.`);
@@ -544,7 +746,6 @@
             }
         }
 
-        // Listener no input invisível (para leitores que agem como teclado)
         if (barcodeInput) {
             barcodeInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -563,15 +764,13 @@
         let lastKeyTime = 0;
 
         document.addEventListener('keydown', (e) => {
-            // Ignora se o usuário estiver digitando no select de temas ou lives
-            if (e.target && e.target.tagName === 'SELECT') {
+            if (e.target && (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
                 return;
             }
 
             const now = Date.now();
             const timeDiff = now - lastKeyTime;
 
-            // Ao pressionar Enter, executa a bipagem se houver código no buffer
             if (e.key === 'Enter') {
                 const code = (scanBuffer || (barcodeInput ? barcodeInput.value : '')).trim();
                 scanBuffer = '';
@@ -583,15 +782,23 @@
                 }
             }
 
-            // Se o intervalo entre teclas for muito longo (> 600ms), limpa o buffer
             if (timeDiff > 600) {
                 scanBuffer = '';
             }
 
-            // Atalhos rápidos somente se não houver números sendo digitados
+            // Atalhos numéricos rápidos
             if (scanBuffer.length === 0 && !/\d/.test(e.key)) {
                 if (e.key === 'f' || e.key === 'F') {
                     toggleFullScreen();
+                    return;
+                } else if (e.key === '1') {
+                    setLayoutMode('counter');
+                    return;
+                } else if (e.key === '2') {
+                    setLayoutMode('split');
+                    return;
+                } else if (e.key === '3') {
+                    setLayoutMode('chat');
                     return;
                 } else if (e.key === 'd' || e.key === 'D') {
                     toggleDetails();
@@ -602,60 +809,383 @@
                 }
             }
 
-            // Acumula caracteres imprimíveis
             if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
                 scanBuffer += e.key;
                 lastKeyTime = now;
             }
         });
 
-        // Polling de Dados em Tempo Real
-        async function fetchCounterData() {
-            if (isPolling || isProcessingScan) return;
+        // =========================================================================
+        // SINCRONIZAÇÃO EM TEMPO REAL (CONTADOR + CHAT DA TRANSMISSÃO)
+        // =========================================================================
+        let lastRenderedChatHash = '';
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function safeAttr(text) {
+            if (!text) return '';
+            return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function highlightPieceCodes(text) {
+            if (!text) return '';
+            let safe = escapeHtml(text);
+            // Destaca códigos (#123 ou números isolados precedidos de palavras-chave)
+            safe = safe.replace(/(#\d{1,6})/gi, '<span class="telao-code-badge">$1</span>');
+            return safe;
+        }
+
+        function getGradientForUser(username) {
+            const gradients = [
+                'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
+                'linear-gradient(135deg, #d97706 0%, #ea580c 100%)',
+                'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
+                'linear-gradient(135deg, #2563eb 0%, #06b6d4 100%)',
+                'linear-gradient(135deg, #e11d48 0%, #c026d3 100%)'
+            ];
+            let hash = 0;
+            for (let i = 0; i < (username || '').length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return gradients[Math.abs(hash) % gradients.length];
+        }
+
+        // Renderização do Chat do Telão
+        function renderTelaoChatFeed() {
+            if (!chatContainer) return;
+
+            let list = allLiveMessages;
+
+            // Filtros
+            if (currentChatFilter === 'instagram') {
+                list = list.filter(m => m.plataforma === 'instagram');
+            } else if (currentChatFilter === 'tiktok') {
+                list = list.filter(m => m.plataforma === 'tiktok');
+            } else if (currentChatFilter === 'marked') {
+                list = list.filter(m => !!m.is_marked);
+            }
+
+            const currentHash = `${currentChatFilter}:${list.length}:${list.length > 0 ? list[0].id : 0}:${list.filter(m => m.is_marked).length}:${chatFontSizeMode}`;
+            if (currentHash === lastRenderedChatHash && chatContainer.innerHTML.trim().length > 50) {
+                return;
+            }
+            lastRenderedChatHash = currentHash;
+
+            if (chatMsgsCounter) {
+                chatMsgsCounter.textContent = allLiveMessages.length;
+            }
+
+            if (list.length === 0) {
+                chatContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-white/40 py-12 text-center">
+                        <i class="fas ${currentChatFilter === 'marked' ? 'fa-star text-amber-400' : 'fa-comment-slash'} text-4xl mb-3 text-white/20"></i>
+                        <p class="text-xs font-bold text-white/70">${currentChatFilter === 'marked' ? 'Nenhum comentário marcado' : 'Aguardando comentários...'}</p>
+                        <p class="text-[11px] text-white/40 mt-0.5">${currentChatFilter === 'marked' ? 'Comentários favoritados aparecerão aqui.' : 'Nenhuma mensagem recebida para este filtro.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Configuração de tamanhos de fonte
+            let fontClasses = {
+                username: 'text-xs sm:text-sm',
+                message: 'text-sm sm:text-base',
+                time: 'text-[10px] sm:text-[11px]',
+                avatar: 'w-9 h-9 sm:w-10 sm:h-10 text-xs sm:text-sm',
+                padding: 'p-2.5 sm:p-3.5'
+            };
+
+            if (chatFontSizeMode === 'large') {
+                fontClasses = {
+                    username: 'text-sm sm:text-base',
+                    message: 'text-base sm:text-lg',
+                    time: 'text-xs',
+                    avatar: 'w-11 h-11 sm:w-12 sm:h-12 text-sm sm:text-base',
+                    padding: 'p-3.5 sm:p-4'
+                };
+            } else if (chatFontSizeMode === 'huge') {
+                fontClasses = {
+                    username: 'text-base sm:text-lg',
+                    message: 'text-lg sm:text-xl',
+                    time: 'text-xs sm:text-sm',
+                    avatar: 'w-12 h-12 sm:w-14 sm:h-14 text-base sm:text-lg',
+                    padding: 'p-4 sm:p-5'
+                };
+            }
+
+            // As mensagens mais recentes ficam embaixo para leitura natural de chat ao vivo
+            const chronologicalList = [...list].reverse();
+
+            let html = '';
+            chronologicalList.forEach(msg => {
+                const isTikTok = msg.plataforma === 'tiktok';
+                const platformIcon = isTikTok 
+                    ? '<i class="fab fa-tiktok" style="color: #22d3ee;"></i>' 
+                    : '<i class="fab fa-instagram" style="color: #ec4899;"></i>';
+
+                const cleanUser = msg.username || 'usuario';
+                const displayName = msg.user_name || msg.user_apelido || cleanUser;
+                const initials = cleanUser.slice(0, 2).toUpperCase();
+                const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+                const isMarked = !!msg.is_marked;
+                const isClient = !!msg.user_id;
+
+                const isPartnerAccount = msg.host_account && !['minhamania', '_minhamania', 'de_minha_mania'].includes(msg.host_account.toLowerCase().replace(/^@/, ''));
+                const hostBadge = isPartnerAccount
+                    ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5" title="Audiência da Loja Parceira (@${escapeHtml(msg.host_account)})"><i class="fas fa-store text-[8px]"></i> @${escapeHtml(msg.host_account)}</span>`
+                    : (msg.host_account ? `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">Minha Mania</span>` : '');
+
+                const clientBadge = isClient
+                    ? `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5"><i class="fas fa-star text-[7.5px] text-emerald-400"></i> Cliente Cadastrada</span>`
+                    : '';
+
+                const gradientBg = getGradientForUser(cleanUser);
+                const avatarHtml = msg.avatar_url
+                    ? `<img src="${safeAttr(msg.avatar_url)}" alt="@${safeAttr(cleanUser)}" class="w-full h-full object-cover rounded-xl" onerror="this.outerHTML='<div class=\\'w-full h-full rounded-xl flex items-center justify-center font-black text-white\\' style=\\'background: ${gradientBg}\\'>${initials}</div>'">`
+                    : `<div class="w-full h-full rounded-xl flex items-center justify-center font-black text-white shadow-inner" style="background: ${gradientBg};">${initials}</div>`;
+
+                const formattedMsg = highlightPieceCodes(msg.message);
+
+                html += `
+                    <div class="telao-chat-card ${isMarked ? 'is-marked' : ''} rounded-2xl ${fontClasses.padding} flex items-start gap-3 msg-entry-animate">
+                        <div class="shrink-0 relative">
+                            <div class="${fontClasses.avatar} rounded-xl overflow-hidden shadow-md">
+                                ${avatarHtml}
+                            </div>
+                            <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black/80 flex items-center justify-center text-[9px] border border-white/20 shadow">
+                                ${platformIcon}
+                            </span>
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center justify-between gap-1.5 mb-1">
+                                <div class="flex flex-wrap items-center gap-1.5 min-w-0">
+                                    <span class="font-extrabold ${fontClasses.username} text-white tracking-tight truncate max-w-[180px] sm:max-w-[240px]">
+                                        @${escapeHtml(cleanUser)}
+                                    </span>
+                                    ${clientBadge}
+                                    ${hostBadge}
+                                </div>
+                                <span class="font-mono ${fontClasses.time} text-white/50 shrink-0">${time}</span>
+                            </div>
+
+                            <p class="${fontClasses.message} font-bold text-white leading-snug break-words">
+                                ${formattedMsg}
+                            </p>
+                        </div>
+
+                        ${isMarked ? `
+                            <div class="shrink-0 text-amber-400 text-sm sm:text-base pt-0.5">
+                                <i class="fas fa-star drop-shadow"></i>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            chatContainer.innerHTML = html;
+
+            if (autoScrollEnabled && !isUserScrollingChat) {
+                scrollToChatBottom(false);
+            }
+        }
+
+        // Auto-Scroll Handling
+        function scrollToChatBottom(smooth = false) {
+            if (!chatContainer) return;
+            chatContainer.scrollTo({
+                top: chatContainer.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+            if (jumpBottomBtn) jumpBottomBtn.classList.add('hidden');
+        }
+
+        function toggleAutoScroll() {
+            autoScrollEnabled = !autoScrollEnabled;
+            const btn = document.getElementById('btn-autoscroll');
+            const icon = document.getElementById('autoscroll-icon');
+            if (autoScrollEnabled) {
+                btn.className = 'px-2 py-1 text-xs font-bold text-emerald-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-white/10';
+                icon.className = 'fas fa-arrow-down text-[10px]';
+                scrollToChatBottom(true);
+            } else {
+                btn.className = 'px-2 py-1 text-xs font-bold text-amber-400 bg-white/10 hover:bg-white/20 rounded-xl transition flex items-center gap-1 border border-amber-500/30';
+                icon.className = 'fas fa-pause text-[10px]';
+            }
+        }
+
+        if (chatContainer) {
+            chatContainer.addEventListener('scroll', () => {
+                const scrollPos = chatContainer.scrollTop + chatContainer.clientHeight;
+                const distanceToBottom = chatContainer.scrollHeight - scrollPos;
+                if (distanceToBottom > 80) {
+                    isUserScrollingChat = true;
+                    if (jumpBottomBtn) jumpBottomBtn.classList.remove('hidden');
+                } else {
+                    isUserScrollingChat = false;
+                    if (jumpBottomBtn) jumpBottomBtn.classList.add('hidden');
+                }
+            });
+        }
+
+        // Filtro de Chat
+        function setChatFilter(filter) {
+            currentChatFilter = filter;
+            ['all', 'marked', 'instagram', 'tiktok'].forEach(tab => {
+                const el = document.getElementById(`tab-chat-${tab}`);
+                if (!el) return;
+                if (tab === filter) {
+                    el.className = 'px-2 py-1 rounded-lg text-white bg-indigo-600 shadow-xs transition';
+                } else {
+                    el.className = 'px-2 py-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition';
+                }
+            });
+
+            const labelEl = document.getElementById('chat-active-filter-label');
+            if (labelEl) {
+                const labels = {
+                    'all': 'Todas as redes',
+                    'marked': 'Apenas marcadas',
+                    'instagram': 'Instagram',
+                    'tiktok': 'TikTok'
+                };
+                labelEl.textContent = labels[filter] || filter;
+            }
+
+            renderTelaoChatFeed();
+        }
+
+        // Tamanho de Fonte do Chat
+        function toggleChatFontSize() {
+            if (chatFontSizeMode === 'normal') {
+                chatFontSizeMode = 'large';
+                document.getElementById('chat-font-indicator').textContent = 'A++';
+            } else if (chatFontSizeMode === 'large') {
+                chatFontSizeMode = 'huge';
+                document.getElementById('chat-font-indicator').textContent = 'A';
+            } else {
+                chatFontSizeMode = 'normal';
+                document.getElementById('chat-font-indicator').textContent = 'A+';
+            }
+            lastRenderedChatHash = '';
+            renderTelaoChatFeed();
+        }
+
+        // Modo de Layout (Split / Counter / Chat)
+        function setLayoutMode(mode) {
+            layoutMode = mode;
+            
+            // Atualiza botões
+            ['split', 'counter', 'chat'].forEach(m => {
+                const b = document.getElementById(`btn-layout-${m}`);
+                if (!b) return;
+                if (m === mode) {
+                    b.className = 'px-2.5 py-1 rounded-lg font-bold text-white bg-indigo-600 shadow-sm transition flex items-center gap-1';
+                } else {
+                    b.className = 'px-2.5 py-1 rounded-lg font-bold text-white/70 hover:text-white hover:bg-white/10 transition flex items-center gap-1';
+                }
+            });
+
+            if (mode === 'split') {
+                mainStageContainer.className = 'flex-1 w-full max-w-[1700px] mx-auto px-3 sm:px-5 py-2 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-h-0 overflow-hidden items-stretch';
+                colCounterPanel.classList.remove('hidden');
+                colChatPanel.classList.remove('hidden');
+                counterEl.style.fontSize = 'clamp(8rem, 18vw, 24rem)';
+            } else if (mode === 'counter') {
+                mainStageContainer.className = 'flex-1 w-full max-w-6xl mx-auto px-4 py-2 flex flex-col justify-center items-center min-h-0 overflow-hidden';
+                colCounterPanel.classList.remove('hidden');
+                colChatPanel.classList.add('hidden');
+                counterEl.style.fontSize = 'clamp(10rem, 28vw, 36rem)';
+            } else if (mode === 'chat') {
+                mainStageContainer.className = 'flex-1 w-full max-w-5xl mx-auto px-4 py-2 flex flex-col justify-center items-stretch min-h-0 overflow-hidden';
+                colCounterPanel.classList.add('hidden');
+                colChatPanel.classList.remove('hidden');
+            }
+
+            localStorage.setItem('live_telao_layout_mode', mode);
+            setTimeout(() => {
+                if (mode !== 'counter') scrollToChatBottom(false);
+            }, 100);
+        }
+
+        const savedLayout = localStorage.getItem('live_telao_layout_mode');
+        if (savedLayout && ['split', 'counter', 'chat'].includes(savedLayout)) {
+            setLayoutMode(savedLayout);
+        }
+
+        // =========================================================================
+        // POLLING PRINCIPAL DE DADOS (CONTADOR + CHAT DATA)
+        // =========================================================================
+        async function fetchLiveStudioData() {
+            if (isPolling) return;
             isPolling = true;
 
             try {
-                const liveParam = activeLiveId ? `live_id=${encodeURIComponent(activeLiveId)}&` : '';
-                const url = `{{ route('api.live-contador.data') }}?${liveParam}_t=${Date.now()}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                
-                const data = await res.json();
-                if (data && data.success) {
-                    if (data.live_id && !activeLiveId) {
-                        activeLiveId = data.live_id;
-                    }
-
-                    const pieceNum = data.piece_code !== undefined ? data.piece_code : data.count;
-                    if (pieceNum !== undefined && String(pieceNum) !== String(currentPieceCode)) {
-                        currentPieceCode = pieceNum;
-                        animateCounterChange(currentPieceCode);
-                        playChime();
-                    }
-
-                    if (data.total_sacolinhas_itens !== undefined && totalItemsCountEl) {
-                        totalItemsCountEl.textContent = data.total_sacolinhas_itens;
-                    }
-
-                    if (data.total_valor_formatado) {
-                        animateTotalValueChange(data.total_valor_formatado);
-                    }
-
-                    if (data.total_bipados !== undefined && totalBipadosCountEl) {
-                        totalBipadosCountEl.textContent = data.total_bipados;
-                    }
-
-                    if (data.last_item) {
-                        lastItemCode.textContent = '#' + (data.last_item.codigo || '---');
-                        lastItemName.textContent = data.last_item.nome || 'Produto';
-                        lastItemPrice.textContent = data.last_item.preco || '';
-                        lastItemTime.textContent = data.last_item.hora || '';
-                        if (showDetails) {
-                            lastItemContainer.classList.remove('hidden');
+                if (activeLiveId) {
+                    // Busca chat e contagens da live
+                    const chatUrl = `/admin/lives/${encodeURIComponent(activeLiveId)}/chat-data?limit=250&_t=${Date.now()}`;
+                    const res = await fetch(chatUrl);
+                    if (res.ok) {
+                        const chatData = await res.json();
+                        if (chatData && chatData.messages) {
+                            allLiveMessages = chatData.messages;
+                            renderTelaoChatFeed();
                         }
                     }
+                }
 
-                    syncIndicator.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Sincronizado`;
+                // Busca dados do contador
+                const liveParam = activeLiveId ? `live_id=${encodeURIComponent(activeLiveId)}&` : '';
+                const counterUrl = `{{ route('api.live-contador.data') }}?${liveParam}_t=${Date.now()}`;
+                const resCounter = await fetch(counterUrl);
+                
+                if (resCounter.ok) {
+                    const data = await resCounter.json();
+                    if (data && data.success) {
+                        if (data.live_id && !activeLiveId) {
+                            activeLiveId = data.live_id;
+                        }
+
+                        const pieceNum = data.piece_code !== undefined ? data.piece_code : data.count;
+                        if (pieceNum !== undefined && String(pieceNum) !== String(currentPieceCode)) {
+                            currentPieceCode = pieceNum;
+                            animateCounterChange(currentPieceCode);
+                            playChime();
+                        }
+
+                        if (data.total_sacolinhas_itens !== undefined && totalItemsCountEl) {
+                            totalItemsCountEl.textContent = data.total_sacolinhas_itens;
+                        }
+
+                        if (data.total_valor_formatado) {
+                            animateTotalValueChange(data.total_valor_formatado);
+                        }
+
+                        if (data.total_bipados !== undefined && totalBipadosCountEl) {
+                            totalBipadosCountEl.textContent = data.total_bipados;
+                        }
+
+                        if (data.last_item) {
+                            lastItemCode.textContent = '#' + (data.last_item.codigo || '---');
+                            lastItemName.textContent = data.last_item.nome || 'Produto';
+                            lastItemPrice.textContent = data.last_item.preco || '';
+                            lastItemTime.textContent = data.last_item.hora || '';
+                            if (showDetails) {
+                                lastItemContainer.classList.remove('hidden');
+                            }
+                        }
+
+                        syncIndicator.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Sincronizado`;
+                    }
                 }
             } catch (err) {
                 syncIndicator.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span> Reconectando...`;
@@ -664,17 +1194,19 @@
             }
         }
 
-        // Sincronização periódica a cada 2 segundos
-        setInterval(fetchCounterData, 2000);
+        // Polling a cada 1.8 segundos
+        setInterval(fetchLiveStudioData, 1800);
+        fetchLiveStudioData();
 
-        // Sincronização instantânea via storage local
         window.addEventListener('storage', (e) => {
-            if (e.key === 'last_live_item_biped') {
-                fetchCounterData();
+            if (e.key === 'last_live_item_biped' || e.key === 'last_live_chat_message') {
+                fetchLiveStudioData();
             }
         });
 
-        // Theme management
+        // =========================================================================
+        // CONTROLES DE TEMA & INTERFACE
+        // =========================================================================
         function changeTheme(themeClass) {
             bodyEl.className = `${themeClass} h-screen w-screen flex flex-col justify-between items-center relative select-none`;
             localStorage.setItem('live_contador_theme', themeClass);
@@ -682,11 +1214,11 @@
 
         const savedTheme = localStorage.getItem('live_contador_theme');
         if (savedTheme) {
-            document.getElementById('themeSelect').value = savedTheme;
+            const themeSelect = document.getElementById('themeSelect');
+            if (themeSelect) themeSelect.value = savedTheme;
             changeTheme(savedTheme);
         }
 
-        // Toggle Details
         function toggleDetails() {
             showDetails = !showDetails;
             if (showDetails) {
@@ -699,68 +1231,45 @@
             localStorage.setItem('live_contador_show_details', showDetails ? '1' : '0');
         }
 
-        // Toggle Sound
         function toggleSound() {
             soundEnabled = !soundEnabled;
             const icon = document.getElementById('soundIcon');
             const btn = document.getElementById('toggleSoundBtn');
             if (soundEnabled) {
-                icon.className = 'fas fa-volume-up text-[11px] text-emerald-400';
+                icon.className = 'fas fa-volume-up text-[10px] text-emerald-400';
                 btn.classList.add('bg-white/10');
                 playChime();
             } else {
-                icon.className = 'fas fa-volume-mute text-[11px]';
+                icon.className = 'fas fa-volume-mute text-[10px] text-white/50';
                 btn.classList.remove('bg-white/10');
             }
             localStorage.setItem('live_contador_sound', soundEnabled ? '1' : '0');
         }
 
-        if (localStorage.getItem('live_contador_sound') === '0') {
-            toggleSound();
-        } else {
-            // Ativa som por padrão
-            const icon = document.getElementById('soundIcon');
-            const btn = document.getElementById('toggleSoundBtn');
-            if (icon && btn) {
-                icon.className = 'fas fa-volume-up text-[11px] text-emerald-400';
-                btn.classList.add('bg-white/10');
-            }
-        }
-
-        // Fullscreen Toggle
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
-                document.getElementById('fsIcon').className = 'fas fa-compress text-[11px]';
+                document.getElementById('fsIcon').className = 'fas fa-compress text-[10px]';
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
-                    document.getElementById('fsIcon').className = 'fas fa-expand text-[11px]';
+                    document.getElementById('fsIcon').className = 'fas fa-expand text-[10px]';
                 }
             }
         }
 
-        // Double click fullscreen
-        document.body.addEventListener('dblclick', (e) => {
-            if (!e.target.closest('#controlsBar') && !e.target.closest('select') && !e.target.closest('button')) {
-                toggleFullScreen();
-            }
-        });
-
-        // Auto-hide toolbar on inactivity
         function resetIdleTimer() {
             controlsBar.classList.remove('controls-hidden');
             clearTimeout(idleTimer);
             idleTimer = setTimeout(() => {
                 controlsBar.classList.add('controls-hidden');
-            }, 3500);
+            }, 4500);
         }
 
         window.addEventListener('mousemove', resetIdleTimer);
         window.addEventListener('touchstart', resetIdleTimer);
         resetIdleTimer();
 
-        // Visual click effect
         function triggerEasterEgg() {
             counterEl.classList.remove('animate-pop');
             void counterEl.offsetWidth;
