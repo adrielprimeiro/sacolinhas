@@ -295,7 +295,7 @@
                 class="px-2 py-1 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition flex items-center gap-1"
                 title="Mostrar/Ocultar último item"
             >
-                <i class="fas fa-tag text-[10px]"></i>
+                <i class="fas fa-shopping-bag text-[10px]"></i>
                 <span class="hidden md:inline">Item</span>
             </button>
 
@@ -352,7 +352,7 @@
             <!-- The GIANT Number (Código da Peça / Sequência da Live) -->
             <div class="my-auto flex flex-col items-center justify-center text-center cursor-pointer select-none py-2" onclick="triggerEasterEgg()" title="Clique duplo para Tela Cheia">
                 <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-purple-400/90 mb-1 flex items-center gap-1.5">
-                    <i class="fas fa-tag text-xs"></i> Peça Atual da Live
+                    <i class="fas fa-shopping-bag text-xs"></i> Peça Atual da Live
                 </span>
                 <div 
                     id="counterNumber" 
@@ -1004,49 +1004,47 @@
                     cleanLiveCode = String(msg.linked_live_code).trim();
                 }
 
-                // Tag de Item no Header
-                let linkedHeaderBadge = '';
-                let linkedItemBanner = '';
+                // Tag de Item Vinculado (Compacto & Legível)
+                let linkedItemBadge = '';
                 if (isLinkedMsg) {
-                    let codeBadgeText = cleanLiveCode ? (`Seq #${cleanLiveCode}`) : (cleanItemCode ? `#${cleanItemCode}` : 'Vendido');
-                    if (cleanLiveCode && cleanItemCode && cleanLiveCode !== cleanItemCode) {
-                        codeBadgeText = `Seq #${cleanLiveCode} • #${cleanItemCode}`;
+                    let cleanCode = cleanLiveCode || cleanItemCode || '';
+                    if (cleanCode && !cleanCode.startsWith('#')) {
+                        cleanCode = '#' + cleanCode;
                     }
-                    linkedHeaderBadge = `
-                        <span class="bg-blue-600 text-white border-2 border-blue-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-md animate-pulse">
-                            <i class="fas fa-shopping-bag text-blue-200"></i> ${escapeHtml(codeBadgeText)}
-                        </span>
-                    `;
 
-                    let prodName = msg.linked_product_name || 'Peça Vinculada à Sacolinha';
+                    let prodName = msg.linked_product_name || '';
                     let prodDetails = msg.linked_product_details || '';
                     let prodTam = msg.linked_product_tamanho || '';
                     let prodCor = msg.linked_product_cor || '';
                     let prodPrice = msg.linked_product_preco || '';
 
-                    linkedItemBanner = `
-                        <div class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-xl border-2 border-blue-400/90 ${fontStyles.linkedBanner}">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0 text-base sm:text-xl font-black shadow-inner border border-white/30">
-                                    <i class="fas fa-tag"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <div class="font-black text-white truncate flex items-center gap-2">
-                                        <span class="text-white drop-shadow">${escapeHtml(prodName)}</span>
-                                        ${cleanLiveCode ? `<span class="bg-white/25 text-blue-100 text-xs px-2 py-0.5 rounded-lg font-mono font-black border border-white/30">Live #${escapeHtml(cleanLiveCode)}</span>` : ''}
-                                    </div>
-                                    <div class="text-blue-100 font-bold flex flex-wrap items-center gap-2 mt-0.5 text-xs sm:text-sm">
-                                        ${cleanItemCode ? `<span class="font-mono bg-black/20 px-1.5 py-0.2 rounded">Cód: #${escapeHtml(cleanItemCode)}</span>` : ''}
-                                        ${prodTam ? `<span>• Tam: <strong>${escapeHtml(prodTam)}</strong></span>` : ''}
-                                        ${prodCor ? `<span>• Cor: <strong>${escapeHtml(prodCor)}</strong></span>` : ''}
-                                        ${prodPrice ? `<span class="text-emerald-300 font-black text-sm sm:text-base drop-shadow">• ${escapeHtml(prodPrice)}</span>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="shrink-0 flex items-center gap-2">
-                                <span class="bg-emerald-500 text-white font-black text-xs sm:text-sm px-3 py-1.5 rounded-xl border-2 border-emerald-300 shadow-md flex items-center gap-1.5">
-                                    <i class="fas fa-check-circle"></i> VENDIDO / NA SACOLA
-                                </span>
+                    let parts = [];
+                    if (cleanCode) {
+                        parts.push(`<span class="font-mono font-black text-white bg-blue-700 px-2 py-0.5 rounded-lg border border-blue-400">${escapeHtml(cleanCode)}</span>`);
+                    }
+                    if (prodName && prodName !== 'Peça da Live' && prodName !== 'Peça Vinculada à Sacolinha') {
+                        parts.push(`<span class="font-black text-white">${escapeHtml(prodName)}</span>`);
+                    } else if (prodDetails) {
+                        parts.push(`<span class="font-black text-white">${escapeHtml(prodDetails)}</span>`);
+                    }
+                    if (prodDetails && prodName && prodDetails !== prodName) {
+                        parts.push(`<span class="text-blue-100 font-medium">${escapeHtml(prodDetails)}</span>`);
+                    }
+                    if (prodTam) {
+                        parts.push(`<span class="text-blue-200">Tam: <strong class="text-white">${escapeHtml(prodTam)}</strong></span>`);
+                    }
+                    if (prodCor) {
+                        parts.push(`<span class="text-blue-200">${escapeHtml(prodCor)}</span>`);
+                    }
+                    if (prodPrice) {
+                        parts.push(`<span class="text-emerald-300 font-black">${escapeHtml(prodPrice)}</span>`);
+                    }
+
+                    linkedItemBadge = `
+                        <div class="mt-2 inline-flex items-center gap-2 bg-blue-600/90 text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-xl shadow-sm border border-blue-400/80 max-w-full flex-wrap">
+                            <i class="fas fa-shopping-bag text-blue-200 text-xs shrink-0"></i>
+                            <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                                ${parts.join('<span class="text-blue-300/60">•</span>')}
                             </div>
                         </div>
                     `;
@@ -1095,7 +1093,6 @@
                                     </span>
                                     ${clientBadge}
                                     ${hostBadge}
-                                    ${linkedHeaderBadge}
                                 </div>
                                 <span class="${fontStyles.time} text-white/50 shrink-0 bg-black/30 px-2 py-0.5 rounded-lg border border-white/10 font-bold">${time}</span>
                             </div>
@@ -1105,8 +1102,8 @@
                                 ${formattedMsg}
                             </p>
 
-                            <!-- Linha 3: Banner do Item Vinculado (se houver) -->
-                            ${linkedItemBanner}
+                            <!-- Linha 3: Item Vinculado (se houver) -->
+                            ${linkedItemBadge}
                         </div>
 
                         <!-- Estrela se Marcada -->
