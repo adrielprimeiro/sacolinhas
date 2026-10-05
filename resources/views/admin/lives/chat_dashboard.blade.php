@@ -1027,6 +1027,16 @@
 
     let lastRenderedChatHash = "";
 
+    // Helper para exibir badge visual da rede/canal de transmissão (Minha Mania vs Loja Parceira)
+    function getHostBadge(hostAccount) {
+        if (!hostAccount) return '';
+        const clean = hostAccount.toLowerCase().replace(/^@/, '');
+        if (clean === 'minhamania' || clean === '_minhamania' || clean === 'de_minha_mania') {
+            return `<span class="bg-purple-950/80 text-purple-300 border border-purple-600/70 text-[8.5px] font-black px-1.5 py-0.5 rounded shadow-xs shrink-0" title="Comentário via Rede Minha Mania">🟣 Minha Mania</span>`;
+        }
+        return `<span class="bg-amber-950/90 text-amber-200 border border-amber-500 text-[8.5px] font-black px-1.5 py-0.5 rounded shadow-xs shrink-0 flex items-center gap-1" title="Comentário via Rede da Loja Parceira (@${escapeHtml(clean)})"><i class="fas fa-store text-[7.5px] text-amber-400"></i> @${escapeHtml(clean)}</span>`;
+    }
+
     // Renderizar mensagens de chat no terminal
     function renderChatMessages() {
         const container = document.getElementById("chat-messages-container");
@@ -1081,11 +1091,14 @@
                 </button>
             ` : '';
 
+            const hostBadgeHtml = getHostBadge(msg.host_account);
+
             html += `
                 <div class="${bgClass} p-1.5 rounded transition duration-150 relative group">
                     <div class="flex items-center justify-between mb-0.5 gap-1.5">
-                        <div class="flex items-center gap-1.5 min-w-0">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
                             ${avatarHtml}
+                            ${hostBadgeHtml}
                             <button type="button" onclick="filterChatByUser('${escapeHtml(msg.username)}')" title="Filtrar chat por @${escapeHtml(msg.username)}" class="font-bold text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 truncate text-left cursor-pointer">
                                 ${icon} @${escapeHtml(msg.username)}
                             </button>
@@ -1157,6 +1170,11 @@
                 ? 'bg-emerald-50/90 border-2 border-emerald-500 ring-2 ring-emerald-300/60 shadow-md'
                 : 'bg-gray-50 border border-gray-150 hover:bg-indigo-50/70 hover:border-indigo-300 shadow-xs';
 
+            const isPartnerAccount = u.host_account && !['minhamania', '_minhamania', 'de_minha_mania'].includes(u.host_account.toLowerCase().replace(/^@/, ''));
+            const partnerBadge = isPartnerAccount
+                ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5" title="Audiência da Loja Parceira (@${escapeHtml(u.host_account)})"><i class="fas fa-store text-[7px] text-amber-700"></i> @${escapeHtml(u.host_account)}</span>`
+                : (u.host_account ? `<span class="bg-purple-100 text-purple-900 border border-purple-200 text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0" title="Audiência Minha Mania">Minha Mania</span>` : '');
+
             html += `
                 <div ${u.user_id ? `onclick="selectOnlineParticipant('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}', '${escapeHtml(u.plataforma)}', '${safeAttr(u.avatar_url || '')}')"` : `onclick="openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')"`} 
                      class="flex items-center justify-between p-2.5 rounded-xl ${cardClass} cursor-pointer transition duration-150">
@@ -1166,8 +1184,9 @@
                             <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center text-[7px] shadow">${icon}</span>
                         </div>
                         <div class="min-w-0">
-                            <div class="flex items-center gap-1 text-xs font-semibold text-gray-800 truncate">
-                                @${escapeHtml(u.username)}
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-gray-900 truncate">
+                                <span>@${escapeHtml(u.username)}</span>
+                                ${partnerBadge}
                             </div>
                             ${subtitle}
                         </div>

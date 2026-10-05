@@ -914,6 +914,25 @@
         }
     }
 
+    function detectHostAccount() {
+        try {
+            const path = window.location.pathname || '';
+            const host = window.location.hostname || '';
+            if (host.includes("instagram")) {
+                const match = path.match(/^\/([a-zA-Z0-9_\.]+)(?:\/live)?/);
+                if (match && !['stories', 'explore', 'direct', 'reels', 'p', 'tv', 'accounts'].includes(match[1].toLowerCase())) {
+                    return match[1].replace(/^@/, '');
+                }
+            } else if (host.includes("tiktok")) {
+                const match = path.match(/^\/@([a-zA-Z0-9_\.]+)(?:\/live)?/);
+                if (match) {
+                    return match[1].replace(/^@/, '');
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message, avatarUrl) {
         const msgKey = `${username}:${message}`;
@@ -922,6 +941,7 @@
 
         const url = "https://minhamania.net";
         const liveId = "auto";
+        const hostAccount = detectHostAccount();
 
         try {
             const res = await bgFetch(`${url}/api/live-chat/message`, {
@@ -933,6 +953,8 @@
                 body: JSON.stringify({
                     live_id: liveId,
                     platform: platform,
+                    host_account: hostAccount,
+                    url: window.location.href,
                     username: username,
                     message: message,
                     avatar_url: avatarUrl || null
@@ -940,7 +962,7 @@
             });
             const data = await res.json();
             if (data.success) {
-                log(`Enviado: @${username} -> "${message}"`);
+                log(`Enviado (${hostAccount ? '@' + hostAccount : 'Direct'}): @${username} -> "${message}"`);
             } else {
                 console.warn("Laravel rejeitou a mensagem:", data.error);
                 log(`Erro Laravel: ${data.error || 'Rejeitado'}`, true);

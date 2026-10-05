@@ -1119,6 +1119,26 @@ class LiveChatController extends Controller
         $cleanUsername = trim((string) $username);
         $messageText = trim((string) $message);
 
+        $hostAccount = trim((string) (
+            $payload['host_account']
+            ?? $payload['channel']
+            ?? $payload['canal']
+            ?? $payload['host']
+            ?? $payload['streamer']
+            ?? $payload['target_account']
+            ?? $request->input('host_account', '')
+        ));
+        if (empty($hostAccount) && !empty($payload['url'])) {
+            if (preg_match('/instagram\.com\/([a-zA-Z0-9_\.]+)/i', (string)$payload['url'], $m)) {
+                if (!in_array($m[1], ['stories', 'explore', 'direct', 'reels', 'p', 'tv'])) {
+                    $hostAccount = $m[1];
+                }
+            } elseif (preg_match('/tiktok\.com\/@([a-zA-Z0-9_\.]+)/i', (string)$payload['url'], $m)) {
+                $hostAccount = $m[1];
+            }
+        }
+        $hostAccount = ltrim($hostAccount, '@');
+
         if (empty($cleanUsername) || empty($messageText)) {
             return response()->json([
                 'success' => false,
@@ -1147,7 +1167,7 @@ class LiveChatController extends Controller
         $timestamp = $payload['timestamp'] ?? $request->input('timestamp');
 
         try {
-            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $avatarUrl, $timestamp) {
+            return DB::transaction(function () use ($liveId, $platform, $cleanUsername, $messageText, $avatarUrl, $timestamp, $hostAccount) {
                 // Evitar duplicidade técnica de leitura do DOM (mesmo usuário e texto em menos de 2 segundos)
                 $existing = LiveMessage::where('live_id', $liveId)
                     ->where('plataforma', $platform)
@@ -1159,6 +1179,9 @@ class LiveChatController extends Controller
                     if ($avatarUrl && empty($existing->avatar_url)) {
                         $existing->update(['avatar_url' => $avatarUrl]);
                     }
+                    if ($hostAccount && empty($existing->host_account)) {
+                        $existing->update(['host_account' => $hostAccount]);
+                    }
                     return response()->json(['success' => true, 'duplicate' => true, 'data' => $existing]);
                 }
 
@@ -1166,6 +1189,7 @@ class LiveChatController extends Controller
                 $liveMessage = LiveMessage::create([
                     'live_id' => $liveId,
                     'plataforma' => $platform,
+                    'host_account' => $hostAccount ?: null,
                     'username' => $cleanUsername,
                     'message' => $messageText,
                     'avatar_url' => $avatarUrl,
@@ -1277,6 +1301,26 @@ class LiveChatController extends Controller
 
                     $avatarUrl = $this->persistUserAvatar($cleanUsername, $platform, $rawAvatar);
 
+                    $hostAccount = trim((string) (
+                        $item['host_account']
+                        ?? $item['channel']
+                        ?? $item['canal']
+                        ?? $item['host']
+                        ?? $item['streamer']
+                        ?? $item['target_account']
+                        ?? ''
+                    ));
+                    if (empty($hostAccount) && !empty($item['url'])) {
+                        if (preg_match('/instagram\.com\/([a-zA-Z0-9_\.]+)/i', (string)$item['url'], $m)) {
+                            if (!in_array($m[1], ['stories', 'explore', 'direct', 'reels', 'p', 'tv'])) {
+                                $hostAccount = $m[1];
+                            }
+                        } elseif (preg_match('/tiktok\.com\/@([a-zA-Z0-9_\.]+)/i', (string)$item['url'], $m)) {
+                            $hostAccount = $m[1];
+                        }
+                    }
+                    $hostAccount = ltrim($hostAccount, '@');
+
                     $existing = LiveMessage::where('live_id', $liveId)
                         ->where('plataforma', $platform)
                         ->where('username', $cleanUsername)
@@ -1287,12 +1331,16 @@ class LiveChatController extends Controller
                         if ($avatarUrl && empty($existing->avatar_url)) {
                             $existing->update(['avatar_url' => $avatarUrl]);
                         }
+                        if ($hostAccount && empty($existing->host_account)) {
+                            $existing->update(['host_account' => $hostAccount]);
+                        }
                         continue;
                     }
 
                     LiveMessage::create([
                         'live_id' => $liveId,
                         'plataforma' => $platform,
+                        'host_account' => $hostAccount ?: null,
                         'username' => $cleanUsername,
                         'message' => $messageText,
                         'avatar_url' => $avatarUrl,
@@ -1336,7 +1384,7 @@ class LiveChatController extends Controller
 
         // 2. Pessoas online (quem comentou, ordenado por data mais recente)
         $onlineRaw = LiveMessage::where('live_id', $liveId)
-            ->select('username', 'plataforma', DB::raw('MAX(created_at) as last_seen'), DB::raw('MAX(id) as max_id'))
+            ->select('username', 'plataforma', DB::raw('MAX(host_account) as host_account'), DB::raw('MAX(created_at) as last_seen'), DB::raw('MAX(id) as max_id'))
             ->groupBy('username', 'plataforma')
             ->orderByDesc('max_id')
             ->get();
@@ -1532,6 +1580,7 @@ class LiveChatController extends Controller
             $onlineUsers[] = [
                 'username' => $cleanUsername,
                 'plataforma' => $online->plataforma,
+                'host_account' => $online->host_account ?: null,
                 'last_seen' => $online->last_seen ? date('H:i:s', strtotime($online->last_seen)) : '',
                 'max_id' => $online->max_id,
                 'avatar_url' => $userAvatar,
@@ -2767,10 +2816,22 @@ class LiveChatController extends Controller
         $ticketPeca = $totalPecas > 0 ? ($faturamentoBruto / $totalPecas) : 0.0;
         $ticketCliente = $totalClientes > 0 ? ($faturamentoBruto / $totalClientes) : 0.0;
 
-        // Total de mensagens no chat
+        // Total de mensagens no chat e divisão por canais de transmissão
         $totalMensagens = LiveMessage::where('live_id', $liveId)->count();
         $msgsInsta = LiveMessage::where('live_id', $liveId)->where('plataforma', 'instagram')->count();
         $msgsTiktok = LiveMessage::where('live_id', $liveId)->where('plataforma', 'tiktok')->count();
+
+        $msgsMinhaMania = LiveMessage::where('live_id', $liveId)
+            ->where(function($q) {
+                $q->whereNull('host_account')
+                  ->orWhere('host_account', '')
+                  ->orWhereIn('host_account', ['minhamania', '_minhamania', 'de_minha_mania']);
+            })->count();
+        $msgsParceiro = max(0, $totalMensagens - $msgsMinhaMania);
+        $topHostAccount = LiveMessage::where('live_id', $liveId)
+            ->whereNotNull('host_account')
+            ->whereNotIn('host_account', ['minhamania', '_minhamania', 'de_minha_mania', ''])
+            ->value('host_account') ?: null;
 
         $clientesAgrupados = array_values($clientesMap);
         usort($clientesAgrupados, fn($a, $b) => $b['total_valor'] <=> $a['total_valor']);
@@ -2787,6 +2848,9 @@ class LiveChatController extends Controller
             'totalMensagens',
             'msgsInsta',
             'msgsTiktok',
+            'msgsMinhaMania',
+            'msgsParceiro',
+            'topHostAccount',
             'clientesAgrupados',
             'itensDetalhados'
         ));

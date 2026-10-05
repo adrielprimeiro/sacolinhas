@@ -302,7 +302,13 @@
             <td class="kpi-card" style="width: 25%;">
                 <div class="kpi-label">Comentários Capturados</div>
                 <div class="kpi-value" style="font-size: 13px;">{{ $totalMensagens }} msgs</div>
-                <div class="kpi-sub">IG: {{ $msgsInsta }} | TT: {{ $msgsTiktok }}</div>
+                <div class="kpi-sub">
+                    @if(isset($msgsParceiro) && $msgsParceiro > 0)
+                        MM: {{ $msgsMinhaMania }} | @{{ $topHostAccount ?: 'Parceiro' }}: {{ $msgsParceiro }}
+                    @else
+                        IG: {{ $msgsInsta }} | TT: {{ $msgsTiktok }}
+                    @endif
+                </div>
             </td>
             <td class="kpi-card" style="width: 25%;">
                 <div class="kpi-label">Média Peças / Cliente</div>

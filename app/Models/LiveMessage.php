@@ -14,6 +14,7 @@ class LiveMessage extends Model
     protected $fillable = [
         'live_id',
         'plataforma',
+        'host_account',
         'username',
         'message',
         'avatar_url',
