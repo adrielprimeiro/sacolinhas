@@ -566,12 +566,27 @@
             printWindow.document.close();
         }
 
-        window.printLabelsA4 = function(etiquetas) {
+        window.printLabelsA4 = function(etiquetasRaw) {
+            const skipStr = prompt("Se você estiver reaproveitando uma cartela A4 já começada, digite quantas etiquetas (espaços vazios) deseja pular no início da folha:\n(Deixe 0 se a cartela for nova)", "0");
+            
+            if (skipStr === null) return;
+            const skip = parseInt(skipStr) || 0;
+            
+            let etiquetas = [];
+            for(let i = 0; i < skip; i++) {
+                etiquetas.push(null);
+            }
+            etiquetas = etiquetas.concat(etiquetasRaw);
+
             let pagesHtml = '';
             for (let i = 0; i < etiquetas.length; i += 30) {
                 const pageLabels = etiquetas.slice(i, i + 30);
                 pagesHtml += '<div class="page">';
-                pagesHtml += pageLabels.map(etiqueta => `
+                pagesHtml += pageLabels.map(etiqueta => {
+                    if (!etiqueta) {
+                        return '<div class="label-a4 empty-label"></div>';
+                    }
+                    return `
                     <div class="label-a4">
                         <div class="left-a4">
                             <div>
@@ -592,7 +607,8 @@
                             <div class="codigoBarra-a4">${etiqueta.codigo}</div>
                         </div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
                 pagesHtml += '</div>';
             }
 
