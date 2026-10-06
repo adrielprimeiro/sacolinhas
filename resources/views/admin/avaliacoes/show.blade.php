@@ -58,13 +58,17 @@
             </button>
 
             @if (auth()->check() && auth()->user()->isBrechoParceiro())
-            <button 
-                type="button"
-                id="btn-print-labels-a4"
-                class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
-            >
-                <i class="fas fa-file-alt"></i> Imprimir A4
-            </button>
+            <div class="inline-flex items-center gap-1 bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden print:hidden">
+                <label for="skipA4" class="text-xs text-gray-500 pl-3">Pular:</label>
+                <input type="number" id="skipA4" min="0" max="29" value="0" class="w-12 px-1 py-2 text-sm border-none focus:ring-0 text-center" title="Etiquetas em branco p/ pular">
+                <button 
+                    type="button"
+                    id="btn-print-labels-a4" 
+                    class="inline-flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-sm py-2 px-3 border-l border-gray-300 transition-colors"
+                >
+                    <i class="fas fa-file-alt"></i> Imprimir A4
+                </button>
+            </div>
             @endif
         </div>
     </div>
@@ -565,20 +569,14 @@
         }
 
         window.printLabelsA4 = function(etiquetasRaw) {
+            const skipInput = document.getElementById('skipA4');
+            const skip = skipInput ? (parseInt(skipInput.value) || 0) : 0;
+
             const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
             if (!printWindow) {
                 alert("Por favor, permita a abertura de pop-ups no seu navegador para imprimir as etiquetas.");
                 return;
             }
-
-            const skipStr = prompt("Se você estiver reaproveitando uma cartela A4 já começada, digite quantas etiquetas (espaços vazios) deseja pular no início da folha:\n(Deixe 0 se a cartela for nova)", "0");
-            
-            if (skipStr === null) {
-                printWindow.close();
-                return;
-            }
-            
-            const skip = parseInt(skipStr) || 0;
             
             let etiquetas = [];
             for(let i = 0; i < skip; i++) {

@@ -197,9 +197,13 @@
                     <i class="fas fa-print mr-2"></i> Imprimir Selecionadas
                 </button>
                 @if (auth()->check() && auth()->user()->isBrechoParceiro())
-                <button type="button" id="btnPrintSelectedA4" class="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium rounded shadow-sm text-sm transition hidden items-center">
-                    <i class="fas fa-file-alt mr-2"></i> Imprimir A4
-                </button>
+                <div id="printA4Wrap" class="hidden flex items-center gap-1 bg-white border border-gray-300 rounded shadow-sm overflow-hidden">
+                    <label for="skipA4" class="text-xs text-gray-500 pl-2">Pular:</label>
+                    <input type="number" id="skipA4" min="0" max="29" value="0" class="w-12 px-1 py-1 text-sm border-none focus:ring-0 text-center" title="Etiquetas em branco p/ pular">
+                    <button type="button" id="btnPrintSelectedA4" class="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-sm transition flex items-center border-l border-gray-300">
+                        <i class="fas fa-file-alt mr-2"></i> Imprimir A4
+                    </button>
+                </div>
                 @endif
             </div>
         </div>
@@ -447,15 +451,18 @@
             const itemCheckboxes = document.querySelectorAll('.item-checkbox');
             const printBtn = document.getElementById('btnPrintSelected');
             const printBtnA4 = document.getElementById('btnPrintSelectedA4');
+            const printA4Wrap = document.getElementById('printA4Wrap');
 
             function updatePrintButtonVisibility() {
                 const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
                 if (checkedCount > 0) {
                     if(printBtn) printBtn.classList.remove('hidden');
-                    if(printBtnA4) printBtnA4.classList.remove('hidden');
+                    if(printA4Wrap) printA4Wrap.classList.remove('hidden');
+                    if(printA4Wrap) printA4Wrap.classList.add('flex');
                 } else {
                     if(printBtn) printBtn.classList.add('hidden');
-                    if(printBtnA4) printBtnA4.classList.add('hidden');
+                    if(printA4Wrap) printA4Wrap.classList.add('hidden');
+                    if(printA4Wrap) printA4Wrap.classList.remove('flex');
                 }
             }
 
@@ -650,20 +657,14 @@
         }
 
         window.printLabelsA4 = function(etiquetasRaw) {
+            const skipInput = document.getElementById('skipA4');
+            const skip = skipInput ? (parseInt(skipInput.value) || 0) : 0;
+            
             const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
             if (!printWindow) {
                 alert("Por favor, permita a abertura de pop-ups no seu navegador para imprimir as etiquetas.");
                 return;
             }
-
-            const skipStr = prompt("Se você estiver reaproveitando uma cartela A4 já começada, digite quantas etiquetas (espaços vazios) deseja pular no início da folha:\n(Deixe 0 se a cartela for nova)", "0");
-            
-            if (skipStr === null) {
-                printWindow.close();
-                return;
-            }
-            
-            const skip = parseInt(skipStr) || 0;
             
             // Cria um novo array com os itens nulos no começo para dar o "pulo"
             let etiquetas = [];
