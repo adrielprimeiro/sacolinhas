@@ -567,9 +567,19 @@
         }
 
         window.printLabelsA4 = function(etiquetasRaw) {
+            const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+            if (!printWindow) {
+                alert("Por favor, permita a abertura de pop-ups no seu navegador para imprimir as etiquetas.");
+                return;
+            }
+
             const skipStr = prompt("Se você estiver reaproveitando uma cartela A4 já começada, digite quantas etiquetas (espaços vazios) deseja pular no início da folha:\n(Deixe 0 se a cartela for nova)", "0");
             
-            if (skipStr === null) return;
+            if (skipStr === null) {
+                printWindow.close();
+                return;
+            }
+            
             const skip = parseInt(skipStr) || 0;
             
             let etiquetas = [];
@@ -722,8 +732,6 @@
                 </body>
                 </html>
             `;
-            
-            const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
             printWindow.document.write(htmlContent);
             printWindow.document.close();
         }
