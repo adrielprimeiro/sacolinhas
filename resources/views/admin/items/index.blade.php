@@ -183,9 +183,11 @@
                     @endforeach
                     <label for="per_page_top">Mostrar:</label>
                     <select id="per_page_top" name="per_page" onchange="document.getElementById('perPageFormTop').submit()" class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                        <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15</option>
-                        <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
-                        <option value="50" {{ request('per_page', 50) == '50' ? 'selected' : '' }}>50</option>
+                        <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10</option>
+                        <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20</option>
+                        <option value="30" {{ request('per_page', 30) == '30' ? 'selected' : '' }}>30</option>
+                        <option value="60" {{ request('per_page') == '60' ? 'selected' : '' }}>60</option>
+                        <option value="90" {{ request('per_page') == '90' ? 'selected' : '' }}>90</option>
                         <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
                     </select>
                 </form>
@@ -371,9 +373,11 @@
                 @endforeach
                 <label for="per_page_bottom">Mostrar:</label>
                 <select id="per_page_bottom" name="per_page" onchange="document.getElementById('perPageFormBottom').submit()" class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                    <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15</option>
-                    <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
-                    <option value="50" {{ request('per_page', 50) == '50' ? 'selected' : '' }}>50</option>
+                    <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10</option>
+                    <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20</option>
+                    <option value="30" {{ request('per_page', 30) == '30' ? 'selected' : '' }}>30</option>
+                    <option value="60" {{ request('per_page') == '60' ? 'selected' : '' }}>60</option>
+                    <option value="90" {{ request('per_page') == '90' ? 'selected' : '' }}>90</option>
                     <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
                 </select>
             </form>
