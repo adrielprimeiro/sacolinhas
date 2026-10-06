@@ -635,11 +635,10 @@
                         </div>
                     `).join('')}
                     <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                            }, 500);
-                        };
+                        setTimeout(function() {
+                            window.focus();
+                            window.print();
+                        }, 500);
                     <\/script>
                 </body>
                 </html>
@@ -807,12 +806,11 @@
                 <body>
                     ${pagesHtml}
                     <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 500);
-                        };
+                        setTimeout(function() {
+                            window.focus();
+                            window.print();
+                            window.close();
+                        }, 500);
                     <\/script>
                 </body>
                 </html>
@@ -820,6 +818,7 @@
             
             printWindow.document.write(htmlContent);
             printWindow.document.close();
+            printWindow.focus();
         }
     </script>
 @endpush
