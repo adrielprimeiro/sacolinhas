@@ -57,7 +57,7 @@
                 <i class="fas fa-print"></i> Imprimir Etiquetas
             </button>
 
-            @if (config('app.name') !== 'Minha Mania')
+            @if (auth()->check() && auth()->user()->isBrechoParceiro())
             <button 
                 type="button"
                 id="btn-print-labels-a4"
