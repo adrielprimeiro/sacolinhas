@@ -82,7 +82,8 @@ class ItemController extends Controller
             }
         }
 
-		$items = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+		$perPage = $request->input('per_page', 50);
+		$items = $query->orderByDesc('created_at')->paginate($perPage)->withQueryString();
 
         $treeCategories = \App\Models\Categoria::whereNull('parent_id')
             ->with($this->categoryTreeWith())
