@@ -175,7 +175,7 @@
                     <i class="fas fa-print mr-2"></i> Imprimir Selecionadas
                 </button>
                 @if (auth()->check() && auth()->user()->isBrechoParceiro())
-                <button type="button" id="btnPrintSelectedA4" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded shadow-sm text-sm transition hidden items-center">
+                <button type="button" id="btnPrintSelectedA4" class="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium rounded shadow-sm text-sm transition hidden items-center">
                     <i class="fas fa-file-alt mr-2"></i> Imprimir A4
                 </button>
                 @endif

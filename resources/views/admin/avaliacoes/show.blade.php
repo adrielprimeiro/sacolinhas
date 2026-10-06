@@ -61,7 +61,7 @@
             <button 
                 type="button"
                 id="btn-print-labels-a4"
-                class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
+                class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
             >
                 <i class="fas fa-file-alt"></i> Imprimir A4
             </button>
