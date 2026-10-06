@@ -553,7 +553,6 @@
                         setTimeout(function() {
                             window.focus();
                             window.print();
-                            window.close();
                         }, 500);
                     <\/script>
                 </body>
@@ -724,7 +723,6 @@
                         setTimeout(function() {
                             window.focus();
                             window.print();
-                            window.close();
                         }, 500);
                     <\/script>
                 </body>
