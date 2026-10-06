@@ -544,6 +544,125 @@ class LiveChatController extends Controller
     }
 
     /**
+     * Atualiza o preço de uma peça bipada na live (e na sacolinha se estiver vinculada)
+     */
+    public function updateItemPrice(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'nullable|exists:lives,id',
+            'item_id' => 'nullable|exists:items,id',
+            'code' => 'nullable|string',
+            'price' => 'required'
+        ]);
+
+        $liveId = $request->input('live_id');
+        $itemId = $request->input('item_id');
+        $rawPrice = $request->input('price');
+
+        // Formata o preço recebido (suporta "45,00", "45.00", "R$ 45,00", etc)
+        $cleanPrice = preg_replace('/[^0-9,\.]/', '', (string)$rawPrice);
+        $cleanPrice = str_replace(',', '.', $cleanPrice);
+        $newPrice = (float) $cleanPrice;
+
+        if ($newPrice < 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O preço deve ser maior ou igual a zero.'
+            ], 422);
+        }
+
+        $liveBrechoId = 1;
+        $live = null;
+        if ($liveId) {
+            $live = Live::find($liveId);
+            $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
+        }
+
+        if (!$itemId && $request->filled('code')) {
+            $code = trim((string)$request->input('code'));
+            $cleanCode = ltrim($code, '#');
+            $cleanCode = trim($cleanCode);
+
+            $item = Item::where(function ($q) use ($liveBrechoId) {
+                    $q->where('brecho_id', $liveBrechoId)
+                      ->orWhereNull('brecho_id');
+                })
+                ->where(function ($q) use ($code, $cleanCode) {
+                    $q->where('codigo', $code)
+                      ->orWhere('codigo', $cleanCode)
+                      ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                      ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                      ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
+                })
+                ->first();
+            if ($item) {
+                $itemId = $item->id;
+            }
+        }
+
+        $item = $itemId ? Item::find($itemId) : null;
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item não encontrado para atualizar o preço.'
+            ], 404);
+        }
+
+        // 1. Atualiza no cadastro principal do item
+        $item->preco = $newPrice;
+        $item->save();
+
+        // 2. Se o item estiver em sacolinhas, atualiza o preço na sacolinha
+        $sacolinhaPrice = $newPrice;
+        if ($live && $live->tipo_live === 'precinho') {
+            $sacolinhaPrice = $newPrice * 0.5;
+        }
+
+        if ($liveId) {
+            Sacolinhas::withoutGlobalScopes()
+                ->where('item_id', $item->id)
+                ->where('live_id', $liveId)
+                ->update(['price' => $sacolinhaPrice]);
+        } else {
+            Sacolinhas::withoutGlobalScopes()
+                ->where('item_id', $item->id)
+                ->update(['price' => $sacolinhaPrice]);
+        }
+
+        // 3. Totais recalculados da Live
+        $totalLiveItems = 0;
+        $totalLiveValue = 0;
+        $totalLiveValueFormatted = 'R$ 0,00';
+        if ($liveId) {
+            $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
+                ->where('live_id', $liveId)
+                ->where('status', '!=', 'pedido')
+                ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+                ->first();
+
+            $totalLiveItems = (int) ($sacolinhasTotals->total_itens ?? 0);
+            $totalLiveValue = (float) ($sacolinhasTotals->total_valor ?? 0);
+            $totalLiveValueFormatted = 'R$ ' . number_format($totalLiveValue, 2, ',', '.');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Preço atualizado com sucesso para R$ ' . number_format($newPrice, 2, ',', '.') . '!',
+            'data' => [
+                'item_id' => $item->id,
+                'code' => $item->codigo,
+                'price' => $newPrice,
+                'formatted_price' => 'R$ ' . number_format($newPrice, 2, ',', '.'),
+                'total_sacolinhas_itens' => $totalLiveItems,
+                'total_valor' => $totalLiveValue,
+                'total_valor_formatado' => $totalLiveValueFormatted
+            ]
+        ]);
+    }
+
+    /**
      * Vincula um item da live a um comprador (e opcionalmente a uma mensagem do chat)
      */
     public function linkItemBuyer(Request $request)

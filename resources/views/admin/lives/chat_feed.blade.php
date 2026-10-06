@@ -709,6 +709,78 @@
     </div>
 </div>
 
+<!-- MODAL EDITAR PREÇO DA PEÇA BIPADA -->
+<div id="modal-edit-item-price" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #065f46 0%, #059669 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Editar Preço da Peça</h3>
+                    <p style="color: #a7f3d0 !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Atualiza o valor da peça e recalcula a sacolinha</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeEditItemPriceModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitEditItemPrice(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <input type="hidden" id="edit-item-price-scan-id">
+            <input type="hidden" id="edit-item-price-item-id">
+            <input type="hidden" id="edit-item-price-code">
+
+            <!-- Card Resumo da Peça -->
+            <div style="padding: 12px 14px; background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="edit-item-price-badge-code" style="font-size: 12px; font-weight: 900; font-family: monospace; color: #0f172a; background-color: #e2e8f0; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1;">#0000</span>
+                        <span id="edit-item-price-badge-live" style="font-size: 11px; font-weight: 900; color: #4338ca; background-color: #e0e7ff; padding: 2px 8px; border-radius: 6px; border: 1px solid #c7d2fe;">Live: #1</span>
+                    </div>
+                    <span id="edit-item-price-badge-current" style="font-size: 11px; font-weight: 800; color: #64748b;">Atual: R$ 0,00</span>
+                </div>
+                <div id="edit-item-price-prod-name" style="font-size: 13px; font-weight: 800; color: #1e293b; margin-top: 2px;">Nome do Produto</div>
+                <div id="edit-item-price-prod-details" style="font-size: 11px; font-weight: 500; color: #64748b;">Detalhes do Produto</div>
+            </div>
+
+            <!-- Novo Preço -->
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Novo Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 14px; background-color: #e2e8f0; border: 2px solid #059669; border-right: none; border-radius: 12px 0 0 12px; color: #065f46; font-size: 15px; font-weight: 900;">R$</span>
+                    <input type="text" id="edit-item-price-input" required placeholder="0,00" autocomplete="off" style="width: 100%; padding: 10px 14px; font-size: 18px; font-weight: 900; color: #065f46 !important; background-color: #f0fdf4 !important; border: 2px solid #059669 !important; border-radius: 0 12px 12px 0; outline: none; box-sizing: border-box;">
+                </div>
+                <p style="color: #64748b !important; font-size: 11px; margin: 5px 0 0 0;">Digite o novo valor e tecle <kbd style="background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #334155;">Enter</kbd> para salvar.</p>
+            </div>
+
+            <!-- Botões Rápidos de Ajuste -->
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" onclick="setEditPricePreset(10)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 10</button>
+                <button type="button" onclick="setEditPricePreset(15)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 15</button>
+                <button type="button" onclick="setEditPricePreset(20)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 20</button>
+                <button type="button" onclick="setEditPricePreset(25)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 25</button>
+                <button type="button" onclick="setEditPricePreset(30)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 30</button>
+                <button type="button" onclick="setEditPricePreset(50)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 50</button>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeEditItemPriceModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-edit-price" style="background-color: #047857 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #065f46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #a7f3d0 !important;"></i> Salvar Novo Preço
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
 <div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
     <!-- Cabeçalho Fullscreen Elegante -->
@@ -1015,6 +1087,15 @@
         const qrModal = document.getElementById('online-qr-modal');
         if (qrModal && !qrModal.classList.contains('hidden')) return true;
 
+        const quickClientModal = document.getElementById('modal-quick-client');
+        if (quickClientModal && !quickClientModal.classList.contains('hidden')) return true;
+
+        const quickProductModal = document.getElementById('modal-quick-product');
+        if (quickProductModal && !quickProductModal.classList.contains('hidden')) return true;
+
+        const editPriceModal = document.getElementById('modal-edit-item-price');
+        if (editPriceModal && !editPriceModal.classList.contains('hidden')) return true;
+
         return false;
     }
 
@@ -1292,7 +1373,7 @@
 
     const scanProductCache = {};
 
-    function buildProductDetailsHtml(prod) {
+    function buildProductDetailsHtml(prod, scanId = null) {
         if (!prod) return '';
         const detailParts = [];
         const safePush = (val) => {
@@ -1310,13 +1391,31 @@
         if (prod.tamanho && String(prod.tamanho).toLowerCase() !== 'null') safePush('Tam: ' + prod.tamanho);
         if (prod.marca && String(prod.marca).toLowerCase() !== 'null') safePush(prod.marca);
         if (prod.cor && String(prod.cor).toLowerCase() !== 'null') safePush(prod.cor);
-        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') safePush(prod.formatted_price);
 
         const detailsText = detailParts.join(' • ');
         const nameHtml = escapeHtml(prod.name || 'Produto');
 
+        let priceDisplay = '';
+        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') {
+            priceDisplay = prod.formatted_price;
+        } else if (prod.preco !== undefined && prod.preco !== null) {
+            priceDisplay = 'R$ ' + parseFloat(prod.preco).toFixed(2).replace('.', ',');
+        }
+
+        const targetScanId = scanId || prod.scanId || prod.scan_id || prod.codigo || prod.code || '';
+        const priceButtonHtml = `
+            <button type="button" onclick="event.stopPropagation(); openEditItemPriceModal('${escapeHtml(targetScanId)}')" title="Clique para editar o preço desta peça" class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300 text-[11px] transition shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0">
+                <i class="fas fa-tag text-[9px] text-emerald-600"></i>
+                <span>${escapeHtml(priceDisplay || 'Definir Preço')}</span>
+                <i class="fas fa-pen text-[8px] text-emerald-600 ml-0.5"></i>
+            </button>
+        `;
+
         return `
-            <div class="font-bold text-gray-900 leading-tight text-[11px]">${nameHtml}</div>
+            <div class="flex items-center justify-between gap-1">
+                <div class="font-bold text-gray-900 leading-tight text-[11px] truncate">${nameHtml}</div>
+                ${priceButtonHtml}
+            </div>
             ${detailsText ? `<div class="text-[9.5px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
         `;
     }
@@ -1425,6 +1524,198 @@
         bgScanItems.forEach(item => {
             updateItemLiveCodeUI(item.id, item.liveCode);
         });
+    }
+
+    function openEditItemPriceModal(identifier) {
+        if (!identifier) return;
+        const cleanId = String(identifier).trim();
+        const item = bgScanItems.find(x => x.id === cleanId) 
+            || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
+            || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId);
+
+        const modal = document.getElementById('modal-edit-item-price');
+        if (!modal) return;
+
+        const scanId = item ? item.id : cleanId;
+        const itemId = item ? (item.itemId || '') : '';
+        const code = item ? (item.code || '') : cleanId;
+        const liveCode = item ? (item.liveCode || '') : '';
+        const prodName = item ? (item.productName || '') : '';
+        const prodDetails = item ? (item.productDetails || '') : '';
+        const prodPrice = item ? (item.productPrice || '') : '';
+
+        const scanIdInput = document.getElementById('edit-item-price-scan-id');
+        if (scanIdInput) scanIdInput.value = scanId;
+        const itemIdInput = document.getElementById('edit-item-price-item-id');
+        if (itemIdInput) itemIdInput.value = itemId;
+        const codeInput = document.getElementById('edit-item-price-code');
+        if (codeInput) codeInput.value = code;
+
+        const badgeCode = document.getElementById('edit-item-price-badge-code');
+        if (badgeCode) badgeCode.textContent = '#' + (code || 'Peça');
+
+        const badgeLive = document.getElementById('edit-item-price-badge-live');
+        if (badgeLive) {
+            badgeLive.textContent = liveCode ? 'Live: #' + liveCode : 'Sem código live';
+            badgeLive.style.display = liveCode ? 'inline-block' : 'none';
+        }
+
+        const badgeCurrent = document.getElementById('edit-item-price-badge-current');
+        if (badgeCurrent) {
+            badgeCurrent.textContent = 'Atual: ' + (prodPrice || 'R$ 0,00');
+        }
+
+        const prodNameEl = document.getElementById('edit-item-price-prod-name');
+        if (prodNameEl) prodNameEl.textContent = prodName || ('Peça #' + code);
+
+        const prodDetailsEl = document.getElementById('edit-item-price-prod-details');
+        if (prodDetailsEl) {
+            const parts = [];
+            if (prodDetails) parts.push(prodDetails);
+            if (item && item.tamanho) parts.push('Tam: ' + item.tamanho);
+            if (item && item.marca) parts.push(item.marca);
+            if (item && item.cor) parts.push(item.cor);
+            prodDetailsEl.textContent = parts.join(' • ') || 'Sem detalhes cadastrados';
+        }
+
+        const input = document.getElementById('edit-item-price-input');
+        if (input) {
+            let curPriceClean = (prodPrice || '').replace(/[^0-9,\.]/g, '').trim();
+            input.value = curPriceClean || '';
+        }
+
+        modal.classList.remove('hidden');
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 60);
+        }
+    }
+
+    function closeEditItemPriceModal() {
+        const modal = document.getElementById('modal-edit-item-price');
+        if (modal) modal.classList.add('hidden');
+        ensureScannerFocus(true);
+    }
+
+    function setEditPricePreset(val) {
+        const input = document.getElementById('edit-item-price-input');
+        if (input) {
+            input.value = Number(val).toFixed(2).replace('.', ',');
+            input.focus();
+            input.select();
+        }
+    }
+
+    async function submitEditItemPrice(event) {
+        event.preventDefault();
+        const scanId = document.getElementById('edit-item-price-scan-id')?.value;
+        const itemId = document.getElementById('edit-item-price-item-id')?.value;
+        const code = document.getElementById('edit-item-price-code')?.value;
+        const priceInput = document.getElementById('edit-item-price-input');
+        const priceVal = (priceInput?.value || '').trim();
+
+        if (!priceVal) {
+            showToast('Informe o novo preço!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('btn-save-edit-price');
+        const origBtnHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Salvando...';
+        }
+
+        try {
+            const resp = await fetch('/admin/live-chat/update-item-price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    item_id: itemId || null,
+                    code: code || null,
+                    price: priceVal
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success && data.data) {
+                const updatedPrice = data.data.formatted_price;
+
+                // 1. Atualiza no array bgScanItems
+                const item = bgScanItems.find(x => x.id === scanId) || bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId == itemId));
+                if (item) {
+                    item.productPrice = updatedPrice;
+                }
+
+                // 2. Atualiza no cache scanProductCache
+                if (code) {
+                    const cacheKey = String(code).trim().toUpperCase();
+                    if (scanProductCache[cacheKey]) {
+                        scanProductCache[cacheKey].formatted_price = updatedPrice;
+                        scanProductCache[cacheKey].preco = data.data.price;
+                    }
+                }
+
+                // 3. Atualiza na UI do card de bipagem
+                let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+                if (!itemEl && code) itemEl = document.querySelector(`[data-code="${code}"]`);
+                if (itemEl && item) {
+                    const detailsEl = itemEl.querySelector('.scan-item-details');
+                    if (detailsEl) {
+                        const fakeProd = {
+                            name: item.productName,
+                            description: item.productDetails,
+                            tamanho: item.tamanho,
+                            marca: item.marca,
+                            cor: item.cor,
+                            formatted_price: updatedPrice,
+                            preco: data.data.price
+                        };
+                        detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, item.id);
+                    }
+                }
+
+                // 4. Atualiza em mensagens do chat que tenham esta peça vinculada
+                if (window.liveChatMessages && window.liveChatMessages.length) {
+                    let hasLinkedUpdate = false;
+                    window.liveChatMessages.forEach(m => {
+                        const mCode = String(m.linked_code || '').replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim().toUpperCase();
+                        if ((itemId && m.linked_item_id == itemId) || (code && mCode === String(code).trim().toUpperCase())) {
+                            m.linked_product_preco = updatedPrice;
+                            hasLinkedUpdate = true;
+                        }
+                    });
+                    if (hasLinkedUpdate && typeof renderFeedMessages === 'function') {
+                        renderFeedMessages(window.liveChatMessages);
+                    }
+                }
+
+                // 5. Atualiza o badge do total da sacolinha se retornado
+                if (data.data.total_valor_formatado) {
+                    const valorBadge = document.getElementById('sacolinhas-valor-badge');
+                    if (valorBadge) valorBadge.textContent = data.data.total_valor_formatado;
+                }
+
+                showToast(`✅ Preço atualizado para ${updatedPrice}!`, 'success');
+                closeEditItemPriceModal();
+            } else {
+                showToast(data.message || 'Erro ao atualizar preço.', 'error');
+            }
+        } catch(err) {
+            console.error('Erro ao atualizar preço:', err);
+            showToast('Erro de conexão ao salvar preço.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnHtml;
+            }
+        }
     }
 
     function syncLinkItemToLive(itemId, code, liveCode) {
@@ -2181,10 +2472,13 @@
         linkItemToBuyer(scanId, username, displayName, userId, null, phone);
     }
 
-    // Fechar modal ao pressionar tecla ESC
+    // Fechar modais ao pressionar tecla ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' || e.key === 'Esc') {
             closeManualBuyerSearchModal();
+            closeEditItemPriceModal();
+            closeQuickProductModal();
+            closeQuickClientModal();
         }
     });
 
@@ -2746,7 +3040,8 @@
                     activeEl.closest('#manual-buyer-search-modal') || 
                     activeEl.closest('#link-user-modal') ||
                     activeEl.closest('#modal-quick-client') ||
-                    activeEl.closest('#modal-quick-product')
+                    activeEl.closest('#modal-quick-product') ||
+                    activeEl.closest('#modal-edit-item-price')
                 ))
             )
         );
