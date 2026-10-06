@@ -170,9 +170,16 @@
             <h2 class="text-gray-700 font-semibold flex items-center">
                 <i class="fas fa-list mr-2"></i> Listagem de Itens ({{ $items->total() }})
             </h2>
-            <button type="button" id="btnPrintSelected" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded shadow-sm text-sm transition hidden flex items-center">
-                <i class="fas fa-print mr-2"></i> Imprimir Etiquetas Selecionadas
-            </button>
+            <div class="flex gap-2">
+                <button type="button" id="btnPrintSelected" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded shadow-sm text-sm transition hidden items-center">
+                    <i class="fas fa-print mr-2"></i> Imprimir Selecionadas
+                </button>
+                @if (config('app.name') !== 'Minha Mania')
+                <button type="button" id="btnPrintSelectedA4" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded shadow-sm text-sm transition hidden items-center">
+                    <i class="fas fa-file-alt mr-2"></i> Imprimir A4
+                </button>
+                @endif
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -394,13 +401,16 @@
             const selectAllBtn = document.getElementById('selectAll');
             const itemCheckboxes = document.querySelectorAll('.item-checkbox');
             const printBtn = document.getElementById('btnPrintSelected');
+            const printBtnA4 = document.getElementById('btnPrintSelectedA4');
 
             function updatePrintButtonVisibility() {
                 const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
                 if (checkedCount > 0) {
-                    printBtn.classList.remove('hidden');
+                    if(printBtn) printBtn.classList.remove('hidden');
+                    if(printBtnA4) printBtnA4.classList.remove('hidden');
                 } else {
-                    printBtn.classList.add('hidden');
+                    if(printBtn) printBtn.classList.add('hidden');
+                    if(printBtnA4) printBtnA4.classList.add('hidden');
                 }
             }
 
@@ -438,6 +448,27 @@
                     });
 
                     printLabelsMultiplas(etiquetas);
+                });
+            }
+            
+            if (printBtnA4) {
+                printBtnA4.addEventListener('click', function() {
+                    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+                    if (checkedBoxes.length === 0) {
+                        alert('Nenhum item selecionado!');
+                        return;
+                    }
+
+                    const etiquetas = [];
+                    checkedBoxes.forEach(cb => {
+                        try {
+                            etiquetas.push(JSON.parse(cb.value));
+                        } catch (e) {
+                            console.error('Erro ao ler dados da etiqueta', e);
+                        }
+                    });
+
+                    printLabelsA4(etiquetas);
                 });
             }
         });
@@ -570,6 +601,152 @@
             `;
 
             const printWindow = window.open('', 'EtiquetasLote', 'width=1000,height=700,scrollbars=yes,resizable=yes');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        }
+
+        window.printLabelsA4 = function(etiquetas) {
+            let pagesHtml = '';
+            for (let i = 0; i < etiquetas.length; i += 30) {
+                const pageLabels = etiquetas.slice(i, i + 30);
+                pagesHtml += '<div class="page">';
+                pagesHtml += pageLabels.map(etiqueta => `
+                    <div class="label-a4">
+                        <div class="left-a4">
+                            <div>
+                                <span class="produto-a4">${etiqueta.produto.replace(/'/g, "\\'")}</span>
+                            </div>
+                            <div class="tamanho-a4">${etiqueta.tamanho ? etiqueta.tamanho : ''}</div>
+                            <div>
+                                <span class="preco-a4">Preço:  </span>
+                                <span class="valor-a4">${etiqueta.preco ? etiqueta.preco : ''}</span>
+                            </div>
+                        </div>
+                        <div class="right-a4">
+                        <img class="barcode-a4" 
+                             src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(etiqueta.codigo)}"
+                             alt="QR" 
+                             onload="this.style.opacity=1;" 
+                             style="opacity:0.5;" />
+                            <div class="codigoBarra-a4">${etiqueta.codigo}</div>
+                        </div>
+                    </div>
+                `).join('');
+                pagesHtml += '</div>';
+            }
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                    @page {
+                        size: A4;
+                        margin: 21.2mm 4mm;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        font-family: Arial, sans-serif;
+                        line-height: 1.05;
+                    }
+                    .page {
+                        display: grid;
+                        grid-template-columns: repeat(3, 66.7mm);
+                        grid-template-rows: repeat(10, 25.4mm);
+                        column-gap: 2.1mm;
+                        row-gap: 0;
+                        page-break-after: always;
+                        box-sizing: border-box;
+                    }
+                    .label-a4 {
+                        width: 66.7mm;
+                        height: 25.4mm;
+                        display: flex;
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        padding: 1mm 2mm;
+                        box-sizing: border-box;
+                        overflow: hidden;
+                    }
+                    .left-a4 {
+                        flex: 1.3;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: flex-start;
+                        align-items: flex-start;
+                        height: 100%;
+                        gap: 0.1mm;
+                        overflow: hidden;
+                    }
+                    .produto-a4 {
+                        font-weight: normal;
+                        font-size: 8px;
+                        text-align: left;
+                        word-wrap: break-word;
+                        white-space: normal;
+                        margin: 0;
+                        line-height: 1.1;
+                    }
+                    .tamanho-a4 {
+                        font-weight: bold;
+                        font-size: 16px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                        margin-bottom: 0;
+                        line-height: 1;
+                    }
+                    .preco-a4 {
+                        font-weight: bold;
+                        font-size: 10px;
+                        margin-top: 0 !important;
+                        white-space: nowrap;
+                    }
+                    .valor-a4 {
+                        font-weight: normal;
+                        font-size: 10px;
+                        margin-top: 0 !important;
+                        margin-left: 0.5mm;
+                    }
+                    .right-a4 {
+                        flex: 0 0 16mm;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-end;
+                        height: 100%;
+                        gap: 0.1mm;
+                    }
+                    .barcode-a4 {
+                        width: 16mm;
+                        height: 16mm;
+                    }
+                    .codigoBarra-a4 {
+                        font-weight: normal;
+                        font-size: 8px;
+                        text-align: center;
+                        margin-top: 0 !important;
+                    }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    }
+                    </style>
+                </head>
+                <body>
+                    ${pagesHtml}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
             printWindow.document.write(htmlContent);
             printWindow.document.close();
         }
