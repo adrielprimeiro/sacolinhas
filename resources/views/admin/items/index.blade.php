@@ -36,20 +36,20 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
 
                 {{-- Busca --}}
-                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-2' : 'md:col-span-3' }}">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-3' : 'md:col-span-3' }}">
                     <label for="codigo" class="block text-sm font-medium text-gray-700 mb-1">Buscar por código</label>
                     <div class="relative">
                         <input
                             id="codigo"
                             name="codigo"
                             value="{{ request('codigo') }}"
-                            class="w-full border border-gray-300 rounded-md pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Ler QRCode"
+                            class="w-full border border-gray-300 rounded-md pl-3 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Digite ou leia o QRCode"
                             autocomplete="off"
                         />
                         <button type="button"
                                 id="btnToggleQr"
-                                class="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-gray-500 hover:text-indigo-700"
+                                class="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-gray-500 hover:text-indigo-700"
                                 title="Ler QRCode">
                             <i class="fas fa-qrcode text-lg"></i>
                         </button>
@@ -63,9 +63,9 @@
                     <select
                         id="brecho_id"
                         name="brecho_id"
-                        class="w-full border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-gray-700"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-gray-700"
                     >
-                        <option value="">Todos</option>
+                        <option value="">Todos os Brechós</option>
                         @if(isset($brechos))
                             @foreach($brechos as $b)
                                 <option value="{{ $b->id }}" {{ request('brecho_id') == $b->id ? 'selected' : '' }}>
@@ -78,12 +78,12 @@
                 @endif
 
                 {{-- Status --}}
-                <div class="md:col-span-2">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-2' : 'md:col-span-2' }}">
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                     <select
                         id="status"
                         name="status"
-                        class="w-full border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="">Todos</option>
 						<option value="indisponivel" {{ request('status') == 'indisponivel' ? 'selected' : '' }}>Indisponível</option>
@@ -100,15 +100,15 @@
                 </div>
 
                 {{-- Categoria --}}
-                <div class="md:col-span-2">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-2' : 'md:col-span-3' }}">
                     <label for="categoria_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                     <select
                         id="categoria_id"
                         name="categoria_id"
-                        class="w-full border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="">Todas</option>
-                        <option value="none" {{ request('categoria_id') == 'none' ? 'selected' : '' }} class="font-bold text-red-600">-- SEM --</option>
+                        <option value="">Todas Categorias</option>
+                        <option value="none" {{ request('categoria_id') == 'none' ? 'selected' : '' }} class="font-bold text-red-600">-- SEM CATEGORIA --</option>
                         
                         @php
                             $renderOptions = function($cats, $level = 0) use (&$renderOptions) {
@@ -128,42 +128,27 @@
                 </div>
 
                 {{-- Localização --}}
-                <div class="md:col-span-1">
+                <div class="{{ (!auth()->check() || !auth()->user()->isBrechoParceiro()) ? 'md:col-span-1' : 'md:col-span-2' }}">
                     <label for="localizacao" class="block text-sm font-medium text-gray-700 mb-1">Localização</label>
                     <input
                         id="localizacao"
                         name="localizacao"
                         value="{{ request('localizacao') }}"
-                        class="w-full border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Prat..."
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Prateleira..."
                         autocomplete="off"
                     />
-                </div>
-
-                {{-- Mostrar --}}
-                <div class="md:col-span-1">
-                    <label for="per_page" class="block text-sm font-medium text-gray-700 mb-1">Mostrar</label>
-                    <select
-                        id="per_page"
-                        name="per_page"
-                        class="w-full border border-gray-300 rounded-md px-1 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15</option>
-                        <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
-                        <option value="50" {{ request('per_page', 50) == '50' ? 'selected' : '' }}>50</option>
-                        <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
-                    </select>
                 </div>
 
                 {{-- Botões --}}
                 <div class="md:col-span-2 flex gap-1">
                     <button type="submit"
-                            class="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-2 rounded-md shadow-md transition text-sm">
+                            class="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-md shadow-md transition text-sm">
                         Filtrar
                     </button>
 
                     <a href="{{ route('items.index') }}"
-                       class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-2 rounded-md shadow-md transition text-sm text-center">
+                       class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-md shadow-md transition text-sm text-center">
                         Limpar
                     </a>
                 </div>
@@ -180,10 +165,31 @@
     </div>
 
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div class="p-4 bg-gray-50 flex items-center justify-between border-b border-gray-200">
-            <h2 class="text-gray-700 font-semibold flex items-center">
-                <i class="fas fa-list mr-2"></i> Listagem de Itens ({{ $items->total() }})
-            </h2>
+        <div class="p-4 bg-gray-50 flex flex-col md:flex-row items-center justify-between border-b border-gray-200 gap-4 md:gap-0">
+            <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+                <h2 class="text-gray-700 font-semibold flex items-center">
+                    <i class="fas fa-list mr-2"></i> Listagem de Itens ({{ $items->total() }})
+                </h2>
+                
+                <form id="perPageFormTop" method="GET" action="{{ route('items.index') }}" class="flex items-center gap-2 text-sm text-gray-600">
+                    @foreach(request()->except('per_page') as $key => $value)
+                        @if(is_array($value))
+                            @foreach($value as $v)
+                                <input type="hidden" name="{{ $key }}[]" value="{{ $v }}">
+                            @endforeach
+                        @else
+                            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                        @endif
+                    @endforeach
+                    <label for="per_page_top">Mostrar:</label>
+                    <select id="per_page_top" name="per_page" onchange="document.getElementById('perPageFormTop').submit()" class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                        <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15</option>
+                        <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
+                        <option value="50" {{ request('per_page', 50) == '50' ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
+                    </select>
+                </form>
+            </div>
             <div class="flex gap-2">
                 <button type="button" id="btnPrintSelected" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded shadow-sm text-sm transition hidden items-center">
                     <i class="fas fa-print mr-2"></i> Imprimir Selecionadas
@@ -348,8 +354,29 @@
             </table>
         </div>
 
-        <div class="p-4 border-t border-gray-200">
-            {{ $items->appends(request()->query())->links() }}
+        <div class="p-4 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="w-full md:w-auto overflow-x-auto">
+                {{ $items->appends(request()->query())->links() }}
+            </div>
+            
+            <form id="perPageFormBottom" method="GET" action="{{ route('items.index') }}" class="flex items-center gap-2 text-sm text-gray-600">
+                @foreach(request()->except('per_page') as $key => $value)
+                    @if(is_array($value))
+                        @foreach($value as $v)
+                            <input type="hidden" name="{{ $key }}[]" value="{{ $v }}">
+                        @endforeach
+                    @else
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
+                <label for="per_page_bottom">Mostrar:</label>
+                <select id="per_page_bottom" name="per_page" onchange="document.getElementById('perPageFormBottom').submit()" class="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                    <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15</option>
+                    <option value="30" {{ request('per_page') == '30' ? 'selected' : '' }}>30</option>
+                    <option value="50" {{ request('per_page', 50) == '50' ? 'selected' : '' }}>50</option>
+                    <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
+                </select>
+            </form>
         </div>
     </div>
 
