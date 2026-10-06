@@ -647,10 +647,12 @@
                         </div>
                     `).join('')}
                     <script>
-                        setTimeout(function() {
-                            window.focus();
-                            window.print();
-                        }, 500);
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.focus();
+                                window.print();
+                            }, 500);
+                        };
                     <\/script>
                 </body>
                 </html>
@@ -812,10 +814,12 @@
                 <body>
                     ${pagesHtml}
                     <script>
-                        setTimeout(function() {
-                            window.focus();
-                            window.print();
-                        }, 500);
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.focus();
+                                window.print();
+                            }, 500);
+                        };
                     <\/script>
                 </body>
                 </html>
