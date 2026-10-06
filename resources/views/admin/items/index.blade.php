@@ -143,14 +143,19 @@
                 {{-- Botões --}}
                 <div class="md:col-span-2 flex gap-1">
                     <button type="submit"
-                            class="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-3 rounded-md shadow-md transition text-sm">
+                            class="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-2 rounded-md shadow-md transition text-sm text-center">
                         Filtrar
                     </button>
 
                     <a href="{{ route('items.index') }}"
-                       class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-md shadow-md transition text-sm text-center">
+                       class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-2 rounded-md shadow-md transition text-sm text-center">
                         Limpar
                     </a>
+                    
+                    <button type="submit" name="export" value="csv" title="Exportar para Excel (CSV)"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md shadow-md transition text-sm">
+                        <i class="fas fa-file-csv"></i>
+                    </button>
                 </div>
 
             </div>

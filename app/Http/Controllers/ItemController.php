@@ -82,6 +82,10 @@ class ItemController extends Controller
             }
         }
 
+        if ($request->has('export') && $request->export === 'csv') {
+            return $this->exportCsv($query);
+        }
+
 		$perPage = $request->input('per_page', 30);
 		$items = $query->orderByDesc('created_at')->paginate($perPage)->withQueryString();
 
@@ -1061,6 +1065,52 @@ class ItemController extends Controller
         return view('admin.items.inventario_conferencia_show', compact('conferencia'));
     }
 
+
+    private function exportCsv($query)
+    {
+        $items = $query->orderByDesc('created_at')->get();
+        $filename = "exportacao_itens_" . date('Y-m-d_H-i-s') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['ID', 'Codigo', 'Brecho', 'Produto', 'Marca', 'Cor', 'Tamanho', 'Status', 'Custo', 'Preco', 'Data Cadastro'];
+
+        $callback = function() use($items, $columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Adiciona BOM para o Excel abrir o UTF-8 corretamente
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            fputcsv($file, $columns, ';');
+
+            foreach ($items as $item) {
+                $row = [
+                    $item->id,
+                    $item->codigo,
+                    $item->brecho ? $item->brecho->nome : '',
+                    $item->produto,
+                    $item->marca,
+                    $item->cor,
+                    $item->tamanho,
+                    $this->getStatusLabel($item->status),
+                    number_format((float)$item->custo, 2, ',', ''),
+                    number_format((float)$item->preco, 2, ',', ''),
+                    $item->created_at ? $item->created_at->format('d/m/Y H:i') : ''
+                ];
+                fputcsv($file, $row, ';');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 
 	private function getStatusLabel($status)
 	{
