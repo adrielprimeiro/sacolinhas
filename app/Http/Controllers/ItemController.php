@@ -1079,7 +1079,7 @@ class ItemController extends Controller
             "Expires"             => "0"
         ];
 
-        $columns = ['ID', 'Codigo', 'Brecho', 'Produto', 'Marca', 'Cor', 'Tamanho', 'Status', 'Custo', 'Preco', 'Data Cadastro'];
+        $columns = ['Produto e Detalhes', 'Preco', 'Cod / SKU'];
 
         $callback = function() use($items, $columns) {
             $file = fopen('php://output', 'w');
@@ -1090,18 +1090,25 @@ class ItemController extends Controller
             fputcsv($file, $columns, ';');
 
             foreach ($items as $item) {
+                $nome = $item->nome_do_produto ?? $item->nome ?? $item->title ?? $item->titulo ?? 'N/A';
+                
+                $detalhesParts = [];
+                if ($item->marca) $detalhesParts[] = $item->marca;
+                if ($item->cor) $detalhesParts[] = $item->cor;
+                if ($item->tamanho) $detalhesParts[] = 'Tam: ' . $item->tamanho;
+                if ($item->estado) $detalhesParts[] = $item->estado;
+                if (!empty($item->localizacao)) $detalhesParts[] = 'Local: ' . $item->localizacao;
+
+                $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '-';
+
+                $col1 = mb_strtoupper($nome, 'UTF-8') . ' - ' . $detalhes;
+                $col2 = number_format((float)($item->preco ?? 0), 2, ',', '');
+                $col3 = $item->codigo ?? '';
+
                 $row = [
-                    $item->id,
-                    $item->codigo,
-                    $item->brecho ? $item->brecho->nome : '',
-                    $item->produto,
-                    $item->marca,
-                    $item->cor,
-                    $item->tamanho,
-                    $this->getStatusLabel($item->status),
-                    number_format((float)$item->custo, 2, ',', ''),
-                    number_format((float)$item->preco, 2, ',', ''),
-                    $item->created_at ? $item->created_at->format('d/m/Y H:i') : ''
+                    $col1,
+                    $col2,
+                    $col3
                 ];
                 fputcsv($file, $row, ';');
             }
