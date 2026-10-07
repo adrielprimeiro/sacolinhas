@@ -714,7 +714,11 @@ REGRAS DE OURO E PADRÕES DA APRESENTADORA (MINHA MANIA):
    - O início da peça K+1 DEVE ser posterior ou igual ao fim da peça K.
 
 5. DURAÇÃO TÍPICA:
-   - A maioria dos cortes dura entre 15 e 60 segundos por peça. Cuidado com cortes longos de mais de 1 minuto, pois quase sempre indicam sobreposição indevida com itens vizinhos.{$fewShotSection}
+   - A maioria dos cortes dura entre 15 e 60 segundos por peça. Cuidado com cortes longos de mais de 1 minuto, pois quase sempre indicam sobreposição indevida com itens vizinhos.
+
+6. PRECISÃO DOS TIMESTAMPS (ALINHAMENTO COM A TRANSCRIÇÃO):
+   - O `cut_start_sec` DEVE coincidir EXATAMENTE com o início (o número antes de 's -' no colchete `[start - end]`) da PRIMEIRA frase em que a apresentadora começou a falar da peça. NUNCA defina um timestamp arbitrário no meio de uma frase, pois isso cortará as primeiras palavras ditas pela apresentadora.
+   - O `cut_end_sec` DEVE coincidir com o término (o número depois de '- ' no colchete) da frase de fechamento da peça atual.{$fewShotSection}
 
 Retorne OBRIGATORIAMENTE um objeto JSON no formato:
 {
@@ -859,28 +863,82 @@ PROMPT;
 
                     if ($start < 0 || $end <= $start) continue;
 
-                    $snippet = trim($entry['snippet'] ?? '') ?: $this->getSnippetForTimeRange($live, $start, $end);
+                    // Alinhamento exato de timestamps com as frases da transcrição (Whisper)
+                    $alignedStart = $start;
+                    $alignedEnd = $end;
+                    $snippetRaw = trim($entry['snippet'] ?? '');
+
+                    // 1. Se fornecido snippet, tenta alinhar o início pela primeira frase do snippet
+                    if (!empty($snippetRaw)) {
+                        $snippetHead = mb_strtolower(trim(mb_substr($snippetRaw, 0, 35)));
+                        foreach ($sentences as $s) {
+                            $sStart = (float) ($s['start'] ?? 0);
+                            $sText = mb_strtolower(trim($s['text'] ?? ''));
+                            if (!empty($sText) && (str_contains($sText, $snippetHead) || str_contains($snippetHead, mb_substr($sText, 0, 20)))) {
+                                $alignedStart = $sStart;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 2. Se o start caiu no meio de uma frase, ajusta para o início real da fala daquela frase
+                    if ($alignedStart === $start) {
+                        foreach ($sentences as $s) {
+                            $sStart = (float) ($s['start'] ?? 0);
+                            $sEnd = (float) ($s['end'] ?? 0);
+                            if ($start >= $sStart && $start <= $sEnd) {
+                                $alignedStart = $sStart;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 3. Ajusta o end para o término da frase correspondente se caiu no meio
+                    foreach ($sentences as $s) {
+                        $sStart = (float) ($s['start'] ?? 0);
+                        $sEnd = (float) ($s['end'] ?? 0);
+                        if ($end >= $sStart && $end <= $sEnd) {
+                            $alignedEnd = $sEnd;
+                            break;
+                        }
+                    }
+
+                    // 4. Garante que não sobrepõe a peça anterior
+                    if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $alignedStart < $lastKnownEndSec) {
+                        $alignedStart = max($lastKnownEndSec, $alignedStart);
+                    }
+                    if ($alignedEnd <= $alignedStart) {
+                        $alignedEnd = max($end, $alignedStart + 5.0);
+                    }
+
+                    $alignedStart = round($alignedStart, 1);
+                    $alignedEnd = round($alignedEnd, 1);
+
+                    $snippet = $this->getSnippetForTimeRange($live, $alignedStart, $alignedEnd);
+                    if (empty($snippet) && !empty($snippetRaw)) {
+                        $snippet = $snippetRaw;
+                    }
 
                     DB::table('live_items')
                         ->where('id', $liveItemId)
                         ->update([
-                            'cut_start_sec' => $start,
-                            'cut_end_sec' => $end,
+                            'cut_start_sec' => $alignedStart,
+                            'cut_end_sec' => $alignedEnd,
                             'transcription_snippet' => $snippet,
                             'updated_at' => now()
                         ]);
 
                     $li = $liveItemsById->get($liveItemId);
-                    $lastKnownEndSec = $end;
+                    $lastKnownEndSec = $alignedEnd;
 
                     $results[] = [
                         'live_item_id' => $liveItemId,
                         'codigo_live' => $li ? $li->codigo_live : ($entry['codigo_live'] ?? ''),
-                        'cut_start_sec' => $start,
-                        'cut_end_sec' => $end,
-                        'cut_start_formatted' => $this->formatSecondsToTime($start),
-                        'cut_end_formatted' => $this->formatSecondsToTime($end),
-                        'duration_sec' => round($end - $start, 1),
+                        'cut_start_sec' => $alignedStart,
+                        'cut_end_sec' => $alignedEnd,
+                        'cut_start_formatted' => $this->formatSecondsToTime($alignedStart),
+                        'cut_end_formatted' => $this->formatSecondsToTime($alignedEnd),
+                        'duration_sec' => round($alignedEnd - $alignedStart, 1),
                         'snippet' => $snippet
                     ];
                 }
@@ -1122,7 +1180,8 @@ PROMPT;
             $sStart = (float) ($s['start'] ?? 0);
             $sEnd = (float) ($s['end'] ?? 0);
 
-            if ($sEnd >= ($start - 1.0) && $sStart <= ($end + 1.0)) {
+            // Frases que sobrepõem o intervalo [start, end] com margem para evitar invasão de frases vizinhas
+            if ($sEnd > ($start + 0.2) && $sStart < ($end - 0.2)) {
                 $text = trim($s['text'] ?? '');
                 if (!empty($text)) {
                     if (empty($firstSentence)) {
@@ -1130,6 +1189,22 @@ PROMPT;
                     }
                     $lastSentence = $text;
                     $matchedTexts[] = $text;
+                }
+            }
+        }
+
+        // Fallback se não pegou nenhuma frase pelo filtro estrito
+        if (empty($matchedTexts)) {
+            foreach ($sentences as $s) {
+                $sStart = (float) ($s['start'] ?? 0);
+                $sEnd = (float) ($s['end'] ?? 0);
+                if ($sEnd >= ($start - 0.5) && $sStart <= ($end + 0.5)) {
+                    $text = trim($s['text'] ?? '');
+                    if (!empty($text)) {
+                        if (empty($firstSentence)) $firstSentence = $text;
+                        $lastSentence = $text;
+                        $matchedTexts[] = $text;
+                    }
                 }
             }
         }
