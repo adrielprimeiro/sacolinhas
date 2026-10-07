@@ -119,26 +119,26 @@
                         <div class="flex-1 min-w-0">
                             {{-- Linha 1: Badges de Código e Comprador(a) --}}
                             <div class="flex flex-wrap items-center gap-1.5 mb-1">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff;">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff;">
                                     #{{ $item['codigo_live'] }}
                                 </span>
 
                                 @if($item['is_sold'])
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 max-w-[140px] sm:max-w-[180px] truncate" style="background-color: #d1fae5; color: #065f46;" title="{{ $item['buyer_name'] }}">
-                                        <i class="fas fa-user text-[9px] text-emerald-700"></i>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 max-w-[150px] sm:max-w-[200px] truncate" style="background-color: #d1fae5; color: #065f46;" title="{{ $item['buyer_name'] }}">
+                                        <i class="fas fa-user text-[10px] text-emerald-700"></i>
                                         <span class="truncate">{{ $item['buyer_name'] }}</span>
                                     </span>
                                 @endif
                             </div>
 
-                            {{-- Linha 2: Nome do Produto --}}
-                            <h3 class="text-xs sm:text-sm font-bold text-gray-900 leading-snug line-clamp-1" title="{{ $item['item_name'] }}">
+                            {{-- Linha 2: Nome / Descrição do Produto --}}
+                            <h3 class="text-sm sm:text-base font-bold text-gray-900 leading-snug line-clamp-2" title="{{ $item['item_name'] }}">
                                 {{ $item['item_name'] }}
                             </h3>
 
                             {{-- Linha 3: Cód SKU + Preço --}}
-                            <p class="text-[11px] sm:text-xs font-semibold text-gray-500 mt-0.5">
-                                Cód: <span class="text-gray-700 font-bold">{{ $item['item_sku'] }}</span> • <span class="text-indigo-600 font-black">R$ {{ $item['item_price'] }}</span>
+                            <p class="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
+                                Cód: <span class="text-gray-800 font-bold">{{ $item['item_sku'] }}</span> • <span class="text-indigo-600 font-black">R$ {{ $item['item_price'] }}</span>
                             </p>
                         </div>
 
