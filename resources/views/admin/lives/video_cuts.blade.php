@@ -63,13 +63,13 @@
                 </div>
                 <div class="w-px h-5 bg-gray-200"></div>
                 <div class="text-center">
-                    <div class="text-[10px] uppercase font-bold text-amber-600">Marcados</div>
-                    <div id="stat-items-with-cuts" class="text-sm font-black text-amber-700">{{ $stats['items_with_cuts'] }}</div>
+                    <div class="text-[10px] uppercase font-bold text-teal-700">Minutados (IA)</div>
+                    <div id="stat-items-with-cuts" class="text-sm font-black text-teal-800">{{ $stats['items_with_cuts'] }}</div>
                 </div>
                 <div class="w-px h-5 bg-gray-200"></div>
                 <div class="text-center">
-                    <div class="text-[10px] uppercase font-bold text-green-600">Prontos</div>
-                    <div id="stat-items-rendered" class="text-sm font-black text-green-700">{{ $stats['items_rendered'] }}</div>
+                    <div class="text-[10px] uppercase font-bold text-green-700">Vídeos Prontos</div>
+                    <div id="stat-items-rendered" class="text-sm font-black text-green-800">{{ $stats['items_rendered'] }}</div>
                 </div>
             </div>
 
