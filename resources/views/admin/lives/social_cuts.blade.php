@@ -92,9 +92,12 @@
     @else
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             @foreach($liveItems as $item)
-                <div class="cut-item-card bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all flex flex-col justify-between"
+                <div class="cut-item-card bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all flex flex-col justify-between cursor-pointer group"
                      x-show="matchesFilter({{ json_encode($item) }})"
-                     x-transition>
+                     x-transition
+                     @if(!empty($item['video_cut_url']))
+                         onclick="openPreviewModal('{{ $item['video_cut_url'] }}', '{{ addslashes($item['item_name']) }}', '#{{ $item['codigo_live'] }}')"
+                     @endif>
                     
                     <div>
                         <div class="flex items-start gap-3">
@@ -103,65 +106,42 @@
                                 <img src="{{ $item['item_image'] }}" 
                                      alt="{{ $item['item_name'] }}" 
                                      loading="lazy"
-                                     class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-gray-100 shadow-xs bg-gray-50">
+                                     class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-gray-100 shadow-xs bg-gray-50 group-hover:opacity-95 transition">
                                 
-                                {{-- Botão Play Flutuante na imagem se houver vídeo pronto --}}
-                                @if($item['is_ready'] && !empty($item['video_cut_url']))
-                                    <button type="button"
-                                            onclick="openPreviewModal('{{ $item['video_cut_url'] }}', '{{ addslashes($item['item_name']) }}', '#{{ $item['codigo_live'] }}')"
-                                            class="absolute inset-0 m-auto w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-pink-600 hover:scale-110 transition shadow-md backdrop-blur-xs"
-                                            title="Assistir prévia">
+                                {{-- Ícone Play Flutuante na imagem --}}
+                                @if(!empty($item['video_cut_url']))
+                                    <div class="absolute inset-0 m-auto w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-xs group-hover:bg-pink-600 group-hover:scale-110 transition shadow-md backdrop-blur-xs">
                                         <i class="fas fa-play ml-0.5"></i>
-                                    </button>
+                                    </div>
                                 @endif
                             </div>
 
                             {{-- Detalhes do Produto --}}
                             <div class="flex-1 min-w-0">
                                 
-                                {{-- Linha 1: Badges de Código e Compradora / Disponível --}}
+                                {{-- Linha 1: Badges de Código e Comprador(a) (se houver cliente anexado) --}}
                                 <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
                                     {{-- Badge #código --}}
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-xs">
                                         #{{ $item['codigo_live'] }}
                                     </span>
 
-                                    {{-- Badge Comprador(a) / Não Vendido --}}
+                                    {{-- Badge Comprador(a) (apenas se houver cliente anexado) --}}
                                     @if($item['is_sold'])
                                         <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 max-w-[170px] truncate" title="{{ $item['buyer_name'] }}">
                                             <i class="fas fa-user text-[10px] text-emerald-700"></i>
                                             <span class="truncate">{{ $item['buyer_name'] }}</span>
                                         </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                                            <i class="fas fa-tag text-[10px] text-amber-700"></i>
-                                            <span>Disponível</span>
-                                        </span>
                                     @endif
                                 </div>
 
-                                {{-- Linha 2: Badge Vídeo Pronto --}}
-                                <div class="mb-1">
-                                    @if($item['is_ready'])
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-black bg-emerald-600 text-white shadow-xs">
-                                            <i class="fas fa-check-circle text-[11px]"></i>
-                                            <span>Vídeo Pronto</span>
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                                            <i class="fas fa-clock text-gray-400"></i>
-                                            <span>Sem vídeo</span>
-                                        </span>
-                                    @endif
-                                </div>
-
-                                {{-- Linha 3: Nome do Produto --}}
+                                {{-- Linha 2: Nome do Produto --}}
                                 <h3 class="text-sm sm:text-base font-bold text-gray-900 leading-tight line-clamp-2 mt-1" title="{{ $item['item_name'] }}">
                                     {{ $item['item_name'] }}
                                 </h3>
 
-                                {{-- Linha 4: Cód SKU + Preço --}}
-                                <p class="text-xs sm:text-sm font-semibold text-gray-500 mt-0.5">
+                                {{-- Linha 3: Cód SKU + Preço --}}
+                                <p class="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
                                     Cód: <span class="text-gray-700 font-bold">{{ $item['item_sku'] }}</span> • <span class="text-indigo-600 font-black">R$ {{ $item['item_price'] }}</span>
                                 </p>
                             </div>
@@ -169,33 +149,13 @@
                     </div>
 
                     {{-- LINHA DE AÇÃO: BOTÃO BAIXAR VÍDEO --}}
-                    <div class="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-                        @if($item['is_ready'])
-                            {{-- Botão Principal de Download --}}
-                            <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
-                               download="{{ $item['download_filename'] }}"
-                               class="flex-1 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow-sm transition">
-                                <i class="fas fa-download"></i>
-                                <span>Baixar Vídeo</span>
-                            </a>
-
-                            {{-- Botão de Prévia --}}
-                            @if(!empty($item['video_cut_url']))
-                                <button type="button" 
-                                        onclick="openPreviewModal('{{ $item['video_cut_url'] }}', '{{ addslashes($item['item_name']) }}', '#{{ $item['codigo_live'] }}')"
-                                        class="inline-flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 font-bold py-2.5 px-3 rounded-xl text-xs border border-indigo-200 transition">
-                                    <i class="fas fa-play"></i>
-                                    <span class="hidden sm:inline">Assistir</span>
-                                </button>
-                            @endif
-                        @else
-                            <button type="button" 
-                                    disabled 
-                                    class="w-full inline-flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 font-semibold py-2 px-3 rounded-xl text-xs cursor-not-allowed">
-                                <i class="fas fa-clock"></i>
-                                <span>Corte ainda não renderizado</span>
-                            </button>
-                        @endif
+                    <div class="mt-3 pt-3 border-t border-gray-100 flex items-center" onclick="event.stopPropagation()">
+                        <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
+                           download="{{ $item['download_filename'] }}"
+                           class="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow-sm transition">
+                            <i class="fas fa-download"></i>
+                            <span>Baixar Vídeo</span>
+                        </a>
                     </div>
 
                 </div>
