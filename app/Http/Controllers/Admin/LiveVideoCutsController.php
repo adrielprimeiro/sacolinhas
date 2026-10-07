@@ -1151,7 +1151,7 @@ PROMPT;
         $live = Live::findOrFail($liveId);
         $sentences = json_decode($live->transcription_raw, true) ?: [];
         $startCode = $request->input('start_code') ? (int) $request->input('start_code') : null;
-        $onlyUnreviewed = (bool) $request->input('only_unreviewed');
+        $onlyUnreviewed = $request->has('only_unreviewed') ? (bool) $request->input('only_unreviewed') : true;
 
         // Se a transcrição estiver vazia, dispara transcrição assíncrona do vídeo
         if (empty($sentences)) {
