@@ -965,13 +965,58 @@ PROMPT;
                         }
                     }
 
-                    // 3. Ajusta o end para o término da frase correspondente se caiu no meio
-                    foreach ($sentences as $s) {
-                        $sStart = (float) ($s['start'] ?? 0);
-                        $sEnd = (float) ($s['end'] ?? 0);
-                        if ($end >= $sStart && $end <= $sEnd) {
-                            $alignedEnd = $sEnd;
-                            break;
+                    // 3. Ajusta o end: se a peça menciona seu código, o término do corte deve ser logo na conclusão dessa frase
+                    $liCode = $li ? (string)$li->codigo_live : (string)($entry['codigo_live'] ?? '');
+                    $foundCodeSentence = false;
+
+                    if (!empty($liCode)) {
+                        $codeVariations = $this->getCodeSearchVariations($liCode);
+                        $cRegexList = [];
+                        foreach ($codeVariations as $cv) {
+                            $cRegexList[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)\s*' . preg_quote($cv, '/');
+                        }
+                        $cRegex = '/\b(?:' . implode('|', $cRegexList) . ')\b/iu';
+
+                        $mentionIndex = null;
+                        foreach ($sentences as $sIdx => $s) {
+                            $sStart = (float) ($s['start'] ?? 0);
+                            $sEnd = (float) ($s['end'] ?? 0);
+                            $sText = $s['text'] ?? '';
+
+                            if ($sStart >= ($alignedStart - 5.0) && $sStart <= ($end + 10.0) && preg_match($cRegex, $sText)) {
+                                $mentionIndex = $sIdx;
+                                $alignedEnd = $sEnd;
+                                $foundCodeSentence = true;
+                                break;
+                            }
+                        }
+
+                        // Se encontrou a menção do código, verifica se a frase anterior era o início da apresentação da peça
+                        if ($mentionIndex !== null && $mentionIndex > 0) {
+                            $transPatterns = ['olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'mais uma', 'essa daqui', 'esse daqui', 'próxima peça', 'vamos para'];
+                            for ($bk = $mentionIndex - 1; $bk >= max(0, $mentionIndex - 3); $bk--) {
+                                $bkStart = (float) ($sentences[$bk]['start'] ?? 0);
+                                if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $bkStart < ($lastKnownEndSec - 2.0)) break;
+                                
+                                $bkText = mb_strtolower($sentences[$bk]['text'] ?? '');
+                                foreach ($transPatterns as $tp) {
+                                    if (str_contains($bkText, $tp)) {
+                                        $alignedStart = $bkStart;
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!$foundCodeSentence) {
+                        foreach ($sentences as $s) {
+                            $sStart = (float) ($s['start'] ?? 0);
+                            $sEnd = (float) ($s['end'] ?? 0);
+                            if ($end >= $sStart && $end <= $sEnd) {
+                                $alignedEnd = $sEnd;
+                                break;
+                            }
                         }
                     }
 
