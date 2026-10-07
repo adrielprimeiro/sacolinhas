@@ -1567,6 +1567,20 @@ class ConciliacaoService
                     if ($sugestoes->isNotEmpty()) {
                         $sug = $sugestoes->first();
                         if (isset($sug->score) && $sug->score >= 140) {
+                            // Trava de Segurança: Transferências NUNCA podem ser auto-conciliadas de forma unilateral/solta por regra padrão!
+                            $isTransferCat = false;
+                            if (!empty($sug->classificacao_financeira_id)) {
+                                $catObj = \App\Models\ClassificacaoFinanceira::find($sug->classificacao_financeira_id);
+                                if ($catObj && (str_contains(mb_strtolower($catObj->nome, 'UTF-8'), 'transfer') || $catObj->codigo_contabil === '9.99')) {
+                                    $isTransferCat = true;
+                                }
+                            }
+
+                            if ($isTransferCat) {
+                                Log::info("Auto-conciliação unilateral por regra ignorada para Transação #{$tLock->id}: Transferências exigem paridade entre contas.");
+                                return false;
+                            }
+
                             if (!empty($sug->is_virtual)) {
                                 $this->vincularNovoLancamento(
                                     $tLock->id,
@@ -1823,18 +1837,10 @@ class ConciliacaoService
                 }
 
                 $entradaMatched = null;
-                if ($entradasCandidatas->count() === 1) {
-                    $entradaMatched = $entradasCandidatas->first();
-                } else {
-                    foreach ($entradasCandidatas as $cand) {
-                        $descLower = mb_strtolower($cand->descricao, 'UTF-8');
-                        if (str_contains($descLower, 'inter') || str_contains($descLower, 'mercado') || str_contains($descLower, 'mania de melissa') || str_contains($descLower, 'transf')) {
-                            $entradaMatched = $cand;
-                            break;
-                        }
-                    }
-                    if (!$entradaMatched) {
-                        $entradaMatched = $entradasCandidatas->first();
+                foreach ($entradasCandidatas as $cand) {
+                    if ($this->isTransacaoTransferenciaContasProprias($saidaLock, $cand)) {
+                        $entradaMatched = $cand;
+                        break;
                     }
                 }
 
@@ -1905,6 +1911,95 @@ class ConciliacaoService
             }
         }
 
+        // Etapa 2: Resolver extratos pendentes que tenham contrapartida de movimentação de transferência solta na outra conta
+        $pendentesQuery = TransacaoExtrato::where('status', 'pendente');
+        if ($contaBancariaId) {
+            $pendentesQuery->where('conta_bancaria_id', $contaBancariaId);
+        }
+        $pendentesRestantes = $pendentesQuery->get();
+
+        foreach ($pendentesRestantes as $tPendente) {
+            $valorCheck = (float) ($tPendente->valor_bruto ?? $tPendente->valor);
+            $dataMinCheck = Carbon::parse($tPendente->data)->subDays(3)->toDateString();
+            $dataMaxCheck = Carbon::parse($tPendente->data)->addDays(3)->toDateString();
+
+            // Procurar Movimentação de transferência sem transacao_extrato_id em OUTRA conta bancária
+            $movOrfa = \App\Models\Movimentacao::where('conta_bancaria_id', '!=', $tPendente->conta_bancaria_id)
+                ->whereNull('transacao_extrato_id')
+                ->whereBetween('data_pagamento', [$dataMinCheck, $dataMaxCheck])
+                ->whereRaw('ABS(valor_pago - ?) < 0.05', [$valorCheck])
+                ->whereHas('lancamento', function($q) use ($catTransferencia) {
+                    $q->where('classificacao_financeira_id', $catTransferencia->id)
+                      ->orWhere('descricao', 'like', '%Transfer%');
+                })
+                ->first();
+
+            if ($movOrfa) {
+                $linked = \DB::transaction(function() use ($tPendente, $movOrfa) {
+                    $tLock = TransacaoExtrato::lockForUpdate()->find($tPendente->id);
+                    if (!$tLock || $tLock->status === 'conciliado') return false;
+
+                    $movOrfa->update(['transacao_extrato_id' => $tLock->id]);
+                    $tLock->update([
+                        'status' => 'conciliado',
+                        'movimentacao_id' => $movOrfa->id
+                    ]);
+                    Log::info("Auto-vinculação de extrato pendente a contrapartida de transferência solta realizada: Transacao #{$tLock->id} -> Movimentacao #{$movOrfa->id}");
+                    return true;
+                });
+                if ($linked) {
+                    $count++;
+                }
+            }
+        }
+
         return $count;
+    }
+
+    /**
+     * Valida estritamente se duas transações de extrato (saída e entrada) são genuinamente uma transferência entre contas próprias.
+     */
+    private function isTransacaoTransferenciaContasProprias(TransacaoExtrato $saida, TransacaoExtrato $entrada): bool
+    {
+        $saidaDesc = mb_strtolower($saida->descricao, 'UTF-8');
+        $entradaDesc = mb_strtolower($entrada->descricao, 'UTF-8');
+
+        // 1. Rejeição explícita: Pix enviado/recebido de Terceiro/Pessoa Física com chave CPF (ex: Cp :00360305-Fabio dos Santos)
+        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $saidaDesc) && !str_contains($saidaDesc, 'mania') && !str_contains($saidaDesc, 'sdb')) {
+            return false;
+        }
+        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $entradaDesc) && !str_contains($entradaDesc, 'mania') && !str_contains($entradaDesc, 'sdb')) {
+            return false;
+        }
+
+        // 2. Termos obrigatórios de contas próprias / bancos da empresa
+        $termosContasProprias = [
+            'inter', 'banco inter', 'mercado pago', 'mercadopago', 'mp', 
+            'mania de melissa', 'minha mania', 'sdb comercio', 
+            'mesma titularidade', 'entre contas', 'aplicacao', 'resgate', 'transf'
+        ];
+
+        $saidaTemTermoProprio = false;
+        foreach ($termosContasProprias as $t) {
+            if (str_contains($saidaDesc, $t)) {
+                $saidaTemTermoProprio = true;
+                break;
+            }
+        }
+
+        $entradaTemTermoProprio = false;
+        foreach ($termosContasProprias as $t) {
+            if (str_contains($entradaDesc, $t)) {
+                $entradaTemTermoProprio = true;
+                break;
+            }
+        }
+
+        // Se nenhuma das descrições menciona um termo de transferência entre contas próprias, REJEITA auto-conciliação!
+        if (!$saidaTemTermoProprio && !$entradaTemTermoProprio) {
+            return false;
+        }
+
+        return true;
     }
 }

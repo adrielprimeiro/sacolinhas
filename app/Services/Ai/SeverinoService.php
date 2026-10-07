@@ -110,6 +110,16 @@ class SeverinoService
                     ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
                     ->sum('s.quantity');
 
+                $valorVencidoTotal = \Illuminate\Support\Facades\DB::table('sacolinhas as s')
+                    ->where('s.status', '!=', 'pedido')
+                    ->where(function ($query) {
+                        $query->whereNull('s.obs')
+                              ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                    })
+                    ->whereNotNull('s.add_at')
+                    ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                    ->sum(\Illuminate\Support\Facades\DB::raw('s.price * s.quantity'));
+
                 $itensDisponiveis = \Illuminate\Support\Facades\DB::table('items')->where('status', 'disponivel')->count();
                 
                 $contaCarteira = \App\Models\ContaBancaria::where('nome', 'like', '%Carteira%')->first();
@@ -122,6 +132,7 @@ class SeverinoService
                        "- Sacolinhas Vencidas (com itens > 31 dias): " . $sacolinhasVencidas . "\n" .
                        "- Sacolinhas Sem Itens Vencidos (Em Dia): " . $sacolinhasEmDia . "\n" .
                        "- Total de Peças/Itens Vencidos nas Sacolinhas: " . (int)$itensVencidos . "\n" .
+                       "- Valor Total das Peças Vencidas nas Sacolinhas: R$ " . number_format($valorVencidoTotal, 2, ',', '.') . "\n" .
                        "- Peças Disponíveis em Estoque: " . $itensDisponiveis . "\n" .
                        "- Saldo Consolidado da Carteira Cliente (Painel): R$ " . number_format($saldoCarteira, 2, ',', '.') . "\n";
             } catch (\Exception $e) {
@@ -276,7 +287,7 @@ class SeverinoService
                     ],
                     [
                         "name" => "resumo_sacolinhas",
-                        "description" => "Retorna o resumo completo de sacolinhas do sistema: total de clientes com sacolinhas abertas, quantas estão vencidas (> 31 dias), total de peças nas sacolinhas e total de peças vencidas.",
+                        "description" => "Retorna o resumo completo de sacolinhas do sistema: total de clientes com sacolinhas abertas, quantas estão vencidas (> 31 dias), total de peças nas sacolinhas, total de peças vencidas e o VALOR TOTAL GERAL (em R$) de todas as peças vencidas.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => (object)[]
@@ -292,11 +303,11 @@ class SeverinoService
                     ],
                     [
                         "name" => "listar_sacolinhas_vencidas",
-                        "description" => "Retorna a lista dos clientes com sacolinhas vencidas (com peças paradas há mais de 31 dias), ordenadas pelo maior valor vencido, com quantidade de peças, valor total e tempo de atraso.",
+                        "description" => "Retorna o valor total geral de todas as sacolinhas vencidas no sistema e o ranking detalhado dos clientes com maior valor vencido, quantidade de peças, valores e tempo de atraso.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "limite" => ["type" => "INTEGER", "description" => "Quantidade de clientes para retornar (padrão: 10, máximo: 30)"]
+                                "limite" => ["type" => "INTEGER", "description" => "Quantidade de clientes para retornar no ranking (padrão: 10, máximo: 30)"]
                             ]
                         ]
                     ],
@@ -597,7 +608,7 @@ class SeverinoService
                     "model" => "gemini-2.5-flash",
                     "name" => "Google Gemini 2.5 Flash",
                     "default_score" => 30,
-                    "timeout" => 25
+                    "timeout" => 12
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-flash-latest'))) {
@@ -607,7 +618,7 @@ class SeverinoService
                     "model" => "gemini-flash-latest",
                     "name" => "Google Gemini Flash Latest",
                     "default_score" => 29,
-                    "timeout" => 25
+                    "timeout" => 12
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.1-flash-lite'))) {
@@ -617,7 +628,7 @@ class SeverinoService
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
                     "default_score" => 28,
-                    "timeout" => 15
+                    "timeout" => 10
                 ];
             }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash'))) {
@@ -627,7 +638,7 @@ class SeverinoService
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
                     "default_score" => 26,
-                    "timeout" => 18
+                    "timeout" => 10
                 ];
             }
         }
@@ -637,26 +648,18 @@ class SeverinoService
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "openai/gpt-oss-20b",
-                "name" => "Groq GPT OSS 20B",
+                "model" => "llama-3.3-70b-versatile",
+                "name" => "Groq Llama 3.3 70B Versatile",
                 "default_score" => 15,
-                "timeout" => 7
+                "timeout" => 8
             ];
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "qwen/qwen3.8-27b",
-                "name" => "Groq Qwen 27B",
+                "model" => "llama-3.1-8b-instant",
+                "name" => "Groq Llama 3.1 8B Instant",
                 "default_score" => 14,
-                "timeout" => 7
-            ];
-            $providersToTry[] = [
-                "url" => "https://api.groq.com/openai/v1/chat/completions",
-                "key" => $groqKey,
-                "model" => "openai/gpt-oss-120b",
-                "name" => "Groq GPT OSS 120B",
-                "default_score" => 13,
-                "timeout" => 9
+                "timeout" => 6
             ];
         }
 
@@ -876,6 +879,14 @@ class SeverinoService
                             continue; // Tenta o PRÓXIMO provedor imediatamente
                         }
                         
+                        if ($response->status() == 503) {
+                            \Illuminate\Support\Facades\Cache::put('gemini_model_exhausted_' . md5($provider['model']), true, now()->addMinutes(10));
+                            $provider['score'] = -50;
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, -50, now()->addMinutes(10));
+                            Log::warning("Provedor {$provider['name']} com alta demanda no Google (503). Desativando temporariamente por 10 minutos.");
+                            continue;
+                        }
+
                         // OUTRO ERRO
                         $provider['score'] = max($provider['score'] - 5, -30);
                         \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(15));
@@ -1724,6 +1735,16 @@ class SeverinoService
                         ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
                         ->sum('s.quantity');
 
+                    $valorTotalVencido = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotNull('s.add_at')
+                        ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) < NOW()")
+                        ->sum(DB::raw('s.price * s.quantity'));
+
                     $totalItens = DB::table('sacolinhas')->sum('quantity');
 
                     return [
@@ -1732,6 +1753,7 @@ class SeverinoService
                         "sacolinhas_em_dia" => (int) ($totalSacolinhas - $sacolinhasVencidas),
                         "total_pecas_nas_sacolinhas" => (int) $totalItens,
                         "total_pecas_vencidas" => (int) $itensVencidos,
+                        "valor_total_vencido_geral" => round((float) $valorTotalVencido, 2),
                         "regra_vencimento" => "Item adicionado ha mais de 31 dias (add_at + 31 dias < agora)"
                     ];
 
@@ -1778,11 +1800,28 @@ class SeverinoService
 
                 case "listar_sacolinhas_vencidas":
                     $limite = max(1, min(30, (int)($args["limite"] ?? 10)));
+
+                    $totaisGerais = DB::table('sacolinhas as s')
+                        ->where('s.status', '!=', 'pedido')
+                        ->where(function ($query) {
+                            $query->whereNull('s.obs')
+                                  ->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                        })
+                        ->whereNotNull('s.add_at')
+                        ->whereRaw("DATE_ADD(s.add_at, INTERVAL 31 DAY) <= CURDATE()")
+                        ->selectRaw("
+                            COUNT(DISTINCT s.user_id) as total_clientes_vencidos,
+                            SUM(s.quantity) as total_pecas_vencidas,
+                            ROUND(SUM(s.quantity * s.price), 2) as valor_total_geral
+                        ")
+                        ->first();
+
                     $vencidas = DB::select("
                         SELECT 
                             u.id as user_id,
                             COALESCE(NULLIF(u.nome_cliente, ''), u.name) as cliente,
                             COUNT(s.id) as itens_vencidos,
+                            SUM(s.quantity) as total_pecas_vencidas,
                             ROUND(SUM(s.quantity * s.price), 2) as valor_vencido,
                             DATEDIFF(CURDATE(), MIN(s.add_at)) as dias_mais_antigo
                         FROM sacolinhas s
@@ -1801,25 +1840,22 @@ class SeverinoService
                         return ["mensagem" => "Nenhuma sacolinha vencida encontrada no momento! Todas estão em dia."];
                     }
 
-                    $totalClientes = count($vencidas);
-                    $totalValor = array_sum(array_column($vencidas, 'valor_vencido'));
-                    $totalItens = array_sum(array_column($vencidas, 'itens_vencidos'));
-
                     $lista = [];
                     foreach ($vencidas as $idx => $v) {
                         $lista[] = [
                             "posicao" => $idx + 1,
                             "cliente" => $v->cliente,
-                            "itens_vencidos" => (int)$v->itens_vencidos,
+                            "pecas_vencidas" => (int)$v->total_pecas_vencidas,
                             "valor_vencido" => (float)$v->valor_vencido,
                             "dias_parado" => (int)$v->dias_mais_antigo
                         ];
                     }
 
                     return [
-                        "total_clientes_listados" => $totalClientes,
-                        "valor_total_amostra" => round($totalValor, 2),
-                        "total_itens_amostra" => $totalItens,
+                        "total_geral_clientes_vencidos" => (int) ($totaisGerais->total_clientes_vencidos ?? count($vencidas)),
+                        "total_geral_pecas_vencidas" => (int) ($totaisGerais->total_pecas_vencidas ?? 0),
+                        "valor_total_geral_todas_vencidas" => (float) ($totaisGerais->valor_total_geral ?? 0),
+                        "total_clientes_listados_no_ranking" => count($vencidas),
                         "ranking_clientes_vencidos" => $lista
                     ];
 
