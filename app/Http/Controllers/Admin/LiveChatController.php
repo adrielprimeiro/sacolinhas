@@ -549,14 +549,17 @@ class LiveChatController extends Controller
     public function updateItemPrice(Request $request)
     {
         $request->validate([
-            'live_id' => 'nullable|exists:lives,id',
-            'item_id' => 'nullable|exists:items,id',
+            'live_id' => 'nullable',
+            'item_id' => 'nullable',
             'code' => 'nullable|string',
+            'codigo_live' => 'nullable|string',
             'price' => 'required'
         ]);
 
-        $liveId = $request->input('live_id');
-        $itemId = $request->input('item_id');
+        $liveId = $request->filled('live_id') ? (int)$request->input('live_id') : null;
+        $itemId = $request->filled('item_id') ? (int)$request->input('item_id') : null;
+        $code = $request->filled('code') ? trim((string)$request->input('code')) : null;
+        $codigoLive = $request->filled('codigo_live') ? trim((string)$request->input('codigo_live')) : null;
         $rawPrice = $request->input('price');
 
         // Formata o preço recebido (suporta "45,00", "45.00", "R$ 45,00", etc)
@@ -578,8 +581,13 @@ class LiveChatController extends Controller
             $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
         }
 
-        if (!$itemId && $request->filled('code')) {
-            $code = trim((string)$request->input('code'));
+        $item = null;
+        if ($itemId) {
+            $item = Item::find($itemId);
+        }
+
+        // 1. Tenta buscar por código ou id da peça
+        if (!$item && $code) {
             $cleanCode = ltrim($code, '#');
             $cleanCode = trim($cleanCode);
 
@@ -597,12 +605,35 @@ class LiveChatController extends Controller
                       ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
                 })
                 ->first();
-            if ($item) {
-                $itemId = $item->id;
+        }
+
+        // 2. Tenta buscar por codigo_live vinculado a esta live na tabela live_items
+        if (!$item && $liveId && Schema::hasTable('live_items')) {
+            $searchTerms = array_unique(array_filter([$codigoLive, $code, $itemId]));
+            foreach ($searchTerms as $term) {
+                $cleanTerm = ltrim(trim((string)$term), '#');
+                $liveItemRow = DB::table('live_items')
+                    ->where('live_id', $liveId)
+                    ->where(function($q) use ($term, $cleanTerm) {
+                        $q->where('codigo_live', $term)
+                          ->orWhere('codigo_live', $cleanTerm)
+                          ->orWhere('codigo_live', mb_strtolower($term, 'UTF-8'))
+                          ->orWhere('codigo_live', mb_strtolower($cleanTerm, 'UTF-8'));
+                    })
+                    ->first();
+
+                if ($liveItemRow && $liveItemRow->item_id) {
+                    $item = Item::find($liveItemRow->item_id);
+                    if ($item) break;
+                }
             }
         }
 
-        $item = $itemId ? Item::find($itemId) : null;
+        // 3. Busca genérica por ID se o código for puramente numérico
+        if (!$item && $code && is_numeric($code)) {
+            $item = Item::find((int)$code);
+        }
+
         if (!$item) {
             return response()->json([
                 'success' => false,

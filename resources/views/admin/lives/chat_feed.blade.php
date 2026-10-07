@@ -1531,7 +1531,9 @@
         const cleanId = String(identifier).trim();
         const item = bgScanItems.find(x => x.id === cleanId) 
             || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
-            || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId);
+            || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId)
+            || bgScanItems.find(x => x.liveCode && String(x.liveCode).toUpperCase() === cleanId.toUpperCase())
+            || bgScanItems.find(x => cleanId.startsWith('scan_db_') && x.id === cleanId);
 
         const modal = document.getElementById('modal-edit-item-price');
         if (!modal) return;
@@ -1621,6 +1623,9 @@
             return;
         }
 
+        const item = bgScanItems.find(x => x.id === scanId) 
+            || bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId == itemId) || (x.liveCode && x.liveCode === code));
+
         const btn = document.getElementById('btn-save-edit-price');
         const origBtnHtml = btn ? btn.innerHTML : '';
         if (btn) {
@@ -1636,9 +1641,10 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({
-                    live_id: liveId,
-                    item_id: itemId || null,
-                    code: code || null,
+                    live_id: liveId ? parseInt(liveId) : null,
+                    item_id: itemId ? parseInt(itemId) : (item && item.itemId ? parseInt(item.itemId) : null),
+                    code: code || (item ? item.code : null),
+                    codigo_live: item ? item.liveCode : null,
                     price: priceVal
                 })
             });
@@ -1648,14 +1654,15 @@
                 const updatedPrice = data.data.formatted_price;
 
                 // 1. Atualiza no array bgScanItems
-                const item = bgScanItems.find(x => x.id === scanId) || bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId == itemId));
                 if (item) {
                     item.productPrice = updatedPrice;
+                    item.preco = data.data.price;
                 }
 
                 // 2. Atualiza no cache scanProductCache
-                if (code) {
-                    const cacheKey = String(code).trim().toUpperCase();
+                const prodCode = code || (item ? item.code : null);
+                if (prodCode) {
+                    const cacheKey = String(prodCode).trim().toUpperCase();
                     if (scanProductCache[cacheKey]) {
                         scanProductCache[cacheKey].formatted_price = updatedPrice;
                         scanProductCache[cacheKey].preco = data.data.price;
@@ -1664,7 +1671,11 @@
 
                 // 3. Atualiza na UI do card de bipagem
                 let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
-                if (!itemEl && code) itemEl = document.querySelector(`[data-code="${code}"]`);
+                if (!itemEl && prodCode) itemEl = document.querySelector(`[data-code="${prodCode}"]`);
+                if (!itemEl && itemId) itemEl = document.querySelector(`[data-item-id="${itemId}"]`);
+                if (!itemEl && item && item.id) itemEl = document.querySelector(`[data-scan-id="${item.id}"]`);
+                if (!itemEl && item && item.code) itemEl = document.querySelector(`[data-code="${item.code}"]`);
+
                 if (itemEl && item) {
                     const detailsEl = itemEl.querySelector('.scan-item-details');
                     if (detailsEl) {
@@ -1686,7 +1697,7 @@
                     let hasLinkedUpdate = false;
                     window.liveChatMessages.forEach(m => {
                         const mCode = String(m.linked_code || '').replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim().toUpperCase();
-                        if ((itemId && m.linked_item_id == itemId) || (code && mCode === String(code).trim().toUpperCase())) {
+                        if ((itemId && m.linked_item_id == itemId) || (prodCode && mCode === String(prodCode).trim().toUpperCase())) {
                             m.linked_product_preco = updatedPrice;
                             hasLinkedUpdate = true;
                         }
@@ -3287,6 +3298,26 @@
                                 localItem.buyerPhone = serverItem.buyer_phone || null;
                                 localItem.hasPhone = Boolean(serverItem.has_phone);
                                 if (serverItem.codigo_live) localItem.liveCode = serverItem.codigo_live;
+                                if (serverItem.productPrice && localItem.productPrice !== serverItem.productPrice) {
+                                    localItem.productPrice = serverItem.productPrice;
+                                    localItem.preco = serverItem.preco;
+                                    let itemEl = document.querySelector(`[data-scan-id="${localItem.id}"]`) || document.querySelector(`[data-code="${localItem.code}"]`);
+                                    if (itemEl) {
+                                        const detailsEl = itemEl.querySelector('.scan-item-details');
+                                        if (detailsEl) {
+                                            const fakeProd = {
+                                                name: localItem.productName || serverItem.productName,
+                                                description: localItem.productDetails || serverItem.productDetails,
+                                                tamanho: localItem.tamanho || serverItem.tamanho,
+                                                marca: localItem.marca || serverItem.marca,
+                                                cor: localItem.cor || serverItem.cor,
+                                                formatted_price: serverItem.productPrice,
+                                                preco: serverItem.preco
+                                            };
+                                            detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, localItem.id);
+                                        }
+                                    }
+                                }
                             } else {
                                 // Item novo vindo do banco (bipado em outra tela como Contador ou Bipagem)
                                 const emptyState = document.getElementById('scan-empty-state');
