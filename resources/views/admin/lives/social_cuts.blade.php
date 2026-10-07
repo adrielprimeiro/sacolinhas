@@ -6,50 +6,23 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2" x-data="socialCutsApp()">
 
-    {{-- CABEÇALHO COM FILTROS E SELEÇÃO DE LIVE --}}
-    <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 mb-5">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-            <div>
-                <h1 class="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
-                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-pink-100 text-pink-600 text-sm">
-                        <i class="fas fa-film"></i>
-                    </span>
-                    Cortes para Redes Sociais
-                </h1>
-                <p class="text-xs sm:text-sm text-gray-500 mt-0.5">
-                    Vídeos prontos para publicação rápida em Stories, Reels, TikTok e WhatsApp.
-                </p>
-            </div>
-
-            <div class="flex items-center gap-2">
-                @if($live)
-                    <a href="{{ route('admin.lives.cortes', ['liveId' => $live->id]) }}" 
-                       class="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-2 rounded-xl transition shadow-xs">
-                        <i class="fas fa-sliders-h text-indigo-500"></i>
-                        <span>Fatiador Studio (IA)</span>
-                    </a>
-                @endif
-            </div>
-        </div>
-
-        {{-- LINHA DE CONTROLES: SELETOR DE LIVE + FILTROS --}}
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+    {{-- CABEÇALHO COMPACTO: APENAS OS CAMPOS DE FILTRO --}}
+    <div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-200 mb-4" style="background-color: #ffffff;">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3 items-center">
             
             {{-- Seletor da Live --}}
             <div class="md:col-span-4">
-                <label for="live-selector" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Selecionar Live:
-                </label>
                 <div class="relative">
                     <select id="live-selector" 
                             onchange="changeLive(this.value)"
-                            class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs sm:text-sm rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 block p-2.5 font-bold shadow-xs pr-8">
+                            class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs sm:text-sm rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 block p-2.5 font-bold shadow-xs pr-8 cursor-pointer"
+                            style="color: #111827;">
                         @forelse($lives as $l)
                             @php
                                 $liveDate = $l->data_live ? \Carbon\Carbon::parse($l->data_live)->format('d/m/Y') : ($l->data ? \Carbon\Carbon::parse($l->data)->format('d/m/Y') : '');
                             @endphp
                             <option value="{{ $l->id }}" {{ $live && $live->id == $l->id ? 'selected' : '' }}>
-                                Live #{{ $l->id }} {{ $liveDate ? '(' . $liveDate . ')' : '' }} - {{ \Illuminate\Support\Str::limit($l->titulo ?: ($l->theme ?: 'Sem título'), 30) }}
+                                Live #{{ $l->id }} {{ $liveDate ? '(' . $liveDate . ')' : '' }} - {{ \Illuminate\Support\Str::limit($l->titulo ?: ($l->theme ?: 'Sem título'), 28) }}
                             </option>
                         @empty
                             <option value="">Nenhuma live encontrada</option>
@@ -59,11 +32,11 @@
             </div>
 
             {{-- Filtros de Status (Pills) --}}
-            <div class="md:col-span-5 flex flex-wrap items-center gap-2 pt-1 md:pt-4">
+            <div class="md:col-span-5 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <button type="button" 
                         @click="setFilter('all')" 
-                        :class="currentFilter === 'all' ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                        class="px-3 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5">
+                        :class="currentFilter === 'all' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
                     <span>Todos</span>
                     <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'all' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700'">
                         {{ $stats['total'] }}
@@ -72,10 +45,10 @@
 
                 <button type="button" 
                         @click="setFilter('unsold')" 
-                        :class="currentFilter === 'unsold' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'"
-                        class="px-3 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fas fa-tag"></i>
-                    <span>Apenas Não Vendidos</span>
+                        :class="currentFilter === 'unsold' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'"
+                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fas fa-tag text-[10px]"></i>
+                    <span>Não Vendidos</span>
                     <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'unsold' ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-900'">
                         {{ $stats['unsold'] }}
                     </span>
@@ -83,18 +56,18 @@
 
                 <button type="button" 
                         @click="setFilter('ready')" 
-                        :class="currentFilter === 'ready' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'"
-                        class="px-3 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Com Vídeo Pronto</span>
-                    <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'ready' ? 'bg-emerald-800 text-white' : 'bg-emerald-200 text-emerald-900'">
+                        :class="currentFilter === 'ready' ? 'bg-green-600 text-white shadow-xs' : 'bg-green-50 text-green-900 border border-green-200 hover:bg-green-100'"
+                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fas fa-check-circle text-[10px]"></i>
+                    <span>Vídeo Pronto</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'ready' ? 'bg-green-800 text-white' : 'bg-green-200 text-green-900'">
                         {{ $stats['ready'] }}
                     </span>
                 </button>
             </div>
 
             {{-- Campo de Busca Rápida --}}
-            <div class="md:col-span-3 pt-1 md:pt-4">
+            <div class="md:col-span-3">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
                         <i class="fas fa-search text-xs"></i>
@@ -102,7 +75,8 @@
                     <input type="text" 
                            x-model="searchTerm" 
                            placeholder="Buscar #cód, produto..." 
-                           class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 block pl-8 p-2.5 font-medium shadow-xs">
+                           class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 block pl-8 p-2.5 font-medium shadow-xs"
+                           style="color: #111827;">
                     <button type="button" 
                             x-show="searchTerm.length > 0" 
                             @click="searchTerm = ''" 
