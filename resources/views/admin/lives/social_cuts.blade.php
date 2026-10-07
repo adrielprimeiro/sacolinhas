@@ -199,62 +199,100 @@
             </div>
 
             {{-- Toolbar de Controles & Edição de Minutagem (Fixa na parte inferior) --}}
-            <div class="shrink-0 p-2.5 sm:p-3.5 bg-gray-850 border-t border-gray-800 space-y-2 sm:space-y-2.5" style="background-color: #1a202c;">
+            <div class="shrink-0 p-2.5 sm:p-3.5 bg-gray-850 border-t border-gray-800 space-y-2.5" style="background-color: #1a202c;">
                 
-                {{-- Badges Informativas dos Timestamps do Corte --}}
-                <div class="flex items-center justify-between gap-1 text-xs">
+                {{-- Linha Superior: Botão [⏺ Início], Duração/Status e Botão [Fim ⏺] --}}
+                <div class="flex items-center justify-between gap-2">
+                    {{-- Botão Gravar Ponto Início --}}
+                    <button type="button" 
+                            onclick="setCutPointHere('start')"
+                            class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
+                            style="background-color: #4f46e5; color: #ffffff;"
+                            title="Gravar posição atual da reprodução como início do corte">
+                        <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
+                        <span>Início</span>
+                        <span id="btnStartDisplay" class="font-mono font-black text-indigo-100 bg-indigo-800/80 px-1.5 py-0.5 rounded text-[10px]">00:00</span>
+                    </button>
+
+                    {{-- Duração Central e Badge Editado --}}
                     <div class="flex items-center gap-1.5">
-                        {{-- Badge Início --}}
-                        <div id="badgeStartBox" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[10px] sm:text-[11px] font-bold flex items-center gap-1">
-                            <span class="text-gray-400">Início:</span>
-                            <span id="badgeStartSec" class="text-indigo-400 font-black">00:00</span>
-                        </div>
-
-                        {{-- Badge Fim --}}
-                        <div id="badgeEndBox" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[10px] sm:text-[11px] font-bold flex items-center gap-1">
-                            <span class="text-gray-400">Fim:</span>
-                            <span id="badgeEndSec" class="text-indigo-400 font-black">00:00</span>
-                        </div>
-
-                        {{-- Duração --}}
-                        <div class="px-1.5 py-0.5 rounded-lg bg-gray-800/60 text-gray-400 text-[10px] sm:text-[11px] font-semibold">
-                            <span id="badgeDurationSec">0s</span>
-                        </div>
+                        <span id="badgeDurationSec" class="text-[11px] font-mono font-bold text-gray-300 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-lg">
+                            0s
+                        </span>
+                        <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black animate-pulse">
+                            <i class="fas fa-pen text-[8px]"></i>
+                            <span>Editado</span>
+                        </span>
                     </div>
 
-                    {{-- Indicador de Edição Pendente --}}
-                    <div id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] sm:text-[10px] font-black animate-pulse">
-                        <i class="fas fa-pen text-[8px]"></i>
-                        <span>Editado</span>
-                    </div>
+                    {{-- Botão Gravar Ponto Fim --}}
+                    <button type="button" 
+                            onclick="setCutPointHere('end')"
+                            class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
+                            style="background-color: #4f46e5; color: #ffffff;"
+                            title="Gravar posição atual da reprodução como fim do corte">
+                        <span id="btnEndDisplay" class="font-mono font-black text-indigo-100 bg-indigo-800/80 px-1.5 py-0.5 rounded text-[10px]">00:00</span>
+                        <span>Fim</span>
+                        <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
+                    </button>
                 </div>
 
-                {{-- Barra de Progresso / Scrubber --}}
-                <div class="space-y-0.5">
-                    <div class="relative flex items-center">
-                        <input type="range" 
-                               id="modalTimeScrubber" 
-                               min="0" 
-                               max="100" 
-                               value="0" 
-                               step="0.1" 
-                               oninput="onScrubberInput(this.value)"
-                               class="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500">
+                {{-- Barra Visual de Cortes Multi-Cores com Marcador Playhead --}}
+                <div class="space-y-1">
+                    <div class="relative w-full h-4 bg-gray-800 rounded-lg overflow-hidden flex cursor-pointer border border-gray-700 select-none shadow-inner"
+                         id="visualTimelineTrack"
+                         onclick="onVisualTrackClick(event)"
+                         title="Clique para navegar no corte">
+                        
+                        {{-- Segmento Início Adicionado (Âmbar/Amarelo) --}}
+                        <div id="trackSegAddedStart" 
+                             class="h-full bg-amber-500 flex items-center justify-center text-[9px] font-black text-amber-950 transition-all duration-200" 
+                             style="width: 0%;" 
+                             title="Trecho adicionado ao início (+10s)">
+                        </div>
+
+                        {{-- Segmento Corte Original (Índigo/Roxo) --}}
+                        <div id="trackSegOriginal" 
+                             class="h-full bg-indigo-600 flex items-center justify-center text-[9px] font-black text-white transition-all duration-200" 
+                             style="width: 100%;" 
+                             title="Trecho original do corte">
+                        </div>
+
+                        {{-- Segmento Fim Adicionado (Âmbar/Amarelo) --}}
+                        <div id="trackSegAddedEnd" 
+                             class="h-full bg-amber-500 flex items-center justify-center text-[9px] font-black text-amber-950 transition-all duration-200" 
+                             style="width: 0%;" 
+                             title="Trecho adicionado ao final (+10s)">
+                        </div>
+
+                        {{-- Agulha de Reprodução (Playhead) --}}
+                        <div id="trackPlayhead" 
+                             class="absolute top-0 bottom-0 w-1 bg-white shadow-lg pointer-events-none transform -translate-x-1/2 transition-none z-10" 
+                             style="left: 0%;">
+                            <div class="w-2.5 h-2.5 bg-pink-500 rounded-full border-2 border-white -mt-0.5 -ml-0.75 shadow"></div>
+                        </div>
                     </div>
-                    <div class="flex justify-between text-[10px] font-mono text-gray-400 px-0.5">
-                        <span id="modalCurrentTimeText">00:00</span>
-                        <span id="modalTotalTimeText">00:00</span>
+
+                    {{-- Minutagem Direta na Barra (Início, Tempo Atual e Fim) --}}
+                    <div class="flex items-center justify-between text-[10px] font-mono text-gray-400 px-0.5">
+                        <span id="barStartMinutagem" class="text-indigo-400 font-bold">00:00</span>
+                        <div class="flex items-center gap-1 font-semibold">
+                            <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
+                            <span>/</span>
+                            <span id="modalTotalTimeText">00:00</span>
+                        </div>
+                        <span id="barEndMinutagem" class="text-indigo-400 font-bold">00:00</span>
                     </div>
                 </div>
 
                 {{-- Botões Principais: -10s | Play/Pause | +10s --}}
-                <div class="flex items-center justify-center gap-4 sm:gap-6 py-0.5">
+                <div class="flex items-center justify-center gap-5 sm:gap-7 py-0.5">
                     {{-- Botão -10s --}}
                     <button type="button" 
                             onclick="jumpMinus10()" 
                             id="btnMinus10"
                             class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Voltar 10s (ou insere 10s no início se estiver no começo)">
+                            title="Voltar 10s (ou expande 10s no início se estiver no começo)">
                         <i class="fas fa-backward text-pink-400 group-hover:scale-110 transition"></i>
                         <span>-10s</span>
                     </button>
@@ -272,7 +310,7 @@
                             onclick="jumpPlus10()" 
                             id="btnPlus10"
                             class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Avançar 10s (ou insere 10s no fim se estiver no final)">
+                            title="Avançar 10s (ou expande 10s no fim se estiver no final)">
                         <span>+10s</span>
                         <i class="fas fa-forward text-pink-400 group-hover:scale-110 transition"></i>
                     </button>
@@ -490,13 +528,15 @@ function openPreviewModal(item) {
     };
 
     player.ontimeupdate = function() {
-        const scrubber = document.getElementById('modalTimeScrubber');
         const currentText = document.getElementById('modalCurrentTimeText');
         const totalText = document.getElementById('modalTotalTimeText');
+        const playhead = document.getElementById('trackPlayhead');
+
+        let currentOffset = 0;
+        let totalSpan = Math.max(0.1, activeEnd - activeStart);
 
         if (isUsingRecording) {
-            const rangeDuration = Math.max(1, activeEnd - activeStart);
-            const currentOffset = Math.max(0, player.currentTime - activeStart);
+            currentOffset = Math.max(0, player.currentTime - activeStart);
 
             if (player.currentTime >= activeEnd) {
                 player.pause();
@@ -504,35 +544,68 @@ function openPreviewModal(item) {
                 updatePlayIcon(false);
             }
 
-            if (scrubber) {
-                scrubber.value = Math.min(100, (currentOffset / rangeDuration) * 100);
-            }
             if (currentText) currentText.textContent = formatTime(currentOffset);
-            if (totalText) totalText.textContent = formatTime(rangeDuration);
+            if (totalText) totalText.textContent = formatTime(totalSpan);
         } else {
-            const dur = player.duration || (activeEnd - activeStart) || 1;
-            if (scrubber) {
-                scrubber.value = Math.min(100, (player.currentTime / dur) * 100);
-            }
+            currentOffset = player.currentTime;
+            totalSpan = player.duration || totalSpan;
+
             if (currentText) currentText.textContent = formatTime(player.currentTime);
-            if (totalText) totalText.textContent = formatTime(dur);
+            if (totalText) totalText.textContent = formatTime(totalSpan);
+        }
+
+        const progressPct = Math.min(100, Math.max(0, (currentOffset / totalSpan) * 100));
+        if (playhead) {
+            playhead.style.left = `${progressPct}%`;
         }
     };
 }
 
+function setCutPointHere(type) {
+    const player = document.getElementById('modalVideoPlayer');
+    if (!player) return;
+
+    let currentSec = 0;
+    if (isUsingRecording) {
+        currentSec = player.currentTime;
+    } else {
+        currentSec = originalStart + player.currentTime;
+    }
+
+    if (type === 'start') {
+        if (currentSec >= activeEnd) {
+            showToast('⚠️ O início não pode ser maior que o fim!');
+            return;
+        }
+        activeStart = Math.max(0, Math.round(currentSec * 10) / 10);
+        showToast(`📍 Início gravado: ${formatTime(activeStart)}`);
+    } else if (type === 'end') {
+        if (currentSec <= activeStart) {
+            showToast('⚠️ O fim não pode ser menor que o início!');
+            return;
+        }
+        activeEnd = Math.round(currentSec * 10) / 10;
+        showToast(`📍 Fim gravado: ${formatTime(activeEnd)}`);
+    }
+
+    renderTimeBadges();
+}
+
 function renderTimeBadges() {
-    const startSecEl = document.getElementById('badgeStartSec');
-    const endSecEl = document.getElementById('badgeEndSec');
+    const btnStartDisplay = document.getElementById('btnStartDisplay');
+    const btnEndDisplay = document.getElementById('btnEndDisplay');
+    const barStartMinutagem = document.getElementById('barStartMinutagem');
+    const barEndMinutagem = document.getElementById('barEndMinutagem');
     const durSecEl = document.getElementById('badgeDurationSec');
     const editedFlag = document.getElementById('badgeEditedFlag');
     const directSaveBtn = document.getElementById('modalSaveDirectBtn');
-    const startBox = document.getElementById('badgeStartBox');
-    const endBox = document.getElementById('badgeEndBox');
 
     const duration = Math.max(0, Math.round(activeEnd - activeStart));
 
-    if (startSecEl) startSecEl.textContent = formatTime(activeStart);
-    if (endSecEl) endSecEl.textContent = formatTime(activeEnd);
+    if (btnStartDisplay) btnStartDisplay.textContent = formatTime(activeStart);
+    if (btnEndDisplay) btnEndDisplay.textContent = formatTime(activeEnd);
+    if (barStartMinutagem) barStartMinutagem.textContent = formatTime(activeStart);
+    if (barEndMinutagem) barEndMinutagem.textContent = formatTime(activeEnd);
     if (durSecEl) durSecEl.textContent = `${duration}s`;
 
     const hasChanged = (activeStart !== originalStart || activeEnd !== originalEnd);
@@ -540,23 +613,63 @@ function renderTimeBadges() {
     if (hasChanged) {
         if (editedFlag) editedFlag.classList.remove('hidden');
         if (directSaveBtn) directSaveBtn.classList.remove('hidden');
-        if (startBox) {
-            startBox.classList.toggle('border-amber-500', activeStart !== originalStart);
-            startBox.classList.toggle('bg-amber-950/40', activeStart !== originalStart);
-        }
-        if (endBox) {
-            endBox.classList.toggle('border-amber-500', activeEnd !== originalEnd);
-            endBox.classList.toggle('bg-amber-950/40', activeEnd !== originalEnd);
-        }
     } else {
         if (editedFlag) editedFlag.classList.add('hidden');
         if (directSaveBtn) directSaveBtn.classList.add('hidden');
-        if (startBox) {
-            startBox.classList.remove('border-amber-500', 'bg-amber-950/40');
-        }
-        if (endBox) {
-            endBox.classList.remove('border-amber-500', 'bg-amber-950/40');
-        }
+    }
+
+    updateVisualTimeline();
+}
+
+function updateVisualTimeline() {
+    const segAddedStart = document.getElementById('trackSegAddedStart');
+    const segOriginal = document.getElementById('trackSegOriginal');
+    const segAddedEnd = document.getElementById('trackSegAddedEnd');
+
+    const totalSpan = Math.max(0.1, activeEnd - activeStart);
+
+    // 1. Início adicionado (se activeStart < originalStart)
+    const addedStartSec = Math.max(0, originalStart - activeStart);
+    const addedStartPct = (addedStartSec / totalSpan) * 100;
+
+    // 2. Fim adicionado (se activeEnd > originalEnd)
+    const addedEndSec = Math.max(0, activeEnd - originalEnd);
+    const addedEndPct = (addedEndSec / totalSpan) * 100;
+
+    // 3. Corte original dentro de [activeStart, activeEnd]
+    const origLeft = Math.max(activeStart, originalStart);
+    const origRight = Math.min(activeEnd, originalEnd);
+    const origSec = Math.max(0, origRight - origLeft);
+    const origPct = Math.max(0, (origSec / totalSpan) * 100);
+
+    if (segAddedStart) {
+        segAddedStart.style.width = `${addedStartPct}%`;
+        segAddedStart.textContent = addedStartPct > 12 ? `+${Math.round(addedStartSec)}s` : '';
+    }
+    if (segOriginal) {
+        segOriginal.style.width = `${origPct}%`;
+    }
+    if (segAddedEnd) {
+        segAddedEnd.style.width = `${addedEndPct}%`;
+        segAddedEnd.textContent = addedEndPct > 12 ? `+${Math.round(addedEndSec)}s` : '';
+    }
+}
+
+function onVisualTrackClick(e) {
+    const track = document.getElementById('visualTimelineTrack');
+    const player = document.getElementById('modalVideoPlayer');
+    if (!track || !player) return;
+
+    const rect = track.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.min(1, Math.max(0, clickX / rect.width));
+
+    const totalSpan = Math.max(1, activeEnd - activeStart);
+    if (isUsingRecording) {
+        player.currentTime = activeStart + (totalSpan * pct);
+    } else {
+        const dur = player.duration || totalSpan;
+        player.currentTime = dur * pct;
     }
 }
 
