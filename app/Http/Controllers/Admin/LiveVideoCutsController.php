@@ -179,10 +179,18 @@ class LiveVideoCutsController extends Controller
             ];
         });
 
+        $recordingUrl = null;
+        if ($live && $live->recording_path) {
+            $recordingUrl = str_starts_with($live->recording_path, 'http')
+                ? $live->recording_path
+                : Storage::url($live->recording_path);
+        }
+
         return view('admin.lives.social_cuts', [
             'live' => $live,
             'lives' => $lives,
             'liveItems' => $liveItems,
+            'recordingUrl' => $recordingUrl,
             'stats' => [
                 'total' => $totalReadyCount,
                 'unsold' => $unsoldReadyCount,
