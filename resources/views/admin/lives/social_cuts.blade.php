@@ -93,10 +93,10 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             @foreach($liveItems as $item)
                 <div class="cut-item-card bg-white rounded-2xl p-3 sm:p-3.5 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all cursor-pointer group"
-                     x-show="matchesFilter({{ json_encode($item) }})"
+                     x-show="matchesFilter({{ $item['live_item_id'] }})"
                      x-transition
                      @if(!empty($item['video_cut_url']))
-                         onclick="openPreviewModal({{ json_encode($item) }})"
+                         onclick="openPreviewModalById({{ $item['live_item_id'] }})"
                      @endif>
                     
                     <div class="flex items-center gap-3">
@@ -384,7 +384,8 @@
 </div>
 
 <script>
-// Estado Global do Editor de Cortes
+// Mapa Global de Itens indexado por live_item_id
+const liveItemsMap = {!! json_encode($liveItems->keyBy('live_item_id')) !!};
 const liveGlobalRecordingUrl = '{{ $recordingUrl ?: '' }}';
 const csrfToken = '{{ csrf_token() }}';
 
@@ -405,7 +406,10 @@ function socialCutsApp() {
             this.currentFilter = filterName;
         },
 
-        matchesFilter(item) {
+        matchesFilter(itemIdOrObject) {
+            const item = typeof itemIdOrObject === 'object' ? itemIdOrObject : liveItemsMap[itemIdOrObject];
+            if (!item) return true;
+
             // Filtro por Status (Apenas Não Vendidos se selecionado)
             if (this.currentFilter === 'unsold' && item.is_sold) {
                 return false;
@@ -429,6 +433,15 @@ function socialCutsApp() {
             return true;
         }
     };
+}
+
+function openPreviewModalById(liveItemId) {
+    const item = liveItemsMap[liveItemId];
+    if (!item) {
+        console.warn('Item não encontrado:', liveItemId);
+        return;
+    }
+    openPreviewModal(item);
 }
 
 function changeLive(liveId) {
