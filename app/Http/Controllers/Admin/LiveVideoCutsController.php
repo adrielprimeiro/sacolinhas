@@ -727,34 +727,40 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Google Gemini 2.5 Flash
+            // 1. Google Gemini 2.0 Flash / 1.5 Flash
             if (!empty($geminiKey)) {
-                try {
-                    $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $geminiKey;
-                    $geminiPayload = [
-                        'contents' => [
-                            [
-                                'role' => 'user',
-                                'parts' => [
-                                    ['text' => $systemPrompt . "\n\n" . $userPrompt]
+                $geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+                foreach ($geminiModels as $gModel) {
+                    try {
+                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key=" . $geminiKey;
+                        $geminiPayload = [
+                            'contents' => [
+                                [
+                                    'role' => 'user',
+                                    'parts' => [
+                                        ['text' => $systemPrompt . "\n\n" . $userPrompt]
+                                    ]
                                 ]
+                            ],
+                            'generationConfig' => [
+                                'response_mime_type' => 'application/json',
+                                'temperature' => 0.1
                             ]
-                        ],
-                        'generationConfig' => [
-                            'response_mime_type' => 'application/json',
-                            'temperature' => 0.1
-                        ]
-                    ];
+                        ];
 
-                    $response = Http::timeout(60)->post($geminiUrl, $geminiPayload);
-                    if ($response->successful()) {
-                        $json = $response->json();
-                        $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                    } else {
-                        Log::warning("[LiveVideoCuts] Gemini falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        $response = Http::timeout(60)->post($geminiUrl, $geminiPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] Gemini ({$gModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no Gemini ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
                     }
-                } catch (\Exception $e) {
-                    Log::warning("[LiveVideoCuts] Exceção no Gemini (Lote {$chunkNumber}): " . $e->getMessage());
                 }
             }
 
