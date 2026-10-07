@@ -739,17 +739,38 @@ PROMPT;
         foreach ($itemChunks as $chunkIdx => $chunk) {
             $chunkNumber = $chunkIdx + 1;
             $currentAnchor = '';
+            $windowStart = 0;
+            $windowEnd = 999999;
+
             if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
                 $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
+                $windowStart = max(0, $lastKnownEndSec - 30);
+                $windowEnd = $lastKnownEndSec + 2400; // Janela de até 40 minutos para 20 peças
+            } else {
+                $windowEnd = 2400; // Primeiros 40 minutos para o lote 1
             }
 
-            $userPrompt = "{$currentAnchor}Itens a Segmentar na Live (Lote {$chunkNumber}/{$totalChunks}):\n" . json_encode($chunk, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição da Live:\n" . $transcriptText;
+            // Segmenta apenas a janela temporal da transcrição relevante para este lote
+            $transcriptFormatted = [];
+            foreach ($sentences as $s) {
+                $sStart = round((float) ($s['start'] ?? 0), 1);
+                $sEnd = round((float) ($s['end'] ?? 0), 1);
+                if ($lastKnownEndSec !== null && $sStart < $windowStart) continue;
+                if ($lastKnownEndSec !== null && $sStart > $windowEnd) break;
+                $text = trim($s['text'] ?? '');
+                if ($text) {
+                    $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
+                }
+            }
+            $chunkTranscriptText = !empty($transcriptFormatted) ? implode("\n", $transcriptFormatted) : $transcriptText;
+
+            $userPrompt = "{$currentAnchor}Itens a Segmentar na Live (Lote {$chunkNumber}/{$totalChunks}):\n" . json_encode($chunk, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição do Trecho da Live:\n" . $chunkTranscriptText;
 
             $rawResponse = null;
 
             // 1. Google Gemini via OpenAI-compatible endpoint
             if (!empty($geminiKey)) {
-                $geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+                $geminiModels = ['gemini-2.5-flash', 'gemini-3.8-flash'];
                 foreach ($geminiModels as $gModel) {
                     try {
                         $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
@@ -763,7 +784,7 @@ PROMPT;
                             'temperature' => 0.1
                         ];
 
-                        $response = Http::withToken($geminiKey)->timeout(60)->post($geminiUrl, $geminiPayload);
+                        $response = Http::withToken($geminiKey)->timeout(45)->post($geminiUrl, $geminiPayload);
                         if ($response->successful()) {
                             $json = $response->json();
                             $rawResponse = $json['choices'][0]['message']['content'] ?? null;
@@ -779,28 +800,34 @@ PROMPT;
                 }
             }
 
-            // 2. Fallback Groq LLaMA 3.3 70B
+            // 2. Fallback Groq LLaMA
             if (empty($rawResponse) && !empty($groqKey)) {
-                try {
-                    $groqPayload = [
-                        'model' => 'llama-3.3-70b-versatile',
-                        'messages' => [
-                            ['role' => 'system', 'content' => $systemPrompt],
-                            ['role' => 'user', 'content' => $userPrompt]
-                        ],
-                        'response_format' => ['type' => 'json_object'],
-                        'temperature' => 0.1
-                    ];
+                $groqModels = ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant'];
+                foreach ($groqModels as $grModel) {
+                    try {
+                        $groqPayload = [
+                            'model' => $grModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
+                            ],
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1
+                        ];
 
-                    $response = Http::withToken($groqKey)->timeout(60)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
-                    if ($response->successful()) {
-                        $json = $response->json();
-                        $rawResponse = $json['choices'][0]['message']['content'] ?? null;
-                    } else {
-                        Log::warning("[LiveVideoCuts] Groq falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        $response = Http::withToken($groqKey)->timeout(45)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
                     }
-                } catch (\Exception $e) {
-                    Log::warning("[LiveVideoCuts] Exceção no Groq (Lote {$chunkNumber}): " . $e->getMessage());
                 }
             }
 
@@ -879,12 +906,12 @@ PROMPT;
             'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
             'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
             'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
-            'camisa', 'jaqueta', 'saia', 'short', 'macacão'
+            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'melissa'
         ];
 
         $closingPatterns = [
-            'entregando', 'vou entregar', 'passando', 'próxima', 'próximo', 'anotou',
-            'quem pegou', 'fechou', 'vendido', 'vai para', 'deixa eu passar'
+            'entregando', 'vou entregar', 'passando', 'anotou',
+            'quem pegou', 'fechou', 'vendido', 'vai para'
         ];
 
         $results = [];
@@ -905,7 +932,7 @@ PROMPT;
             $bestMention = null;
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
-                if ($sStart < ($lastEndSec - 10)) continue; // Mantém ordem cronológica estrita!
+                if ($sStart < ($lastEndSec - 5)) continue; // Mantém ordem cronológica estrita!
 
                 $text = $s['text'] ?? '';
                 if (preg_match($combinedRegex, $text)) {
@@ -946,27 +973,11 @@ PROMPT;
                 }
             }
 
-            // Busca fim do bloco
-            $endIndex = min(count($sentences) - 1, $mentionIndex + 6);
-            $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 25));
-
-            for ($j = $mentionIndex; $j <= $endIndex; $j++) {
-                $sText = mb_strtolower($sentences[$j]['text'] ?? '');
-                $sEnd = (float) ($sentences[$j]['end'] ?? 0);
-
-                if (($sEnd - $startTime) > 70) break;
-                $endTime = $sEnd;
-
-                foreach ($closingPatterns as $cpat) {
-                    if (str_contains($sText, $cpat)) {
-                        $endTime = $sEnd;
-                        break 2;
-                    }
-                }
-            }
+            // O fim do bloco da peça atual termina logo na frase em que o código foi anunciado!
+            $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
 
             $finalStart = max(0, round($startTime - 0.5, 1));
-            $finalEnd = round($endTime + 0.8, 1);
+            $finalEnd = round($endTime + 0.5, 1);
             $lastEndSec = $finalEnd;
 
             $snippet = $this->getSnippetForTimeRange($live, $finalStart, $finalEnd);
