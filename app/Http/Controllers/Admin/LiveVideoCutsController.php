@@ -634,7 +634,7 @@ class LiveVideoCutsController extends Controller
             });
         }
 
-        // Formata itens do catálogo em ordem
+        // Formata itens do catálogo em ordem enriquecendo com dados do produto (tamanho, marca, cor, preço)
         $itemsCatalog = [];
         foreach ($targetItems as $li) {
             $code = trim($li->codigo_live ?: '');
@@ -643,6 +643,9 @@ class LiveVideoCutsController extends Controller
                 'live_item_id' => $li->id,
                 'codigo_live' => $code,
                 'nome' => $li->nome_do_produto ?? 'Peça',
+                'tamanho' => !empty($li->tamanho) ? $li->tamanho : null,
+                'marca' => !empty($li->marca) ? $li->marca : null,
+                'cor' => !empty($li->cor) ? $li->cor : null,
                 'preco' => !empty($li->preco) ? ('R$ ' . number_format($li->preco, 2, ',', '.')) : ''
             ];
         }
@@ -688,24 +691,40 @@ class LiveVideoCutsController extends Controller
         }
 
         $systemPrompt = <<<PROMPT
-Você é o Severino, o especialista sênior em IA para análise e minutagem de Live Shopping de Brechó (Minha Mania).
-Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o vídeo de apresentação de cada peça da live.
+Você é o Severino Cortes, especialista sênior em inteligência artificial e minutagem de vídeo para Live Shopping de Brechó (Minha Mania).
+Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o corte de vídeo de apresentação de cada peça da live.
 
-DIRETRIZES FUNDAMENTAIS:
-1. ORDEM CRONOLÓGICA E MONOTONICIDADE: As peças são apresentadas sequencialmente na ordem dos códigos (#1, #2, ... #20, #21...). O início da peça K+1 DEVE ser posterior ou igual ao início da peça K.
-2. INÍCIO EXATO (cut_start_sec): Momento exato em que a apresentadora COMEÇA a mostrar a peça no cabide/corpo (Ex: "Olha esse vestido código 20...", "Agora o 20...", "Próxima peça, essa lindeza...", "Vem pro 20...").
-3. FIM EXATO (cut_end_sec): Momento exato em que ela ENCERRA a apresentação da peça e passa para a próxima (Ex: "Passando...", "Anotado pra @maria", "Vendido código 20", "Deixa eu pegar a próxima...", "Vou bipar").
-4. DURAÇÃO TÍPICA: Cada peça dura em média entre 20 a 75 segundos.
-5. CUIDADO COM FALSOS POSITIVOS: Não confunda valores de preço (ex: "R$ 20 reais"), medidas ou menções atrasadas com a apresentação da peça.{$fewShotSection}
+REGRAS DE OURO E PADRÕES DA APRESENTADORA (MINHA MANIA):
+1. PADRÃO CRÍTICO DE ENCERRAMENTO DA PEÇA (REGRA FUNDAMENTAL):
+   - A apresentadora SEMPRE finaliza a apresentação de uma peça dizendo os detalhes finais, o preço e o código da peça atual (Ex: "...tamanho 39,40, 65 reais, código 1.").
+   - O `cut_end_sec` DEVE terminar EXATAMENTE após a fala final do código da peça atual (com folga de ~0.5s após a pronúncia do código).
+   - O `cut_end_sec` NUNCA deve englobar a próxima peça!
+
+2. VALIDAÇÃO CRUZADA COM OS DADOS DO CATÁLOGO (TAMANHO, MARCA, PREÇO):
+   - Compare o que a apresentadora fala na transcrição com os dados cadastrais da peça (`nome`, `tamanho`, `marca`, `cor`, `preco`).
+   - Exemplo Real: A peça #1 é uma "Melissa Ulitsa" tamanho 39/40 por R$ 65. Quando ela fala "...tamanho 39,40, 65 reais, código 1.", a peça 1 ACABOU.
+   - Assim que ela começa a falar "Uma Melissa 38, topzera...", ela já começou a apresentar a peça #2 (tamanho 38). O corte da peça #1 NÃO PODE conter a fala da peça #2!
+
+3. ISOLAMENTO ABSOLUTO ENTRE PEÇAS:
+   - O corte da peça N NUNCA deve conter a apresentação ou anúncio do código N+1, N+2, etc.
+   - Cada peça deve ter seu próprio corte individual e limpo.
+   - O início da peça N+1 (cut_start_sec) deve ser no momento em que ela começa a falar da peça N+1 (logo após terminar a peça N).
+
+4. ORDEM CRONOLÓGICA MONOTÔNICA:
+   - As peças são apresentadas sequencialmente (#1, #2, #3, ...).
+   - O início da peça K+1 DEVE ser posterior ou igual ao fim da peça K.
+
+5. DURAÇÃO TÍPICA:
+   - A maioria dos cortes dura entre 15 e 60 segundos por peça. Cuidado com cortes longos de mais de 1 minuto, pois geralmente indicam sobreposição indevida com itens vizinhos.{$fewShotSection}
 
 Retorne APENAS um JSON válido no formato de lista:
 [
   {
     "live_item_id": 123,
-    "codigo_live": "20",
-    "cut_start_sec": 1234.5,
-    "cut_end_sec": 1278.0,
-    "snippet": "Texto completo da fala durante a apresentação da peça"
+    "codigo_live": "1",
+    "cut_start_sec": 570.0,
+    "cut_end_sec": 605.5,
+    "snippet": "Texto exato da fala correspondente APENAS a esta peça"
   }
 ]
 PROMPT;
@@ -991,7 +1010,7 @@ PROMPT;
         $liveItems = DB::table('live_items')
             ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
             ->where('live_items.live_id', $live->id)
-            ->select('live_items.*', 'items.nome_do_produto', 'items.preco')
+            ->select('live_items.*', 'items.nome_do_produto', 'items.preco', 'items.tamanho', 'items.marca', 'items.cor', 'items.descricao')
             ->orderBy('live_items.id', 'asc')
             ->get();
 
