@@ -199,39 +199,37 @@
             </div>
 
             {{-- Toolbar de Controles & Edição de Minutagem (Fixa na parte inferior) --}}
-            <div class="shrink-0 p-2.5 sm:p-3.5 bg-gray-850 border-t border-gray-800 space-y-2.5" style="background-color: #1a202c;">
+            <div class="shrink-0 p-3 sm:p-4 bg-gray-850 border-t border-gray-800 space-y-2.5" style="background-color: #1a202c;">
                 
                 {{-- Linha Superior: Botão [⏺ Início], Duração/Status e Botão [Fim ⏺] --}}
                 <div class="flex items-center justify-between gap-2">
                     {{-- Botão Gravar Ponto Início --}}
                     <button type="button" 
                             onclick="setCutPointHere('start')"
-                            class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
+                            class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
                             style="background-color: #4f46e5; color: #ffffff;"
                             title="Gravar posição atual da reprodução como início do corte">
                         <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
                         <span>Início</span>
-                        <span id="btnStartDisplay" class="font-mono font-black text-indigo-100 bg-indigo-800/80 px-1.5 py-0.5 rounded text-[10px]">00:00</span>
                     </button>
 
-                    {{-- Duração Central e Badge Editado --}}
+                    {{-- Duração Central e Badge Editado (Alto Contraste) --}}
                     <div class="flex items-center gap-1.5">
-                        <span id="badgeDurationSec" class="text-[11px] font-mono font-bold text-gray-300 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-lg">
+                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2.5 py-0.5 rounded-lg">
                             0s
                         </span>
-                        <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black animate-pulse">
-                            <i class="fas fa-pen text-[8px]"></i>
-                            <span>Editado</span>
+                        <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black animate-pulse" style="background-color: #fef3c7; color: #92400e !important; border: 1px solid #fde68a;">
+                            <i class="fas fa-pen text-[9px] text-amber-700"></i>
+                            <span style="color: #92400e !important;">Editado</span>
                         </span>
                     </div>
 
                     {{-- Botão Gravar Ponto Fim --}}
                     <button type="button" 
                             onclick="setCutPointHere('end')"
-                            class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
+                            class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
                             style="background-color: #4f46e5; color: #ffffff;"
                             title="Gravar posição atual da reprodução como fim do corte">
-                        <span id="btnEndDisplay" class="font-mono font-black text-indigo-100 bg-indigo-800/80 px-1.5 py-0.5 rounded text-[10px]">00:00</span>
                         <span>Fim</span>
                         <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
                     </button>
@@ -274,24 +272,24 @@
                     </div>
 
                     {{-- Minutagem Direta na Barra (Início, Tempo Atual e Fim) --}}
-                    <div class="flex items-center justify-between text-[10px] font-mono text-gray-400 px-0.5">
-                        <span id="barStartMinutagem" class="text-indigo-400 font-bold">00:00</span>
-                        <div class="flex items-center gap-1 font-semibold">
+                    <div class="flex items-center justify-between text-[11px] font-mono text-gray-300 px-0.5 font-bold">
+                        <span id="barStartMinutagem" class="text-indigo-400 font-extrabold">00:00</span>
+                        <div class="flex items-center gap-1 font-semibold text-gray-400">
                             <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
                             <span>/</span>
-                            <span id="modalTotalTimeText">00:00</span>
+                            <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
                         </div>
-                        <span id="barEndMinutagem" class="text-indigo-400 font-bold">00:00</span>
+                        <span id="barEndMinutagem" class="text-indigo-400 font-extrabold">00:00</span>
                     </div>
                 </div>
 
                 {{-- Botões Principais: -10s | Play/Pause | +10s --}}
-                <div class="flex items-center justify-center gap-5 sm:gap-7 py-0.5">
+                <div class="flex items-center justify-center gap-6 sm:gap-8 py-0.5">
                     {{-- Botão -10s --}}
                     <button type="button" 
                             onclick="jumpMinus10()" 
                             id="btnMinus10"
-                            class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            class="group px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
                             title="Voltar 10s (ou expande 10s no início se estiver no começo)">
                         <i class="fas fa-backward text-pink-400 group-hover:scale-110 transition"></i>
                         <span>-10s</span>
@@ -301,7 +299,7 @@
                     <button type="button" 
                             onclick="toggleModalPlayPause()" 
                             id="modalPlayPauseBtn" 
-                            class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-pink-600 hover:bg-pink-500 active:scale-90 text-white flex items-center justify-center text-sm shadow-lg transition cursor-pointer">
+                            class="w-11 h-11 rounded-full bg-pink-600 hover:bg-pink-500 active:scale-90 text-white flex items-center justify-center text-sm shadow-lg transition cursor-pointer">
                         <i class="fas fa-play ml-0.5" id="modalPlayPauseIcon"></i>
                     </button>
 
@@ -309,7 +307,7 @@
                     <button type="button" 
                             onclick="jumpPlus10()" 
                             id="btnPlus10"
-                            class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            class="group px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
                             title="Avançar 10s (ou expande 10s no fim se estiver no final)">
                         <span>+10s</span>
                         <i class="fas fa-forward text-pink-400 group-hover:scale-110 transition"></i>
@@ -319,36 +317,6 @@
                 {{-- Toast Informativo de Ação --}}
                 <div id="modalToastBox" class="hidden text-[11px] font-bold text-center py-1 px-2.5 rounded-xl bg-indigo-900/90 text-indigo-100 border border-indigo-500 shadow-sm transition"></div>
 
-            </div>
-
-            {{-- Footer do Modal com Botões de Ação (Fixo no Rodapé) --}}
-            <div class="shrink-0 p-2.5 sm:p-3 bg-gray-800 border-t border-gray-700 flex items-center justify-between gap-2 pb-safe" style="background-color: #1f2937;">
-                
-                {{-- Botão Download --}}
-                <a id="modalDownloadBtn" 
-                   href="#" 
-                   download 
-                   class="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs sm:text-sm transition shadow-sm"
-                   style="background-color: #16a34a; color: #ffffff;">
-                    <i class="fas fa-download"></i>
-                    <span>Baixar Vídeo</span>
-                </a>
-
-                {{-- Botão Salvar Edição (visível quando modificado) --}}
-                <button type="button" 
-                        id="modalSaveDirectBtn"
-                        onclick="saveAndReCutItem()"
-                        class="hidden inline-flex items-center justify-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs sm:text-sm transition shadow-sm">
-                    <i class="fas fa-save"></i>
-                    <span>Salvar Corte</span>
-                </button>
-
-                {{-- Botão Fechar --}}
-                <button type="button" 
-                        onclick="requestClosePreviewModal()" 
-                        class="px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gray-700 hover:bg-gray-600 text-gray-200 transition cursor-pointer">
-                    Fechar
-                </button>
             </div>
 
         </div>
@@ -592,18 +560,13 @@ function setCutPointHere(type) {
 }
 
 function renderTimeBadges() {
-    const btnStartDisplay = document.getElementById('btnStartDisplay');
-    const btnEndDisplay = document.getElementById('btnEndDisplay');
     const barStartMinutagem = document.getElementById('barStartMinutagem');
     const barEndMinutagem = document.getElementById('barEndMinutagem');
     const durSecEl = document.getElementById('badgeDurationSec');
     const editedFlag = document.getElementById('badgeEditedFlag');
-    const directSaveBtn = document.getElementById('modalSaveDirectBtn');
 
     const duration = Math.max(0, Math.round(activeEnd - activeStart));
 
-    if (btnStartDisplay) btnStartDisplay.textContent = formatTime(activeStart);
-    if (btnEndDisplay) btnEndDisplay.textContent = formatTime(activeEnd);
     if (barStartMinutagem) barStartMinutagem.textContent = formatTime(activeStart);
     if (barEndMinutagem) barEndMinutagem.textContent = formatTime(activeEnd);
     if (durSecEl) durSecEl.textContent = `${duration}s`;
@@ -612,10 +575,8 @@ function renderTimeBadges() {
 
     if (hasChanged) {
         if (editedFlag) editedFlag.classList.remove('hidden');
-        if (directSaveBtn) directSaveBtn.classList.remove('hidden');
     } else {
         if (editedFlag) editedFlag.classList.add('hidden');
-        if (directSaveBtn) directSaveBtn.classList.add('hidden');
     }
 
     updateVisualTimeline();
