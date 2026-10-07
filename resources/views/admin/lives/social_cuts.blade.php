@@ -160,7 +160,8 @@
 
     {{-- MODAL DE PRÉVIA E EDIÇÃO RÁPIDA DE VÍDEO --}}
     <div id="videoPreviewModal" 
-         class="fixed inset-0 bg-black/90 z-50 hidden items-center justify-center p-0 sm:p-3 md:p-4 overflow-hidden h-[100dvh]"
+         class="fixed inset-0 bg-black/90 hidden items-center justify-center p-0 sm:p-3 md:p-4 overflow-hidden h-[100dvh]"
+         style="z-index: 9999; display: none;"
          onclick="if(event.target === this) requestClosePreviewModal()">
         
         <div class="bg-gray-900 w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[96dvh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col justify-between"
@@ -322,7 +323,8 @@
 
     {{-- MODAL DE CONFIRMAÇÃO PARA SALVAR AO FECHAR --}}
     <div id="saveConfirmModal" 
-         class="fixed inset-0 bg-black/85 z-60 hidden items-center justify-center p-4 backdrop-blur-sm"
+         class="fixed inset-0 bg-black/85 hidden items-center justify-center p-4 backdrop-blur-sm"
+         style="z-index: 10001; display: none;"
          onclick="if(event.target === this) hideConfirmModal()">
         
         <div class="bg-gray-900 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-gray-700 p-5 text-white animate-scale-in">
@@ -797,13 +799,18 @@ function discardAndCloseModal() {
 function forceClosePreviewModal() {
     const modal = document.getElementById('videoPreviewModal');
     const player = document.getElementById('modalVideoPlayer');
-    if (!modal || !player) return;
-
-    player.pause();
-    player.src = '';
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    modal.style.display = 'none';
+    if (player) {
+        try {
+            player.pause();
+            player.removeAttribute('src');
+            player.load();
+        } catch(e) {}
+    }
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
+    }
     currentItem = null;
 }
 
@@ -811,6 +818,18 @@ function confirmAndSaveCut() {
     hideConfirmModal();
     saveAndReCutItem();
 }
+
+window.requestClosePreviewModal = requestClosePreviewModal;
+window.showConfirmModal = showConfirmModal;
+window.hideConfirmModal = hideConfirmModal;
+window.discardAndCloseModal = discardAndCloseModal;
+window.forceClosePreviewModal = forceClosePreviewModal;
+window.confirmAndSaveCut = confirmAndSaveCut;
+window.setCutPointHere = setCutPointHere;
+window.toggleModalPlayPause = toggleModalPlayPause;
+window.jumpMinus10 = jumpMinus10;
+window.jumpPlus10 = jumpPlus10;
+window.onVisualTrackClick = onVisualTrackClick;
 
 async function saveAndReCutItem() {
     if (!currentItem) return;
