@@ -8,13 +8,30 @@ use Illuminate\Support\Facades\DB;
 
 class DebugItemCutCommand extends Command
 {
-    protected $signature = 'debug:item-cut {live_id} {code}';
+    protected $signature = 'debug:item-cut {live_id} {code=all}';
     protected $description = 'Debug live item timestamps and transcription sentences';
 
     public function handle()
     {
         $liveId = (int) $this->argument('live_id');
         $code = (string) $this->argument('code');
+
+        if ($code === 'all') {
+            $items = DB::table('live_items')->where('live_id', $liveId)->orderBy('id')->get();
+            $feedbacks = DB::table('live_cut_feedbacks')->where('live_id', $liveId)->get()->keyBy('codigo_live');
+            
+            $this->info("Total items: " . $items->count());
+            $this->info("Total feedbacks/reviewed in memory: " . $feedbacks->count());
+            
+            foreach ($items->take(25) as $it) {
+                $isRev = $it->is_reviewed ?? 0;
+                $q = $it->review_quality ?? 'none';
+                $fb = $feedbacks->get($it->codigo_live);
+                $fbInfo = $fb ? " [MEMÓRIA: {$fb->cut_start_sec}s - {$fb->cut_end_sec}s ({$fb->feedback_type})]" : "";
+                $this->line("#{$it->codigo_live} (ID {$it->id}): Start={$it->cut_start_sec}s End={$it->cut_end_sec}s | Rev={$isRev} Q={$q}{$fbInfo}");
+            }
+            return 0;
+        }
 
         $item = DB::table('live_items')->where('live_id', $liveId)->where('codigo_live', $code)->first();
         if (!$item) {
@@ -29,8 +46,8 @@ class DebugItemCutCommand extends Command
         $live = Live::find($liveId);
         $sentences = json_decode($live->transcription_raw, true) ?: [];
 
-        $startRange = max(0, $item->cut_start_sec - 20);
-        $endRange = $item->cut_end_sec + 20;
+        $startRange = max(0, ($item->cut_start_sec ?? 0) - 20);
+        $endRange = ($item->cut_end_sec ?? 0) + 20;
 
         $this->info("Sentences around {$startRange}s to {$endRange}s:");
         foreach ($sentences as $idx => $s) {
