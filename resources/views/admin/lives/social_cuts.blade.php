@@ -95,9 +95,7 @@
                 <div class="cut-item-card bg-white rounded-2xl p-3 sm:p-3.5 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all cursor-pointer group"
                      x-show="matchesFilter({{ $item['live_item_id'] }})"
                      x-transition
-                     @if(!empty($item['video_cut_url']))
-                         onclick="openPreviewModalById({{ $item['live_item_id'] }})"
-                     @endif>
+                     onclick="openPreviewModalById({{ $item['live_item_id'] }})">
                     
                     <div class="flex items-center gap-3">
                         {{-- Foto / Thumbnail do Produto --}}
@@ -443,6 +441,7 @@ function openPreviewModalById(liveItemId) {
     }
     openPreviewModal(item);
 }
+window.openPreviewModalById = openPreviewModalById;
 
 function changeLive(liveId) {
     if (!liveId) return;
@@ -465,14 +464,17 @@ function formatTime(sec) {
 }
 
 function openPreviewModal(item) {
+    if (!item) return;
     currentItem = item;
     const modal = document.getElementById('videoPreviewModal');
     const player = document.getElementById('modalVideoPlayer');
     const titleEl = document.getElementById('modalItemTitle');
     const codeEl = document.getElementById('modalItemCode');
-    const downloadBtn = document.getElementById('modalDownloadBtn');
 
-    if (!modal || !player) return;
+    if (!modal || !player) {
+        console.error('Modal ou Player de vídeo não encontrados no DOM.');
+        return;
+    }
 
     activeStart = Number(item.cut_start_sec || 0);
     activeEnd = Number(item.cut_end_sec || 0);
@@ -485,19 +487,18 @@ function openPreviewModal(item) {
         player.src = liveGlobalRecordingUrl;
     } else {
         isUsingRecording = false;
-        player.src = item.video_cut_url;
+        player.src = item.video_cut_url || '';
     }
 
-    titleEl.textContent = item.item_name || 'Produto';
-    codeEl.textContent = '#' + (item.codigo_live || item.item_sku || '');
-    downloadBtn.href = item.video_cut_url || '#';
-    downloadBtn.setAttribute('download', item.download_filename || 'video_corte.mp4');
+    if (titleEl) titleEl.textContent = item.item_name || 'Produto';
+    if (codeEl) codeEl.textContent = '#' + (item.codigo_live || item.item_sku || '');
 
     renderTimeBadges();
     updatePlayIcon(false);
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.style.display = 'flex';
 
     player.onloadedmetadata = function() {
         if (isUsingRecording && activeStart > 0) {
@@ -763,14 +764,21 @@ function showConfirmModal() {
     const confirmModal = document.getElementById('saveConfirmModal');
     if (!confirmModal) return;
 
-    document.getElementById('confirmStartOld').textContent = formatTime(originalStart);
-    document.getElementById('confirmStartNew').textContent = formatTime(activeStart);
-    document.getElementById('confirmEndOld').textContent = formatTime(originalEnd);
-    document.getElementById('confirmEndNew').textContent = formatTime(activeEnd);
-    document.getElementById('confirmDurationNew').textContent = `${Math.round(activeEnd - activeStart)} segundos`;
+    const startOld = document.getElementById('confirmStartOld');
+    const startNew = document.getElementById('confirmStartNew');
+    const endOld = document.getElementById('confirmEndOld');
+    const endNew = document.getElementById('confirmEndNew');
+    const durNew = document.getElementById('confirmDurationNew');
+
+    if (startOld) startOld.textContent = formatTime(originalStart);
+    if (startNew) startNew.textContent = formatTime(activeStart);
+    if (endOld) endOld.textContent = formatTime(originalEnd);
+    if (endNew) endNew.textContent = formatTime(activeEnd);
+    if (durNew) durNew.textContent = `${Math.round(activeEnd - activeStart)} segundos`;
 
     confirmModal.classList.remove('hidden');
     confirmModal.classList.add('flex');
+    confirmModal.style.display = 'flex';
 }
 
 function hideConfirmModal() {
@@ -778,6 +786,7 @@ function hideConfirmModal() {
     if (!confirmModal) return;
     confirmModal.classList.add('hidden');
     confirmModal.classList.remove('flex');
+    confirmModal.style.display = 'none';
 }
 
 function discardAndCloseModal() {
@@ -794,6 +803,7 @@ function forceClosePreviewModal() {
     player.src = '';
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.style.display = 'none';
     currentItem = null;
 }
 
