@@ -265,7 +265,7 @@ class LiveVideoAutoProcessorService
                         'temperature' => 0,
                         'language' => 'pt',
                         'prompt' => $whisperPrompt,
-                        'timestamp_granularities' => ['segment']
+                        'timestamp_granularities' => ['segment', 'word']
                     ]);
 
                 if ($response->successful()) {
@@ -275,12 +275,26 @@ class LiveVideoAutoProcessorService
                             $start = round($currentOffset + (float) ($seg['start'] ?? 0), 2);
                             $end = round($currentOffset + (float) ($seg['end'] ?? 0), 2);
                             $text = trim($seg['text'] ?? '');
+                            $segWords = [];
+                            if (!empty($seg['words']) && is_array($seg['words'])) {
+                                foreach ($seg['words'] as $w) {
+                                    $segWords[] = [
+                                        'word' => trim($w['word'] ?? ''),
+                                        'start' => round($currentOffset + (float) ($w['start'] ?? 0), 2),
+                                        'end' => round($currentOffset + (float) ($w['end'] ?? 0), 2)
+                                    ];
+                                }
+                            }
                             if (!empty($text)) {
-                                $sentences[] = [
+                                $entry = [
                                     'start' => $start,
                                     'end' => $end,
                                     'text' => $text
                                 ];
+                                if (!empty($segWords)) {
+                                    $entry['words'] = $segWords;
+                                }
+                                $sentences[] = $entry;
                             }
                         }
                     }

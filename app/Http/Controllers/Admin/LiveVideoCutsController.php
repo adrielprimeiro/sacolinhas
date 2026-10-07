@@ -907,18 +907,46 @@ PROMPT;
 
                     if ($start < 0 || $end <= $start) continue;
 
-                    // Alinhamento exato de timestamps com as frases da transcrição (Whisper)
+                    // Alinhamento exato de timestamps com as frases/palavras da transcrição (Whisper)
                     $alignedStart = $start;
                     $alignedEnd = $end;
                     $snippetRaw = trim($entry['snippet'] ?? '');
 
-                    // 1. Se fornecido snippet, tenta alinhar o início pela primeira frase do snippet
+                    // 1. Se fornecido snippet, busca a correspondência exata por palavra ou frase
                     if (!empty($snippetRaw)) {
-                        $snippetHead = mb_strtolower(trim(mb_substr($snippetRaw, 0, 35)));
+                        $snippetHead = mb_strtolower(trim(mb_substr($snippetRaw, 0, 40)));
+                        $snippetWords = array_values(array_filter(explode(' ', $snippetHead)));
+
                         foreach ($sentences as $s) {
                             $sStart = (float) ($s['start'] ?? 0);
+                            $sEnd = (float) ($s['end'] ?? 0);
                             $sText = mb_strtolower(trim($s['text'] ?? ''));
-                            if (!empty($sText) && (str_contains($sText, $snippetHead) || str_contains($snippetHead, mb_substr($sText, 0, 20)))) {
+
+                            if (empty($sText)) continue;
+
+                            // 1a. Se tiver array de palavras com timestamps (word-level)
+                            if (!empty($s['words']) && is_array($s['words']) && !empty($snippetWords)) {
+                                foreach ($s['words'] as $wObj) {
+                                    $wText = mb_strtolower(trim($wObj['word'] ?? ''));
+                                    if (!empty($wText) && str_contains($wText, $snippetWords[0])) {
+                                        $alignedStart = (float) ($wObj['start'] ?? $sStart);
+                                        break 2;
+                                    }
+                                }
+                            }
+
+                            // 1b. Se a frase contém o início do snippet, calcula o offset preciso
+                            $pos = mb_strpos($sText, $snippetHead);
+                            if ($pos !== false) {
+                                if ($pos === 0) {
+                                    $alignedStart = $sStart;
+                                } else {
+                                    // Posição proporcional dentro da frase
+                                    $ratio = $pos / max(1, mb_strlen($sText));
+                                    $alignedStart = round($sStart + ($ratio * ($sEnd - $sStart)), 1);
+                                }
+                                break;
+                            } elseif (str_contains($snippetHead, mb_substr($sText, 0, 20))) {
                                 $alignedStart = $sStart;
                                 break;
                             }
