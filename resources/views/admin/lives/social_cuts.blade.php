@@ -190,10 +190,36 @@
                 </video>
 
                 {{-- Overlay de Processando / Recortando FFmpeg --}}
-                <div id="modalSavingOverlay" class="absolute inset-0 bg-black/85 hidden flex-col items-center justify-center text-white z-20 p-4 text-center">
-                    <i class="fas fa-spinner fa-spin text-4xl text-pink-500 mb-3"></i>
-                    <h5 class="text-sm font-bold text-white">Salvando e Recortando Vídeo...</h5>
-                    <p class="text-xs text-gray-300 mt-1 max-w-xs">Severino FFmpeg está gerando o novo corte com a minutagem ajustada.</p>
+                <div id="modalSavingOverlay" class="absolute inset-0 bg-black/90 hidden flex-col items-center justify-center text-white z-30 p-4 text-center backdrop-blur-sm" style="display: none;">
+                    <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl flex flex-col items-center animate-scale-in">
+                        
+                        {{-- Rodinha / Spinner com Cronômetro Central --}}
+                        <div class="relative w-20 h-20 mb-4 flex items-center justify-center">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-gray-800" stroke-width="3.5" stroke="currentColor" fill="none"
+                                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="savingProgressCircle" class="text-pink-500 transition-all duration-300" stroke-width="3.5" stroke-dasharray="5, 100" stroke-linecap="round" stroke="currentColor" fill="none"
+                                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <i class="fas fa-film text-pink-400 text-xs animate-pulse mb-0.5"></i>
+                                <span id="savingTimerElapsed" class="text-xs font-mono font-black text-white">0.0s</span>
+                            </div>
+                        </div>
+
+                        <h5 class="text-base font-black text-white" id="savingStatusTitle">Recortando Vídeo...</h5>
+                        <p class="text-xs text-gray-300 mt-1 max-w-xs" id="savingStatusDesc">Severino FFmpeg está processando o novo corte com a minutagem ajustada.</p>
+
+                        {{-- Barra de Progresso Linear --}}
+                        <div class="w-full bg-gray-800 rounded-full h-2.5 mt-4 overflow-hidden border border-gray-700">
+                            <div id="savingProgressBar" class="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 h-full rounded-full transition-all duration-200" style="width: 5%;"></div>
+                        </div>
+
+                        <div class="flex items-center justify-between w-full mt-2 text-[11px] font-mono text-gray-400">
+                            <span id="savingPercentText">5%</span>
+                            <span class="flex items-center gap-1"><i class="fas fa-cog fa-spin text-pink-400"></i> Renderizando</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -353,26 +379,28 @@
                 </div>
             </div>
 
-            {{-- Botões de Decisão --}}
-            <div class="flex flex-col gap-2">
+            {{-- Botões de Decisão com Destaque Máximo para Salvar --}}
+            <div class="flex flex-col gap-2.5">
                 <button type="button" 
                         onclick="confirmAndSaveCut()" 
-                        class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fas fa-check-circle"></i>
+                        class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-700 active:scale-[0.98] text-white font-black text-sm sm:text-base shadow-xl shadow-emerald-950/60 transition-all flex items-center justify-center gap-2.5 cursor-pointer border border-emerald-400/40 group">
+                    <i class="fas fa-check-circle text-lg text-emerald-200 group-hover:scale-110 transition-transform"></i>
                     <span>Salvar e Recortar Vídeo</span>
                 </button>
 
                 <div class="grid grid-cols-2 gap-2 mt-1">
                     <button type="button" 
                             onclick="discardAndCloseModal()" 
-                            class="py-2 px-3 rounded-xl bg-gray-800 hover:bg-red-900/60 text-gray-300 hover:text-red-200 border border-gray-700 text-xs font-bold transition cursor-pointer">
-                        Descartar Alterações
+                            class="py-2.5 px-3 rounded-xl bg-gray-800 hover:bg-red-950/70 text-gray-300 hover:text-red-200 border border-gray-700 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i class="fas fa-trash-alt text-[11px] text-gray-400"></i>
+                        <span>Descartar</span>
                     </button>
 
                     <button type="button" 
                             onclick="hideConfirmModal()" 
-                            class="py-2 px-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold transition cursor-pointer">
-                        Continuar Editando
+                            class="py-2.5 px-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i class="fas fa-arrow-left text-[11px] text-gray-400"></i>
+                        <span>Continuar Editando</span>
                     </button>
                 </div>
             </div>
@@ -890,10 +918,49 @@ async function saveAndReCutItem() {
     if (!currentItem) return;
 
     const overlay = document.getElementById('modalSavingOverlay');
+    const progressCircle = document.getElementById('savingProgressCircle');
+    const progressBar = document.getElementById('savingProgressBar');
+    const percentText = document.getElementById('savingPercentText');
+    const timerElapsed = document.getElementById('savingTimerElapsed');
+    const statusTitle = document.getElementById('savingStatusTitle');
+    const statusDesc = document.getElementById('savingStatusDesc');
+
     if (overlay) {
         overlay.classList.remove('hidden');
         overlay.classList.add('flex');
+        overlay.style.display = 'flex';
     }
+
+    // Reinicia contadores visuais
+    if (progressCircle) progressCircle.setAttribute('stroke-dasharray', '5, 100');
+    if (progressBar) progressBar.style.width = '5%';
+    if (percentText) percentText.textContent = '5%';
+    if (timerElapsed) timerElapsed.textContent = '0.0s';
+    if (statusTitle) statusTitle.textContent = 'Recortando Vídeo...';
+    if (statusDesc) statusDesc.textContent = 'Severino FFmpeg está processando o novo corte com a minutagem ajustada.';
+
+    const startTime = Date.now();
+    let currentPct = 5;
+
+    const ticker = setInterval(() => {
+        const elapsedSec = ((Date.now() - startTime) / 1000);
+        if (timerElapsed) timerElapsed.textContent = elapsedSec.toFixed(1) + 's';
+
+        // Incremento suave até 94% enquanto aguarda a resposta do servidor
+        if (currentPct < 94) {
+            currentPct = Math.min(94, Math.floor(5 + (elapsedSec * 14)));
+            if (progressBar) progressBar.style.width = `${currentPct}%`;
+            if (percentText) percentText.textContent = `${currentPct}%`;
+            if (progressCircle) progressCircle.setAttribute('stroke-dasharray', `${currentPct}, 100`);
+        }
+
+        if (elapsedSec > 2.5 && statusDesc) {
+            statusDesc.textContent = 'Otimizando frames e faixas de áudio...';
+        }
+        if (elapsedSec > 5.0 && statusDesc) {
+            statusDesc.textContent = 'Finalizando gravação do arquivo MP4 no disco...';
+        }
+    }, 100);
 
     const liveId = currentItem.live_id || '{{ $live ? $live->id : 0 }}';
     const liveItemId = currentItem.live_item_id;
@@ -931,6 +998,16 @@ async function saveAndReCutItem() {
             throw new Error(cutJson.message || 'Erro ao gerar novo corte de vídeo.');
         }
 
+        // Sucesso 100%
+        clearInterval(ticker);
+        const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        if (timerElapsed) timerElapsed.textContent = totalElapsed + 's';
+        if (progressBar) progressBar.style.width = '100%';
+        if (percentText) percentText.textContent = '100%';
+        if (progressCircle) progressCircle.setAttribute('stroke-dasharray', '100, 100');
+        if (statusTitle) statusTitle.textContent = '✅ Corte Finalizado!';
+        if (statusDesc) statusDesc.textContent = `Vídeo recortado com sucesso em ${totalElapsed}s.`;
+
         // 3. Atualizar dados do item local
         currentItem.video_cut_url = cutJson.video_cut_url;
         currentItem.cut_start_sec = activeStart;
@@ -945,15 +1022,18 @@ async function saveAndReCutItem() {
             if (overlay) {
                 overlay.classList.add('hidden');
                 overlay.classList.remove('flex');
+                overlay.style.display = 'none';
             }
             forceClosePreviewModal();
-        }, 800);
+        }, 700);
 
     } catch (err) {
+        clearInterval(ticker);
         alert('Erro ao salvar corte: ' + err.message);
         if (overlay) {
             overlay.classList.add('hidden');
             overlay.classList.remove('flex');
+            overlay.style.display = 'none';
         }
     }
 }
