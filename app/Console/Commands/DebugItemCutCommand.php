@@ -21,12 +21,16 @@ class DebugItemCutCommand extends Command
             $feedbacks = DB::table('live_cut_feedbacks')->where('live_id', $liveId)->get();
             $count = 0;
             foreach ($feedbacks as $fb) {
-                DB::table('live_items')->where('id', $fb->live_item_id)->update([
-                    'cut_start_sec' => $fb->cut_start_sec,
-                    'cut_end_sec' => $fb->cut_end_sec,
-                    'is_reviewed' => 1,
-                    'review_quality' => $fb->feedback_type === 'human_approved' ? 'gold' : 'human_adjusted'
-                ]);
+                DB::table('live_items')
+                    ->where('live_id', $liveId)
+                    ->where('codigo_live', $fb->codigo_live)
+                    ->update([
+                        'cut_start_sec' => $fb->cut_start_sec,
+                        'cut_end_sec' => $fb->cut_end_sec,
+                        'transcription_snippet' => $fb->full_transcription_snippet ?: DB::raw('transcription_snippet'),
+                        'is_reviewed' => 1,
+                        'review_quality' => $fb->feedback_type === 'human_approved' ? 'gold' : 'human_adjusted'
+                    ]);
                 $count++;
             }
             $this->info("Restaurados com sucesso {$count} itens revisados para a Live #{$liveId} a partir da memória do Severino!");
