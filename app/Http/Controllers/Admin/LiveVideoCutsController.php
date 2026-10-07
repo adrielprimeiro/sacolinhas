@@ -692,41 +692,42 @@ class LiveVideoCutsController extends Controller
 
         $systemPrompt = <<<PROMPT
 Você é o Severino Cortes, especialista sênior em inteligência artificial e minutagem de vídeo para Live Shopping de Brechó (Minha Mania).
-Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o corte de vídeo de apresentação de cada peça da live.
+Sua missão é identificar o intervalo EXATO de tempo (cut_start_sec e cut_end_sec) para o corte de vídeo de apresentação individual de cada peça da live.
 
 REGRAS DE OURO E PADRÕES DA APRESENTADORA (MINHA MANIA):
-1. PADRÃO CRÍTICO DE ENCERRAMENTO DA PEÇA (REGRA FUNDAMENTAL):
-   - A apresentadora SEMPRE finaliza a apresentação de uma peça dizendo os detalhes finais, o preço e o código da peça atual (Ex: "...tamanho 39,40, 65 reais, código 1.").
-   - O `cut_end_sec` DEVE terminar EXATAMENTE após a fala final do código da peça atual (com folga de ~0.5s após a pronúncia do código).
-   - O `cut_end_sec` NUNCA deve englobar a próxima peça!
+1. PADRÃO FREQUENTE DE ENCERRAMENTO (NA MAIORIA DAS VEZES):
+   - Na maioria das vezes, a apresentadora finaliza a apresentação de uma peça dizendo as características finais, o preço e/ou o código da peça atual (Ex: "...tamanho 39,40, 65 reais, código 1.").
+   - O `cut_end_sec` DEVE terminar logo após essa fala final de fechamento da peça atual (com folga mínima de ~0.5s após a pronúncia).
+   - O `cut_end_sec` NUNCA deve englobar o início da próxima peça!
 
-2. VALIDAÇÃO CRUZADA COM OS DADOS DO CATÁLOGO (TAMANHO, MARCA, PREÇO):
+2. TRANSIÇÃO E SEPARAÇÃO RÍGIDA ENTRE ITENS:
+   - Assim que a apresentadora passa a descrever um novo item (muda de tamanho, de marca, de cor ou anuncia a próxima peça como "Uma Melissa 38...", "Próxima peça...", "Olha esse vestido..."), o corte da peça anterior JÁ ENCERROU.
+   - O corte da peça N NUNCA deve conter a apresentação ou anúncio do código N+1, N+2, etc. Cada peça deve ter seu corte 100% isolado e individual.
+
+3. VALIDAÇÃO CRUZADA COM O CATÁLOGO (TAMANHO, MARCA, PREÇO):
    - Compare o que a apresentadora fala na transcrição com os dados cadastrais da peça (`nome`, `tamanho`, `marca`, `cor`, `preco`).
    - Exemplo Real: A peça #1 é uma "Melissa Ulitsa" tamanho 39/40 por R$ 65. Quando ela fala "...tamanho 39,40, 65 reais, código 1.", a peça 1 ACABOU.
-   - Assim que ela começa a falar "Uma Melissa 38, topzera...", ela já começou a apresentar a peça #2 (tamanho 38). O corte da peça #1 NÃO PODE conter a fala da peça #2!
-
-3. ISOLAMENTO ABSOLUTO ENTRE PEÇAS:
-   - O corte da peça N NUNCA deve conter a apresentação ou anúncio do código N+1, N+2, etc.
-   - Cada peça deve ter seu próprio corte individual e limpo.
-   - O início da peça N+1 (cut_start_sec) deve ser no momento em que ela começa a falar da peça N+1 (logo após terminar a peça N).
+   - Quando ela começa a falar "Uma Melissa 38, topzera...", ela já começou a apresentar a peça #2 (tamanho 38). O corte da peça #1 NÃO PODE conter a fala da peça #2!
 
 4. ORDEM CRONOLÓGICA MONOTÔNICA:
    - As peças são apresentadas sequencialmente (#1, #2, #3, ...).
    - O início da peça K+1 DEVE ser posterior ou igual ao fim da peça K.
 
 5. DURAÇÃO TÍPICA:
-   - A maioria dos cortes dura entre 15 e 60 segundos por peça. Cuidado com cortes longos de mais de 1 minuto, pois geralmente indicam sobreposição indevida com itens vizinhos.{$fewShotSection}
+   - A maioria dos cortes dura entre 15 e 60 segundos por peça. Cuidado com cortes longos de mais de 1 minuto, pois quase sempre indicam sobreposição indevida com itens vizinhos.{$fewShotSection}
 
-Retorne APENAS um JSON válido no formato de lista:
-[
-  {
-    "live_item_id": 123,
-    "codigo_live": "1",
-    "cut_start_sec": 570.0,
-    "cut_end_sec": 605.5,
-    "snippet": "Texto exato da fala correspondente APENAS a esta peça"
-  }
-]
+Retorne OBRIGATORIAMENTE um objeto JSON no formato:
+{
+  "cuts": [
+    {
+      "live_item_id": 123,
+      "codigo_live": "1",
+      "cut_start_sec": 570.0,
+      "cut_end_sec": 605.5,
+      "snippet": "Texto exato da fala correspondente APENAS a esta peça"
+    }
+  ]
+}
 PROMPT;
 
         $results = [];
@@ -746,36 +747,31 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Google Gemini 2.0 Flash / 1.5 Flash
+            // 1. Google Gemini via OpenAI-compatible endpoint
             if (!empty($geminiKey)) {
-                $geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+                $geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
                 foreach ($geminiModels as $gModel) {
                     try {
-                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key=" . $geminiKey;
+                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
                         $geminiPayload = [
-                            'contents' => [
-                                [
-                                    'role' => 'user',
-                                    'parts' => [
-                                        ['text' => $systemPrompt . "\n\n" . $userPrompt]
-                                    ]
-                                ]
+                            'model' => $gModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
                             ],
-                            'generationConfig' => [
-                                'response_mime_type' => 'application/json',
-                                'temperature' => 0.1
-                            ]
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1
                         ];
 
-                        $response = Http::timeout(60)->post($geminiUrl, $geminiPayload);
+                        $response = Http::withToken($geminiKey)->timeout(60)->post($geminiUrl, $geminiPayload);
                         if ($response->successful()) {
                             $json = $response->json();
-                            $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
                             if (!empty($rawResponse)) {
                                 break;
                             }
                         } else {
-                            Log::warning("[LiveVideoCuts] Gemini ({$gModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                            Log::warning("[LiveVideoCuts] Gemini OpenAI endpoint ({$gModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
                         }
                     } catch (\Exception $e) {
                         Log::warning("[LiveVideoCuts] Exceção no Gemini ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
@@ -800,6 +796,8 @@ PROMPT;
                     if ($response->successful()) {
                         $json = $response->json();
                         $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                    } else {
+                        Log::warning("[LiveVideoCuts] Groq falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
                     }
                 } catch (\Exception $e) {
                     Log::warning("[LiveVideoCuts] Exceção no Groq (Lote {$chunkNumber}): " . $e->getMessage());
