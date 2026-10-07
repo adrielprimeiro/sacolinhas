@@ -66,14 +66,18 @@ class LiveVideoCutsController extends Controller
         $lives = Live::orderBy('id', 'desc')->limit(50)->get();
 
         $unsoldOnly = $request->boolean('unsold_only') || $request->query('unsold') === '1' || $request->query('nao_vendidos') === '1';
-        $readyOnly = $request->boolean('ready_only') || $request->query('prontos') === '1';
         $search = trim((string) $request->query('search', ''));
 
-        // Query dos itens da live
+        // Query dos itens da live com corte de vídeo pronto
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
             ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
             ->where('live_items.live_id', $live->id)
+            ->where(function ($q) {
+                $q->where('live_items.video_cut_status', 'recorded')
+                  ->orWhereNotNull('live_items.video_cut_url')
+                  ->orWhereNotNull('live_items.video_cut_path');
+            })
             ->select([
                 'live_items.id as live_item_id',
                 'live_items.live_id',
@@ -98,18 +102,15 @@ class LiveVideoCutsController extends Controller
                 'users.name as user_full_name'
             ]);
 
-        // Contagens globais da live (para badges de filtro)
-        $allItemsForStats = (clone $query)->get();
-        $totalCount = $allItemsForStats->count();
-        $unsoldCount = $allItemsForStats->filter(function ($row) {
+        // Contagens globais da live para vídeos prontos
+        $allReadyItems = (clone $query)->get();
+        $totalReadyCount = $allReadyItems->count();
+        $unsoldReadyCount = $allReadyItems->filter(function ($row) {
             $buyer = $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null));
             return empty($row->user_id) && (empty($buyer) || trim($buyer) === '' || trim($buyer) === '0');
         })->count();
-        $readyCount = $allItemsForStats->filter(function ($row) {
-            return !empty($row->video_cut_url) || !empty($row->video_cut_path) || $row->video_cut_status === 'recorded';
-        })->count();
 
-        // Aplicar filtros
+        // Aplicar filtro de não vendidos
         if ($unsoldOnly) {
             $query->where(function ($q) {
                 $q->whereNull('live_items.user_id')
@@ -118,14 +119,6 @@ class LiveVideoCutsController extends Controller
                           ->orWhere('live_items.buyer_name', '')
                           ->orWhere('live_items.buyer_name', '0');
                   });
-            });
-        }
-
-        if ($readyOnly) {
-            $query->where(function ($q) {
-                $q->where('live_items.video_cut_status', 'recorded')
-                  ->orWhereNotNull('live_items.video_cut_url')
-                  ->orWhereNotNull('live_items.video_cut_path');
             });
         }
 
@@ -191,13 +184,11 @@ class LiveVideoCutsController extends Controller
             'lives' => $lives,
             'liveItems' => $liveItems,
             'stats' => [
-                'total' => $totalCount,
-                'unsold' => $unsoldCount,
-                'ready' => $readyCount,
+                'total' => $totalReadyCount,
+                'unsold' => $unsoldReadyCount,
             ],
             'filters' => [
                 'unsold_only' => $unsoldOnly,
-                'ready_only' => $readyOnly,
                 'search' => $search,
             ]
         ]);

@@ -32,13 +32,13 @@
             </div>
 
             {{-- Filtros de Status (Pills) --}}
-            <div class="md:col-span-5 flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div class="md:col-span-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <button type="button" 
                         @click="setFilter('all')" 
-                        :class="currentFilter === 'all' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
+                        :class="currentFilter === 'all' ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'"
+                        class="px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
                     <span>Todos</span>
-                    <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'all' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700'">
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'all' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'">
                         {{ $stats['total'] }}
                     </span>
                 </button>
@@ -46,28 +46,17 @@
                 <button type="button" 
                         @click="setFilter('unsold')" 
                         :class="currentFilter === 'unsold' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'"
-                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
+                        class="px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
                     <i class="fas fa-tag text-[10px]"></i>
                     <span>Não Vendidos</span>
                     <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'unsold' ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-900'">
                         {{ $stats['unsold'] }}
                     </span>
                 </button>
-
-                <button type="button" 
-                        @click="setFilter('ready')" 
-                        :class="currentFilter === 'ready' ? 'bg-green-600 text-white shadow-xs' : 'bg-green-50 text-green-900 border border-green-200 hover:bg-green-100'"
-                        class="px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fas fa-check-circle text-[10px]"></i>
-                    <span>Vídeo Pronto</span>
-                    <span class="px-1.5 py-0.5 rounded-full text-[10px]" :class="currentFilter === 'ready' ? 'bg-green-800 text-white' : 'bg-green-200 text-green-900'">
-                        {{ $stats['ready'] }}
-                    </span>
-                </button>
             </div>
 
             {{-- Campo de Busca Rápida --}}
-            <div class="md:col-span-3">
+            <div class="md:col-span-4">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
                         <i class="fas fa-search text-xs"></i>
@@ -269,7 +258,7 @@
 <script>
 function socialCutsApp() {
     return {
-        currentFilter: '{{ $filters['unsold_only'] ? 'unsold' : ($filters['ready_only'] ? 'ready' : 'all') }}',
+        currentFilter: '{{ $filters['unsold_only'] ? 'unsold' : 'all' }}',
         searchTerm: '{{ addslashes($filters['search']) }}',
 
         setFilter(filterName) {
@@ -277,11 +266,8 @@ function socialCutsApp() {
         },
 
         matchesFilter(item) {
-            // Filtro por Status
+            // Filtro por Status (Apenas Não Vendidos se selecionado)
             if (this.currentFilter === 'unsold' && item.is_sold) {
-                return false;
-            }
-            if (this.currentFilter === 'ready' && !item.is_ready) {
                 return false;
             }
 
