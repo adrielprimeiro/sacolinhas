@@ -872,12 +872,21 @@ PROMPT;
 
             $decoded = null;
             if (!empty($rawResponse)) {
-                $decoded = json_decode($rawResponse, true);
-                if (isset($decoded['items']) && is_array($decoded['items'])) {
-                    $decoded = $decoded['items'];
-                } elseif (isset($decoded['cuts']) && is_array($decoded['cuts'])) {
-                    $decoded = $decoded['cuts'];
+                $cleanJson = trim($rawResponse);
+                if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/i', $cleanJson, $m)) {
+                    $cleanJson = trim($m[1]);
                 }
+                $parsed = json_decode($cleanJson, true);
+                if (is_array($parsed)) {
+                    if (isset($parsed['items']) && is_array($parsed['items'])) {
+                        $decoded = $parsed['items'];
+                    } elseif (isset($parsed['cuts']) && is_array($parsed['cuts'])) {
+                        $decoded = $parsed['cuts'];
+                    } else {
+                        $decoded = $parsed;
+                    }
+                }
+                Log::info("[LiveVideoCuts] Lote {$chunkNumber}: " . (is_array($decoded) ? count($decoded) : 0) . " itens decodificados da IA.");
             }
 
             if (is_array($decoded) && !empty($decoded)) {
