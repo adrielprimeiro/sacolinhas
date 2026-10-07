@@ -538,6 +538,61 @@
     </div>
 </div>
 
+<!-- MODAL AUTO-PROCESSAR INSTAGRAM -->
+<div id="modal-auto-process-instagram" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                <i class="fab fa-instagram text-pink-600 text-xl"></i>
+                <span>Auto-Processar Gravação da Live</span>
+            </h3>
+            <button type="button" onclick="toggleAutoProcessModal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <form id="form-auto-process" onsubmit="submitAutoProcess(event)" class="space-y-4">
+            <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3.5 text-xs text-indigo-950">
+                <p class="font-bold flex items-center gap-1.5 text-indigo-900">
+                    <i class="fas fa-magic text-indigo-600"></i> Fluxo 100% Automático:
+                </p>
+                <div class="mt-1.5 text-indigo-900 space-y-1 text-[11px] leading-relaxed">
+                    <div><i class="fas fa-check-circle text-indigo-600 mr-1"></i> Baixa o vídeo do Instagram (ou usa o vídeo já carregado)</div>
+                    <div><i class="fas fa-check-circle text-indigo-600 mr-1"></i> Extrai o áudio e transcreve com IA Whisper</div>
+                    <div><i class="fas fa-check-circle text-indigo-600 mr-1"></i> Detecta minutagens e códigos com Severino IA</div>
+                    <div><i class="fas fa-check-circle text-indigo-600 mr-1"></i> Gera os cortes (.mp4) e capas para todos os itens</div>
+                </div>
+            </div>
+
+            <div>
+                <label for="auto-process-url-input" class="block text-xs font-bold text-gray-900 mb-1.5 flex items-center justify-between">
+                    <span>Link da Publicação / Reel no Instagram:</span>
+                    <button type="button" onclick="pasteClipboardToUrlInput()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-extrabold flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-paste"></i> Colar do Teclado
+                    </button>
+                </label>
+                <input 
+                    type="url" 
+                    id="auto-process-url-input" 
+                    name="url" 
+                    placeholder="Ex: https://www.instagram.com/reel/C... ou https://www.instagram.com/p/..." 
+                    class="w-full px-3.5 py-2.5 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 font-medium placeholder-gray-400 outline-none transition"
+                >
+                <p class="text-[11px] text-gray-600 mt-1.5">
+                    Cole o link do Reel/Live postado no Instagram. Se o vídeo já estiver carregado nesta página, pode deixar em branco.
+                </p>
+            </div>
+
+            <div class="pt-3 flex justify-end gap-2.5 border-t border-gray-200">
+                <button type="button" onclick="toggleAutoProcessModal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-submit-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
+                    <i class="fas fa-play text-white"></i>
+                    <span class="text-white font-black">Iniciar Auto-Processamento</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 @push('scripts')
 <script>
@@ -1442,24 +1497,77 @@
         }
     }
 
-    async function triggerAutoProcess() {
-        const hasVideo = !!document.getElementById('live-main-player');
-        let videoUrl = '';
-
-        if (!hasVideo) {
-            const inputUrl = prompt("Insira o link da publicação/vídeo no Instagram (ex: https://www.instagram.com/p/... ou https://www.instagram.com/reel/...):\n\nO sistema irá baixar, transcrever e gerar todos os cortes automaticamente.", "");
-            if (inputUrl === null) return;
-            videoUrl = inputUrl.trim();
+    function toggleAutoProcessModal(show = null) {
+        const modal = document.getElementById("modal-auto-process-instagram");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
         } else {
-            if (!confirm("Deseja executar a verificação inteligente, transcrição com IA e gerar todos os cortes automaticamente?")) return;
+            modal.classList.add("hidden");
+        }
+        if (!modal.classList.contains("hidden")) {
+            setTimeout(() => {
+                const input = document.getElementById("auto-process-url-input");
+                if (input) input.focus();
+            }, 100);
+        }
+    }
+
+    async function pasteClipboardToUrlInput() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                const input = document.getElementById("auto-process-url-input");
+                if (input) {
+                    input.value = text.trim();
+                    input.focus();
+                }
+            }
+        } catch (e) {
+            console.warn("Clipboard access not available or denied:", e);
+        }
+    }
+
+    function triggerAutoProcess() {
+        toggleAutoProcessModal(true);
+    }
+
+    async function submitAutoProcess(event) {
+        if (event) event.preventDefault();
+
+        const inputUrl = document.getElementById("auto-process-url-input");
+        const videoUrl = inputUrl ? inputUrl.value.trim() : '';
+
+        const btnSubmit = document.getElementById("btn-submit-auto-process");
+        const btnTop = document.getElementById("btn-auto-process");
+        const oldSubmitHtml = btnSubmit ? btnSubmit.innerHTML : '';
+        const oldTopHtml = btnTop ? btnTop.innerHTML : '';
+
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i class="fas fa-spinner fa-spin text-white mr-1"></i> Iniciando...`;
+        }
+        if (btnTop) {
+            btnTop.disabled = true;
+            btnTop.innerHTML = `<i class="fas fa-spinner fa-spin text-white mr-1"></i> Iniciando...`;
         }
 
-        const btn = document.getElementById("btn-auto-process");
-        const oldHtml = btn ? btn.innerHTML : '';
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
+        // Exibir banner de progresso imediatamente
+        const progressBox = document.getElementById("ai-process-progress-box");
+        const progressText = document.getElementById("ai-process-text");
+        const progressPct = document.getElementById("ai-process-pct");
+        const progressBar = document.getElementById("ai-process-bar");
+        if (progressBox) {
+            progressBox.classList.remove("hidden");
+            if (progressText) progressText.textContent = videoUrl ? "Baixando vídeo da publicação do Instagram..." : "Verificando gravação e áudio...";
+            if (progressPct) progressPct.textContent = "5%";
+            if (progressBar) progressBar.style.width = "5%";
         }
+
+        // Fecha o modal
+        toggleAutoProcessModal(false);
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/auto-process`, {
@@ -1475,25 +1583,41 @@
                 })
             });
             const data = await res.json();
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
+            
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = oldSubmitHtml;
+            }
+            if (btnTop) {
+                btnTop.disabled = false;
+                btnTop.innerHTML = oldTopHtml;
             }
 
             if (data.is_async) {
                 startTranscriptionPolling();
             } else if (data.success) {
-                alert("✅ " + data.message);
-                window.location.reload();
+                if (progressText) progressText.textContent = "✅ " + data.message;
+                if (progressPct) progressPct.textContent = "100%";
+                if (progressBar) progressBar.style.width = "100%";
+                setTimeout(() => {
+                    alert("✅ " + data.message);
+                    window.location.reload();
+                }, 1000);
             } else {
+                if (progressBox) progressBox.classList.add("hidden");
                 alert("⚠️ " + (data.message || 'Falha no processamento automático.'));
             }
         } catch(e) {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = oldSubmitHtml;
             }
-            alert("Erro de comunicação ao disparar o processamento.");
+            if (btnTop) {
+                btnTop.disabled = false;
+                btnTop.innerHTML = oldTopHtml;
+            }
+            if (progressBox) progressBox.classList.add("hidden");
+            alert("Erro de comunicação ao disparar o processamento: " + e.message);
         }
     }
 </script>
