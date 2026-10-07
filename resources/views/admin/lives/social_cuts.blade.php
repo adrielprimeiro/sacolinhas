@@ -235,50 +235,49 @@
                 </div>
 
                 {{-- Barra Visual de Cortes Multi-Cores com Marcador Playhead --}}
-                <div class="space-y-1">
-                    <div class="relative w-full h-4 bg-gray-800 rounded-lg overflow-hidden flex cursor-pointer border border-gray-700 select-none shadow-inner"
+                <div class="space-y-1.5">
+                    <div class="relative w-full h-7 sm:h-8 bg-gray-800 rounded-xl overflow-hidden flex cursor-pointer border border-gray-600 select-none shadow-inner touch-none"
                          id="visualTimelineTrack"
-                         onclick="onVisualTrackClick(event)"
-                         title="Clique para navegar no corte">
+                         title="Toque ou arraste para navegar e ajustar o ponto exato">
                         
                         {{-- Segmento Início Adicionado (Âmbar/Amarelo) --}}
                         <div id="trackSegAddedStart" 
-                             class="h-full bg-amber-500 flex items-center justify-center text-[9px] font-black text-amber-950 transition-all duration-200" 
+                             class="h-full bg-amber-500 flex items-center justify-center text-[10px] sm:text-xs font-black text-amber-950 transition-all duration-150 select-none" 
                              style="width: 0%;" 
                              title="Trecho adicionado ao início (+10s)">
                         </div>
 
                         {{-- Segmento Corte Original (Índigo/Roxo) --}}
                         <div id="trackSegOriginal" 
-                             class="h-full bg-indigo-600 flex items-center justify-center text-[9px] font-black text-white transition-all duration-200" 
+                             class="h-full bg-indigo-600 flex items-center justify-center text-[10px] sm:text-xs font-black text-white transition-all duration-150 select-none" 
                              style="width: 100%;" 
                              title="Trecho original do corte">
                         </div>
 
                         {{-- Segmento Fim Adicionado (Âmbar/Amarelo) --}}
                         <div id="trackSegAddedEnd" 
-                             class="h-full bg-amber-500 flex items-center justify-center text-[9px] font-black text-amber-950 transition-all duration-200" 
+                             class="h-full bg-amber-500 flex items-center justify-center text-[10px] sm:text-xs font-black text-amber-950 transition-all duration-150 select-none" 
                              style="width: 0%;" 
                              title="Trecho adicionado ao final (+10s)">
                         </div>
 
-                        {{-- Agulha de Reprodução (Playhead) --}}
+                        {{-- Agulha de Reprodução (Playhead com Grip Arrasto) --}}
                         <div id="trackPlayhead" 
-                             class="absolute top-0 bottom-0 w-1 bg-white shadow-lg pointer-events-none transform -translate-x-1/2 transition-none z-10" 
+                             class="absolute top-0 bottom-0 w-1.5 bg-white shadow-xl pointer-events-none transform -translate-x-1/2 transition-none z-10" 
                              style="left: 0%;">
-                            <div class="w-2.5 h-2.5 bg-pink-500 rounded-full border-2 border-white -mt-0.5 -ml-0.75 shadow"></div>
+                            <div class="w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white -mt-0.5 -ml-1 shadow-md"></div>
                         </div>
                     </div>
 
                     {{-- Minutagem Direta na Barra (Início, Tempo Atual e Fim) --}}
-                    <div class="flex items-center justify-between text-[11px] font-mono text-gray-300 px-0.5 font-bold">
-                        <span id="barStartMinutagem" class="text-indigo-400 font-extrabold">00:00</span>
-                        <div class="flex items-center gap-1 font-semibold text-gray-400">
+                    <div class="flex items-center justify-between text-xs font-mono text-gray-300 px-0.5 font-bold">
+                        <span id="barStartMinutagem" class="text-indigo-400 font-extrabold text-xs sm:text-sm">00:00</span>
+                        <div class="flex items-center gap-1 font-semibold text-gray-400 text-xs sm:text-sm">
                             <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
                             <span>/</span>
                             <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
                         </div>
-                        <span id="barEndMinutagem" class="text-indigo-400 font-extrabold">00:00</span>
+                        <span id="barEndMinutagem" class="text-indigo-400 font-extrabold text-xs sm:text-sm">00:00</span>
                     </div>
                 </div>
 
@@ -396,6 +395,7 @@ let originalStart = 0;
 let originalEnd = 0;
 let isUsingRecording = false;
 let toastTimeout = null;
+let isScrubbing = false;
 
 function socialCutsApp() {
     return {
@@ -501,6 +501,7 @@ function openPreviewModal(item) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     modal.style.display = 'flex';
+    initTimelineEvents();
 
     player.onloadedmetadata = function() {
         if (isUsingRecording && activeStart > 0) {
@@ -512,6 +513,8 @@ function openPreviewModal(item) {
     };
 
     player.ontimeupdate = function() {
+        if (isScrubbing) return;
+
         const currentText = document.getElementById('modalCurrentTimeText');
         const totalText = document.getElementById('modalTotalTimeText');
         const playhead = document.getElementById('trackPlayhead');
@@ -632,23 +635,74 @@ function updateVisualTimeline() {
     }
 }
 
-function onVisualTrackClick(e) {
+function seekToTrackPosition(clientX) {
     const track = document.getElementById('visualTimelineTrack');
     const player = document.getElementById('modalVideoPlayer');
     if (!track || !player) return;
 
     const rect = track.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const pct = Math.min(1, Math.max(0, clickX / rect.width));
+    if (rect.width <= 0) return;
 
-    const totalSpan = Math.max(1, activeEnd - activeStart);
+    const clickX = clientX - rect.left;
+    const pct = Math.min(1, Math.max(0, clickX / rect.width));
+    const totalSpan = Math.max(0.1, activeEnd - activeStart);
+
+    let targetTime = 0;
     if (isUsingRecording) {
-        player.currentTime = activeStart + (totalSpan * pct);
+        targetTime = activeStart + (totalSpan * pct);
     } else {
         const dur = player.duration || totalSpan;
-        player.currentTime = dur * pct;
+        targetTime = dur * pct;
+    }
+
+    try {
+        player.currentTime = targetTime;
+    } catch(e) {}
+
+    // Atualiza agulha e minutagem instantaneamente enquanto arrasta
+    const playhead = document.getElementById('trackPlayhead');
+    if (playhead) {
+        playhead.style.left = `${pct * 100}%`;
+    }
+
+    const currentText = document.getElementById('modalCurrentTimeText');
+    if (currentText) {
+        const displayOffset = isUsingRecording ? Math.max(0, targetTime - activeStart) : targetTime;
+        currentText.textContent = formatTime(displayOffset);
     }
 }
+
+function initTimelineEvents() {
+    const track = document.getElementById('visualTimelineTrack');
+    if (!track || track.dataset.dragInit === 'true') return;
+    track.dataset.dragInit = 'true';
+
+    track.addEventListener('pointerdown', function(e) {
+        isScrubbing = true;
+        try {
+            track.setPointerCapture(e.pointerId);
+        } catch(err) {}
+        seekToTrackPosition(e.clientX);
+    });
+
+    track.addEventListener('pointermove', function(e) {
+        if (!isScrubbing) return;
+        seekToTrackPosition(e.clientX);
+    });
+
+    const stopScrubbing = function(e) {
+        if (!isScrubbing) return;
+        isScrubbing = false;
+        try {
+            if (e && e.pointerId) track.releasePointerCapture(e.pointerId);
+        } catch(err) {}
+    };
+
+    track.addEventListener('pointerup', stopScrubbing);
+    track.addEventListener('pointercancel', stopScrubbing);
+}
+
+document.addEventListener('DOMContentLoaded', initTimelineEvents);
 
 function showToast(msg) {
     const toast = document.getElementById('modalToastBox');
@@ -829,7 +883,8 @@ window.setCutPointHere = setCutPointHere;
 window.toggleModalPlayPause = toggleModalPlayPause;
 window.jumpMinus10 = jumpMinus10;
 window.jumpPlus10 = jumpPlus10;
-window.onVisualTrackClick = onVisualTrackClick;
+window.seekToTrackPosition = seekToTrackPosition;
+window.initTimelineEvents = initTimelineEvents;
 
 async function saveAndReCutItem() {
     if (!currentItem) return;
