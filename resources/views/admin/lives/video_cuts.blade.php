@@ -96,6 +96,152 @@
         </div>
     </div>
 
+    <!-- LINHA SEQUENCIAL DO PROCESSO COMPLETO (1, 2, 3, 4, 5) -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-gray-100">
+            <div>
+                <h3 class="text-xs sm:text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                    Fluxo em Sequência (Passo a Passo Pós-Live)
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5">Siga as etapas numeradas para checar o status e executar o fatiamento de todas as peças.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('admin.lives.cortes.social.live', ['liveId' => $live->id]) }}" 
+                   class="inline-flex items-center gap-1.5 bg-pink-50 hover:bg-pink-100 text-pink-700 font-extrabold px-3 py-1.5 rounded-xl text-xs border border-pink-200 transition shadow-xs">
+                    <i class="fas fa-film text-pink-500"></i>
+                    <span>Ver Feed de Publicações</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            
+            <!-- PASSO 1: VÍDEO DA LIVE -->
+            @php
+                $step1Done = !empty($recordingUrl);
+            @endphp
+            <div class="p-4 rounded-2xl border {{ $step1Done ? 'bg-emerald-50/50 border-emerald-300' : 'bg-amber-50/50 border-amber-300' }} flex flex-col justify-between transition hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-xl text-xs font-black shadow-xs {{ $step1Done ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white' }}">
+                            1
+                        </span>
+                        @if($step1Done)
+                            <span class="inline-flex items-center gap-1 text-[11px] font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-lg">
+                                <i class="fas fa-check text-emerald-700"></i> Gravado
+                            </span>
+                        @else
+                            <span class="inline-flex items-center gap-1 text-[11px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg">
+                                <i class="fas fa-exclamation-triangle text-amber-700"></i> Pendente
+                            </span>
+                        @endif
+                    </div>
+                    <h4 class="text-sm font-black text-gray-900">1. Vídeo da Live</h4>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ $step1Done ? 'Gravação completa vinculada no servidor.' : 'Envie o .mp4 da transmissão ou cole o link do Instagram/OBS.' }}
+                    </p>
+                </div>
+                <div class="mt-4 pt-3 border-t {{ $step1Done ? 'border-emerald-200' : 'border-amber-200' }}">
+                    <button type="button" onclick="toggleUploadModal()" class="w-full text-xs font-black py-2 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 {{ $step1Done ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white' }}">
+                        <i class="fas fa-upload"></i>
+                        <span>{{ $step1Done ? 'Ver / Trocar Vídeo' : 'Carregar Vídeo da Live' }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 2: TRANSCRIÇÃO WHISPER -->
+            @php
+                $step2Done = !empty($transcriptionData) && count($transcriptionData) > 0;
+            @endphp
+            <div class="p-4 rounded-2xl border {{ $step2Done ? 'bg-emerald-50/50 border-emerald-300' : ($step1Done ? 'bg-indigo-50/50 border-indigo-300' : 'bg-gray-50 border-gray-200') }} flex flex-col justify-between transition hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-xl text-xs font-black shadow-xs {{ $step2Done ? 'bg-emerald-600 text-white' : ($step1Done ? 'bg-indigo-600 text-white' : 'bg-gray-400 text-white') }}">
+                            2
+                        </span>
+                        @if($step2Done)
+                            <span class="inline-flex items-center gap-1 text-[11px] font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-lg">
+                                <i class="fas fa-check text-emerald-700"></i> {{ count($transcriptionData) }} falas
+                            </span>
+                        @else
+                            <span class="inline-flex items-center gap-1 text-[11px] font-black text-indigo-900 bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded-lg">
+                                <i class="fas fa-microphone text-indigo-700"></i> Não Transcrito
+                            </span>
+                        @endif
+                    </div>
+                    <h4 class="text-sm font-black text-gray-900">2. Transcrever Áudio</h4>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ $step2Done ? 'Áudio transcrito com marcas de tempo por palavra e frase.' : 'Whisper IA transcreve a fala da apresentadora com minutagem.' }}
+                    </p>
+                </div>
+                <div class="mt-4 pt-3 border-t {{ $step2Done ? 'border-emerald-200' : 'border-indigo-200' }}">
+                    <button type="button" onclick="transcribeAudioWithAI()" class="w-full text-xs font-black py-2 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 {{ $step2Done ? 'bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }}">
+                        <i class="fas fa-microphone-lines"></i>
+                        <span>{{ $step2Done ? 'Re-transcrever Áudio' : 'Transcrever com Whisper IA' }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 3: MINUTAGEM SEVERINO IA -->
+            @php
+                $step3Done = ($stats['total_items'] > 0 && $stats['items_with_cuts'] >= $stats['total_items']);
+                $step3Partial = ($stats['items_with_cuts'] > 0 && $stats['items_with_cuts'] < $stats['total_items']);
+            @endphp
+            <div class="p-4 rounded-2xl border {{ $step3Done ? 'bg-emerald-50/50 border-emerald-300' : ($step3Partial ? 'bg-teal-50/50 border-teal-300' : ($step2Done ? 'bg-teal-50/50 border-teal-300' : 'bg-gray-50 border-gray-200')) }} flex flex-col justify-between transition hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-xl text-xs font-black shadow-xs {{ $step3Done ? 'bg-emerald-600 text-white' : ($step3Partial ? 'bg-teal-600 text-white' : ($step2Done ? 'bg-teal-600 text-white' : 'bg-gray-400 text-white')) }}">
+                            3
+                        </span>
+                        <span class="inline-flex items-center gap-1 text-[11px] font-black {{ $step3Done ? 'text-emerald-900 bg-emerald-100 border border-emerald-300' : ($step3Partial ? 'text-teal-900 bg-teal-100 border border-teal-300' : 'text-gray-700 bg-gray-100 border border-gray-300') }} px-2 py-0.5 rounded-lg">
+                            {{ $stats['items_with_cuts'] }} / {{ $stats['total_items'] }} marcados
+                        </span>
+                    </div>
+                    <h4 class="text-sm font-black text-gray-900">3. Minutar com IA</h4>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ $step3Done ? 'Todos os itens foram minutados pelo Severino!' : 'Severino cruza os produtos com o áudio e marca início/fim de cada peça.' }}
+                    </p>
+                </div>
+                <div class="mt-4 pt-3 border-t {{ $step3Done ? 'border-emerald-200' : 'border-teal-200' }}">
+                    <button type="button" onclick="autoDetectWithAI()" class="w-full text-xs font-black py-2 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 {{ $step3Done ? 'bg-white hover:bg-teal-100 text-teal-900 border border-teal-300' : 'bg-teal-600 hover:bg-teal-700 text-white' }}">
+                        <i class="fas fa-brain"></i>
+                        <span>{{ $step3Done ? 'Re-minutar Peças' : 'Minutar Itens com IA' }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PASSO 4: FATIAMENTO FFmpeg -->
+            @php
+                $step4Done = ($stats['total_items'] > 0 && $stats['items_rendered'] >= $stats['total_items']);
+                $step4Partial = ($stats['items_rendered'] > 0 && $stats['items_rendered'] < $stats['total_items']);
+            @endphp
+            <div class="p-4 rounded-2xl border {{ $step4Done ? 'bg-emerald-50/50 border-emerald-300' : ($step4Partial ? 'bg-indigo-50/50 border-indigo-300' : ($stats['items_with_cuts'] > 0 ? 'bg-purple-50/50 border-purple-300' : 'bg-gray-50 border-gray-200')) }} flex flex-col justify-between transition hover:shadow-sm">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-xl text-xs font-black shadow-xs {{ $step4Done ? 'bg-emerald-600 text-white' : ($step4Partial ? 'bg-indigo-600 text-white' : 'bg-purple-600 text-white') }}">
+                            4
+                        </span>
+                        <span class="inline-flex items-center gap-1 text-[11px] font-black {{ $step4Done ? 'text-emerald-900 bg-emerald-100 border border-emerald-300' : ($step4Partial ? 'text-indigo-900 bg-indigo-100 border border-indigo-300' : 'text-gray-700 bg-gray-100 border border-gray-300') }} px-2 py-0.5 rounded-lg">
+                            {{ $stats['items_rendered'] }} / {{ $stats['total_items'] }} prontos
+                        </span>
+                    </div>
+                    <h4 class="text-sm font-black text-gray-900">4. Gerar Cortes (FFmpeg)</h4>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ $step4Done ? 'Todos os 152 vídeos foram renderizados!' : 'Fatia os arquivos .mp4 individuais e gera miniaturas automáticas.' }}
+                    </p>
+                </div>
+                <div class="mt-4 pt-3 border-t {{ $step4Done ? 'border-emerald-200' : 'border-indigo-200' }}">
+                    <button type="button" onclick="generateAllClips()" class="w-full text-xs font-black py-2 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <i class="fas fa-scissors"></i>
+                        <span>{{ $step4Done ? 'Re-fatiar Vídeos' : 'Gerar Cortes em Lote' }}</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- BANNER DE PROGRESSO IA ASSÍNCRONO -->
     <div id="ai-process-progress-box" class="hidden mb-6 bg-indigo-50 text-indigo-950 rounded-2xl p-5 shadow-xl border border-indigo-200">
         <div class="flex items-center justify-between mb-2">
