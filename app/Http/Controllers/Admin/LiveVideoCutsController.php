@@ -601,8 +601,9 @@ class LiveVideoCutsController extends Controller
     {
         $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
+        $openrouterKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
 
-        if (empty($geminiKey) && empty($groqKey)) {
+        if (empty($geminiKey) && empty($groqKey) && empty($openrouterKey)) {
             Log::warning("[LiveVideoCuts] Nenhuma chave de IA configurada para segmentação.");
             return [];
         }
@@ -772,9 +773,71 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Google Gemini (Endpoint Nativo generateContent de Alta Velocidade + Fallback OpenAI format)
-            if (!empty($geminiKey)) {
-                $geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+            // 1. Groq (Ultrarrápido: LPU ~300ms a 1s)
+            if (empty($rawResponse) && !empty($groqKey)) {
+                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'];
+                foreach ($groqModels as $grModel) {
+                    try {
+                        $groqPayload = [
+                            'model' => $grModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
+                            ],
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1
+                        ];
+
+                        $response = Http::withToken($groqKey)->timeout(25)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
+                    }
+                }
+            }
+
+            // 2. OpenRouter (Alta disponibilidade com LLaMA 3.3 70B e Gemini)
+            if (empty($rawResponse) && !empty($openrouterKey)) {
+                $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.5-flash'];
+                foreach ($orModels as $orModel) {
+                    try {
+                        $orPayload = [
+                            'model' => $orModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
+                            ],
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1
+                        ];
+
+                        $response = Http::withToken($openrouterKey)->timeout(30)->post('https://openrouter.ai/api/v1/chat/completions', $orPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] OpenRouter ({$orModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no OpenRouter ({$orModel}) (Lote {$chunkNumber}): " . $e->getMessage());
+                    }
+                }
+            }
+
+            // 3. Google Gemini Nativo
+            if (empty($rawResponse) && !empty($geminiKey)) {
+                $geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest'];
                 foreach ($geminiModels as $gModel) {
                     try {
                         $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key={$geminiKey}";
@@ -791,7 +854,7 @@ PROMPT;
                             ]
                         ];
 
-                        $response = Http::timeout(30)->post($geminiUrl, $geminiPayload);
+                        $response = Http::timeout(25)->post($geminiUrl, $geminiPayload);
                         if ($response->successful()) {
                             $json = $response->json();
                             $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
@@ -803,37 +866,6 @@ PROMPT;
                         }
                     } catch (\Exception $e) {
                         Log::warning("[LiveVideoCuts] Exceção no Gemini nativo ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
-                    }
-                }
-            }
-
-            // 2. Fallback Groq LLaMA 3.3
-            if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'llama-3.1-8b-instant'];
-                foreach ($groqModels as $grModel) {
-                    try {
-                        $groqPayload = [
-                            'model' => $grModel,
-                            'messages' => [
-                                ['role' => 'system', 'content' => $systemPrompt],
-                                ['role' => 'user', 'content' => $userPrompt]
-                            ],
-                            'response_format' => ['type' => 'json_object'],
-                            'temperature' => 0.1
-                        ];
-
-                        $response = Http::withToken($groqKey)->timeout(30)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
-                        if ($response->successful()) {
-                            $json = $response->json();
-                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
-                            if (!empty($rawResponse)) {
-                                break;
-                            }
-                        } else {
-                            Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
                     }
                 }
             }
