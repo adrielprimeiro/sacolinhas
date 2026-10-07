@@ -902,6 +902,9 @@ PROMPT;
                         }
                     }
 
+                    $li = $liveItemsById->get($liveItemId);
+                    $liCode = trim((string) ($li ? $li->codigo_live : ($entry['codigo_live'] ?? '')));
+
                     $start = round((float) ($entry['cut_start_sec'] ?? 0), 1);
                     $end = round((float) ($entry['cut_end_sec'] ?? 0), 1);
 
@@ -966,7 +969,6 @@ PROMPT;
                     }
 
                     // 3. Ajusta o end: se a peça menciona seu código, o término do corte deve ser logo na conclusão dessa frase
-                    $liCode = $li ? (string)$li->codigo_live : (string)($entry['codigo_live'] ?? '');
                     $foundCodeSentence = false;
 
                     if (!empty($liCode)) {
@@ -983,7 +985,7 @@ PROMPT;
                             $sEnd = (float) ($s['end'] ?? 0);
                             $sText = $s['text'] ?? '';
 
-                            if ($sStart >= ($alignedStart - 5.0) && $sStart <= ($end + 10.0) && preg_match($cRegex, $sText)) {
+                            if ($sStart >= ($alignedStart - 5.0) && $sStart <= ($end + 30.0) && preg_match($cRegex, $sText)) {
                                 $mentionIndex = $sIdx;
                                 $alignedEnd = $sEnd;
                                 $foundCodeSentence = true;
@@ -993,8 +995,8 @@ PROMPT;
 
                         // Se encontrou a menção do código, verifica se a frase anterior era o início da apresentação da peça
                         if ($mentionIndex !== null && $mentionIndex > 0) {
-                            $transPatterns = ['olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'mais uma', 'essa daqui', 'esse daqui', 'próxima peça', 'vamos para'];
-                            for ($bk = $mentionIndex - 1; $bk >= max(0, $mentionIndex - 3); $bk--) {
+                            $transPatterns = ['olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'mais uma', 'essa daqui', 'esse daqui', 'próxima peça', 'vamos para', 'agora vamos'];
+                            for ($bk = $mentionIndex - 1; $bk >= max(0, $mentionIndex - 4); $bk--) {
                                 $bkStart = (float) ($sentences[$bk]['start'] ?? 0);
                                 if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $bkStart < ($lastKnownEndSec - 2.0)) break;
                                 
