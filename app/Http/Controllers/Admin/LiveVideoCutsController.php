@@ -737,7 +737,7 @@ PROMPT;
 
         $results = [];
         $liveItemsById = $liveItems->keyBy('id');
-        $itemChunks = array_chunk($itemsCatalog, 20);
+        $itemChunks = array_chunk($itemsCatalog, 6);
         $totalChunks = count($itemChunks);
         $lastKnownEndSec = $initialAnchorSec;
 
@@ -749,10 +749,10 @@ PROMPT;
 
             if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
                 $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
-                $windowStart = max(0, $lastKnownEndSec - 30);
-                $windowEnd = $lastKnownEndSec + 2400; // Janela de até 40 minutos para 20 peças
+                $windowStart = max(0, $lastKnownEndSec - 20);
+                $windowEnd = $lastKnownEndSec + 450; // Janela compacta de ~7 minutos para 6 peças (apenas ~1.000 tokens)
             } else {
-                $windowEnd = 2400; // Primeiros 40 minutos para o lote 1
+                $windowEnd = 500; // Primeiros ~8 minutos para o lote 1
             }
 
             // Segmenta apenas a janela temporal da transcrição relevante para este lote
@@ -1032,11 +1032,11 @@ PROMPT;
      */
     protected function performChronologicalHeuristicDetection(Live $live, array $sentences, $liveItems): array
     {
-        $openingPatterns = [
-            'olha essa', 'olha esse', 'olha que', 'meninas', 'agora vamos', 'vamos para',
-            'próxima peça', 'próximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
-            'linda demais', 'maravilhosa', 'vestido', 'blusa', 'calça', 'conjunto', 'cropped',
-            'camisa', 'jaqueta', 'saia', 'short', 'macacão', 'melissa'
+        $transitionPatterns = [
+            'olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'olha so',
+            'meninas', 'agora vamos', 'vamos para', 'vamos ver', 'próxima peça', 'proxima peca',
+            'próximo item', 'proximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
+            'mais uma', 'outra peça', 'outro modelo', 'achado', 'linda demais', 'maravilhosa'
         ];
 
         $closingPatterns = [
@@ -1089,17 +1089,28 @@ PROMPT;
 
             for ($i = $mentionIndex; $i >= $startIndex; $i--) {
                 $sStart = (float) ($sentences[$i]['start'] ?? 0);
-                if ($sStart < $lastEndSec) break; // Não invade a peça anterior!
-                if (($mentionTime - $sStart) > 40) break;
+                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 2.0)) {
+                    break; // Não invade o item anterior!
+                }
+                if (($mentionTime - $sStart) > 60) break;
 
                 $sText = mb_strtolower($sentences[$i]['text'] ?? '');
-                $startTime = $sStart;
 
-                foreach ($openingPatterns as $pat) {
+                $hasTransition = false;
+                foreach ($transitionPatterns as $pat) {
                     if (str_contains($sText, $pat)) {
-                        $startTime = $sStart;
-                        break 2;
+                        $hasTransition = true;
+                        break;
                     }
+                }
+
+                if ($hasTransition) {
+                    $startTime = $sStart;
+                    if ($i < $mentionIndex) {
+                        break; // Achou o ponto de transição exato na frase anterior
+                    }
+                } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 25) {
+                    $startTime = $sStart;
                 }
             }
 
@@ -1107,7 +1118,14 @@ PROMPT;
             $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
 
             $finalStart = max(0, round($startTime - 0.5, 1));
-            $finalEnd = round($endTime + 0.5, 1);
+            // Adiciona margem segura de +1.2s para nunca cortar o número final do código
+            $finalEnd = round($endTime + 1.2, 1);
+            if (isset($sentences[$mentionIndex + 1])) {
+                $nextStart = (float) ($sentences[$mentionIndex + 1]['start'] ?? 0);
+                if ($nextStart > $endTime && $finalEnd > $nextStart) {
+                    $finalEnd = max($endTime, round($nextStart - 0.2, 1));
+                }
+            }
             $lastEndSec = $finalEnd;
 
             $snippet = $this->getSnippetForTimeRange($live, $finalStart, $finalEnd);
