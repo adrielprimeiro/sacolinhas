@@ -8,13 +8,30 @@ use Illuminate\Support\Facades\DB;
 
 class DebugItemCutCommand extends Command
 {
-    protected $signature = 'debug:item-cut {live_id} {code=all}';
+    protected $signature = 'debug:item-cut {live_id} {code=all} {--restore}';
     protected $description = 'Debug live item timestamps and transcription sentences';
 
     public function handle()
     {
         $liveId = (int) $this->argument('live_id');
         $code = (string) $this->argument('code');
+        $shouldRestore = $this->option('restore');
+
+        if ($shouldRestore) {
+            $feedbacks = DB::table('live_cut_feedbacks')->where('live_id', $liveId)->get();
+            $count = 0;
+            foreach ($feedbacks as $fb) {
+                DB::table('live_items')->where('id', $fb->live_item_id)->update([
+                    'cut_start_sec' => $fb->cut_start_sec,
+                    'cut_end_sec' => $fb->cut_end_sec,
+                    'is_reviewed' => 1,
+                    'review_quality' => $fb->feedback_type === 'human_approved' ? 'gold' : 'human_adjusted'
+                ]);
+                $count++;
+            }
+            $this->info("Restaurados com sucesso {$count} itens revisados para a Live #{$liveId} a partir da memória do Severino!");
+            return 0;
+        }
 
         if ($code === 'all') {
             $items = DB::table('live_items')->where('live_id', $liveId)->orderBy('id')->get();
