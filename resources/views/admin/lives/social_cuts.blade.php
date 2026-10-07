@@ -162,15 +162,16 @@
 
     {{-- MODAL DE PRÉVIA E EDIÇÃO RÁPIDA DE VÍDEO --}}
     <div id="videoPreviewModal" 
-         class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-2 sm:p-4 backdrop-blur-xs"
+         class="fixed inset-0 bg-black/90 z-50 hidden items-center justify-center p-0 sm:p-3 md:p-4 overflow-hidden h-[100dvh]"
          onclick="if(event.target === this) requestClosePreviewModal()">
         
-        <div class="bg-gray-900 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-700 flex flex-col max-h-[95vh]">
+        <div class="bg-gray-900 w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[96dvh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col justify-between"
+             style="background-color: #111827;">
             
-            {{-- Top Header do Modal --}}
-            <div class="p-3 sm:p-3.5 bg-gray-800 border-b border-gray-700 flex items-center justify-between text-white">
+            {{-- Top Header do Modal (Fixo no topo) --}}
+            <div class="shrink-0 px-3 py-2.5 sm:py-3 bg-gray-800 border-b border-gray-700 flex items-center justify-between text-white">
                 <div class="flex items-center gap-2 min-w-0">
-                    <span id="modalItemCode" class="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full shrink-0"></span>
+                    <span id="modalItemCode" class="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full shrink-0" style="background-color: #4f46e5; color: #ffffff;"></span>
                     <h4 id="modalItemTitle" class="text-xs sm:text-sm font-bold truncate text-gray-100"></h4>
                 </div>
                 <button type="button" 
@@ -180,11 +181,11 @@
                 </button>
             </div>
 
-            {{-- Player de Vídeo com Overlay de Carregamento / Salvando --}}
-            <div class="relative bg-black flex items-center justify-center min-h-[260px] sm:min-h-[320px] max-h-[50vh] flex-1 overflow-hidden">
+            {{-- Área do Vídeo (Ocupa o espaço livre restante e se auto-ajusta ao aspect-ratio do aparelho) --}}
+            <div class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden">
                 <video id="modalVideoPlayer" 
                        playsinline 
-                       class="max-h-[50vh] w-full object-contain cursor-pointer"
+                       class="w-full h-full max-h-full max-w-full object-contain cursor-pointer"
                        onclick="toggleModalPlayPause()">
                     Seu navegador não suporta a reprodução deste vídeo.
                 </video>
@@ -197,39 +198,39 @@
                 </div>
             </div>
 
-            {{-- Toolbar de Controles & Edição de Minutagem --}}
-            <div class="p-3 sm:p-4 bg-gray-850 border-t border-gray-700 space-y-3" style="background-color: #1a202c;">
+            {{-- Toolbar de Controles & Edição de Minutagem (Fixa na parte inferior) --}}
+            <div class="shrink-0 p-2.5 sm:p-3.5 bg-gray-850 border-t border-gray-800 space-y-2 sm:space-y-2.5" style="background-color: #1a202c;">
                 
                 {{-- Badges Informativas dos Timestamps do Corte --}}
-                <div class="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                <div class="flex items-center justify-between gap-1 text-xs">
                     <div class="flex items-center gap-1.5">
                         {{-- Badge Início --}}
-                        <div id="badgeStartBox" class="px-2.5 py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[11px] font-bold flex items-center gap-1">
+                        <div id="badgeStartBox" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[10px] sm:text-[11px] font-bold flex items-center gap-1">
                             <span class="text-gray-400">Início:</span>
                             <span id="badgeStartSec" class="text-indigo-400 font-black">00:00</span>
                         </div>
 
                         {{-- Badge Fim --}}
-                        <div id="badgeEndBox" class="px-2.5 py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[11px] font-bold flex items-center gap-1">
+                        <div id="badgeEndBox" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 font-mono text-[10px] sm:text-[11px] font-bold flex items-center gap-1">
                             <span class="text-gray-400">Fim:</span>
                             <span id="badgeEndSec" class="text-indigo-400 font-black">00:00</span>
                         </div>
 
                         {{-- Duração --}}
-                        <div class="px-2 py-1 rounded-lg bg-gray-800/60 text-gray-400 text-[11px] font-semibold hidden sm:inline-flex">
+                        <div class="px-1.5 py-0.5 rounded-lg bg-gray-800/60 text-gray-400 text-[10px] sm:text-[11px] font-semibold">
                             <span id="badgeDurationSec">0s</span>
                         </div>
                     </div>
 
                     {{-- Indicador de Edição Pendente --}}
-                    <div id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black animate-pulse">
-                        <i class="fas fa-pen text-[9px]"></i>
+                    <div id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] sm:text-[10px] font-black animate-pulse">
+                        <i class="fas fa-pen text-[8px]"></i>
                         <span>Editado</span>
                     </div>
                 </div>
 
                 {{-- Barra de Progresso / Scrubber --}}
-                <div class="space-y-1">
+                <div class="space-y-0.5">
                     <div class="relative flex items-center">
                         <input type="range" 
                                id="modalTimeScrubber" 
@@ -247,13 +248,13 @@
                 </div>
 
                 {{-- Botões Principais: -10s | Play/Pause | +10s --}}
-                <div class="flex items-center justify-center gap-4 pt-1">
+                <div class="flex items-center justify-center gap-4 sm:gap-6 py-0.5">
                     {{-- Botão -10s --}}
                     <button type="button" 
                             onclick="jumpMinus10()" 
                             id="btnMinus10"
-                            class="group px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Voltar 10s no vídeo (ou insere 10s no início se estiver no começo)">
+                            class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Voltar 10s (ou insere 10s no início se estiver no começo)">
                         <i class="fas fa-backward text-pink-400 group-hover:scale-110 transition"></i>
                         <span>-10s</span>
                     </button>
@@ -262,7 +263,7 @@
                     <button type="button" 
                             onclick="toggleModalPlayPause()" 
                             id="modalPlayPauseBtn" 
-                            class="w-11 h-11 rounded-full bg-pink-600 hover:bg-pink-500 active:scale-90 text-white flex items-center justify-center text-sm shadow-lg transition cursor-pointer">
+                            class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-pink-600 hover:bg-pink-500 active:scale-90 text-white flex items-center justify-center text-sm shadow-lg transition cursor-pointer">
                         <i class="fas fa-play ml-0.5" id="modalPlayPauseIcon"></i>
                     </button>
 
@@ -270,26 +271,27 @@
                     <button type="button" 
                             onclick="jumpPlus10()" 
                             id="btnPlus10"
-                            class="group px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Avançar 10s no vídeo (ou insere 10s no fim se estiver no final)">
+                            class="group px-3 py-1.5 sm:py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="Avançar 10s (ou insere 10s no fim se estiver no final)">
                         <span>+10s</span>
                         <i class="fas fa-forward text-pink-400 group-hover:scale-110 transition"></i>
                     </button>
                 </div>
 
                 {{-- Toast Informativo de Ação --}}
-                <div id="modalToastBox" class="hidden text-[11px] font-bold text-center py-1.5 px-3 rounded-xl bg-indigo-900/90 text-indigo-100 border border-indigo-500 shadow-sm transition"></div>
+                <div id="modalToastBox" class="hidden text-[11px] font-bold text-center py-1 px-2.5 rounded-xl bg-indigo-900/90 text-indigo-100 border border-indigo-500 shadow-sm transition"></div>
 
             </div>
 
-            {{-- Footer do Modal com Botões de Ação --}}
-            <div class="p-3 sm:p-3.5 bg-gray-800 border-t border-gray-700 flex items-center justify-between gap-2.5">
+            {{-- Footer do Modal com Botões de Ação (Fixo no Rodapé) --}}
+            <div class="shrink-0 p-2.5 sm:p-3 bg-gray-800 border-t border-gray-700 flex items-center justify-between gap-2 pb-safe" style="background-color: #1f2937;">
                 
                 {{-- Botão Download --}}
                 <a id="modalDownloadBtn" 
                    href="#" 
                    download 
-                   class="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-3 rounded-xl text-xs sm:text-sm transition shadow-sm">
+                   class="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs sm:text-sm transition shadow-sm"
+                   style="background-color: #16a34a; color: #ffffff;">
                     <i class="fas fa-download"></i>
                     <span>Baixar Vídeo</span>
                 </a>
@@ -298,7 +300,7 @@
                 <button type="button" 
                         id="modalSaveDirectBtn"
                         onclick="saveAndReCutItem()"
-                        class="hidden inline-flex items-center justify-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold py-2.5 px-3.5 rounded-xl text-xs sm:text-sm transition shadow-sm">
+                        class="hidden inline-flex items-center justify-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs sm:text-sm transition shadow-sm">
                     <i class="fas fa-save"></i>
                     <span>Salvar Corte</span>
                 </button>
@@ -306,7 +308,7 @@
                 {{-- Botão Fechar --}}
                 <button type="button" 
                         onclick="requestClosePreviewModal()" 
-                        class="px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gray-700 hover:bg-gray-600 text-gray-200 transition cursor-pointer">
+                        class="px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gray-700 hover:bg-gray-600 text-gray-200 transition cursor-pointer">
                     Fechar
                 </button>
             </div>
