@@ -90,72 +90,69 @@
             </p>
         </div>
     @else
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             @foreach($liveItems as $item)
-                <div class="cut-item-card bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all flex flex-col justify-between cursor-pointer group"
+                <div class="cut-item-card bg-white rounded-2xl p-3 sm:p-3.5 shadow-sm border border-gray-200 hover:border-pink-300 hover:shadow-md transition-all cursor-pointer group"
                      x-show="matchesFilter({{ json_encode($item) }})"
                      x-transition
                      @if(!empty($item['video_cut_url']))
                          onclick="openPreviewModal('{{ $item['video_cut_url'] }}', '{{ addslashes($item['item_name']) }}', '#{{ $item['codigo_live'] }}')"
                      @endif>
                     
-                    <div>
-                        <div class="flex items-start gap-3">
-                            {{-- Foto / Thumbnail do Produto --}}
-                            <div class="flex-shrink-0 relative">
-                                <img src="{{ $item['item_image'] }}" 
-                                     alt="{{ $item['item_name'] }}" 
-                                     loading="lazy"
-                                     class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-gray-100 shadow-xs bg-gray-50 group-hover:opacity-95 transition">
-                                
-                                {{-- Ícone Play Flutuante na imagem --}}
-                                @if(!empty($item['video_cut_url']))
-                                    <div class="absolute inset-0 m-auto w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-xs group-hover:bg-pink-600 group-hover:scale-110 transition shadow-md backdrop-blur-xs">
-                                        <i class="fas fa-play ml-0.5"></i>
-                                    </div>
+                    <div class="flex items-center gap-3">
+                        {{-- Foto / Thumbnail do Produto --}}
+                        <div class="flex-shrink-0 relative">
+                            <img src="{{ $item['item_image'] }}" 
+                                 alt="{{ $item['item_name'] }}" 
+                                 loading="lazy"
+                                 class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-gray-100 shadow-xs bg-gray-50 group-hover:opacity-90 transition">
+                            
+                            {{-- Ícone Play Flutuante na imagem --}}
+                            @if(!empty($item['video_cut_url']))
+                                <div class="absolute inset-0 m-auto w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-[10px] group-hover:bg-pink-600 group-hover:scale-110 transition shadow-md backdrop-blur-xs">
+                                    <i class="fas fa-play ml-0.5"></i>
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- Detalhes do Produto --}}
+                        <div class="flex-1 min-w-0">
+                            {{-- Linha 1: Badges de Código e Comprador(a) --}}
+                            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff;">
+                                    #{{ $item['codigo_live'] }}
+                                </span>
+
+                                @if($item['is_sold'])
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 max-w-[140px] sm:max-w-[180px] truncate" style="background-color: #d1fae5; color: #065f46;" title="{{ $item['buyer_name'] }}">
+                                        <i class="fas fa-user text-[9px] text-emerald-700"></i>
+                                        <span class="truncate">{{ $item['buyer_name'] }}</span>
+                                    </span>
                                 @endif
                             </div>
 
-                            {{-- Detalhes do Produto --}}
-                            <div class="flex-1 min-w-0">
-                                
-                                {{-- Linha 1: Badges de Código e Comprador(a) (se houver cliente anexado) --}}
-                                <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
-                                    {{-- Badge #código --}}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-xs">
-                                        #{{ $item['codigo_live'] }}
-                                    </span>
+                            {{-- Linha 2: Nome do Produto --}}
+                            <h3 class="text-xs sm:text-sm font-bold text-gray-900 leading-snug line-clamp-1" title="{{ $item['item_name'] }}">
+                                {{ $item['item_name'] }}
+                            </h3>
 
-                                    {{-- Badge Comprador(a) (apenas se houver cliente anexado) --}}
-                                    @if($item['is_sold'])
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 max-w-[170px] truncate" title="{{ $item['buyer_name'] }}">
-                                            <i class="fas fa-user text-[10px] text-emerald-700"></i>
-                                            <span class="truncate">{{ $item['buyer_name'] }}</span>
-                                        </span>
-                                    @endif
-                                </div>
-
-                                {{-- Linha 2: Nome do Produto --}}
-                                <h3 class="text-sm sm:text-base font-bold text-gray-900 leading-tight line-clamp-2 mt-1" title="{{ $item['item_name'] }}">
-                                    {{ $item['item_name'] }}
-                                </h3>
-
-                                {{-- Linha 3: Cód SKU + Preço --}}
-                                <p class="text-xs sm:text-sm font-semibold text-gray-500 mt-1">
-                                    Cód: <span class="text-gray-700 font-bold">{{ $item['item_sku'] }}</span> • <span class="text-indigo-600 font-black">R$ {{ $item['item_price'] }}</span>
-                                </p>
-                            </div>
+                            {{-- Linha 3: Cód SKU + Preço --}}
+                            <p class="text-[11px] sm:text-xs font-semibold text-gray-500 mt-0.5">
+                                Cód: <span class="text-gray-700 font-bold">{{ $item['item_sku'] }}</span> • <span class="text-indigo-600 font-black">R$ {{ $item['item_price'] }}</span>
+                            </p>
                         </div>
-                    </div>
 
-                    {{-- LINHA DE AÇÃO: BOTÃO BAIXAR VÍDEO --}}
-                    <div class="mt-3 pt-3 border-t border-gray-100 flex items-center" onclick="event.stopPropagation()">
-                        <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
-                           download="{{ $item['download_filename'] }}"
-                           class="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow-sm transition">
-                            <i class="fas fa-download"></i>
-                            <span>Baixar Vídeo</span>
-                        </a>
+                        {{-- Botão de Download na Lateral Direita --}}
+                        <div class="flex-shrink-0" onclick="event.stopPropagation()">
+                            <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
+                               download="{{ $item['download_filename'] }}"
+                               style="background-color: #16a34a; color: #ffffff;"
+                               class="inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs shadow-sm transition"
+                               title="Baixar Vídeo">
+                                <i class="fas fa-download"></i>
+                                <span class="hidden sm:inline">Baixar</span>
+                            </a>
+                        </div>
                     </div>
 
                 </div>
