@@ -152,9 +152,9 @@
                         Limpar
                     </a>
                     
-                    <button type="submit" name="export" value="csv" title="Exportar para Excel (CSV)"
+                    <button type="submit" name="export" value="csv" title="Exportar para Excel (XLS)"
                             class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md shadow-md transition text-sm">
-                        <i class="fas fa-file-csv"></i>
+                        <i class="fas fa-file-excel"></i>
                     </button>
                 </div>
 

@@ -1069,25 +1069,45 @@ class ItemController extends Controller
     private function exportCsv($query)
     {
         $items = $query->orderByDesc('created_at')->get();
-        $filename = "exportacao_itens_" . date('Y-m-d_H-i-s') . ".csv";
+        $filename = "exportacao_itens_" . date('Y-m-d_H-i-s') . ".xls";
 
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type"        => "application/vnd.ms-excel",
             "Content-Disposition" => "attachment; filename=$filename",
             "Pragma"              => "no-cache",
             "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
             "Expires"             => "0"
         ];
 
-        $columns = ['Produto e Detalhes', 'Preco', 'Cod / SKU'];
-
-        $callback = function() use($items, $columns) {
+        $callback = function() use($items) {
             $file = fopen('php://output', 'w');
             
-            // Adiciona BOM para o Excel abrir o UTF-8 corretamente
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
-            fputcsv($file, $columns, ';');
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="s1">
+   <Font ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="s2">
+   <NumberFormat ss:Format="Fixed"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Planilha1">
+  <Table>
+   <Column ss:Width="300"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="150"/>
+   <Row ss:StyleID="s1">
+    <Cell><Data ss:Type="String">Produto e Detalhes</Data></Cell>
+    <Cell><Data ss:Type="String">Preço</Data></Cell>
+    <Cell><Data ss:Type="String">Cód / SKU</Data></Cell>
+   </Row>';
+            fwrite($file, $xml);
 
             foreach ($items as $item) {
                 $nome = $item->nome_do_produto ?? $item->nome ?? $item->title ?? $item->titulo ?? 'N/A';
@@ -1102,17 +1122,22 @@ class ItemController extends Controller
                 $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '-';
 
                 $col1 = mb_strtoupper($nome, 'UTF-8') . ' - ' . $detalhes;
-                $col2 = number_format((float)($item->preco ?? 0), 2, ',', '');
+                $col2 = (float)($item->preco ?? 0);
                 $col3 = $item->codigo ?? '';
 
-                $row = [
-                    $col1,
-                    $col2,
-                    $col3
-                ];
-                fputcsv($file, $row, ';');
+                $rowXml = '
+   <Row>
+    <Cell><Data ss:Type="String">'.htmlspecialchars($col1, ENT_XML1 | ENT_COMPAT, 'UTF-8').'</Data></Cell>
+    <Cell ss:StyleID="s2"><Data ss:Type="Number">'.$col2.'</Data></Cell>
+    <Cell><Data ss:Type="String">'.htmlspecialchars($col3, ENT_XML1 | ENT_COMPAT, 'UTF-8').'</Data></Cell>
+   </Row>';
+                fwrite($file, $rowXml);
             }
 
+            fwrite($file, '
+  </Table>
+ </Worksheet>
+</Workbook>');
             fclose($file);
         };
 
