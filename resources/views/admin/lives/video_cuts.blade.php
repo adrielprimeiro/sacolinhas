@@ -147,16 +147,23 @@
                 <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step2Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 3: MINUTAGEM IA -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="autoDetectWithAI()" title="Clique para detectar minutagens com Severino IA">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                <div class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-50 transition">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs cursor-pointer"
+                         onclick="autoDetectWithAI()"
+                         title="Clique para detectar minutagens com Severino IA"
                          style="{{ $step3Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step3Partial ? 'background-color: #0d9488; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step3Done ? '<i class="fas fa-check"></i>' : '3' !!}
                     </div>
                     <div>
-                        <div class="text-xs font-bold leading-tight" style="color: #111827;">3. Minutagem IA</div>
+                        <div class="text-xs font-bold leading-tight cursor-pointer" onclick="autoDetectWithAI()" style="color: #111827;">3. Minutagem IA</div>
                         <div class="text-[11px] font-semibold" style="{{ $step3Done ? 'color: #15803d;' : ($step3Partial ? 'color: #0f766e;' : 'color: #4b5563;') }}">
-                            {{ $stats['items_with_cuts'] }}/{{ $stats['total_items'] }} marcados
+                            {{ $stats['items_with_cuts'] }}/{{ $stats['total_items'] }} minutados
                         </div>
+                        @if(($stats['items_without_cuts'] ?? 0) > 0)
+                            <button type="button" onclick="setItemsFilter('unminuted')" class="text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-2xs" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="Filtrar apenas os itens que não foram minutados">
+                                <i class="fas fa-exclamation-circle text-amber-600"></i> Ver {{ $stats['items_without_cuts'] }} pendente(s)
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -353,14 +360,89 @@
         <!-- COLUNA DIREITA: LISTA DE ITENS & MINUTAGEM (LARGURA 7) -->
         <div class="lg:col-span-7 space-y-4">
             
-            <div class="flex items-center justify-between gap-4 bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
-                <div class="text-xs font-black text-gray-800 flex items-center gap-2">
-                    <i class="fas fa-tshirt text-indigo-600"></i>
-                    <span>Itens da Live ({{ count($liveItems) }})</span>
+            <!-- TOOLBAR DE FILTROS E BUSCA DOS ITENS -->
+            <div class="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="text-xs font-black text-gray-900 flex items-center gap-2">
+                        <i class="fas fa-tshirt text-indigo-600"></i>
+                        <span>Itens da Live (<span id="items-visible-counter">{{ count($liveItems) }}</span> / {{ count($liveItems) }})</span>
+                    </div>
+                    
+                    <!-- Busca rápida -->
+                    <div class="relative w-full sm:w-56">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-gray-400">
+                            <i class="fas fa-search text-[11px]"></i>
+                        </div>
+                        <input type="text" 
+                               id="items-filter-search-input"
+                               oninput="handleItemSearch(this.value)"
+                               placeholder="Buscar #cód, produto..." 
+                               class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block pl-7 p-1.5 font-medium shadow-2xs">
+                    </div>
                 </div>
-                <div class="text-[11px] text-gray-500 font-semibold">
-                    Clique em um item para sincronizar com o player
+
+                <!-- Abas de Filtro de Itens -->
+                <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
+                    <button type="button" 
+                            onclick="setItemsFilter('all')"
+                            data-filter="all"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            style="background-color: #1f2937; color: #ffffff;">
+                        <span>Todos</span>
+                        <span class="px-1 py-0.2 rounded-full text-[10px] opacity-80">{{ count($liveItems) }}</span>
+                    </button>
+
+                    <button type="button" 
+                            onclick="setItemsFilter('unminuted')"
+                            data-filter="unminuted"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs {{ ($stats['items_without_cuts'] ?? 0) > 0 ? 'animate-pulse' : '' }}"
+                            style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+                        <i class="fas fa-exclamation-triangle text-amber-600"></i>
+                        <span>Não Minutados</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black" style="background-color: #f59e0b; color: #ffffff;">{{ $stats['items_without_cuts'] ?? 0 }}</span>
+                    </button>
+
+                    <button type="button" 
+                            onclick="setItemsFilter('minuted')"
+                            data-filter="minuted"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            style="background-color: #f3f4f6; color: #374151;">
+                        <i class="fas fa-check-circle text-teal-600"></i>
+                        <span>Minutados</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_with_cuts'] }}</span>
+                    </button>
+
+                    <button type="button" 
+                            onclick="setItemsFilter('rendered')"
+                            data-filter="rendered"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            style="background-color: #f3f4f6; color: #374151;">
+                        <i class="fas fa-video text-green-600"></i>
+                        <span>Vídeos Prontos</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_rendered'] }}</span>
+                    </button>
                 </div>
+            </div>
+
+            <!-- Banner Informativo quando filtrado por Não Minutados -->
+            <div id="filter-unminuted-banner" class="hidden p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-950 shadow-xs">
+                <div class="font-black flex items-center gap-2 text-amber-900 text-xs">
+                    <i class="fas fa-info-circle text-amber-600"></i>
+                    <span>Exibindo itens sem minutagem detectada pela IA</span>
+                </div>
+                <p class="text-[11px] text-amber-900 mt-1 leading-relaxed font-medium">
+                    Estes itens não tiveram correspondência direta na fala do áudio. Clique no item para carregar o vídeo, navegue até o trecho em que a peça aparece e clique em <b>Início (I)</b> e <b>Fim (O)</b> para salvar.
+                </p>
+            </div>
+
+            <!-- Notice quando a busca/filtro não encontra nenhum item -->
+            <div id="items-filter-empty-notice" class="hidden bg-white p-8 rounded-2xl border border-gray-200 text-center shadow-xs">
+                <i class="fas fa-search text-gray-300 text-3xl mb-2"></i>
+                <h4 class="text-xs font-bold text-gray-800">Nenhum item encontrado com este filtro</h4>
+                <p class="text-[11px] text-gray-500 mt-0.5">Tente selecionar outra aba ou limpar o campo de busca.</p>
+                <button type="button" onclick="setItemsFilter('all'); document.getElementById('items-filter-search-input').value = ''; handleItemSearch('');" class="mt-3 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs transition border border-gray-300">
+                    Restaurar Todos os Itens
+                </button>
             </div>
 
             <!-- Lista de Cards de Itens -->
@@ -371,8 +453,12 @@
                         $isRendered = $item['video_cut_status'] === 'recorded' && !empty($item['video_cut_url']);
                     @endphp
                     <div id="item-card-{{ $item['live_item_id'] }}" 
+                         data-has-cut="{{ $hasCutTimes ? '1' : '0' }}"
+                         data-is-rendered="{{ $isRendered ? '1' : '0' }}"
+                         data-code="{{ $item['codigo_live'] }}"
+                         data-search="{{ strtolower($item['codigo_live'] . ' ' . $item['item_codigo'] . ' ' . $item['item_name'] . ' ' . ($item['buyer_name'] ?? '')) }}"
                          onclick="selectActiveItem({{ $item['live_item_id'] }}, '{{ $item['cut_start_formatted'] ?: ($item['cut_start_sec'] ?? 0) }}')"
-                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-gray-200') }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
+                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30') }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             
@@ -384,9 +470,9 @@
                                         <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">
                                              #{{ $item['codigo_live'] }}
                                         </span>
-                                        @if($item['buyer_name'])
-                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-green-100 text-green-800 border border-green-200 truncate max-w-[160px]">
-                                                👤 {{ $item['buyer_name'] }}
+                                        @if(!$hasCutTimes)
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
+                                                <i class="fas fa-exclamation-triangle text-amber-600"></i> Não Minutado
                                             </span>
                                         @endif
                                         @php
@@ -696,6 +782,91 @@
     const csrfToken = '{{ csrf_token() }}';
     let activeLiveItemId = null;
     let previewTimer = null;
+    let currentItemFilter = 'all';
+    let currentItemSearch = '';
+
+    function setItemsFilter(filterType) {
+        currentItemFilter = filterType;
+
+        // Atualiza estilo das abas
+        document.querySelectorAll('.item-filter-tab').forEach(btn => {
+            const f = btn.getAttribute('data-filter');
+            if (f === filterType) {
+                btn.style.backgroundColor = '#1f2937';
+                btn.style.color = '#ffffff';
+            } else {
+                if (f === 'unminuted') {
+                    btn.style.backgroundColor = '#fef3c7';
+                    btn.style.color = '#92400e';
+                } else {
+                    btn.style.backgroundColor = '#f3f4f6';
+                    btn.style.color = '#374151';
+                }
+            }
+        });
+
+        // Banner informativo de Não Minutados
+        const banner = document.getElementById('filter-unminuted-banner');
+        if (banner) {
+            if (filterType === 'unminuted') {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        applyItemCardFilters();
+    }
+
+    function handleItemSearch(term) {
+        currentItemSearch = String(term || '').toLowerCase().trim().replace(/^#/, '');
+        applyItemCardFilters();
+    }
+
+    function applyItemCardFilters() {
+        const cards = document.querySelectorAll('.item-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const hasCut = card.getAttribute('data-has-cut') === '1';
+            const isRendered = card.getAttribute('data-is-rendered') === '1';
+            const searchData = (card.getAttribute('data-search') || '').toLowerCase();
+            const code = (card.getAttribute('data-code') || '').toLowerCase();
+
+            let matchesTab = true;
+            if (currentItemFilter === 'unminuted') {
+                matchesTab = !hasCut;
+            } else if (currentItemFilter === 'minuted') {
+                matchesTab = hasCut;
+            } else if (currentItemFilter === 'rendered') {
+                matchesTab = isRendered;
+            }
+
+            let matchesSearch = true;
+            if (currentItemSearch !== '') {
+                matchesSearch = searchData.includes(currentItemSearch) || code === currentItemSearch;
+            }
+
+            if (matchesTab && matchesSearch) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        const emptyNotice = document.getElementById('items-filter-empty-notice');
+        if (emptyNotice) {
+            if (visibleCount === 0) {
+                emptyNotice.classList.remove('hidden');
+            } else {
+                emptyNotice.classList.add('hidden');
+            }
+        }
+
+        const countEl = document.getElementById('items-visible-counter');
+        if (countEl) countEl.textContent = visibleCount;
+    }
 
     const player = document.getElementById("live-main-player");
 

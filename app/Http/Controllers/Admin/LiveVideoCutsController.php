@@ -339,6 +339,8 @@ class LiveVideoCutsController extends Controller
                 'video_cut_url' => $videoUrl,
                 'video_cut_status' => $row->video_cut_status ?: 'none',
                 'thumbnail_candidates' => $candidates,
+                'is_reviewed' => !empty($row->is_reviewed),
+                'review_quality' => $row->review_quality ?? null,
                 'linked_at' => $row->linked_at
             ];
         });
@@ -352,6 +354,7 @@ class LiveVideoCutsController extends Controller
         // Estatísticas
         $totalItems = $liveItems->count();
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
+        $itemsWithoutCuts = max(0, $totalItems - $itemsWithCuts);
         $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
 
         // URL da gravação bruta
@@ -371,6 +374,7 @@ class LiveVideoCutsController extends Controller
             'stats' => [
                 'total_items' => $totalItems,
                 'items_with_cuts' => $itemsWithCuts,
+                'items_without_cuts' => $itemsWithoutCuts,
                 'items_rendered' => $itemsRendered,
             ]
         ]);
