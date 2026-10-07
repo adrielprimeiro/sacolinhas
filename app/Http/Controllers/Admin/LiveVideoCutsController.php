@@ -34,6 +34,200 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
+     * Feed Simplificado e Mobile-First para Publicações em Redes Sociais
+     */
+    public function socialIndex(Request $request, $liveId = null)
+    {
+        $selectedLiveId = $liveId ?: $request->query('live_id');
+        
+        $live = null;
+        if ($selectedLiveId) {
+            $live = Live::find($selectedLiveId);
+        }
+        if (!$live) {
+            $live = Live::where('ativo', true)->orderBy('id', 'desc')->first()
+                ?? Live::orderBy('id', 'desc')->first();
+        }
+
+        if (!$live) {
+            return view('admin.lives.social_cuts', [
+                'live' => null,
+                'lives' => collect([]),
+                'liveItems' => collect([]),
+                'stats' => ['total' => 0, 'unsold' => 0, 'ready' => 0],
+                'filters' => [
+                    'unsold_only' => false,
+                    'ready_only' => false,
+                    'search' => '',
+                ]
+            ]);
+        }
+
+        $lives = Live::orderBy('id', 'desc')->limit(50)->get();
+
+        $unsoldOnly = $request->boolean('unsold_only') || $request->query('unsold') === '1' || $request->query('nao_vendidos') === '1';
+        $readyOnly = $request->boolean('ready_only') || $request->query('prontos') === '1';
+        $search = trim((string) $request->query('search', ''));
+
+        // Query dos itens da live
+        $query = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
+            ->where('live_items.live_id', $live->id)
+            ->select([
+                'live_items.id as live_item_id',
+                'live_items.live_id',
+                'live_items.item_id',
+                'live_items.codigo_live',
+                'live_items.user_id',
+                'live_items.buyer_username',
+                'live_items.buyer_name',
+                'live_items.cut_start_sec',
+                'live_items.cut_end_sec',
+                'live_items.transcription_snippet',
+                'live_items.video_cut_path',
+                'live_items.video_cut_filename',
+                'live_items.video_cut_url',
+                'live_items.video_cut_duration',
+                'live_items.video_cut_status',
+                'items.nome_do_produto as item_nome',
+                'items.descricao as item_descricao',
+                'items.codigo as item_codigo',
+                'items.preco as item_price',
+                'items.image as item_image',
+                'users.name as user_full_name'
+            ]);
+
+        // Contagens globais da live (para badges de filtro)
+        $allItemsForStats = (clone $query)->get();
+        $totalCount = $allItemsForStats->count();
+        $unsoldCount = $allItemsForStats->filter(function ($row) {
+            $buyer = $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null));
+            return empty($row->user_id) && (empty($buyer) || trim($buyer) === '' || trim($buyer) === '0');
+        })->count();
+        $readyCount = $allItemsForStats->filter(function ($row) {
+            return !empty($row->video_cut_url) || !empty($row->video_cut_path) || $row->video_cut_status === 'recorded';
+        })->count();
+
+        // Aplicar filtros
+        if ($unsoldOnly) {
+            $query->where(function ($q) {
+                $q->whereNull('live_items.user_id')
+                  ->where(function ($sub) {
+                      $sub->whereNull('live_items.buyer_name')
+                          ->orWhere('live_items.buyer_name', '')
+                          ->orWhere('live_items.buyer_name', '0');
+                  });
+            });
+        }
+
+        if ($readyOnly) {
+            $query->where(function ($q) {
+                $q->where('live_items.video_cut_status', 'recorded')
+                  ->orWhereNotNull('live_items.video_cut_url')
+                  ->orWhereNotNull('live_items.video_cut_path');
+            });
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $cleanCode = ltrim($search, '#');
+                $q->where('live_items.codigo_live', 'like', "%{$cleanCode}%")
+                  ->orWhere('items.codigo', 'like', "%{$search}%")
+                  ->orWhere('items.nome_do_produto', 'like', "%{$search}%")
+                  ->orWhere('items.descricao', 'like', "%{$search}%")
+                  ->orWhere('live_items.buyer_name', 'like', "%{$search}%")
+                  ->orWhere('users.name', 'like', "%{$search}%");
+            });
+        }
+
+        $query->orderByRaw('CAST(live_items.codigo_live AS UNSIGNED) ASC')->orderBy('live_items.id', 'asc');
+
+        $liveItems = $query->get()->map(function ($row) use ($live) {
+            $name = $row->item_nome ?: ($row->item_descricao ?: 'Produto #' . $row->item_id);
+
+            $rawImage = $row->item_image;
+            $image = $rawImage;
+            if ($image && !str_starts_with($image, 'http') && !str_starts_with($image, '/storage/')) {
+                $image = '/storage/' . ltrim($image, '/');
+            }
+
+            $videoUrl = $row->video_cut_url;
+            if (!$videoUrl && $row->video_cut_path) {
+                $videoUrl = str_starts_with($row->video_cut_path, 'http')
+                    ? $row->video_cut_path
+                    : Storage::url($row->video_cut_path);
+            }
+
+            $isReady = (!empty($videoUrl) || $row->video_cut_status === 'recorded');
+            $buyer = $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null));
+            $isSold = !empty($row->user_id) || (!empty($buyer) && trim($buyer) !== '' && trim($buyer) !== '0');
+
+            $codeLive = $row->codigo_live ?: $row->item_codigo;
+            $safeProdName = \Illuminate\Support\Str::slug($name);
+            $downloadFilename = "corte_live_{$live->id}_item_{$codeLive}_{$safeProdName}.mp4";
+
+            return [
+                'live_item_id' => $row->live_item_id,
+                'item_id' => $row->item_id,
+                'codigo_live' => $codeLive,
+                'item_name' => $name,
+                'item_sku' => $row->item_codigo,
+                'item_price' => number_format((float) ($row->item_price ?: 0), 2, ',', '.'),
+                'item_image' => $image ?: 'https://placehold.co/150x150?text=Sem+Foto',
+                'buyer_name' => $buyer,
+                'is_sold' => $isSold,
+                'is_ready' => $isReady,
+                'video_cut_url' => $videoUrl,
+                'video_cut_status' => $row->video_cut_status ?: ($isReady ? 'recorded' : 'none'),
+                'cut_start_sec' => $row->cut_start_sec,
+                'cut_end_sec' => $row->cut_end_sec,
+                'download_filename' => $downloadFilename,
+            ];
+        });
+
+        return view('admin.lives.social_cuts', [
+            'live' => $live,
+            'lives' => $lives,
+            'liveItems' => $liveItems,
+            'stats' => [
+                'total' => $totalCount,
+                'unsold' => $unsoldCount,
+                'ready' => $readyCount,
+            ],
+            'filters' => [
+                'unsold_only' => $unsoldOnly,
+                'ready_only' => $readyOnly,
+                'search' => $search,
+            ]
+        ]);
+    }
+
+    /**
+     * Download Direto do Corte MP4
+     */
+    public function downloadCut($liveItemId)
+    {
+        $liveItem = DB::table('live_items')->where('id', $liveItemId)->first();
+        if (!$liveItem) {
+            abort(404, 'Item não encontrado.');
+        }
+
+        $path = $liveItem->video_cut_path;
+        $name = 'corte_live_' . $liveItem->live_id . '_item_' . ($liveItem->codigo_live ?: $liveItem->item_id) . '.mp4';
+
+        if ($path && Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->download($path, $name);
+        }
+
+        if ($liveItem->video_cut_url) {
+            return redirect($liveItem->video_cut_url);
+        }
+
+        return back()->with('error', 'Vídeo do corte não encontrado.');
+    }
+
+    /**
      * Tela Principal de Gerenciamento e Revisão de Cortes da Live
      */
     public function index($liveId)
