@@ -16,6 +16,10 @@ class LojaController extends Controller
         $query = Item::query()
             ->whereIn('status', ['loja', 'estoque', 'disponivel'])
             ->where(function ($q) {
+                $q->where('brecho_id', 1)
+                  ->orWhereNull('brecho_id');
+            })
+            ->where(function ($q) {
                 $q->has('medias')
                   ->orWhere(function ($sq) {
                       $sq->whereNotNull('image')->where('image', '!=', '');
@@ -113,10 +117,14 @@ class LojaController extends Controller
             ->paginate(24)
             ->withQueryString();
 
-        // 1. Encontrar todos os IDs de categorias que possuem itens com status válido
+        // 1. Encontrar todos os IDs de categorias que possuem itens da Minha Mania com status válido
         $categoriesWithItems = DB::table('categoria_item')
             ->join('items', 'items.id', '=', 'categoria_item.item_id')
             ->whereIn('items.status', ['loja', 'estoque', 'disponivel'])
+            ->where(function ($q) {
+                $q->where('items.brecho_id', 1)
+                  ->orWhereNull('items.brecho_id');
+            })
             ->distinct()
             ->pluck('categoria_id')
             ->toArray();
@@ -139,23 +147,42 @@ class LojaController extends Controller
             }
         }
 
-        // 3. Carregar as categorias raiz que estão na lista de visíveis
-        // Para uma ordenação precisa (contando filhos), carregamos a árvore e ordenamos via PHP
+        // 3. Carregar as categorias raiz que estão na lista de visíveis filtrando itens da Mania
         $categorias = Categoria::whereNull('parent_id')
             ->whereIn('id', $allVisibleCategoryIds)
             ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                 $query->whereIn('id', $allVisibleCategoryIds)
-                    ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
+                    ->withCount(['items' => function($q) { 
+                        $q->whereIn('status', ['loja', 'estoque', 'disponivel'])
+                          ->where(function($sub) {
+                              $sub->where('brecho_id', 1)->orWhereNull('brecho_id');
+                          }); 
+                    }])
                     ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                         $query->whereIn('id', $allVisibleCategoryIds)
-                            ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
+                            ->withCount(['items' => function($q) { 
+                                $q->whereIn('status', ['loja', 'estoque', 'disponivel'])
+                                  ->where(function($sub) {
+                                      $sub->where('brecho_id', 1)->orWhereNull('brecho_id');
+                                  }); 
+                            }])
                             ->with(['children' => function($query) use ($allVisibleCategoryIds) {
                                 $query->whereIn('id', $allVisibleCategoryIds)
-                                    ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }]);
+                                    ->withCount(['items' => function($q) { 
+                                        $q->whereIn('status', ['loja', 'estoque', 'disponivel'])
+                                          ->where(function($sub) {
+                                              $sub->where('brecho_id', 1)->orWhereNull('brecho_id');
+                                          }); 
+                                    }]);
                             }]);
                     }]);
             }])
-            ->withCount(['items' => function($q) { $q->whereIn('status', ['loja', 'estoque', 'disponivel']); }])
+            ->withCount(['items' => function($q) { 
+                $q->whereIn('status', ['loja', 'estoque', 'disponivel'])
+                  ->where(function($sub) {
+                      $sub->where('brecho_id', 1)->orWhereNull('brecho_id');
+                  }); 
+            }])
             ->get();
 
         // Função para calcular total de itens na árvore (recursivo) e ordenar filhos
@@ -206,7 +233,7 @@ class LojaController extends Controller
 
     public function show(Item $item)
     {
-        if (!in_array($item->status, ['loja', 'estoque', 'disponivel']) || (!$item->medias()->exists() && empty($item->image))) {
+        if ((!empty($item->brecho_id) && (int)$item->brecho_id > 1) || !in_array($item->status, ['loja', 'estoque', 'disponivel']) || (!$item->medias()->exists() && empty($item->image))) {
             abort(404);
         }
 
@@ -263,6 +290,15 @@ class LojaController extends Controller
                     ->lockForUpdate()
                     ->first();
 
+                $itemObj = DB::table('items')->where('id', $itemId)->first(['id', 'brecho_id']);
+                if (!$itemObj || (!empty($itemObj->brecho_id) && (int)$itemObj->brecho_id > 1)) {
+                    return [
+                        'success' => false,
+                        'code' => 403,
+                        'message' => 'Este produto não está disponível para esta loja.'
+                    ];
+                }
+
                 if ($sacolinhaItem) {
                     $sacolinhaItem->quantity += $quantity;
 
@@ -277,10 +313,7 @@ class LojaController extends Controller
                     $sacolinhaItem->save();
                     $message = 'Quantidade atualizada.';
                 } else {
-                    $itemObj = DB::table('items')->where('id', $itemId)->first(['id', 'brecho_id']);
-                    $brechoId = (!empty($itemObj->brecho_id) && $itemObj->brecho_id > 1)
-                        ? $itemObj->brecho_id
-                        : ((auth()->check() && !empty(auth()->user()->brecho_id)) ? auth()->user()->brecho_id : 1);
+                    $brechoId = 1;
                     $sacolinhaItem = Sacolinhas::create([
                         'brecho_id' => $brechoId,
                         'user_id' => $userId,

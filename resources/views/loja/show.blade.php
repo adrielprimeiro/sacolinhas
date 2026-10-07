@@ -69,6 +69,12 @@
                             ['id', 'asc'],
                         ])->values();
 
+                    // Prioriza o vídeo para abrir direto e iniciar logo que a página abre
+                    $videoItem = $medias->firstWhere('media_type', 'video');
+                    if ($videoItem) {
+                        $medias = $medias->filter(fn($m) => $m->id !== $videoItem->id)->prepend($videoItem)->values();
+                    }
+
                     // Se não tiver mídias na tabela item_media, mas tiver o campo image legado
                     if ($medias->isEmpty() && $item->image) {
                         $firstFull = str_starts_with($item->image, 'http') ? $item->image : \Illuminate\Support\Facades\Storage::url($item->image);
@@ -97,8 +103,11 @@
                                 id="mainVideo"
                                 src="{{ $firstIsVideo && $firstFull ? $firstFull : '' }}"
                                 controls
+                                autoplay
+                                muted
+                                loop
                                 playsinline
-                                preload="metadata"
+                                preload="auto"
                                 class="h-full w-full object-contain bg-black {{ $firstIsVideo ? '' : 'hidden' }}"
                             ></video>
 
@@ -440,6 +449,8 @@ document.addEventListener('DOMContentLoaded', () => {
           mainVideo.setAttribute('src', media.url);
           mainVideo.load();
         }
+        mainVideo.muted = true;
+        mainVideo.play().catch(() => {});
       }
     } else {
       if (mainVideo) {
@@ -550,6 +561,12 @@ document.addEventListener('DOMContentLoaded', () => {
         goToPrevMedia();
       }
     }, { passive: true });
+  }
+
+  // Inicia reprodução imediata do vídeo ao abrir a página
+  if (mainVideo && !mainVideo.classList.contains('hidden')) {
+    mainVideo.muted = true;
+    mainVideo.play().catch(() => {});
   }
 });
 </script>
