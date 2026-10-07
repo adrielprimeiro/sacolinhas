@@ -772,41 +772,44 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Google Gemini via OpenAI-compatible endpoint
+            // 1. Google Gemini (Endpoint Nativo generateContent de Alta Velocidade + Fallback OpenAI format)
             if (!empty($geminiKey)) {
-                $geminiModels = ['gemini-2.5-flash', 'gemini-3.8-flash'];
+                $geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
                 foreach ($geminiModels as $gModel) {
                     try {
-                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+                        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key={$geminiKey}";
                         $geminiPayload = [
-                            'model' => $gModel,
-                            'messages' => [
-                                ['role' => 'system', 'content' => $systemPrompt],
-                                ['role' => 'user', 'content' => $userPrompt]
+                            'system_instruction' => [
+                                'parts' => [['text' => $systemPrompt]]
                             ],
-                            'response_format' => ['type' => 'json_object'],
-                            'temperature' => 0.1
+                            'contents' => [
+                                ['parts' => [['text' => $userPrompt]]]
+                            ],
+                            'generationConfig' => [
+                                'response_mime_type' => 'application/json',
+                                'temperature' => 0.1
+                            ]
                         ];
 
-                        $response = Http::withToken($geminiKey)->timeout(45)->post($geminiUrl, $geminiPayload);
+                        $response = Http::timeout(30)->post($geminiUrl, $geminiPayload);
                         if ($response->successful()) {
                             $json = $response->json();
-                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            $rawResponse = $json['candidates'][0]['content']['parts'][0]['text'] ?? null;
                             if (!empty($rawResponse)) {
                                 break;
                             }
                         } else {
-                            Log::warning("[LiveVideoCuts] Gemini OpenAI endpoint ({$gModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                            Log::warning("[LiveVideoCuts] Gemini nativo ({$gModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
                         }
                     } catch (\Exception $e) {
-                        Log::warning("[LiveVideoCuts] Exceção no Gemini ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
+                        Log::warning("[LiveVideoCuts] Exceção no Gemini nativo ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
                     }
                 }
             }
 
-            // 2. Fallback Groq LLaMA
+            // 2. Fallback Groq LLaMA 3.3
             if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant'];
+                $groqModels = ['llama-3.3-70b-versatile', 'llama3-70b-8192', 'llama-3.1-8b-instant'];
                 foreach ($groqModels as $grModel) {
                     try {
                         $groqPayload = [
@@ -819,7 +822,7 @@ PROMPT;
                             'temperature' => 0.1
                         ];
 
-                        $response = Http::withToken($groqKey)->timeout(45)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                        $response = Http::withToken($groqKey)->timeout(30)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
                         if ($response->successful()) {
                             $json = $response->json();
                             $rawResponse = $json['choices'][0]['message']['content'] ?? null;
