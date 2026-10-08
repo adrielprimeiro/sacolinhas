@@ -11,6 +11,7 @@ class Categoria extends Model
     use HasFactory;
 
     protected $fillable = [
+        'brecho_id',
         'name',
         'slug',
         'parent_id',
@@ -24,6 +25,7 @@ class Categoria extends Model
     ];
 
     protected $casts = [
+        'brecho_id' => 'integer',
         'valor_desconto' => 'decimal:2',
         'altura' => 'decimal:2',
         'largura' => 'decimal:2',
@@ -56,6 +58,28 @@ class Categoria extends Model
     public function items()
     {
         return $this->belongsToMany(Item::class);
+    }
+
+    public function brecho()
+    {
+        return $this->belongsTo(Brecho::class, 'brecho_id');
+    }
+
+    public function isPadrao(): bool
+    {
+        return is_null($this->brecho_id);
+    }
+
+    /**
+     * Escopo para filtrar categorias visíveis para o brechó (padrão global + brechó específico)
+     */
+    public function scopeForBrecho($query, ?int $brechoId = null)
+    {
+        $brechoId = $brechoId ?? (auth()->check() && !empty(auth()->user()->brecho_id) ? (int) auth()->user()->brecho_id : 1);
+        return $query->where(function ($q) use ($brechoId) {
+            $q->whereNull('brecho_id')
+              ->orWhere('brecho_id', $brechoId);
+        });
     }
 
     /**

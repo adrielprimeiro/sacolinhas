@@ -1,5 +1,8 @@
 {{-- resources/views/admin/categorias/_node.blade.php --}}
-@php $temFilhos = $categoria->children->isNotEmpty(); @endphp
+@php 
+    $temFilhos = $categoria->children->isNotEmpty(); 
+    $isParceiro = $isParceiro ?? (auth()->check() && auth()->user()->isBrechoParceiro());
+@endphp
 
 <div 
     x-data="{ open: false }" 
@@ -32,15 +35,34 @@
             @endif
         </div>
 
-        {{-- Nome --}}
+        {{-- Nome e Badges --}}
         <div 
-            class="flex-1 flex items-center gap-2 cursor-pointer select-none"
+            class="flex-1 flex items-center gap-2 cursor-pointer select-none flex-wrap"
             @click="if($temFilhos) open = !open"
         >
             <span class="text-sm {{ $nivel === 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700' }}">
                 {{ $categoria->name }}
             </span>
             <span class="text-xs text-gray-400 font-mono">/{{ $categoria->slug }}</span>
+
+            {{-- Badges de Brechó / Origem --}}
+            @if(is_null($categoria->brecho_id))
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200" title="Categoria padrão do sistema">
+                    <i class="fas fa-globe text-[9px] mr-0.5"></i> Padrão
+                </span>
+            @elseif($categoria->brecho_id == 1)
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200" title="Exclusivo Minha Mania">
+                    <i class="fas fa-store text-[9px] mr-0.5"></i> Mania
+                </span>
+            @elseif($categoria->brecho_id == 2)
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200" title="Exclusivo Taco Balaio">
+                    <i class="fas fa-store-alt text-[9px] mr-0.5"></i> Taco Balaio
+                </span>
+            @else
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                    {{ $categoria->brecho->nome ?? 'Parceiro' }}
+                </span>
+            @endif
         </div>
 
         {{-- Badge Desconto --}}
@@ -52,30 +74,36 @@
 
         {{-- Ações --}}
         <div class="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <a
-                href="{{ route('admin.categorias.edit', $categoria) }}"
-                class="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Editar"
-            >
-                <i class="fas fa-edit text-xs"></i>
-            </a>
-
-            <form
-                action="{{ route('admin.categorias.destroy', $categoria) }}"
-                method="POST"
-                class="inline"
-                onsubmit="return confirm('Excluir \'{{ addslashes($categoria->name) }}\'?')"
-            >
-                @csrf
-                @method('DELETE')
-                <button
-                    type="submit"
-                    class="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                    title="Excluir"
+            @if(empty($isParceiro) || $categoria->brecho_id == auth()->user()->brecho_id)
+                <a
+                    href="{{ route('admin.categorias.edit', $categoria) }}"
+                    class="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                    title="Editar"
                 >
-                    <i class="fas fa-trash-alt text-xs"></i>
-                </button>
-            </form>
+                    <i class="fas fa-edit text-xs"></i>
+                </a>
+
+                <form
+                    action="{{ route('admin.categorias.destroy', $categoria) }}"
+                    method="POST"
+                    class="inline"
+                    onsubmit="return confirm('Excluir \'{{ addslashes($categoria->name) }}\'?')"
+                >
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        type="submit"
+                        class="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
+                        title="Excluir"
+                    >
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </form>
+            @else
+                <span class="p-1.5 text-gray-400 text-xs" title="Categoria padrão do sistema (somente leitura)">
+                    <i class="fas fa-lock"></i>
+                </span>
+            @endif
         </div>
     </div>
 
@@ -84,7 +112,7 @@
         <div x-show="open" x-cloak style="display: none;">
             <div class="relative ml-3 border-l border-gray-100">
                 @foreach ($categoria->children->sortBy('name') as $filho)
-                    @include('admin.categorias._node', ['categoria' => $filho, 'nivel' => $nivel + 1])
+                    @include('admin.categorias._node', ['categoria' => $filho, 'nivel' => $nivel + 1, 'isParceiro' => $isParceiro])
                 @endforeach
             </div>
         </div>

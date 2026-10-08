@@ -37,7 +37,7 @@
             </button>
 
             <a
-                href="{{ route('admin.categorias.create') }}"
+                href="{{ route('admin.categorias.create', ['brecho_id' => $brechoId !== 'all' ? $brechoId : 1]) }}"
                 class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
             >
                 <i class="fas fa-plus"></i>
@@ -53,6 +53,37 @@
         </div>
     @endif
 
+    {{-- Filtro por Brechó (Apenas Matriz / Minha Mania) --}}
+    @if(empty($isParceiro))
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Visualizar:</span>
+                <a href="{{ route('admin.categorias.index', ['brecho_id' => 1]) }}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ ($brechoId == 1 || $brechoId === null) ? 'bg-purple-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    <i class="fas fa-store text-[10px]"></i> Minha Mania (Padrão + Mania)
+                </a>
+                <a href="{{ route('admin.categorias.index', ['brecho_id' => 'padrao']) }}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ ($brechoId === 'padrao') ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    <i class="fas fa-globe text-[10px]"></i> Apenas Padrão Global
+                </a>
+                @if(isset($brechos))
+                    @foreach($brechos as $b)
+                        @if($b->id != 1)
+                            <a href="{{ route('admin.categorias.index', ['brecho_id' => $b->id]) }}"
+                               class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ ($brechoId == $b->id) ? 'bg-amber-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                                <i class="fas fa-store-alt text-[10px]"></i> {{ $b->nome }}
+                            </a>
+                        @endif
+                    @endforeach
+                @endif
+                <a href="{{ route('admin.categorias.index', ['brecho_id' => 'all']) }}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ ($brechoId === 'all') ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    <i class="fas fa-layer-group text-[10px]"></i> Todas
+                </a>
+            </div>
+        </div>
+    @endif
+
     {{-- Árvore de categorias --}}
     <div
         class="bg-white shadow-sm rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"
@@ -62,13 +93,13 @@
     >
         @forelse ($categorias as $categoria)
             <div class="py-0.5">
-                @include('admin.categorias._node', ['categoria' => $categoria, 'nivel' => 0])
+                @include('admin.categorias._node', ['categoria' => $categoria, 'nivel' => 0, 'isParceiro' => $isParceiro ?? false])
             </div>
         @empty
             <div class="flex flex-col items-center justify-center py-16 text-gray-400">
                 <i class="fas fa-folder-open text-4xl mb-3"></i>
                 <p class="text-sm font-medium">Nenhuma categoria cadastrada</p>
-                <a href="{{ route('admin.categorias.create') }}" class="mt-3 text-sm text-blue-600 hover:underline">
+                <a href="{{ route('admin.categorias.create', ['brecho_id' => $brechoId !== 'all' ? $brechoId : 1]) }}" class="mt-3 text-sm text-blue-600 hover:underline">
                     Criar a primeira categoria
                 </a>
             </div>
@@ -84,7 +115,16 @@
             <i class="fas fa-folder-open text-indigo-400"></i> Subcategoria
         </span>
         <span class="flex items-center gap-1.5">
-            <i class="fas fa-tag text-violet-400"></i> Categoria folha
+            <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold border border-gray-200">Padrão</span>
+            Base do Sistema
+        </span>
+        <span class="flex items-center gap-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-semibold border border-purple-200">Mania</span>
+            Exclusivo Minha Mania
+        </span>
+        <span class="flex items-center gap-1.5">
+            <span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold border border-amber-200">Taco Balaio</span>
+            Exclusivo Taco Balaio
         </span>
         <span class="flex items-center gap-1.5">
             <span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">%</span>

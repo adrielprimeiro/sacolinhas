@@ -89,8 +89,13 @@ class ItemController extends Controller
 		$perPage = $request->input('per_page', 30);
 		$items = $query->orderByDesc('created_at')->paginate($perPage)->withQueryString();
 
-        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
-            ->with($this->categoryTreeWith())
+        $targetBrechoId = auth()->check() && auth()->user()->isBrechoParceiro()
+            ? (int) auth()->user()->brecho_id
+            : ($request->filled('brecho_id') && $request->brecho_id !== 'all' ? (int) $request->brecho_id : 1);
+
+        $treeCategories = \App\Models\Categoria::forBrecho($targetBrechoId)
+            ->whereNull('parent_id')
+            ->with($this->categoryTreeWith($targetBrechoId))
             ->orderBy('name')
             ->get();
 
@@ -102,14 +107,15 @@ class ItemController extends Controller
 
     public function create()
     {
-        $categorias = $this->getTreeCategoriesList();
+        $targetBrechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? (int) auth()->user()->brecho_id : 1;
+        $categorias = $this->getTreeCategoriesList(null, $targetBrechoId);
         $marcas = Marca::orderBy('total_registros', 'desc')
             ->orderBy('nome')
             ->pluck('nome')
             ->filter()
             ->unique()
             ->values();
-        $proximoCodigo = self::generateNextCodigo();
+        $proximoCodigo = self::generateNextCodigo($targetBrechoId);
 
         return view('admin.items.create', compact('categorias', 'marcas', 'proximoCodigo'));
     }
@@ -140,11 +146,16 @@ class ItemController extends Controller
         return $candidate;
     }
 
-    private function getTreeCategoriesList(): array
+    private function getTreeCategoriesList(?int $exceptId = null, ?int $brechoId = null): array
     {
+        $brechoId = $brechoId ?? (auth()->check() && !empty(auth()->user()->brecho_id) ? (int) auth()->user()->brecho_id : 1);
         $categorias = [];
-        $buildTreeList = function($cats, $level = 0, $path = '') use (&$buildTreeList, &$categorias) {
+        $buildTreeList = function($cats, $level = 0, $path = '') use (&$buildTreeList, &$categorias, $exceptId) {
             foreach ($cats as $cat) {
+                if ($exceptId !== null && $cat->id == $exceptId) {
+                    continue;
+                }
+
                 $indent = str_repeat("\u{00A0}\u{00A0}\u{00A0}\u{00A0}", $level);
                 $prefix = $level > 0 ? '↳ ' : '';
                 $currentPath = $path ? $path . ' › ' . $cat->name : $cat->name;
@@ -163,7 +174,15 @@ class ItemController extends Controller
             }
         };
 
-        $rootCats = Categoria::whereNull('parent_id')->with('children')->orderBy('name')->get();
+        $rootCats = Categoria::forBrecho($brechoId)
+            ->whereNull('parent_id')
+            ->with(['children' => function($q) use ($brechoId) {
+                $q->where(function($sub) use ($brechoId) {
+                    $sub->whereNull('brecho_id')->orWhere('brecho_id', $brechoId);
+                })->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
         $buildTreeList($rootCats);
 
         return $categorias;
@@ -291,8 +310,10 @@ class ItemController extends Controller
 			$query->orderBy('position', 'asc');
 		}, 'categorias']);
 
-        $treeCategories = \App\Models\Categoria::whereNull('parent_id')
-            ->with($this->categoryTreeWith())
+        $targetBrechoId = (int) ($item->brecho_id ?: (auth()->user()->brecho_id ?? 1));
+        $treeCategories = \App\Models\Categoria::forBrecho($targetBrechoId)
+            ->whereNull('parent_id')
+            ->with($this->categoryTreeWith($targetBrechoId))
             ->orderBy('name')
             ->get();
 
@@ -300,18 +321,25 @@ class ItemController extends Controller
 	}
 
     /**
-     * Helper para carregar a árvore de categorias
+     * Helper para carregar a árvore de categorias com escopo de brechó
      */
-    private function categoryTreeWith(): array
+    private function categoryTreeWith(?int $brechoId = null): array
     {
+        $brechoId = $brechoId ?? (auth()->check() && !empty(auth()->user()->brecho_id) ? (int) auth()->user()->brecho_id : 1);
+        $applyScope = function ($q) use ($brechoId) {
+            $q->where(function ($sub) use ($brechoId) {
+                $sub->whereNull('brecho_id')->orWhere('brecho_id', $brechoId);
+            })->orderBy('name');
+        };
+
         return [
-            'children' => fn($q) => $q->orderBy('name')->with([
-                'children' => fn($q2) => $q2->orderBy('name')->with([
-                    'children' => fn($q3) => $q3->orderBy('name')->with([
-                        'children' => fn($q4) => $q4->orderBy('name')
-                    ])
-                ])
-            ])
+            'children' => fn($q) => $applyScope($q->with([
+                'children' => fn($q2) => $applyScope($q2->with([
+                    'children' => fn($q3) => $applyScope($q3->with([
+                        'children' => fn($q4) => $applyScope($q4)
+                    ]))
+                ]))
+            ]))
         ];
     }
 	

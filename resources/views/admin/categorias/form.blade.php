@@ -154,6 +154,45 @@ function categorySearch(config) {
                         </div>
                     </div>
                 </div>
+
+                {{-- Escopo / Vínculo com Brechó --}}
+                @if(empty($isParceiro))
+                    <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Vínculo / Escopo do Brechó</label>
+                        <p class="text-xs text-gray-500 mb-3">Defina se esta categoria é padrão global (visível em todos os brechós) ou exclusiva de um brechó.</p>
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="is_padrao_radio" value="1" 
+                                       {{ (isset($categoria) && is_null($categoria->brecho_id)) || (!isset($categoria) && request('brecho_id') === 'padrao') ? 'checked' : '' }}
+                                       onclick="document.getElementById('hidden_is_padrao').value='1'; document.getElementById('brecho_select_wrap').style.display='none';"
+                                       class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-xs font-semibold text-gray-700"><i class="fas fa-globe text-blue-500 mr-1"></i> Padrão Global (Todos os brechós)</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="is_padrao_radio" value="0" 
+                                       {{ (!isset($categoria) && request('brecho_id') !== 'padrao') || (isset($categoria) && !is_null($categoria->brecho_id)) ? 'checked' : '' }}
+                                       onclick="document.getElementById('hidden_is_padrao').value='0'; document.getElementById('brecho_select_wrap').style.display='inline-block';"
+                                       class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-xs font-semibold text-gray-700"><i class="fas fa-store text-purple-500 mr-1"></i> Específico de um Brechó</span>
+                            </label>
+                            <div id="brecho_select_wrap" style="{{ ((isset($categoria) && is_null($categoria->brecho_id)) || (!isset($categoria) && request('brecho_id') === 'padrao')) ? 'display:none;' : '' }}">
+                                <select name="brecho_id" class="text-xs border border-gray-300 rounded-lg p-1.5 bg-white">
+                                    <option value="1" {{ (old('brecho_id', $categoria->brecho_id ?? $brechoId ?? 1) == 1) ? 'selected' : '' }}>Minha Mania (Matriz)</option>
+                                    @if(isset($brechos))
+                                        @foreach($brechos as $b)
+                                            @if($b->id != 1)
+                                                <option value="{{ $b->id }}" {{ (old('brecho_id', $categoria->brecho_id ?? $brechoId ?? 1) == $b->id) ? 'selected' : '' }}>{{ $b->nome }}</option>
+                                            @endif
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                        </div>
+                        <input type="hidden" name="is_padrao" id="hidden_is_padrao" value="{{ (isset($categoria) && is_null($categoria->brecho_id)) || (!isset($categoria) && request('brecho_id') === 'padrao') ? '1' : '0' }}">
+                    </div>
+                @else
+                    <input type="hidden" name="brecho_id" value="{{ auth()->user()->brecho_id }}">
+                @endif
             </div>
 
             <div class="border-t border-gray-200 my-6 pt-6">

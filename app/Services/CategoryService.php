@@ -90,10 +90,13 @@ class CategoryService
     /**
      * Retorna a lista completa de categorias para o seletor (hierárquico)
      */
-    public function getCategoryOptions(): array
+    public function getCategoryOptions(?int $brechoId = null): array
     {
-        return Cache::remember('category_options_list', 3600, function () {
-            $categories = Categoria::with('parent')->get();
+        $brechoId = $brechoId ?? (auth()->check() && !empty(auth()->user()->brecho_id) ? (int) auth()->user()->brecho_id : 1);
+        $cacheKey = "category_options_list_{$brechoId}";
+
+        return Cache::remember($cacheKey, 3600, function () use ($brechoId) {
+            $categories = Categoria::forBrecho($brechoId)->with('parent')->get();
             $options = [];
 
             foreach ($categories as $cat) {
