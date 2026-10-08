@@ -1896,29 +1896,55 @@ PROMPT;
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
 
-        // 1. Corte de vídeo frame-accurate e ultrarrápido (0.2s - 0.4s por corte) com preset veryfast
-        $cmd = sprintf(
-            'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-            escapeshellarg($start),
-            escapeshellarg($inputPath),
-            escapeshellarg($duration),
-            escapeshellarg($outputPath)
-        );
+        // 1. Gera arquivo de legenda SRT para o trecho do corte
+        $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
 
-        exec($cmd, $output, $returnCode);
+        $subtitleFilter = '';
+        if ($srtFile && file_exists($srtFile)) {
+            $escapedSrt = str_replace('\\', '/', $srtFile);
+            $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+            // Estilo de legenda moderno (fundo preto semi-transparente, texto branco com alto contraste, centralizado embaixo)
+            $subtitleFilter = sprintf(
+                "-vf \"subtitles='%s':force_style='FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=35,Alignment=2'\"",
+                $escapedSrt
+            );
+        }
 
-        // Fallback rápido sem re-encode se o anterior falhar
+        // 2. Corte de vídeo frame-accurate com legendas embutidas (Burn-in)
+        $output = [];
+        $returnCode = 1;
+
+        if (!empty($subtitleFilter)) {
+            $cmd = sprintf(
+                'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                escapeshellarg($start),
+                escapeshellarg($inputPath),
+                escapeshellarg($duration),
+                $subtitleFilter,
+                escapeshellarg($outputPath)
+            );
+            exec($cmd, $output, $returnCode);
+        }
+
+        // Fallback rápido sem legenda se a queima de legenda falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             $outputFallback = [];
             $cmdFallback = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v copy -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
                 escapeshellarg($start),
                 escapeshellarg($inputPath),
                 escapeshellarg($duration),
                 escapeshellarg($outputPath)
             );
             exec($cmdFallback, $outputFallback, $returnCode);
-            $output = $outputFallback;
+            if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
+                $output = $outputFallback;
+            }
+        }
+
+        // Limpa arquivo srt temporário
+        if ($srtFile && file_exists($srtFile)) {
+            @unlink($srtFile);
         }
 
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
@@ -1984,12 +2010,87 @@ PROMPT;
 
         return response()->json([
             'success' => true,
-            'message' => 'Corte e 3 Miniaturas Inteligentes geradas com sucesso!',
+            'message' => 'Corte com legendas e 3 Miniaturas Inteligentes geradas com sucesso!',
             'video_url' => $videoUrl,
             'thumbnail_url' => $primaryUrl,
             'candidates' => $candidates,
             'duration' => $duration
         ]);
+    }
+
+    /**
+     * Gera arquivo de legendas .srt para o trecho do corte
+     */
+    protected function generateSubtitleFileForClip(Live $live, $liveItem, float $start, float $duration, string $outputDir, ?string $customSnippet = null): ?string
+    {
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        $clipSentences = [];
+        $end = $start + $duration;
+
+        foreach ($sentences as $s) {
+            $sStart = (float) ($s['start'] ?? 0);
+            $sEnd = (float) ($s['end'] ?? 0);
+            $text = trim($s['text'] ?? '');
+
+            if (empty($text)) continue;
+
+            // Frases que sobrepõem o intervalo do corte
+            if ($sEnd > ($start + 0.1) && $sStart < ($end - 0.1)) {
+                $relStart = max(0.0, round($sStart - $start, 2));
+                $relEnd = min($duration, round($sEnd - $start, 2));
+
+                if ($relEnd > $relStart) {
+                    $clipSentences[] = [
+                        'start' => $relStart,
+                        'end' => $relEnd,
+                        'text' => $text
+                    ];
+                }
+            }
+        }
+
+        // Se o usuário digitou ou editou um texto customizado e não há falas detectadas no trecho
+        if (empty($clipSentences)) {
+            $textSnippet = trim($customSnippet ?: ($liveItem->transcription_snippet ?? ''));
+            if (!empty($textSnippet)) {
+                $clipSentences[] = [
+                    'start' => 0.2,
+                    'end' => min($duration, 6.0),
+                    'text' => $textSnippet
+                ];
+            }
+        }
+
+        if (empty($clipSentences)) {
+            return null;
+        }
+
+        // Cria arquivo .srt temporário
+        $srtFile = $outputDir . DIRECTORY_SEPARATOR . 'sub_' . $liveItem->id . '_' . time() . '.srt';
+        $srtContent = '';
+        foreach ($clipSentences as $idx => $cs) {
+            $num = $idx + 1;
+            $startFormatted = $this->formatSecondsToSrtTime($cs['start']);
+            $endFormatted = $this->formatSecondsToSrtTime($cs['end']);
+            $text = $cs['text'];
+            $srtContent .= "{$num}\n{$startFormatted} --> {$endFormatted}\n{$text}\n\n";
+        }
+
+        file_put_contents($srtFile, $srtContent);
+        return $srtFile;
+    }
+
+    /**
+     * Formata segundos para o padrão SRT (00:00:00,000)
+     */
+    protected function formatSecondsToSrtTime(float $seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $secs = floor($seconds % 60);
+        $millis = floor(($seconds - floor($seconds)) * 1000);
+
+        return sprintf('%02d:%02d:%02d,%03d', $hours, $minutes, $secs, $millis);
     }
 
     /**

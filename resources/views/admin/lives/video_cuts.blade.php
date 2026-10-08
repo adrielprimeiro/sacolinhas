@@ -274,9 +274,14 @@
                 </div>
 
                 <!-- Video Container (Adaptado para Vídeos Verticais e Horizontais) -->
-                <div class="relative bg-black rounded-xl overflow-hidden flex items-center justify-center border border-gray-300" style="max-height: 42vh; height: 360px;">
+                <div class="relative bg-black rounded-xl overflow-hidden flex items-center justify-center border border-gray-300 group" style="max-height: 42vh; height: 360px;">
                     @if($recordingUrl)
                         <video id="live-main-player" src="{{ $recordingUrl }}" controls class="w-full h-full object-contain max-h-[42vh]" preload="metadata"></video>
+                        <!-- Legendas Flutuantes Dinâmicas (Ao vivo enquanto o vídeo toca) -->
+                        <div id="live-player-captions" class="absolute bottom-12 inset-x-3 pointer-events-none text-center z-20 hidden transition-all duration-200">
+                            <span id="caption-text-pill" class="inline-block font-extrabold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl shadow-2xl tracking-wide max-w-[95%] leading-snug" style="background-color: rgba(0, 0, 0, 0.88); color: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.25);">
+                            </span>
+                        </div>
                     @else
                         <div id="no-video-placeholder" class="text-center p-6 text-gray-400">
                             <i class="fas fa-video-slash text-4xl mb-3 text-gray-300"></i>
@@ -294,10 +299,13 @@
                     
                     <!-- Linha 1: Display de Tempo & Pulos Rápidos -->
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                        <!-- Play/Pause & Tempo -->
+                        <!-- Play/Pause, CC & Tempo -->
                         <div class="flex items-center gap-2">
                             <button type="button" onclick="togglePlayPause()" id="btn-play-pause" title="Play / Pause (Espaço)" class="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-xs shadow-xs transition active:scale-95 cursor-pointer">
                                 <i class="fas fa-play" id="icon-play-pause"></i>
+                            </button>
+                            <button type="button" onclick="togglePlayerCaptions()" id="btn-toggle-captions" title="Ativar/Desativar Legendas no Player" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] rounded-lg shadow-2xs transition active:scale-95 cursor-pointer flex items-center gap-1" style="background-color: #f59e0b; color: #ffffff !important;">
+                                <i class="fas fa-closed-captioning"></i> CC
                             </button>
                             <div class="flex items-center gap-1 font-mono text-xs font-black">
                                 <span class="text-indigo-700" id="player-current-time">00:00:00</span>
@@ -839,6 +847,8 @@
 <script>
     const liveId = {{ $live->id }};
     const csrfToken = '{{ csrf_token() }}';
+    let transcriptionData = @json($transcriptionData ?? []);
+    let captionsEnabled = true;
     let activeLiveItemId = null;
     let previewTimer = null;
     let currentItemFilter = 'all';
@@ -929,11 +939,13 @@
 
     const player = document.getElementById("live-main-player");
 
-    // Sincronizar display de tempo do player
+    // Sincronizar display de tempo do player e legendas em tempo real
     if (player) {
         player.addEventListener('timeupdate', () => {
             const cur = document.getElementById("player-current-time");
             if (cur) cur.textContent = formatTime(player.currentTime);
+
+            updatePlayerCaptionText(player.currentTime);
         });
 
         player.addEventListener('loadedmetadata', () => {
@@ -943,6 +955,55 @@
 
         player.addEventListener('play', updatePlayPauseIcon);
         player.addEventListener('pause', updatePlayPauseIcon);
+    }
+
+    function togglePlayerCaptions() {
+        captionsEnabled = !captionsEnabled;
+        const btn = document.getElementById("btn-toggle-captions");
+        const container = document.getElementById("live-player-captions");
+
+        if (btn) {
+            if (captionsEnabled) {
+                btn.style.backgroundColor = '#f59e0b';
+                btn.classList.add('shadow-2xs');
+                btn.title = "Legendas Ativadas (Clique para desativar)";
+            } else {
+                btn.style.backgroundColor = '#6b7280';
+                btn.classList.remove('shadow-2xs');
+                btn.title = "Legendas Desativadas (Clique para ativar)";
+            }
+        }
+
+        if (!captionsEnabled && container) {
+            container.classList.add('hidden');
+        } else if (player) {
+            updatePlayerCaptionText(player.currentTime);
+        }
+    }
+
+    function updatePlayerCaptionText(currentTime) {
+        const container = document.getElementById("live-player-captions");
+        const textPill = document.getElementById("caption-text-pill");
+        if (!container || !textPill) return;
+
+        if (!captionsEnabled || !Array.isArray(transcriptionData) || transcriptionData.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        // Procura fala correspondente ao tempo atual
+        const match = transcriptionData.find(item => {
+            const st = parseFloat(item.start ?? item.start_sec ?? 0);
+            const en = parseFloat(item.end ?? item.end_sec ?? (st + 3));
+            return currentTime >= st && currentTime <= en;
+        });
+
+        if (match && match.text && match.text.trim().length > 0) {
+            textPill.textContent = match.text.trim();
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
     }
 
     function formatTime(sec) {
