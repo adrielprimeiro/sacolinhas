@@ -53,14 +53,18 @@ Artisan::command('live:transfer-video {from_id} {to_id}', function () {
 
     $this->info("Transferindo gravação da Live #{$fromId} para Live #{$toId}...");
     $toLive->recording_path = $fromLive->recording_path;
+    $toLive->recording_filename = $fromLive->recording_filename;
+    $toLive->recording_duration = $fromLive->recording_duration;
     $toLive->transcription_raw = $fromLive->transcription_raw;
-    $toLive->transcription_status = $fromLive->transcription_status;
+    $toLive->transcription_status = $fromLive->transcription_status ?? 'none';
     $toLive->save();
 
     // Limpa a live de origem
     $fromLive->recording_path = null;
+    $fromLive->recording_filename = null;
+    $fromLive->recording_duration = null;
     $fromLive->transcription_raw = null;
-    $fromLive->transcription_status = null;
+    $fromLive->transcription_status = 'none';
     $fromLive->save();
 
     $this->info("✅ Gravação transferida com sucesso para Live #{$toId}!");
