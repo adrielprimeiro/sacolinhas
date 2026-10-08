@@ -39,16 +39,12 @@ class Sacolinhas extends Model
         });
 
         static::creating(function ($sacolinha) {
-            // 1. Se pertence a uma live, a sacolinha pertence estritamente ao brechó daquela live
-            if (!empty($sacolinha->live_id)) {
-                $liveBrechoId = DB::table('lives')->where('id', $sacolinha->live_id)->value('brecho_id');
-                if (!empty($liveBrechoId)) {
-                    $sacolinha->brecho_id = $liveBrechoId;
-                    return;
-                }
+            // 1. Se brecho_id já foi definido explicitamente, mantém e não sobrescreve
+            if (!empty($sacolinha->brecho_id)) {
+                return;
             }
 
-            // 2. Se não for de live, tenta herdar do item
+            // 2. Tenta herdar do item
             if (!empty($sacolinha->item_id)) {
                 $itemBrechoId = DB::table('items')->where('id', $sacolinha->item_id)->value('brecho_id');
                 if (!empty($itemBrechoId)) {
@@ -57,7 +53,16 @@ class Sacolinhas extends Model
                 }
             }
 
-            // 3. Usuário logado
+            // 3. Se pertence a uma live, herda do brechó daquela live
+            if (!empty($sacolinha->live_id)) {
+                $liveBrechoId = DB::table('lives')->where('id', $sacolinha->live_id)->value('brecho_id');
+                if (!empty($liveBrechoId)) {
+                    $sacolinha->brecho_id = $liveBrechoId;
+                    return;
+                }
+            }
+
+            // 4. Usuário logado
             if (empty($sacolinha->brecho_id) && auth()->check() && !empty(auth()->user()->brecho_id)) {
                 $sacolinha->brecho_id = auth()->user()->brecho_id;
             }

@@ -20,8 +20,8 @@
         </div>
     @endif
 
-    {{-- Alerta de Sacolinhas Abertas em Outros Brechós --}}
-    @if(isset($outrasSacolinhas) && $outrasSacolinhas->isNotEmpty())
+    {{-- Alerta de Sacolinhas Abertas em Outros Brechós (Exclusivo para Minha Mania / Matriz) --}}
+    @if(empty($isParceiro) && isset($outrasSacolinhas) && $outrasSacolinhas->isNotEmpty())
         <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
             <div class="flex items-center justify-between flex-wrap gap-3">
                 <div class="flex items-center gap-3">
@@ -38,16 +38,14 @@
                         </p>
                     </div>
                 </div>
-                @if(empty($isParceiro))
-                    <div class="flex items-center gap-2">
-                        @foreach($outrasSacolinhas as $outra)
-                            <a href="{{ route('admin.sacolinha.show', ['user' => $user->id, 'brecho_id' => $outra->brecho_id]) }}"
-                               class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
-                                <i class="fas fa-external-link-alt text-[10px]"></i> Ver sacolinha {{ $outra->brecho_nome }}
-                            </a>
-                        @endforeach
-                    </div>
-                @endif
+                <div class="flex items-center gap-2">
+                    @foreach($outrasSacolinhas as $outra)
+                        <a href="{{ route('admin.sacolinha.show', ['user' => $user->id, 'brecho_id' => $outra->brecho_id]) }}"
+                           class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                            <i class="fas fa-external-link-alt text-[10px]"></i> Ver sacolinha {{ $outra->brecho_nome }}
+                        </a>
+                    @endforeach
+                </div>
             </div>
         </div>
     @endif
@@ -57,9 +55,11 @@
         <div>
             <div class="flex items-center gap-2 mb-1">
                 <h1 class="text-xl font-bold text-gray-800">{{ $user->name }}</h1>
+                @if(empty($isParceiro))
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ ($brechoId == 1) ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800' }}">
                     <i class="fas fa-store mr-1 text-[10px]"></i> {{ $brechoAtual->nome ?? 'Minha Mania' }}
                 </span>
+                @endif
             </div>
             <p class="text-gray-600 text-sm">
                 <span class="font-bold">{{ $itens->count() }}</span> {{ $itens->count() == 1 ? 'Item' : 'Itens' }}

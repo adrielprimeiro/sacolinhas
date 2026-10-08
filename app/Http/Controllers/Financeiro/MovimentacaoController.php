@@ -320,6 +320,16 @@ class MovimentacaoController extends Controller
     {
         \DB::transaction(function() use ($movimentacao) {
             $lancamento = $movimentacao->lancamento;
+
+            // Se a movimentação veio de uma transação de extrato, marca o extrato como ignorado
+            // para evitar que o motor de auto-conciliação recupere o lançamento em loop ao recarregar
+            \App\Models\TransacaoExtrato::where('movimentacao_id', $movimentacao->id)
+                ->orWhere('id', $movimentacao->transacao_extrato_id)
+                ->update([
+                    'status' => 'ignorado',
+                    'movimentacao_id' => null
+                ]);
+
             $movimentacao->delete();
 
             if ($lancamento) {
@@ -334,6 +344,6 @@ class MovimentacaoController extends Controller
             }
         });
 
-        return back()->with('success', 'Movimentação excluída!');
+        return back()->with('success', 'Movimentação excluída! A transação do extrato foi marcada como Ignorada na Conciliação.');
     }
 }
