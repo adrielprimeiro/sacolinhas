@@ -1903,9 +1903,9 @@ PROMPT;
         if ($srtFile && file_exists($srtFile)) {
             $escapedSrt = str_replace('\\', '/', $srtFile);
             $escapedSrt = str_replace(':', '\\:', $escapedSrt);
-            // Estilo de legenda moderno (fundo preto semi-transparente, texto branco com alto contraste, centralizado embaixo)
+            // Estilo dinâmico moderno (estilo Reels/TikTok): texto branco com contorno preto nítido, tamanho equilibrado, posicionado na parte inferior sem tampar o rosto
             $subtitleFilter = sprintf(
-                "-vf \"subtitles='%s':force_style='FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=35,Alignment=2'\"",
+                "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
                 $escapedSrt
             );
         }
@@ -2010,7 +2010,7 @@ PROMPT;
 
         return response()->json([
             'success' => true,
-            'message' => 'Corte com legendas e 3 Miniaturas Inteligentes geradas com sucesso!',
+            'message' => 'Corte com legendas dinâmicas e 3 Miniaturas Inteligentes geradas com sucesso!',
             'video_url' => $videoUrl,
             'thumbnail_url' => $primaryUrl,
             'candidates' => $candidates,
@@ -2019,12 +2019,12 @@ PROMPT;
     }
 
     /**
-     * Gera arquivo de legendas .srt para o trecho do corte
+     * Gera arquivo de legendas .srt para o trecho do corte com blocos curtos dinâmicos (estilo TikTok/Reels)
      */
     protected function generateSubtitleFileForClip(Live $live, $liveItem, float $start, float $duration, string $outputDir, ?string $customSnippet = null): ?string
     {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
-        $clipSentences = [];
+        $allSegments = [];
         $end = $start + $duration;
 
         foreach ($sentences as $s) {
@@ -2040,35 +2040,33 @@ PROMPT;
                 $relEnd = min($duration, round($sEnd - $start, 2));
 
                 if ($relEnd > $relStart) {
-                    $clipSentences[] = [
-                        'start' => $relStart,
-                        'end' => $relEnd,
-                        'text' => $text
-                    ];
+                    $chunks = $this->chunkTextIntoTimedSegments($relStart, $relEnd, $text);
+                    foreach ($chunks as $c) {
+                        $allSegments[] = $c;
+                    }
                 }
             }
         }
 
         // Se o usuário digitou ou editou um texto customizado e não há falas detectadas no trecho
-        if (empty($clipSentences)) {
+        if (empty($allSegments)) {
             $textSnippet = trim($customSnippet ?: ($liveItem->transcription_snippet ?? ''));
             if (!empty($textSnippet)) {
-                $clipSentences[] = [
-                    'start' => 0.2,
-                    'end' => min($duration, 6.0),
-                    'text' => $textSnippet
-                ];
+                $chunks = $this->chunkTextIntoTimedSegments(0.2, min($duration, 6.0), $textSnippet);
+                foreach ($chunks as $c) {
+                    $allSegments[] = $c;
+                }
             }
         }
 
-        if (empty($clipSentences)) {
+        if (empty($allSegments)) {
             return null;
         }
 
         // Cria arquivo .srt temporário
         $srtFile = $outputDir . DIRECTORY_SEPARATOR . 'sub_' . $liveItem->id . '_' . time() . '.srt';
         $srtContent = '';
-        foreach ($clipSentences as $idx => $cs) {
+        foreach ($allSegments as $idx => $cs) {
             $num = $idx + 1;
             $startFormatted = $this->formatSecondsToSrtTime($cs['start']);
             $endFormatted = $this->formatSecondsToSrtTime($cs['end']);
@@ -2078,6 +2076,76 @@ PROMPT;
 
         file_put_contents($srtFile, $srtContent);
         return $srtFile;
+    }
+
+    /**
+     * Quebra uma fala longa em blocos dinâmicos e curtos (estilo TikTok/Reels/CapCut)
+     */
+    protected function chunkTextIntoTimedSegments(float $start, float $end, string $text, int $maxWords = 5, int $maxChars = 28): array
+    {
+        $text = trim(preg_replace('/\s+/', ' ', $text));
+        if (empty($text)) {
+            return [];
+        }
+
+        $words = explode(' ', $text);
+        if (count($words) <= $maxWords && mb_strlen($text) <= $maxChars) {
+            return [[
+                'start' => $start,
+                'end' => $end,
+                'text' => $text
+            ]];
+        }
+
+        $chunks = [];
+        $currentChunkWords = [];
+        $currentLen = 0;
+
+        foreach ($words as $w) {
+            $wLen = mb_strlen($w);
+            $projectedLen = $currentLen === 0 ? $wLen : ($currentLen + 1 + $wLen);
+
+            if (!empty($currentChunkWords) && ($projectedLen > $maxChars || count($currentChunkWords) >= $maxWords)) {
+                $chunks[] = implode(' ', $currentChunkWords);
+                $currentChunkWords = [$w];
+                $currentLen = $wLen;
+            } else {
+                $currentChunkWords[] = $w;
+                $currentLen = $projectedLen;
+            }
+        }
+
+        if (!empty($currentChunkWords)) {
+            $chunks[] = implode(' ', $currentChunkWords);
+        }
+
+        $totalDuration = max(0.5, $end - $start);
+        $totalChars = array_sum(array_map('mb_strlen', $chunks)) ?: 1;
+
+        $timedSegments = [];
+        $curStart = $start;
+
+        foreach ($chunks as $chunk) {
+            $chunkChars = mb_strlen($chunk);
+            $chunkDuration = round(($chunkChars / $totalChars) * $totalDuration, 2);
+            $chunkEnd = min($end, round($curStart + $chunkDuration, 2));
+
+            if ($chunkEnd > $curStart) {
+                $timedSegments[] = [
+                    'start' => $curStart,
+                    'end' => $chunkEnd,
+                    'text' => $chunk
+                ];
+            }
+            $curStart = $chunkEnd;
+        }
+
+        // Garante que o último fecha exatamente no $end
+        if (!empty($timedSegments)) {
+            $timedSegments[count($timedSegments) - 1]['end'] = $end;
+        }
+
+        return $timedSegments;
     }
 
     /**
