@@ -41,20 +41,20 @@ class YouTubeIntegrationController extends Controller
         $error = $request->query('error');
 
         if ($error) {
-            return redirect()->route('admin.lives.cortes')->with('error', "Erro na autorização do YouTube: {$error}");
+            return redirect()->route('admin.lives.cortes.latest')->with('error', "Erro na autorização do YouTube: {$error}");
         }
 
         if (!$code) {
-            return redirect()->route('admin.lives.cortes')->with('error', 'Código de autorização não recebido do Google.');
+            return redirect()->route('admin.lives.cortes.latest')->with('error', 'Código de autorização não recebido do Google.');
         }
 
         $result = $this->youtubeService->handleCallback($code);
 
         if ($result['success']) {
-            return redirect()->route('admin.lives.cortes')->with('success', $result['message']);
+            return redirect()->route('admin.lives.cortes.latest')->with('success', $result['message']);
         }
 
-        return redirect()->route('admin.lives.cortes')->with('error', $result['message']);
+        return redirect()->route('admin.lives.cortes.latest')->with('error', $result['message']);
     }
 
     /**
