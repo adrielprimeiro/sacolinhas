@@ -984,9 +984,9 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Groq (LPU Ultrarrápido: LLaMA 3.1 8B Instant tem 30k TPM e 128k contexto)
+            // 1. Groq (LPU Ultrarrápido com modelos ativos)
             if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b'];
+                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
                 foreach ($groqModels as $grModel) {
                     try {
                         $groqPayload = [
@@ -996,10 +996,11 @@ PROMPT;
                                 ['role' => 'user', 'content' => $userPrompt]
                             ],
                             'response_format' => ['type' => 'json_object'],
-                            'temperature' => 0.1
+                            'temperature' => 0.1,
+                            'max_tokens' => 500
                         ];
 
-                        $response = Http::withToken($groqKey)->timeout(25)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                        $response = Http::withToken($groqKey)->timeout(20)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
                         if ($response->successful()) {
                             $json = $response->json();
                             $rawResponse = $json['choices'][0]['message']['content'] ?? null;
@@ -1321,9 +1322,11 @@ PROMPT;
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
 
             $bestMention = null;
+
+            // 1ª tentativa: Menção explícita após $lastEndSec
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
-                if ($sStart < ($lastEndSec - 5)) continue; // Mantém ordem cronológica estrita!
+                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 10)) continue;
 
                 $text = $s['text'] ?? '';
                 if (preg_match($combinedRegex, $text)) {
@@ -1337,58 +1340,129 @@ PROMPT;
                 }
             }
 
+            // 2ª tentativa: Menção explícita em qualquer ponto da transcrição
             if (!$bestMention) {
-                continue;
-            }
-
-            $mentionIndex = $bestMention['index'];
-            $mentionTime = $bestMention['start'];
-
-            // Busca início do bloco respeitando o fim da peça anterior
-            $startIndex = max(0, $mentionIndex - 5);
-            $startTime = $mentionTime;
-
-            for ($i = $mentionIndex; $i >= $startIndex; $i--) {
-                $sStart = (float) ($sentences[$i]['start'] ?? 0);
-                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 2.0)) {
-                    break; // Não invade o item anterior!
-                }
-                if (($mentionTime - $sStart) > 60) break;
-
-                $sText = mb_strtolower($sentences[$i]['text'] ?? '');
-
-                $hasTransition = false;
-                foreach ($transitionPatterns as $pat) {
-                    if (str_contains($sText, $pat)) {
-                        $hasTransition = true;
+                foreach ($sentences as $idx => $s) {
+                    $text = $s['text'] ?? '';
+                    if (preg_match($combinedRegex, $text)) {
+                        $bestMention = [
+                            'index' => $idx,
+                            'start' => (float) ($s['start'] ?? 0),
+                            'end' => (float) ($s['end'] ?? 0),
+                            'text' => $text
+                        ];
                         break;
                     }
                 }
+            }
 
-                if ($hasTransition) {
-                    $startTime = $sStart;
-                    if ($i < $mentionIndex) {
-                        break; // Achou o ponto de transição exato na frase anterior
+            // 3ª tentativa: Número isolado no texto após $lastEndSec
+            if (!$bestMention && is_numeric($code)) {
+                $numRegex = '/\b' . preg_quote($code, '/') . '\b/i';
+                foreach ($sentences as $idx => $s) {
+                    $sStart = (float) ($s['start'] ?? 0);
+                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 10)) continue;
+
+                    $text = $s['text'] ?? '';
+                    if (preg_match($numRegex, $text)) {
+                        $bestMention = [
+                            'index' => $idx,
+                            'start' => $sStart,
+                            'end' => (float) ($s['end'] ?? 0),
+                            'text' => $text
+                        ];
+                        break;
                     }
-                } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 25) {
-                    $startTime = $sStart;
                 }
             }
 
-            // O fim do bloco da peça atual termina logo na frase em que o código foi anunciado!
-            $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
+            // 4ª tentativa: Correspondência por palavras-chave do produto (marca/nome)
+            if (!$bestMention) {
+                $pName = trim(strtolower($li->nome_do_produto ?? ''));
+                $pBrand = trim(strtolower($li->marca ?? ''));
+                $keyWords = array_filter(explode(' ', "{$pName} {$pBrand}"), function($w) {
+                    return mb_strlen($w) >= 4 && !in_array($w, ['peca', 'peça', 'tamanho', 'para', 'com']);
+                });
 
-            $finalStart = max(0, round($startTime - 0.5, 1));
-            // Adiciona margem segura de +1.2s para nunca cortar o número final do código
-            $finalEnd = round($endTime + 1.2, 1);
-            if (isset($sentences[$mentionIndex + 1])) {
-                $nextStart = (float) ($sentences[$mentionIndex + 1]['start'] ?? 0);
-                if ($nextStart > $endTime && $finalEnd > $nextStart) {
-                    $finalEnd = max($endTime, round($nextStart - 0.2, 1));
+                if (!empty($keyWords)) {
+                    foreach ($sentences as $idx => $s) {
+                        $sStart = (float) ($s['start'] ?? 0);
+                        if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5)) continue;
+
+                        $sText = mb_strtolower($s['text'] ?? '');
+                        foreach ($keyWords as $kw) {
+                            if (str_contains($sText, $kw)) {
+                                $bestMention = [
+                                    'index' => $idx,
+                                    'start' => $sStart,
+                                    'end' => (float) ($s['end'] ?? 0),
+                                    'text' => $s['text'] ?? ''
+                                ];
+                                break 2;
+                            }
+                        }
+                    }
                 }
             }
+
+            if ($bestMention) {
+                $mentionIndex = $bestMention['index'];
+                $mentionTime = $bestMention['start'];
+
+                // Busca início do bloco respeitando o fim da peça anterior
+                $startIndex = max(0, $mentionIndex - 5);
+                $startTime = $mentionTime;
+
+                for ($i = $mentionIndex; $i >= $startIndex; $i--) {
+                    $sStart = (float) ($sentences[$i]['start'] ?? 0);
+                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 2.0)) {
+                        break;
+                    }
+                    if (($mentionTime - $sStart) > 60) break;
+
+                    $sText = mb_strtolower($sentences[$i]['text'] ?? '');
+
+                    $hasTransition = false;
+                    foreach ($transitionPatterns as $pat) {
+                        if (str_contains($sText, $pat)) {
+                            $hasTransition = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasTransition) {
+                        $startTime = $sStart;
+                        if ($i < $mentionIndex) {
+                            break;
+                        }
+                    } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 25) {
+                        $startTime = $sStart;
+                    }
+                }
+
+                $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
+                $finalStart = max(0, round($startTime - 0.5, 1));
+                $finalEnd = round($endTime + 1.2, 1);
+                if (isset($sentences[$mentionIndex + 1])) {
+                    $nextStart = (float) ($sentences[$mentionIndex + 1]['start'] ?? 0);
+                    if ($nextStart > $endTime && $finalEnd > $nextStart) {
+                        $finalEnd = max($endTime, round($nextStart - 0.2, 1));
+                    }
+                }
+            } else {
+                // Fallback sequencial estimado cronologicamente
+                $finalStart = round(max(0, $lastEndSec), 1);
+                $finalEnd = round($finalStart + 35.0, 1);
+            }
+
+            if ($lastEndSec > 0 && $finalStart < $lastEndSec) {
+                $finalStart = $lastEndSec;
+            }
+            if ($finalEnd <= $finalStart) {
+                $finalEnd = $finalStart + 25.0;
+            }
+
             $lastEndSec = $finalEnd;
-
             $snippet = $this->getSnippetForTimeRange($live, $finalStart, $finalEnd);
 
             DB::table('live_items')
