@@ -45,7 +45,9 @@ Artisan::command('ai:group-orphans {--limit=30} {--model=models/gemini-2.5-flash
     ]);
 })->purpose('Agrupa imagens órfãs com IA (lote único) e grava group_id');
 
-Artisan::command('live:transfer-video {from_id} {to_id}', function ($fromId, $toId) {
+Artisan::command('live:transfer-video {from_id} {to_id}', function () {
+    $fromId = $this->argument('from_id');
+    $toId = $this->argument('to_id');
     $fromLive = \App\Models\Live::findOrFail($fromId);
     $toLive = \App\Models\Live::findOrFail($toId);
 
