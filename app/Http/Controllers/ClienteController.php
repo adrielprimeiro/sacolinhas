@@ -82,20 +82,23 @@ class ClienteController extends Controller
         $clientes = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
 
         $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
-        $targetBrechoId = $isParceiro ? auth()->user()->brecho_id : 2;
+        $clientesIncompletosCount = 0;
 
-        $clientesIncompletosCount = User::whereExists(function ($sub) use ($targetBrechoId) {
-            $sub->select(DB::raw(1))
-                ->from('brecho_clientes')
-                ->whereColumn('brecho_clientes.user_id', 'users.id')
-                ->where('brecho_clientes.brecho_id', $targetBrechoId);
-        })->where(function ($q) {
-            $q->where(function ($subQ) {
-                $subQ->whereNull('whatsapp')->orWhere('whatsapp', '');
-            })->where(function ($subQ) {
-                $subQ->whereNull('phone')->orWhere('phone', '');
-            });
-        })->count();
+        if (!$isParceiro) {
+            $targetBrechoId = 2;
+            $clientesIncompletosCount = User::whereExists(function ($sub) use ($targetBrechoId) {
+                $sub->select(DB::raw(1))
+                    ->from('brecho_clientes')
+                    ->whereColumn('brecho_clientes.user_id', 'users.id')
+                    ->where('brecho_clientes.brecho_id', $targetBrechoId);
+            })->where(function ($q) {
+                $q->where(function ($subQ) {
+                    $subQ->whereNull('whatsapp')->orWhere('whatsapp', '');
+                })->where(function ($subQ) {
+                    $subQ->whereNull('phone')->orWhere('phone', '');
+                });
+            })->count();
+        }
 
         $todosBrechos = Brecho::where('ativo', true)->orderBy('id')->get();
 
@@ -523,9 +526,11 @@ class ClienteController extends Controller
     public function vincularMania(Request $request)
     {
         $user = auth()->user();
-        $isParceiro = $user && $user->isBrechoParceiro();
-        
-        $brechoId = $isParceiro ? $user->brecho_id : (int) $request->get('brecho_id', 2);
+        if ($user && $user->isBrechoParceiro()) {
+            abort(403, 'Acesso restrito à Minha Mania.');
+        }
+
+        $brechoId = (int) $request->get('brecho_id', 2);
         $brecho = Brecho::find($brechoId) ?? Brecho::first();
 
         if (!$brecho) {

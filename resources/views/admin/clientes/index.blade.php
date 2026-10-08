@@ -10,6 +10,7 @@
         <p class="text-sm text-gray-400 mt-0.5">Cadastre e gerencie a carteira de clientes e seus limites de crédito</p>
     </div>
     <div class="flex items-center gap-2">
+        @if(empty($isParceiro))
         <a href="{{ route('admin.clientes.vincular_mania') }}" 
            class="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition"
            title="Selecionar clientes do brechó parceiro, procurar na Minha Mania e transferir dados/sacolas">
@@ -18,6 +19,7 @@
                 <span class="bg-white text-rose-600 text-xs px-2 py-0.5 rounded-full font-bold shadow-xs">{{ $clientesIncompletosCount }} pendente{{ $clientesIncompletosCount > 1 ? 's' : '' }}</span>
             @endif
         </a>
+        @endif
         <a href="{{ route('admin.clientes.create') }}" 
            class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition">
             <i class="fas fa-plus"></i> Novo Cliente
