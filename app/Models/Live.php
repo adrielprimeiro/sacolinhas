@@ -32,9 +32,12 @@ class Live extends Model
     public function getTipoLiveFormatadoAttribute()
     {
         $tipos = [
-            'loja-aberta' => 'Loja Aberta',
-            'leilao' => 'Leilão',
-            'precinho' => 'Precinho'
+            'loja-aberta' => 'Live Loja Aberta',
+            'leilao' => 'Live Leilão',
+            'precinho' => 'Live do Precinho',
+            'colaborativa' => 'Live Colaborativa',
+            'taco-balaio' => 'Live Taco Balaio',
+            'outlet' => 'Outlet',
         ];
         return $tipos[$this->tipo_live] ?? $this->tipo_live;
     }

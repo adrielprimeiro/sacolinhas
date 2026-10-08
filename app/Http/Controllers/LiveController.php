@@ -622,6 +622,32 @@ class LiveController extends Controller
 			
 			$usersQuery = User::where('role', $role);
 
+			$isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+			$brechoId = $isParceiro ? auth()->user()->brecho_id : 1;
+
+			$liveType = $request->get('live_type');
+			if (empty($liveType) && $isParceiro) {
+				$activeLive = DB::table('lives')
+					->where('ativo', 1)
+					->where('brecho_id', $brechoId)
+					->first();
+				if ($activeLive) {
+					$liveType = $activeLive->tipo_live;
+				}
+			}
+
+			$isColaborativa = in_array($liveType, ['colaborativa', 'live-colaborativa']);
+
+			// Se for parceiro e NÃO for live colaborativa, restringe aos clientes do brechó
+			if ($isParceiro && !$isColaborativa) {
+				$usersQuery->whereExists(function ($sub) use ($brechoId) {
+					$sub->select(DB::raw(1))
+						->from('brecho_clientes')
+						->whereColumn('brecho_clientes.user_id', 'users.id')
+						->where('brecho_clientes.brecho_id', $brechoId);
+				});
+			}
+
 			$rawQuery = trim($query);
 			$cleanWithoutAt = ltrim($rawQuery, '@');
 			$onlyDigits = preg_replace('/\D/', '', $rawQuery);
@@ -679,12 +705,22 @@ class LiveController extends Controller
 			// ✅ CONSTRUIR ARRAY COM TODOS OS CAMPOS
 			$usersArray = [];
 			foreach ($users as $user) {
+				$origemBadge = null;
+				if ($isParceiro && $isColaborativa) {
+					$vinculado = DB::table('brecho_clientes')
+						->where('user_id', $user->id)
+						->where('brecho_id', $brechoId)
+						->exists();
+					$origemBadge = $vinculado ? 'Taco Balaio' : 'Minha Mania';
+				}
+
 				$usersArray[] = [
 					'id' => $user->id,
 					'name' => $user->name,
 					'email' => $user->email,
 					'apelido' => $user->apelido,
 					'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
+					'origem_badge' => $origemBadge,
 					
 					// ✅ CAMPOS NOVOS
 					'instagram' => $user->instagram,

@@ -230,7 +230,22 @@ if (typeof window.initUserSearch === 'undefined') {
             dropdown.innerHTML = '<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
             dropdown.style.display = 'block';
 
-            fetch(`/api/users/search?q=${encodeURIComponent(q)}`)
+            let liveType = '';
+            if (typeof liveAtiva !== 'undefined' && liveAtiva && liveAtiva.tipo_live) {
+                liveType = liveAtiva.tipo_live;
+            } else {
+                const liveTypeEl = document.getElementById('live-type');
+                if (liveTypeEl) {
+                    liveType = liveTypeEl.value;
+                }
+            }
+
+            let searchUrl = `/api/users/search?q=${encodeURIComponent(q)}`;
+            if (liveType) {
+                searchUrl += `&live_type=${encodeURIComponent(liveType)}`;
+            }
+
+            fetch(searchUrl)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && data.data.length > 0) {
@@ -244,6 +259,10 @@ if (typeof window.initUserSearch === 'undefined') {
                             const whatsapp = getWhatsApp(user);
                             
                             let badges = '';
+                            if (user.origem_badge) {
+                                const bgCol = user.origem_badge === 'Minha Mania' ? '#ec4899' : '#059669';
+                                badges += `<span class="custom-badge" style="background-color: ${bgCol} !important; color: white !important; margin-right: 4px;">${user.origem_badge}</span>`;
+                            }
                             if (instagram) {
                                 badges += `<span class="custom-badge" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
                             }
@@ -292,6 +311,10 @@ if (typeof window.initUserSearch === 'undefined') {
             const whatsapp = getWhatsApp(user);
             
             let badges = '';
+            if (user.origem_badge) {
+                const bgCol = user.origem_badge === 'Minha Mania' ? '#ec4899' : '#059669';
+                badges += `<span class="custom-badge" style="background-color: ${bgCol} !important; color: white !important; margin-right: 4px;">${user.origem_badge}</span>`;
+            }
             if (instagram) {
                 badges += `<span class="custom-badge" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
             }

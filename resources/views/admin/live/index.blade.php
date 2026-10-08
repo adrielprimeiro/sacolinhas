@@ -9,13 +9,22 @@
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
 
         <!-- Controls -->
+        @php
+            $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+        @endphp
         <div class="flex flex-wrap items-end gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm" id="live-creation-card">
             <div class="flex-grow min-w-[200px]">
                 <label for="live-type" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo de Live</label>
                 <select id="live-type" name="live_type" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    <option value="loja-aberta">Live Loja Aberta</option>
-                    <option value="leilao">Live Leilão</option>
-                    <option value="precinho">Live do Precinho</option>
+                    @if($isParceiro)
+                        <option value="taco-balaio">Live Taco Balaio</option>
+                        <option value="colaborativa">Live Colaborativa</option>
+                    @else
+                        <option value="loja-aberta">Live Loja Aberta</option>
+                        <option value="leilao">Live Leilão</option>
+                        <option value="precinho">Live do Precinho</option>
+                        <option value="colaborativa">Live Colaborativa</option>
+                    @endif
                 </select>
             </div>
 
@@ -258,6 +267,10 @@
                     const whatsapp = user.whatsapp || '';
                     
                     let badges = '';
+                    if (user.origem_badge) {
+                        const bgCol = user.origem_badge === 'Minha Mania' ? '#ec4899' : '#059669';
+                        badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded" style="background-color: ${bgCol} !important; color: white !important; margin-right: 4px;">${user.origem_badge}</span>`;
+                    }
                     if (instagram) {
                         badges += `<span class="px-2 py-0.5 text-[10px] font-bold rounded" style="background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4) !important; color: white !important; margin-right: 4px;">@${instagram}</span>`;
                     }
@@ -310,6 +323,17 @@
                         console.log('✅ Foco movido para Selecionar Item');
                     }
                 }, 300);
+            });
+        }
+        
+        // Re-executa busca de clientes caso o usuário mude o Tipo de Live
+        const liveTypeSelect = document.getElementById('live-type');
+        if (liveTypeSelect) {
+            liveTypeSelect.addEventListener('change', () => {
+                const clientInput = document.querySelector('[data-user-search="true"] .user-search-input');
+                if (clientInput && clientInput.value.trim().length >= 2) {
+                    clientInput.dispatchEvent(new Event('input'));
+                }
             });
         }
         
@@ -724,6 +748,23 @@
                 } else if (data.live.tipo_live === 'outlet') {
                     badgeClass = 'bg-red-100 text-red-800';
                     liveTypeText = 'Outlet';
+                } else if (data.live.tipo_live === 'colaborativa') {
+                    badgeClass = 'bg-purple-100 text-purple-800';
+                    liveTypeText = 'Live Colaborativa';
+                } else if (data.live.tipo_live === 'taco-balaio') {
+                    badgeClass = 'bg-emerald-100 text-emerald-800';
+                    liveTypeText = 'Live Taco Balaio';
+                } else if (data.live.tipo_live === 'loja-aberta') {
+                    badgeClass = 'bg-blue-100 text-blue-800';
+                    liveTypeText = 'Live Loja Aberta';
+                } else if (data.live.tipo_live === 'leilao') {
+                    badgeClass = 'bg-indigo-100 text-indigo-800';
+                    liveTypeText = 'Live Leilão';
+                }
+
+                const liveTypeSelect = document.getElementById('live-type');
+                if (liveTypeSelect && data.live.tipo_live) {
+                    liveTypeSelect.value = data.live.tipo_live;
                 }
                 
                 liveStatusDisplay.innerHTML = `

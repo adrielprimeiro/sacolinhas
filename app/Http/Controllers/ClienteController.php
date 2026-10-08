@@ -463,9 +463,24 @@ class ClienteController extends Controller
         try {
             $queryBuilder = Cliente::clientes();
 
-            // Se for operador de brechó parceiro, filtra apenas clientes vinculados a este brechó
-            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
-                $brechoId = auth()->user()->brecho_id;
+            $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+            $brechoId = $isParceiro ? auth()->user()->brecho_id : 1;
+
+            $liveType = $request->get('live_type');
+            if (empty($liveType) && $isParceiro) {
+                $activeLive = DB::table('lives')
+                    ->where('ativo', 1)
+                    ->where('brecho_id', $brechoId)
+                    ->first();
+                if ($activeLive) {
+                    $liveType = $activeLive->tipo_live;
+                }
+            }
+
+            $isColaborativa = in_array($liveType, ['colaborativa', 'live-colaborativa']);
+
+            // Se for operador de brechó parceiro e NÃO for live colaborativa, filtra apenas clientes vinculados a este brechó
+            if ($isParceiro && !$isColaborativa) {
                 $queryBuilder->whereExists(function ($sub) use ($brechoId) {
                     $sub->select(DB::raw(1))
                         ->from('brecho_clientes')
@@ -490,7 +505,7 @@ class ClienteController extends Controller
                                 'cpf'
                              ]);
 
-            $clientesData = $clientes->map(function ($c) {
+            $clientesData = $clientes->map(function ($c) use ($isParceiro, $isColaborativa, $brechoId) {
                 $hasAssinatura = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
                                    ->where('user_id', $c->id)
                                    ->where('status', 'ativa')
@@ -500,6 +515,15 @@ class ClienteController extends Controller
                 $phoneVal = $c->whatsapp ?: ($c->phone ?: ($c->telefone_principal ?: ''));
                 $c->phone = $phoneVal;
                 $c->has_phone = !empty($phoneVal);
+
+                if ($isParceiro && $isColaborativa) {
+                    $vinculado = DB::table('brecho_clientes')
+                        ->where('user_id', $c->id)
+                        ->where('brecho_id', $brechoId)
+                        ->exists();
+                    $c->origem_badge = $vinculado ? 'Taco Balaio' : 'Minha Mania';
+                }
+
                 return $c;
             });
 
