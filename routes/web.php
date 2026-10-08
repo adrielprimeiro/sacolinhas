@@ -324,6 +324,14 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/select-thumbnail/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'selectThumbnail'])->name('admin.lives.cortes.select-thumbnail');
         Route::post('lives/{liveId}/cortes/generate-thumbnails/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSmartThumbnailsAction'])->name('admin.lives.cortes.generate-thumbnails');
 
+        // ===== INTEGRAÇÃO YOUTUBE SHORTS AUTOMÁTICO =====
+        Route::get('youtube/connect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'connect'])->name('admin.youtube.connect');
+        Route::get('youtube/callback', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'callback'])->name('admin.youtube.callback');
+        Route::post('youtube/disconnect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'disconnect'])->name('admin.youtube.disconnect');
+        Route::post('youtube/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'uploadCut'])->name('admin.youtube.upload-cut');
+        Route::post('lives/{liveId}/youtube/batch-upload', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'batchUploadUnsold'])->name('admin.youtube.batch-upload');
+        Route::get('youtube/status/{liveId?}', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'status'])->name('admin.youtube.status');
+
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
              ->name("admin.items.update-status");

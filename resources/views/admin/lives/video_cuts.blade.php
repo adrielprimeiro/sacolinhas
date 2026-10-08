@@ -89,6 +89,18 @@
                 <span style="color: #ffffff !important; font-weight: 800;">Gerar Cortes (FFmpeg)</span>
             </button>
 
+            @if(!empty($youtubeAccount))
+                <button type="button" onclick="batchUploadToYouTube()" id="btn-youtube-batch" class="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #dc2626; color: #ffffff !important;" title="Publicar todas as peças não-vendidas no canal '{{ $youtubeAccount->channel_name }}'">
+                    <i class="fab fa-youtube text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Publicar Shorts (YouTube)</span>
+                </button>
+            @else
+                <a href="{{ route('admin.youtube.connect') }}" class="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #dc2626; color: #ffffff !important;" title="Conectar Canal do YouTube para postar Shorts automaticamente">
+                    <i class="fab fa-youtube text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Conectar YouTube</span>
+                </a>
+            @endif
+
             <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
                 <i class="fab fa-instagram text-white"></i>
                 <span class="text-white font-black">Auto-Processar Instagram</span>
@@ -104,6 +116,8 @@
         $step3Partial = ($stats['items_with_cuts'] > 0 && $stats['items_with_cuts'] < $stats['total_items']);
         $step4Done = ($stats['total_items'] > 0 && $stats['items_rendered'] >= $stats['total_items']);
         $step4Partial = ($stats['items_rendered'] > 0 && $stats['items_rendered'] < $stats['total_items']);
+        $step5Done = ($stats['total_items'] > 0 && ($stats['items_youtube'] ?? 0) >= $stats['total_items']);
+        $step5Partial = (($stats['items_youtube'] ?? 0) > 0);
     @endphp
 
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-6" style="background-color: #ffffff;">
@@ -184,10 +198,34 @@
                     </div>
                 </div>
 
+                <!-- LINHA CONECTORA 4-5 -->
+                <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step4Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+
+                <!-- PONTO 5: YOUTUBE SHORTS -->
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="batchUploadToYouTube()" title="Clique para gerenciar publicações no YouTube Shorts">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                         style="{{ $step5Done ? 'background-color: #dc2626; color: #ffffff !important;' : ($step5Partial ? 'background-color: #ef4444; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
+                        <i class="fab fa-youtube"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold leading-tight" style="color: #111827;">5. YouTube Shorts</div>
+                        <div class="text-[11px] font-semibold" style="{{ $step5Partial ? 'color: #b91c1c;' : 'color: #4b5563;' }}">
+                            {{ $stats['items_youtube'] ?? 0 }}/{{ $stats['total_items'] }} no ar
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- AÇÕES RÁPIDAS NA PONTA DIREITA -->
             <div class="flex items-center gap-2 pt-2 lg:pt-0 lg:pl-3 lg:border-l lg:border-gray-200 shrink-0">
+                @if(!empty($youtubeAccount))
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border" style="background-color: #fef2f2; color: #991b1b; border-color: #fecaca;" title="Canal YouTube conectado: {{ $youtubeAccount->channel_name }}">
+                        <i class="fab fa-youtube text-red-600"></i>
+                        <span class="max-w-[120px] truncate">{{ $youtubeAccount->channel_name }}</span>
+                    </div>
+                @endif
+
                 <a href="{{ route('admin.lives.cortes.social.live', ['liveId' => $live->id]) }}" 
                    class="inline-flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-xs"
                    style="background-color: #fdf2f8; color: #be185d !important; border: 1px solid #fbcfe8;">
@@ -556,6 +594,27 @@
                                         <a href="{{ $item['video_cut_url'] }}" target="_blank" title="Assistir / Baixar Vídeo Cortado" class="bg-green-600 hover:bg-green-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer" style="background-color: #16a34a; color: #ffffff !important;">
                                             <i class="fas fa-external-link-alt"></i>
                                         </a>
+
+                                        @if(!empty($item['youtube_video_id']))
+                                            <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
+                                               target="_blank" 
+                                               title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (Carimbado como VENDIDO 🔴)' : 'Assistir Short no YouTube' }}" 
+                                               class="bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" 
+                                               style="background-color: #dc2626; color: #ffffff !important;">
+                                                <i class="fab fa-youtube text-white"></i>
+                                                @if($item['youtube_status'] === 'sold_updated')
+                                                    <span class="text-[9px] bg-red-950 px-1 py-0.5 rounded font-black text-white">VENDIDO</span>
+                                                @endif
+                                            </a>
+                                        @else
+                                            <button type="button" 
+                                                    onclick="uploadCutToYouTube({{ $item['live_item_id'] }})" 
+                                                    id="btn-yt-{{ $item['live_item_id'] }}" 
+                                                    title="Publicar este corte no YouTube Shorts" 
+                                                    class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
+                                                <i class="fab fa-youtube text-red-600"></i>
+                                            </button>
+                                        @endif
                                     @endif
                                 </div>
 
@@ -1885,6 +1944,102 @@
             }
             if (progressBox) progressBox.classList.add("hidden");
             alert("Erro de comunicação ao disparar o processamento: " + e.message);
+        }
+    }
+
+    // ===== INTEGRAÇÃO YOUTUBE SHORTS =====
+    async function uploadCutToYouTube(itemId) {
+        const btn = document.getElementById(`btn-yt-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-red-600"></i>';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/youtube/upload-cut') }}/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ privacy: 'public' })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (btn) {
+                    btn.outerHTML = `
+                        <a href="${data.url}" target="_blank" title="Assistir Short no YouTube" class="bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" style="background-color: #dc2626; color: #ffffff !important;">
+                            <i class="fab fa-youtube text-white"></i>
+                        </a>
+                    `;
+                }
+                alert("✅ " + data.message + "\nLink: " + data.url);
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                alert("⚠️ " + (data.message || 'Falha no upload para o YouTube.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro ao enviar para o YouTube: " + e.message);
+        }
+    }
+
+    async function batchUploadToYouTube() {
+        const isConnected = {{ !empty($youtubeAccount) ? 'true' : 'false' }};
+        if (!isConnected) {
+            if (confirm("Você precisa conectar o Canal do YouTube primeiro. Deseja conectar agora?")) {
+                window.location.href = "{{ route('admin.youtube.connect') }}";
+            }
+            return;
+        }
+
+        if (!confirm("Deseja publicar automaticamente todas as peças NÃO VENDIDAS no YouTube Shorts?")) {
+            return;
+        }
+
+        const btn = document.getElementById('btn-youtube-batch');
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Publicando...';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/lives/' . $live->id . '/youtube/batch-upload') }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                alert("🚀 " + data.message);
+            } else {
+                alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro de comunicação: " + e.message);
         }
     }
 </script>

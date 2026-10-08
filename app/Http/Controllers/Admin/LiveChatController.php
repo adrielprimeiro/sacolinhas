@@ -784,6 +784,16 @@ class LiveChatController extends Controller
             $updateData
         );
 
+        // Se o item tiver Short publicado no YouTube, atualiza com status de VENDIDO
+        $targetLiveItem = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->where('item_id', $itemId)
+            ->first();
+        if ($targetLiveItem && !empty($targetLiveItem->youtube_video_id) && $targetLiveItem->youtube_status === 'published') {
+            $artisan = base_path('artisan');
+            exec(sprintf('nohup php %s app:mark-youtube-sold --item_id=%d > /dev/null 2>&1 &', escapeshellarg($artisan), $targetLiveItem->id));
+        }
+
         // 2. Colocar o item na Sacolinha da cliente (se tiver cadastro com telefone)
         if ($userId) {
             $live = Live::find($liveId);

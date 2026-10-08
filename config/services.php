@@ -73,13 +73,9 @@ return [
         'chave_pix'     => env('BANCO_INTER_PIX_KEY', 'mania@maniademelissa.com'),
     ],
 
-/*
-'gemini' => [
-    'api_key' => env('GEMINI_API_KEY'),
-    'model' => env('GEMINI_MODEL', 'gemini-3.1-flash-image-preview'),
-    'batch_model' => env('GEMINI_BATCH_MODEL', 'gemini-2.0-flash'),
-    'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
-    'timeout' => env('GEMINI_TIMEOUT', 120),
-],*/
-
+    'youtube' => [
+        'client_id'     => env('YOUTUBE_CLIENT_ID'),
+        'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
+        'redirect_uri'  => env('YOUTUBE_REDIRECT_URI', 'https://minhamania.net/admin/youtube/callback'),
+    ],
 ];

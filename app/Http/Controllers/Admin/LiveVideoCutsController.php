@@ -269,6 +269,13 @@ class LiveVideoCutsController extends Controller
         if (Schema::hasColumn('live_items', 'review_quality')) {
             $selectCols[] = 'live_items.review_quality';
         }
+        if (Schema::hasColumn('live_items', 'youtube_video_id')) {
+            $selectCols[] = 'live_items.youtube_video_id';
+            $selectCols[] = 'live_items.youtube_url';
+            $selectCols[] = 'live_items.youtube_status';
+            $selectCols[] = 'live_items.youtube_published_at';
+            $selectCols[] = 'live_items.youtube_error';
+        }
 
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -340,6 +347,11 @@ class LiveVideoCutsController extends Controller
                 'thumbnail_candidates' => $candidates,
                 'is_reviewed' => !empty($row->is_reviewed),
                 'review_quality' => $row->review_quality ?? null,
+                'youtube_video_id' => $row->youtube_video_id ?? null,
+                'youtube_url' => $row->youtube_url ?? null,
+                'youtube_status' => $row->youtube_status ?? 'none',
+                'youtube_published_at' => $row->youtube_published_at ?? null,
+                'youtube_error' => $row->youtube_error ?? null,
                 'linked_at' => $row->linked_at
             ];
         });
@@ -350,11 +362,17 @@ class LiveVideoCutsController extends Controller
             $transcriptionData = json_decode($live->transcription_raw, true) ?: [];
         }
 
+        // Conta do YouTube
+        $youtubeAccount = \App\Models\SocialChannelAccount::getActiveAccount('youtube');
+        $youtubeService = app(\App\Services\YouTube\YouTubeService::class);
+        $youtubeConfigured = $youtubeService->isConfigured();
+
         // Estatísticas
         $totalItems = $liveItems->count();
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
         $itemsWithoutCuts = max(0, $totalItems - $itemsWithCuts);
         $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
+        $itemsPublishedYouTube = $liveItems->whereNotNull('youtube_video_id')->count();
 
         // URL da gravação bruta
         $recordingUrl = null;
@@ -370,11 +388,14 @@ class LiveVideoCutsController extends Controller
             'liveItems' => $liveItems,
             'transcriptionData' => $transcriptionData,
             'recordingUrl' => $recordingUrl,
+            'youtubeAccount' => $youtubeAccount,
+            'youtubeConfigured' => $youtubeConfigured,
             'stats' => [
                 'total_items' => $totalItems,
                 'items_with_cuts' => $itemsWithCuts,
                 'items_without_cuts' => $itemsWithoutCuts,
                 'items_rendered' => $itemsRendered,
+                'items_youtube' => $itemsPublishedYouTube,
             ]
         ]);
     }
