@@ -76,7 +76,7 @@ class AdminSacolinhaController extends Controller
         $isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
 
         if ($isParceiro) {
-            $brechoId = auth()->user()->brecho_id;
+            $brechoId = (int) auth()->user()->brecho_id;
 
             // Se o cliente ainda não estiver em brecho_clientes, vincula automaticamente
             DB::table('brecho_clientes')->insertOrIgnore([
@@ -86,33 +86,9 @@ class AdminSacolinhaController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-
-            // Para brechós parceiros, NUNCA buscar nem exibir sacolinhas de outros brechós
-            $outrasSacolinhas = collect();
         } else {
             // Matriz: brecho_id via query param, padrão 1 (Minha Mania)
             $brechoId = $request->filled('brecho_id') ? (int) $request->brecho_id : 1;
-
-            // Buscar sacolinhas ativas deste cliente em OUTROS brechós APENAS para Minha Mania (Matriz)
-            $outrasSacolinhas = DB::table('sacolinhas as s')
-                ->leftJoin('brechos as b', 'b.id', '=', 's.brecho_id')
-                ->where('s.user_id', $user->id)
-                ->where('s.status', '!=', 'pedido')
-                ->where(function($q) use ($brechoId) {
-                    if ($brechoId == 1) {
-                        $q->where('s.brecho_id', '!=', 1)->whereNotNull('s.brecho_id');
-                    } else {
-                        $q->where('s.brecho_id', '!=', $brechoId);
-                    }
-                })
-                ->select([
-                    DB::raw('COALESCE(s.brecho_id, 1) as brecho_id'),
-                    DB::raw('COALESCE(b.nome, "Minha Mania") as brecho_nome'),
-                    DB::raw('COUNT(s.item_id) as total_itens'),
-                    DB::raw('SUM(s.price) as total_valor')
-                ])
-                ->groupBy(DB::raw('COALESCE(s.brecho_id, 1)'), 'b.nome')
-                ->get();
         }
 
         // Verificar se tem itens com status 'Em Analise' para o brechó atual
@@ -221,8 +197,7 @@ class AdminSacolinhaController extends Controller
             'isParceiro',
             'brechoId',
             'brechoAtual',
-            'brechos',
-            'outrasSacolinhas'
+            'brechos'
         ));
     }
 

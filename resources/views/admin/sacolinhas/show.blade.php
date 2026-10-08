@@ -20,36 +20,6 @@
         </div>
     @endif
 
-    {{-- Alerta de Sacolinhas Abertas em Outros Brechós (Exclusivo para Minha Mania / Matriz) --}}
-    @if(empty($isParceiro) && isset($outrasSacolinhas) && $outrasSacolinhas->isNotEmpty())
-        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
-            <div class="flex items-center justify-between flex-wrap gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-amber-100 text-amber-700 rounded-lg">
-                        <i class="fas fa-exclamation-triangle text-lg"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-bold text-amber-900">Sacolinha aberta em outro brechó detectada!</h4>
-                        <p class="text-xs text-amber-700 mt-0.5">
-                            Esta cliente também possui itens em aberto em outro brechó:
-                            @foreach($outrasSacolinhas as $outra)
-                                <span class="font-bold underline">{{ $outra->brecho_nome }}</span> ({{ $outra->total_itens }} {{ $outra->total_itens == 1 ? 'item' : 'itens' }} - R$ {{ number_format($outra->total_valor, 2, ',', '.') }}){{ !$loop->last ? ',' : '' }}
-                            @endforeach
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    @foreach($outrasSacolinhas as $outra)
-                        <a href="{{ route('admin.sacolinha.show', ['user' => $user->id, 'brecho_id' => $outra->brecho_id]) }}"
-                           class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
-                            <i class="fas fa-external-link-alt text-[10px]"></i> Ver sacolinha {{ $outra->brecho_nome }}
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    @endif
-
     <!-- Cabeçalho -->
     <div class="bg-white rounded-lg shadow-sm p-4 flex items-center justify-between border border-gray-200">
         <div>

@@ -239,7 +239,7 @@
                                 
                                 <div class="mt-4">
                                     @if(request('user_id') && isset($selectedUser))
-                                        <a href="{{ route('admin.sacolinha.show', request('user_id')) }}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm">
+                                        <a href="{{ route('admin.sacolinha.show', ['user' => request('user_id'), 'brecho_id' => !empty($isParceiro) ? (auth()->user()->brecho_id ?? 2) : request('brecho_id', 1)]) }}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition duration-200 uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm">
                                             <i class="fas fa-plus"></i> Abrir Sacolinha para {{ $selectedUser->name }}
                                         </a>
                                     @else
