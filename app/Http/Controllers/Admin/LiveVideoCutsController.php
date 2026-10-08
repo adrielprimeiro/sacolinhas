@@ -941,15 +941,15 @@ PROMPT;
         foreach ($itemChunks as $chunkIdx => $chunk) {
             $chunkNumber = $chunkIdx + 1;
             $currentAnchor = '';
-            $windowStart = 0;
-            $windowEnd = 999999;
 
             if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
                 $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
                 $windowStart = max(0, $lastKnownEndSec - 20);
-                $windowEnd = $lastKnownEndSec + 450; // Janela compacta de ~7 minutos para 6 peças (apenas ~1.000 tokens)
+                $windowEnd = $lastKnownEndSec + 450; // Janela compacta de ~7 minutos para 6 peças
             } else {
-                $windowEnd = 500; // Primeiros ~8 minutos para o lote 1
+                $estimatedStartSec = max(0, ($chunkIdx * count($chunk) * 35) - 60);
+                $windowStart = $estimatedStartSec;
+                $windowEnd = $estimatedStartSec + 500;
             }
 
             // Segmenta apenas a janela temporal da transcrição relevante para este lote
@@ -957,22 +957,36 @@ PROMPT;
             foreach ($sentences as $s) {
                 $sStart = round((float) ($s['start'] ?? 0), 1);
                 $sEnd = round((float) ($s['end'] ?? 0), 1);
-                if ($lastKnownEndSec !== null && $sStart < $windowStart) continue;
-                if ($lastKnownEndSec !== null && $sStart > $windowEnd) break;
+                if ($sStart < $windowStart) continue;
+                if ($sStart > $windowEnd) break;
                 $text = trim($s['text'] ?? '');
                 if ($text) {
                     $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
                 }
             }
-            $chunkTranscriptText = !empty($transcriptFormatted) ? implode("\n", $transcriptFormatted) : $transcriptText;
 
+            // Fallback de janela segura se estiver vazia (para nunca enviar a transcrição inteira de 30k tokens)
+            if (empty($transcriptFormatted)) {
+                $sliceStart = max(0, (int) (($chunkIdx / max(1, $totalChunks)) * count($sentences)) - 10);
+                $slice = array_slice($sentences, $sliceStart, 60);
+                foreach ($slice as $s) {
+                    $sStart = round((float) ($s['start'] ?? 0), 1);
+                    $sEnd = round((float) ($s['end'] ?? 0), 1);
+                    $text = trim($s['text'] ?? '');
+                    if ($text) {
+                        $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
+                    }
+                }
+            }
+
+            $chunkTranscriptText = implode("\n", $transcriptFormatted);
             $userPrompt = "{$currentAnchor}Itens a Segmentar na Live (Lote {$chunkNumber}/{$totalChunks}):\n" . json_encode($chunk, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\nTranscrição do Trecho da Live:\n" . $chunkTranscriptText;
 
             $rawResponse = null;
 
-            // 1. Groq (Ultrarrápido: LPU ~300ms a 1s)
+            // 1. Groq (LPU Ultrarrápido: LLaMA 3.1 8B Instant tem 30k TPM e 128k contexto)
             if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'];
+                $groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b'];
                 foreach ($groqModels as $grModel) {
                     try {
                         $groqPayload = [
@@ -1001,7 +1015,7 @@ PROMPT;
                 }
             }
 
-            // 2. OpenRouter (Alta disponibilidade com LLaMA 3.3 70B e Gemini)
+            // 2. OpenRouter (Alta disponibilidade)
             if (empty($rawResponse) && !empty($openrouterKey)) {
                 $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.5-flash'];
                 foreach ($orModels as $orModel) {
@@ -1066,6 +1080,9 @@ PROMPT;
                     }
                 }
             }
+
+            // Pausa de 200ms para respeitar limites de requisição
+            usleep(200000);
 
             $decoded = null;
             if (!empty($rawResponse)) {
@@ -1274,7 +1291,7 @@ PROMPT;
     /**
      * Algoritmo de Fallback: Detecção Cronológica Monotônica Sequencial
      */
-    protected function performChronologicalHeuristicDetection(Live $live, array $sentences, $liveItems): array
+    protected function performChronologicalHeuristicDetection(Live $live, array $sentences, $liveItems, ?float $initialStartSec = 0.0): array
     {
         $transitionPatterns = [
             'olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'olha so',
@@ -1289,7 +1306,7 @@ PROMPT;
         ];
 
         $results = [];
-        $lastEndSec = 0.0;
+        $lastEndSec = (float) ($initialStartSec ?? 0.0);
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
@@ -1419,18 +1436,33 @@ PROMPT;
             return [];
         }
 
-        // 1. Segmentação global / em lote com IA (Gemini 2.5 Flash / Groq)
+        // 1. Segmentação global / em lote com IA (Groq / OpenRouter / Gemini)
         Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id} (startCode: " . ($startCode ?: 'todos') . ")...");
         $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems, $startCode, $onlyUnreviewed, $progressCallback);
 
-        if (!empty($aiResults)) {
-            Log::info("[LiveVideoCuts] Segmentação IA concluída com sucesso: " . count($aiResults) . " itens minutados.");
-            return $aiResults;
+        // 2. Complementação: verifica se ainda existem itens da live sem corte definido e aplica o fallback heurístico neles
+        $pendingItems = DB::table('live_items')
+            ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $live->id)
+            ->whereNull('live_items.cut_start_sec')
+            ->select('live_items.*', 'items.nome_do_produto', 'items.preco', 'items.tamanho', 'items.marca', 'items.cor', 'items.descricao')
+            ->orderBy('live_items.id', 'asc')
+            ->get();
+
+        if ($pendingItems->isNotEmpty()) {
+            Log::info("[LiveVideoCuts] Complementando minutagem com fallback heurístico para " . $pendingItems->count() . " itens pendentes na Live #{$live->id}...");
+            $lastSetItem = DB::table('live_items')
+                ->where('live_id', $live->id)
+                ->whereNotNull('cut_end_sec')
+                ->orderByDesc('cut_end_sec')
+                ->first();
+            $lastEnd = $lastSetItem ? (float) $lastSetItem->cut_end_sec : 0.0;
+            $heuristicResults = $this->performChronologicalHeuristicDetection($live, $sentences, $pendingItems, $lastEnd);
+            $aiResults = array_merge($aiResults, $heuristicResults);
         }
 
-        // 2. Fallback: Detecção Heurística Monotônica Cronológica
-        Log::info("[LiveVideoCuts] Utilizando fallback cronológico para minutagem da Live #{$live->id}...");
-        return $this->performChronologicalHeuristicDetection($live, $sentences, $liveItems);
+        Log::info("[LiveVideoCuts] Minutagem concluída para Live #{$live->id}: " . count($aiResults) . " itens totalizados.");
+        return $aiResults;
     }
 
     /**

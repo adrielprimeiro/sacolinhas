@@ -70,3 +70,21 @@ Artisan::command('live:transfer-video {from_id} {to_id}', function () {
     $this->info("✅ Gravação transferida com sucesso para Live #{$toId}!");
 })->purpose('Transfere gravação e transcrição de uma live para outra');
 
+Artisan::command('live:info {id}', function () {
+    $id = $this->argument('id');
+    $live = \App\Models\Live::findOrFail($id);
+    $total = \DB::table('live_items')->where('live_id', $id)->count();
+    $withCut = \DB::table('live_items')->where('live_id', $id)->whereNotNull('cut_start_sec')->count();
+    $withoutCut = \DB::table('live_items')->where('live_id', $id)->whereNull('cut_start_sec')->count();
+    $hasVideo = !empty($live->recording_path) ? 'SIM' : 'NÃO';
+    $sentences = json_decode($live->transcription_raw, true) ?: [];
+
+    $this->info("Live #{$id}: {$live->titulo}");
+    $this->info("- Vídeo gravado: {$hasVideo} ({$live->recording_filename})");
+    $this->info("- Status transcrição: {$live->transcription_status} (" . count($sentences) . " frases)");
+    $this->info("- Total de itens cadastrados na live: {$total}");
+    $this->info("- Itens minutados (com cut_start_sec): {$withCut}");
+    $this->info("- Itens pendentes de minutagem: {$withoutCut}");
+})->purpose('Exibe estatísticas de itens e minutagens de uma live');
+
+
