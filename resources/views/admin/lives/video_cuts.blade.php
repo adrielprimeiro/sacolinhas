@@ -113,7 +113,7 @@
             <div class="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
                 
                 <!-- PONTO 1: VÍDEO -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="toggleUploadModal()" title="Clique para enviar ou trocar gravação">
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="triggerAutoProcess()" title="Clique para Auto-Processar gravação do Instagram">
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step1Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #d97706; color: #ffffff !important;' }}">
                         {!! $step1Done ? '<i class="fas fa-check"></i>' : '1' !!}

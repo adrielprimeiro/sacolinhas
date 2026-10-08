@@ -45,3 +45,22 @@ Artisan::command('ai:group-orphans {--limit=30} {--model=models/gemini-2.5-flash
     ]);
 })->purpose('Agrupa imagens órfãs com IA (lote único) e grava group_id');
 
+Artisan::command('live:transfer-video {from_id} {to_id}', function ($fromId, $toId) {
+    $fromLive = \App\Models\Live::findOrFail($fromId);
+    $toLive = \App\Models\Live::findOrFail($toId);
+
+    $this->info("Transferindo gravação da Live #{$fromId} para Live #{$toId}...");
+    $toLive->recording_path = $fromLive->recording_path;
+    $toLive->transcription_raw = $fromLive->transcription_raw;
+    $toLive->transcription_status = $fromLive->transcription_status;
+    $toLive->save();
+
+    // Limpa a live de origem
+    $fromLive->recording_path = null;
+    $fromLive->transcription_raw = null;
+    $fromLive->transcription_status = null;
+    $fromLive->save();
+
+    $this->info("✅ Gravação transferida com sucesso para Live #{$toId}!");
+})->purpose('Transfere gravação e transcrição de uma live para outra');
+
