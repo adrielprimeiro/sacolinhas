@@ -645,22 +645,19 @@ class LiveChatController extends Controller
         $item->preco = $newPrice;
         $item->save();
 
-        // 2. Se o item estiver em sacolinhas, atualiza o preço na sacolinha
+        // 2. Se o item estiver em sacolinha de cliente, atualiza o preço na sacolinha imediatamente
         $sacolinhaPrice = $newPrice;
         if ($live && $live->tipo_live === 'precinho') {
             $sacolinhaPrice = $newPrice * 0.5;
         }
 
-        if ($liveId) {
-            Sacolinhas::withoutGlobalScopes()
-                ->where('item_id', $item->id)
-                ->where('live_id', $liveId)
-                ->update(['price' => $sacolinhaPrice]);
-        } else {
-            Sacolinhas::withoutGlobalScopes()
-                ->where('item_id', $item->id)
-                ->update(['price' => $sacolinhaPrice]);
-        }
+        // Atualiza em todas as sacolinhas ativas que contenham esta peça
+        $sacolinhasAfetadas = Sacolinhas::withoutGlobalScopes()
+            ->where('item_id', $item->id)
+            ->update([
+                'price' => $sacolinhaPrice,
+                'updated_at' => now()
+            ]);
 
         // 3. Totais recalculados da Live
         $totalLiveItems = 0;
