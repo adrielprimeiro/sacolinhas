@@ -87,4 +87,27 @@ Artisan::command('live:info {id}', function () {
     $this->info("- Itens pendentes de minutagem: {$withoutCut}");
 })->purpose('Exibe estatísticas de itens e minutagens de uma live');
 
+Artisan::command('live:groq-models', function () {
+    $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
+    $response = \Illuminate\Support\Facades\Http::withToken($groqKey)->get('https://api.groq.com/openai/v1/models');
+    if ($response->successful()) {
+        $models = $response->json()['data'] ?? [];
+        foreach ($models as $m) {
+            $this->line("- " . ($m['id'] ?? ''));
+        }
+    } else {
+        $this->error("Erro: " . $response->body());
+    }
+})->purpose('Lista os modelos ativos na conta Groq');
+
+Artisan::command('live:autodetect-all {id}', function () {
+    $id = $this->argument('id');
+    $live = \App\Models\Live::findOrFail($id);
+    $controller = new \App\Http\Controllers\Admin\LiveVideoCutsController();
+    $results = $controller->performAutoDetection($live, null, false, function($pct, $msg) {
+        $this->line("[{$pct}%] {$msg}");
+    });
+    $this->info("Concluído! " . count($results) . " itens processados.");
+})->purpose('Roda autodetect síncrono para todos os itens da live');
+
 
