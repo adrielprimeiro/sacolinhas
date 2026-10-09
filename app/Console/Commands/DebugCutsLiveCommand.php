@@ -23,7 +23,8 @@ class DebugCutsLiveCommand extends Command
 
         $this->info("Live #{$live->id} - Recording path: " . $live->recording_path);
 
-        $items = LiveItem::where('live_id', $liveId)
+        $items = DB::table('live_items')
+            ->where('live_id', $liveId)
             ->orderByRaw('CAST(codigo_live AS UNSIGNED) ASC')
             ->get();
 
@@ -36,13 +37,13 @@ class DebugCutsLiveCommand extends Command
             $dur = ($start !== null && $end !== null) ? round($end - $start, 1) : null;
             $status = $item->video_cut_path ? 'PRONTO' : 'PENDENTE';
 
-            if ($code >= 50 && $code <= 65) {
-                $this->line("Peça #{$code} [{$status}] -> Start: {$start}s, End: {$end}s, Dur: {$dur}s | Video: {$item->video_cut_path}");
+            if ((int)$code >= 50 && (int)$code <= 65) {
+                $this->line("Peça #{$code} [{$status}] -> Start: " . var_export($start, true) . ", End: " . var_export($end, true) . ", Dur: {$dur}s | Video: {$item->video_cut_path}");
             }
         }
 
         // Testa o comando FFmpeg na peça 59
-        $targetItem = LiveItem::where('live_id', $liveId)->where('codigo_live', '59')->first();
+        $targetItem = DB::table('live_items')->where('live_id', $liveId)->where('codigo_live', '59')->first();
         if ($targetItem) {
             $this->warn("\n--- TESTANDO CORTE NA PEÇA #59 ---");
             $start = (float) $targetItem->cut_start_sec;
