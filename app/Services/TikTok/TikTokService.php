@@ -40,15 +40,11 @@ class TikTokService
             'video.publish'
         ];
 
-        $params = [
-            'client_key' => $this->clientKey,
-            'scope' => implode(',', $scopes),
-            'response_type' => 'code',
-            'redirect_uri' => $this->redirectUri,
-            'state' => $state ?: csrf_token(),
-        ];
+        $scopeStr = implode(',', $scopes);
+        $stateVal = $state ?: csrf_token();
+        $redirectEncoded = urlencode($this->redirectUri);
 
-        return 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query($params);
+        return "https://www.tiktok.com/v2/auth/authorize/?client_key={$this->clientKey}&scope={$scopeStr}&response_type=code&redirect_uri={$redirectEncoded}&state={$stateVal}";
     }
 
     /**
