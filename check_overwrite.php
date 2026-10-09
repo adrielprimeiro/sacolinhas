@@ -4,10 +4,13 @@ $app = require_once __DIR__ . "/bootstrap/app.php";
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-$hasAudits = \Illuminate\Support\Facades\Schema::hasTable('audits');
-$hasActivityLog = \Illuminate\Support\Facades\Schema::hasTable('activity_log');
-$hasHistory = \Illuminate\Support\Facades\Schema::hasTable('histories');
-
-echo "Audits: " . ($hasAudits ? 'yes' : 'no') . "\n";
-echo "Activity Log: " . ($hasActivityLog ? 'yes' : 'no') . "\n";
-echo "Histories: " . ($hasHistory ? 'yes' : 'no') . "\n";
+$lives = \App\Models\Live::whereDate('data', '2026-10-03')->get();
+foreach($lives as $live) {
+    echo "Live ID: {$live->id}...\n";
+    $compras = \App\Models\LiveCompra::where('live_id', $live->id)->get();
+    echo "Compras na live: {$compras->count()}\n";
+    foreach($compras as $compra) {
+        // dump
+        echo "Compra ID: {$compra->id}, Item ID: {$compra->item_id}, Valor: {$compra->valor}\n";
+    }
+}
