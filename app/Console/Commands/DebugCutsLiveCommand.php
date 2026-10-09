@@ -29,27 +29,26 @@ class DebugCutsLiveCommand extends Command
             ->get();
 
         $sentences = json_decode($live->transcription_raw, true) ?: [];
-        $this->info("Total frases transcritas: " . count($sentences));
 
-        if (!empty($sentences)) {
-            $first = reset($sentences);
-            $last = end($sentences);
-            $this->line("Primeira frase: Start " . ($first['start'] ?? 0) . "s - " . ($first['text'] ?? ''));
-            $this->line("Última frase: End " . ($last['end'] ?? 0) . "s - " . ($last['text'] ?? ''));
+        $controller = new \App\Http\Controllers\Admin\LiveVideoCutsController();
+        $class = new \ReflectionClass($controller);
+        $method = $class->getMethod('performChronologicalHeuristicDetection');
+        $method->setAccessible(true);
 
-            // Procura frases com códigos 54, 55, 56, 90, 91
-            $this->info("\n--- BUSCANDO CÓDIGOS NA TRANSCRIÇÃO ---");
-            foreach ($sentences as $s) {
-                $text = $s['text'] ?? '';
-                $st = $s['start'] ?? 0;
-                $en = $s['end'] ?? 0;
-                $formattedTime = gmdate($st >= 3600 ? 'H:i:s' : 'i:s', (int)$st);
+        $results = $method->invoke($controller, $live, $sentences, $items, 0.0);
+        $this->info("\n--- RESULTADO DA DETECÇÃO PROGRESSIVA (Total: " . count($results) . ") ---");
 
-                if (preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero|item)?\s*(54|55|56|57|58|59|60|90|91|92)\b/i', $text, $m)) {
-                    $this->line("[{$formattedTime} - {$st}s] Encontrado #{$m[1]}: \"{$text}\"");
-                }
+        foreach ($results as $res) {
+            $code = (int) $res['codigo_live'];
+            if ($code >= 50 && $code <= 105) {
+                $st = $res['cut_start_sec'];
+                $en = $res['cut_end_sec'];
+                $formattedSt = gmdate($st >= 3600 ? 'H:i:s' : 'i:s', (int)$st);
+                $formattedEn = gmdate($en >= 3600 ? 'H:i:s' : 'i:s', (int)$en);
+                $this->line("Peça #{$code} -> [{$formattedSt} ({$st}s) até {$formattedEn} ({$en}s)]");
             }
         }
+
 
 
         return Command::SUCCESS;

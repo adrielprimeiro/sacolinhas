@@ -1356,10 +1356,11 @@ PROMPT;
 
             $bestMention = null;
 
-            // 1ª tentativa: Menção explícita após $lastEndSec
+            // 1ª tentativa: Menção explícita na janela sequencial à frente ($lastEndSec até +6 minutos)
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
-                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 10)) continue;
+                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
+                if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break; // Limita a busca a 6 minutos à frente para evitar saltos acidentais para o final da live
 
                 $text = $s['text'] ?? '';
                 if (preg_match($combinedRegex, $text)) {
@@ -1373,14 +1374,18 @@ PROMPT;
                 }
             }
 
-            // 2ª tentativa: Menção explícita em qualquer ponto da transcrição
+            // 2ª tentativa: Se não achou em 6min, expande a janela para até 15 minutos à frente
             if (!$bestMention) {
                 foreach ($sentences as $idx => $s) {
+                    $sStart = (float) ($s['start'] ?? 0);
+                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
+                    if ($lastEndSec > 0 && $sStart > ($lastEndSec + 900.0)) break;
+
                     $text = $s['text'] ?? '';
                     if (preg_match($combinedRegex, $text)) {
                         $bestMention = [
                             'index' => $idx,
-                            'start' => (float) ($s['start'] ?? 0),
+                            'start' => $sStart,
                             'end' => (float) ($s['end'] ?? 0),
                             'text' => $text
                         ];
@@ -1389,12 +1394,13 @@ PROMPT;
                 }
             }
 
-            // 3ª tentativa: Número isolado no texto após $lastEndSec
+            // 3ª tentativa: Número isolado no texto na janela sequencial à frente
             if (!$bestMention && is_numeric($code)) {
                 $numRegex = '/\b' . preg_quote($code, '/') . '\b/i';
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
-                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 10)) continue;
+                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
+                    if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break;
 
                     $text = $s['text'] ?? '';
                     if (preg_match($numRegex, $text)) {
@@ -1409,18 +1415,19 @@ PROMPT;
                 }
             }
 
-            // 4ª tentativa: Correspondência por palavras-chave do produto (marca/nome)
+            // 4ª tentativa: Correspondência por palavras-chave do produto (marca/nome) na janela à frente
             if (!$bestMention) {
                 $pName = trim(strtolower($li->nome_do_produto ?? ''));
                 $pBrand = trim(strtolower($li->marca ?? ''));
                 $keyWords = array_filter(explode(' ', "{$pName} {$pBrand}"), function($w) {
-                    return mb_strlen($w) >= 4 && !in_array($w, ['peca', 'peça', 'tamanho', 'para', 'com']);
+                    return mb_strlen($w) >= 4 && !in_array($w, ['peca', 'peça', 'tamanho', 'para', 'com', 'feminino', 'masculino', 'adulto', 'infantil']);
                 });
 
                 if (!empty($keyWords)) {
                     foreach ($sentences as $idx => $s) {
                         $sStart = (float) ($s['start'] ?? 0);
-                        if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5)) continue;
+                        if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
+                        if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break;
 
                         $sText = mb_strtolower($s['text'] ?? '');
                         foreach ($keyWords as $kw) {
