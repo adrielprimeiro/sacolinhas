@@ -172,6 +172,9 @@
                 <div class="flex items-center gap-2 min-w-0">
                     <span id="modalItemCode" class="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full shrink-0" style="background-color: #4f46e5; color: #ffffff;"></span>
                     <h4 id="modalItemTitle" class="text-xs sm:text-sm font-bold truncate text-gray-100"></h4>
+                    <span id="modalSourceBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-500 shrink-0">
+                        <i class="fas fa-closed-captioning mr-1 text-emerald-400"></i>Com Legenda
+                    </span>
                 </div>
                 <button type="button" 
                         onclick="requestClosePreviewModal()" 
@@ -511,13 +514,29 @@ function openPreviewModal(item) {
     originalStart = activeStart;
     originalEnd = activeEnd;
 
-    // Se temos a gravação completa da live, usamos ela para permitir expansão contínua
-    if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+    const badgeEl = document.getElementById('modalSourceBadge');
+
+    // Prioriza o vídeo cortado com legendas dinâmicas embutidas para visualização
+    if (item.video_cut_url && item.video_cut_url.trim() !== '') {
+        isUsingRecording = false;
+        player.src = item.video_cut_url;
+        if (badgeEl) {
+            badgeEl.classList.remove('hidden');
+            badgeEl.innerHTML = '<i class="fas fa-closed-captioning mr-1 text-emerald-400"></i>Com Legenda';
+            badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-500 shrink-0';
+        }
+    } else if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
         isUsingRecording = true;
         player.src = liveGlobalRecordingUrl;
+        if (badgeEl) {
+            badgeEl.classList.remove('hidden');
+            badgeEl.innerHTML = '<i class="fas fa-film mr-1 text-amber-400"></i>Gravação Bruta';
+            badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
+        }
     } else {
         isUsingRecording = false;
-        player.src = item.video_cut_url || '';
+        player.src = '';
+        if (badgeEl) badgeEl.classList.add('hidden');
     }
 
     if (titleEl) titleEl.textContent = item.item_name || 'Produto';
@@ -777,8 +796,17 @@ function jumpMinus10() {
         : (player.currentTime <= 1.2 || player.currentTime === 0);
 
     if (isAtStart) {
-        // Inserir 10s no início
         activeStart = Math.max(0, activeStart - 10);
+        if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+            isUsingRecording = true;
+            player.src = liveGlobalRecordingUrl;
+            const badgeEl = document.getElementById('modalSourceBadge');
+            if (badgeEl) {
+                badgeEl.classList.remove('hidden');
+                badgeEl.innerHTML = '<i class="fas fa-edit mr-1 text-amber-400"></i>Modo Ajuste';
+                badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
+            }
+        }
         if (isUsingRecording) {
             player.currentTime = activeStart;
             player.play().then(() => updatePlayIcon(true)).catch(() => {});
@@ -804,8 +832,17 @@ function jumpPlus10() {
         : (player.currentTime >= (player.duration - 1.2) || player.ended);
 
     if (isAtEnd) {
-        // Inserir 10s no fim
         activeEnd = activeEnd + 10;
+        if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+            isUsingRecording = true;
+            player.src = liveGlobalRecordingUrl;
+            const badgeEl = document.getElementById('modalSourceBadge');
+            if (badgeEl) {
+                badgeEl.classList.remove('hidden');
+                badgeEl.innerHTML = '<i class="fas fa-edit mr-1 text-amber-400"></i>Modo Ajuste';
+                badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
+            }
+        }
         if (isUsingRecording) {
             player.play().then(() => updatePlayIcon(true)).catch(() => {});
         }
