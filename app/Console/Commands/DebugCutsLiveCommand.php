@@ -28,51 +28,29 @@ class DebugCutsLiveCommand extends Command
             ->orderByRaw('CAST(codigo_live AS UNSIGNED) ASC')
             ->get();
 
-        $this->info("Total items: " . $items->count());
+        $sentences = json_decode($live->transcription_raw, true) ?: [];
+        $this->info("Total frases transcritas: " . count($sentences));
 
-        foreach ($items as $item) {
-            $code = $item->codigo_live ?: $item->id;
-            $start = $item->cut_start_sec;
-            $end = $item->cut_end_sec;
-            $dur = ($start !== null && $end !== null) ? round($end - $start, 1) : null;
-            $status = $item->video_cut_path ? 'PRONTO' : 'PENDENTE';
+        if (!empty($sentences)) {
+            $first = reset($sentences);
+            $last = end($sentences);
+            $this->line("Primeira frase: Start " . ($first['start'] ?? 0) . "s - " . ($first['text'] ?? ''));
+            $this->line("Última frase: End " . ($last['end'] ?? 0) . "s - " . ($last['text'] ?? ''));
 
-            if ((int)$code >= 50 && (int)$code <= 65) {
-                $this->line("Peça #{$code} [{$status}] -> Start: " . var_export($start, true) . ", End: " . var_export($end, true) . ", Dur: {$dur}s | Video: {$item->video_cut_path}");
+            // Procura frases com códigos 54, 55, 56, 90, 91
+            $this->info("\n--- BUSCANDO CÓDIGOS NA TRANSCRIÇÃO ---");
+            foreach ($sentences as $s) {
+                $text = $s['text'] ?? '';
+                $st = $s['start'] ?? 0;
+                $en = $s['end'] ?? 0;
+                $formattedTime = gmdate($st >= 3600 ? 'H:i:s' : 'i:s', (int)$st);
+
+                if (preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero|item)?\s*(54|55|56|57|58|59|60|90|91|92)\b/i', $text, $m)) {
+                    $this->line("[{$formattedTime} - {$st}s] Encontrado #{$m[1]}: \"{$text}\"");
+                }
             }
         }
 
-        // Testa o comando FFmpeg na peça 59
-        $targetItem = DB::table('live_items')->where('live_id', $liveId)->where('codigo_live', '59')->first();
-        if ($targetItem) {
-            $this->warn("\n--- TESTANDO CORTE NA PEÇA #59 ---");
-            $start = (float) $targetItem->cut_start_sec;
-            $end = (float) $targetItem->cut_end_sec;
-            $duration = max(1, round($end - $start, 2));
-
-            $controller = new \App\Http\Controllers\Admin\LiveVideoCutsController();
-            $inputPath = $controller->getLocalVideoPath($live);
-            $this->line("Input path: {$inputPath}");
-            $this->line("Start: {$start}s | End: {$end}s | Duration: {$duration}s");
-
-            $outputDir = storage_path('app/public/live_cuts/live_' . $liveId);
-            @mkdir($outputDir, 0777, true);
-            $outputPath = $outputDir . '/test_cut_59.mp4';
-
-            $cmd = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                escapeshellarg($start),
-                escapeshellarg($inputPath),
-                escapeshellarg($duration),
-                escapeshellarg($outputPath)
-            );
-            $this->line("Executando: {$cmd}");
-            exec($cmd, $out, $ret);
-            $this->line("Retorno: {$ret}");
-            $this->line("Output: " . implode("\n", array_slice($out, -15)));
-            $this->line("Tamanho do arquivo gerado: " . (file_exists($outputPath) ? filesize($outputPath) : 'NÃO EXISTE'));
-            @unlink($outputPath);
-        }
 
         return Command::SUCCESS;
     }
