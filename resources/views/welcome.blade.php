@@ -54,9 +54,15 @@
         </main>
 
         <!-- Rodapé -->
-        <footer class="p-8 text-center text-[11px] uppercase tracking-widest text-neutral-400">
-            &copy; {{ date('Y') }} Minha Mania &bull; 
+        <footer class="p-8 text-center text-[12px] text-neutral-500 space-y-2">
+            <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
+                <a href="{{ route('legal.privacidade') }}" class="hover:text-pink-600 transition">Política de Privacidade</a>
+                <span class="text-neutral-300">&bull;</span>
+                <a href="{{ route('legal.termos') }}" class="hover:text-pink-600 transition">Termos de Serviço</a>
+                <span class="text-neutral-300">&bull;</span>
+                <span class="text-neutral-400">YouTube API Services</span>
+            </div>
+            <p class="text-[11px] text-neutral-400">&copy; {{ date('Y') }} Minha Mania Brechó &bull; Todos os direitos reservados.</p>
         </footer>
-
     </body>
 </html>

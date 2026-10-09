@@ -55,12 +55,15 @@
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">Entrar</button> <!-- Botão correto para login -->
                             </div>
-                            <!--<div class="text-center mt-3">
-                                <p>Não tem uma conta? <a href="{{ route('register') }}">Crie uma agora</a></p> 
-                                <p><a href="{{ route('password.request') }}">Esqueceu sua senha?</a></p>
-                            </div>-->
                         </form>
                     </div>
+                </div>
+
+                <div class="text-center mt-4 text-muted small">
+                    <a href="{{ route('legal.privacidade') }}" class="text-muted text-decoration-none me-2">Política de Privacidade</a> &bull; 
+                    <a href="{{ route('legal.termos') }}" class="text-muted text-decoration-none ms-2 me-2">Termos de Serviço</a> &bull;
+                    <span class="ms-1">YouTube API</span>
+                    <p class="mt-2 text-muted">&copy; {{ date('Y') }} Minha Mania Brechó</p>
                 </div>
             </div>
         </div>
