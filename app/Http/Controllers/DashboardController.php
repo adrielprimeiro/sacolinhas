@@ -23,7 +23,10 @@ class DashboardController extends Controller
             if ($isParceiro) {
                 $itensEstoqueQuery->where('brecho_id', $brechoId)->whereIn('status', ['estoque', 'disponivel']);
             } else {
-                $itensEstoqueQuery->where('status', 'estoque');
+                $itensEstoqueQuery->where('status', 'estoque')
+                    ->where(function($q) {
+                        $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                    });
             }
             $itensEstoque = $itensEstoqueQuery->get();
             
@@ -41,6 +44,10 @@ class DashboardController extends Controller
 
             if ($brechoId) {
                 $locaisQuery->where('brecho_id', $brechoId);
+            } else {
+                $locaisQuery->where(function($q) {
+                    $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                });
             }
 
             $locaisEstoque = $locaisQuery->select(
@@ -57,6 +64,10 @@ class DashboardController extends Controller
             });
             if ($brechoId) {
                 $semLocalizacaoQuery->where('brecho_id', $brechoId);
+            } else {
+                $semLocalizacaoQuery->where(function($q) {
+                    $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                });
             }
             $semLocalizacaoCount = $semLocalizacaoQuery->count();
 
@@ -85,6 +96,11 @@ class DashboardController extends Controller
                               ->where('items.brecho_id', $brechoId);
                       });
                 });
+            } else {
+                $sacolasQuery->where(function ($q) {
+                    $q->where('sacolinhas.brecho_id', 1)
+                      ->orWhereNull('sacolinhas.brecho_id');
+                });
             }
 
             $sacolasInfo = [
@@ -108,6 +124,10 @@ class DashboardController extends Controller
                 $itensMesQuery = Item::whereBetween('created_at', [$inicioMes, $fimMes]);
                 if ($brechoId) {
                     $itensMesQuery->where('brecho_id', $brechoId);
+                } else {
+                    $itensMesQuery->where(function($q) {
+                        $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                    });
                 }
                 $entradasMesAvaliacao = (int) $itensMesQuery->count();
             }
@@ -116,6 +136,10 @@ class DashboardController extends Controller
                 ->whereBetween('updated_at', [$inicioMes, $fimMes]);
             if ($brechoId) {
                 $itensVendidosMesQuery->where('brecho_id', $brechoId);
+            } else {
+                $itensVendidosMesQuery->where(function($q) {
+                    $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                });
             }
             $itensVendidosMes = (int) $itensVendidosMesQuery->count();
 
@@ -125,6 +149,10 @@ class DashboardController extends Controller
 
             if ($brechoId) {
                 $sacolasVendidasQuery->where('brecho_id', $brechoId);
+            } else {
+                $sacolasVendidasQuery->where(function($q) {
+                    $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                });
             }
 
             $sacolasVendidasMes = (int) $sacolasVendidasQuery->sum('quantity');
@@ -147,6 +175,10 @@ class DashboardController extends Controller
 
             if ($brechoId) {
                 $pedidosBase->where('brecho_id', $brechoId);
+            } else {
+                $pedidosBase->where(function($q) {
+                    $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                });
             }
 
             $fatClubeMes = !empty($clubeUserIds) ? (float) (clone $pedidosBase)->whereIn('user_id', $clubeUserIds)->sum('valor_total') : 0.0;
@@ -189,6 +221,12 @@ class DashboardController extends Controller
                 $itensDispQuery->where('brecho_id', $brechoId);
                 $itensVendQuery->where('brecho_id', $brechoId);
                 $itensResQuery->where('brecho_id', $brechoId);
+            } else {
+                $filterMania = function($q) { $q->where('brecho_id', 1)->orWhereNull('brecho_id'); };
+                $itensTotalQuery->where($filterMania);
+                $itensDispQuery->where($filterMania);
+                $itensVendQuery->where($filterMania);
+                $itensResQuery->where($filterMania);
             }
 
             $estatisticas = [
@@ -226,6 +264,10 @@ class DashboardController extends Controller
                               ->whereColumn('items.id', 'sacolinhas.item_id')
                               ->where('items.brecho_id', $brechoId);
                       });
+                });
+            } else {
+                $alertaBase->where(function ($q) {
+                    $q->where('sacolinhas.brecho_id', 1)->orWhereNull('sacolinhas.brecho_id');
                 });
             }
 

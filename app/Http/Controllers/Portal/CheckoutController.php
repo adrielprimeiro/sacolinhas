@@ -36,16 +36,39 @@ class CheckoutController extends Controller
         try {
             return DB::transaction(function () use ($request) {
                 $user = auth()->user();
-                
-                // 1. Criar o número do pedido
+
+                // 1. Obter itens da sacolinha e validar brechó de origem
+                $itensSacolinha = DB::table('sacolinhas')
+                    ->whereIn('id', $request->itens)
+                    ->where('user_id', $user->id)
+                    ->get();
+
+                if ($itensSacolinha->isEmpty()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nenhum item válido selecionado na sacolinha.'
+                    ], 400);
+                }
+
+                $brechoIds = $itensSacolinha->pluck('brecho_id')->map(fn($b) => $b ? (int)$b : 1)->unique();
+                if ($brechoIds->count() > 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Não é possível fechar pedidos com itens de brechós diferentes ao mesmo tempo. Selecione apenas itens do mesmo brechó.'
+                    ], 422);
+                }
+                $brechoId = $brechoIds->first();
+
+                // 2. Criar o número do pedido
                 $ultimoPedido = DB::table('pedidos')->latest('id')->first();
                 $numero = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
                 $numeroPedido = 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
 
-                // 2. Criar o Pedido via Eloquent
+                // 3. Criar o Pedido via Eloquent
                 $pedido = Pedido::create([
                     'numero_pedido'   => $numeroPedido,
                     'user_id'         => $user->id,
+                    'brecho_id'       => $brechoId,
                     'status_pedido'   => 'pendente', 
                     'data_pedido'     => now(),
                     'valor_total'     => 0,
@@ -63,11 +86,7 @@ class CheckoutController extends Controller
 
                 $pedidoId = $pedido->id;
 
-                // 3. Mover itens da sacolinha para o pedido
-                $itensSacolinha = DB::table('sacolinhas')
-                    ->whereIn('id', $request->itens)
-                    ->where('user_id', $user->id)
-                    ->get();
+                // 4. Mover itens da sacolinha para o pedido
 
                 foreach ($itensSacolinha as $sacola) {
                     DB::table('items_pedido')->insert([
@@ -240,6 +259,7 @@ class CheckoutController extends Controller
                         // Se não encontrar o histórico por algum motivo, insere de volta
                         DB::table('sacolinhas')->insert([
                             'user_id' => auth()->id(),
+                            'brecho_id' => $pedido->brecho_id ?? 1,
                             'item_id' => $itemPedido->item_id,
                             'price' => $itemPedido->preco_unitario,
                             'quantity' => 1,

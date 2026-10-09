@@ -14,10 +14,22 @@ class AdminPedidoController extends Controller
 {
 	public function index(Request $request)
 	{
-		$query = Pedido::query()->with('user');
+		$query = Pedido::query()->with(['user', 'brecho']);
 
-		if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+		$isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+		if ($isParceiro) {
 			$query->where('brecho_id', auth()->user()->brecho_id);
+		} else {
+			// Minha Mania (Matriz): por padrão exibe APENAS pedidos da Mania (brecho_id = 1 ou NULL)
+			if ($request->filled('brecho_id')) {
+				if ($request->brecho_id !== 'all') {
+					$query->where('brecho_id', (int) $request->input('brecho_id'));
+				}
+			} else {
+				$query->where(function ($q) {
+					$q->where('brecho_id', 1)->orWhereNull('brecho_id');
+				});
+			}
 		}
 
 		$query->when($request->filled('numero_pedido'), function ($q) use ($request) {
@@ -63,7 +75,8 @@ class AdminPedidoController extends Controller
 			->paginate(15)
 			->withQueryString();
 
-		return view('admin.pedidos.index', compact('pedidos'));
+		$brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
+		return view('admin.pedidos.index', compact('pedidos', 'isParceiro', 'brechos'));
 	}
 
     public function create()

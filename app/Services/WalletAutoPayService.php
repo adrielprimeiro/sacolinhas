@@ -41,8 +41,11 @@ class WalletAutoPayService
             $saldoDisponivelReal = $ultimaMov->saldo_atual;
             $pedidosAbatidos = 0;
 
-            // Busca pedidos pendentes ou parciais do usuário (mais antigos primeiro)
+            // Busca pedidos pendentes ou parciais do usuário na Minha Mania (mais antigos primeiro)
             $pedidosPendentes = Pedido::where('user_id', $userId)
+                                      ->where(function ($q) {
+                                          $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+                                      })
                                       ->whereIn('status_pagamento', ['pendente', 'parcial'])
                                       ->orderBy('created_at', 'asc')
                                       ->get();

@@ -79,7 +79,7 @@
 					   placeholder="Ex: PED-000123">
 			</div>
 
-			<div class="md:col-span-4">
+			<div class="md:col-span-3">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Buscar (nome/e-mail do cliente)</label>
 				@php $selectedUser = request('user_id') ? \App\Models\User::find(request('user_id')) : null; @endphp
 				<div x-data="{ 
@@ -198,6 +198,24 @@
 					</div>
 				</div>
 			</div>
+			
+			@if(empty($isParceiro))
+			<div class="md:col-span-2">
+				<label class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Brechó</label>
+				<select name="brecho_id" 
+						class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white transition-all focus:border-blue-500 focus:ring focus:ring-blue-200">
+					<option value="1" {{ request('brecho_id', '1') == '1' ? 'selected' : '' }}>Minha Mania (Padrão)</option>
+					@if(isset($brechos))
+						@foreach($brechos as $b)
+							@if($b->id != 1)
+								<option value="{{ $b->id }}" {{ request('brecho_id') == $b->id ? 'selected' : '' }}>{{ $b->nome }}</option>
+							@endif
+						@endforeach
+					@endif
+					<option value="all" {{ request('brecho_id') === 'all' ? 'selected' : '' }}>Todos os Brechós (Separados)</option>
+				</select>
+			</div>
+			@endif
 
 			<div class="md:col-span-1">
 				<label class="block text-sm font-medium text-gray-700 mb-1">Status do pedido</label>
@@ -277,6 +295,9 @@
                     <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
                         <th class="py-3 px-6 text-left">Nº Pedido</th>
                         <th class="py-3 px-6 text-left">Cliente</th>
+                        @if(empty($isParceiro))
+                        <th class="py-3 px-6 text-left">Brechó</th>
+                        @endif
                         <th class="py-3 px-6 text-left">Origem</th>
                         <th class="py-3 px-6 text-left">Status</th>
                         <th class="py-3 px-6 text-left">Pagamento</th>
@@ -296,6 +317,16 @@
                             <td class="py-3 px-6 text-left">
                                 {{ $pedido->user->name ?? 'N/A' }}
                             </td>
+
+                            @if(empty($isParceiro))
+                            <td class="py-3 px-6 text-left">
+                                @if(($pedido->brecho_id ?? 1) > 1)
+                                    <span class="bg-amber-100 text-amber-800 py-1 px-2.5 rounded-full text-xs font-bold">{{ $pedido->brecho->nome ?? 'Parceiro' }}</span>
+                                @else
+                                    <span class="bg-purple-100 text-purple-800 py-1 px-2.5 rounded-full text-xs font-semibold">Minha Mania</span>
+                                @endif
+                            </td>
+                            @endif
 
                             <td class="py-3 px-6 text-left">
                                 @php

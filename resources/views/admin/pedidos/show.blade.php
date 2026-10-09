@@ -37,14 +37,16 @@
         $valorPagar    = max(0, $totalBruto - $saldoUsado);
         $valorDevolvido = (float) $itens->where('status_item', 'devolvido')->sum('valor_total');
 
-        // Saldo disponível na carteira do cliente
-        $saldoCarteira = (float) (DB::table('conta_corrente')
+        $isPedidoParceiro = ($pedido->brecho_id && $pedido->brecho_id > 1);
+
+        // Saldo disponível na carteira do cliente (Apenas Minha Mania possui carteira)
+        $saldoCarteira = $isPedidoParceiro ? 0.00 : (float) (DB::table('conta_corrente')
             ->where('user_id', $pedido->user_id)
             ->orderByDesc('id')
             ->value('saldo_atual') ?? 0);
 
         // Calcular quanto já foi pago de fato para este pedido
-        $lancamento = DB::table('lancamentos')->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->first();
+        $lancamento = $isPedidoParceiro ? null : DB::table('lancamentos')->where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->first();
         $jaPago = $lancamento ? (float)DB::table('movimentacoes')->where('lancamento_id', $lancamento->id)->sum('valor_pago') : 0;
         $valorRestante = max(0, $valorPagar - $jaPago);
     @endphp
@@ -52,9 +54,16 @@
     {{-- Cabeçalho --}}
     <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-            <h1 class="text-3xl font-semibold text-gray-800">
-                Pedido #{{ $pedido->numero_pedido ?? $pedido->id }}
-            </h1>
+            <div class="flex items-center gap-2">
+                <h1 class="text-3xl font-semibold text-gray-800">
+                    Pedido #{{ $pedido->numero_pedido ?? $pedido->id }}
+                </h1>
+                @if($pedido->brecho_id > 1)
+                    <span class="bg-amber-100 text-amber-800 py-1 px-3 rounded-full text-xs font-bold">{{ $pedido->brecho->nome ?? 'Parceiro' }}</span>
+                @else
+                    <span class="bg-purple-100 text-purple-800 py-1 px-3 rounded-full text-xs font-semibold">Minha Mania</span>
+                @endif
+            </div>
         </div>
 
         <div class="flex items-center gap-1.5 flex-wrap">

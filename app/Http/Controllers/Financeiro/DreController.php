@@ -22,8 +22,11 @@ class DreController extends Controller
         $fim    = $periodo->copy()->endOfMonth();
 
         // 1. RECEITA BRUTA
-        // Faturamento comercial vindo de pedidos
+        // Faturamento comercial vindo de pedidos (Minha Mania)
         $receitaVendas = (float) Pedido::where('status_pedido', '!=', 'cancelado')
+            ->where(function ($q) {
+                $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+            })
             ->whereBetween('data_pedido', [$inicio->toDateTimeString(), $fim->toDateTimeString()])
             ->sum('valor_total');
 
@@ -42,6 +45,9 @@ class DreController extends Controller
         // 2. DEDUÇÕES DA RECEITA BRUTA
         // Descontos aplicados nos pedidos
         $descontosConcedidos = (float) Pedido::where('status_pedido', '!=', 'cancelado')
+            ->where(function ($q) {
+                $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+            })
             ->whereBetween('data_pedido', [$inicio->toDateTimeString(), $fim->toDateTimeString()])
             ->sum('valor_desconto');
 
@@ -62,6 +68,9 @@ class DreController extends Controller
             ->join('items_pedido', 'pedidos.id', '=', 'items_pedido.pedido_id')
             ->join('items', 'items_pedido.item_id', '=', 'items.id')
             ->where('pedidos.status_pedido', '!=', 'cancelado')
+            ->where(function ($q) {
+                $q->where('pedidos.brecho_id', 1)->orWhereNull('pedidos.brecho_id');
+            })
             ->where('items_pedido.status_item', '!=', 'devolvido')
             ->whereBetween('pedidos.data_pedido', [$inicio->toDateTimeString(), $fim->toDateTimeString()])
             ->sum(DB::raw('items_pedido.quantidade * COALESCE(items.custo, 0)'));

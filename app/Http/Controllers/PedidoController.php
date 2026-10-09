@@ -25,25 +25,39 @@ class PedidoController extends Controller
         }
 
         try {
-            $clientes = User::where(function ($query) use ($termo) {
+            $user = auth()->user();
+            $isParceiro = $user && $user->isBrechoParceiro();
+            $brechoId = $isParceiro ? $user->brecho_id : 1;
+
+            $query = User::where(function ($query) use ($termo) {
                     $query->where('name', 'LIKE', "%{$termo}%")
                           ->orWhere('email', 'LIKE', "%{$termo}%");
-                })
-                ->with('latestContaCorrente') // Carrega o relacionamento da última movimentação
-                ->limit(8)
-                ->get(['id', 'name', 'email']); // Seleciona as colunas básicas do usuário
+                });
+
+            if ($isParceiro) {
+                $query->whereExists(function ($sub) use ($brechoId) {
+                    $sub->select(DB::raw(1))
+                        ->from('brecho_clientes')
+                        ->whereColumn('brecho_clientes.user_id', 'users.id')
+                        ->where('brecho_clientes.brecho_id', $brechoId);
+                });
+            } else {
+                $query->with('latestContaCorrente');
+            }
+
+            $clientes = $query->limit(8)->get(['id', 'name', 'email']);
 
             // Mapeia os resultados para incluir o saldo formatado
-            $clientes = $clientes->map(function ($cliente) {
-                // Acessa o saldo_atual do relacionamento carregado, ou 0 se não houver movimentações
-                $saldo = $cliente->latestContaCorrente?->saldo_atual ?? 0;
-
-                // Adiciona o saldo formatado e o saldo bruto ao objeto do cliente
-                $cliente->saldo_formatado = 'R$ ' . number_format($saldo, 2, ',', '.');
-                $cliente->saldo_bruto = $saldo; // Opcional: para ter o valor numérico puro
-
-                // Remove o objeto do relacionamento se você não quiser ele na saída JSON final
-                unset($cliente->latestContaCorrente);
+            $clientes = $clientes->map(function ($cliente) use ($isParceiro) {
+                if ($isParceiro) {
+                    $cliente->saldo_formatado = 'R$ 0,00';
+                    $cliente->saldo_bruto = 0;
+                } else {
+                    $saldo = $cliente->latestContaCorrente?->saldo_atual ?? 0;
+                    $cliente->saldo_formatado = 'R$ ' . number_format($saldo, 2, ',', '.');
+                    $cliente->saldo_bruto = $saldo;
+                    unset($cliente->latestContaCorrente);
+                }
                 return $cliente;
             });
 
@@ -67,12 +81,26 @@ class PedidoController extends Controller
 		}
 
 		try {
+			$user = auth()->user();
+			$isParceiro = $user && $user->isBrechoParceiro();
+			$brechoId = $isParceiro ? $user->brecho_id : 1;
+
 			/* ---- Itens na sacolinha (sem pedido) ---- */
-			$itens = DB::table('items')
+			$query = DB::table('items')
 				->join('sacolinhas', 'items.id', '=', 'sacolinhas.item_id')
 				->where('sacolinhas.user_id', $userId)
-				->where('items.status', '!=', 'enviado')
-				->select([
+				->where('items.status', '!=', 'enviado');
+
+			if ($isParceiro) {
+				$query->where('sacolinhas.brecho_id', $brechoId);
+			} else {
+				$query->where(function ($q) {
+					$q->where('sacolinhas.brecho_id', 1)
+					  ->orWhereNull('sacolinhas.brecho_id');
+				});
+			}
+
+			$itens = $query->select([
 					'sacolinhas.id as sacola_id',
 					'items.id as item_id',
 					'items.codigo',
@@ -126,12 +154,26 @@ class PedidoController extends Controller
 		}
 
 		try {
+			$user = auth()->user();
+			$isParceiro = $user && $user->isBrechoParceiro();
+			$brechoId = $isParceiro ? $user->brecho_id : 1;
+
 			/* ---- Buscar pedido pendente do cliente ---- */
-			$pedidoPendente = DB::table('pedidos')
+			$query = DB::table('pedidos')
 				->where('user_id', $userId)
 				->where('status_pedido', '!=', 'concluido')
-				->where('status_pedido', '!=', 'cancelado') 
-				->first();
+				->where('status_pedido', '!=', 'cancelado');
+
+			if ($isParceiro) {
+				$query->where('brecho_id', $brechoId);
+			} else {
+				$query->where(function ($q) {
+					$q->where('brecho_id', 1)
+					  ->orWhereNull('brecho_id');
+				});
+			}
+
+			$pedidoPendente = $query->first();
 
 			$itensPedido = [];
 			$valorTotalPedido = 0;
@@ -212,6 +254,10 @@ class PedidoController extends Controller
         try {
             DB::beginTransaction();
 
+            $user = auth()->user();
+            $isParceiro = $user && $user->isBrechoParceiro();
+            $brechoId = $isParceiro ? $user->brecho_id : 1;
+
             $ultimoPedido  = DB::table('pedidos')->latest('id')->first();
             $numero        = $ultimoPedido ? $ultimoPedido->id + 1 : 1;
             $numeroPedido  = 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
@@ -219,6 +265,7 @@ class PedidoController extends Controller
             $pedidoId = DB::table('pedidos')->insertGetId([
                 'numero_pedido'   => $numeroPedido,
                 'user_id'         => $userId,
+                'brecho_id'       => $brechoId,
                 'status_pedido'   => 'pendente',
                 'data_pedido'     => now(),
                 'valor_total'     => 0, // Será recalculado com trigger no BD
@@ -284,6 +331,21 @@ class PedidoController extends Controller
 					'success' => false,
 					'message' => 'Item da sacolinha não encontrado'
 				]);
+			}
+
+			$pedido = DB::table('pedidos')->where('id', $pedidoId)->first();
+			if (!$pedido) {
+				return response()->json(['success' => false, 'message' => 'Pedido não encontrado']);
+			}
+
+			// Validar correspondência de brechó
+			$sBrecho = $sacolinha->brecho_id ?: 1;
+			$pBrecho = $pedido->brecho_id ?: 1;
+			if ((int)$sBrecho !== (int)$pBrecho) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Não é permitido mover item de outro brechó para este pedido.'
+				], 422);
 			}
 
 			/* ---- Inserir no items_pedido ---- */
@@ -377,9 +439,10 @@ class PedidoController extends Controller
             Log::info('🔎 Pedido associado encontrado', ['pedido_id' => $pedido->id, 'pedido_user_id' => $pedido->user_id]);
 
             /* ---- Inserir na sacolinha ---- */
-            // Mapeamento: user_id=pedido.user_id, item_id=item_pedido.item_id, live_id=1, quantity=1, price=item_pedido.preco_unitario
+            // Mapeamento: user_id=pedido.user_id, brecho_id=pedido.brecho_id, item_id=item_pedido.item_id, live_id=1, quantity=1, price=item_pedido.preco_unitario
             DB::table('sacolinhas')->insert([
                 'user_id'    => $pedido->user_id, // Conforme mapeamento: user_id do pedido
+                'brecho_id'  => $pedido->brecho_id ?? 1,
                 'item_id'    => $itemPedido->item_id,
                 'price'      => $itemPedido->preco_unitario,
                 'quantity'   => 1, // Conforme mapeamento
@@ -390,7 +453,7 @@ class PedidoController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
-            Log::info('✅ Item inserido na sacolinha', ['item_id' => $itemPedido->item_id, 'user_id' => $pedido->user_id]);
+            Log::info('✅ Item inserido na sacolinha', ['item_id' => $itemPedido->item_id, 'user_id' => $pedido->user_id, 'brecho_id' => $pedido->brecho_id ?? 1]);
 
             /* ---- Remover de items_pedido ---- */
             DB::table('items_pedido')->where('id', $itemPedidoId)->delete();
@@ -466,11 +529,25 @@ class PedidoController extends Controller
 				return response()->json(['error' => 'Cliente não encontrado'], 404);
 			}
 
+			$user = auth()->user();
+			$isParceiro = $user && $user->isBrechoParceiro();
+			$brechoId = $isParceiro ? $user->brecho_id : 1;
+
 			// ✅ APENAS sacolinhas - sem items_pedido!
-			$itensSacolinha = DB::table('sacolinhas')
+			$query = DB::table('sacolinhas')
 				->join('items', 'sacolinhas.item_id', '=', 'items.id')
-				->where('sacolinhas.user_id', $clienteId)
-				->select(
+				->where('sacolinhas.user_id', $clienteId);
+
+			if ($isParceiro) {
+				$query->where('sacolinhas.brecho_id', $brechoId);
+			} else {
+				$query->where(function ($q) {
+					$q->where('sacolinhas.brecho_id', 1)
+					  ->orWhereNull('sacolinhas.brecho_id');
+				});
+			}
+
+			$itensSacolinha = $query->select(
 					'items.codigo',
 					'items.nome_do_produto',
 					'sacolinhas.price',
@@ -493,12 +570,13 @@ class PedidoController extends Controller
 			$logoDataUri = null;
 			Log::info('Logo PDF', ['logoPath' => $logoPath, 'exists' => file_exists($logoPath)]);
 
-			
 			if (file_exists($logoPath)) {
 				$logoMime = mime_content_type($logoPath) ?: 'image/png';
 				$logoBase64 = base64_encode(file_get_contents($logoPath));
 				$logoDataUri = "data:{$logoMime};base64,{$logoBase64}";
 			}
+
+			$nomeLoja = $isParceiro ? ($user->brecho?->nome ?? 'Sacolinha') : 'Sacolinha Mania';
 
 			$html = '
 			<!DOCTYPE html>
@@ -533,7 +611,7 @@ class PedidoController extends Controller
 						' . ($logoDataUri ? '<img class="logo" src="' . $logoDataUri . '" />' : '') . '
 					  </td>
 					  <td class="title-cell">
-						<h1>Sacolinha Mania</h1>
+						<h1>' . htmlspecialchars($nomeLoja) . '</h1>
 						<p><strong>Cliente:</strong> ' . htmlspecialchars($cliente->name) . '</p>
 						<p><strong>Data:</strong> ' . date('d/m/Y H:i:s') . '</p>
 						<p><strong>Total de Itens:</strong> ' . $totalItens . '</p>
@@ -636,13 +714,27 @@ class PedidoController extends Controller
 			}
 			 \Log::info('imprimirPedido: Cliente found: ' . $cliente->name . ' (ID: ' . $cliente->id . ')');
 
+			$user = auth()->user();
+			$isParceiro = $user && $user->isBrechoParceiro();
+			$brechoId = $isParceiro ? $user->brecho_id : 1;
+
 			// Query CORRIGIDA
-			$itensPedido = \DB::table('pedidos') // Começamos pela tabela de pedidos
+			$query = \DB::table('pedidos') // Começamos pela tabela de pedidos
 				->join('items_pedido', 'pedidos.id', '=', 'items_pedido.pedido_id') // Juntamos com a tabela intermediária
 				->join('items', 'items_pedido.item_id', '=', 'items.id') // Juntamos com a tabela de detalhes do item
 				->where('pedidos.user_id', $clienteId) // Filtramos pelo ID do cliente
-				->where('pedidos.id', $pedidoId) 
-				->select(
+				->where('pedidos.id', $pedidoId);
+
+			if ($isParceiro) {
+				$query->where('pedidos.brecho_id', $brechoId);
+			} else {
+				$query->where(function ($q) {
+					$q->where('pedidos.brecho_id', 1)
+					  ->orWhereNull('pedidos.brecho_id');
+				});
+			}
+
+			$itensPedido = $query->select(
 					'items.codigo',
 					'items.nome_do_produto',
 					'items.marca',
@@ -896,11 +988,25 @@ class PedidoController extends Controller
 				return response()->json(['error' => 'Cliente não encontrado'], 404);
 			}
 
-			$itensSacolinha = DB::table('sacolinhas')
+			$user = auth()->user();
+			$isParceiro = $user && $user->isBrechoParceiro();
+			$brechoId = $isParceiro ? $user->brecho_id : 1;
+
+			$query = DB::table('sacolinhas')
 				->join('items', 'sacolinhas.item_id', '=', 'items.id')
 				->where('sacolinhas.user_id', $clienteId)
-				->where('sacolinhas.live_id', $liveId)
-				->select(
+				->where('sacolinhas.live_id', $liveId);
+
+			if ($isParceiro) {
+				$query->where('sacolinhas.brecho_id', $brechoId);
+			} else {
+				$query->where(function ($q) {
+					$q->where('sacolinhas.brecho_id', 1)
+					  ->orWhereNull('sacolinhas.brecho_id');
+				});
+			}
+
+			$itensSacolinha = $query->select(
 					'items.codigo',
 					'items.nome_do_produto',
 					'sacolinhas.price',

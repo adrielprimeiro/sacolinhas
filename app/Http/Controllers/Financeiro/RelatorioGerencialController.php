@@ -21,8 +21,11 @@ class RelatorioGerencialController extends Controller
         $inicio = $periodo->copy()->startOfMonth();
         $fim    = $periodo->copy()->endOfMonth();
 
-        // 1. FATURAMENTO COMERCIAL (Pedidos Fechados)
+        // 1. FATURAMENTO COMERCIAL (Pedidos Fechados Minha Mania)
         $pedidosQuery = Pedido::where('status_pedido', '!=', 'cancelado')
+            ->where(function ($q) {
+                $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+            })
             ->whereBetween('data_pedido', [$inicio->toDateTimeString(), $fim->toDateTimeString()]);
 
         $pedidosCount = $pedidosQuery->count();

@@ -14,6 +14,12 @@ class PedidoObserver
      */
     public function saved(Pedido $pedido): void
     {
+        // Pedidos de brechós parceiros (Taco Balaio, etc.) não geram lançamentos no financeiro da Mania,
+        // não debitam nem creditam carteira de clientes da Mania e não pontuam no clube da Melissa.
+        if ($pedido->brecho_id && (int) $pedido->brecho_id > 1) {
+            return;
+        }
+
         // O valor_total do pedido no banco já representa o valor bruto total (itens + frete - descontos)
         // recalculado pelo trigger após inserção dos itens_pedido.
         $valorBruto = (float) $pedido->valor_total_original;
@@ -244,6 +250,10 @@ class PedidoObserver
      */
     public function deleting(Pedido $pedido): void
     {
+        if ($pedido->brecho_id && (int) $pedido->brecho_id > 1) {
+            return;
+        }
+
         try {
             // Remover pontos do jogo se o pedido deletado tinha pontos creditados
             if ($pedido->pontos_creditados) {
@@ -270,6 +280,10 @@ class PedidoObserver
      */
     public function deleted(Pedido $pedido): void
     {
+        if ($pedido->brecho_id && (int) $pedido->brecho_id > 1) {
+            return;
+        }
+
         try {
             $lancamento = Lancamento::where('referencia_tipo', 'pedido')
                 ->where('referencia_id', $pedido->id)
