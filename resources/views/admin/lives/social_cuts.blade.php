@@ -1046,11 +1046,19 @@ async function saveAndReCutItem() {
         if (statusDesc) statusDesc.textContent = `Vídeo recortado com sucesso em ${totalElapsed}s.`;
 
         // 3. Atualizar dados do item local
-        currentItem.video_cut_url = cutJson.video_cut_url;
+        const newUrl = cutJson.video_url || cutJson.video_cut_url || currentItem.video_cut_url;
+        currentItem.video_cut_url = newUrl;
         currentItem.cut_start_sec = activeStart;
         currentItem.cut_end_sec = activeEnd;
         originalStart = activeStart;
         originalEnd = activeEnd;
+
+        if (typeof liveItemsMap !== 'undefined' && liveItemsMap[liveItemId]) {
+            liveItemsMap[liveItemId].video_cut_url = newUrl;
+            liveItemsMap[liveItemId].cut_start_sec = activeStart;
+            liveItemsMap[liveItemId].cut_end_sec = activeEnd;
+            liveItemsMap[liveItemId].is_ready = true;
+        }
 
         renderTimeBadges();
         showToast('✅ Corte atualizado e recortado com sucesso!');

@@ -2052,6 +2052,7 @@ PROMPT;
             'success' => true,
             'message' => 'Corte com legendas dinâmicas e 3 Miniaturas Inteligentes geradas com sucesso!',
             'video_url' => $videoUrl,
+            'video_cut_url' => $videoUrl,
             'thumbnail_url' => $primaryUrl,
             'candidates' => $candidates,
             'duration' => $duration
