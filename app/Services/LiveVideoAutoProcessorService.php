@@ -85,16 +85,10 @@ class LiveVideoAutoProcessorService
             @chmod($destFolder, 0777);
         }
 
-        // 2. Verificar se já tem vídeo local
-        $videoPath = null;
-        if (!empty($live->recording_path)) {
-            $existingPath = Storage::disk('public')->path($live->recording_path);
-            if (file_exists($existingPath) && filesize($existingPath) > 500000) {
-                $videoPath = $existingPath;
-            }
-        }
+        // 2. Verificar se já tem vídeo local no servidor
+        $videoPath = $this->getLocalVideoPath($live);
 
-        // 3. Buscar vídeo mais recente do Instagram via yt-dlp ou URL direta
+        // 3. Se não tem vídeo local, buscar via URL direta fornecida ou buscar no Instagram
         if (!$videoPath) {
             $latestVideoUrl = $directVideoUrl;
 
@@ -122,8 +116,8 @@ class LiveVideoAutoProcessorService
             }
 
             if (!$latestVideoUrl) {
-                $this->updateStatus($live, 0, "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação.", 'error', $progressCallback);
-                return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça a URL do post diretamente."];
+                $this->updateStatus($live, 0, "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação ou envie o arquivo da gravação.", 'error', $progressCallback);
+                return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação ou envie o arquivo da gravação."];
             }
 
             $this->updateStatus($live, 15, "Baixando gravação do Instagram em alta resolução...", 'processing', $progressCallback);
@@ -321,6 +315,44 @@ class LiveVideoAutoProcessorService
 
         return false;
     }
+
+    /**
+     * Localiza o caminho absoluto do arquivo de vídeo no servidor
+     */
+    public function getLocalVideoPath(Live $live): ?string
+    {
+        if (empty($live->recording_path)) return null;
+
+        $path = $live->recording_path;
+        if (file_exists($path) && filesize($path) > 100000) {
+            return $path;
+        }
+
+        $publicPath = Storage::disk('public')->path($path);
+        if (file_exists($publicPath) && filesize($publicPath) > 100000) {
+            return $publicPath;
+        }
+
+        $cleanRel = ltrim(preg_replace('/^(\/?storage\/)/i', '', $path), '/');
+
+        $storageAppPublic = storage_path('app/public/' . $cleanRel);
+        if (file_exists($storageAppPublic) && filesize($storageAppPublic) > 100000) {
+            return $storageAppPublic;
+        }
+
+        $publicDir = public_path($cleanRel);
+        if (file_exists($publicDir) && filesize($publicDir) > 100000) {
+            return $publicDir;
+        }
+
+        $publicDirStorage = public_path('storage/' . $cleanRel);
+        if (file_exists($publicDirStorage) && filesize($publicDirStorage) > 100000) {
+            return $publicDirStorage;
+        }
+
+        return null;
+    }
 }
+
 
 

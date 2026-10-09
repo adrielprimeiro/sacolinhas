@@ -659,7 +659,7 @@ class LiveVideoCutsController extends Controller
      * Localiza o caminho absoluto do arquivo de vídeo no servidor
 
      */
-    protected function getLocalVideoPath(Live $live): ?string
+    public function getLocalVideoPath(Live $live): ?string
     {
         if (empty($live->recording_path)) return null;
 
@@ -673,9 +673,21 @@ class LiveVideoCutsController extends Controller
             return $publicPath;
         }
 
-        $storageAppPublic = storage_path('app/public/' . ltrim($path, '/'));
+        $cleanRel = ltrim(preg_replace('/^(\/?storage\/)/i', '', $path), '/');
+
+        $storageAppPublic = storage_path('app/public/' . $cleanRel);
         if (file_exists($storageAppPublic) && filesize($storageAppPublic) > 100000) {
             return $storageAppPublic;
+        }
+
+        $publicDir = public_path($cleanRel);
+        if (file_exists($publicDir) && filesize($publicDir) > 100000) {
+            return $publicDir;
+        }
+
+        $publicDirStorage = public_path('storage/' . $cleanRel);
+        if (file_exists($publicDirStorage) && filesize($publicDirStorage) > 100000) {
+            return $publicDirStorage;
         }
 
         return null;
