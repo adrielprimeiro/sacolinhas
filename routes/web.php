@@ -971,3 +971,10 @@ Route::post('/api/chat-ia/prefetch-greeting', [\App\Http\Controllers\AiAssistant
     ->name('chat-ia.prefetch-greeting');
 Route::get('/api/chat-ia/history', [\App\Http\Controllers\AiAssistantController::class, 'getHistory']);
 Route::get('/portal/ajuda', [\App\Http\Controllers\AiAssistantController::class, 'portalChat'])->middleware('auth')->name('portal.ajuda');
+
+// ===== PÁGINAS LEGAIS / POLÍTICA DE PRIVACIDADE E TERMOS (COMPLIANCE GOOGLE/YOUTUBE API) =====
+Route::view('/politica-de-privacidade', 'legal.politica_privacidade')->name('legal.privacidade');
+Route::view('/termos-de-servico', 'legal.termos_servico')->name('legal.termos');
+Route::view('/privacy', 'legal.politica_privacidade');
+Route::view('/terms', 'legal.termos_servico');
+
