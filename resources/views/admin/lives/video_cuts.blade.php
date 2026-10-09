@@ -1653,12 +1653,13 @@
         }
     }
 
-    async function generateAllClips() {
+    async function generateAllClips(forceAll = false) {
         const startCodeInput = document.getElementById("global-start-code");
         const startCode = startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null;
 
         const itemCards = document.querySelectorAll('.item-card');
-        const itemsToProcess = [];
+        const allMinuted = [];
+        const pendingOnly = [];
 
         itemCards.forEach(card => {
             const idMatch = card.id ? card.id.match(/^item-card-(\d+)$/) : null;
@@ -1666,6 +1667,7 @@
             const itemId = idMatch[1];
             const startInput = document.getElementById(`input-start-${itemId}`);
             const endInput = document.getElementById(`input-end-${itemId}`);
+            const isRendered = card.getAttribute('data-is-rendered') === '1';
             const codeBadge = card.querySelector('.bg-indigo-600')?.textContent?.trim() || (`#${itemId}`);
             const rawCode = parseInt(codeBadge.replace(/[^0-9]/g, '')) || 0;
 
@@ -1674,24 +1676,46 @@
             }
 
             if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
-                itemsToProcess.push({
-                    id: itemId,
-                    code: codeBadge
-                });
+                const itemObj = { id: itemId, code: codeBadge, isRendered: isRendered };
+                allMinuted.push(itemObj);
+                if (!isRendered) {
+                    pendingOnly.push(itemObj);
+                }
             }
         });
 
-        if (itemsToProcess.length === 0) {
+        if (allMinuted.length === 0) {
             alert(startCode ? `Nenhum item a partir da peça #${startCode} com minutagem definida para cortar.` : "Nenhum item com minutagem definida para cortar.");
             return;
         }
 
-        const msgConfirm = startCode ? `Deseja gerar os cortes com FFmpeg para ${itemsToProcess.length} peças (a partir da peça #${startCode})?` : `Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`;
-        if (!confirm(msgConfirm)) return;
+        let itemsToProcess = allMinuted;
+
+        // Se já existem vídeos prontos e também há pendentes, pergunta se quer fazer só os pendentes
+        if (pendingOnly.length > 0 && pendingOnly.length < allMinuted.length && !forceAll) {
+            const readyCount = allMinuted.length - pendingOnly.length;
+            const choice = confirm(`Já existem ${readyCount} vídeos prontos e ${pendingOnly.length} pendentes.\n\n• Clique em [OK] para fatiar apenas os ${pendingOnly.length} PENDENTES.\n• Clique em [Cancelar] se quiser refazer TODOS os ${allMinuted.length} vídeos do início.`);
+            if (choice) {
+                itemsToProcess = pendingOnly;
+            } else {
+                if (!confirm(`Confirma que deseja refatiar e sobrescrever TODOS os ${allMinuted.length} vídeos?`)) {
+                    return;
+                }
+                itemsToProcess = allMinuted;
+            }
+        } else if (pendingOnly.length === 0 && !forceAll) {
+            if (!confirm(`Todos os ${allMinuted.length} vídeos já foram fatiados anteriormente!\n\nDeseja refatiar e atualizar todos os vídeos com as legendas novamente?`)) {
+                return;
+            }
+            itemsToProcess = allMinuted;
+        } else {
+            const msgConfirm = startCode ? `Deseja gerar os cortes com FFmpeg para ${itemsToProcess.length} peças (a partir da peça #${startCode})?` : `Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`;
+            if (!confirm(msgConfirm)) return;
+        }
 
         const btn = document.getElementById("btn-batch-clips");
-        const oldHtml = btn.innerHTML;
-        btn.disabled = true;
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) btn.disabled = true;
 
         let successCount = 0;
         let failCount = 0;
@@ -1699,7 +1723,7 @@
         for (let i = 0; i < itemsToProcess.length; i++) {
             const item = itemsToProcess[i];
             const pct = Math.round(((i + 1) / itemsToProcess.length) * 100);
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Cortando ${i + 1}/${itemsToProcess.length} (${item.code} - ${pct}%)...`;
+            if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Cortando ${i + 1}/${itemsToProcess.length} (${item.code} - ${pct}%)...`;
 
             try {
                 const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${item.id}`, {
@@ -1715,6 +1739,7 @@
                     successCount++;
                     const card = document.getElementById(`item-card-${item.id}`);
                     if (card) {
+                        card.setAttribute('data-is-rendered', '1');
                         card.classList.remove('border-gray-200', 'border-indigo-300');
                         card.classList.add('border-green-400', 'bg-green-50/20');
                     }
@@ -1726,8 +1751,10 @@
             }
         }
 
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
 
         alert(`✅ Processamento concluído: ${successCount} cortes gerados com sucesso!` + (failCount > 0 ? ` (${failCount} falhas)` : ''));
         window.location.reload();
