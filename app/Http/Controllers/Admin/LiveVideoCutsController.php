@@ -276,6 +276,13 @@ class LiveVideoCutsController extends Controller
             $selectCols[] = 'live_items.youtube_published_at';
             $selectCols[] = 'live_items.youtube_error';
         }
+        if (Schema::hasColumn('live_items', 'tiktok_publish_id')) {
+            $selectCols[] = 'live_items.tiktok_publish_id';
+            $selectCols[] = 'live_items.tiktok_url';
+            $selectCols[] = 'live_items.tiktok_status';
+            $selectCols[] = 'live_items.tiktok_published_at';
+            $selectCols[] = 'live_items.tiktok_error';
+        }
 
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -352,6 +359,11 @@ class LiveVideoCutsController extends Controller
                 'youtube_status' => $row->youtube_status ?? 'none',
                 'youtube_published_at' => $row->youtube_published_at ?? null,
                 'youtube_error' => $row->youtube_error ?? null,
+                'tiktok_publish_id' => $row->tiktok_publish_id ?? null,
+                'tiktok_url' => $row->tiktok_url ?? null,
+                'tiktok_status' => $row->tiktok_status ?? 'none',
+                'tiktok_published_at' => $row->tiktok_published_at ?? null,
+                'tiktok_error' => $row->tiktok_error ?? null,
                 'linked_at' => $row->linked_at
             ];
         });
@@ -367,12 +379,18 @@ class LiveVideoCutsController extends Controller
         $youtubeService = app(\App\Services\YouTube\YouTubeService::class);
         $youtubeConfigured = $youtubeService->isConfigured();
 
+        // Conta do TikTok
+        $tiktokAccount = \App\Models\SocialChannelAccount::getActiveAccount('tiktok');
+        $tiktokService = app(\App\Services\TikTok\TikTokService::class);
+        $tiktokConfigured = $tiktokService->isConfigured();
+
         // Estatísticas
         $totalItems = $liveItems->count();
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
         $itemsWithoutCuts = max(0, $totalItems - $itemsWithCuts);
         $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
         $itemsPublishedYouTube = $liveItems->whereNotNull('youtube_video_id')->count();
+        $itemsPublishedTikTok = $liveItems->whereNotNull('tiktok_publish_id')->count();
 
         // URL da gravação bruta
         $recordingUrl = null;
@@ -390,12 +408,15 @@ class LiveVideoCutsController extends Controller
             'recordingUrl' => $recordingUrl,
             'youtubeAccount' => $youtubeAccount,
             'youtubeConfigured' => $youtubeConfigured,
+            'tiktokAccount' => $tiktokAccount,
+            'tiktokConfigured' => $tiktokConfigured,
             'stats' => [
                 'total_items' => $totalItems,
                 'items_with_cuts' => $itemsWithCuts,
                 'items_without_cuts' => $itemsWithoutCuts,
                 'items_rendered' => $itemsRendered,
                 'items_youtube' => $itemsPublishedYouTube,
+                'items_tiktok' => $itemsPublishedTikTok,
             ]
         ]);
     }

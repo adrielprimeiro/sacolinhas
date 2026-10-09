@@ -92,12 +92,24 @@
             @if(!empty($youtubeAccount))
                 <button type="button" onclick="batchUploadToYouTube()" id="btn-youtube-batch" class="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #dc2626; color: #ffffff !important;" title="Publicar todas as peças não-vendidas no canal '{{ $youtubeAccount->channel_name }}'">
                     <i class="fab fa-youtube text-white"></i>
-                    <span style="color: #ffffff !important; font-weight: 800;">Publicar Shorts (YouTube)</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Publicar Shorts</span>
                 </button>
             @else
                 <a href="{{ route('admin.youtube.connect') }}" class="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #dc2626; color: #ffffff !important;" title="Conectar Canal do YouTube para postar Shorts automaticamente">
                     <i class="fab fa-youtube text-white"></i>
                     <span style="color: #ffffff !important; font-weight: 800;">Conectar YouTube</span>
+                </a>
+            @endif
+
+            @if(!empty($tiktokAccount))
+                <button type="button" onclick="batchUploadToTikTok()" id="btn-tiktok-batch" class="bg-slate-900 hover:bg-black text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0f172a; color: #ffffff !important;" title="Publicar todas as peças não-vendidas no TikTok '{{ $tiktokAccount->channel_name }}'">
+                    <i class="fab fa-tiktok text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Publicar TikTok</span>
+                </button>
+            @else
+                <a href="{{ route('admin.tiktok.connect') }}" class="bg-slate-900 hover:bg-black text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0f172a; color: #ffffff !important;" title="Conectar Conta do TikTok para postar vídeos automaticamente">
+                    <i class="fab fa-tiktok text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Conectar TikTok</span>
                 </a>
             @endif
 
@@ -223,6 +235,13 @@
                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border" style="background-color: #fef2f2; color: #991b1b; border-color: #fecaca;" title="Canal YouTube conectado: {{ $youtubeAccount->channel_name }}">
                         <i class="fab fa-youtube text-red-600"></i>
                         <span class="max-w-[120px] truncate">{{ $youtubeAccount->channel_name }}</span>
+                    </div>
+                @endif
+
+                @if(!empty($tiktokAccount))
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border" style="background-color: #f1f5f9; color: #0f172a; border-color: #cbd5e1;" title="Conta TikTok conectada: {{ $tiktokAccount->channel_name }}">
+                        <i class="fab fa-tiktok text-slate-900"></i>
+                        <span class="max-w-[120px] truncate">{{ $tiktokAccount->channel_name }}</span>
                     </div>
                 @endif
 
@@ -621,6 +640,24 @@
                                                     title="Publicar este corte no YouTube Shorts" 
                                                     class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
                                                 <i class="fab fa-youtube text-red-600"></i>
+                                            </button>
+                                        @endif
+
+                                        @if(!empty($item['tiktok_publish_id']))
+                                            <a href="{{ $item['tiktok_url'] ?: 'https://www.tiktok.com' }}" 
+                                               target="_blank" 
+                                               title="Publicado no TikTok" 
+                                               class="bg-slate-900 hover:bg-black text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" 
+                                               style="background-color: #0f172a; color: #ffffff !important;">
+                                                <i class="fab fa-tiktok text-white"></i>
+                                            </a>
+                                        @else
+                                            <button type="button" 
+                                                    onclick="uploadCutToTikTok({{ $item['live_item_id'] }})" 
+                                                    id="btn-tiktok-{{ $item['live_item_id'] }}" 
+                                                    title="Publicar este corte no TikTok" 
+                                                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
+                                                <i class="fab fa-tiktok text-slate-900"></i>
                                             </button>
                                         @endif
                                     @endif
@@ -2121,6 +2158,109 @@
                 alert("🚀 " + data.message);
             } else {
                 alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro de comunicação: " + e.message);
+        }
+    }
+
+    async function uploadCutToTikTok(itemId) {
+        const isConnected = {{ !empty($tiktokAccount) ? 'true' : 'false' }};
+        if (!isConnected) {
+            if (confirm("Você precisa conectar a conta do TikTok primeiro. Deseja conectar agora?")) {
+                window.location.href = "{{ route('admin.tiktok.connect') }}";
+            }
+            return;
+        }
+
+        const btn = document.getElementById(`btn-tiktok-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-slate-900"></i>';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/tiktok/upload-cut') }}/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ privacy: 'PUBLIC_TO_EVERYONE' })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (btn) {
+                    btn.outerHTML = `
+                        <a href="https://www.tiktok.com" target="_blank" title="Vídeo Publicado no TikTok" class="bg-slate-900 hover:bg-black text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" style="background-color: #0f172a; color: #ffffff !important;">
+                            <i class="fab fa-tiktok text-white"></i>
+                        </a>
+                    `;
+                }
+                alert("✅ " + data.message);
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                alert("⚠️ " + (data.message || 'Falha no upload para o TikTok.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro ao enviar para o TikTok: " + e.message);
+        }
+    }
+
+    async function batchUploadToTikTok() {
+        const isConnected = {{ !empty($tiktokAccount) ? 'true' : 'false' }};
+        if (!isConnected) {
+            if (confirm("Você precisa conectar a conta do TikTok primeiro. Deseja conectar agora?")) {
+                window.location.href = "{{ route('admin.tiktok.connect') }}";
+            }
+            return;
+        }
+
+        if (!confirm("Deseja publicar automaticamente todas as peças NÃO VENDIDAS no TikTok?")) {
+            return;
+        }
+
+        const btn = document.getElementById('btn-tiktok-batch');
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Publicando...';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/lives/' . $live->id . '/tiktok/batch-upload') }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                alert("🚀 " + data.message);
+            } else {
+                alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote no TikTok.'));
             }
         } catch(e) {
             if (btn) {

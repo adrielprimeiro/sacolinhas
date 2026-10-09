@@ -78,4 +78,10 @@ return [
         'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
         'redirect_uri'  => env('YOUTUBE_REDIRECT_URI', 'https://minhamania.net/admin/youtube/callback'),
     ],
+
+    'tiktok' => [
+        'client_key'    => env('TIKTOK_CLIENT_KEY', 'awvda5r79f4yu1ui'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET', 'NvSNLxyGR6fFCe7awlp9nrr1UzT42aqw'),
+        'redirect_uri'  => env('TIKTOK_REDIRECT_URI', 'https://minhamania.net/admin/tiktok/callback'),
+    ],
 ];

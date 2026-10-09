@@ -332,6 +332,14 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/youtube/batch-upload', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'batchUploadUnsold'])->name('admin.youtube.batch-upload');
         Route::get('youtube/status/{liveId?}', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'status'])->name('admin.youtube.status');
 
+        // ===== INTEGRAÇÃO TIKTOK PUBLICAÇÃO AUTOMÁTICA =====
+        Route::get('tiktok/connect', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'connect'])->name('admin.tiktok.connect');
+        Route::get('tiktok/callback', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'callback'])->name('admin.tiktok.callback');
+        Route::post('tiktok/disconnect', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'disconnect'])->name('admin.tiktok.disconnect');
+        Route::post('tiktok/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'uploadCut'])->name('admin.tiktok.upload-cut');
+        Route::post('lives/{liveId}/tiktok/batch-upload', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'batchUploadUnsold'])->name('admin.tiktok.batch-upload');
+        Route::get('tiktok/status/{liveId?}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'status'])->name('admin.tiktok.status');
+
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
              ->name("admin.items.update-status");
