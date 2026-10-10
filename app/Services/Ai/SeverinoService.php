@@ -643,23 +643,31 @@ class SeverinoService
             }
         }
 
-        // 2. Groq (Prioridade 2: Ultrarrápido ~250ms a 900ms via LPU para prompts menores)
+        // 1. Groq (Prioridade 1: Ultrarrápido ~250ms a 700ms via LPU com 14.400 requisições/dia gratuitas)
         if (!empty($groqKey)) {
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama-3.3-70b-versatile",
-                "name" => "Groq Llama 3.3 70B Versatile",
-                "default_score" => 15,
+                "model" => "openai/gpt-oss-20b",
+                "name" => "Groq GPT OSS 20B",
+                "default_score" => 35,
                 "timeout" => 8
             ];
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
                 "key" => $groqKey,
-                "model" => "llama-3.1-8b-instant",
-                "name" => "Groq Llama 3.1 8B Instant",
-                "default_score" => 14,
-                "timeout" => 6
+                "model" => "qwen/qwen3.8-27b",
+                "name" => "Groq Qwen 27B",
+                "default_score" => 34,
+                "timeout" => 8
+            ];
+            $providersToTry[] = [
+                "url" => "https://api.groq.com/openai/v1/chat/completions",
+                "key" => $groqKey,
+                "model" => "openai/gpt-oss-120b",
+                "name" => "Groq GPT OSS 120B",
+                "default_score" => 33,
+                "timeout" => 10
             ];
         }
 
@@ -798,6 +806,7 @@ class SeverinoService
                         $headers = [
                             "Authorization" => "Bearer " . $provider["key"],
                             "Content-Type" => "application/json",
+                            "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                             "HTTP-Referer" => "https://minhamania.net",
                             "X-Title" => "Controle Sacolinhas"
                         ];
