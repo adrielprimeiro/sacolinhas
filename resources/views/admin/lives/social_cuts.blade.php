@@ -140,16 +140,39 @@
                             </p>
                         </div>
 
-                        {{-- Botão de Download na Lateral Direita --}}
-                        <div class="flex-shrink-0" onclick="event.stopPropagation()">
+                        {{-- Ações na Lateral Direita (Baixar e Publicar no YouTube) --}}
+                        <div class="flex-shrink-0 flex flex-col gap-1.5" onclick="event.stopPropagation()">
+                            {{-- Botão de Baixar Vídeo --}}
                             <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
                                download="{{ $item['download_filename'] }}"
-                               style="background-color: #16a34a; color: #ffffff;"
-                               class="inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs shadow-sm transition"
+                               style="background-color: #16a34a; color: #ffffff !important;"
+                               class="inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-xs shadow-sm transition"
                                title="Baixar Vídeo">
-                                <i class="fas fa-download"></i>
+                                <i class="fas fa-download text-white"></i>
                                 <span class="hidden sm:inline">Baixar</span>
                             </a>
+
+                            {{-- Botão Publicar no YouTube --}}
+                            @if(!empty($item['youtube_video_id']))
+                                <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
+                                   target="_blank" 
+                                   style="background-color: #dc2626; color: #ffffff !important;"
+                                   class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition" 
+                                   title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴)' : 'Assistir Short no YouTube' }}">
+                                    <i class="fab fa-youtube text-white"></i>
+                                    <span class="hidden sm:inline">No ar</span>
+                                </a>
+                            @else
+                                <button type="button" 
+                                        onclick="uploadCutToYouTubeSocial({{ $item['live_item_id'] }})" 
+                                        id="btn-yt-social-{{ $item['live_item_id'] }}" 
+                                        style="background-color: #dc2626; color: #ffffff !important;"
+                                        class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition cursor-pointer"
+                                        title="Publicar este corte no YouTube Shorts">
+                                    <i class="fab fa-youtube text-white"></i>
+                                    <span class="hidden sm:inline">YouTube</span>
+                                </button>
+                            @endif
                         </div>
                     </div>
 
@@ -1082,6 +1105,66 @@ async function saveAndReCutItem() {
         }
     }
 }
+
+async function uploadCutToYouTubeSocial(itemId) {
+    const isConnected = {{ !empty($youtubeAccount) ? 'true' : 'false' }};
+    if (!isConnected) {
+        if (confirm("Você precisa conectar o Canal do YouTube primeiro. Deseja conectar agora?")) {
+            window.location.href = "{{ route('admin.youtube.connect') }}";
+        }
+        return;
+    }
+
+    const btn = document.getElementById(`btn-yt-social-${itemId}`);
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+    }
+
+    try {
+        const res = await fetch(`{{ url('admin/youtube/upload-cut') }}/${itemId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ privacy: 'public' })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            if (btn) {
+                btn.outerHTML = `
+                    <a href="${data.url}" target="_blank" title="Assistir Short no YouTube" style="background-color: #dc2626; color: #ffffff !important;" class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition">
+                        <i class="fab fa-youtube text-white"></i>
+                        <span class="hidden sm:inline">No ar</span>
+                    </a>
+                `;
+            }
+            if (typeof liveItemsMap !== 'undefined' && liveItemsMap[itemId]) {
+                liveItemsMap[itemId].youtube_video_id = data.video_id || 'published';
+                liveItemsMap[itemId].youtube_url = data.url;
+                liveItemsMap[itemId].youtube_status = 'published';
+            }
+            showToast("✅ " + data.message);
+        } else {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("⚠️ " + (data.message || 'Falha no upload para o YouTube.'));
+        }
+    } catch(e) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
+        alert("Erro ao enviar para o YouTube: " + e.message);
+    }
+}
+window.uploadCutToYouTubeSocial = uploadCutToYouTubeSocial;
 
 // Fechar com tecla ESC
 document.addEventListener('keydown', function(e) {

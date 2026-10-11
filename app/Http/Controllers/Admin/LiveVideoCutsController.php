@@ -77,30 +77,38 @@ class LiveVideoCutsController extends Controller
                 $q->where('live_items.video_cut_status', 'recorded')
                   ->orWhereNotNull('live_items.video_cut_url')
                   ->orWhereNotNull('live_items.video_cut_path');
-            })
-            ->select([
-                'live_items.id as live_item_id',
-                'live_items.live_id',
-                'live_items.item_id',
-                'live_items.codigo_live',
-                'live_items.user_id',
-                'live_items.buyer_username',
-                'live_items.buyer_name',
-                'live_items.cut_start_sec',
-                'live_items.cut_end_sec',
-                'live_items.transcription_snippet',
-                'live_items.video_cut_path',
-                'live_items.video_cut_filename',
-                'live_items.video_cut_url',
-                'live_items.video_cut_duration',
-                'live_items.video_cut_status',
-                'items.nome_do_produto as item_nome',
-                'items.descricao as item_descricao',
-                'items.codigo as item_codigo',
-                'items.preco as item_price',
-                'items.image as item_image',
-                'users.name as user_full_name'
-            ]);
+            });
+        $selectCols = [
+            'live_items.id as live_item_id',
+            'live_items.live_id',
+            'live_items.item_id',
+            'live_items.codigo_live',
+            'live_items.user_id',
+            'live_items.buyer_username',
+            'live_items.buyer_name',
+            'live_items.cut_start_sec',
+            'live_items.cut_end_sec',
+            'live_items.transcription_snippet',
+            'live_items.video_cut_path',
+            'live_items.video_cut_filename',
+            'live_items.video_cut_url',
+            'live_items.video_cut_duration',
+            'live_items.video_cut_status',
+            'items.nome_do_produto as item_nome',
+            'items.descricao as item_descricao',
+            'items.codigo as item_codigo',
+            'items.preco as item_price',
+            'items.image as item_image',
+            'users.name as user_full_name'
+        ];
+
+        if (Schema::hasColumn('live_items', 'youtube_video_id')) {
+            $selectCols[] = 'live_items.youtube_video_id';
+            $selectCols[] = 'live_items.youtube_url';
+            $selectCols[] = 'live_items.youtube_status';
+        }
+
+        $query->select($selectCols);
 
         // Contagens globais da live para vídeos prontos
         $allReadyItems = (clone $query)->get();
@@ -176,6 +184,9 @@ class LiveVideoCutsController extends Controller
                 'cut_start_sec' => $row->cut_start_sec,
                 'cut_end_sec' => $row->cut_end_sec,
                 'download_filename' => $downloadFilename,
+                'youtube_video_id' => $row->youtube_video_id ?? null,
+                'youtube_url' => $row->youtube_url ?? null,
+                'youtube_status' => $row->youtube_status ?? 'none',
             ];
         });
 
@@ -186,11 +197,14 @@ class LiveVideoCutsController extends Controller
                 : Storage::url($live->recording_path);
         }
 
+        $youtubeAccount = \App\Models\SocialChannelAccount::getActiveAccount('youtube');
+
         return view('admin.lives.social_cuts', [
             'live' => $live,
             'lives' => $lives,
             'liveItems' => $liveItems,
             'recordingUrl' => $recordingUrl,
+            'youtubeAccount' => $youtubeAccount,
             'stats' => [
                 'total' => $totalReadyCount,
                 'unsold' => $unsoldReadyCount,
