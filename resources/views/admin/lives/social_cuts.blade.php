@@ -156,9 +156,12 @@
                                 <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
                                    target="_blank" 
                                    style="background-color: #dc2626; color: #ffffff !important;"
-                                   class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition" 
-                                   title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴)' : 'Assistir Short no YouTube' }}">
+                                   class="relative w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400" 
+                                   title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴) - Clique para assistir' : 'Publicado no YouTube Shorts - Clique para assistir' }}">
                                     <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
+                                    <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow ring-1 ring-white">
+                                        <i class="fas fa-check"></i>
+                                    </span>
                                 </a>
                             @else
                                 <button type="button" 
@@ -1103,6 +1106,25 @@ async function saveAndReCutItem() {
     }
 }
 
+function showGlobalToast(msg, icon = '✅', duration = 5000) {
+    let toast = document.getElementById('socialGlobalToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'socialGlobalToast';
+        toast.className = 'fixed top-5 right-5 z-[9999] max-w-md bg-gray-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-gray-700 transition-all';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span class="text-xl flex-shrink-0">${icon}</span><span class="text-sm font-semibold text-white leading-snug">${msg}</span>`;
+    toast.classList.remove('hidden');
+    toast.style.display = 'flex';
+    clearTimeout(window.__socialGlobalToastTimeout);
+    window.__socialGlobalToastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.style.display = 'none';
+    }, duration);
+}
+window.showGlobalToast = showGlobalToast;
+
 async function uploadCutToYouTubeSocial(itemId) {
     const isConnected = {{ !empty($youtubeAccount) ? 'true' : 'false' }};
     if (!isConnected) {
@@ -1119,6 +1141,8 @@ async function uploadCutToYouTubeSocial(itemId) {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white text-sm sm:text-base"></i>';
     }
 
+    showGlobalToast("Enviando vídeo para o YouTube Shorts... Aguarde alguns segundos.", "🚀", 15000);
+
     try {
         const res = await fetch(`{{ url('admin/youtube/upload-cut') }}/${itemId}`, {
             method: 'POST',
@@ -1134,8 +1158,11 @@ async function uploadCutToYouTubeSocial(itemId) {
         if (data.success) {
             if (btn) {
                 btn.outerHTML = `
-                    <a href="${data.url}" target="_blank" title="Assistir Short no YouTube" style="background-color: #dc2626; color: #ffffff !important;" class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition">
+                    <a href="${data.url}" target="_blank" title="Publicado no YouTube Shorts - Clique para assistir" style="background-color: #dc2626; color: #ffffff !important;" class="relative w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400">
                         <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
+                        <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow ring-1 ring-white">
+                            <i class="fas fa-check"></i>
+                        </span>
                     </a>
                 `;
             }
@@ -1144,12 +1171,13 @@ async function uploadCutToYouTubeSocial(itemId) {
                 liveItemsMap[itemId].youtube_url = data.url;
                 liveItemsMap[itemId].youtube_status = 'published';
             }
-            showToast("✅ " + data.message);
+            showGlobalToast(`Publicado com sucesso no YouTube Shorts! <a href="${data.url}" target="_blank" style="color: #60a5fa; text-decoration: underline; font-weight: bold; margin-left: 6px;">Abrir Short ↗</a>`, "🎉", 10000);
         } else {
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
             }
+            showGlobalToast(data.message || 'Falha no upload para o YouTube.', "⚠️", 6000);
             alert("⚠️ " + (data.message || 'Falha no upload para o YouTube.'));
         }
     } catch(e) {
@@ -1157,6 +1185,7 @@ async function uploadCutToYouTubeSocial(itemId) {
             btn.disabled = false;
             btn.innerHTML = oldHtml;
         }
+        showGlobalToast("Erro ao enviar: " + e.message, "❌", 6000);
         alert("Erro ao enviar para o YouTube: " + e.message);
     }
 }
