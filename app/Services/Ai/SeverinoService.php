@@ -194,6 +194,10 @@ class SeverinoService
             "  4. Custo Total das Peças = SUM(COALESCE(items.custo, 0) * sacolinhas.quantity).\n" .
             "  5. Lucro Bruto da live = Faturamento Bruto - Custo Total das Peças (Preço de Venda menos Preço de Compra/Custo).\n" .
             "  6. Sempre que o usuário perguntar pelo LUCRO de uma live, USE A FERRAMENTA `resumo_live` (que já entrega faturamento bruto, custo total das peças e lucro bruto apurado) e apresente esses números com clareza!\n" .
+            "  7. RELATÓRIO DE CONVERSÃO DE LIVES EM PEDIDOS:\n" .
+            "     Quando o usuário perguntar 'quanto do que vendemos na live vira pedido', 'comparativo de lives e pedidos do mês', 'conversão de live', ou qualquer variação disso, USE SEMPRE E IMEDIATAMENTE A FERRAMENTA `relatorio_conversao_lives_pedidos`!\n" .
+            "     Apresente o resumo consolidado do mês (total vendido nas lives em peças e R$, quanto já virou pedido em peças e R$ com a taxa de conversão %, e quanto ainda está em aberto nas sacolinhas) e em seguida a tabela detalhada por live!\n" .
+            "     NUNCA diga que vai salvar ou registrar ferramentas dinâmicas antes de responder. ENTREGUE SEMPRE A RESPOSTA FINAL AO USUÁRIO PRIMEIRO!\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -255,6 +259,23 @@ class SeverinoService
                             "properties" => [
                                 "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD. Se vazio, analisa a live mais recente."],
                                 "quantidade_lives" => ["type" => "INTEGER", "description" => "Opcional. Quantidade de últimas lives para analisar e calcular médias (ex: 5, 10, 20). Padrão é 1."]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "relatorio_conversao_lives_pedidos",
+                        "description" => "Retorna o relatório comparativo de conversão de lives em pedidos: compara o que foi vendido nas lives (total de peças e faturamento bruto) com o quanto disso já virou pedido finalizado (peças, valor e taxa de conversão %) e o quanto ainda está parado em sacolinhas em aberto no mês. Use SEMPRE que o usuário perguntar quanto das lives virou pedido, conversão de live, ou pedir comparativo de live e pedido do mês.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-10). Se vazio, usa o mês atual."
+                                ],
+                                "live_id" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Opcional. ID de uma live específica para analisar individualmente."
+                                ]
                             ]
                         ]
                     ],
@@ -946,9 +967,9 @@ class SeverinoService
                         $executedDataTools[] = $name;
                     }
 
-                    // Incentivo LATM: se rodou SQL SELECT com sucesso, estimula o registro da ferramenta dinâmica
+                    // Incentivo LATM: se rodou SQL SELECT com sucesso, estimula a resposta direta
                     if ($name === 'executar_query_select' && empty($resultado['erro'])) {
-                        $resumoDoResultado .= "\n\n[INSTRUÇÃO DE AUTONOMIA LATM]: Query executada com sucesso! Para consolidar este aprendizado e não precisar rodar SQL cru no futuro, você DEVE chamar a ferramenta `criar_ferramenta_dinamica` registrando este template SQL com nome em snake_case, descrição clara e parâmetros se houver, e em seguida entregar a resposta final ao usuário.";
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Query executada com sucesso! Você DEVE formular e entregar a resposta final completa e formatada em Markdown diretamente ao usuário com todos os dados apurados. NUNCA fale em texto que você vai registrar ou criar ferramentas dinâmicas antes de responder. Entregue os dados solicitados pelo usuário primeiro!";
                     }
 
                     // Bloqueio de parada prematura no mapeamento de módulo ou consulta de código:
@@ -1658,6 +1679,104 @@ class SeverinoService
                         "clientes_distintos" => (int)$stats->total_clientes,
                         "sacolinhas" => (int)$stats->total_clientes,
                         "formula_utilizada" => "Faturamento Bruto = soma(sacolinhas.price * quantity) | Custo Total = soma(items.custo * quantity) | Lucro Bruto = Faturamento Bruto - Custo Total"
+                    ];
+
+                case "relatorio_conversao_lives_pedidos":
+                    $periodoInput = $args["periodo"] ?? null;
+                    $liveId = !empty($args["live_id"]) ? (int)$args["live_id"] : null;
+
+                    $queryLives = DB::table('lives as l');
+                    if ($liveId) {
+                        $queryLives->where('l.id', $liveId);
+                    } elseif ($periodoInput) {
+                        $dt = \Carbon\Carbon::parse($periodoInput)->startOfMonth();
+                        $queryLives->whereYear('l.data', $dt->year)
+                                   ->whereMonth('l.data', $dt->month);
+                    } else {
+                        // Mês atual
+                        $queryLives->whereYear('l.data', date('Y'))
+                                   ->whereMonth('l.data', date('m'));
+                    }
+
+                    $livesList = $queryLives->orderByDesc('l.data')->get();
+
+                    if ($livesList->isEmpty()) {
+                        return ["mensagem" => "Nenhuma live encontrada para o período informado."];
+                    }
+
+                    $totVendidoPecas = 0;
+                    $totVendidoValor = 0;
+                    $totPedidoPecas = 0;
+                    $totPedidoValor = 0;
+                    $totAbertoPecas = 0;
+                    $totAbertoValor = 0;
+                    $detalhesLives = [];
+
+                    foreach ($livesList as $live) {
+                        $stats = DB::table('sacolinhas as s')
+                            ->where('s.live_id', $live->id)
+                            ->selectRaw("
+                                COUNT(s.id) as total_itens,
+                                COALESCE(SUM(s.quantity), 0) as total_pecas,
+                                COALESCE(SUM(s.price * s.quantity), 0) as total_valor,
+                                COALESCE(SUM(CASE WHEN s.status = 'pedido' OR (s.obs IS NOT NULL AND LOWER(s.obs) LIKE '%ped-%') THEN s.quantity ELSE 0 END), 0) as pecas_pedido,
+                                COALESCE(SUM(CASE WHEN s.status = 'pedido' OR (s.obs IS NOT NULL AND LOWER(s.obs) LIKE '%ped-%') THEN s.price * s.quantity ELSE 0 END), 0) as valor_pedido,
+                                COALESCE(SUM(CASE WHEN s.status != 'pedido' AND (s.obs IS NULL OR LOWER(s.obs) NOT LIKE '%ped-%') THEN s.quantity ELSE 0 END), 0) as pecas_em_aberto,
+                                COALESCE(SUM(CASE WHEN s.status != 'pedido' AND (s.obs IS NULL OR LOWER(s.obs) NOT LIKE '%ped-%') THEN s.price * s.quantity ELSE 0 END), 0) as valor_em_aberto
+                            ")
+                            ->first();
+
+                        if ($stats && $stats->total_pecas > 0) {
+                            $pecas = (int)$stats->total_pecas;
+                            $valor = (float)$stats->total_valor;
+                            $pPed = (int)$stats->pecas_pedido;
+                            $vPed = (float)$stats->valor_pedido;
+                            $pAb = (int)$stats->pecas_em_aberto;
+                            $vAb = (float)$stats->valor_em_aberto;
+
+                            $taxaPecas = round(($pPed / $pecas) * 100, 1);
+                            $taxaValor = $valor > 0 ? round(($vPed / $valor) * 100, 1) : 0;
+
+                            $totVendidoPecas += $pecas;
+                            $totVendidoValor += $valor;
+                            $totPedidoPecas += $pPed;
+                            $totPedidoValor += $vPed;
+                            $totAbertoPecas += $pAb;
+                            $totAbertoValor += $vAb;
+
+                            $detalhesLives[] = [
+                                "live_id" => $live->id,
+                                "data" => date('d/m/Y', strtotime($live->data)),
+                                "tipo_live" => $live->tipo_live,
+                                "vendido_pecas" => $pecas,
+                                "vendido_valor" => $valor,
+                                "virou_pedido_pecas" => $pPed,
+                                "virou_pedido_valor" => $vPed,
+                                "taxa_conversao_pecas" => "{$taxaPecas}%",
+                                "taxa_conversao_valor" => "{$taxaValor}%",
+                                "em_aberto_pecas" => $pAb,
+                                "em_aberto_valor" => $vAb
+                            ];
+                        }
+                    }
+
+                    $taxaGeralPecas = $totVendidoPecas > 0 ? round(($totPedidoPecas / $totVendidoPecas) * 100, 1) : 0;
+                    $taxaGeralValor = $totVendidoValor > 0 ? round(($totPedidoValor / $totVendidoValor) * 100, 1) : 0;
+
+                    return [
+                        "periodo" => $periodoInput ?: date('m/Y'),
+                        "total_lives_com_vendas" => count($detalhesLives),
+                        "consolidado_geral" => [
+                            "total_vendido_lives_pecas" => $totVendidoPecas,
+                            "total_vendido_lives_valor" => round($totVendidoValor, 2),
+                            "convertido_em_pedidos_pecas" => $totPedidoPecas,
+                            "convertido_em_pedidos_valor" => round($totPedidoValor, 2),
+                            "taxa_conversao_geral_pecas" => "{$taxaGeralPecas}%",
+                            "taxa_conversao_geral_valor" => "{$taxaGeralValor}%",
+                            "ainda_na_sacolinha_pecas" => $totAbertoPecas,
+                            "ainda_na_sacolinha_valor" => round($totAbertoValor, 2)
+                        ],
+                        "ranking_por_live" => $detalhesLives
                     ];
 
                 case "status_clube_mensalidades":
