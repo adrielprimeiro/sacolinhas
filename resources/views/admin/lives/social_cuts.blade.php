@@ -146,10 +146,9 @@
                             <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
                                download="{{ $item['download_filename'] }}"
                                style="background-color: #16a34a; color: #ffffff !important;"
-                               class="inline-flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-xs shadow-sm transition"
+                               class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition"
                                title="Baixar Vídeo">
-                                <i class="fas fa-download text-white"></i>
-                                <span class="hidden sm:inline">Baixar</span>
+                                <i class="fas fa-download text-white text-sm sm:text-base"></i>
                             </a>
 
                             {{-- Botão Publicar no YouTube --}}
@@ -157,20 +156,18 @@
                                 <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
                                    target="_blank" 
                                    style="background-color: #dc2626; color: #ffffff !important;"
-                                   class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition" 
+                                   class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition" 
                                    title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴)' : 'Assistir Short no YouTube' }}">
-                                    <i class="fab fa-youtube text-white"></i>
-                                    <span class="hidden sm:inline">No ar</span>
+                                    <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
                                 </a>
                             @else
                                 <button type="button" 
                                         onclick="uploadCutToYouTubeSocial({{ $item['live_item_id'] }})" 
                                         id="btn-yt-social-{{ $item['live_item_id'] }}" 
                                         style="background-color: #dc2626; color: #ffffff !important;"
-                                        class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition cursor-pointer"
+                                        class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer"
                                         title="Publicar este corte no YouTube Shorts">
-                                    <i class="fab fa-youtube text-white"></i>
-                                    <span class="hidden sm:inline">YouTube</span>
+                                    <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
                                 </button>
                             @endif
                         </div>
@@ -1119,7 +1116,7 @@ async function uploadCutToYouTubeSocial(itemId) {
     const oldHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white text-sm sm:text-base"></i>';
     }
 
     try {
@@ -1137,9 +1134,8 @@ async function uploadCutToYouTubeSocial(itemId) {
         if (data.success) {
             if (btn) {
                 btn.outerHTML = `
-                    <a href="${data.url}" target="_blank" title="Assistir Short no YouTube" style="background-color: #dc2626; color: #ffffff !important;" class="inline-flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold py-1.5 px-2.5 rounded-xl text-[11px] shadow-sm transition">
-                        <i class="fab fa-youtube text-white"></i>
-                        <span class="hidden sm:inline">No ar</span>
+                    <a href="${data.url}" target="_blank" title="Assistir Short no YouTube" style="background-color: #dc2626; color: #ffffff !important;" class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition">
+                        <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
                     </a>
                 `;
             }
