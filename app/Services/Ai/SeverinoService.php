@@ -1099,6 +1099,20 @@ class SeverinoService
                     ];
                     continue;
                 }
+
+                // 8. BLOQUEIO DE META-RESPOSTAS SOBRE FERRAMENTAS DINÂMICAS:
+                // Impede o modelo de anunciar que vai criar ferramentas dinâmicas em vez de entregar o relatório
+                $prometeuRegistrarFerramenta = preg_match('/(vou (primeiro )?registrar|vou (primeiro )?criar|para facilitar futuras consultas|como uma ferramenta dinâmica|como ferramenta dinamica|registrando a consulta)/iu', $finalText);
+                if ($prometeuRegistrarFerramenta && $i < 7) {
+                    \Illuminate\Support\Facades\Log::warning("Severino prometeu criar ferramenta dinâmica em texto em vez de executar ('{$finalText}'). Interceptando na iteração {$i}.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - EXECUÇÃO OBRIGATÓRIA]: NUNCA responda ao usuário dizendo que vai registrar ou criar ferramentas dinâmicas! O usuário está esperando os DADOS e o RELATÓRIO final AGORA.\n" .
+                                     "1. Se você já tem a query ou os dados, formule e entregue imediatamente o relatório completo em Markdown com a tabela de dados.\n" .
+                                     "2. Em segundo plano, dispare a tool call oficial 'criar_ferramenta_dinamica' para salvar o template no catálogo do banco, mas NUNCA interrompa o relatório do usuário!"
+                    ];
+                    continue;
+                }
             }
 
             if ($finalText !== "") {
