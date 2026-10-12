@@ -5,6 +5,20 @@
 @section('content')
 <div class="container mx-auto p-4 sm:p-6 max-w-7xl">
     
+    @if(session('success'))
+        <div class="mb-5 bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-2xl flex items-center gap-3 shadow-sm">
+            <i class="fas fa-check-circle text-emerald-600 text-xl shrink-0"></i>
+            <div class="font-bold text-sm leading-snug">{{ session('success') }}</div>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-5 bg-red-50 border border-red-300 text-red-900 px-4 py-3 rounded-2xl flex items-center gap-3 shadow-sm">
+            <i class="fas fa-exclamation-triangle text-red-600 text-xl shrink-0"></i>
+            <div class="font-bold text-sm leading-snug">{{ session('error') }}</div>
+        </div>
+    @endif
+
     <!-- Top Header Bar -->
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">

@@ -52,42 +52,60 @@ class TikTokService
      */
     public function handleCallback(string $code): array
     {
-        $response = Http::asForm()->post('https://open.tiktokapis.com/v2/oauth/token/', [
-            'client_key' => $this->clientKey,
-            'client_secret' => $this->clientSecret,
-            'code' => $code,
-            'grant_type' => 'authorization_code',
+        Log::info('[TikTokService] Iniciando troca de código por token. Código recebido.', [
             'redirect_uri' => $this->redirectUri,
+            'client_key' => $this->clientKey,
         ]);
 
-        if (!$response->successful()) {
-            Log::error('[TikTokService] Erro ao trocar código por token: ' . $response->body());
+        $response = Http::asForm()
+            ->withHeaders([
+                'Cache-Control' => 'no-cache',
+            ])
+            ->post('https://open.tiktokapis.com/v2/oauth/token/', [
+                'client_key' => $this->clientKey,
+                'client_secret' => $this->clientSecret,
+                'code' => $code,
+                'grant_type' => 'authorization_code',
+                'redirect_uri' => $this->redirectUri,
+            ]);
+
+        Log::info('[TikTokService] Resposta do TikTok token endpoint: status=' . $response->status() . ' body=' . $response->body());
+
+        $tokenData = $response->json() ?? [];
+
+        // Verificar erros HTTP ou erros internos da API do TikTok
+        if (!$response->successful() || !empty($tokenData['error']) || !empty($tokenData['error_code'])) {
+            $errCode = $tokenData['error'] ?? ($tokenData['error_code'] ?? 'erro');
+            $errDesc = $tokenData['error_description'] ?? ($tokenData['message'] ?? $response->body());
+            Log::error("[TikTokService] Erro na autenticação com o TikTok: [{$errCode}] {$errDesc}");
             return [
                 'success' => false,
-                'message' => 'Falha ao autenticar com o TikTok: ' . ($response->json('error_description') ?? $response->body()),
+                'message' => "Falha ao autenticar com o TikTok: [{$errCode}] {$errDesc}",
             ];
         }
 
-        $tokenData = $response->json('data') ?? $response->json();
-        $accessToken = $tokenData['access_token'] ?? null;
-        $refreshToken = $tokenData['refresh_token'] ?? null;
-        $expiresIn = (int) ($tokenData['expires_in'] ?? 86400);
-        $openId = $tokenData['open_id'] ?? null;
+        $accessToken = $tokenData['access_token'] ?? ($tokenData['data']['access_token'] ?? null);
+        $refreshToken = $tokenData['refresh_token'] ?? ($tokenData['data']['refresh_token'] ?? null);
+        $expiresIn = (int) ($tokenData['expires_in'] ?? ($tokenData['data']['expires_in'] ?? 86400));
+        $openId = $tokenData['open_id'] ?? ($tokenData['data']['open_id'] ?? null);
 
         if (!$accessToken) {
-            return ['success' => false, 'message' => 'Token de acesso não retornado pelo TikTok.'];
+            Log::error('[TikTokService] Token de acesso ausente na resposta: ' . $response->body());
+            return [
+                'success' => false, 
+                'message' => 'Token de acesso não retornado pelo TikTok: ' . $response->body()
+            ];
         }
 
         // Buscar dados do perfil no TikTok
         $profileInfo = $this->fetchUserProfile($accessToken);
 
         // Salvar ou atualizar a conta conectada no banco
-        $account = SocialChannelAccount::where('provider', 'tiktok')
-            ->where('channel_id', $openId ?: ($profileInfo['id'] ?? 'default'))
-            ->first() ?? new SocialChannelAccount();
+        $channelId = $openId ?: ($profileInfo['id'] ?? 'tiktok_account');
+        $account = SocialChannelAccount::where('provider', 'tiktok')->first() ?? new SocialChannelAccount();
 
         $account->provider = 'tiktok';
-        $account->channel_id = $openId ?: ($profileInfo['id'] ?? null);
+        $account->channel_id = $channelId;
         $account->channel_name = $profileInfo['display_name'] ?? 'Minha Mania TikTok';
         $account->channel_avatar = $profileInfo['avatar_url'] ?? null;
         $account->access_token = $accessToken;
@@ -103,16 +121,11 @@ class TikTokService
         ]);
         $account->save();
 
-        // Desativar outras contas de tiktok antigas se houver
-        SocialChannelAccount::where('provider', 'tiktok')
-            ->where('id', '!=', $account->id)
-            ->update(['is_active' => false]);
-
-        Log::info("[TikTokService] Perfil '{$account->channel_name}' conectado com sucesso!");
+        Log::info("[TikTokService] Perfil '{$account->channel_name}' conectado e salvo com sucesso! ID: {$account->id}");
 
         return [
             'success' => true,
-            'message' => "Perfil TikTok '{$account->channel_name}' conectado com sucesso!",
+            'message' => "Conta do TikTok '{$account->channel_name}' conectada com sucesso!",
             'account' => $account,
         ];
     }

@@ -41,21 +41,26 @@ class TikTokIntegrationController extends Controller
         $error = $request->query('error');
         $errorDesc = $request->query('error_description');
 
+        $latest = Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? Live::orderBy('id', 'desc')->first();
+        $targetRoute = $latest ? route('admin.lives.cortes', ['liveId' => $latest->id]) : route('admin.lives.cortes.latest');
+
         if ($error) {
-            return redirect()->route('admin.lives.cortes.latest')->with('error', "Erro na autorização do TikTok: {$error} - {$errorDesc}");
+            Log::warning("[TikTok callback] Erro retornado na URL: {$error} - {$errorDesc}");
+            return redirect($targetRoute)->with('error', "Erro na autorização do TikTok: {$error} - {$errorDesc}");
         }
 
         if (!$code) {
-            return redirect()->route('admin.lives.cortes.latest')->with('error', 'Código de autorização não recebido do TikTok.');
+            Log::warning("[TikTok callback] Nenhum code recebido");
+            return redirect($targetRoute)->with('error', 'Código de autorização não recebido do TikTok.');
         }
 
         $result = $this->tiktokService->handleCallback($code);
 
         if ($result['success']) {
-            return redirect()->route('admin.lives.cortes.latest')->with('success', $result['message']);
+            return redirect($targetRoute)->with('success', $result['message']);
         }
 
-        return redirect()->route('admin.lives.cortes.latest')->with('error', $result['message']);
+        return redirect($targetRoute)->with('error', $result['message']);
     }
 
     /**
