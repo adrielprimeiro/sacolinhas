@@ -16,9 +16,9 @@ class TikTokService
 
     public function __construct()
     {
-        $this->clientKey = config('services.tiktok.client_key') ?: env('TIKTOK_CLIENT_KEY', 'awvda5r79f4yu1ui');
-        $this->clientSecret = config('services.tiktok.client_secret') ?: env('TIKTOK_CLIENT_SECRET', 'NvSNLxyGR6fFCe7awlp9nrr1UzT42aqw');
-        $this->redirectUri = config('services.tiktok.redirect_uri') ?: env('TIKTOK_REDIRECT_URI', 'https://minhamania.net/admin/tiktok/callback');
+        $this->clientKey = trim((string) (config('services.tiktok.client_key') ?: env('TIKTOK_CLIENT_KEY', '')));
+        $this->clientSecret = trim((string) (config('services.tiktok.client_secret') ?: env('TIKTOK_CLIENT_SECRET', '')));
+        $this->redirectUri = trim((string) (config('services.tiktok.redirect_uri') ?: env('TIKTOK_REDIRECT_URI', 'https://minhamania.net/admin/tiktok/callback')));
     }
 
     /**
@@ -55,6 +55,7 @@ class TikTokService
         Log::info('[TikTokService] Iniciando troca de código por token. Código recebido.', [
             'redirect_uri' => $this->redirectUri,
             'client_key' => $this->clientKey,
+            'client_secret_preview' => substr($this->clientSecret, 0, 4) . '...' . substr($this->clientSecret, -4) . ' (len: ' . strlen($this->clientSecret) . ')',
         ]);
 
         $response = Http::asForm()
