@@ -102,6 +102,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Verificação automática de domínio para TikTok Developers
+Route::get('/tiktok{hash}.txt', function ($hash) {
+    return response("tiktok-developers-site-verification={$hash}\n{$hash}\ntiktok{$hash}", 200)
+        ->header('Content-Type', 'text/plain');
+});
+
 // Rota pública de pagamento direto (sem login via Token)
 Route::get('/checkout/pagamento/{token}', [App\Http\Controllers\Portal\CheckoutController::class, 'pagamentoToken'])->name('portal.checkout.pagamento');
 
