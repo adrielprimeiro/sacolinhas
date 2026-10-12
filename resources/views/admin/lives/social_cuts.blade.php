@@ -1177,16 +1177,14 @@ async function uploadCutToYouTubeSocial(itemId) {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
             }
-            showGlobalToast(data.message || 'Falha no upload para o YouTube.', "⚠️", 6000);
-            alert("⚠️ " + (data.message || 'Falha no upload para o YouTube.'));
+            showGlobalToast(data.message || 'Falha no upload para o YouTube. Tente novamente.', "⚠️", 7000);
         }
     } catch(e) {
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = oldHtml;
         }
-        showGlobalToast("Erro ao enviar: " + e.message, "❌", 6000);
-        alert("Erro ao enviar para o YouTube: " + e.message);
+        showGlobalToast("Instabilidade ao comunicar com o servidor: " + e.message, "❌", 7000);
     }
 }
 window.uploadCutToYouTubeSocial = uploadCutToYouTubeSocial;

@@ -251,8 +251,10 @@ class YouTubeService
             $fileSize = filesize($videoPath);
             $mimeType = 'video/mp4';
 
-            // Iniciar sessão de upload resumable
+            // 1. Iniciar sessão de upload resumable
             $initResponse = Http::withToken($accessToken)
+                ->timeout(60)
+                ->connectTimeout(15)
                 ->withHeaders([
                     'X-Upload-Content-Type' => $mimeType,
                     'X-Upload-Content-Length' => $fileSize,
@@ -270,28 +272,74 @@ class YouTubeService
 
             $uploadUrl = $initResponse->header('Location');
 
-            // Enviar os bytes do vídeo
+            // 2. Enviar o arquivo em blocos (chunks) usando o protocolo oficial Resumable Upload
+            // Blocos de 2MB (múltiplo obrigatório de 256KB) e HTTP/1.1 forçado para evitar 'cURL error 56 / connection reset by peer'
+            $chunkSize = 2 * 1024 * 1024; // 2MB
             $fileHandle = fopen($videoPath, 'rb');
-            $uploadResponse = Http::withToken($accessToken)
-                ->withHeaders([
-                    'Content-Type' => $mimeType,
-                    'Content-Length' => $fileSize,
-                ])
-                ->withBody(stream_get_contents($fileHandle), $mimeType)
-                ->put($uploadUrl);
+            $offset = 0;
+            $videoId = null;
+            $videoData = null;
 
-            fclose($fileHandle);
+            while ($offset < $fileSize) {
+                $bytesToRead = min($chunkSize, $fileSize - $offset);
+                $chunkData = fread($fileHandle, $bytesToRead);
+                $rangeEnd = $offset + $bytesToRead - 1;
 
-            if (!$uploadResponse->successful()) {
-                Log::error('[YouTubeService] Falha no streaming do vídeo: ' . $uploadResponse->body());
-                return [
-                    'success' => false,
-                    'message' => 'Erro no upload do arquivo de vídeo para o YouTube.'
-                ];
+                $chunkSuccess = false;
+                $lastErrorMsg = null;
+
+                for ($attempt = 1; $attempt <= 3; $attempt++) {
+                    try {
+                        $chunkResponse = Http::withOptions([
+                            'version' => 1.1,
+                            'timeout' => 120,
+                            'connect_timeout' => 20,
+                            'allow_redirects' => false,
+                        ])->withHeaders([
+                            'Content-Type' => $mimeType,
+                            'Content-Length' => $bytesToRead,
+                            'Content-Range' => "bytes {$offset}-{$rangeEnd}/{$fileSize}",
+                        ])->withBody($chunkData, $mimeType)->put($uploadUrl);
+
+                        $statusCode = $chunkResponse->status();
+
+                        if ($statusCode === 308) {
+                            // Bloco recebido com sucesso pelo Google, continua para o próximo
+                            $chunkSuccess = true;
+                            break;
+                        } elseif ($statusCode === 200 || $statusCode === 201) {
+                            // Upload finalizado!
+                            $videoData = $chunkResponse->json();
+                            $videoId = $videoData['id'] ?? null;
+                            $chunkSuccess = true;
+                            break 2;
+                        } else {
+                            $lastErrorMsg = "HTTP {$statusCode}: " . $chunkResponse->body();
+                            Log::warning("[YouTubeService] Erro no chunk {$offset}-{$rangeEnd} (tentativa {$attempt}/3): {$lastErrorMsg}");
+                        }
+                    } catch (\Throwable $chunkEx) {
+                        $lastErrorMsg = $chunkEx->getMessage();
+                        Log::warning("[YouTubeService] Exceção no chunk {$offset}-{$rangeEnd} (tentativa {$attempt}/3): {$lastErrorMsg}");
+                        usleep(500000); // 500ms
+                    }
+                }
+
+                if (!$chunkSuccess) {
+                    if (is_resource($fileHandle)) {
+                        fclose($fileHandle);
+                    }
+                    return [
+                        'success' => false,
+                        'message' => 'Falha na conexão com o YouTube durante o envio do vídeo: ' . $lastErrorMsg
+                    ];
+                }
+
+                $offset += $bytesToRead;
             }
 
-            $videoData = $uploadResponse->json();
-            $videoId = $videoData['id'] ?? null;
+            if (is_resource($fileHandle)) {
+                fclose($fileHandle);
+            }
 
             if (!$videoId) {
                 return ['success' => false, 'message' => 'YouTube não retornou o ID do vídeo publicado.'];
@@ -299,7 +347,7 @@ class YouTubeService
 
             $youtubeUrl = "https://youtube.com/shorts/{$videoId}";
 
-            // 4. Gravar dados no banco de dados (live_items)
+            // 3. Gravar dados no banco de dados (live_items)
             DB::table('live_items')
                 ->where('id', $liveItem->id)
                 ->update([
@@ -333,7 +381,10 @@ class YouTubeService
                     'updated_at' => now(),
                 ]);
 
-            return ['success' => false, 'message' => 'Exceção no upload: ' . $e->getMessage()];
+            return [
+                'success' => false, 
+                'message' => 'Instabilidade temporária na conexão com o YouTube (' . $e->getMessage() . '). Por favor, tente novamente.'
+            ];
         }
     }
 
