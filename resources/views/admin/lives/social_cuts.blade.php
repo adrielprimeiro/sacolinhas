@@ -267,10 +267,10 @@
                         <button type="button"
                                 id="btnMiddleCutScissors"
                                 onclick="handleScissorsClick()"
-                                class="px-2.5 sm:px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
+                                class="px-2.5 sm:px-3 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500 shrink-0"
                                 title="Dividir a trilha na posição atual da agulha (Split)">
-                            <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
-                            <span id="textScissors">Dividir</span>
+                            <i class="fas fa-scissors text-white" id="iconScissors"></i>
+                            <span id="textScissors" class="text-white font-extrabold">Dividir</span>
                         </button>
 
                         {{-- Pílulas Seletoras de Partes (Parte 1, Parte 2) quando há divisão --}}
@@ -356,7 +356,7 @@
                      title="Arraste ou clique para navegar no ponto exato da reprodução">
 
                     {{-- A. RÉGUA DE TEMPO (TIME RULER) --}}
-                    <div class="relative w-full h-4 sm:h-5 border-b border-gray-800/80 flex items-end select-none pointer-events-none mb-0.5 px-1 overflow-hidden"
+                    <div class="relative w-full h-6 sm:h-7 border-b border-gray-700/60 flex items-end select-none pointer-events-none mb-1 px-1 overflow-visible"
                          id="timeRulerContainer">
                         {{-- Marcadores numéricos proporcionais gerados dinamicamente via JS --}}
                     </div>
@@ -673,11 +673,16 @@ function renderTimeRuler() {
         const pct = (i / numMarkers) * 100;
         const timeSec = wStart + (span * (i / numMarkers));
         const tick = document.createElement('div');
-        tick.className = 'absolute flex flex-col items-center transform -translate-x-1/2 bottom-0 pointer-events-none select-none';
+        
+        let alignClass = 'transform -translate-x-1/2';
+        if (i === 0) alignClass = 'transform translate-x-0';
+        else if (i === numMarkers) alignClass = 'transform -translate-x-full';
+
+        tick.className = `absolute flex flex-col items-center ${alignClass} bottom-0 pointer-events-none select-none`;
         tick.style.left = `${pct}%`;
         tick.innerHTML = `
-            <span class="text-[9px] font-mono text-gray-400 font-bold mb-0.5">${formatTime(timeSec)}</span>
-            <div class="w-px h-1.5 bg-gray-600"></div>
+            <span class="text-[10px] sm:text-[11px] font-mono text-gray-200 font-extrabold tracking-tight mb-1 leading-none select-none">${formatTime(timeSec)}</span>
+            <div class="w-0.5 h-2 bg-gray-400 rounded-full"></div>
         `;
         container.appendChild(tick);
 
@@ -687,7 +692,7 @@ function renderTimeRuler() {
                 const subTick = document.createElement('div');
                 subTick.className = 'absolute flex flex-col items-center transform -translate-x-1/2 bottom-0 pointer-events-none select-none';
                 subTick.style.left = `${subPct}%`;
-                subTick.innerHTML = `<div class="w-px h-1 bg-gray-700/70"></div>`;
+                subTick.innerHTML = `<div class="w-px h-1.5 bg-gray-600"></div>`;
                 container.appendChild(subTick);
             }
         }
