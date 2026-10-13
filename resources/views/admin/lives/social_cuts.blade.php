@@ -273,9 +273,6 @@
                             <span id="textScissors" class="text-white font-extrabold">Dividir</span>
                         </button>
 
-                        {{-- Pílulas Seletoras de Partes (Parte 1, Parte 2) quando há divisão --}}
-                        <div id="segmentPillsContainer" class="hidden items-center gap-1 shrink-0"></div>
-
                         {{-- Botão Lixeira (Excluir Trecho Selecionado) --}}
                         <button type="button"
                                 id="btnTrashSegment"
@@ -356,7 +353,7 @@
                      title="Arraste ou clique para navegar no ponto exato da reprodução">
 
                     {{-- A. RÉGUA DE TEMPO (TIME RULER) --}}
-                    <div class="relative w-full h-6 sm:h-7 border-b border-gray-700/60 flex items-end select-none pointer-events-none mb-1 px-1 overflow-visible"
+                    <div class="relative w-full h-5 sm:h-5.5 border-b border-gray-800/80 flex items-end select-none pointer-events-none mb-0.5 px-1 overflow-visible"
                          id="timeRulerContainer">
                         {{-- Marcadores numéricos proporcionais gerados dinamicamente via JS --}}
                     </div>
@@ -681,8 +678,8 @@ function renderTimeRuler() {
         tick.className = `absolute flex flex-col items-center ${alignClass} bottom-0 pointer-events-none select-none`;
         tick.style.left = `${pct}%`;
         tick.innerHTML = `
-            <span class="text-[10px] sm:text-[11px] font-mono text-gray-200 font-extrabold tracking-tight mb-1 leading-none select-none">${formatTime(timeSec)}</span>
-            <div class="w-0.5 h-2 bg-gray-400 rounded-full"></div>
+            <span class="text-[9px] sm:text-[9.5px] font-mono text-gray-400 font-normal tracking-tight mb-0.5 leading-none select-none">${formatTime(timeSec)}</span>
+            <div class="w-px h-1.5 bg-gray-500/80"></div>
         `;
         container.appendChild(tick);
 
@@ -692,7 +689,7 @@ function renderTimeRuler() {
                 const subTick = document.createElement('div');
                 subTick.className = 'absolute flex flex-col items-center transform -translate-x-1/2 bottom-0 pointer-events-none select-none';
                 subTick.style.left = `${subPct}%`;
-                subTick.innerHTML = `<div class="w-px h-1.5 bg-gray-600"></div>`;
+                subTick.innerHTML = `<div class="w-px h-1 bg-gray-700/80"></div>`;
                 container.appendChild(subTick);
             }
         }
@@ -1462,34 +1459,6 @@ function renderTimeBadges() {
         else btnReset.classList.add('hidden');
     }
 
-    // Pílulas seletoras de partes (Parte 1, Parte 2, etc.) na barra de ferramentas
-    const pillsContainer = document.getElementById('segmentPillsContainer');
-    if (pillsContainer) {
-        pillsContainer.innerHTML = '';
-        if (segments.length > 1) {
-            pillsContainer.classList.remove('hidden');
-            pillsContainer.classList.add('flex');
-            segments.forEach((seg, i) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                const isSel = (selectedSegmentIndex === i);
-                const isDel = seg.isDeleted;
-                if (isDel) {
-                    btn.className = `px-2 py-0.5 rounded-lg text-[10px] font-black border transition cursor-pointer flex items-center gap-1 ${isSel ? 'bg-red-500 text-white border-red-300 ring-2 ring-red-400' : 'bg-red-950/80 text-red-300 border-red-700 hover:bg-red-900'}`;
-                    btn.innerHTML = `<i class="fas fa-scissors text-[9px]"></i><span>Excluído (-${(seg.end - seg.start).toFixed(1)}s)</span>`;
-                } else {
-                    btn.className = `px-2.5 py-0.5 rounded-lg text-[10px] font-black border transition cursor-pointer flex items-center gap-1 ${isSel ? 'bg-amber-400 text-amber-950 border-amber-200 ring-2 ring-amber-300 shadow-sm' : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`;
-                    btn.innerHTML = `<span>Parte ${i + 1}</span><span class="text-[9px] opacity-75 font-mono">(${Math.max(0, seg.end - seg.start).toFixed(0)}s)</span>`;
-                }
-                btn.title = `Clique para selecionar a Parte ${i + 1} (${formatTime(seg.start)} - ${formatTime(seg.end)})`;
-                btn.onclick = (e) => selectSegment(i, e);
-                pillsContainer.appendChild(btn);
-            });
-        } else {
-            pillsContainer.classList.add('hidden');
-            pillsContainer.classList.remove('flex');
-        }
-    }
 
     if (btnTrash) {
         if (selectedSegmentIndex !== null && segments[selectedSegmentIndex]) {
@@ -1502,7 +1471,7 @@ function renderTimeBadges() {
             } else {
                 btnTrash.className = 'px-2.5 sm:px-3 py-1 rounded-xl bg-red-600 hover:bg-red-500 text-white border border-red-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
                 if (iconTrash) iconTrash.className = 'fas fa-trash-alt text-white';
-                if (textTrash) textTrash.textContent = segments.length > 1 ? `Excluir Parte ${selectedSegmentIndex + 1}` : 'Excluir';
+                if (textTrash) textTrash.textContent = 'Excluir';
                 btnTrash.title = `Clique para excluir a Parte ${selectedSegmentIndex + 1}`;
             }
         } else {
