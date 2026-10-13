@@ -127,6 +127,18 @@
                 </a>
             @endif
 
+            @if(!empty($instagramAccount))
+                <button type="button" onclick="batchUploadToInstagram()" id="btn-instagram-batch" class="hover:opacity-95 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;" title="Publicar todas as peças não-vendidas no Instagram Reels '{{ $instagramAccount->channel_name }}'">
+                    <i class="fab fa-instagram text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Publicar Instagram</span>
+                </button>
+            @else
+                <a href="{{ route('admin.instagram.connect') }}" class="hover:opacity-95 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;" title="Conectar Conta do Instagram para postar Reels automaticamente">
+                    <i class="fab fa-instagram text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 800;">Conectar Instagram</span>
+                </a>
+            @endif
+
             <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
                 <i class="fab fa-instagram text-white"></i>
                 <span class="text-white font-black">Auto-Processar Instagram</span>
@@ -672,6 +684,24 @@
                                                     title="Publicar este corte no TikTok" 
                                                     class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
                                                 <i class="fab fa-tiktok text-slate-900"></i>
+                                            </button>
+                                        @endif
+
+                                        @if(!empty($item['instagram_media_id']))
+                                            <a href="{{ $item['instagram_url'] ?: 'https://www.instagram.com' }}" 
+                                               target="_blank" 
+                                               title="Publicado no Instagram Reels" 
+                                               class="hover:opacity-95 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" 
+                                               style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
+                                                <i class="fab fa-instagram text-white"></i>
+                                            </a>
+                                        @else
+                                            <button type="button" 
+                                                    onclick="uploadCutToInstagram({{ $item['live_item_id'] }})" 
+                                                    id="btn-instagram-{{ $item['live_item_id'] }}" 
+                                                    title="Publicar este corte no Instagram Reels" 
+                                                    class="bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
+                                                <i class="fab fa-instagram text-pink-600"></i>
                                             </button>
                                         @endif
                                     @endif
@@ -2275,6 +2305,109 @@
                 alert("🚀 " + data.message);
             } else {
                 alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote no TikTok.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro de comunicação: " + e.message);
+        }
+    }
+
+    async function uploadCutToInstagram(itemId) {
+        const isConnected = {{ !empty($instagramAccount) ? 'true' : 'false' }};
+        if (!isConnected) {
+            if (confirm("Você precisa conectar a conta do Instagram primeiro. Deseja conectar agora?")) {
+                window.location.href = "{{ route('admin.instagram.connect') }}";
+            }
+            return;
+        }
+
+        const btn = document.getElementById(`btn-instagram-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-pink-600"></i>';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/instagram/upload-cut') }}/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (btn) {
+                    btn.outerHTML = `
+                        <a href="${data.url || 'https://www.instagram.com'}" target="_blank" title="Reel Publicado no Instagram" class="hover:opacity-95 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
+                            <i class="fab fa-instagram text-white"></i>
+                        </a>
+                    `;
+                }
+                alert("🚀 " + data.message);
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                alert("⚠️ " + (data.message || 'Falha no upload para o Instagram.'));
+            }
+        } catch(e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro ao enviar para o Instagram: " + e.message);
+        }
+    }
+
+    async function batchUploadToInstagram() {
+        const isConnected = {{ !empty($instagramAccount) ? 'true' : 'false' }};
+        if (!isConnected) {
+            if (confirm("Você precisa conectar a conta do Instagram primeiro. Deseja conectar agora?")) {
+                window.location.href = "{{ route('admin.instagram.connect') }}";
+            }
+            return;
+        }
+
+        if (!confirm("Deseja publicar automaticamente todas as peças NÃO VENDIDAS no Instagram Reels?")) {
+            return;
+        }
+
+        const btn = document.getElementById('btn-instagram-batch');
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Publicando...';
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/lives/' . $live->id . '/instagram/batch-upload') }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                alert("🚀 " + data.message);
+                window.location.reload();
+            } else {
+                alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote no Instagram.'));
             }
         } catch(e) {
             if (btn) {

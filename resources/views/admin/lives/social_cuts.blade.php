@@ -257,49 +257,35 @@
                 {{-- 1. Barra de Controles Superiores: Início, Tesoura, Fim | -10s, Play, +10s, Timer | Duração --}}
                 <div class="flex flex-wrap items-center justify-between gap-2 px-1">
                     
-                    {{-- Grupo Esquerdo: Ferramentas de Corte (Início, Tesoura, Fim) --}}
+                    {{-- Grupo Esquerdo: Ferramentas de Corte (Tesoura e Lixeira) --}}
                     <div class="flex items-center gap-1.5 sm:gap-2">
-                        {{-- Botão Início (Set In |▶) --}}
-                        <button type="button" 
-                                onclick="setCutPointHere('start')"
-                                class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
-                                style="background-color: #2563eb; color: #ffffff;"
-                                title="Gravar posição atual como início do corte (Mark In)">
-                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M4 4h3v16H4V4zm5 8l11-8v16l-11-8z" />
-                            </svg>
-                            <span class="hidden sm:inline">Início</span>
+                        {{-- Botão Tesoura (Dividir / Split) --}}
+                        <button type="button"
+                                id="btnMiddleCutScissors"
+                                onclick="handleScissorsClick()"
+                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
+                                title="Dividir a trilha na posição atual da agulha (Split)">
+                            <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
+                            <span id="textScissors">Dividir</span>
                         </button>
 
-                        {{-- Botão Tesoura (Split / Corte no Meio) --}}
-                        <div class="flex items-center gap-1">
-                            <button type="button"
-                                    id="btnMiddleCutScissors"
-                                    onclick="handleScissorsClick()"
-                                    class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
-                                    title="Cortar no meio: 1º clique marca início, 2º clique marca fim do trecho">
-                                <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
-                                <span id="textScissors" class="hidden sm:inline">Cortar Meio</span>
-                            </button>
-                            <button type="button" 
-                                    id="btnClearMiddleCut"
-                                    onclick="clearMiddleCut()"
-                                    class="hidden px-2 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-800 text-red-200 border border-red-500 text-xs font-black cursor-pointer transition shrink-0"
-                                    title="Desfazer corte no meio">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+                        {{-- Botão Lixeira (Excluir Trecho Selecionado) --}}
+                        <button type="button"
+                                id="btnTrashSegment"
+                                onclick="deleteSelectedSegment()"
+                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0"
+                                title="Selecione uma parte da trilha e clique para excluir">
+                            <i class="fas fa-trash-alt text-gray-400" id="iconTrash"></i>
+                            <span id="textTrash" class="hidden sm:inline">Excluir</span>
+                        </button>
 
-                        {{-- Botão Fim (Set Out ▶|) --}}
+                        {{-- Botão Desfazer / Restaurar --}}
                         <button type="button" 
-                                onclick="setCutPointHere('end')"
-                                class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
-                                style="background-color: #2563eb; color: #ffffff;"
-                                title="Gravar posição atual como fim do corte (Mark Out)">
-                            <span class="hidden sm:inline">Fim</span>
-                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M17 4h3v16h-3V4zM4 20V4l11 8-11 8z" />
-                            </svg>
+                                id="btnClearMiddleCut"
+                                onclick="resetSplitsAndCuts()"
+                                class="hidden px-2 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 text-xs font-bold cursor-pointer transition shrink-0"
+                                title="Desfazer divisões e restaurar trecho original">
+                            <i class="fas fa-undo text-[10px] text-gray-400"></i>
                         </button>
                     </div>
 
@@ -360,14 +346,10 @@
                         {{-- Marcadores numéricos proporcionais gerados dinamicamente via JS --}}
                     </div>
 
-                    {{-- B. TRILHA DE TEXTO / PRODUTO (OVERLAY TRACK) --}}
-                    <div class="relative w-full h-6 sm:h-7 bg-gray-900/50 rounded-lg overflow-hidden border border-gray-800/80 flex items-center">
-                        <div id="trackTextItem" 
-                             class="absolute top-0 bottom-0 rounded-lg bg-gradient-to-r from-purple-800 via-fuchsia-700 to-purple-800 border border-purple-400/50 flex items-center px-2 text-[10px] sm:text-xs font-bold text-white shadow-sm overflow-hidden pointer-events-none"
-                             style="left: 0%; width: 100%;">
-                            <span class="mr-1.5 px-1 py-0.2 bg-black/40 rounded text-[9px] font-black text-purple-200">T</span>
-                            <span id="timelineProductTitleText" class="truncate font-sans font-extrabold text-gray-100">Produto</span>
-                        </div>
+                    {{-- B. TRILHA DE LEGENDA / PRODUTO (COM ALÇAS DE CORTE PUXÁVEIS E SEGMENTOS DIVIDIDOS) --}}
+                    <div class="relative w-full h-8 sm:h-9 bg-gray-950/70 rounded-xl overflow-visible border border-gray-800 flex items-center"
+                         id="captionTrackContainer">
+                        {{-- Segmentos e Alças renderizados dinamicamente via renderCaptionTrack() --}}
                     </div>
 
                     {{-- C. TRILHA DE VÍDEO COM FILMSTRIP (FRAMES / MINIATURAS) --}}
@@ -550,11 +532,13 @@ let activeStart = 0;
 let activeEnd = 0;
 let originalStart = 0;
 let originalEnd = 0;
-let middleCut1 = null;
 let middleCutStart = null;
 let middleCutEnd = null;
 let originalMiddleCutStart = null;
 let originalMiddleCutEnd = null;
+let splitPoints = [];
+let selectedSegmentIndex = null;
+let draggingHandle = null;
 let isUsingRecording = false;
 let toastTimeout = null;
 let isScrubbing = false;
@@ -779,11 +763,13 @@ function openPreviewModal(item) {
     originalStart = activeStart;
     originalEnd = activeEnd;
 
-    middleCut1 = null;
     middleCutStart = (item.middle_cut_start_sec !== null && item.middle_cut_start_sec !== undefined && item.middle_cut_start_sec !== '') ? Number(item.middle_cut_start_sec) : null;
     middleCutEnd = (item.middle_cut_end_sec !== null && item.middle_cut_end_sec !== undefined && item.middle_cut_end_sec !== '') ? Number(item.middle_cut_end_sec) : null;
     originalMiddleCutStart = middleCutStart;
     originalMiddleCutEnd = middleCutEnd;
+    splitPoints = [];
+    selectedSegmentIndex = null;
+    draggingHandle = null;
 
     const badgeEl = document.getElementById('modalSourceBadge');
 
@@ -930,6 +916,322 @@ function setCutPointHere(type) {
     renderTimeBadges();
 }
 
+function getSegmentsList() {
+    if (middleCutStart !== null && middleCutEnd !== null) {
+        return [
+            { start: activeStart, end: middleCutStart, isDeleted: false },
+            { start: middleCutStart, end: middleCutEnd, isDeleted: true },
+            { start: middleCutEnd, end: activeEnd, isDeleted: false }
+        ];
+    }
+
+    const validSplits = splitPoints
+        .filter(p => p > activeStart + 0.3 && p < activeEnd - 0.3)
+        .sort((a, b) => a - b);
+
+    if (validSplits.length === 0) {
+        return [
+            { start: activeStart, end: activeEnd, isDeleted: false }
+        ];
+    }
+
+    const segments = [];
+    let currentStart = activeStart;
+    for (let i = 0; i < validSplits.length; i++) {
+        segments.push({ start: currentStart, end: validSplits[i], isDeleted: false });
+        currentStart = validSplits[i];
+    }
+    segments.push({ start: currentStart, end: activeEnd, isDeleted: false });
+
+    return segments;
+}
+
+function renderCaptionTrack() {
+    const container = document.getElementById('captionTrackContainer');
+    if (!container) return;
+
+    if (draggingHandle !== null) {
+        updateTrimHandlePositionsFast();
+        return;
+    }
+
+    container.innerHTML = '';
+    const { wStart, span } = getWindowBounds();
+    const segments = getSegmentsList();
+    const itemName = (currentItem && currentItem.item_name) ? currentItem.item_name : 'Produto';
+
+    segments.forEach((seg, index) => {
+        const segStartPct = Math.min(100, Math.max(0, ((seg.start - wStart) / span) * 100));
+        const segEndPct = Math.min(100, Math.max(segStartPct, ((seg.end - wStart) / span) * 100));
+        const segWidthPct = Math.max(0, segEndPct - segStartPct);
+
+        const segDiv = document.createElement('div');
+        segDiv.className = 'caption-segment absolute top-0.5 bottom-0.5 rounded-lg flex items-center transition-all select-none overflow-visible';
+        segDiv.style.left = `${segStartPct}%`;
+        segDiv.style.width = `${segWidthPct}%`;
+        segDiv.dataset.index = index;
+
+        const isSelected = (selectedSegmentIndex === index);
+
+        if (seg.isDeleted) {
+            // Trecho excluído (Corte no meio)
+            segDiv.className += ' bg-red-950/85 border border-dashed border-red-500/80 text-red-300 cursor-pointer overflow-hidden z-10';
+            segDiv.title = 'Trecho excluído (Clique para selecionar ou restaurar)';
+            segDiv.innerHTML = `
+                <div class="w-full h-full flex items-center justify-center px-1 text-[9px] font-mono font-bold text-red-300 pointer-events-none"
+                     style="background: repeating-linear-gradient(45deg, rgba(30,10,10,0.8), rgba(30,10,10,0.8) 5px, rgba(50,15,15,0.8) 5px, rgba(50,15,15,0.8) 10px);">
+                    <i class="fas fa-scissors mr-1 text-[8px] text-red-400"></i>
+                    <span class="truncate">-${(seg.end - seg.start).toFixed(1)}s (Excluído)</span>
+                </div>
+            `;
+            segDiv.onclick = (e) => selectSegment(index, e);
+        } else {
+            // Segmento ativo normal
+            if (isSelected) {
+                segDiv.className += ' bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 border-2 border-amber-300 ring-2 ring-amber-400/80 shadow-[0_0_14px_rgba(251,191,36,0.7)] text-amber-950 font-black cursor-pointer z-20';
+            } else {
+                segDiv.className += ' bg-gradient-to-r from-purple-800 via-fuchsia-700 to-purple-800 border border-purple-400/60 shadow-md text-white cursor-pointer hover:brightness-110 z-10';
+            }
+
+            // A. ALÇA ESQUERDA (Puxador Início) apenas no primeiro segmento ativo
+            if (index === 0) {
+                const handleStart = document.createElement('div');
+                handleStart.id = 'handleTrimStart';
+                handleStart.className = 'absolute -top-1 -bottom-1 -left-1.5 w-4 bg-cyan-400 hover:bg-cyan-300 active:bg-cyan-200 cursor-ew-resize flex items-center justify-center rounded-l-md z-35 shadow-lg touch-none select-none transition-colors border border-cyan-200';
+                handleStart.title = '↔ Arraste para a esquerda ou direita para ajustar o início do corte';
+                handleStart.innerHTML = '<div class="w-0.5 h-3 bg-cyan-950 rounded-full pointer-events-none"></div>';
+                segDiv.appendChild(handleStart);
+            }
+
+            // B. CONTEÚDO DO SEGMENTO (Texto do Produto)
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = 'flex-1 h-full flex items-center overflow-hidden px-3 text-[10px] sm:text-xs font-bold';
+            const partLabel = segments.length > 1 ? ` <span class="text-[9px] opacity-80 font-mono ml-1">(P${index + 1})</span>` : '';
+            bodyDiv.innerHTML = `
+                <span class="mr-1.5 px-1 py-0.2 bg-black/40 rounded text-[9px] font-black text-purple-200 shrink-0">T</span>
+                <span class="truncate font-sans font-extrabold">${itemName}${partLabel}</span>
+            `;
+            bodyDiv.onclick = (e) => selectSegment(index, e);
+            segDiv.appendChild(bodyDiv);
+
+            // C. ALÇA DIREITA (Puxador Fim) apenas no último segmento ativo
+            if (index === segments.length - 1) {
+                const handleEnd = document.createElement('div');
+                handleEnd.id = 'handleTrimEnd';
+                handleEnd.className = 'absolute -top-1 -bottom-1 -right-1.5 w-4 bg-cyan-400 hover:bg-cyan-300 active:bg-cyan-200 cursor-ew-resize flex items-center justify-center rounded-r-md z-35 shadow-lg touch-none select-none transition-colors border border-cyan-200';
+                handleEnd.title = '↔ Arraste para a esquerda ou direita para ajustar o fim do corte';
+                handleEnd.innerHTML = '<div class="w-0.5 h-3 bg-cyan-950 rounded-full pointer-events-none"></div>';
+                segDiv.appendChild(handleEnd);
+            }
+
+            // D. DIVISOR DE CORTE (se houver próximo segmento)
+            if (index < segments.length - 1) {
+                const cutDivider = document.createElement('div');
+                cutDivider.className = 'absolute -right-2 top-0 bottom-0 w-4 flex flex-col items-center justify-center z-25 pointer-events-none';
+                cutDivider.innerHTML = `
+                    <div class="w-4 h-4 rounded-full bg-amber-400 text-amber-950 text-[8px] font-black flex items-center justify-center shadow-lg border border-white">
+                        <i class="fas fa-scissors text-[8px]"></i>
+                    </div>
+                `;
+                segDiv.appendChild(cutDivider);
+            }
+        }
+
+        container.appendChild(segDiv);
+    });
+
+    initTrimHandleEvents();
+}
+
+function initTrimHandleEvents() {
+    const handleStart = document.getElementById('handleTrimStart');
+    if (handleStart && handleStart.dataset.dragInit !== 'true') {
+        handleStart.dataset.dragInit = 'true';
+
+        handleStart.addEventListener('pointerdown', function(e) {
+            e.stopPropagation();
+            draggingHandle = 'start';
+            isScrubbing = false;
+            try {
+                handleStart.setPointerCapture(e.pointerId);
+            } catch(err) {}
+        });
+
+        handleStart.addEventListener('pointermove', function(e) {
+            if (draggingHandle !== 'start') return;
+            e.stopPropagation();
+            onTrimDrag(e.clientX, 'start');
+        });
+
+        const stopDragStart = function(e) {
+            if (draggingHandle !== 'start') return;
+            draggingHandle = null;
+            try {
+                if (e && e.pointerId) handleStart.releasePointerCapture(e.pointerId);
+            } catch(err) {}
+            renderTimeBadges();
+            showToast(`📍 Início ajustado para: ${formatTime(activeStart)}`);
+        };
+
+        handleStart.addEventListener('pointerup', stopDragStart);
+        handleStart.addEventListener('pointercancel', stopDragStart);
+    }
+
+    const handleEnd = document.getElementById('handleTrimEnd');
+    if (handleEnd && handleEnd.dataset.dragInit !== 'true') {
+        handleEnd.dataset.dragInit = 'true';
+
+        handleEnd.addEventListener('pointerdown', function(e) {
+            e.stopPropagation();
+            draggingHandle = 'end';
+            isScrubbing = false;
+            try {
+                handleEnd.setPointerCapture(e.pointerId);
+            } catch(err) {}
+        });
+
+        handleEnd.addEventListener('pointermove', function(e) {
+            if (draggingHandle !== 'end') return;
+            e.stopPropagation();
+            onTrimDrag(e.clientX, 'end');
+        });
+
+        const stopDragEnd = function(e) {
+            if (draggingHandle !== 'end') return;
+            draggingHandle = null;
+            try {
+                if (e && e.pointerId) handleEnd.releasePointerCapture(e.pointerId);
+            } catch(err) {}
+            renderTimeBadges();
+            showToast(`📍 Fim ajustado para: ${formatTime(activeEnd)}`);
+        };
+
+        handleEnd.addEventListener('pointerup', stopDragEnd);
+        handleEnd.addEventListener('pointercancel', stopDragEnd);
+    }
+}
+
+function onTrimDrag(clientX, type) {
+    const track = document.getElementById('visualTimelineTrack');
+    const player = document.getElementById('modalVideoPlayer');
+    if (!track || !player) return;
+
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
+    const clickX = clientX - rect.left;
+    const pct = Math.min(1, Math.max(0, clickX / rect.width));
+    const { wStart, span } = getWindowBounds();
+
+    let targetTime = wStart + (span * pct);
+    targetTime = Math.round(targetTime * 10) / 10;
+
+    if (type === 'start') {
+        const maxAllowed = (splitPoints.length > 0) ? splitPoints[0] - 0.5 : activeEnd - 0.5;
+        targetTime = Math.max(0, Math.min(maxAllowed, targetTime));
+        activeStart = targetTime;
+
+        if (middleCutStart !== null && activeStart >= middleCutStart) {
+            middleCutStart = null;
+            middleCutEnd = null;
+        }
+
+        try {
+            if (isUsingRecording) {
+                player.currentTime = activeStart;
+            } else {
+                player.currentTime = Math.max(0, activeStart - originalStart);
+            }
+        } catch(e) {}
+
+    } else if (type === 'end') {
+        const minAllowed = (splitPoints.length > 0) ? splitPoints[splitPoints.length - 1] + 0.5 : activeStart + 0.5;
+        targetTime = Math.max(minAllowed, targetTime);
+        activeEnd = targetTime;
+
+        if (middleCutEnd !== null && activeEnd <= middleCutEnd) {
+            middleCutStart = null;
+            middleCutEnd = null;
+        }
+
+        try {
+            if (isUsingRecording) {
+                player.currentTime = activeEnd;
+            } else {
+                player.currentTime = Math.max(0, activeEnd - originalStart);
+            }
+        } catch(e) {}
+    }
+
+    updateTrimHandlePositionsFast();
+    renderTimeBadgesNumbersOnly();
+}
+
+function updateTrimHandlePositionsFast() {
+    const { wStart, span } = getWindowBounds();
+    const startPct = Math.min(100, Math.max(0, ((activeStart - wStart) / span) * 100));
+    const endPct = Math.min(100, Math.max(startPct, ((activeEnd - wStart) / span) * 100));
+
+    const trackDarkBefore = document.getElementById('trackDarkBefore');
+    const trackBlueActive = document.getElementById('trackBlueActive');
+    const trackDarkAfter = document.getElementById('trackDarkAfter');
+    const markerStart = document.getElementById('markerStart');
+    const markerEnd = document.getElementById('markerEnd');
+
+    if (trackDarkBefore) trackDarkBefore.style.width = `${startPct}%`;
+    if (trackBlueActive) {
+        trackBlueActive.style.left = `${startPct}%`;
+        trackBlueActive.style.width = `${Math.max(0, endPct - startPct)}%`;
+    }
+    if (trackDarkAfter) trackDarkAfter.style.width = `${Math.max(0, 100 - endPct)}%`;
+    if (markerStart) markerStart.style.left = `${startPct}%`;
+    if (markerEnd) markerEnd.style.left = `${endPct}%`;
+
+    const container = document.getElementById('captionTrackContainer');
+    if (!container) return;
+    const segElements = container.querySelectorAll('.caption-segment');
+    if (segElements.length > 0) {
+        const firstSeg = segElements[0];
+        const lastSeg = segElements[segElements.length - 1];
+        if (segElements.length === 1) {
+            firstSeg.style.left = `${startPct}%`;
+            firstSeg.style.width = `${Math.max(0, endPct - startPct)}%`;
+        } else {
+            if (draggingHandle === 'start') {
+                const sEnd = splitPoints.length > 0 ? splitPoints[0] : activeEnd;
+                const sEndPct = Math.min(100, Math.max(startPct, ((sEnd - wStart) / span) * 100));
+                firstSeg.style.left = `${startPct}%`;
+                firstSeg.style.width = `${Math.max(0, sEndPct - startPct)}%`;
+            } else if (draggingHandle === 'end') {
+                const sStart = splitPoints.length > 0 ? splitPoints[splitPoints.length - 1] : activeStart;
+                const sStartPct = Math.min(100, Math.max(0, ((sStart - wStart) / span) * 100));
+                lastSeg.style.left = `${sStartPct}%`;
+                lastSeg.style.width = `${Math.max(0, endPct - sStartPct)}%`;
+            }
+        }
+    }
+}
+
+function renderTimeBadgesNumbersOnly() {
+    const durSecEl = document.getElementById('badgeDurationSec');
+    const editedFlag = document.getElementById('badgeEditedFlag');
+    let baseDuration = Math.max(0, activeEnd - activeStart);
+    let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
+    let effectiveDuration = Math.max(0, Math.round(baseDuration - cutLoss));
+    if (durSecEl) durSecEl.textContent = `${effectiveDuration}s`;
+
+    const hasChanged = (
+        activeStart !== originalStart || 
+        activeEnd !== originalEnd || 
+        middleCutStart !== originalMiddleCutStart || 
+        middleCutEnd !== originalMiddleCutEnd
+    );
+    if (editedFlag) {
+        if (hasChanged) editedFlag.classList.remove('hidden');
+        else editedFlag.classList.add('hidden');
+    }
+}
+
 function handleScissorsClick() {
     const player = document.getElementById('modalVideoPlayer');
     if (!player) return;
@@ -942,92 +1244,170 @@ function handleScissorsClick() {
     }
     currentSec = Math.round(currentSec * 10) / 10;
 
-    // Se já tinha um corte completo no meio, permite iniciar um novo corte no ponto atual
-    if (middleCutStart !== null && middleCutEnd !== null) {
-        middleCutStart = null;
-        middleCutEnd = null;
-        middleCut1 = currentSec;
-        showToast(`✂️ Novo corte: 1º ponto marcado em ${formatTime(currentSec)}. Clique novamente na tesoura para marcar o 2º ponto.`);
-        renderTimeBadges();
+    // Deve estar dentro do corte ativo
+    if (currentSec <= activeStart + 0.5 || currentSec >= activeEnd - 0.5) {
+        showToast('⚠️ Posicione a agulha de reprodução dentro do corte para dividir.');
         return;
     }
 
-    // 1º Clique da Tesoura
-    if (middleCut1 === null) {
-        if (currentSec <= activeStart || currentSec >= activeEnd) {
-            showToast('⚠️ O corte no meio deve estar entre o Início e o Fim!');
-            return;
-        }
-        middleCut1 = currentSec;
-        showToast(`✂️ 1º Ponto marcado em ${formatTime(middleCut1)}. Avance o vídeo e clique na tesoura para marcar o 2º ponto.`);
-        renderTimeBadges();
-    } else {
-        // 2º Clique da Tesoura
-        if (Math.abs(currentSec - middleCut1) < 0.3) {
-            showToast('⚠️ Escolha um intervalo maior que 0.3s para o corte no meio.');
-            return;
-        }
-
-        const pMin = Math.max(activeStart, Math.min(middleCut1, currentSec));
-        const pMax = Math.min(activeEnd, Math.max(middleCut1, currentSec));
-
-        if (pMax <= pMin) {
-            showToast('⚠️ Intervalo de corte inválido.');
-            middleCut1 = null;
-            renderTimeBadges();
-            return;
-        }
-
-        middleCutStart = pMin;
-        middleCutEnd = pMax;
-        middleCut1 = null;
-
-        const cutDuration = (middleCutEnd - middleCutStart).toFixed(1);
-        showToast(`✂️ Intervalo de ${formatTime(middleCutStart)} a ${formatTime(middleCutEnd)} (-${cutDuration}s) cortado!`);
-        renderTimeBadges();
+    // Se já havia um corte no meio excluído, limpa o anterior para nova divisão
+    if (middleCutStart !== null && middleCutEnd !== null) {
+        middleCutStart = null;
+        middleCutEnd = null;
+        splitPoints = [];
+        selectedSegmentIndex = null;
     }
+
+    // Máximo de 2 divisões (3 partes)
+    if (splitPoints.length >= 2) {
+        showToast('⚠️ Máximo de 2 divisões atingido. Selecione um trecho e clique no lixeiro 🗑️.');
+        return;
+    }
+
+    if (splitPoints.some(p => Math.abs(p - currentSec) < 0.5)) {
+        showToast('⚠️ Já existe uma divisão nesta posição.');
+        return;
+    }
+
+    splitPoints.push(currentSec);
+    splitPoints.sort((a, b) => a - b);
+
+    // Auto-seleciona o segmento correspondente
+    const segments = getSegmentsList();
+    for (let i = 0; i < segments.length; i++) {
+        if (currentSec >= segments[i].start && currentSec <= segments[i].end) {
+            selectedSegmentIndex = i;
+            break;
+        }
+    }
+
+    showToast(`✂️ Trilha dividida em ${formatTime(currentSec)}! Clique na parte que quer retirar e no lixeiro 🗑️ para excluir.`);
+    renderTimeBadges();
 }
 
-function clearMiddleCut(notify = true) {
-    middleCut1 = null;
-    middleCutStart = null;
-    middleCutEnd = null;
-    if (notify) {
-        showToast('✂️ Corte no meio desfeito.');
+function selectSegment(index, event) {
+    if (event) event.stopPropagation();
+    if (selectedSegmentIndex === index) {
+        selectedSegmentIndex = null;
+    } else {
+        selectedSegmentIndex = index;
     }
     renderTimeBadges();
 }
 
+function deleteSelectedSegment() {
+    if (selectedSegmentIndex === null) {
+        showToast('⚠️ Clique em uma parte da trilha para selecionar antes de excluir.');
+        return;
+    }
+
+    const segments = getSegmentsList();
+    if (!segments || selectedSegmentIndex >= segments.length) return;
+
+    const seg = segments[selectedSegmentIndex];
+
+    if (seg.isDeleted) {
+        resetSplitsAndCuts();
+        showToast('↩️ Trecho restaurado com sucesso!');
+        return;
+    }
+
+    if (segments.length === 1) {
+        showToast('💡 Dica: Use a tesoura ✂️ para dividir o trecho que quer excluir, ou puxe as alças ciano nas pontas.');
+        return;
+    }
+
+    if (segments.length === 2) {
+        const splitPoint = splitPoints[0];
+        if (selectedSegmentIndex === 0) {
+            activeStart = splitPoint;
+            splitPoints = [];
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho inicial excluído! Novo início: ${formatTime(activeStart)}`);
+        } else {
+            activeEnd = splitPoint;
+            splitPoints = [];
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho final excluído! Novo fim: ${formatTime(activeEnd)}`);
+        }
+    } else if (segments.length === 3) {
+        if (selectedSegmentIndex === 0) {
+            activeStart = splitPoints[0];
+            splitPoints.shift();
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho inicial excluído! Novo início: ${formatTime(activeStart)}`);
+        } else if (selectedSegmentIndex === 2) {
+            activeEnd = splitPoints[1];
+            splitPoints.pop();
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho final excluído! Novo fim: ${formatTime(activeEnd)}`);
+        } else if (selectedSegmentIndex === 1) {
+            middleCutStart = splitPoints[0];
+            middleCutEnd = splitPoints[1];
+            splitPoints = [];
+            selectedSegmentIndex = null;
+            const cutSec = (middleCutEnd - middleCutStart).toFixed(1);
+            showToast(`🗑️ Trecho do meio excluído (-${cutSec}s)!`);
+        }
+    }
+
+    renderTimeBadges();
+}
+
+function resetSplitsAndCuts() {
+    splitPoints = [];
+    selectedSegmentIndex = null;
+    middleCutStart = null;
+    middleCutEnd = null;
+    renderTimeBadges();
+    showToast('✂️ Divisões e cortes desfeitos.');
+}
+
+function clearMiddleCut(notify = true) {
+    resetSplitsAndCuts();
+}
+
 function renderTimeBadges() {
-    const barStartMinutagem = document.getElementById('barStartMinutagem');
-    const barEndMinutagem = document.getElementById('barEndMinutagem');
     const durSecEl = document.getElementById('badgeDurationSec');
     const editedFlag = document.getElementById('badgeEditedFlag');
-    const btnScissors = document.getElementById('btnMiddleCutScissors');
-    const textScissors = document.getElementById('textScissors');
-    const btnClearScissors = document.getElementById('btnClearMiddleCut');
+    const btnTrash = document.getElementById('btnTrashSegment');
+    const textTrash = document.getElementById('textTrash');
+    const iconTrash = document.getElementById('iconTrash');
+    const btnReset = document.getElementById('btnClearMiddleCut');
 
     let baseDuration = Math.max(0, activeEnd - activeStart);
     let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
     let effectiveDuration = Math.max(0, Math.round(baseDuration - cutLoss));
 
-    if (barStartMinutagem) barStartMinutagem.textContent = formatTime(activeStart);
-    if (barEndMinutagem) barEndMinutagem.textContent = formatTime(activeEnd);
     if (durSecEl) durSecEl.textContent = `${effectiveDuration}s`;
 
-    if (textScissors && btnScissors) {
-        if (middleCut1 !== null) {
-            textScissors.textContent = '2º Ponto ✂️';
-            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-amber-950 font-black text-xs flex items-center gap-1.5 transition shadow-md cursor-pointer border border-amber-300 animate-pulse';
-            if (btnClearScissors) btnClearScissors.classList.remove('hidden');
-        } else if (middleCutStart !== null && middleCutEnd !== null) {
-            textScissors.textContent = `-${cutLoss.toFixed(1)}s (Meio)`;
-            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-900/90 hover:bg-red-800 active:scale-95 text-red-100 font-black text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-red-500';
-            if (btnClearScissors) btnClearScissors.classList.remove('hidden');
+    const segments = getSegmentsList();
+    const hasSplitsOrCuts = (splitPoints.length > 0 || middleCutStart !== null);
+
+    if (btnReset) {
+        if (hasSplitsOrCuts) btnReset.classList.remove('hidden');
+        else btnReset.classList.add('hidden');
+    }
+
+    if (btnTrash) {
+        if (selectedSegmentIndex !== null && segments[selectedSegmentIndex]) {
+            const seg = segments[selectedSegmentIndex];
+            if (seg.isDeleted) {
+                btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
+                if (iconTrash) iconTrash.className = 'fas fa-undo text-emerald-100';
+                if (textTrash) textTrash.textContent = 'Restaurar';
+                btnTrash.title = 'Clique para restaurar este trecho excluído';
+            } else {
+                btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white border border-red-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
+                if (iconTrash) iconTrash.className = 'fas fa-trash-alt text-white';
+                if (textTrash) textTrash.textContent = segments.length > 1 ? `Excluir P${selectedSegmentIndex + 1}` : 'Excluir';
+                btnTrash.title = 'Clique para excluir a parte selecionada';
+            }
         } else {
-            textScissors.textContent = 'Cortar Meio';
-            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50';
-            if (btnClearScissors) btnClearScissors.classList.add('hidden');
+            btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0';
+            if (iconTrash) iconTrash.className = 'fas fa-trash-alt text-gray-500';
+            if (textTrash) textTrash.textContent = 'Excluir';
+            btnTrash.title = 'Selecione uma parte da trilha para excluir';
         }
     }
 
@@ -1049,9 +1429,10 @@ function renderTimeBadges() {
 }
 
 function updateVisualTimeline() {
+    renderCaptionTrack();
+
     const trackDarkBefore = document.getElementById('trackDarkBefore');
     const trackBlueActive = document.getElementById('trackBlueActive');
-    const trackTextItem = document.getElementById('trackTextItem');
     const trackDarkAfter = document.getElementById('trackDarkAfter');
     const markerStart = document.getElementById('markerStart');
     const markerEnd = document.getElementById('markerEnd');
@@ -1076,18 +1457,12 @@ function updateVisualTimeline() {
         trackBlueActive.style.width = `${Math.max(0, endPct - startPct)}%`;
     }
 
-    // 2.1 Faixa de Texto (Track de Legenda/Produto) acompanha a minutagem ativa
-    if (trackTextItem) {
-        trackTextItem.style.left = `${startPct}%`;
-        trackTextItem.style.width = `${Math.max(0, endPct - startPct)}%`;
-    }
-
     // 3. Faixa escura depois do fim
     if (trackDarkAfter) {
         trackDarkAfter.style.width = `${Math.max(0, 100 - endPct)}%`;
     }
 
-    // 4. Riscos verticais estendidos (maiores para cima e para baixo)
+    // 4. Riscos verticais estendidos
     if (markerStart) {
         markerStart.style.left = `${startPct}%`;
     }
@@ -1095,19 +1470,8 @@ function updateVisualTimeline() {
         markerEnd.style.left = `${endPct}%`;
     }
 
-    // 5. Marcador 1 da Tesoura (se clicou 1 vez)
-    if (markerCut1) {
-        if (middleCut1 !== null) {
-            const cut1Pct = Math.min(100, Math.max(0, ((middleCut1 - wStart) / span) * 100));
-            markerCut1.style.left = `${cut1Pct}%`;
-            markerCut1.classList.remove('hidden');
-        } else {
-            markerCut1.classList.add('hidden');
-        }
-    }
-
-    // 6. Intervalo cortado da Tesoura (se clicou 2 vezes)
-    if (trackDarkMiddleCut && markerCut2) {
+    // 5. Exibe os pontos da tesoura no filmstrip
+    if (markerCut1 && markerCut2 && trackDarkMiddleCut) {
         if (middleCutStart !== null && middleCutEnd !== null) {
             const mStartPct = Math.min(100, Math.max(0, ((middleCutStart - wStart) / span) * 100));
             const mEndPct = Math.min(100, Math.max(mStartPct, ((middleCutEnd - wStart) / span) * 100));
@@ -1122,16 +1486,29 @@ function updateVisualTimeline() {
                 trackDarkMiddleCutLabel.textContent = `✂️ -${diff}s`;
             }
 
-            // Exibe os marcadores de início e fim do corte no meio
-            if (markerCut1) {
-                markerCut1.style.left = `${mStartPct}%`;
-                markerCut1.classList.remove('hidden');
-            }
+            markerCut1.style.left = `${mStartPct}%`;
+            markerCut1.classList.remove('hidden');
             markerCut2.style.left = `${mEndPct}%`;
             markerCut2.classList.remove('hidden');
+        } else if (splitPoints.length > 0) {
+            trackDarkMiddleCut.classList.add('hidden');
+            trackDarkMiddleCut.classList.remove('flex');
+
+            const s1Pct = Math.min(100, Math.max(0, ((splitPoints[0] - wStart) / span) * 100));
+            markerCut1.style.left = `${s1Pct}%`;
+            markerCut1.classList.remove('hidden');
+
+            if (splitPoints.length > 1) {
+                const s2Pct = Math.min(100, Math.max(0, ((splitPoints[1] - wStart) / span) * 100));
+                markerCut2.style.left = `${s2Pct}%`;
+                markerCut2.classList.remove('hidden');
+            } else {
+                markerCut2.classList.add('hidden');
+            }
         } else {
             trackDarkMiddleCut.classList.add('hidden');
             trackDarkMiddleCut.classList.remove('flex');
+            markerCut1.classList.add('hidden');
             markerCut2.classList.add('hidden');
         }
     }
@@ -1404,6 +1781,9 @@ window.forceClosePreviewModal = forceClosePreviewModal;
 window.confirmAndSaveCut = confirmAndSaveCut;
 window.setCutPointHere = setCutPointHere;
 window.handleScissorsClick = handleScissorsClick;
+window.selectSegment = selectSegment;
+window.deleteSelectedSegment = deleteSelectedSegment;
+window.resetSplitsAndCuts = resetSplitsAndCuts;
 window.clearMiddleCut = clearMiddleCut;
 window.toggleModalPlayPause = toggleModalPlayPause;
 window.jumpMinus10 = jumpMinus10;

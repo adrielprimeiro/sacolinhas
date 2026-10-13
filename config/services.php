@@ -84,4 +84,10 @@ return [
         'client_secret' => env('TIKTOK_CLIENT_SECRET'),
         'redirect_uri'  => env('TIKTOK_REDIRECT_URI', 'https://minhamania.net/admin/tiktok/callback'),
     ],
+
+    'instagram' => [
+        'app_id'        => env('INSTAGRAM_APP_ID'),
+        'app_secret'    => env('INSTAGRAM_APP_SECRET'),
+        'redirect_uri'  => env('INSTAGRAM_REDIRECT_URI', 'https://minhamania.net/admin/instagram/callback'),
+    ],
 ];

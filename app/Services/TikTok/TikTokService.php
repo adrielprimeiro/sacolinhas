@@ -52,10 +52,17 @@ class TikTokService
      */
     public function handleCallback(string $code): array
     {
-        Log::info('[TikTokService] Iniciando troca de código por token. Código recebido.', [
+        $codeRaw = $code;
+        $codeDecoded = urldecode($code);
+
+        Log::info('[TikTokService] Iniciando troca de código por token.', [
             'redirect_uri' => $this->redirectUri,
             'client_key' => $this->clientKey,
-            'client_secret_preview' => substr($this->clientSecret, 0, 4) . '...' . substr($this->clientSecret, -4) . ' (len: ' . strlen($this->clientSecret) . ')',
+            'client_secret_len' => strlen($this->clientSecret),
+            'client_secret_first2_last2' => substr($this->clientSecret, 0, 2) . '..' . substr($this->clientSecret, -2),
+            'code_len' => strlen($code),
+            'code_raw' => $codeRaw,
+            'code_decoded' => $codeDecoded,
         ]);
 
         $response = Http::asForm()
@@ -65,7 +72,7 @@ class TikTokService
             ->post('https://open.tiktokapis.com/v2/oauth/token/', [
                 'client_key' => $this->clientKey,
                 'client_secret' => $this->clientSecret,
-                'code' => $code,
+                'code' => $codeDecoded,
                 'grant_type' => 'authorization_code',
                 'redirect_uri' => $this->redirectUri,
             ]);
@@ -275,38 +282,21 @@ class TikTokService
             ]);
 
         try {
-            // Tenta primeiro o método PULL_FROM_URL (TikTok baixa diretamente do nosso servidor verificado)
-            $initPayload = [
-                'post_info' => [
-                    'title' => $caption,
-                    'privacy_level' => $privacy,
-                    'disable_duet' => false,
-                    'disable_stitch' => false,
-                    'disable_comment' => false,
-                    'video_cover_timestamp_ms' => 1000
-                ],
-                'source_info' => [
-                    'source' => 'PULL_FROM_URL',
-                    'video_url' => $publicVideoUrl
-                ]
-            ];
+            $publishId = null;
+            $attemptPrivacies = [$privacy];
+            if ($privacy !== 'SELF_ONLY') {
+                $attemptPrivacies[] = 'SELF_ONLY';
+            }
 
-            $initResponse = Http::withToken($accessToken)
-                ->withHeaders(['Content-Type' => 'application/json; charset=UTF-8'])
-                ->post('https://open.tiktokapis.com/v2/post/publish/video/init/', $initPayload);
+            $lastErrorMsg = '';
+            $fileSize = filesize($videoPath);
 
-            $data = $initResponse->json('data') ?? [];
-            $publishId = $data['publish_id'] ?? null;
-
-            // Se PULL_FROM_URL falhar por permissão de domínio, faz fallback para FILE_UPLOAD direto
-            if (!$initResponse->successful() || !$publishId) {
-                Log::warning('[TikTokService] PULL_FROM_URL retornou erro, tentando FILE_UPLOAD direto: ' . $initResponse->body());
-
-                $fileSize = filesize($videoPath);
+            foreach ($attemptPrivacies as $tryPrivacy) {
+                // Tenta upload direto via FILE_UPLOAD
                 $fileInitPayload = [
                     'post_info' => [
                         'title' => $caption,
-                        'privacy_level' => $privacy,
+                        'privacy_level' => $tryPrivacy,
                         'disable_duet' => false,
                         'disable_stitch' => false,
                         'disable_comment' => false,
@@ -324,31 +314,47 @@ class TikTokService
                     ->withHeaders(['Content-Type' => 'application/json; charset=UTF-8'])
                     ->post('https://open.tiktokapis.com/v2/post/publish/video/init/', $fileInitPayload);
 
-                if (!$fileInitRes->successful()) {
-                    Log::error('[TikTokService] Falha no init FILE_UPLOAD: ' . $fileInitRes->body());
-                    throw new \Exception('Erro ao iniciar upload no TikTok: ' . ($fileInitRes->json('error.message') ?? $fileInitRes->body()));
+                $errCode = $fileInitRes->json('error.code') ?? '';
+                $errMsg = $fileInitRes->json('error.message') ?? $fileInitRes->body();
+
+                if ($fileInitRes->successful() && !empty($fileInitRes->json('data.upload_url'))) {
+                    $fileData = $fileInitRes->json('data') ?? [];
+                    $publishId = $fileData['publish_id'] ?? null;
+                    $uploadUrl = $fileData['upload_url'] ?? null;
+
+                    // Streaming dos bytes do vídeo para a upload_url fornecida pelo TikTok
+                    $videoBytes = file_get_contents($videoPath);
+                    $uploadRes = Http::withHeaders([
+                        'Content-Range' => "bytes 0-" . ($fileSize - 1) . "/{$fileSize}",
+                        'Content-Type' => 'video/mp4',
+                        'Content-Length' => (string) $fileSize,
+                    ])->withBody($videoBytes, 'video/mp4')->put($uploadUrl);
+
+                    if (!$uploadRes->successful()) {
+                        Log::error('[TikTokService] Falha no streaming do vídeo: ' . $uploadRes->body());
+                        throw new \Exception('Erro no upload dos dados de vídeo para o TikTok.');
+                    }
+
+                    // Se passou com SELF_ONLY como fallback
+                    if ($tryPrivacy === 'SELF_ONLY' && $privacy !== 'SELF_ONLY') {
+                        Log::info("[TikTokService] Publicado como SELF_ONLY (fallback devido a app em sandbox/análise)");
+                    }
+                    break;
                 }
 
-                $fileData = $fileInitRes->json('data') ?? [];
-                $publishId = $fileData['publish_id'] ?? null;
-                $uploadUrl = $fileData['upload_url'] ?? null;
-
-                if (!$uploadUrl) {
-                    throw new \Exception('TikTok não retornou a URL de upload.');
+                $lastErrorMsg = $errMsg;
+                if ($errCode === 'unaudited_client_can_only_post_to_private_accounts' && $tryPrivacy !== 'SELF_ONLY') {
+                    Log::info('[TikTokService] App não auditado (sandbox/in review). Tentando novamente com privacidade SELF_ONLY...');
+                    continue;
                 }
 
-                // Streaming dos bytes do vídeo para a upload_url fornecida pelo TikTok
-                $videoBytes = file_get_contents($videoPath);
-                $uploadRes = Http::withHeaders([
-                    'Content-Range' => "bytes 0-" . ($fileSize - 1) . "/{$fileSize}",
-                    'Content-Type' => 'video/mp4',
-                    'Content-Length' => (string) $fileSize,
-                ])->withBody($videoBytes, 'video/mp4')->put($uploadUrl);
-
-                if (!$uploadRes->successful()) {
-                    Log::error('[TikTokService] Falha no streaming do vídeo: ' . $uploadRes->body());
-                    throw new \Exception('Erro no upload dos dados de vídeo para o TikTok.');
+                // Se falhou mesmo ou foi outro erro
+                Log::error("[TikTokService] Falha no init FILE_UPLOAD (privacy={$tryPrivacy}): " . $fileInitRes->body());
+                if ($errCode === 'unaudited_client_can_only_post_to_private_accounts') {
+                    throw new \Exception('O TikTok ainda está analisando o app (In Review). Durante a homologação, o TikTok exige que a conta seja temporariamente definida como "Conta Privada" no app do TikTok para permitir testes de upload. Assim que o TikTok aprovar o aplicativo em produção, as postagens públicas serão liberadas automaticamente.');
                 }
+
+                throw new \Exception('Erro ao iniciar upload no TikTok: ' . $errMsg);
             }
 
             if (!$publishId) {

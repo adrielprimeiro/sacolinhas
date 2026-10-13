@@ -346,6 +346,14 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/tiktok/batch-upload', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'batchUploadUnsold'])->name('admin.tiktok.batch-upload');
         Route::get('tiktok/status/{liveId?}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'status'])->name('admin.tiktok.status');
 
+        // ===== INTEGRAÇÃO INSTAGRAM REELS PUBLICAÇÃO AUTOMÁTICA =====
+        Route::get('instagram/connect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'connect'])->name('admin.instagram.connect');
+        Route::get('instagram/callback', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'callback'])->name('admin.instagram.callback');
+        Route::post('instagram/disconnect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'disconnect'])->name('admin.instagram.disconnect');
+        Route::post('instagram/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'uploadCut'])->name('admin.instagram.upload-cut');
+        Route::post('lives/{liveId}/instagram/batch-upload', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'batchUploadUnsold'])->name('admin.instagram.batch-upload');
+        Route::get('instagram/status/{liveId?}', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'status'])->name('admin.instagram.status');
+
         // ===== ADMIN - UPDATE STATUS (DEVE VIR ANTES DO RESOURCE!) =====
         Route::get("items/update-status", [ItemController::class, "updateStatusPage"])
              ->name("admin.items.update-status");
