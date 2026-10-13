@@ -15,7 +15,7 @@ class ImportItemsController extends Controller
         $validator = Validator::make($request->all(), [
             'items' => 'required|array',
             'items.*.nome_do_produto' => 'required|string|max:255', // Nome do produto da planilha
-            'items.*.codigo' => 'required|string|max:255',
+            'items.*.codigo' => 'nullable|string|max:255',
             'items.*.preco' => 'required|numeric|min:0',
         ]);
 
@@ -29,11 +29,13 @@ class ImportItemsController extends Controller
 
         $importedCount = 0;
         $failedItems = [];
+        $importedItems = [];
+        $allocatedCodigos = [];
 
         DB::beginTransaction();
 
         try {
-            // Apenas a Minha Mania (brecho_id = 1) utiliza a importação via planilha
+            // Padrão Minha Mania (brecho_id = 1)
             $defaultBrechoId = 1;
             if ($brechoId && is_numeric($brechoId) && (int)$brechoId > 0) {
                 $defaultBrechoId = (int)$brechoId;
@@ -50,11 +52,49 @@ class ImportItemsController extends Controller
             foreach ($request->input('items') as $itemData) {
                 $itemBrechoId = !empty($itemData['brecho_id']) ? (int)$itemData['brecho_id'] : (int)$defaultBrechoId;
 
+                $rawCodigo = isset($itemData['codigo']) ? strtoupper(trim((string)$itemData['codigo'])) : '';
+                $codigoFinal = $rawCodigo;
+
+                // Se código veio vazio ou "AUTO", gera automaticamente o próximo código seguro do sistema
+                if ($codigoFinal === '' || $codigoFinal === 'AUTO') {
+                    $codigoFinal = \App\Http\Controllers\ItemController::generateNextCodigo($itemBrechoId);
+                    while (in_array($codigoFinal, $allocatedCodigos)) {
+                        $dec = base_convert($codigoFinal, 36, 10) + 1;
+                        $codigoFinal = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+                    }
+                } else {
+                    // Se o código foi fornecido manualmente, verifica se já existe no banco
+                    $itemIdentifier = ['brecho_id' => $itemBrechoId, 'codigo' => $codigoFinal];
+                    $existingItem = DB::table('items')->where($itemIdentifier)->first();
+
+                    if ($existingItem) {
+                        // Verifica se o item existente já foi vendido ou possui histórico protegido
+                        $isProtectedStatus = !in_array($existingItem->status, ['estoque', 'disponivel', null, '']);
+                        $hasSacolinha = DB::table('sacolinhas')->where('item_id', $existingItem->id)->exists();
+                        $hasPedido = DB::table('items_pedido')->where('item_id', $existingItem->id)->exists();
+                        $hasLive = DB::table('live_items')->where('item_id', $existingItem->id)->exists();
+
+                        if ($isProtectedStatus || $hasSacolinha || $hasPedido || $hasLive) {
+                            // PROTEÇÃO: O item existente é uma peça histórica/vendida! JAMAIS sobrescrever!
+                            // Gera um código novo para a nova peça inserida
+                            $novoCodigo = \App\Http\Controllers\ItemController::generateNextCodigo($itemBrechoId);
+                            while (in_array($novoCodigo, $allocatedCodigos)) {
+                                $dec = base_convert($novoCodigo, 36, 10) + 1;
+                                $novoCodigo = strtoupper(str_pad(base_convert($dec, 10, 36), 4, '0', STR_PAD_LEFT));
+                            }
+                            \Log::warning("IMPORT-ITEMS: Código {$codigoFinal} já pertencia a um item vendido/em sacola (ID {$existingItem->id}). Alocado novo código {$novoCodigo} para evitar sobrescrita.");
+                            $codigoFinal = $novoCodigo;
+                        }
+                    }
+                }
+
+                $allocatedCodigos[] = $codigoFinal;
+
                 // Mapeamento dos dados da planilha para os campos do banco de dados
                 $dataToUpdateOrCreate = [
                     'brecho_id' => $itemBrechoId,
                     'nome_do_produto' => $itemData['nome_do_produto'],     
-					'codigo' => $itemData['codigo'],
+                    'codigo' => $codigoFinal,
                     'preco' => $itemData['preco'],
                     'estado' => $itemData['estado'] ?? 'seminovo', 
                     'status' => 'estoque', 
@@ -62,38 +102,27 @@ class ImportItemsController extends Controller
                     'modelo' => $itemData['modelo'] ?? null,
                     'cor' => $itemData['cor'] ?? null,
                     'tamanho' => $itemData['tamanho'] ?? null,					
-					
-                    // Você pode adicionar outros campos aqui se vierem da planilha
-                    // 'descricao' => $itemData['descricao'] ?? null,
-                    // 'custo' => $itemData['custo'] ?? null,
-                    // 'pedido' => $itemData['pedido'] ?? null,
-                    // 'codigo_da_categoria' => $itemData['codigo_da_categoria'] ?? null,
-
-                    // 'image' => $itemData['image'] ?? null,
                 ];
 
-                // Condição para encontrar o item (pelo brecho_id e código)
-                $itemIdentifier = ['brecho_id' => $itemBrechoId, 'codigo' => $itemData['codigo']];
-
-                // Tenta encontrar o item pelo 'brecho_id' e 'codigo'. Se encontrar, atualiza. Se não, insere.
+                // Condição para encontrar o item (pelo brecho_id e código final)
+                $itemIdentifier = ['brecho_id' => $itemBrechoId, 'codigo' => $codigoFinal];
                 $item = DB::table('items')->where($itemIdentifier)->first();
 
                 if ($item) {
                     DB::table('items')
                         ->where($itemIdentifier)
                         ->update($dataToUpdateOrCreate + ['updated_at' => now()]);
+                    $itemId = $item->id;
                 } else {
-                    DB::table('items')->insert($dataToUpdateOrCreate + ['created_at' => now(), 'updated_at' => now()]);
+                    $itemId = DB::table('items')->insertGetId($dataToUpdateOrCreate + ['created_at' => now(), 'updated_at' => now()]);
                 }
-				$check = DB::table('items')->where($itemIdentifier)->first();
 
-				\Log::info('IMPORT-ITEMS AFTER SAVE', [
-					'brecho_id' => $itemBrechoId,
-					'codigo' => $itemData['codigo'],
-					'estado_saved' => $check->estado ?? null,
-					'status_saved' => $check->status ?? null,
-				]);
-				
+                $importedItems[] = [
+                    'id' => $itemId,
+                    'codigo' => $codigoFinal,
+                    'nome' => $itemData['nome_do_produto'],
+                ];
+
                 $importedCount++;
             }
 
@@ -102,6 +131,7 @@ class ImportItemsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "{$importedCount} itens importados/atualizados com sucesso.",
+                'items' => $importedItems,
                 'failed_items' => $failedItems
             ], 200);
 
