@@ -273,6 +273,9 @@
                             <span id="textScissors">Dividir</span>
                         </button>
 
+                        {{-- Pílulas Seletoras de Partes (Parte 1, Parte 2) quando há divisão --}}
+                        <div id="segmentPillsContainer" class="hidden items-center gap-1 shrink-0"></div>
+
                         {{-- Botão Lixeira (Excluir Trecho Selecionado) --}}
                         <button type="button"
                                 id="btnTrashSegment"
@@ -280,7 +283,7 @@
                                 class="px-2.5 sm:px-3 py-1 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0"
                                 title="Selecione uma parte da trilha e clique para excluir">
                             <i class="fas fa-trash-alt text-gray-400" id="iconTrash"></i>
-                            <span id="textTrash" class="hidden sm:inline">Excluir</span>
+                            <span id="textTrash">Excluir</span>
                         </button>
 
                         {{-- Botão Desfazer / Restaurar --}}
@@ -985,6 +988,17 @@ function renderCaptionTrack() {
 
         const isSelected = (selectedSegmentIndex === index);
 
+        // Disparador de clique infalível para selecionar o trecho com mouse ou toque
+        const onSelect = (e) => {
+            if (e.target && (e.target.closest('#handleTrimStart') || e.target.closest('#handleTrimEnd'))) {
+                return;
+            }
+            if (e.stopPropagation) e.stopPropagation();
+            selectSegment(index, e);
+        };
+        segDiv.addEventListener('pointerdown', onSelect);
+        segDiv.addEventListener('click', onSelect);
+
         if (seg.isDeleted) {
             // Trecho excluído (Corte no meio)
             segDiv.className += ' bg-red-950/85 border border-dashed border-red-500/80 text-red-300 cursor-pointer overflow-hidden z-10';
@@ -996,7 +1010,6 @@ function renderCaptionTrack() {
                     <span class="truncate">-${(seg.end - seg.start).toFixed(1)}s (Excluído)</span>
                 </div>
             `;
-            segDiv.onclick = (e) => selectSegment(index, e);
         } else {
             // Segmento ativo normal
             if (isSelected) {
@@ -1017,13 +1030,16 @@ function renderCaptionTrack() {
 
             // B. CONTEÚDO DO SEGMENTO (Texto do Produto)
             const bodyDiv = document.createElement('div');
-            bodyDiv.className = 'flex-1 h-full flex items-center overflow-hidden px-3 text-[10px] sm:text-xs font-bold';
-            const partLabel = segments.length > 1 ? ` <span class="text-[9px] opacity-80 font-mono ml-1">(P${index + 1})</span>` : '';
+            bodyDiv.className = 'flex-1 h-full flex items-center overflow-hidden px-3 text-[10px] sm:text-xs font-bold cursor-pointer';
+            const partLabel = segments.length > 1 ? ` <span class="text-[9px] opacity-80 font-mono ml-1 font-bold">(P${index + 1})</span>` : '';
+            const tBadge = isSelected ? 'bg-black/50 text-amber-200' : 'bg-black/40 text-purple-200';
+            const titleColor = isSelected ? 'text-amber-950 font-black' : 'text-white font-extrabold';
             bodyDiv.innerHTML = `
-                <span class="mr-1.5 px-1 py-0.2 bg-black/40 rounded text-[9px] font-black text-purple-200 shrink-0">T</span>
-                <span class="truncate font-sans font-extrabold">${itemName}${partLabel}</span>
+                <span class="mr-1.5 px-1 py-0.2 ${tBadge} rounded text-[9px] font-black shrink-0">T</span>
+                <span class="truncate font-sans ${titleColor}">${itemName}${partLabel}</span>
             `;
-            bodyDiv.onclick = (e) => selectSegment(index, e);
+            bodyDiv.addEventListener('pointerdown', onSelect);
+            bodyDiv.addEventListener('click', onSelect);
             segDiv.appendChild(bodyDiv);
 
             // C. ALÇA DIREITA (Puxador Fim) apenas no último segmento ativo
@@ -1303,18 +1319,34 @@ function handleScissorsClick() {
 }
 
 function selectSegment(index, event) {
-    if (event) event.stopPropagation();
-    if (selectedSegmentIndex === index) {
-        selectedSegmentIndex = null;
-    } else {
-        selectedSegmentIndex = index;
+    if (event) {
+        if (event.stopPropagation) event.stopPropagation();
     }
+    const segments = getSegmentsList();
+    if (!segments || index < 0 || index >= segments.length) return;
+
+    selectedSegmentIndex = index;
+
+    // Se tiver player, move a agulha para o início deste segmento selecionado
+    const player = document.getElementById('modalVideoPlayer');
+    if (player && segments[index]) {
+        try {
+            if (isUsingRecording) {
+                player.currentTime = segments[index].start;
+            } else {
+                player.currentTime = Math.max(0, segments[index].start - originalStart);
+            }
+        } catch(e) {}
+    }
+
     renderTimeBadges();
+    const segName = segments[index].isDeleted ? 'Trecho Excluído' : `Parte ${index + 1}`;
+    showToast(`🎯 ${segName} selecionada! Clique em Excluir 🗑️ para remover.`);
 }
 
 function deleteSelectedSegment() {
     if (selectedSegmentIndex === null) {
-        showToast('⚠️ Clique em uma parte da trilha para selecionar antes de excluir.');
+        showToast('⚠️ Clique em uma parte da barra para selecionar antes de excluir.');
         return;
     }
 
@@ -1334,35 +1366,54 @@ function deleteSelectedSegment() {
         return;
     }
 
+    // Se já existia um corte no meio (3 segmentos com meio descartado)
+    if (middleCutStart !== null && middleCutEnd !== null) {
+        if (selectedSegmentIndex === 0) {
+            activeStart = middleCutEnd;
+            middleCutStart = null;
+            middleCutEnd = null;
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho inicial excluído! Novo início: ${formatTime(activeStart)}`);
+        } else if (selectedSegmentIndex === 2) {
+            activeEnd = middleCutStart;
+            middleCutStart = null;
+            middleCutEnd = null;
+            selectedSegmentIndex = null;
+            showToast(`🗑️ Trecho final excluído! Novo fim: ${formatTime(activeEnd)}`);
+        }
+        renderTimeBadges();
+        return;
+    }
+
     if (segments.length === 2) {
         const splitPoint = splitPoints[0];
         if (selectedSegmentIndex === 0) {
             activeStart = splitPoint;
             splitPoints = [];
             selectedSegmentIndex = null;
-            showToast(`🗑️ Trecho inicial excluído! Novo início: ${formatTime(activeStart)}`);
+            showToast(`🗑️ Parte 1 excluída! Novo início: ${formatTime(activeStart)}`);
         } else {
             activeEnd = splitPoint;
             splitPoints = [];
             selectedSegmentIndex = null;
-            showToast(`🗑️ Trecho final excluído! Novo fim: ${formatTime(activeEnd)}`);
+            showToast(`🗑️ Parte 2 excluída! Novo fim: ${formatTime(activeEnd)}`);
         }
     } else if (segments.length === 3) {
         if (selectedSegmentIndex === 0) {
             activeStart = splitPoints[0];
             splitPoints.shift();
             selectedSegmentIndex = null;
-            showToast(`🗑️ Trecho inicial excluído! Novo início: ${formatTime(activeStart)}`);
+            showToast(`🗑️ Parte 1 excluída! Novo início: ${formatTime(activeStart)}`);
         } else if (selectedSegmentIndex === 2) {
             activeEnd = splitPoints[1];
             splitPoints.pop();
             selectedSegmentIndex = null;
-            showToast(`🗑️ Trecho final excluído! Novo fim: ${formatTime(activeEnd)}`);
+            showToast(`🗑️ Parte 3 excluída! Novo fim: ${formatTime(activeEnd)}`);
         } else if (selectedSegmentIndex === 1) {
             middleCutStart = splitPoints[0];
             middleCutEnd = splitPoints[1];
             splitPoints = [];
-            selectedSegmentIndex = null;
+            selectedSegmentIndex = 1; // Mantém selecionado como excluído
             const cutSec = (middleCutEnd - middleCutStart).toFixed(1);
             showToast(`🗑️ Trecho do meio excluído (-${cutSec}s)!`);
         }
@@ -1406,25 +1457,54 @@ function renderTimeBadges() {
         else btnReset.classList.add('hidden');
     }
 
+    // Pílulas seletoras de partes (Parte 1, Parte 2, etc.) na barra de ferramentas
+    const pillsContainer = document.getElementById('segmentPillsContainer');
+    if (pillsContainer) {
+        pillsContainer.innerHTML = '';
+        if (segments.length > 1) {
+            pillsContainer.classList.remove('hidden');
+            pillsContainer.classList.add('flex');
+            segments.forEach((seg, i) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isSel = (selectedSegmentIndex === i);
+                const isDel = seg.isDeleted;
+                if (isDel) {
+                    btn.className = `px-2 py-0.5 rounded-lg text-[10px] font-black border transition cursor-pointer flex items-center gap-1 ${isSel ? 'bg-red-500 text-white border-red-300 ring-2 ring-red-400' : 'bg-red-950/80 text-red-300 border-red-700 hover:bg-red-900'}`;
+                    btn.innerHTML = `<i class="fas fa-scissors text-[9px]"></i><span>Excluído (-${(seg.end - seg.start).toFixed(1)}s)</span>`;
+                } else {
+                    btn.className = `px-2.5 py-0.5 rounded-lg text-[10px] font-black border transition cursor-pointer flex items-center gap-1 ${isSel ? 'bg-amber-400 text-amber-950 border-amber-200 ring-2 ring-amber-300 shadow-sm' : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`;
+                    btn.innerHTML = `<span>Parte ${i + 1}</span><span class="text-[9px] opacity-75 font-mono">(${Math.max(0, seg.end - seg.start).toFixed(0)}s)</span>`;
+                }
+                btn.title = `Clique para selecionar a Parte ${i + 1} (${formatTime(seg.start)} - ${formatTime(seg.end)})`;
+                btn.onclick = (e) => selectSegment(i, e);
+                pillsContainer.appendChild(btn);
+            });
+        } else {
+            pillsContainer.classList.add('hidden');
+            pillsContainer.classList.remove('flex');
+        }
+    }
+
     if (btnTrash) {
         if (selectedSegmentIndex !== null && segments[selectedSegmentIndex]) {
             const seg = segments[selectedSegmentIndex];
             if (seg.isDeleted) {
-                btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
+                btnTrash.className = 'px-2.5 sm:px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
                 if (iconTrash) iconTrash.className = 'fas fa-undo text-emerald-100';
                 if (textTrash) textTrash.textContent = 'Restaurar';
                 btnTrash.title = 'Clique para restaurar este trecho excluído';
             } else {
-                btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white border border-red-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
+                btnTrash.className = 'px-2.5 sm:px-3 py-1 rounded-xl bg-red-600 hover:bg-red-500 text-white border border-red-400 font-extrabold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0 animate-pulse';
                 if (iconTrash) iconTrash.className = 'fas fa-trash-alt text-white';
-                if (textTrash) textTrash.textContent = segments.length > 1 ? `Excluir P${selectedSegmentIndex + 1}` : 'Excluir';
-                btnTrash.title = 'Clique para excluir a parte selecionada';
+                if (textTrash) textTrash.textContent = segments.length > 1 ? `Excluir Parte ${selectedSegmentIndex + 1}` : 'Excluir';
+                btnTrash.title = `Clique para excluir a Parte ${selectedSegmentIndex + 1}`;
             }
         } else {
-            btnTrash.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0';
+            btnTrash.className = 'px-2.5 sm:px-3 py-1 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0';
             if (iconTrash) iconTrash.className = 'fas fa-trash-alt text-gray-500';
             if (textTrash) textTrash.textContent = 'Excluir';
-            btnTrash.title = 'Selecione uma parte da trilha para excluir';
+            btnTrash.title = 'Selecione uma parte da barra para excluir';
         }
     }
 
@@ -1556,6 +1636,20 @@ function seekToTrackPosition(clientX) {
         }
     } catch(e) {}
 
+    // Se houver múltiplos segmentos, clicar em qualquer ponto da barra seleciona automaticamente essa parte!
+    const segments = getSegmentsList();
+    if (segments.length > 1) {
+        for (let i = 0; i < segments.length; i++) {
+            if (targetAbsTime >= segments[i].start && targetAbsTime <= segments[i].end) {
+                if (selectedSegmentIndex !== i) {
+                    selectedSegmentIndex = i;
+                    renderTimeBadges();
+                }
+                break;
+            }
+        }
+    }
+
     // Atualiza agulha e minutagem instantaneamente enquanto arrasta
     const playhead = document.getElementById('trackPlayhead');
     if (playhead) {
@@ -1575,6 +1669,10 @@ function initTimelineEvents() {
     track.dataset.dragInit = 'true';
 
     track.addEventListener('pointerdown', function(e) {
+        // Se o clique foi na trilha da legenda, em um segmento ou nas alças, NÃO inicia scrub nem captura o pointer
+        if (e.target.closest('#handleTrimStart') || e.target.closest('#handleTrimEnd') || e.target.closest('#captionTrackContainer') || e.target.closest('.caption-segment')) {
+            return;
+        }
         isScrubbing = true;
         try {
             track.setPointerCapture(e.pointerId);
