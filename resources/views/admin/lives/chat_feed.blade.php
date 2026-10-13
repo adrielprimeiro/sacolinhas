@@ -717,7 +717,7 @@
 </div>
 
 <!-- MODAL EDITAR PREÇO DA PEÇA BIPADA -->
-<div id="modal-edit-item-price" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 99999;">
+<div id="modal-edit-item-price" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="display: none; background-color: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 99999;">
     <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #065f46 0%, #059669 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
@@ -1409,9 +1409,9 @@
             priceDisplay = 'R$ ' + parseFloat(prod.preco).toFixed(2).replace('.', ',');
         }
 
-        const targetScanId = scanId || prod.scanId || prod.scan_id || prod.codigo || prod.code || '';
+        const targetScanId = scanId || prod.scanId || prod.scan_id || prod.code || prod.codigo || prod.sku || (prod.id ? String(prod.id) : '') || '';
         const priceButtonHtml = `
-            <button type="button" onclick="event.stopPropagation(); openEditItemPriceModal('${escapeHtml(targetScanId)}')" title="Clique para editar o preço desta peça" class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300 text-[11px] transition shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0">
+            <button type="button" onclick="event.stopPropagation(); openEditItemPriceModal('${escapeHtml(targetScanId)}', this)" title="Clique para editar o preço desta peça" class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300 text-[11px] transition shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0">
                 <i class="fas fa-tag text-[9px] text-emerald-600"></i>
                 <span>${escapeHtml(priceDisplay || 'Definir Preço')}</span>
                 <i class="fas fa-pen text-[8px] text-emerald-600 ml-0.5"></i>
@@ -1533,20 +1533,44 @@
         });
     }
 
-    function openEditItemPriceModal(identifier) {
-        if (!identifier) return;
-        const cleanId = String(identifier).trim();
-        const item = bgScanItems.find(x => x.id === cleanId) 
-            || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
-            || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId)
-            || bgScanItems.find(x => x.liveCode && String(x.liveCode).toUpperCase() === cleanId.toUpperCase())
-            || bgScanItems.find(x => cleanId.startsWith('scan_db_') && x.id === cleanId);
+    function openEditItemPriceModal(identifier, buttonEl = null) {
+        let cleanId = identifier ? String(identifier).trim() : '';
+
+        // Fallback: se identifier veio vazio, tenta extrair pelo botão ou card pai mais próximo
+        if (!cleanId && buttonEl) {
+            const parentItemEl = buttonEl.closest('.scan-item') || buttonEl.closest('[data-scan-id]') || buttonEl.closest('[data-code]');
+            if (parentItemEl) {
+                cleanId = parentItemEl.dataset.scanId || parentItemEl.dataset.code || parentItemEl.dataset.itemId || '';
+            }
+        }
+
+        let item = null;
+        if (cleanId) {
+            item = bgScanItems.find(x => x.id === cleanId) 
+                || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId)
+                || bgScanItems.find(x => x.liveCode && String(x.liveCode).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => cleanId.startsWith('scan_db_') && x.id === cleanId);
+        }
+
+        if (!item && buttonEl) {
+            const parentItemEl = buttonEl.closest('.scan-item') || buttonEl.closest('[data-scan-id]') || buttonEl.closest('[data-code]');
+            if (parentItemEl) {
+                const sId = parentItemEl.dataset.scanId;
+                const sCode = parentItemEl.dataset.code;
+                const sItem = parentItemEl.dataset.itemId;
+                item = bgScanItems.find(x => (sId && x.id === sId) || (sCode && x.code === sCode) || (sItem && x.itemId == sItem));
+            }
+        }
 
         const modal = document.getElementById('modal-edit-item-price');
-        if (!modal) return;
+        if (!modal) {
+            console.error('[PriceModal] Elemento #modal-edit-item-price não encontrado');
+            return;
+        }
 
         const scanId = item ? item.id : cleanId;
-        const itemId = item ? (item.itemId || '') : '';
+        const itemId = item ? (item.itemId || '') : (cleanId && !isNaN(cleanId) ? cleanId : '');
         const code = item ? (item.code || '') : cleanId;
         const liveCode = item ? (item.liveCode || '') : '';
         const prodName = item ? (item.productName || '') : '';
@@ -1575,7 +1599,7 @@
         }
 
         const prodNameEl = document.getElementById('edit-item-price-prod-name');
-        if (prodNameEl) prodNameEl.textContent = prodName || ('Peça #' + code);
+        if (prodNameEl) prodNameEl.textContent = prodName || ('Peça #' + (code || ''));
 
         const prodDetailsEl = document.getElementById('edit-item-price-prod-details');
         if (prodDetailsEl) {
@@ -1594,6 +1618,7 @@
         }
 
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
         if (input) {
             setTimeout(() => {
                 input.focus();
@@ -1604,7 +1629,10 @@
 
     function closeEditItemPriceModal() {
         const modal = document.getElementById('modal-edit-item-price');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
         ensureScannerFocus(true);
     }
 
@@ -1687,6 +1715,10 @@
                     const detailsEl = itemEl.querySelector('.scan-item-details');
                     if (detailsEl) {
                         const fakeProd = {
+                            id: item.itemId || itemId || null,
+                            code: item.code || prodCode || null,
+                            codigo: item.code || prodCode || null,
+                            scanId: item.id || scanId || null,
                             name: item.productName,
                             description: item.productDetails,
                             tamanho: item.tamanho,
@@ -1874,7 +1906,7 @@
             }
 
             if (detailsEl) {
-                detailsEl.innerHTML = buildProductDetailsHtml(prod);
+                detailsEl.innerHTML = buildProductDetailsHtml(prod, scanId);
             }
 
             const banner = document.getElementById('scan-last-item-banner');
@@ -2704,6 +2736,10 @@
         let detailsInitial = '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>';
         if (item.productName) {
             const fakeProd = {
+                id: item.itemId || null,
+                code: item.code,
+                codigo: item.code,
+                scanId: item.id,
                 name: item.productName,
                 description: item.productDetails,
                 tamanho: item.tamanho,
@@ -2711,7 +2747,7 @@
                 cor: item.cor,
                 formatted_price: item.productPrice
             };
-            detailsInitial = buildProductDetailsHtml(fakeProd);
+            detailsInitial = buildProductDetailsHtml(fakeProd, item.id);
         }
 
         el.innerHTML =
@@ -3018,6 +3054,12 @@
             clearTimeout(manualScanDebounceTimer);
             manualScanDebounceTimer = null;
         }
+        if (manualInputScannerTimer) {
+            clearTimeout(manualInputScannerTimer);
+            manualInputScannerTimer = null;
+        }
+        manualInputBurstCount = 0;
+        manualInputLastKeyTime = 0;
         if (usbScanTimer) {
             clearTimeout(usbScanTimer);
             usbScanTimer = null;
@@ -3043,6 +3085,11 @@
     let usbScanTimer = null;
     const USB_MAX_INTERVAL_MS = 75; // Leitores físicos USB disparam teclas em < 50ms
 
+    // Detecção inteligente de leitor de código de barras vs digitação manual no input focado
+    let manualInputLastKeyTime = 0;
+    let manualInputBurstCount = 0;
+    let manualInputScannerTimer = null;
+
     window.addEventListener('keydown', function(event) {
         const isOurManualInput = document.activeElement && (
             document.activeElement.id === 'scan-manual-input' ||
@@ -3050,12 +3097,16 @@
         );
 
         if (isOurManualInput) {
-            // Se o operador está com o cursor no campo de entrada do leitor,
-            // NUNCA dispara inserção automática a cada caractere!
-            // Permite digitação manual livre de qualquer código e insere APENAS com Enter ou Tab.
+            // Se o operador pressionou Enter ou Tab: submete imediatamente!
             if (event.key === 'Enter' || event.key === 'Tab') {
                 event.preventDefault();
                 event.stopPropagation();
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+                manualInputBurstCount = 0;
+                manualInputLastKeyTime = 0;
                 if (usbScanTimer) {
                     clearTimeout(usbScanTimer);
                     usbScanTimer = null;
@@ -3072,9 +3123,66 @@
                 } else {
                     addManualCode();
                 }
+                return;
             }
-            // Qualquer outra tecla digitada dentro do input (números, letras, backspace, etc.)
-            // deve seguir o fluxo nativo do input sem interceptação ou timer automático.
+
+            // Teclas de controle/edição cancelam rajada de scanner
+            if (event.ctrlKey || event.altKey || event.metaKey || event.key === 'Backspace' || event.key === 'Delete' || event.key.startsWith('Arrow') || event.key === 'Escape') {
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+                manualInputBurstCount = 0;
+                manualInputLastKeyTime = 0;
+                return;
+            }
+
+            // Caracteres alfanuméricos digitados ou bipados:
+            if (event.key.length === 1 && !event.repeat) {
+                const now = Date.now();
+                const interval = now - manualInputLastKeyTime;
+                manualInputLastKeyTime = now;
+
+                // Leitores de código de barras USB/sem fio disparam teclas em rajadas ultra-rápidas (<= 60ms entre teclas)
+                if (interval <= 60) {
+                    manualInputBurstCount++;
+                } else {
+                    manualInputBurstCount = 0;
+                }
+
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+
+                // Se detectou rajada característica de leitor de código de barras (ao menos 2 teclas sucessivas em <= 60ms ou rajada em <= 35ms):
+                // Agenda auto-inserção rápida sem exigir a tecla Enter
+                if (manualInputBurstCount >= 2 || (manualInputBurstCount >= 1 && interval <= 35)) {
+                    manualInputScannerTimer = setTimeout(() => {
+                        manualInputBurstCount = 0;
+                        manualInputLastKeyTime = 0;
+                        manualInputScannerTimer = null;
+                        const activeInput = document.activeElement;
+                        if (activeInput && (activeInput.id === 'scan-manual-input' || activeInput.id === 'online-qr-manual-input')) {
+                            const raw = activeInput.value.trim();
+                            if (raw.length >= 1) {
+                                activeInput.value = '';
+                                if (activeInput.id === 'online-qr-manual-input') {
+                                    handleOnlineQrScan(raw);
+                                } else {
+                                    const code = extractCleanCode(raw).toUpperCase();
+                                    if (code) {
+                                        addScanItem(code, 'manual');
+                                    }
+                                }
+                            }
+                        }
+                    }, 75);
+                }
+            }
+
+            // Digitação manual humana (interval > 60ms): manualInputBurstCount permanece 0 e NENHUM timer é disparado!
+            // O operador digita livremente qualquer código e insere APENAS ao teclar Enter.
             return;
         }
 
@@ -3936,17 +4044,11 @@
     let onlineQrManualDebounceTimer = null;
 
     function handleOnlineQrManualInput(event) {
-        if (onlineQrManualDebounceTimer) clearTimeout(onlineQrManualDebounceTimer);
-        const val = event.target ? event.target.value.trim() : '';
-        if (!val) return;
-        onlineQrManualDebounceTimer = setTimeout(() => {
-            const input = document.getElementById("online-qr-manual-input");
-            if (input && input.value.trim()) {
-                const code = input.value.trim();
-                input.value = '';
-                handleOnlineQrScan(code);
-            }
-        }, 120);
+        // Digitação manual aguarda a tecla Enter ou rajada ultra-rápida do leitor
+        if (onlineQrManualDebounceTimer) {
+            clearTimeout(onlineQrManualDebounceTimer);
+            onlineQrManualDebounceTimer = null;
+        }
     }
 
     function handleOnlineQrKeyDown(event) {
