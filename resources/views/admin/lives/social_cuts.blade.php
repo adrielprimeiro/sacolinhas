@@ -187,7 +187,7 @@
          style="z-index: 9999; display: none;"
          onclick="if(event.target === this) requestClosePreviewModal()">
         
-        <div class="bg-gray-900 w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[96dvh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col justify-between"
+        <div class="bg-gray-900 w-full sm:max-w-3xl lg:max-w-4xl h-full sm:h-auto sm:max-h-[96dvh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col justify-between"
              style="background-color: #111827;">
             
             {{-- Top Header do Modal (Fixo no topo) --}}
@@ -249,212 +249,231 @@
                 </div>
             </div>
 
-            {{-- Toolbar de Controles & Edição de Minutagem (Fixa na parte inferior) --}}
-            <div class="shrink-0 p-3 sm:p-4 bg-gray-850 border-t border-gray-800 space-y-2.5" style="background-color: #1a202c;">
+            {{-- PAINEL DE EDIÇÃO E TIMELINE PROFISSIONAL (ESTILO CAPCUT / CLIPCHAMP) --}}
+            <div class="shrink-0 p-2.5 sm:p-3 bg-gray-900 border-t border-gray-800 space-y-2" style="background-color: #12151e;">
                 
-                {{-- Linha Superior: Botão [Início |▶], Tesoura ✂️, Duração/Status e Botão [Fim ▶|] --}}
-                <div class="flex items-center justify-between gap-1.5 sm:gap-2">
-                    {{-- Botão Gravar Ponto Início (Seta com traço |▶) --}}
-                    <button type="button" 
-                            onclick="setCutPointHere('start')"
-                            class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
-                            style="background-color: #2563eb; color: #ffffff;"
-                            title="Gravar posição atual como Início do corte (Mark In)">
-                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M4 4h3v16H4V4zm5 8l11-8v16l-11-8z" />
-                        </svg>
-                        <span>Início</span>
-                    </button>
-
-                    {{-- Botão da Tesoura para Corte no Meio --}}
-                    <div class="flex items-center gap-1">
-                        <button type="button"
-                                id="btnMiddleCutScissors"
-                                onclick="handleScissorsClick()"
-                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50"
-                                title="Cortar no meio: 1º clique marca início, 2º clique marca fim do trecho a cortar">
-                            <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
-                            <span id="textScissors">Cortar Meio</span>
-                        </button>
+                {{-- 1. Barra de Controles Superiores: Início, Tesoura, Fim | -10s, Play, +10s, Timer | Duração --}}
+                <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                    
+                    {{-- Grupo Esquerdo: Ferramentas de Corte (Início, Tesoura, Fim) --}}
+                    <div class="flex items-center gap-1.5 sm:gap-2">
+                        {{-- Botão Início (Set In |▶) --}}
                         <button type="button" 
-                                id="btnClearMiddleCut"
-                                onclick="clearMiddleCut()"
-                                class="hidden px-2 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-800 text-red-200 border border-red-500 text-xs font-black cursor-pointer transition"
-                                title="Desfazer corte no meio">
-                            <i class="fas fa-times"></i>
+                                onclick="setCutPointHere('start')"
+                                class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
+                                style="background-color: #2563eb; color: #ffffff;"
+                                title="Gravar posição atual como início do corte (Mark In)">
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M4 4h3v16H4V4zm5 8l11-8v16l-11-8z" />
+                            </svg>
+                            <span class="hidden sm:inline">Início</span>
+                        </button>
+
+                        {{-- Botão Tesoura (Split / Corte no Meio) --}}
+                        <div class="flex items-center gap-1">
+                            <button type="button"
+                                    id="btnMiddleCutScissors"
+                                    onclick="handleScissorsClick()"
+                                    class="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
+                                    title="Cortar no meio: 1º clique marca início, 2º clique marca fim do trecho">
+                                <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
+                                <span id="textScissors" class="hidden sm:inline">Cortar Meio</span>
+                            </button>
+                            <button type="button" 
+                                    id="btnClearMiddleCut"
+                                    onclick="clearMiddleCut()"
+                                    class="hidden px-2 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-800 text-red-200 border border-red-500 text-xs font-black cursor-pointer transition shrink-0"
+                                    title="Desfazer corte no meio">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        {{-- Botão Fim (Set Out ▶|) --}}
+                        <button type="button" 
+                                onclick="setCutPointHere('end')"
+                                class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
+                                style="background-color: #2563eb; color: #ffffff;"
+                                title="Gravar posição atual como fim do corte (Mark Out)">
+                            <span class="hidden sm:inline">Fim</span>
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17 4h3v16h-3V4zM4 20V4l11 8-11 8z" />
+                            </svg>
                         </button>
                     </div>
 
-                    {{-- Duração Central e Badge Editado (Alto Contraste) --}}
+                    {{-- Grupo Central: -10s, Play/Pause, +10s e Timer Digital --}}
+                    <div class="flex items-center gap-2 sm:gap-3">
+                        <button type="button" 
+                                onclick="jumpMinus10()" 
+                                id="btnMinus10"
+                                class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                                title="Voltar 10s">
+                            <i class="fas fa-undo text-[11px] text-pink-400"></i>
+                        </button>
+
+                        <button type="button" 
+                                onclick="toggleModalPlayPause()" 
+                                id="modalPlayPauseBtn" 
+                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white hover:bg-gray-200 active:scale-90 text-gray-900 flex items-center justify-center text-sm shadow-xl transition cursor-pointer font-black">
+                            <i class="fas fa-play ml-0.5 text-xs text-gray-950" id="modalPlayPauseIcon"></i>
+                        </button>
+
+                        <button type="button" 
+                                onclick="jumpPlus10()" 
+                                id="btnPlus10"
+                                class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                                title="Avançar 10s">
+                            <i class="fas fa-redo text-[11px] text-pink-400"></i>
+                        </button>
+
+                        {{-- Timer Digital --}}
+                        <div class="flex items-center gap-1 font-mono text-xs sm:text-sm font-bold ml-1 text-gray-400">
+                            <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
+                            <span class="text-gray-600">/</span>
+                            <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
+                        </div>
+                    </div>
+
+                    {{-- Grupo Direito: Duração Total e Badge Editado --}}
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-lg">
+                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg">
                             0s
                         </span>
-                        <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black animate-pulse" style="background-color: #fef3c7; color: #92400e !important; border: 1px solid #fde68a;">
+                        <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse" style="background-color: #fef3c7; color: #92400e !important; border: 1px solid #fde68a;">
                             <i class="fas fa-pen text-[9px] text-amber-700"></i>
                             <span style="color: #92400e !important;">Editado</span>
                         </span>
                     </div>
 
-                    {{-- Botão Gravar Ponto Fim (Seta com traço ▶|) --}}
-                    <button type="button" 
-                            onclick="setCutPointHere('end')"
-                            class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
-                            style="background-color: #2563eb; color: #ffffff;"
-                            title="Gravar posição atual como Fim do corte (Mark Out)">
-                        <span>Fim</span>
-                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17 4h3v16h-3V4zM4 20V4l11 8-11 8z" />
-                        </svg>
-                    </button>
                 </div>
 
-                {{-- Barra Visual de Cortes com Marcadores Maiores e Riscos Verticais --}}
-                <div class="space-y-1.5 pt-1">
-                    {{-- Container Externo relativo com overflow-visible para permitir que os riscos ultrapassem a barra para cima e para baixo --}}
-                    <div class="relative w-full h-8 sm:h-9 flex items-center cursor-pointer select-none touch-none"
-                         id="visualTimelineTrack"
-                         title="Toque ou arraste para navegar e ajustar o ponto exato">
+                {{-- 2. PAINEL MULTI-TRACK ESTILO CAPCUT / CLIPCHAMP --}}
+                <div class="relative w-full bg-[#0d0f17] rounded-xl border border-gray-800 p-2 sm:p-2.5 shadow-2xl select-none touch-none cursor-pointer overflow-hidden space-y-1.5"
+                     id="visualTimelineTrack"
+                     title="Arraste ou clique para navegar no ponto exato da reprodução">
+
+                    {{-- A. RÉGUA DE TEMPO (TIME RULER) --}}
+                    <div class="relative w-full h-5 border-b border-gray-800/80 flex items-end select-none pointer-events-none mb-1 px-1 overflow-hidden"
+                         id="timeRulerContainer">
+                        {{-- Marcadores numéricos proporcionais gerados dinamicamente via JS --}}
+                    </div>
+
+                    {{-- B. TRILHA DE TEXTO / PRODUTO (OVERLAY TRACK) --}}
+                    <div class="relative w-full h-6 sm:h-7 bg-gray-900/50 rounded-lg overflow-hidden border border-gray-800/80 flex items-center">
+                        <div id="trackTextItem" 
+                             class="absolute top-0 bottom-0 rounded-lg bg-gradient-to-r from-purple-800 via-fuchsia-700 to-purple-800 border border-purple-400/50 flex items-center px-2 text-[10px] sm:text-xs font-bold text-white shadow-sm overflow-hidden pointer-events-none"
+                             style="left: 0%; width: 100%;">
+                            <span class="mr-1.5 px-1 py-0.2 bg-black/40 rounded text-[9px] font-black text-purple-200">T</span>
+                            <span id="timelineProductTitleText" class="truncate font-sans font-extrabold text-gray-100">Produto</span>
+                        </div>
+                    </div>
+
+                    {{-- C. TRILHA DE VÍDEO COM FILMSTRIP (FRAMES / MINIATURAS) --}}
+                    <div class="relative w-full h-12 sm:h-14 bg-gray-950 rounded-xl overflow-hidden border border-gray-700/80 shadow-inner flex items-center"
+                         id="filmstripTrackWrapper">
                         
-                        {{-- Trilho Fundo (Barra propriamente dita com cantos arredondados) --}}
-                        <div class="relative w-full h-7 sm:h-8 bg-gray-900 rounded-xl overflow-hidden border border-gray-700 shadow-inner flex pointer-events-none">
-                            
-                            {{-- 1. Faixa Escura Antes do Início (0% até startPct) --}}
-                            <div id="trackDarkBefore" 
-                                 class="h-full bg-black/85 border-r border-gray-700/80 transition-none"
-                                 style="width: 0%;" 
-                                 title="Trecho descartado antes do início">
-                            </div>
-
-                            {{-- 2. Faixa Azul Ativa do Corte (startPct até endPct) --}}
-                            <div id="trackBlueActive" 
-                                 class="relative h-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 transition-none flex items-center justify-center overflow-hidden" 
-                                 style="width: 100%;" 
-                                 title="Trecho selecionado para o corte">
-                            </div>
-
-                            {{-- 3. Faixa Escura Depois do Fim (endPct até 100%) --}}
-                            <div id="trackDarkAfter" 
-                                 class="h-full bg-black/85 border-l border-gray-700/80 transition-none"
-                                 style="width: 0%;" 
-                                 title="Trecho descartado depois do fim">
-                            </div>
-
+                        {{-- Película de frames em miniatura lado a lado cobrindo 100% --}}
+                        <div class="absolute inset-0 flex items-center w-full h-full pointer-events-none opacity-85 overflow-hidden gap-0.5 bg-black"
+                             id="filmstripFramesContainer">
+                            {{-- Miniaturas de frames sequenciais inseridas via JS --}}
                         </div>
 
-                        {{-- 4. Faixa Escura do Corte no Meio (Tesoura) sobreposta --}}
+                        {{-- C.1 Faixa Escura Antes do Início (Descarte) --}}
+                        <div id="trackDarkBefore" 
+                             class="absolute top-0 bottom-0 left-0 bg-black/85 border-r-2 border-cyan-400 z-10 transition-none pointer-events-none"
+                             style="width: 0%;">
+                        </div>
+
+                        {{-- C.2 Moldura / Realce da Seleção Ativa do Corte --}}
+                        <div id="trackBlueActive" 
+                             class="absolute top-0 bottom-0 border-2 border-blue-500 rounded-lg pointer-events-none z-10 shadow-[0_0_12px_rgba(59,130,246,0.35)] transition-none"
+                             style="left: 0%; width: 100%;">
+                        </div>
+
+                        {{-- C.3 Faixa Escura de Corte no Meio (Tesoura) --}}
                         <div id="trackDarkMiddleCut" 
-                             class="hidden absolute top-0.5 bottom-0.5 pointer-events-none z-15 items-center justify-center text-[10px] font-black text-red-200 border-x-2 border-dashed border-red-400 select-none rounded-sm"
-                             style="left: 0%; width: 0%; background: repeating-linear-gradient(45deg, rgba(10,10,10,0.92), rgba(10,10,10,0.92) 6px, rgba(28,28,28,0.92) 6px, rgba(28,28,28,0.92) 12px);"
-                             title="Trecho cortado no meio (removido)">
-                            <span id="trackDarkMiddleCutLabel" class="truncate px-1 bg-red-950/90 rounded border border-red-500/50 text-[9px] font-mono text-red-300">
+                             class="hidden absolute top-0 bottom-0 z-15 items-center justify-center text-[10px] font-black text-red-200 border-x-2 border-dashed border-red-400 select-none rounded-sm pointer-events-none"
+                             style="left: 0%; width: 0%; background: repeating-linear-gradient(45deg, rgba(10,10,10,0.94), rgba(10,10,10,0.94) 6px, rgba(28,28,28,0.94) 6px, rgba(28,28,28,0.94) 12px);">
+                            <span id="trackDarkMiddleCutLabel" class="truncate px-1.5 py-0.5 bg-red-950/90 rounded border border-red-500/50 text-[9px] font-mono text-red-300">
                                 ✂️ Corte
                             </span>
                         </div>
 
-                        {{-- RISCO VERTICAL DE INÍCIO (Ultrapassa a barra para cima e para baixo) --}}
+                        {{-- C.4 Faixa Escura Depois do Fim (Descarte) --}}
+                        <div id="trackDarkAfter" 
+                             class="absolute top-0 bottom-0 right-0 bg-black/85 border-l-2 border-cyan-400 z-10 transition-none pointer-events-none"
+                             style="width: 0%;">
+                        </div>
+
+                        {{-- Risco de Início com Abas --}}
                         <div id="markerStart" 
                              class="absolute pointer-events-none transition-none flex flex-col items-center justify-between"
-                             style="left: 0%; top: -5px; bottom: -5px; transform: translateX(-50%); z-index: 25;">
-                            {{-- Aba Superior --}}
-                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-t-sm shadow-md flex items-center justify-center">
-                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
-                            </div>
-                            {{-- Risco Vertical Fluorescente --}}
+                             style="left: 0%; top: -3px; bottom: -3px; transform: translateX(-50%); z-index: 25;">
+                            <div class="w-3 h-2 bg-cyan-400 rounded-t-sm shadow"></div>
                             <div class="w-1 flex-1 bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.95)]"></div>
-                            {{-- Aba Inferior --}}
-                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-b-sm shadow-md flex items-center justify-center">
-                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
-                            </div>
+                            <div class="w-3 h-2 bg-cyan-400 rounded-b-sm shadow"></div>
                         </div>
 
-                        {{-- RISCO VERTICAL DE FIM (Ultrapassa a barra para cima e para baixo) --}}
+                        {{-- Risco de Fim com Abas --}}
                         <div id="markerEnd" 
                              class="absolute pointer-events-none transition-none flex flex-col items-center justify-between"
-                             style="left: 100%; top: -5px; bottom: -5px; transform: translateX(-50%); z-index: 25;">
-                            {{-- Aba Superior --}}
-                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-t-sm shadow-md flex items-center justify-center">
-                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
-                            </div>
-                            {{-- Risco Vertical Fluorescente --}}
+                             style="left: 100%; top: -3px; bottom: -3px; transform: translateX(-50%); z-index: 25;">
+                            <div class="w-3 h-2 bg-cyan-400 rounded-t-sm shadow"></div>
                             <div class="w-1 flex-1 bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.95)]"></div>
-                            {{-- Aba Inferior --}}
-                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-b-sm shadow-md flex items-center justify-center">
-                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
-                            </div>
+                            <div class="w-3 h-2 bg-cyan-400 rounded-b-sm shadow"></div>
                         </div>
 
-                        {{-- RISCO VERTICAL 1 DA TESOURA (Ponto 1) --}}
+                        {{-- Marcador Tesoura Ponto 1 --}}
                         <div id="markerMiddleCut1" 
                              class="hidden absolute pointer-events-none transition-none flex flex-col items-center justify-between"
-                             style="left: 0%; top: -6px; bottom: -6px; transform: translateX(-50%); z-index: 28;">
-                            <div class="w-3.5 h-3 bg-amber-400 text-amber-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
+                             style="left: 0%; top: -4px; bottom: -4px; transform: translateX(-50%); z-index: 28;">
+                            <div class="w-3 h-2.5 bg-amber-400 text-amber-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
                                 <i class="fas fa-scissors"></i>
                             </div>
                             <div class="w-1 flex-1 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.95)]"></div>
-                            <div class="w-2.5 h-2 bg-amber-400 rounded-b-sm shadow"></div>
+                            <div class="w-2.5 h-1.5 bg-amber-400 rounded-b-sm shadow"></div>
                         </div>
 
-                        {{-- RISCO VERTICAL 2 DA TESOURA (Ponto 2) --}}
+                        {{-- Marcador Tesoura Ponto 2 --}}
                         <div id="markerMiddleCut2" 
                              class="hidden absolute pointer-events-none transition-none flex flex-col items-center justify-between"
-                             style="left: 0%; top: -6px; bottom: -6px; transform: translateX(-50%); z-index: 28;">
-                            <div class="w-3.5 h-3 bg-red-400 text-red-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
+                             style="left: 0%; top: -4px; bottom: -4px; transform: translateX(-50%); z-index: 28;">
+                            <div class="w-3 h-2.5 bg-red-400 text-red-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
                                 <i class="fas fa-scissors"></i>
                             </div>
                             <div class="w-1 flex-1 bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.95)]"></div>
-                            <div class="w-2.5 h-2 bg-red-400 rounded-b-sm shadow"></div>
+                            <div class="w-2.5 h-1.5 bg-red-400 rounded-b-sm shadow"></div>
                         </div>
 
-                        {{-- Agulha de Reprodução (Playhead) --}}
-                        <div id="trackPlayhead" 
-                             class="absolute top-0 bottom-0 w-1 bg-white shadow-2xl pointer-events-none transform -translate-x-1/2 transition-none z-30" 
-                             style="left: 0%;">
-                            <div class="w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white -mt-1 -ml-1.25 shadow-md"></div>
+                    </div>
+
+                    {{-- D. TRILHA DE ÁUDIO COM WAVEFORM (AUDIO TRACK) --}}
+                    <div class="relative w-full h-6 sm:h-7 bg-blue-950/80 rounded-lg overflow-hidden border border-blue-700/50 flex items-center px-2 select-none shadow-sm">
+                        <span class="text-[10px] sm:text-xs font-bold text-blue-200 flex items-center gap-1.5 shrink-0 mr-2 z-5">
+                            <i class="fas fa-music text-blue-400 text-[10px]"></i>
+                            <span class="hidden sm:inline">Áudio Original</span>
+                        </span>
+                        {{-- Onda Sonora Waveform contínua em SVG --}}
+                        <div class="flex-1 h-full flex items-center opacity-75 overflow-hidden">
+                            <svg class="w-full h-3 sm:h-3.5 text-blue-300" viewBox="0 0 500 20" preserveAspectRatio="none">
+                                <path d="M0,10 Q10,2 20,10 T40,10 T60,10 T80,3 T100,10 T120,16 T140,10 T160,2 T180,10 T200,18 T220,10 T240,4 T260,10 T280,15 T300,10 T320,1 T340,10 T360,17 T380,10 T400,3 T420,10 T440,16 T460,10 T480,2 T500,10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                                <path d="M0,10 Q10,5 20,10 T40,10 T60,10 T80,6 T100,10 T120,13 T140,10 T160,5 T180,10 T200,14 T220,10 T240,6 T260,10 T280,13 T300,10 T320,4 T340,10 T360,14 T380,10 T400,6 T420,10 T440,13 T460,10 T480,5 T500,10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6" stroke-linecap="round" />
+                            </svg>
                         </div>
                     </div>
 
-                    {{-- Minutagem Direta na Barra (Início, Tempo Atual e Fim) --}}
-                    <div class="flex items-center justify-between text-xs font-mono text-gray-300 px-0.5 font-bold">
-                        <span id="barStartMinutagem" class="text-cyan-400 font-extrabold text-xs sm:text-sm">00:00</span>
-                        <div class="flex items-center gap-1 font-semibold text-gray-400 text-xs sm:text-sm">
-                            <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
-                            <span>/</span>
-                            <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
+                    {{-- E. AGULHA MESTRA DE REPRODUÇÃO (PLAYHEAD TRANSVERSAL QUE ATRAVESSA TODAS AS FAIXAS) --}}
+                    <div id="trackPlayhead" 
+                         class="absolute top-1 bottom-1 pointer-events-none transition-none z-35 flex flex-col items-center -translate-x-1/2" 
+                         style="left: 0%;">
+                        {{-- Pino Branco Superior --}}
+                        <div class="w-3.5 h-4 bg-white rounded-full shadow-2xl border border-gray-300 flex items-center justify-center -mt-0.5">
+                            <div class="w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
                         </div>
-                        <span id="barEndMinutagem" class="text-cyan-400 font-extrabold text-xs sm:text-sm">00:00</span>
+                        {{-- Linha Branca Contínua que atravessa toda a altura --}}
+                        <div class="w-0.5 flex-1 bg-white shadow-[0_0_8px_rgba(255,255,255,0.95)]"></div>
                     </div>
-                </div>
 
-                {{-- Botões Principais: -10s | Play/Pause | +10s --}}
-                <div class="flex items-center justify-center gap-6 sm:gap-8 py-0.5">
-                    {{-- Botão -10s --}}
-                    <button type="button" 
-                            onclick="jumpMinus10()" 
-                            id="btnMinus10"
-                            class="group px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Voltar 10s (ou expande 10s no início se estiver no começo)">
-                        <i class="fas fa-backward text-pink-400 group-hover:scale-110 transition"></i>
-                        <span>-10s</span>
-                    </button>
-
-                    {{-- Botão Central Play / Pause --}}
-                    <button type="button" 
-                            onclick="toggleModalPlayPause()" 
-                            id="modalPlayPauseBtn" 
-                            class="w-11 h-11 rounded-full bg-pink-600 hover:bg-pink-500 active:scale-90 text-white flex items-center justify-center text-sm shadow-lg transition cursor-pointer">
-                        <i class="fas fa-play ml-0.5" id="modalPlayPauseIcon"></i>
-                    </button>
-
-                    {{-- Botão +10s --}}
-                    <button type="button" 
-                            onclick="jumpPlus10()" 
-                            id="btnPlus10"
-                            class="group px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-extrabold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            title="Avançar 10s (ou expande 10s no fim se estiver no final)">
-                        <span>+10s</span>
-                        <i class="fas fa-forward text-pink-400 group-hover:scale-110 transition"></i>
-                    </button>
                 </div>
 
                 {{-- Toast Informativo de Ação --}}
@@ -638,6 +657,54 @@ function formatTime(sec) {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function renderTimeRuler() {
+    const container = document.getElementById('timeRulerContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const { wStart, span } = getWindowBounds();
+    const numMarkers = 6;
+    for (let i = 0; i <= numMarkers; i++) {
+        const pct = (i / numMarkers) * 100;
+        const timeSec = wStart + (span * (i / numMarkers));
+        const tick = document.createElement('div');
+        tick.className = 'absolute flex flex-col items-center transform -translate-x-1/2 bottom-0 pointer-events-none select-none';
+        tick.style.left = `${pct}%`;
+        tick.innerHTML = `
+            <span class="text-[9px] font-mono text-gray-400 font-bold mb-0.5">${formatTime(timeSec)}</span>
+            <div class="w-px h-1.5 bg-gray-600"></div>
+        `;
+        container.appendChild(tick);
+
+        if (i < numMarkers) {
+            for (let sub = 1; sub <= 3; sub++) {
+                const subPct = pct + ((sub / 4) * (100 / numMarkers));
+                const subTick = document.createElement('div');
+                subTick.className = 'absolute flex flex-col items-center transform -translate-x-1/2 bottom-0 pointer-events-none select-none';
+                subTick.style.left = `${subPct}%`;
+                subTick.innerHTML = `<div class="w-px h-1 bg-gray-700/70"></div>`;
+                container.appendChild(subTick);
+            }
+        }
+    }
+}
+
+function renderFilmstrip(imageUrl) {
+    const container = document.getElementById('filmstripFramesContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const numFrames = 12;
+    const imgSrc = imageUrl || 'https://placehold.co/120x80/1a1a24/white?text=Frame';
+    for (let i = 0; i < numFrames; i++) {
+        const frameDiv = document.createElement('div');
+        frameDiv.className = 'flex-1 h-full bg-cover bg-center border-r border-black/40 relative overflow-hidden shrink-0 select-none';
+        frameDiv.style.backgroundImage = `url('${imgSrc}')`;
+        const vignette = document.createElement('div');
+        vignette.className = 'absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/35';
+        frameDiv.appendChild(vignette);
+        container.appendChild(frameDiv);
+    }
+}
+
 function openPreviewModal(item) {
     if (!item) return;
     currentItem = item;
@@ -690,6 +757,13 @@ function openPreviewModal(item) {
     if (titleEl) titleEl.textContent = item.item_name || 'Produto';
     if (codeEl) codeEl.textContent = '#' + (item.codigo_live || item.item_sku || '');
 
+    const timelineTitle = document.getElementById('timelineProductTitleText');
+    if (timelineTitle) {
+        timelineTitle.textContent = item.item_name || 'Produto';
+    }
+
+    renderFilmstrip(item.item_image);
+    renderTimeRuler();
     renderTimeBadges();
     updatePlayIcon(false);
 
@@ -699,6 +773,8 @@ function openPreviewModal(item) {
     initTimelineEvents();
 
     player.onloadedmetadata = function() {
+        renderTimeRuler();
+        renderTimeBadges();
         if (isUsingRecording && activeStart > 0) {
             player.currentTime = activeStart;
         } else {
@@ -919,12 +995,14 @@ function renderTimeBadges() {
         if (editedFlag) editedFlag.classList.add('hidden');
     }
 
+    renderTimeRuler();
     updateVisualTimeline();
 }
 
 function updateVisualTimeline() {
     const trackDarkBefore = document.getElementById('trackDarkBefore');
     const trackBlueActive = document.getElementById('trackBlueActive');
+    const trackTextItem = document.getElementById('trackTextItem');
     const trackDarkAfter = document.getElementById('trackDarkAfter');
     const markerStart = document.getElementById('markerStart');
     const markerEnd = document.getElementById('markerEnd');
@@ -943,9 +1021,16 @@ function updateVisualTimeline() {
         trackDarkBefore.style.width = `${startPct}%`;
     }
 
-    // 2. Faixa azul ativa entre Início e Fim
+    // 2. Moldura azul ativa entre Início e Fim
     if (trackBlueActive) {
+        trackBlueActive.style.left = `${startPct}%`;
         trackBlueActive.style.width = `${Math.max(0, endPct - startPct)}%`;
+    }
+
+    // 2.1 Faixa de Texto (Track de Legenda/Produto) acompanha a minutagem ativa
+    if (trackTextItem) {
+        trackTextItem.style.left = `${startPct}%`;
+        trackTextItem.style.width = `${Math.max(0, endPct - startPct)}%`;
     }
 
     // 3. Faixa escura depois do fim
