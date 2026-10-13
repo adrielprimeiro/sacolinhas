@@ -183,15 +183,15 @@
 
     {{-- MODAL DE PRÉVIA E EDIÇÃO RÁPIDA DE VÍDEO --}}
     <div id="videoPreviewModal" 
-         class="fixed inset-0 bg-black/90 hidden items-center justify-center p-0 sm:p-3 md:p-4 overflow-hidden h-[100dvh]"
+         class="fixed inset-0 bg-black/90 hidden items-center justify-center p-1 sm:p-3 md:p-4 overflow-hidden h-[100dvh]"
          style="z-index: 9999; display: none;"
          onclick="if(event.target === this) requestClosePreviewModal()">
         
-        <div class="bg-gray-900 w-full sm:max-w-3xl lg:max-w-4xl h-full sm:h-auto sm:max-h-[96dvh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col justify-between"
-             style="background-color: #111827;">
+        <div class="bg-gray-900 w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl h-[95dvh] sm:h-[92vh] max-h-[95dvh] sm:max-h-[92vh] sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border sm:border-gray-700 flex flex-col"
+             style="background-color: #111827; height: 92vh; max-height: 92vh;">
             
             {{-- Top Header do Modal (Fixo no topo) --}}
-            <div class="shrink-0 px-3 py-2.5 sm:py-3 bg-gray-800 border-b border-gray-700 flex items-center justify-between text-white">
+            <div class="shrink-0 px-3 py-2 bg-gray-800 border-b border-gray-700 flex items-center justify-between text-white">
                 <div class="flex items-center gap-2 min-w-0">
                     <span id="modalItemCode" class="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full shrink-0" style="background-color: #4f46e5; color: #ffffff;"></span>
                     <h4 id="modalItemTitle" class="text-xs sm:text-sm font-bold truncate text-gray-100"></h4>
@@ -201,18 +201,22 @@
                         <i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Modo Edição
                     </span>
                 </div>
-                <button type="button" 
-                        onclick="requestClosePreviewModal()" 
-                        class="w-8 h-8 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" 
+                            onclick="requestClosePreviewModal()" 
+                            class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                            title="Fechar modal (ESC)">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
             </div>
 
             {{-- Área do Vídeo (Ocupa o espaço livre restante e se auto-ajusta ao aspect-ratio do aparelho) --}}
-            <div class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden">
+            <div class="flex-1 min-h-0 relative bg-black flex items-center justify-center overflow-hidden" style="min-height: 0;">
                 <video id="modalVideoPlayer" 
                        playsinline 
-                       class="w-full h-full max-h-full max-w-full object-contain cursor-pointer"
+                       class="max-w-full max-h-full w-auto h-auto object-contain cursor-pointer block"
+                       style="max-height: 100%; max-width: 100%; width: auto; height: auto; object-fit: contain;"
                        onclick="toggleModalPlayPause()">
                     Seu navegador não suporta a reprodução deste vídeo.
                 </video>
@@ -252,18 +256,18 @@
             </div>
 
             {{-- PAINEL DE EDIÇÃO E TIMELINE PROFISSIONAL (ESTILO CAPCUT / CLIPCHAMP) --}}
-            <div class="shrink-0 p-2.5 sm:p-3 bg-gray-900 border-t border-gray-800 space-y-2" style="background-color: #12151e;">
+            <div class="shrink-0 p-2 sm:p-2.5 bg-gray-900 border-t border-gray-800 space-y-1.5" style="background-color: #12151e;">
                 
-                {{-- 1. Barra de Controles Superiores: Início, Tesoura, Fim | -10s, Play, +10s, Timer | Duração --}}
-                <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                {{-- 1. Barra de Controles Superiores: Tesoura, Lixeira, Restaurar | -10s, Play, +10s, Timer | Duração, Editado, Salvar --}}
+                <div class="flex items-center justify-between gap-1.5 sm:gap-2 px-1">
                     
                     {{-- Grupo Esquerdo: Ferramentas de Corte (Tesoura e Lixeira) --}}
-                    <div class="flex items-center gap-1.5 sm:gap-2">
+                    <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
                         {{-- Botão Tesoura (Dividir / Split) --}}
                         <button type="button"
                                 id="btnMiddleCutScissors"
                                 onclick="handleScissorsClick()"
-                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
+                                class="px-2.5 sm:px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50 shrink-0"
                                 title="Dividir a trilha na posição atual da agulha (Split)">
                             <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
                             <span id="textScissors">Dividir</span>
@@ -273,7 +277,7 @@
                         <button type="button"
                                 id="btnTrashSegment"
                                 onclick="deleteSelectedSegment()"
-                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0"
+                                class="px-2.5 sm:px-3 py-1 rounded-xl bg-gray-800 text-gray-500 border border-gray-700 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-not-allowed shrink-0"
                                 title="Selecione uma parte da trilha e clique para excluir">
                             <i class="fas fa-trash-alt text-gray-400" id="iconTrash"></i>
                             <span id="textTrash" class="hidden sm:inline">Excluir</span>
@@ -283,77 +287,85 @@
                         <button type="button" 
                                 id="btnClearMiddleCut"
                                 onclick="resetSplitsAndCuts()"
-                                class="hidden px-2 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 text-xs font-bold cursor-pointer transition shrink-0"
+                                class="hidden px-2 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 text-xs font-bold cursor-pointer transition shrink-0"
                                 title="Desfazer divisões e restaurar trecho original">
                             <i class="fas fa-undo text-[10px] text-gray-400"></i>
                         </button>
                     </div>
 
                     {{-- Grupo Central: -10s, Play/Pause, +10s e Timer Digital --}}
-                    <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <button type="button" 
                                 onclick="jumpMinus10()" 
                                 id="btnMinus10"
-                                class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
                                 title="Voltar 10s">
-                            <i class="fas fa-undo text-[11px] text-pink-400"></i>
+                            <i class="fas fa-undo text-[10px] text-pink-400"></i>
                         </button>
 
                         <button type="button" 
                                 onclick="toggleModalPlayPause()" 
                                 id="modalPlayPauseBtn" 
-                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white hover:bg-gray-200 active:scale-90 text-gray-900 flex items-center justify-center text-sm shadow-xl transition cursor-pointer font-black">
+                                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white hover:bg-gray-200 active:scale-90 text-gray-900 flex items-center justify-center text-sm shadow-xl transition cursor-pointer font-black">
                             <i class="fas fa-play ml-0.5 text-xs text-gray-950" id="modalPlayPauseIcon"></i>
                         </button>
 
                         <button type="button" 
                                 onclick="jumpPlus10()" 
                                 id="btnPlus10"
-                                class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
                                 title="Avançar 10s">
-                            <i class="fas fa-redo text-[11px] text-pink-400"></i>
+                            <i class="fas fa-redo text-[10px] text-pink-400"></i>
                         </button>
 
                         {{-- Timer Digital --}}
-                        <div class="flex items-center gap-1 font-mono text-xs sm:text-sm font-bold ml-1 text-gray-400">
+                        <div class="flex items-center gap-1 font-mono text-xs font-bold ml-1 text-gray-400">
                             <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
                             <span class="text-gray-600">/</span>
                             <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
                         </div>
                     </div>
 
-                    {{-- Grupo Direito: Duração Total e Badge Editado --}}
+                    {{-- Grupo Direito: Duração Total, Badge Editado e Botão Salvar Direto --}}
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2.5 py-1 rounded-lg">
+                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-lg">
                             0s
                         </span>
                         <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse" style="background-color: #fef3c7; color: #92400e !important; border: 1px solid #fde68a;">
                             <i class="fas fa-pen text-[9px] text-amber-700"></i>
                             <span style="color: #92400e !important;">Editado</span>
                         </span>
+                        <button type="button" 
+                                id="btnDirectSaveCut"
+                                onclick="showConfirmModal()" 
+                                class="hidden px-2.5 sm:px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-emerald-400 shrink-0"
+                                title="Salvar nova minutagem e processar corte">
+                            <i class="fas fa-check text-xs text-emerald-100"></i>
+                            <span>Salvar</span>
+                        </button>
                     </div>
 
                 </div>
 
                 {{-- 2. PAINEL MULTI-TRACK ESTILO CAPCUT / CLIPCHAMP --}}
-                <div class="relative w-full bg-[#0d0f17] rounded-xl border border-gray-800 p-2 sm:p-2.5 shadow-2xl select-none touch-none cursor-pointer overflow-hidden space-y-1.5"
+                <div class="relative w-full bg-[#0d0f17] rounded-xl border border-gray-800 p-1.5 sm:p-2 shadow-2xl select-none touch-none cursor-pointer overflow-hidden space-y-1"
                      id="visualTimelineTrack"
                      title="Arraste ou clique para navegar no ponto exato da reprodução">
 
                     {{-- A. RÉGUA DE TEMPO (TIME RULER) --}}
-                    <div class="relative w-full h-5 border-b border-gray-800/80 flex items-end select-none pointer-events-none mb-1 px-1 overflow-hidden"
+                    <div class="relative w-full h-4 sm:h-5 border-b border-gray-800/80 flex items-end select-none pointer-events-none mb-0.5 px-1 overflow-hidden"
                          id="timeRulerContainer">
                         {{-- Marcadores numéricos proporcionais gerados dinamicamente via JS --}}
                     </div>
 
                     {{-- B. TRILHA DE LEGENDA / PRODUTO (COM ALÇAS DE CORTE PUXÁVEIS E SEGMENTOS DIVIDIDOS) --}}
-                    <div class="relative w-full h-8 sm:h-9 bg-gray-950/70 rounded-xl overflow-visible border border-gray-800 flex items-center"
+                    <div class="relative w-full h-7 sm:h-8 bg-gray-950/70 rounded-xl overflow-visible border border-gray-800 flex items-center"
                          id="captionTrackContainer">
                         {{-- Segmentos e Alças renderizados dinamicamente via renderCaptionTrack() --}}
                     </div>
 
                     {{-- C. TRILHA DE VÍDEO COM FILMSTRIP (FRAMES / MINIATURAS) --}}
-                    <div class="relative w-full h-14 sm:h-16 bg-gray-950 rounded-xl overflow-hidden border border-gray-700/80 shadow-inner flex items-center"
+                    <div class="relative w-full h-11 sm:h-12 bg-gray-950 rounded-xl overflow-hidden border border-gray-700/80 shadow-inner flex items-center"
                          id="filmstripTrackWrapper">
                         
                         {{-- Película de frames em miniatura lado a lado cobrindo 100% --}}
@@ -1215,6 +1227,7 @@ function updateTrimHandlePositionsFast() {
 function renderTimeBadgesNumbersOnly() {
     const durSecEl = document.getElementById('badgeDurationSec');
     const editedFlag = document.getElementById('badgeEditedFlag');
+    const btnDirectSave = document.getElementById('btnDirectSaveCut');
     let baseDuration = Math.max(0, activeEnd - activeStart);
     let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
     let effectiveDuration = Math.max(0, Math.round(baseDuration - cutLoss));
@@ -1229,6 +1242,10 @@ function renderTimeBadgesNumbersOnly() {
     if (editedFlag) {
         if (hasChanged) editedFlag.classList.remove('hidden');
         else editedFlag.classList.add('hidden');
+    }
+    if (btnDirectSave) {
+        if (hasChanged) btnDirectSave.classList.remove('hidden');
+        else btnDirectSave.classList.add('hidden');
     }
 }
 
@@ -1418,10 +1435,13 @@ function renderTimeBadges() {
         middleCutEnd !== originalMiddleCutEnd
     );
 
+    const btnDirectSave = document.getElementById('btnDirectSaveCut');
     if (hasChanged) {
         if (editedFlag) editedFlag.classList.remove('hidden');
+        if (btnDirectSave) btnDirectSave.classList.remove('hidden');
     } else {
         if (editedFlag) editedFlag.classList.add('hidden');
+        if (btnDirectSave) btnDirectSave.classList.add('hidden');
     }
 
     renderTimeRuler();
