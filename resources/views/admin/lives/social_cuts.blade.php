@@ -195,8 +195,10 @@
                 <div class="flex items-center gap-2 min-w-0">
                     <span id="modalItemCode" class="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full shrink-0" style="background-color: #4f46e5; color: #ffffff;"></span>
                     <h4 id="modalItemTitle" class="text-xs sm:text-sm font-bold truncate text-gray-100"></h4>
-                    <span id="modalSourceBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-500 shrink-0">
-                        <i class="fas fa-closed-captioning mr-1 text-emerald-400"></i>Com Legenda
+                    <span id="modalSourceBadge" 
+                          onclick="toggleModalVideoSource()"
+                          class="hidden text-[10px] px-2.5 py-0.5 rounded-full font-extrabold border shrink-0 transition flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Modo Edição
                     </span>
                 </div>
                 <button type="button" 
@@ -369,7 +371,7 @@
                     </div>
 
                     {{-- C. TRILHA DE VÍDEO COM FILMSTRIP (FRAMES / MINIATURAS) --}}
-                    <div class="relative w-full h-12 sm:h-14 bg-gray-950 rounded-xl overflow-hidden border border-gray-700/80 shadow-inner flex items-center"
+                    <div class="relative w-full h-14 sm:h-16 bg-gray-950 rounded-xl overflow-hidden border border-gray-700/80 shadow-inner flex items-center"
                          id="filmstripTrackWrapper">
                         
                         {{-- Película de frames em miniatura lado a lado cobrindo 100% --}}
@@ -445,21 +447,6 @@
                             <div class="w-2.5 h-1.5 bg-red-400 rounded-b-sm shadow"></div>
                         </div>
 
-                    </div>
-
-                    {{-- D. TRILHA DE ÁUDIO COM WAVEFORM (AUDIO TRACK) --}}
-                    <div class="relative w-full h-6 sm:h-7 bg-blue-950/80 rounded-lg overflow-hidden border border-blue-700/50 flex items-center px-2 select-none shadow-sm">
-                        <span class="text-[10px] sm:text-xs font-bold text-blue-200 flex items-center gap-1.5 shrink-0 mr-2 z-5">
-                            <i class="fas fa-music text-blue-400 text-[10px]"></i>
-                            <span class="hidden sm:inline">Áudio Original</span>
-                        </span>
-                        {{-- Onda Sonora Waveform contínua em SVG --}}
-                        <div class="flex-1 h-full flex items-center opacity-75 overflow-hidden">
-                            <svg class="w-full h-3 sm:h-3.5 text-blue-300" viewBox="0 0 500 20" preserveAspectRatio="none">
-                                <path d="M0,10 Q10,2 20,10 T40,10 T60,10 T80,3 T100,10 T120,16 T140,10 T160,2 T180,10 T200,18 T220,10 T240,4 T260,10 T280,15 T300,10 T320,1 T340,10 T360,17 T380,10 T400,3 T420,10 T440,16 T460,10 T480,2 T500,10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                                <path d="M0,10 Q10,5 20,10 T40,10 T60,10 T80,6 T100,10 T120,13 T140,10 T160,5 T180,10 T200,14 T220,10 T240,6 T260,10 T280,13 T300,10 T320,4 T340,10 T360,14 T380,10 T400,6 T420,10 T440,13 T460,10 T480,5 T500,10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6" stroke-linecap="round" />
-                            </svg>
-                        </div>
                     </div>
 
                     {{-- E. AGULHA MESTRA DE REPRODUÇÃO (PLAYHEAD TRANSVERSAL QUE ATRAVESSA TODAS AS FAIXAS) --}}
@@ -573,16 +560,36 @@ let toastTimeout = null;
 let isScrubbing = false;
 
 function getWindowBounds() {
-    let wStart = originalStart;
-    let wEnd = originalEnd;
+    const baseDuration = Math.max(1, originalEnd - originalStart);
+    // Margem lateral para centralizar o corte original no centro da barra (mínimo 15s ou 40% da duração)
+    const baseMargin = Math.max(15, Math.round(baseDuration * 0.4));
 
-    if (activeStart < wStart) wStart = activeStart;
-    if (activeEnd > wEnd) wEnd = activeEnd;
+    let wStart = Math.max(0, originalStart - baseMargin);
+    let wEnd = originalEnd + baseMargin;
 
-    const player = document.getElementById('modalVideoPlayer');
-    if (!isUsingRecording && player && player.duration && !isNaN(player.duration) && player.duration > 0) {
-        wStart = originalStart;
-        wEnd = originalStart + player.duration;
+    // Se o corte ativo foi expandido para antes de wStart (ex: -10s), expande a régua para a esquerda
+    if (activeStart < wStart) {
+        wStart = Math.max(0, activeStart - 10);
+    }
+
+    // Se o corte ativo foi expandido para depois de wEnd (ex: +10s), expande a régua para a direita
+    if (activeEnd > wEnd) {
+        wEnd = activeEnd + 10;
+    }
+
+    // Se originalStart está próximo do início da live (ex: 5s), equilibra a margem direita para centralizar
+    const leftMargin = originalStart - wStart;
+    if (leftMargin < baseMargin && originalStart < baseMargin) {
+        wEnd = Math.max(wEnd, originalEnd + leftMargin);
+    }
+
+    // Fallback caso esteja reproduzindo apenas arquivo de corte isolado (sem gravação bruta)
+    if (!isUsingRecording) {
+        const player = document.getElementById('modalVideoPlayer');
+        if (player && player.duration && !isNaN(player.duration) && player.duration > 0) {
+            wStart = originalStart;
+            wEnd = originalStart + player.duration;
+        }
     }
 
     if (wEnd <= wStart) wEnd = wStart + 1;
@@ -705,6 +712,55 @@ function renderFilmstrip(imageUrl) {
     }
 }
 
+function updateSourceBadgeUI(isRecording) {
+    const badgeEl = document.getElementById('modalSourceBadge');
+    if (!badgeEl) return;
+    badgeEl.classList.remove('hidden');
+
+    if (isRecording) {
+        badgeEl.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-extrabold bg-indigo-900/80 text-indigo-200 border border-indigo-400 shrink-0 transition flex items-center gap-1 cursor-pointer hover:bg-indigo-800';
+        const hasCut = (currentItem && currentItem.video_cut_url && currentItem.video_cut_url.trim() !== '');
+        badgeEl.innerHTML = `<i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Modo Edição${hasCut ? ' <span class="text-[9px] text-gray-300 opacity-75">(ver legenda)</span>' : ''}`;
+        badgeEl.title = hasCut ? 'Clique para alternar para o vídeo gerado com legenda' : 'Edição na gravação da live';
+    } else {
+        badgeEl.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-400 shrink-0 transition flex items-center gap-1 cursor-pointer hover:bg-emerald-800';
+        badgeEl.innerHTML = '<i class="fas fa-closed-captioning mr-1 text-emerald-300"></i>Com Legenda <span class="text-[9px] text-emerald-200 opacity-75">(editar)</span>';
+        badgeEl.title = 'Clique para alternar para o modo de edição na gravação da live';
+    }
+}
+
+function toggleModalVideoSource() {
+    if (!currentItem) return;
+    const player = document.getElementById('modalVideoPlayer');
+    if (!player) return;
+
+    if (isUsingRecording) {
+        if (currentItem.video_cut_url && currentItem.video_cut_url.trim() !== '') {
+            isUsingRecording = false;
+            player.src = currentItem.video_cut_url;
+            updateSourceBadgeUI(false);
+            player.currentTime = 0;
+            player.play().then(() => updatePlayIcon(true)).catch(() => {});
+            renderTimeRuler();
+            renderTimeBadges();
+            showToast('🎬 Exibindo corte gerado com legendas');
+        } else {
+            showToast('⚠️ Este corte ainda não foi renderizado com legendas.');
+        }
+    } else {
+        if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+            isUsingRecording = true;
+            player.src = liveGlobalRecordingUrl;
+            updateSourceBadgeUI(true);
+            player.currentTime = activeStart;
+            player.play().then(() => updatePlayIcon(true)).catch(() => {});
+            renderTimeRuler();
+            renderTimeBadges();
+            showToast('✂️ Modo Edição ativado (Gravação)');
+        }
+    }
+}
+
 function openPreviewModal(item) {
     if (!item) return;
     currentItem = item;
@@ -731,23 +787,16 @@ function openPreviewModal(item) {
 
     const badgeEl = document.getElementById('modalSourceBadge');
 
-    // Prioriza o vídeo cortado com legendas dinâmicas embutidas para visualização
-    if (item.video_cut_url && item.video_cut_url.trim() !== '') {
-        isUsingRecording = false;
-        player.src = item.video_cut_url;
-        if (badgeEl) {
-            badgeEl.classList.remove('hidden');
-            badgeEl.innerHTML = '<i class="fas fa-closed-captioning mr-1 text-emerald-400"></i>Com Legenda';
-            badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-500 shrink-0';
-        }
-    } else if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+    // No editor de cortes: se a gravação bruta estiver disponível, priorizamos ela
+    // para permitir navegar livremente antes e depois do corte original com a barra centralizada!
+    if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
         isUsingRecording = true;
         player.src = liveGlobalRecordingUrl;
-        if (badgeEl) {
-            badgeEl.classList.remove('hidden');
-            badgeEl.innerHTML = '<i class="fas fa-film mr-1 text-amber-400"></i>Gravação Bruta';
-            badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
-        }
+        updateSourceBadgeUI(true);
+    } else if (item.video_cut_url && item.video_cut_url.trim() !== '') {
+        isUsingRecording = false;
+        player.src = item.video_cut_url;
+        updateSourceBadgeUI(false);
     } else {
         isUsingRecording = false;
         player.src = '';
@@ -1204,12 +1253,7 @@ function jumpMinus10() {
         if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
             isUsingRecording = true;
             player.src = liveGlobalRecordingUrl;
-            const badgeEl = document.getElementById('modalSourceBadge');
-            if (badgeEl) {
-                badgeEl.classList.remove('hidden');
-                badgeEl.innerHTML = '<i class="fas fa-edit mr-1 text-amber-400"></i>Modo Ajuste';
-                badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
-            }
+            updateSourceBadgeUI(true);
         }
         if (isUsingRecording) {
             player.currentTime = activeStart;
@@ -1219,11 +1263,7 @@ function jumpMinus10() {
         renderTimeBadges();
     } else {
         // Pular 10s para trás
-        if (isUsingRecording) {
-            player.currentTime = Math.max(activeStart, player.currentTime - 10);
-        } else {
-            player.currentTime = Math.max(0, player.currentTime - 10);
-        }
+        player.currentTime = Math.max(0, player.currentTime - 10);
     }
 }
 
@@ -1240,12 +1280,7 @@ function jumpPlus10() {
         if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
             isUsingRecording = true;
             player.src = liveGlobalRecordingUrl;
-            const badgeEl = document.getElementById('modalSourceBadge');
-            if (badgeEl) {
-                badgeEl.classList.remove('hidden');
-                badgeEl.innerHTML = '<i class="fas fa-edit mr-1 text-amber-400"></i>Modo Ajuste';
-                badgeEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-900/80 text-amber-200 border border-amber-500 shrink-0';
-            }
+            updateSourceBadgeUI(true);
         }
         if (isUsingRecording) {
             player.play().then(() => updatePlayIcon(true)).catch(() => {});
@@ -1254,11 +1289,7 @@ function jumpPlus10() {
         renderTimeBadges();
     } else {
         // Pular 10s para frente
-        if (isUsingRecording) {
-            player.currentTime = Math.min(activeEnd, player.currentTime + 10);
-        } else {
-            player.currentTime = Math.min(player.duration || activeEnd, player.currentTime + 10);
-        }
+        player.currentTime = Math.min(player.duration || 999999, player.currentTime + 10);
     }
 }
 
