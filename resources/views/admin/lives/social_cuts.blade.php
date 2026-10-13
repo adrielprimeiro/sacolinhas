@@ -252,21 +252,42 @@
             {{-- Toolbar de Controles & Edição de Minutagem (Fixa na parte inferior) --}}
             <div class="shrink-0 p-3 sm:p-4 bg-gray-850 border-t border-gray-800 space-y-2.5" style="background-color: #1a202c;">
                 
-                {{-- Linha Superior: Botão [⏺ Início], Duração/Status e Botão [Fim ⏺] --}}
-                <div class="flex items-center justify-between gap-2">
-                    {{-- Botão Gravar Ponto Início --}}
+                {{-- Linha Superior: Botão [Início |▶], Tesoura ✂️, Duração/Status e Botão [Fim ▶|] --}}
+                <div class="flex items-center justify-between gap-1.5 sm:gap-2">
+                    {{-- Botão Gravar Ponto Início (Seta com traço |▶) --}}
                     <button type="button" 
                             onclick="setCutPointHere('start')"
-                            class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
-                            style="background-color: #4f46e5; color: #ffffff;"
-                            title="Gravar posição atual da reprodução como início do corte">
-                        <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
+                            class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
+                            style="background-color: #2563eb; color: #ffffff;"
+                            title="Gravar posição atual como Início do corte (Mark In)">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 4h3v16H4V4zm5 8l11-8v16l-11-8z" />
+                        </svg>
                         <span>Início</span>
                     </button>
 
+                    {{-- Botão da Tesoura para Corte no Meio --}}
+                    <div class="flex items-center gap-1">
+                        <button type="button"
+                                id="btnMiddleCutScissors"
+                                onclick="handleScissorsClick()"
+                                class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50"
+                                title="Cortar no meio: 1º clique marca início, 2º clique marca fim do trecho a cortar">
+                            <i class="fas fa-scissors text-amber-400" id="iconScissors"></i>
+                            <span id="textScissors">Cortar Meio</span>
+                        </button>
+                        <button type="button" 
+                                id="btnClearMiddleCut"
+                                onclick="clearMiddleCut()"
+                                class="hidden px-2 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-800 text-red-200 border border-red-500 text-xs font-black cursor-pointer transition"
+                                title="Desfazer corte no meio">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
                     {{-- Duração Central e Badge Editado (Alto Contraste) --}}
-                    <div class="flex items-center gap-1.5">
-                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2.5 py-0.5 rounded-lg">
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span id="badgeDurationSec" class="text-xs font-mono font-bold text-gray-200 bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-lg">
                             0s
                         </span>
                         <span id="badgeEditedFlag" class="hidden items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black animate-pulse" style="background-color: #fef3c7; color: #92400e !important; border: 1px solid #fde68a;">
@@ -275,61 +296,133 @@
                         </span>
                     </div>
 
-                    {{-- Botão Gravar Ponto Fim --}}
+                    {{-- Botão Gravar Ponto Fim (Seta com traço ▶|) --}}
                     <button type="button" 
                             onclick="setCutPointHere('end')"
-                            class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-indigo-400"
-                            style="background-color: #4f46e5; color: #ffffff;"
-                            title="Gravar posição atual da reprodução como fim do corte">
+                            class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-blue-400 shrink-0"
+                            style="background-color: #2563eb; color: #ffffff;"
+                            title="Gravar posição atual como Fim do corte (Mark Out)">
                         <span>Fim</span>
-                        <i class="fas fa-dot-circle text-red-400 animate-pulse text-[10px]"></i>
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 4h3v16h-3V4zM4 20V4l11 8-11 8z" />
+                        </svg>
                     </button>
                 </div>
 
-                {{-- Barra Visual de Cortes Multi-Cores com Marcador Playhead --}}
-                <div class="space-y-1.5">
-                    <div class="relative w-full h-7 sm:h-8 bg-gray-800 rounded-xl overflow-hidden flex cursor-pointer border border-gray-600 select-none shadow-inner touch-none"
+                {{-- Barra Visual de Cortes com Marcadores Maiores e Riscos Verticais --}}
+                <div class="space-y-1.5 pt-1">
+                    {{-- Container Externo relativo com overflow-visible para permitir que os riscos ultrapassem a barra para cima e para baixo --}}
+                    <div class="relative w-full h-8 sm:h-9 flex items-center cursor-pointer select-none touch-none"
                          id="visualTimelineTrack"
                          title="Toque ou arraste para navegar e ajustar o ponto exato">
                         
-                        {{-- Segmento Início Adicionado (Âmbar/Amarelo) --}}
-                        <div id="trackSegAddedStart" 
-                             class="h-full bg-amber-500 flex items-center justify-center text-[10px] sm:text-xs font-black text-amber-950 transition-all duration-150 select-none" 
-                             style="width: 0%;" 
-                             title="Trecho adicionado ao início (+10s)">
+                        {{-- Trilho Fundo (Barra propriamente dita com cantos arredondados) --}}
+                        <div class="relative w-full h-7 sm:h-8 bg-gray-900 rounded-xl overflow-hidden border border-gray-700 shadow-inner flex pointer-events-none">
+                            
+                            {{-- 1. Faixa Escura Antes do Início (0% até startPct) --}}
+                            <div id="trackDarkBefore" 
+                                 class="h-full bg-black/85 border-r border-gray-700/80 transition-none"
+                                 style="width: 0%;" 
+                                 title="Trecho descartado antes do início">
+                            </div>
+
+                            {{-- 2. Faixa Azul Ativa do Corte (startPct até endPct) --}}
+                            <div id="trackBlueActive" 
+                                 class="relative h-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 transition-none flex items-center justify-center overflow-hidden" 
+                                 style="width: 100%;" 
+                                 title="Trecho selecionado para o corte">
+                            </div>
+
+                            {{-- 3. Faixa Escura Depois do Fim (endPct até 100%) --}}
+                            <div id="trackDarkAfter" 
+                                 class="h-full bg-black/85 border-l border-gray-700/80 transition-none"
+                                 style="width: 0%;" 
+                                 title="Trecho descartado depois do fim">
+                            </div>
+
                         </div>
 
-                        {{-- Segmento Corte Original (Índigo/Roxo) --}}
-                        <div id="trackSegOriginal" 
-                             class="h-full bg-indigo-600 flex items-center justify-center text-[10px] sm:text-xs font-black text-white transition-all duration-150 select-none" 
-                             style="width: 100%;" 
-                             title="Trecho original do corte">
+                        {{-- 4. Faixa Escura do Corte no Meio (Tesoura) sobreposta --}}
+                        <div id="trackDarkMiddleCut" 
+                             class="hidden absolute top-0.5 bottom-0.5 pointer-events-none z-15 items-center justify-center text-[10px] font-black text-red-200 border-x-2 border-dashed border-red-400 select-none rounded-sm"
+                             style="left: 0%; width: 0%; background: repeating-linear-gradient(45deg, rgba(10,10,10,0.92), rgba(10,10,10,0.92) 6px, rgba(28,28,28,0.92) 6px, rgba(28,28,28,0.92) 12px);"
+                             title="Trecho cortado no meio (removido)">
+                            <span id="trackDarkMiddleCutLabel" class="truncate px-1 bg-red-950/90 rounded border border-red-500/50 text-[9px] font-mono text-red-300">
+                                ✂️ Corte
+                            </span>
                         </div>
 
-                        {{-- Segmento Fim Adicionado (Âmbar/Amarelo) --}}
-                        <div id="trackSegAddedEnd" 
-                             class="h-full bg-amber-500 flex items-center justify-center text-[10px] sm:text-xs font-black text-amber-950 transition-all duration-150 select-none" 
-                             style="width: 0%;" 
-                             title="Trecho adicionado ao final (+10s)">
+                        {{-- RISCO VERTICAL DE INÍCIO (Ultrapassa a barra para cima e para baixo) --}}
+                        <div id="markerStart" 
+                             class="absolute pointer-events-none transition-none flex flex-col items-center justify-between"
+                             style="left: 0%; top: -5px; bottom: -5px; transform: translateX(-50%); z-index: 25;">
+                            {{-- Aba Superior --}}
+                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-t-sm shadow-md flex items-center justify-center">
+                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
+                            </div>
+                            {{-- Risco Vertical Fluorescente --}}
+                            <div class="w-1 flex-1 bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.95)]"></div>
+                            {{-- Aba Inferior --}}
+                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-b-sm shadow-md flex items-center justify-center">
+                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
+                            </div>
                         </div>
 
-                        {{-- Agulha de Reprodução (Playhead com Grip Arrasto) --}}
+                        {{-- RISCO VERTICAL DE FIM (Ultrapassa a barra para cima e para baixo) --}}
+                        <div id="markerEnd" 
+                             class="absolute pointer-events-none transition-none flex flex-col items-center justify-between"
+                             style="left: 100%; top: -5px; bottom: -5px; transform: translateX(-50%); z-index: 25;">
+                            {{-- Aba Superior --}}
+                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-t-sm shadow-md flex items-center justify-center">
+                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
+                            </div>
+                            {{-- Risco Vertical Fluorescente --}}
+                            <div class="w-1 flex-1 bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.95)]"></div>
+                            {{-- Aba Inferior --}}
+                            <div class="w-3.5 h-2.5 bg-cyan-400 rounded-b-sm shadow-md flex items-center justify-center">
+                                <div class="w-1.5 h-1 bg-cyan-950 rounded-xs"></div>
+                            </div>
+                        </div>
+
+                        {{-- RISCO VERTICAL 1 DA TESOURA (Ponto 1) --}}
+                        <div id="markerMiddleCut1" 
+                             class="hidden absolute pointer-events-none transition-none flex flex-col items-center justify-between"
+                             style="left: 0%; top: -6px; bottom: -6px; transform: translateX(-50%); z-index: 28;">
+                            <div class="w-3.5 h-3 bg-amber-400 text-amber-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
+                                <i class="fas fa-scissors"></i>
+                            </div>
+                            <div class="w-1 flex-1 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.95)]"></div>
+                            <div class="w-2.5 h-2 bg-amber-400 rounded-b-sm shadow"></div>
+                        </div>
+
+                        {{-- RISCO VERTICAL 2 DA TESOURA (Ponto 2) --}}
+                        <div id="markerMiddleCut2" 
+                             class="hidden absolute pointer-events-none transition-none flex flex-col items-center justify-between"
+                             style="left: 0%; top: -6px; bottom: -6px; transform: translateX(-50%); z-index: 28;">
+                            <div class="w-3.5 h-3 bg-red-400 text-red-950 text-[8px] font-black rounded-t-sm shadow flex items-center justify-center">
+                                <i class="fas fa-scissors"></i>
+                            </div>
+                            <div class="w-1 flex-1 bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.95)]"></div>
+                            <div class="w-2.5 h-2 bg-red-400 rounded-b-sm shadow"></div>
+                        </div>
+
+                        {{-- Agulha de Reprodução (Playhead) --}}
                         <div id="trackPlayhead" 
-                             class="absolute top-0 bottom-0 w-1.5 bg-white shadow-xl pointer-events-none transform -translate-x-1/2 transition-none z-10" 
+                             class="absolute top-0 bottom-0 w-1 bg-white shadow-2xl pointer-events-none transform -translate-x-1/2 transition-none z-30" 
                              style="left: 0%;">
-                            <div class="w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white -mt-0.5 -ml-1 shadow-md"></div>
+                            <div class="w-3.5 h-3.5 bg-pink-500 rounded-full border-2 border-white -mt-1 -ml-1.25 shadow-md"></div>
                         </div>
                     </div>
 
                     {{-- Minutagem Direta na Barra (Início, Tempo Atual e Fim) --}}
                     <div class="flex items-center justify-between text-xs font-mono text-gray-300 px-0.5 font-bold">
-                        <span id="barStartMinutagem" class="text-indigo-400 font-extrabold text-xs sm:text-sm">00:00</span>
+                        <span id="barStartMinutagem" class="text-cyan-400 font-extrabold text-xs sm:text-sm">00:00</span>
                         <div class="flex items-center gap-1 font-semibold text-gray-400 text-xs sm:text-sm">
                             <span id="modalCurrentTimeText" class="text-white font-black">00:00</span>
                             <span>/</span>
                             <span id="modalTotalTimeText" class="text-gray-300">00:00</span>
                         </div>
-                        <span id="barEndMinutagem" class="text-indigo-400 font-extrabold text-xs sm:text-sm">00:00</span>
+                        <span id="barEndMinutagem" class="text-cyan-400 font-extrabold text-xs sm:text-sm">00:00</span>
                     </div>
                 </div>
 
@@ -399,8 +492,12 @@
                     <span>Fim do Corte:</span>
                     <span class="font-bold text-white"><span id="confirmEndOld" class="text-gray-400 line-through mr-1">00:00</span> ➔ <span id="confirmEndNew" class="text-emerald-400 font-black">00:00</span></span>
                 </div>
+                <div id="confirmMiddleCutRow" class="hidden items-center justify-between text-gray-300 pt-1.5 border-t border-gray-700">
+                    <span>Corte no Meio:</span>
+                    <span class="font-bold text-amber-400" id="confirmMiddleCutText">00:00 ➔ 00:00 (-0s)</span>
+                </div>
                 <div class="flex items-center justify-between text-gray-300 pt-1.5 border-t border-gray-700">
-                    <span>Duração:</span>
+                    <span>Duração Final:</span>
                     <span class="font-bold text-pink-400" id="confirmDurationNew">0s</span>
                 </div>
             </div>
@@ -447,9 +544,31 @@ let activeStart = 0;
 let activeEnd = 0;
 let originalStart = 0;
 let originalEnd = 0;
+let middleCut1 = null;
+let middleCutStart = null;
+let middleCutEnd = null;
+let originalMiddleCutStart = null;
+let originalMiddleCutEnd = null;
 let isUsingRecording = false;
 let toastTimeout = null;
 let isScrubbing = false;
+
+function getWindowBounds() {
+    let wStart = originalStart;
+    let wEnd = originalEnd;
+
+    if (activeStart < wStart) wStart = activeStart;
+    if (activeEnd > wEnd) wEnd = activeEnd;
+
+    const player = document.getElementById('modalVideoPlayer');
+    if (!isUsingRecording && player && player.duration && !isNaN(player.duration) && player.duration > 0) {
+        wStart = originalStart;
+        wEnd = originalStart + player.duration;
+    }
+
+    if (wEnd <= wStart) wEnd = wStart + 1;
+    return { wStart, wEnd, span: Math.max(0.1, wEnd - wStart) };
+}
 
 function socialCutsApp() {
     return {
@@ -537,6 +656,12 @@ function openPreviewModal(item) {
     originalStart = activeStart;
     originalEnd = activeEnd;
 
+    middleCut1 = null;
+    middleCutStart = (item.middle_cut_start_sec !== null && item.middle_cut_start_sec !== undefined && item.middle_cut_start_sec !== '') ? Number(item.middle_cut_start_sec) : null;
+    middleCutEnd = (item.middle_cut_end_sec !== null && item.middle_cut_end_sec !== undefined && item.middle_cut_end_sec !== '') ? Number(item.middle_cut_end_sec) : null;
+    originalMiddleCutStart = middleCutStart;
+    originalMiddleCutEnd = middleCutEnd;
+
     const badgeEl = document.getElementById('modalSourceBadge');
 
     // Prioriza o vídeo cortado com legendas dinâmicas embutidas para visualização
@@ -589,31 +714,50 @@ function openPreviewModal(item) {
         const totalText = document.getElementById('modalTotalTimeText');
         const playhead = document.getElementById('trackPlayhead');
 
-        let currentOffset = 0;
-        let totalSpan = Math.max(0.1, activeEnd - activeStart);
-
+        let currentAbsTime = 0;
         if (isUsingRecording) {
-            currentOffset = Math.max(0, player.currentTime - activeStart);
-
-            if (player.currentTime >= activeEnd) {
-                player.pause();
-                player.currentTime = activeEnd;
-                updatePlayIcon(false);
-            }
-
-            if (currentText) currentText.textContent = formatTime(currentOffset);
-            if (totalText) totalText.textContent = formatTime(totalSpan);
+            currentAbsTime = player.currentTime;
         } else {
-            currentOffset = player.currentTime;
-            totalSpan = player.duration || totalSpan;
-
-            if (currentText) currentText.textContent = formatTime(player.currentTime);
-            if (totalText) totalText.textContent = formatTime(totalSpan);
+            currentAbsTime = originalStart + player.currentTime;
         }
 
-        const progressPct = Math.min(100, Math.max(0, (currentOffset / totalSpan) * 100));
+        // Pular trecho cortado no meio em tempo real durante a reprodução!
+        if (middleCutStart !== null && middleCutEnd !== null) {
+            if (currentAbsTime >= middleCutStart && currentAbsTime < middleCutEnd) {
+                if (isUsingRecording) {
+                    player.currentTime = middleCutEnd;
+                } else {
+                    player.currentTime = Math.max(0, middleCutEnd - originalStart);
+                }
+                return;
+            }
+        }
+
+        // Pausa ao atingir o fim ativo do corte
+        if (currentAbsTime >= activeEnd) {
+            player.pause();
+            updatePlayIcon(false);
+            if (isUsingRecording) {
+                player.currentTime = activeEnd;
+            }
+        }
+
+        const { wStart, span } = getWindowBounds();
+        const progressPct = Math.min(100, Math.max(0, ((currentAbsTime - wStart) / span) * 100));
+
         if (playhead) {
             playhead.style.left = `${progressPct}%`;
+        }
+
+        if (currentText) {
+            const displayOffset = isUsingRecording ? Math.max(0, currentAbsTime - activeStart) : (currentAbsTime - originalStart);
+            currentText.textContent = formatTime(Math.max(0, displayOffset));
+        }
+
+        let baseDuration = Math.max(0, activeEnd - activeStart);
+        let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
+        if (totalText) {
+            totalText.textContent = formatTime(Math.max(0, baseDuration - cutLoss));
         }
     };
 }
@@ -628,23 +772,104 @@ function setCutPointHere(type) {
     } else {
         currentSec = originalStart + player.currentTime;
     }
+    currentSec = Math.round(currentSec * 10) / 10;
 
     if (type === 'start') {
         if (currentSec >= activeEnd) {
-            showToast('⚠️ O início não pode ser maior que o fim!');
+            showToast('⚠️ O início não pode ser maior ou igual ao fim!');
             return;
         }
-        activeStart = Math.max(0, Math.round(currentSec * 10) / 10);
+        activeStart = Math.max(0, currentSec);
+
+        // Se havia corte no meio e activeStart passou dele, ajusta
+        if (middleCutStart !== null && activeStart >= middleCutStart) {
+            clearMiddleCut(false);
+        }
+
         showToast(`📍 Início gravado: ${formatTime(activeStart)}`);
     } else if (type === 'end') {
         if (currentSec <= activeStart) {
-            showToast('⚠️ O fim não pode ser menor que o início!');
+            showToast('⚠️ O fim não pode ser menor ou igual ao início!');
             return;
         }
-        activeEnd = Math.round(currentSec * 10) / 10;
+        activeEnd = currentSec;
+
+        // Se havia corte no meio e activeEnd ficou antes dele, ajusta
+        if (middleCutEnd !== null && activeEnd <= middleCutEnd) {
+            clearMiddleCut(false);
+        }
+
         showToast(`📍 Fim gravado: ${formatTime(activeEnd)}`);
     }
 
+    renderTimeBadges();
+}
+
+function handleScissorsClick() {
+    const player = document.getElementById('modalVideoPlayer');
+    if (!player) return;
+
+    let currentSec = 0;
+    if (isUsingRecording) {
+        currentSec = player.currentTime;
+    } else {
+        currentSec = originalStart + player.currentTime;
+    }
+    currentSec = Math.round(currentSec * 10) / 10;
+
+    // Se já tinha um corte completo no meio, permite iniciar um novo corte no ponto atual
+    if (middleCutStart !== null && middleCutEnd !== null) {
+        middleCutStart = null;
+        middleCutEnd = null;
+        middleCut1 = currentSec;
+        showToast(`✂️ Novo corte: 1º ponto marcado em ${formatTime(currentSec)}. Clique novamente na tesoura para marcar o 2º ponto.`);
+        renderTimeBadges();
+        return;
+    }
+
+    // 1º Clique da Tesoura
+    if (middleCut1 === null) {
+        if (currentSec <= activeStart || currentSec >= activeEnd) {
+            showToast('⚠️ O corte no meio deve estar entre o Início e o Fim!');
+            return;
+        }
+        middleCut1 = currentSec;
+        showToast(`✂️ 1º Ponto marcado em ${formatTime(middleCut1)}. Avance o vídeo e clique na tesoura para marcar o 2º ponto.`);
+        renderTimeBadges();
+    } else {
+        // 2º Clique da Tesoura
+        if (Math.abs(currentSec - middleCut1) < 0.3) {
+            showToast('⚠️ Escolha um intervalo maior que 0.3s para o corte no meio.');
+            return;
+        }
+
+        const pMin = Math.max(activeStart, Math.min(middleCut1, currentSec));
+        const pMax = Math.min(activeEnd, Math.max(middleCut1, currentSec));
+
+        if (pMax <= pMin) {
+            showToast('⚠️ Intervalo de corte inválido.');
+            middleCut1 = null;
+            renderTimeBadges();
+            return;
+        }
+
+        middleCutStart = pMin;
+        middleCutEnd = pMax;
+        middleCut1 = null;
+
+        const cutDuration = (middleCutEnd - middleCutStart).toFixed(1);
+        showToast(`✂️ Intervalo de ${formatTime(middleCutStart)} a ${formatTime(middleCutEnd)} (-${cutDuration}s) cortado!`);
+        renderTimeBadges();
+    }
+}
+
+function clearMiddleCut(notify = true) {
+    middleCut1 = null;
+    middleCutStart = null;
+    middleCutEnd = null;
+    if (notify) {
+        showToast('✂️ Corte no meio desfeito.');
+    }
     renderTimeBadges();
 }
 
@@ -653,14 +878,40 @@ function renderTimeBadges() {
     const barEndMinutagem = document.getElementById('barEndMinutagem');
     const durSecEl = document.getElementById('badgeDurationSec');
     const editedFlag = document.getElementById('badgeEditedFlag');
+    const btnScissors = document.getElementById('btnMiddleCutScissors');
+    const textScissors = document.getElementById('textScissors');
+    const btnClearScissors = document.getElementById('btnClearMiddleCut');
 
-    const duration = Math.max(0, Math.round(activeEnd - activeStart));
+    let baseDuration = Math.max(0, activeEnd - activeStart);
+    let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
+    let effectiveDuration = Math.max(0, Math.round(baseDuration - cutLoss));
 
     if (barStartMinutagem) barStartMinutagem.textContent = formatTime(activeStart);
     if (barEndMinutagem) barEndMinutagem.textContent = formatTime(activeEnd);
-    if (durSecEl) durSecEl.textContent = `${duration}s`;
+    if (durSecEl) durSecEl.textContent = `${effectiveDuration}s`;
 
-    const hasChanged = (activeStart !== originalStart || activeEnd !== originalEnd);
+    if (textScissors && btnScissors) {
+        if (middleCut1 !== null) {
+            textScissors.textContent = '2º Ponto ✂️';
+            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-amber-950 font-black text-xs flex items-center gap-1.5 transition shadow-md cursor-pointer border border-amber-300 animate-pulse';
+            if (btnClearScissors) btnClearScissors.classList.remove('hidden');
+        } else if (middleCutStart !== null && middleCutEnd !== null) {
+            textScissors.textContent = `-${cutLoss.toFixed(1)}s (Meio)`;
+            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-900/90 hover:bg-red-800 active:scale-95 text-red-100 font-black text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-red-500';
+            if (btnClearScissors) btnClearScissors.classList.remove('hidden');
+        } else {
+            textScissors.textContent = 'Cortar Meio';
+            btnScissors.className = 'px-2.5 sm:px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer border border-amber-500/50';
+            if (btnClearScissors) btnClearScissors.classList.add('hidden');
+        }
+    }
+
+    const hasChanged = (
+        activeStart !== originalStart || 
+        activeEnd !== originalEnd || 
+        middleCutStart !== originalMiddleCutStart || 
+        middleCutEnd !== originalMiddleCutEnd
+    );
 
     if (hasChanged) {
         if (editedFlag) editedFlag.classList.remove('hidden');
@@ -672,36 +923,83 @@ function renderTimeBadges() {
 }
 
 function updateVisualTimeline() {
-    const segAddedStart = document.getElementById('trackSegAddedStart');
-    const segOriginal = document.getElementById('trackSegOriginal');
-    const segAddedEnd = document.getElementById('trackSegAddedEnd');
+    const trackDarkBefore = document.getElementById('trackDarkBefore');
+    const trackBlueActive = document.getElementById('trackBlueActive');
+    const trackDarkAfter = document.getElementById('trackDarkAfter');
+    const markerStart = document.getElementById('markerStart');
+    const markerEnd = document.getElementById('markerEnd');
+    const markerCut1 = document.getElementById('markerMiddleCut1');
+    const markerCut2 = document.getElementById('markerMiddleCut2');
+    const trackDarkMiddleCut = document.getElementById('trackDarkMiddleCut');
+    const trackDarkMiddleCutLabel = document.getElementById('trackDarkMiddleCutLabel');
 
-    const totalSpan = Math.max(0.1, activeEnd - activeStart);
+    const { wStart, span } = getWindowBounds();
 
-    // 1. Início adicionado (se activeStart < originalStart)
-    const addedStartSec = Math.max(0, originalStart - activeStart);
-    const addedStartPct = (addedStartSec / totalSpan) * 100;
+    const startPct = Math.min(100, Math.max(0, ((activeStart - wStart) / span) * 100));
+    const endPct = Math.min(100, Math.max(startPct, ((activeEnd - wStart) / span) * 100));
 
-    // 2. Fim adicionado (se activeEnd > originalEnd)
-    const addedEndSec = Math.max(0, activeEnd - originalEnd);
-    const addedEndPct = (addedEndSec / totalSpan) * 100;
-
-    // 3. Corte original dentro de [activeStart, activeEnd]
-    const origLeft = Math.max(activeStart, originalStart);
-    const origRight = Math.min(activeEnd, originalEnd);
-    const origSec = Math.max(0, origRight - origLeft);
-    const origPct = Math.max(0, (origSec / totalSpan) * 100);
-
-    if (segAddedStart) {
-        segAddedStart.style.width = `${addedStartPct}%`;
-        segAddedStart.textContent = addedStartPct > 12 ? `+${Math.round(addedStartSec)}s` : '';
+    // 1. Faixa escura antes do início
+    if (trackDarkBefore) {
+        trackDarkBefore.style.width = `${startPct}%`;
     }
-    if (segOriginal) {
-        segOriginal.style.width = `${origPct}%`;
+
+    // 2. Faixa azul ativa entre Início e Fim
+    if (trackBlueActive) {
+        trackBlueActive.style.width = `${Math.max(0, endPct - startPct)}%`;
     }
-    if (segAddedEnd) {
-        segAddedEnd.style.width = `${addedEndPct}%`;
-        segAddedEnd.textContent = addedEndPct > 12 ? `+${Math.round(addedEndSec)}s` : '';
+
+    // 3. Faixa escura depois do fim
+    if (trackDarkAfter) {
+        trackDarkAfter.style.width = `${Math.max(0, 100 - endPct)}%`;
+    }
+
+    // 4. Riscos verticais estendidos (maiores para cima e para baixo)
+    if (markerStart) {
+        markerStart.style.left = `${startPct}%`;
+    }
+    if (markerEnd) {
+        markerEnd.style.left = `${endPct}%`;
+    }
+
+    // 5. Marcador 1 da Tesoura (se clicou 1 vez)
+    if (markerCut1) {
+        if (middleCut1 !== null) {
+            const cut1Pct = Math.min(100, Math.max(0, ((middleCut1 - wStart) / span) * 100));
+            markerCut1.style.left = `${cut1Pct}%`;
+            markerCut1.classList.remove('hidden');
+        } else {
+            markerCut1.classList.add('hidden');
+        }
+    }
+
+    // 6. Intervalo cortado da Tesoura (se clicou 2 vezes)
+    if (trackDarkMiddleCut && markerCut2) {
+        if (middleCutStart !== null && middleCutEnd !== null) {
+            const mStartPct = Math.min(100, Math.max(0, ((middleCutStart - wStart) / span) * 100));
+            const mEndPct = Math.min(100, Math.max(mStartPct, ((middleCutEnd - wStart) / span) * 100));
+
+            trackDarkMiddleCut.style.left = `${mStartPct}%`;
+            trackDarkMiddleCut.style.width = `${Math.max(0, mEndPct - mStartPct)}%`;
+            trackDarkMiddleCut.classList.remove('hidden');
+            trackDarkMiddleCut.classList.add('flex');
+
+            if (trackDarkMiddleCutLabel) {
+                const diff = (middleCutEnd - middleCutStart).toFixed(1);
+                trackDarkMiddleCutLabel.textContent = `✂️ -${diff}s`;
+            }
+
+            // Exibe os marcadores de início e fim do corte no meio
+            if (markerCut1) {
+                markerCut1.style.left = `${mStartPct}%`;
+                markerCut1.classList.remove('hidden');
+            }
+            markerCut2.style.left = `${mEndPct}%`;
+            markerCut2.classList.remove('hidden');
+        } else {
+            trackDarkMiddleCut.classList.add('hidden');
+            trackDarkMiddleCut.classList.remove('flex');
+            markerCut2.classList.add('hidden');
+        }
     }
 }
 
@@ -715,18 +1013,16 @@ function seekToTrackPosition(clientX) {
 
     const clickX = clientX - rect.left;
     const pct = Math.min(1, Math.max(0, clickX / rect.width));
-    const totalSpan = Math.max(0.1, activeEnd - activeStart);
+    const { wStart, span } = getWindowBounds();
 
-    let targetTime = 0;
-    if (isUsingRecording) {
-        targetTime = activeStart + (totalSpan * pct);
-    } else {
-        const dur = player.duration || totalSpan;
-        targetTime = dur * pct;
-    }
+    const targetAbsTime = wStart + (span * pct);
 
     try {
-        player.currentTime = targetTime;
+        if (isUsingRecording) {
+            player.currentTime = targetAbsTime;
+        } else {
+            player.currentTime = Math.max(0, targetAbsTime - originalStart);
+        }
     } catch(e) {}
 
     // Atualiza agulha e minutagem instantaneamente enquanto arrasta
@@ -737,8 +1033,8 @@ function seekToTrackPosition(clientX) {
 
     const currentText = document.getElementById('modalCurrentTimeText');
     if (currentText) {
-        const displayOffset = isUsingRecording ? Math.max(0, targetTime - activeStart) : targetTime;
-        currentText.textContent = formatTime(displayOffset);
+        const displayOffset = isUsingRecording ? Math.max(0, targetAbsTime - activeStart) : (targetAbsTime - originalStart);
+        currentText.textContent = formatTime(Math.max(0, displayOffset));
     }
 }
 
@@ -896,7 +1192,12 @@ function onScrubberInput(percentVal) {
 }
 
 function requestClosePreviewModal() {
-    const hasChanged = (activeStart !== originalStart || activeEnd !== originalEnd);
+    const hasChanged = (
+        activeStart !== originalStart || 
+        activeEnd !== originalEnd || 
+        middleCutStart !== originalMiddleCutStart || 
+        middleCutEnd !== originalMiddleCutEnd
+    );
     if (hasChanged) {
         showConfirmModal();
     } else {
@@ -913,12 +1214,30 @@ function showConfirmModal() {
     const endOld = document.getElementById('confirmEndOld');
     const endNew = document.getElementById('confirmEndNew');
     const durNew = document.getElementById('confirmDurationNew');
+    const middleRow = document.getElementById('confirmMiddleCutRow');
+    const middleText = document.getElementById('confirmMiddleCutText');
 
     if (startOld) startOld.textContent = formatTime(originalStart);
     if (startNew) startNew.textContent = formatTime(activeStart);
     if (endOld) endOld.textContent = formatTime(originalEnd);
     if (endNew) endNew.textContent = formatTime(activeEnd);
-    if (durNew) durNew.textContent = `${Math.round(activeEnd - activeStart)} segundos`;
+
+    let baseDuration = Math.max(0, activeEnd - activeStart);
+    let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
+    let finalDur = Math.max(0, Math.round(baseDuration - cutLoss));
+
+    if (durNew) durNew.textContent = `${finalDur} segundos`;
+
+    if (middleRow && middleText) {
+        if (middleCutStart !== null && middleCutEnd !== null) {
+            middleRow.classList.remove('hidden');
+            middleRow.classList.add('flex');
+            middleText.textContent = `${formatTime(middleCutStart)} ➔ ${formatTime(middleCutEnd)} (-${(middleCutEnd - middleCutStart).toFixed(1)}s)`;
+        } else {
+            middleRow.classList.add('hidden');
+            middleRow.classList.remove('flex');
+        }
+    }
 
     confirmModal.classList.remove('hidden');
     confirmModal.classList.add('flex');
@@ -968,6 +1287,8 @@ window.discardAndCloseModal = discardAndCloseModal;
 window.forceClosePreviewModal = forceClosePreviewModal;
 window.confirmAndSaveCut = confirmAndSaveCut;
 window.setCutPointHere = setCutPointHere;
+window.handleScissorsClick = handleScissorsClick;
+window.clearMiddleCut = clearMiddleCut;
 window.toggleModalPlayPause = toggleModalPlayPause;
 window.jumpMinus10 = jumpMinus10;
 window.jumpPlus10 = jumpPlus10;
@@ -1036,7 +1357,9 @@ async function saveAndReCutItem() {
             },
             body: JSON.stringify({
                 cut_start_sec: activeStart,
-                cut_end_sec: activeEnd
+                cut_end_sec: activeEnd,
+                middle_cut_start_sec: middleCutStart,
+                middle_cut_end_sec: middleCutEnd
             })
         });
         const saveJson = await saveResp.json();
@@ -1051,7 +1374,11 @@ async function saveAndReCutItem() {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken,
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                middle_cut_start_sec: middleCutStart,
+                middle_cut_end_sec: middleCutEnd
+            })
         });
         const cutJson = await cutResp.json();
         if (!cutJson.success) {
@@ -1073,13 +1400,19 @@ async function saveAndReCutItem() {
         currentItem.video_cut_url = newUrl;
         currentItem.cut_start_sec = activeStart;
         currentItem.cut_end_sec = activeEnd;
+        currentItem.middle_cut_start_sec = middleCutStart;
+        currentItem.middle_cut_end_sec = middleCutEnd;
         originalStart = activeStart;
         originalEnd = activeEnd;
+        originalMiddleCutStart = middleCutStart;
+        originalMiddleCutEnd = middleCutEnd;
 
         if (typeof liveItemsMap !== 'undefined' && liveItemsMap[liveItemId]) {
             liveItemsMap[liveItemId].video_cut_url = newUrl;
             liveItemsMap[liveItemId].cut_start_sec = activeStart;
             liveItemsMap[liveItemId].cut_end_sec = activeEnd;
+            liveItemsMap[liveItemId].middle_cut_start_sec = middleCutStart;
+            liveItemsMap[liveItemId].middle_cut_end_sec = middleCutEnd;
             liveItemsMap[liveItemId].is_ready = true;
         }
 

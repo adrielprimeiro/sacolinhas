@@ -107,6 +107,10 @@ class LiveVideoCutsController extends Controller
             $selectCols[] = 'live_items.youtube_url';
             $selectCols[] = 'live_items.youtube_status';
         }
+        if (Schema::hasColumn('live_items', 'middle_cut_start_sec')) {
+            $selectCols[] = 'live_items.middle_cut_start_sec';
+            $selectCols[] = 'live_items.middle_cut_end_sec';
+        }
 
         $query->select($selectCols);
 
@@ -183,6 +187,8 @@ class LiveVideoCutsController extends Controller
                 'video_cut_status' => $row->video_cut_status ?: ($isReady ? 'recorded' : 'none'),
                 'cut_start_sec' => $row->cut_start_sec,
                 'cut_end_sec' => $row->cut_end_sec,
+                'middle_cut_start_sec' => $row->middle_cut_start_sec ?? null,
+                'middle_cut_end_sec' => $row->middle_cut_end_sec ?? null,
                 'download_filename' => $downloadFilename,
                 'youtube_video_id' => $row->youtube_video_id ?? null,
                 'youtube_url' => $row->youtube_url ?? null,
@@ -297,6 +303,13 @@ class LiveVideoCutsController extends Controller
             $selectCols[] = 'live_items.tiktok_published_at';
             $selectCols[] = 'live_items.tiktok_error';
         }
+        if (Schema::hasColumn('live_items', 'instagram_media_id')) {
+            $selectCols[] = 'live_items.instagram_media_id';
+            $selectCols[] = 'live_items.instagram_url';
+            $selectCols[] = 'live_items.instagram_status';
+            $selectCols[] = 'live_items.instagram_published_at';
+            $selectCols[] = 'live_items.instagram_error';
+        }
 
         $query = DB::table('live_items')
             ->join('items', 'live_items.item_id', '=', 'items.id')
@@ -378,6 +391,11 @@ class LiveVideoCutsController extends Controller
                 'tiktok_status' => $row->tiktok_status ?? 'none',
                 'tiktok_published_at' => $row->tiktok_published_at ?? null,
                 'tiktok_error' => $row->tiktok_error ?? null,
+                'instagram_media_id' => $row->instagram_media_id ?? null,
+                'instagram_url' => $row->instagram_url ?? null,
+                'instagram_status' => $row->instagram_status ?? 'none',
+                'instagram_published_at' => $row->instagram_published_at ?? null,
+                'instagram_error' => $row->instagram_error ?? null,
                 'linked_at' => $row->linked_at
             ];
         });
@@ -398,6 +416,11 @@ class LiveVideoCutsController extends Controller
         $tiktokService = app(\App\Services\TikTok\TikTokService::class);
         $tiktokConfigured = $tiktokService->isConfigured();
 
+        // Conta do Instagram
+        $instagramAccount = \App\Models\SocialChannelAccount::getActiveAccount('instagram');
+        $instagramService = app(\App\Services\Instagram\InstagramService::class);
+        $instagramConfigured = $instagramService->isConfigured();
+
         // Estatísticas
         $totalItems = $liveItems->count();
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
@@ -405,6 +428,7 @@ class LiveVideoCutsController extends Controller
         $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
         $itemsPublishedYouTube = $liveItems->whereNotNull('youtube_video_id')->count();
         $itemsPublishedTikTok = $liveItems->whereNotNull('tiktok_publish_id')->count();
+        $itemsPublishedInstagram = $liveItems->whereNotNull('instagram_media_id')->count();
 
         // URL da gravação bruta
         $recordingUrl = null;
@@ -424,6 +448,8 @@ class LiveVideoCutsController extends Controller
             'youtubeConfigured' => $youtubeConfigured,
             'tiktokAccount' => $tiktokAccount,
             'tiktokConfigured' => $tiktokConfigured,
+            'instagramAccount' => $instagramAccount,
+            'instagramConfigured' => $instagramConfigured,
             'stats' => [
                 'total_items' => $totalItems,
                 'items_with_cuts' => $itemsWithCuts,
@@ -431,6 +457,7 @@ class LiveVideoCutsController extends Controller
                 'items_rendered' => $itemsRendered,
                 'items_youtube' => $itemsPublishedYouTube,
                 'items_tiktok' => $itemsPublishedTikTok,
+                'items_instagram' => $itemsPublishedInstagram,
             ]
         ]);
     }
@@ -1761,12 +1788,33 @@ PROMPT;
 
         $boundaries = $this->extractBoundarySentences($live, $start, $end);
 
+        $middleStartRaw = $request->input('middle_cut_start_sec');
+        $middleEndRaw = $request->input('middle_cut_end_sec');
+
+        $middleStart = ($middleStartRaw !== null && $middleStartRaw !== '') ? (float) $middleStartRaw : null;
+        $middleEnd = ($middleEndRaw !== null && $middleEndRaw !== '') ? (float) $middleEndRaw : null;
+
+        if ($middleStart !== null && $middleEnd !== null) {
+            if ($middleEnd <= $middleStart || $middleStart <= $start || $middleEnd >= $end) {
+                $middleStart = null;
+                $middleEnd = null;
+            }
+        } else {
+            $middleStart = null;
+            $middleEnd = null;
+        }
+
         $updateData = [
             'cut_start_sec' => round($start, 2),
             'cut_end_sec' => round($end, 2),
             'transcription_snippet' => $boundaries['full_text'],
             'updated_at' => now()
         ];
+
+        if (Schema::hasColumn('live_items', 'middle_cut_start_sec')) {
+            $updateData['middle_cut_start_sec'] = $middleStart !== null ? round($middleStart, 2) : null;
+            $updateData['middle_cut_end_sec'] = $middleEnd !== null ? round($middleEnd, 2) : null;
+        }
 
         if (Schema::hasColumn('live_items', 'is_reviewed')) {
             $updateData['is_reviewed'] = true;
@@ -1950,49 +1998,110 @@ PROMPT;
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
 
-        // 1. Gera arquivo de legenda SRT para o trecho do corte
-        $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
-
-        $subtitleFilter = '';
-        if ($srtFile && file_exists($srtFile)) {
-            $escapedSrt = str_replace('\\', '/', $srtFile);
-            $escapedSrt = str_replace(':', '\\:', $escapedSrt);
-            // Estilo dinâmico moderno (estilo Reels/TikTok): texto branco com contorno preto nítido, tamanho equilibrado, posicionado na parte inferior sem tampar o rosto
-            $subtitleFilter = sprintf(
-                "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
-                $escapedSrt
-            );
+        $middleStart = isset($liveItem->middle_cut_start_sec) ? (float) $liveItem->middle_cut_start_sec : null;
+        $middleEnd = isset($liveItem->middle_cut_end_sec) ? (float) $liveItem->middle_cut_end_sec : null;
+        if ($request->filled('middle_cut_start_sec')) {
+            $middleStart = (float) $request->input('middle_cut_start_sec');
+        }
+        if ($request->filled('middle_cut_end_sec')) {
+            $middleEnd = (float) $request->input('middle_cut_end_sec');
         }
 
-        // 2. Corte de vídeo frame-accurate com legendas embutidas (Burn-in)
+        $hasMiddleCut = ($middleStart !== null && $middleEnd !== null && $middleStart > $start && $middleEnd < $liveItem->cut_end_sec && $middleStart < $middleEnd);
         $output = [];
         $returnCode = 1;
+        $srtFile = null;
 
-        if (!empty($subtitleFilter)) {
-            $cmd = sprintf(
-                'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+        // Se houver corte no meio, corta as 2 partes e concatena diretamente via FFmpeg
+        if ($hasMiddleCut) {
+            $p1Duration = max(0.5, round($middleStart - $start, 2));
+            $p2Duration = max(0.5, round($liveItem->cut_end_sec - $middleEnd, 2));
+            $p1Path = $outputDir . '/p1_' . time() . '_' . uniqid() . '.mp4';
+            $p2Path = $outputDir . '/p2_' . time() . '_' . uniqid() . '.mp4';
+            $listPath = $outputDir . '/concat_' . time() . '_' . uniqid() . '.txt';
+
+            $cmdP1 = sprintf(
+                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -y %s 2>&1',
                 escapeshellarg($start),
                 escapeshellarg($inputPath),
-                escapeshellarg($duration),
-                $subtitleFilter,
-                escapeshellarg($outputPath)
+                escapeshellarg($p1Duration),
+                escapeshellarg($p1Path)
             );
-            exec($cmd, $output, $returnCode);
+            $cmdP2 = sprintf(
+                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -y %s 2>&1',
+                escapeshellarg($middleEnd),
+                escapeshellarg($inputPath),
+                escapeshellarg($p2Duration),
+                escapeshellarg($p2Path)
+            );
+
+            exec($cmdP1, $outP1, $retP1);
+            exec($cmdP2, $outP2, $retP2);
+
+            if ($retP1 === 0 && $retP2 === 0 && file_exists($p1Path) && file_exists($p2Path)) {
+                file_put_contents($listPath, "file '" . $p1Path . "'\nfile '" . $p2Path . "'\n");
+                $cmdConcat = sprintf(
+                    'ffmpeg -f concat -safe 0 -i %s -c copy -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($listPath),
+                    escapeshellarg($outputPath)
+                );
+                exec($cmdConcat, $outConcat, $returnCode);
+                if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
+                    $duration = round($p1Duration + $p2Duration, 2);
+                }
+            }
+
+            @unlink($p1Path);
+            @unlink($p2Path);
+            @unlink($listPath);
         }
 
-        // Fallback rápido sem legenda se a queima de legenda falhar
+        // Processamento padrão contínuo (com ou sem legenda) se não houver corte no meio ou se a concatenação falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
-            $outputFallback = [];
-            $cmdFallback = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                escapeshellarg($start),
-                escapeshellarg($inputPath),
-                escapeshellarg($duration),
-                escapeshellarg($outputPath)
-            );
-            exec($cmdFallback, $outputFallback, $returnCode);
-            if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
-                $output = $outputFallback;
+            // 1. Gera arquivo de legenda SRT para o trecho do corte
+            $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
+
+            $subtitleFilter = '';
+            if ($srtFile && file_exists($srtFile)) {
+                $escapedSrt = str_replace('\\', '/', $srtFile);
+                $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                // Estilo dinâmico moderno (estilo Reels/TikTok): texto branco com contorno preto nítido, tamanho equilibrado, posicionado na parte inferior sem tampar o rosto
+                $subtitleFilter = sprintf(
+                    "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
+                    $escapedSrt
+                );
+            }
+
+            // 2. Corte de vídeo frame-accurate com legendas embutidas (Burn-in)
+            $output = [];
+            $returnCode = 1;
+
+            if (!empty($subtitleFilter)) {
+                $cmd = sprintf(
+                    'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($duration),
+                    $subtitleFilter,
+                    escapeshellarg($outputPath)
+                );
+                exec($cmd, $output, $returnCode);
+            }
+
+            // Fallback rápido sem legenda se a queima de legenda falhar
+            if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
+                $outputFallback = [];
+                $cmdFallback = sprintf(
+                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($duration),
+                    escapeshellarg($outputPath)
+                );
+                exec($cmdFallback, $outputFallback, $returnCode);
+                if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
+                    $output = $outputFallback;
+                }
             }
         }
 
