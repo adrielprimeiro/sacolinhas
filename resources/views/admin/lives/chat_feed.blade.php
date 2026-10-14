@@ -17,6 +17,7 @@
         --text-msg: #ffffff;
         --text-user-insta: #c084fc;
         --text-user-tiktok: #f472b6;
+        --text-user-youtube: #f87171;
         --text-time: #94a3b8;
         --badge-client-bg: #064e3b;
         --badge-client-text: #a7f3d0;
@@ -35,6 +36,7 @@
         --text-msg: #0f172a;
         --text-user-insta: #7e22ce;
         --text-user-tiktok: #db2777;
+        --text-user-youtube: #dc2626;
         --text-time: #64748b;
         --badge-client-bg: #d1fae5;
         --badge-client-text: #065f46;
@@ -129,6 +131,11 @@
 
     .chat-user-insta {
         color: var(--text-user-insta) !important;
+        font-weight: 800 !important;
+    }
+
+    .chat-user-youtube {
+        color: var(--text-user-youtube) !important;
         font-weight: 800 !important;
     }
 
@@ -314,6 +321,9 @@
             </button>
             <button type="button" onclick="setFeedFilter('tiktok')" id="filter-btn-tiktok" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-pink-600 hover:bg-pink-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
                 <i class="fab fa-tiktok"></i> TikTok (<span id="count-filter-tiktok">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('youtube')" id="filter-btn-youtube" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-red-600 hover:bg-red-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
+                <i class="fab fa-youtube text-red-600"></i> YouTube (<span id="count-filter-youtube">0</span>)
             </button>
             <button type="button" onclick="setFeedFilter('marked')" id="filter-btn-marked" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-amber-700 hover:bg-amber-50 transition border border-amber-300 flex items-center gap-1 cursor-pointer">
                 <i class="fas fa-star text-amber-500"></i> Marcadas (<span id="count-filter-marked">0</span>)
@@ -3521,6 +3531,7 @@
         const total = stats ? stats.total_messages : allLiveMessages.length;
         const insta = stats ? stats.total_instagram : allLiveMessages.filter(m => m.plataforma === 'instagram').length;
         const tiktok = stats ? stats.total_tiktok : allLiveMessages.filter(m => m.plataforma === 'tiktok').length;
+        const youtube = stats ? (stats.total_youtube ?? 0) : allLiveMessages.filter(m => m.plataforma === 'youtube').length;
         const marked = stats ? stats.total_marked : allLiveMessages.filter(m => !!m.is_marked).length;
         const reg = stats ? stats.total_registered : allLiveMessages.filter(m => !!m.user_id).length;
 
@@ -3535,6 +3546,9 @@
         
         const countTiktok = document.getElementById("count-filter-tiktok");
         if (countTiktok) countTiktok.textContent = tiktok;
+
+        const countYoutube = document.getElementById("count-filter-youtube");
+        if (countYoutube) countYoutube.textContent = youtube;
         
         const countMarked = document.getElementById("count-filter-marked");
         if (countMarked) countMarked.textContent = marked;
@@ -3572,6 +3586,7 @@
             all: document.getElementById("filter-btn-all"),
             instagram: document.getElementById("filter-btn-instagram"),
             tiktok: document.getElementById("filter-btn-tiktok"),
+            youtube: document.getElementById("filter-btn-youtube"),
             marked: document.getElementById("filter-btn-marked"),
             registered: document.getElementById("filter-btn-registered")
         };
@@ -3631,6 +3646,8 @@
             list = list.filter(m => m.plataforma === 'instagram');
         } else if (currentFilter === 'tiktok') {
             list = list.filter(m => m.plataforma === 'tiktok');
+        } else if (currentFilter === 'youtube') {
+            list = list.filter(m => m.plataforma === 'youtube');
         } else if (currentFilter === 'marked') {
             list = list.filter(m => !!m.is_marked);
         } else if (currentFilter === 'registered') {
@@ -3717,10 +3734,16 @@
         let html = '';
         list.forEach(msg => {
             const isTikTok = msg.plataforma === 'tiktok';
-            const platformIcon = isTikTok 
-                ? '<i class="fab fa-tiktok" style="color: #ff0050;"></i>' 
-                : '<i class="fab fa-instagram" style="color: #ffffff;"></i>';
-            const platformBadgeBg = isTikTok ? '#000000' : 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+            const isYouTube = msg.plataforma === 'youtube';
+            let platformIcon = '<i class="fab fa-instagram" style="color: #ffffff;"></i>';
+            let platformBadgeBg = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+            if (isTikTok) {
+                platformIcon = '<i class="fab fa-tiktok" style="color: #ff0050;"></i>';
+                platformBadgeBg = '#000000';
+            } else if (isYouTube) {
+                platformIcon = '<i class="fab fa-youtube" style="color: #ffffff;"></i>';
+                platformBadgeBg = '#ef4444';
+            }
 
             const cleanUser = msg.username || 'usuario';
             const displayName = msg.user_name || msg.user_apelido || cleanUser;
@@ -3844,7 +3867,7 @@
                 `;
             }
 
-            const userClass = isTikTok ? 'chat-user-tiktok' : 'chat-user-insta';
+            const userClass = isYouTube ? 'chat-user-youtube' : (isTikTok ? 'chat-user-tiktok' : 'chat-user-insta');
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
 
             html += `

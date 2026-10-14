@@ -16,6 +16,11 @@ Schedule::command('app:auto-process-live-video --username=de_minha_mania')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+// Monitoramento automático de comentários em YouTube Shorts (a cada 10 min)
+Schedule::command('app:check-youtube-shorts-comments')
+    ->everyTenMinutes()
+    ->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

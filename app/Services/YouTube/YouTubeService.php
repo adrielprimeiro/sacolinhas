@@ -486,4 +486,118 @@ class YouTubeService
             Log::warning('[YouTubeService] Não foi possível postar comentário de venda: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Busca os comentários mais recentes postados nos vídeos/shorts do canal
+     */
+    public function fetchRecentChannelComments(int $maxResults = 50, ?string $pageToken = null): array
+    {
+        $account = SocialChannelAccount::getActiveAccount('youtube');
+        if (!$account || empty($account->channel_id)) {
+            return ['success' => false, 'message' => 'Canal do YouTube não conectado ou sem Channel ID.', 'items' => []];
+        }
+
+        $accessToken = $this->getValidAccessToken($account);
+        if (!$accessToken) {
+            return ['success' => false, 'message' => 'Token do YouTube inválido.', 'items' => []];
+        }
+
+        try {
+            $params = [
+                'part' => 'snippet,replies',
+                'allThreadsRelatedToChannelId' => $account->channel_id,
+                'maxResults' => min(100, max(1, $maxResults)),
+                'order' => 'time',
+            ];
+            if ($pageToken) {
+                $params['pageToken'] = $pageToken;
+            }
+
+            $response = Http::withToken($accessToken)
+                ->timeout(20)
+                ->get('https://www.googleapis.com/youtube/v3/commentThreads', $params);
+
+            if (!$response->successful()) {
+                Log::warning('[YouTubeService] Erro ao buscar comentários do canal: ' . $response->body());
+                return [
+                    'success' => false,
+                    'message' => 'Erro na API do YouTube: ' . ($response->json('error.message') ?? $response->body()),
+                    'items' => []
+                ];
+            }
+
+            $data = $response->json();
+            return [
+                'success' => true,
+                'nextPageToken' => $data['nextPageToken'] ?? null,
+                'totalResults' => $data['pageInfo']['totalResults'] ?? 0,
+                'items' => $data['items'] ?? []
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[YouTubeService] Exceção ao buscar comentários: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage(), 'items' => []];
+        }
+    }
+
+    /**
+     * Busca comentários de um vídeo/short específico
+     */
+    public function fetchVideoComments(string $videoId, int $maxResults = 50): array
+    {
+        $accessToken = $this->getValidAccessToken();
+        if (!$accessToken) {
+            return ['success' => false, 'message' => 'Token do YouTube inválido.', 'items' => []];
+        }
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->timeout(20)
+                ->get('https://www.googleapis.com/youtube/v3/commentThreads', [
+                    'part' => 'snippet,replies',
+                    'videoId' => $videoId,
+                    'maxResults' => min(100, max(1, $maxResults)),
+                    'order' => 'time',
+                ]);
+
+            if (!$response->successful()) {
+                return ['success' => false, 'message' => $response->body(), 'items' => []];
+            }
+
+            return ['success' => true, 'items' => $response->json('items') ?? []];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'items' => []];
+        }
+    }
+
+    /**
+     * Responde a um comentário no YouTube
+     */
+    public function replyToComment(string $parentCommentId, string $replyText): array
+    {
+        $accessToken = $this->getValidAccessToken();
+        if (!$accessToken) {
+            return ['success' => false, 'message' => 'Token do YouTube inválido.'];
+        }
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->timeout(20)
+                ->post('https://www.googleapis.com/youtube/v3/comments?part=snippet', [
+                    'snippet' => [
+                        'parentId' => $parentCommentId,
+                        'textOriginal' => $replyText,
+                    ]
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            Log::warning('[YouTubeService] Erro ao responder comentário: ' . $response->body());
+            return ['success' => false, 'message' => $response->body()];
+        } catch (\Throwable $e) {
+            Log::error('[YouTubeService] Exceção ao responder comentário: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
 }

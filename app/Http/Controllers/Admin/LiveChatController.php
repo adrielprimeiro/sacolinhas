@@ -1251,6 +1251,8 @@ class LiveChatController extends Controller
         $plat = strtolower((string) ($payload['platform'] ?? $payload['source'] ?? $payload['provider'] ?? $request->input('platform', 'instagram')));
         if (str_contains($plat, 'tiktok')) {
             $plat = 'tiktok';
+        } elseif (str_contains($plat, 'youtube') || str_contains($plat, 'yt')) {
+            $plat = 'youtube';
         } else {
             $plat = 'instagram';
         }
@@ -1438,7 +1440,13 @@ class LiveChatController extends Controller
                     $cleanUsername = trim($item['username']);
                     $messageText = trim($item['message']);
                     $plat = strtolower((string) ($item['platform'] ?? 'instagram'));
-                    $platform = str_contains($plat, 'tiktok') ? 'tiktok' : 'instagram';
+                    if (str_contains($plat, 'tiktok')) {
+                        $platform = 'tiktok';
+                    } elseif (str_contains($plat, 'youtube') || str_contains($plat, 'yt')) {
+                        $platform = 'youtube';
+                    } else {
+                        $platform = 'instagram';
+                    }
                     
                     if ($platform === 'instagram') {
                         if (Cache::get('instagram_capture_stopped', false)) continue;
@@ -1796,6 +1804,7 @@ class LiveChatController extends Controller
         $totalMessages = (int) $platformCounts->sum('total');
         $totalInsta = (int) ($platformCounts->firstWhere('plataforma', 'instagram')->total ?? 0);
         $totalTiktok = (int) ($platformCounts->firstWhere('plataforma', 'tiktok')->total ?? 0);
+        $totalYoutube = (int) ($platformCounts->firstWhere('plataforma', 'youtube')->total ?? 0);
         $totalMarked = (int) $platformCounts->sum('marked');
         $totalRegisteredOnline = count(array_filter($onlineUsers, fn($u) => !empty($u['user_id'])));
         $totalRegisteredRecent = $messages->filter(fn($m) => !empty($m->user_id))->count();
@@ -1884,6 +1893,7 @@ class LiveChatController extends Controller
                 'total_messages' => $totalMessages,
                 'total_instagram' => $totalInsta,
                 'total_tiktok' => $totalTiktok,
+                'total_youtube' => $totalYoutube,
                 'total_marked' => $totalMarked,
                 'total_registered' => $totalRegisteredRecent,
                 'total_online' => count($onlineUsers),
