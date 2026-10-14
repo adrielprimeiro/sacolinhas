@@ -312,6 +312,10 @@ Route::middleware('auth')->group(function () {
         // ===== FATIADOR DE VÍDEOS & CORTES PÓS-LIVE =====
         Route::get('lives/cortes/social', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'socialIndex'])->name('admin.lives.cortes.social');
         Route::get('lives/{liveId}/cortes/social', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'socialIndex'])->name('admin.lives.cortes.social.live');
+        Route::get('lives/cortes/comentarios', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'index'])->name('admin.lives.cortes.comentarios');
+        Route::post('lives/cortes/comentarios/sync', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'syncComments'])->name('admin.lives.cortes.comentarios.sync');
+        Route::post('lives/cortes/comentarios/{id}/reply', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'sendReply'])->name('admin.lives.cortes.comentarios.reply');
+        Route::post('lives/cortes/comentarios/{id}/arrematar', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'linkItemBuyer'])->name('admin.lives.cortes.comentarios.arrematar');
         Route::get('lives/cortes/download/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'downloadCut'])->name('admin.lives.cortes.download');
         Route::get('lives/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'indexLatest'])->name('admin.lives.cortes.latest');
         Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');

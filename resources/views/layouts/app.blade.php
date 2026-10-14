@@ -129,8 +129,11 @@
                         <a href="{{ route('admin.live-chat.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-sliders-h mr-1.5 text-indigo-400"></i> Painel de Captura (Config)
                         </a>
-                        <a href="{{ route('admin.lives.cortes.social') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                        <a href="{{ route('admin.lives.cortes.social') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.social*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-film mr-1.5 text-pink-500"></i> Cortes de Vídeo
+                        </a>
+                        <a href="{{ route('admin.lives.cortes.comentarios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.comentarios*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-comments mr-1.5 text-red-500"></i> Comentários dos Cortes
                         </a>
                         <a href="{{ route('admin.live-chat.contador') }}" target="_blank" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-purple-600 hover:bg-white {{ request()->routeIs('admin.live-chat.contador') ? 'font-bold text-purple-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-calculator mr-1.5 text-purple-500"></i> Contador de Itens (Telão)
