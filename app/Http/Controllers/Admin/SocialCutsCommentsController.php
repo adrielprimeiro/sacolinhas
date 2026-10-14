@@ -94,7 +94,7 @@ class SocialCutsCommentsController extends Controller
         $comments = $query->paginate(25)->withQueryString();
 
         // Lista de lives para o filtro
-        $lives = Live::orderByDesc('id')->take(30)->get(['id', 'nome_da_live', 'data_inicio']);
+        $lives = Live::orderByDesc('id')->take(30)->get(['id', 'data', 'tipo_live']);
 
         if ($request->ajax() && $request->wantsJson()) {
             return response()->json([

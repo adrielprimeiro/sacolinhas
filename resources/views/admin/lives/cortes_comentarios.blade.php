@@ -193,7 +193,7 @@
                 <option value="">Todas as Lives</option>
                 @foreach($lives as $l)
                     <option value="{{ $l->id }}" {{ $liveId == $l->id ? 'selected' : '' }}>
-                        Live #{{ $l->id }} {{ $l->nome_da_live ? '- ' . $l->nome_da_live : '' }}
+                        Live #{{ $l->id }} ({{ $l->data ? \Carbon\Carbon::parse($l->data)->format('d/m/Y') : 'Data n/d' }})
                     </option>
                 @endforeach
             </select>
