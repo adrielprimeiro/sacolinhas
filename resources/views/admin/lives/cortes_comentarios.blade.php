@@ -244,7 +244,14 @@
                         $rawThumbs = $liveItem->thumbnail_candidates;
                         $thumbs = is_array($rawThumbs) ? $rawThumbs : (is_string($rawThumbs) ? json_decode($rawThumbs, true) : []);
                         if (is_array($thumbs) && count($thumbs) > 0) {
-                            $thumbnailUrl = asset('storage/' . $thumbs[0]);
+                            $firstThumb = $thumbs[0];
+                            if (is_array($firstThumb)) {
+                                $thumbnailUrl = $firstThumb['url'] ?? ($firstThumb['path'] ? asset('storage/' . ltrim($firstThumb['path'], '/')) : null);
+                            } elseif (is_string($firstThumb)) {
+                                $thumbnailUrl = str_starts_with($firstThumb, 'http') || str_starts_with($firstThumb, '/') 
+                                    ? $firstThumb 
+                                    : asset('storage/' . ltrim($firstThumb, '/'));
+                            }
                         }
                         if (!$thumbnailUrl && !empty($liveItem->video_cut_path)) {
                             // Tentar miniatura com base no nome
