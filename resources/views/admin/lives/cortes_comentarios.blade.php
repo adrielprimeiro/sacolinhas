@@ -241,11 +241,10 @@
                     // Thumbnail do corte ou imagem padrão
                     $thumbnailUrl = null;
                     if ($liveItem) {
-                        if (!empty($liveItem->thumbnail_candidates)) {
-                            $thumbs = json_decode($liveItem->thumbnail_candidates, true);
-                            if (is_array($thumbs) && count($thumbs) > 0) {
-                                $thumbnailUrl = asset('storage/' . $thumbs[0]);
-                            }
+                        $rawThumbs = $liveItem->thumbnail_candidates;
+                        $thumbs = is_array($rawThumbs) ? $rawThumbs : (is_string($rawThumbs) ? json_decode($rawThumbs, true) : []);
+                        if (is_array($thumbs) && count($thumbs) > 0) {
+                            $thumbnailUrl = asset('storage/' . $thumbs[0]);
                         }
                         if (!$thumbnailUrl && !empty($liveItem->video_cut_path)) {
                             // Tentar miniatura com base no nome
