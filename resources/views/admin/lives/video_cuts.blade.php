@@ -617,6 +617,14 @@
                                     <button type="button" onclick="saveItemCutTime({{ $item['live_item_id'] }})" title="Salvar Minutagem & Ensinar Severino (Enter)" class="mt-3 p-1.5 text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-200 rounded-lg transition border border-gray-200 shadow-xs cursor-pointer">
                                         <i class="fas fa-save text-xs"></i>
                                     </button>
+
+                                    <!-- Buscar na Transcrição -->
+                                    <button type="button" 
+                                            onclick="openTranscriptionSearchModal({{ $item['live_item_id'] }}, '{{ addslashes($item['codigo_live']) }}', '{{ addslashes($item['item_name']) }}', '{{ addslashes($item['item_codigo'] ?? '') }}')" 
+                                            title="Buscar trechos na Transcrição para o item #{{ $item['codigo_live'] }}" 
+                                            class="mt-3 p-1.5 text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-200 shadow-xs cursor-pointer">
+                                        <i class="fas fa-search text-xs"></i>
+                                    </button>
                                 </div>
 
 
@@ -865,6 +873,96 @@
             </div>
             <button type="button" onclick="toggleTranscriptionModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2 rounded-xl transition border border-gray-200">Fechar</button>
         </div>
+    </div>
+</div>
+
+<!-- MODAL DE BUSCA NA TRANSCRIÇÃO POR ITEM -->
+<div id="modal-item-transcription-search" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] text-gray-900 animate-in fade-in zoom-in-95 duration-150">
+        
+        <!-- Header -->
+        <div class="flex items-start justify-between pb-3 border-b border-gray-200 mb-3 shrink-0">
+            <div class="min-w-0 pr-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-purple-700 text-white shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">
+                        Item #<span id="trans-modal-item-code">-</span>
+                    </span>
+                    <h3 class="text-base font-extrabold text-gray-900 truncate max-w-md" id="trans-modal-item-name">Buscar na Transcrição</h3>
+                    <span id="trans-modal-item-sku" class="text-xs text-gray-500 font-bold"></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 font-medium">
+                    Encontre no áudio da live as falas correspondentes a este item e defina a minutagem exata do corte.
+                </p>
+            </div>
+            <button type="button" onclick="closeTranscriptionSearchModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none cursor-pointer p-1" title="Fechar">&times;</button>
+        </div>
+
+        <!-- Barra de Busca e Sugestões -->
+        <div class="space-y-2 mb-3 shrink-0">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-purple-700">
+                    <i class="fas fa-search text-sm"></i>
+                </div>
+                <input type="text" 
+                       id="trans-modal-search-input" 
+                       oninput="handleTranscriptionModalSearchInput(this.value)"
+                       placeholder="Buscar por código (ex: 130), número por extenso (cento e trinta) ou palavra..." 
+                       class="w-full pl-9 pr-20 py-2.5 text-xs sm:text-sm bg-gray-50 text-gray-900 rounded-xl border border-gray-300 focus:bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-200 font-bold transition shadow-2xs">
+                <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                    <button type="button" 
+                            onclick="clearTranscriptionModalSearch()" 
+                            class="text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg font-bold cursor-pointer transition border border-gray-200" 
+                            title="Limpar busca">
+                        Limpar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sugestões / Pílulas de Busca Rápida -->
+            <div class="flex items-center gap-1.5 flex-wrap text-xs font-semibold text-gray-700 pt-0.5">
+                <span class="text-[11px] text-gray-600 uppercase font-bold mr-1 flex items-center gap-1">
+                    <i class="fas fa-bolt text-amber-500"></i> Sugestões:
+                </span>
+                <div id="trans-modal-pills-container" class="flex items-center gap-1.5 flex-wrap">
+                    <!-- Geradas dinamicamente via JS -->
+                </div>
+            </div>
+
+            <!-- Banner de Alerta quando Minutagem for Aplicada -->
+            <div id="trans-modal-applied-alert" class="hidden p-3 rounded-xl bg-green-50 border border-green-300 text-green-950 text-xs font-bold flex items-center justify-between transition shadow-xs">
+                <span id="trans-modal-applied-text" class="flex items-center gap-1.5">
+                    <i class="fas fa-check-circle text-green-600 text-sm"></i> Minutagem aplicada e salva com sucesso!
+                </span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="previewCurrentAppliedCut()" class="text-xs text-green-800 hover:text-green-950 font-black underline flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-play text-[10px]"></i> Ouvir Corte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contador de Resultados & Instruções -->
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-2 px-1 shrink-0 font-medium">
+            <span>Resultados: <strong id="trans-modal-results-count" class="text-purple-700 font-black">0</strong> trecho(s)</span>
+            <span class="text-[11px] text-gray-400">Use <strong>Ouvir</strong> para conferir no player ou <strong>Aplicar Minutagem</strong></span>
+        </div>
+
+        <!-- Lista de Resultados (Scrollable) -->
+        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 border border-gray-200 rounded-xl p-2.5 bg-gray-50/60" id="trans-modal-results-list" style="min-height: 220px;">
+            <!-- Renderizado dinamicamente via JS -->
+        </div>
+
+        <!-- Footer -->
+        <div class="pt-3 mt-3 border-t border-gray-200 shrink-0 flex items-center justify-between">
+            <div class="text-xs text-gray-500 flex items-center gap-1.5 font-medium">
+                <i class="fas fa-info-circle text-indigo-500"></i>
+                <span>A minutagem padrão adiciona 5s de introdução e dura ~45s.</span>
+            </div>
+            <button type="button" onclick="closeTranscriptionSearchModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2 rounded-xl transition border border-gray-300 cursor-pointer shadow-xs">
+                Fechar
+            </button>
+        </div>
+
     </div>
 </div>
 
@@ -1847,6 +1945,430 @@
 
     function toggleTranscriptionModal() {
         document.getElementById("modal-transcription").classList.toggle("hidden");
+    }
+
+    // ==========================================
+    // BUSCA INTELIGENTE NA TRANSCRIÇÃO POR ITEM
+    // ==========================================
+    let currentSearchItemId = null;
+    let currentSearchItemCode = '';
+    let currentSearchItemName = '';
+    let currentSearchItemCodigo = '';
+    let transcriptionSearchDebounce = null;
+    let currentAppliedCutStart = null;
+    let currentAppliedCutEnd = null;
+
+    function numberToPortugueseWords(val) {
+        const num = parseInt(val, 10);
+        if (isNaN(num) || num <= 0 || num > 999) return '';
+        if (num === 100) return 'cem';
+
+        const units = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+        const teens = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+        const tens = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+        const hundreds = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+        const h = Math.floor(num / 100);
+        const rem = num % 100;
+        const t = Math.floor(rem / 10);
+        const u = rem % 10;
+        let parts = [];
+        if (h > 0) parts.push(hundreds[h]);
+        if (rem >= 10 && rem < 20) {
+            parts.push(teens[rem - 10]);
+        } else {
+            if (t > 1) parts.push(tens[t]);
+            if (u > 0) parts.push(units[u]);
+        }
+        return parts.join(' e ');
+    }
+
+    function normalizeSearchText(str) {
+        if (!str) return '';
+        return String(str)
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function openTranscriptionSearchModal(itemId, liveCode, itemName, itemCodigo) {
+        currentSearchItemId = itemId;
+        currentSearchItemCode = String(liveCode || '').trim();
+        currentSearchItemName = String(itemName || '').trim();
+        currentSearchItemCodigo = String(itemCodigo || '').trim();
+
+        // Atualiza cabeçalho
+        const codeEl = document.getElementById("trans-modal-item-code");
+        const nameEl = document.getElementById("trans-modal-item-name");
+        const skuEl = document.getElementById("trans-modal-item-sku");
+        if (codeEl) codeEl.textContent = currentSearchItemCode || '-';
+        if (nameEl) nameEl.textContent = currentSearchItemName || 'Produto da Live';
+        if (skuEl) skuEl.textContent = currentSearchItemCodigo ? `• Cód: ${currentSearchItemCodigo}` : '';
+
+        // Esconde alerta anterior
+        const alertBox = document.getElementById("trans-modal-applied-alert");
+        if (alertBox) alertBox.classList.add("hidden");
+
+        // Monta pílulas de sugestão
+        const pillsContainer = document.getElementById("trans-modal-pills-container");
+        if (pillsContainer) {
+            pillsContainer.innerHTML = '';
+            const suggestions = [];
+
+            if (currentSearchItemCode) {
+                suggestions.push(currentSearchItemCode);
+                suggestions.push(`peça ${currentSearchItemCode}`);
+            }
+
+            const words = numberToPortugueseWords(currentSearchItemCode);
+            if (words && words !== currentSearchItemCode) {
+                suggestions.push(words);
+                suggestions.push(`peça ${words}`);
+            }
+
+            if (currentSearchItemCodigo && currentSearchItemCodigo !== currentSearchItemCode) {
+                suggestions.push(currentSearchItemCodigo);
+            }
+
+            // Palavras-chave do nome do produto (ex: 'vestido', 'saia', 'farm')
+            if (currentSearchItemName) {
+                const cleanNameWords = currentSearchItemName
+                    .split(/\s+/)
+                    .map(w => w.trim())
+                    .filter(w => w.length >= 4 && !/^(para|com|sem|tamanho|tam|novo|marca|original)$/i.test(w))
+                    .slice(0, 2);
+                suggestions.push(...cleanNameWords);
+            }
+
+            // Renderiza botões de pílula únicos
+            const uniqueSuggestions = [...new Set(suggestions)];
+            uniqueSuggestions.forEach(sug => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 transition cursor-pointer active:scale-95";
+                btn.textContent = sug;
+                btn.onclick = () => {
+                    const input = document.getElementById("trans-modal-search-input");
+                    if (input) input.value = sug;
+                    executeTranscriptionModalSearch(sug);
+                };
+                pillsContainer.appendChild(btn);
+            });
+        }
+
+        // Define valor inicial de busca (o código da peça)
+        const searchInput = document.getElementById("trans-modal-search-input");
+        if (searchInput) {
+            searchInput.value = currentSearchItemCode;
+        }
+
+        // Abre modal
+        const modal = document.getElementById("modal-item-transcription-search");
+        if (modal) modal.classList.remove("hidden");
+
+        // Executa busca inicial
+        executeTranscriptionModalSearch(currentSearchItemCode);
+
+        // Foca no input
+        setTimeout(() => {
+            if (searchInput) searchInput.focus();
+        }, 100);
+    }
+
+    function closeTranscriptionSearchModal() {
+        const modal = document.getElementById("modal-item-transcription-search");
+        if (modal) modal.classList.add("hidden");
+    }
+
+    function clearTranscriptionModalSearch() {
+        const searchInput = document.getElementById("trans-modal-search-input");
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+        executeTranscriptionModalSearch('');
+    }
+
+    function handleTranscriptionModalSearchInput(val) {
+        clearTimeout(transcriptionSearchDebounce);
+        transcriptionSearchDebounce = setTimeout(() => {
+            executeTranscriptionModalSearch(val);
+        }, 180);
+    }
+
+    function executeTranscriptionModalSearch(term) {
+        const resultsList = document.getElementById("trans-modal-results-list");
+        const countEl = document.getElementById("trans-modal-results-count");
+        if (!resultsList) return;
+
+        if (!Array.isArray(transcriptionData) || transcriptionData.length === 0) {
+            resultsList.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-file-circle-exclamation text-3xl text-amber-500 mb-2"></i>
+                    <p class="font-bold text-gray-800 text-sm">Nenhuma transcrição disponível para esta live.</p>
+                    <p class="text-xs text-gray-500 mt-1">Transcreva o áudio primeiro para pesquisar os trechos.</p>
+                </div>
+            `;
+            if (countEl) countEl.textContent = '0';
+            return;
+        }
+
+        const rawTerm = String(term || '').trim();
+        if (!rawTerm) {
+            resultsList.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-magnifying-glass text-3xl mb-2 text-gray-300"></i>
+                    <p class="text-xs font-bold text-gray-600">Digite um código ou palavra para pesquisar na transcrição.</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Ou clique em uma das sugestões acima.</p>
+                </div>
+            `;
+            if (countEl) countEl.textContent = '0';
+            return;
+        }
+
+        const normQuery = normalizeSearchText(rawTerm);
+        const queryTerms = normQuery.split(' ').filter(Boolean);
+
+        // Se a busca for numérica (ex: 130), também busca a versão por extenso (ex: "cento e trinta")
+        const numberWords = numberToPortugueseWords(rawTerm);
+        const normNumberWords = numberWords ? normalizeSearchText(numberWords) : '';
+
+        const matches = [];
+
+        for (let i = 0; i < transcriptionData.length; i++) {
+            const item = transcriptionData[i];
+            const sentenceText = item.text || '';
+            const normSentence = normalizeSearchText(sentenceText);
+
+            let isMatch = false;
+            let matchedTermFound = rawTerm;
+
+            // 1. Busca exata da expressão
+            if (normSentence.includes(normQuery)) {
+                isMatch = true;
+                matchedTermFound = rawTerm;
+            }
+            // 2. Busca por extenso do número se aplicável
+            else if (normNumberWords && normSentence.includes(normNumberWords)) {
+                isMatch = true;
+                matchedTermFound = numberWords;
+            }
+            // 3. Busca por todas as palavras se múltiplas
+            else if (queryTerms.length > 1 && queryTerms.every(t => normSentence.includes(t))) {
+                isMatch = true;
+                matchedTermFound = queryTerms.join(' ');
+            }
+
+            if (isMatch) {
+                matches.push({
+                    index: i,
+                    start: parseFloat(item.start ?? item.start_sec ?? 0),
+                    end: parseFloat(item.end ?? item.end_sec ?? 0),
+                    text: sentenceText,
+                    matchedTerm: matchedTermFound,
+                    prevText: i > 0 ? transcriptionData[i - 1]?.text : null,
+                    nextText: i < transcriptionData.length - 1 ? transcriptionData[i + 1]?.text : null
+                });
+            }
+        }
+
+        if (countEl) countEl.textContent = String(matches.length);
+
+        if (matches.length === 0) {
+            resultsList.innerHTML = `
+                <div class="text-center py-8 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300 p-6">
+                    <i class="fas fa-comment-slash text-3xl mb-2 text-gray-400"></i>
+                    <p class="text-xs font-bold text-gray-800">Nenhum trecho encontrado com "${rawTerm}".</p>
+                    <p class="text-[11px] text-gray-500 mt-1 max-w-md mx-auto">
+                        Tente clicar nas outras sugestões (como número por extenso ou palavras do produto) ou digite outro termo que a apresentadora costuma falar.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        // Renderiza lista de correspondências
+        let html = '';
+        matches.forEach((m, idx) => {
+            const startFmt = formatTime(m.start);
+            const endFmt = formatTime(m.end);
+            const durationSec = Math.max(1, Math.round(m.end - m.start));
+
+            // Tempo relativo na live
+            const hours = Math.floor(m.start / 3600);
+            const mins = Math.floor((m.start % 3600) / 60);
+            const relativeTimeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min de live`;
+
+            // Destaque do termo
+            let highlighted = escapeHtml(m.text);
+            try {
+                const regex = new RegExp(`(${escapeRegex(m.matchedTerm)}|${escapeRegex(rawTerm)})`, 'gi');
+                highlighted = highlighted.replace(regex, '<mark class="bg-amber-200 text-amber-950 font-black px-1 py-0.5 rounded shadow-2xs">$1</mark>');
+            } catch(e) {}
+
+            html += `
+                <div class="bg-white border border-gray-200 hover:border-purple-400 rounded-xl p-3 transition shadow-xs space-y-2 group">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-mono font-black bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-lg">
+                                <i class="fas fa-clock text-purple-600 mr-1 text-[10px]"></i> ${startFmt} ➔ ${endFmt}
+                            </span>
+                            <span class="text-[11px] text-gray-500 font-bold">(${durationSec}s • aos ${relativeTimeStr})</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-gray-400">
+                            Trecho #${m.index + 1}
+                        </div>
+                    </div>
+
+                    <!-- Frase Anterior (Contexto) -->
+                    ${m.prevText ? `
+                        <div class="text-[11px] text-gray-400 font-medium italic line-clamp-1 border-l-2 border-gray-200 pl-2">
+                            <i class="fas fa-arrow-turn-up text-[9px] mr-1 text-gray-300"></i> "${escapeHtml(m.prevText)}"
+                        </div>
+                    ` : ''}
+
+                    <!-- Frase Principal com Termo Destacado -->
+                    <div class="text-xs font-semibold text-gray-900 leading-relaxed bg-purple-50/30 p-2 rounded-lg border border-purple-100">
+                        ${highlighted}
+                    </div>
+
+                    <!-- Frase Seguinte (Contexto) -->
+                    ${m.nextText ? `
+                        <div class="text-[11px] text-gray-400 font-medium italic line-clamp-1 border-l-2 border-gray-200 pl-2">
+                            <i class="fas fa-arrow-turn-down text-[9px] mr-1 text-gray-300"></i> "${escapeHtml(m.nextText)}"
+                        </div>
+                    ` : ''}
+
+                    <!-- Ações no Trecho -->
+                    <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                        <button type="button" 
+                                onclick="seekPlayerFromModal(${m.start})" 
+                                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95" 
+                                title="Ouvir no player de vídeo">
+                            <i class="fas fa-play text-[10px]"></i>
+                            <span>Ouvir no Player</span>
+                        </button>
+
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" 
+                                    onclick="setModalTimeField(${currentSearchItemId}, 'start', ${m.start})" 
+                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
+                                    title="Definir apenas como início do corte (-2s)">
+                                Início
+                            </button>
+                            <button type="button" 
+                                    onclick="setModalTimeField(${currentSearchItemId}, 'end', ${m.end})" 
+                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
+                                    title="Definir apenas como fim do corte (+2s)">
+                                Fim
+                            </button>
+                            <button type="button" 
+                                    onclick="applySnippetCutTime(${currentSearchItemId}, ${m.start}, ${m.end}, 45)" 
+                                    class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95" 
+                                    style="background-color: #0d9488; color: #ffffff !important;"
+                                    title="Aplicar início (-5s) e fim (+40s) automaticamente e salvar">
+                                <i class="fas fa-check"></i>
+                                <span>Aplicar Minutagem</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsList.innerHTML = html;
+    }
+
+    function seekPlayerFromModal(sec) {
+        if (!player) {
+            alert("Vídeo da live ainda não carregado.");
+            return;
+        }
+        player.currentTime = Math.max(0, parseFloat(sec) - 3);
+        player.play().catch(() => {});
+    }
+
+    function setModalTimeField(itemId, field, sec) {
+        if (!itemId) return;
+        let adjustedSec = parseFloat(sec);
+        if (field === 'start') {
+            adjustedSec = Math.max(0, adjustedSec - 2);
+        } else {
+            adjustedSec = adjustedSec + 2;
+        }
+
+        const formatted = formatTime(adjustedSec);
+        const input = document.getElementById(`input-${field}-${itemId}`);
+        if (input) {
+            input.value = formatted;
+            saveItemCutTime(itemId);
+            showTranscriptionAppliedAlert(`Campo "${field === 'start' ? 'Início' : 'Fim'}" atualizado para ${formatted} e salvo!`);
+        }
+    }
+
+    async function applySnippetCutTime(itemId, startSec, endSec, duration = 45) {
+        if (!itemId) return;
+        const start = Math.max(0, Math.floor(parseFloat(startSec) - 5));
+        const end = Math.floor(parseFloat(startSec) + duration);
+        const startFormatted = formatTime(start);
+        const endFormatted = formatTime(end);
+
+        currentAppliedCutStart = start;
+        currentAppliedCutEnd = end;
+
+        const startInput = document.getElementById(`input-start-${itemId}`);
+        const endInput = document.getElementById(`input-end-${itemId}`);
+        if (startInput) startInput.value = startFormatted;
+        if (endInput) endInput.value = endFormatted;
+
+        // Seleciona card ativo
+        selectActiveItem(itemId, startFormatted);
+
+        // Salva timestamp no servidor
+        await saveItemCutTime(itemId);
+
+        // Posiciona o player no início
+        if (player) {
+            player.currentTime = start;
+            player.pause();
+        }
+
+        showTranscriptionAppliedAlert(`Minutagem do item #${currentSearchItemCode} salva com sucesso! (${startFormatted} ➔ ${endFormatted})`);
+    }
+
+    function showTranscriptionAppliedAlert(msg) {
+        const alertBox = document.getElementById("trans-modal-applied-alert");
+        const alertText = document.getElementById("trans-modal-applied-text");
+        if (alertBox && alertText) {
+            alertText.innerHTML = `<i class="fas fa-check-circle text-green-600 text-sm"></i> ${msg}`;
+            alertBox.classList.remove("hidden");
+        }
+    }
+
+    function previewCurrentAppliedCut() {
+        if (currentSearchItemId) {
+            previewItemClip(currentSearchItemId);
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function escapeRegex(string) {
+        if (!string) return '';
+        return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     async function handleVideoUpload(e) {
