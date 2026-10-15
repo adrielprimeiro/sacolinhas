@@ -188,47 +188,47 @@
                 
                 <!-- PONTO 1: VÍDEO -->
                 <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep1Modal()" title="Passo 1: Baixar ou carregar gravação da live">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                    <div id="stepper-badge-1" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step1Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #d97706; color: #ffffff !important;' }}">
                         {!! $step1Done ? '<i class="fas fa-check"></i>' : '1' !!}
                     </div>
                     <div>
                         <div class="text-xs font-bold leading-tight" style="color: #111827;">1. Vídeo da Live</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step1Done ? 'color: #15803d;' : 'color: #b45309;' }}">
+                        <div id="stepper-status-1" class="text-[11px] font-semibold" style="{{ $step1Done ? 'color: #15803d;' : 'color: #b45309;' }}">
                             {{ $step1Done ? '✓ Gravado' : 'Pendente' }}
                         </div>
                     </div>
                 </div>
 
                 <!-- LINHA CONECTORA 1-2 -->
-                <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step1Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+                <div id="stepper-line-1" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step1Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 2: TRANSCRIÇÃO -->
                 <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep2Modal()" title="Passo 2: Transcrever áudio com Whisper IA">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                    <div id="stepper-badge-2" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step2Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step1Done ? 'background-color: #0d9488; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step2Done ? '<i class="fas fa-check"></i>' : '2' !!}
                     </div>
                     <div>
                         <div class="text-xs font-bold leading-tight" style="color: #111827;">2. Transcrição</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step2Done ? 'color: #15803d;' : 'color: #0f766e;' }}">
+                        <div id="stepper-status-2" class="text-[11px] font-semibold" style="{{ $step2Done ? 'color: #15803d;' : 'color: #0f766e;' }}">
                             {{ $step2Done ? '✓ ' . count($transcriptionData) . ' falas' : 'Pendente' }}
                         </div>
                     </div>
                 </div>
 
                 <!-- LINHA CONECTORA 2-3 -->
-                <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step2Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+                <div id="stepper-line-2" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step2Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 3: MINUTAGEM IA -->
                 <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep3Modal()" title="Passo 3: Minutar peças com Severino IA">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                    <div id="stepper-badge-3" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step3Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step3Partial ? 'background-color: #9333ea; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step3Done ? '<i class="fas fa-check"></i>' : '3' !!}
                     </div>
                     <div>
                         <div class="text-xs font-bold leading-tight" style="color: #111827;">3. Minutagem IA</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step3Done ? 'color: #15803d;' : ($step3Partial ? 'color: #7e22ce;' : 'color: #4b5563;') }}">
+                        <div id="stepper-status-3" class="text-[11px] font-semibold" style="{{ $step3Done ? 'color: #15803d;' : ($step3Partial ? 'color: #7e22ce;' : 'color: #4b5563;') }}">
                             {{ $stats['items_with_cuts'] }}/{{ $stats['total_items'] }} minutados
                         </div>
                         @if(($stats['items_without_cuts'] ?? 0) > 0)
@@ -240,24 +240,24 @@
                 </div>
 
                 <!-- LINHA CONECTORA 3-4 -->
-                <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step3Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+                <div id="stepper-line-3" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step3Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 4: FATIAMENTO FFmpeg -->
                 <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep4Modal()" title="Passo 4: Gerar cortes MP4 com FFmpeg">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                    <div id="stepper-badge-4" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step4Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step4Partial ? 'background-color: #4f46e5; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step4Done ? '<i class="fas fa-check"></i>' : '4' !!}
                     </div>
                     <div>
                         <div class="text-xs font-bold leading-tight" style="color: #111827;">4. Fatiamento</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step4Done ? 'color: #15803d;' : ($step4Partial ? 'color: #4338ca;' : 'color: #4b5563;') }}">
+                        <div id="stepper-status-4" class="text-[11px] font-semibold" style="{{ $step4Done ? 'color: #15803d;' : ($step4Partial ? 'color: #4338ca;' : 'color: #4b5563;') }}">
                             {{ $stats['items_rendered'] }}/{{ $stats['total_items'] }} prontos
                         </div>
                     </div>
                 </div>
 
                 <!-- LINHA CONECTORA 4-5 -->
-                <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step4Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+                <div id="stepper-line-4" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step4Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 5: YOUTUBE SHORTS -->
                 <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="batchUploadToYouTube()" title="Clique para gerenciar publicações no YouTube Shorts">
@@ -1151,6 +1151,85 @@
     </div>
 </div>
 
+<!-- MODAL DE PROGRESSO DE FATIAMENTO EM TEMPO REAL (PASSO 4) -->
+<div id="modal-batch-render-progress" class="fixed inset-0 bg-gray-900/80 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl text-gray-900 animate-in fade-in zoom-in-95 duration-150">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+                    <i class="fas fa-scissors text-base animate-pulse"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-gray-900" id="batch-render-modal-title">Fatiando Vídeos com FFmpeg</h3>
+                    <p class="text-xs text-gray-500 font-medium" id="batch-render-modal-subtitle">Passo 4 de 4 • Processando cortes individuais</p>
+                </div>
+            </div>
+            <span id="batch-render-pct-badge" class="px-2.5 py-1 rounded-xl text-xs font-mono font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">0%</span>
+        </div>
+
+        <!-- Card do Item Atual Sendo Cortado -->
+        <div id="batch-render-current-card" class="bg-indigo-50/70 rounded-2xl p-4 border border-indigo-200 mb-4 space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-indigo-950">
+                <span class="flex items-center gap-1.5">
+                    <i class="fas fa-film text-indigo-600"></i> Cortando agora:
+                </span>
+                <span id="batch-render-counter" class="font-mono text-indigo-800">0 / 0</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <span id="batch-render-item-code" class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shrink-0 shadow-2xs" style="background-color: #4f46e5; color: #ffffff !important;">#-</span>
+                <h4 id="batch-render-item-name" class="text-sm font-extrabold text-gray-900 truncate">Iniciando...</h4>
+            </div>
+            <div class="text-[11px] text-gray-600 flex items-center justify-between pt-1 font-medium">
+                <span id="batch-render-time-range" class="font-mono text-gray-700 font-bold">00:00:00 ➔ 00:00:00</span>
+                <span id="batch-render-item-spinner" class="flex items-center gap-1 text-indigo-800 font-bold">
+                    <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Processando FFmpeg...
+                </span>
+            </div>
+        </div>
+
+        <!-- Barra de Progresso Geral -->
+        <div class="space-y-1.5 mb-4">
+            <div class="flex items-center justify-between text-xs font-bold text-gray-700">
+                <span>Progresso Geral</span>
+                <span id="batch-render-pct-text">0% concluído</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden border border-gray-300">
+                <div id="batch-render-progress-bar" class="h-full bg-indigo-600 transition-all duration-300 rounded-full" style="width: 0%; background-color: #4f46e5;"></div>
+            </div>
+        </div>
+
+        <!-- Estatísticas em Tempo Real -->
+        <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+            <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 shadow-2xs">
+                <div id="batch-render-success-count" class="text-base font-black text-green-800 font-mono">0</div>
+                <div class="text-[10px] font-bold text-green-950 uppercase">Prontos</div>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 shadow-2xs">
+                <div id="batch-render-pending-count" class="text-base font-black text-amber-800 font-mono">0</div>
+                <div class="text-[10px] font-bold text-amber-950 uppercase">Restantes</div>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 shadow-2xs">
+                <div id="batch-render-failed-count" class="text-base font-black text-gray-800 font-mono">0</div>
+                <div class="text-[10px] font-bold text-gray-600 uppercase">Falhas</div>
+            </div>
+        </div>
+
+        <!-- Rodapé do Modal -->
+        <div class="pt-3 border-t border-gray-200 flex items-center justify-between">
+            <p id="batch-render-footer-tip" class="text-[11px] text-gray-500 font-medium">
+                <i class="fas fa-info-circle text-indigo-600 mr-1"></i> Mantenha esta aba aberta enquanto corta.
+            </p>
+            <div id="batch-render-actions">
+                <button type="button" id="btn-cancel-batch-render" onclick="cancelBatchRender()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition cursor-pointer shadow-xs">
+                    Parar Fatiamento
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <!-- MODAL TRANSCRIÇÃO -->
 <div id="modal-transcription" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white border border-gray-200 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[85vh] text-gray-800">
@@ -1810,9 +1889,31 @@
                     const textEl = document.getElementById("ai-process-text");
                     const pctEl = document.getElementById("ai-process-pct");
                     const barEl = document.getElementById("ai-process-bar");
+                    const progress = data.progress || 0;
                     if (textEl) textEl.textContent = data.message || 'Processando com IA...';
-                    if (pctEl) pctEl.textContent = `${data.progress || 0}%`;
-                    if (barEl) barEl.style.width = `${data.progress || 0}%`;
+                    if (pctEl) pctEl.textContent = `${progress}%`;
+                    if (barEl) barEl.style.width = `${progress}%`;
+
+                    // Atualiza visualmente o Stepper no topo (Passo 2 ou 3)
+                    const msg = (data.message || '').toLowerCase();
+                    const isStep2 = msg.includes('transcri') || msg.includes('whisper') || msg.includes('áudio') || msg.includes('audio');
+                    if (isStep2) {
+                        const b2 = document.getElementById("stepper-badge-2");
+                        const s2 = document.getElementById("stepper-status-2");
+                        if (b2) b2.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        if (s2) {
+                            s2.innerHTML = `⚡ Transcrevendo ${progress}%`;
+                            s2.style.color = '#0f766e';
+                        }
+                    } else {
+                        const b3 = document.getElementById("stepper-badge-3");
+                        const s3 = document.getElementById("stepper-status-3");
+                        if (b3) b3.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        if (s3) {
+                            s3.innerHTML = `⚡ Minutando ${progress}%`;
+                            s3.style.color = '#7e22ce';
+                        }
+                    }
                 } else if (data.status === 'completed') {
                     clearInterval(transcribePollTimer);
                     const barEl = document.getElementById("ai-process-bar");
@@ -2170,6 +2271,27 @@
         }
     }
 
+    let batchRenderCancelled = false;
+
+    function cancelBatchRender() {
+        batchRenderCancelled = true;
+        const btn = document.getElementById("btn-cancel-batch-render");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Finalizando corte atual...`;
+        }
+        const spinner = document.getElementById("batch-render-item-spinner");
+        if (spinner) {
+            spinner.innerHTML = `<span class="text-amber-800 font-bold"><i class="fas fa-pause-circle"></i> Cancelamento solicitado...</span>`;
+        }
+    }
+
+    function closeBatchRenderModalAndReload() {
+        const modal = document.getElementById("modal-batch-render-progress");
+        if (modal) modal.classList.add("hidden");
+        window.location.reload();
+    }
+
     async function generateAllClips(forceAll = false) {
         const startCodeInput = document.getElementById("global-start-code");
         const startCode = startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null;
@@ -2187,13 +2309,22 @@
             const isRendered = card.getAttribute('data-is-rendered') === '1';
             const codeBadge = card.querySelector('.bg-indigo-600')?.textContent?.trim() || (`#${itemId}`);
             const rawCode = parseInt(codeBadge.replace(/[^0-9]/g, '')) || 0;
+            const titleEl = card.querySelector('h4');
+            const itemName = titleEl ? titleEl.textContent.trim() : `Item ${codeBadge}`;
 
             if (startCode && rawCode > 0 && rawCode < startCode) {
                 return; // Pula os anteriores ao startCode
             }
 
             if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
-                const itemObj = { id: itemId, code: codeBadge, isRendered: isRendered };
+                const itemObj = { 
+                    id: itemId, 
+                    code: codeBadge, 
+                    name: itemName,
+                    start: startInput.value.trim(),
+                    end: endInput.value.trim(),
+                    isRendered: isRendered 
+                };
                 allMinuted.push(itemObj);
                 if (!isRendered) {
                     pendingOnly.push(itemObj);
@@ -2206,41 +2337,94 @@
             return;
         }
 
-        let itemsToProcess = allMinuted;
-
-        // Se já existem vídeos prontos e também há pendentes, pergunta se quer fazer só os pendentes
-        if (pendingOnly.length > 0 && pendingOnly.length < allMinuted.length && !forceAll) {
-            const readyCount = allMinuted.length - pendingOnly.length;
-            const choice = confirm(`Já existem ${readyCount} vídeos prontos e ${pendingOnly.length} pendentes.\n\n• Clique em [OK] para fatiar apenas os ${pendingOnly.length} PENDENTES.\n• Clique em [Cancelar] se quiser refazer TODOS os ${allMinuted.length} vídeos do início.`);
-            if (choice) {
-                itemsToProcess = pendingOnly;
-            } else {
-                if (!confirm(`Confirma que deseja refatiar e sobrescrever TODOS os ${allMinuted.length} vídeos?`)) {
-                    return;
-                }
-                itemsToProcess = allMinuted;
-            }
-        } else if (pendingOnly.length === 0 && !forceAll) {
-            if (!confirm(`Todos os ${allMinuted.length} vídeos já foram fatiados anteriormente!\n\nDeseja refatiar e atualizar todos os vídeos com as legendas novamente?`)) {
-                return;
-            }
+        let itemsToProcess = [];
+        if (forceAll) {
             itemsToProcess = allMinuted;
+        } else if (pendingOnly.length > 0) {
+            itemsToProcess = pendingOnly;
         } else {
-            const msgConfirm = startCode ? `Deseja gerar os cortes com FFmpeg para ${itemsToProcess.length} peças (a partir da peça #${startCode})?` : `Deseja gerar os cortes de ${itemsToProcess.length} peças com FFmpeg agora?`;
-            if (!confirm(msgConfirm)) return;
+            itemsToProcess = allMinuted;
         }
 
-        const btn = document.getElementById("btn-batch-clips");
-        const oldHtml = btn ? btn.innerHTML : '';
-        if (btn) btn.disabled = true;
+        if (itemsToProcess.length === 0) {
+            alert("Nenhum item pendente para fatiar.");
+            return;
+        }
+
+        // Abre modal de progresso em tempo real
+        const modal = document.getElementById("modal-batch-render-progress");
+        if (modal) {
+            modal.classList.remove("hidden");
+        }
+
+        // Reseta estados do modal
+        batchRenderCancelled = false;
+        const modalTitle = document.getElementById("batch-render-modal-title");
+        const modalSubtitle = document.getElementById("batch-render-modal-subtitle");
+        const pctBadge = document.getElementById("batch-render-pct-badge");
+        const pctText = document.getElementById("batch-render-pct-text");
+        const progressBar = document.getElementById("batch-render-progress-bar");
+        const successCountEl = document.getElementById("batch-render-success-count");
+        const pendingCountEl = document.getElementById("batch-render-pending-count");
+        const failedCountEl = document.getElementById("batch-render-failed-count");
+        const actionsContainer = document.getElementById("batch-render-actions");
+        const itemSpinner = document.getElementById("batch-render-item-spinner");
+        const itemCodeEl = document.getElementById("batch-render-item-code");
+        const itemNameEl = document.getElementById("batch-render-item-name");
+        const timeRangeEl = document.getElementById("batch-render-time-range");
+        const counterEl = document.getElementById("batch-render-counter");
+
+        if (modalTitle) modalTitle.textContent = "Fatiando Vídeos com FFmpeg";
+        if (modalSubtitle) modalSubtitle.textContent = `Passo 4 de 4 • Processando ${itemsToProcess.length} cortes individuais`;
+        if (pctBadge) {
+            pctBadge.textContent = "0%";
+            pctBadge.style.backgroundColor = "#4f46e5";
+        }
+        if (pctText) pctText.textContent = `0 de ${itemsToProcess.length} concluídos (0%)`;
+        if (progressBar) {
+            progressBar.style.width = "0%";
+            progressBar.style.backgroundColor = "#4f46e5";
+        }
+        if (successCountEl) successCountEl.textContent = "0";
+        if (pendingCountEl) pendingCountEl.textContent = String(itemsToProcess.length);
+        if (failedCountEl) failedCountEl.textContent = "0";
+        if (actionsContainer) {
+            actionsContainer.innerHTML = `
+                <button type="button" id="btn-cancel-batch-render" onclick="cancelBatchRender()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition cursor-pointer shadow-xs">
+                    Parar Fatiamento
+                </button>
+            `;
+        }
+
+        // Atualiza Stepper 4 no topo
+        const stepperBadge4 = document.getElementById("stepper-badge-4");
+        const stepperStatus4 = document.getElementById("stepper-status-4");
+        if (stepperBadge4) stepperBadge4.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        if (stepperStatus4) {
+            stepperStatus4.innerHTML = `⚡ 0/${itemsToProcess.length} (0%)`;
+            stepperStatus4.style.color = '#4338ca';
+        }
 
         let successCount = 0;
         let failCount = 0;
 
         for (let i = 0; i < itemsToProcess.length; i++) {
+            if (batchRenderCancelled) {
+                break;
+            }
+
             const item = itemsToProcess[i];
-            const pct = Math.round(((i + 1) / itemsToProcess.length) * 100);
-            if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Cortando ${i + 1}/${itemsToProcess.length} (${item.code} - ${pct}%)...`;
+            const currentIdx = i + 1;
+            const pct = Math.round(((i) / itemsToProcess.length) * 100);
+
+            // Atualiza Card do Item Atual
+            if (counterEl) counterEl.textContent = `${currentIdx} / ${itemsToProcess.length}`;
+            if (itemCodeEl) itemCodeEl.textContent = item.code;
+            if (itemNameEl) itemNameEl.textContent = item.name;
+            if (timeRangeEl) timeRangeEl.textContent = `${item.start} ➔ ${item.end}`;
+            if (itemSpinner) {
+                itemSpinner.innerHTML = `<i class="fas fa-circle-notch fa-spin text-[10px]"></i> Processando corte com FFmpeg...`;
+            }
 
             try {
                 const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${item.id}`, {
@@ -2252,6 +2436,7 @@
                     }
                 });
                 const data = await res.json();
+                
                 if (data.success) {
                     successCount++;
                     const card = document.getElementById(`item-card-${item.id}`);
@@ -2262,19 +2447,75 @@
                     }
                 } else {
                     failCount++;
+                    console.warn(`Falha ao fatiar item ${item.id}:`, data.message);
                 }
             } catch (e) {
                 failCount++;
+                console.error(`Erro de conexão ao fatiar item ${item.id}:`, e);
+            }
+
+            const completedPct = Math.round(((currentIdx) / itemsToProcess.length) * 100);
+            const remainingCount = Math.max(0, itemsToProcess.length - (successCount + failCount));
+
+            if (pctBadge) pctBadge.textContent = `${completedPct}%`;
+            if (pctText) pctText.textContent = `${currentIdx} de ${itemsToProcess.length} concluídos (${completedPct}%)`;
+            if (progressBar) progressBar.style.width = `${completedPct}%`;
+            if (successCountEl) successCountEl.textContent = String(successCount);
+            if (pendingCountEl) pendingCountEl.textContent = String(remainingCount);
+            if (failedCountEl) failedCountEl.textContent = String(failCount);
+
+            if (stepperStatus4) {
+                stepperStatus4.innerHTML = `⚡ ${currentIdx}/${itemsToProcess.length} (${completedPct}%)`;
             }
         }
 
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = oldHtml;
+        // Finalização
+        if (batchRenderCancelled) {
+            if (modalTitle) modalTitle.textContent = "Fatiamento Pausado";
+            if (modalSubtitle) modalSubtitle.textContent = `${successCount} vídeo(s) gerado(s) com sucesso antes da pausa.`;
+            if (itemSpinner) {
+                itemSpinner.innerHTML = `<span class="text-amber-800 font-bold"><i class="fas fa-pause-circle"></i> Fatiamento pausado</span>`;
+            }
+            if (actionsContainer) {
+                actionsContainer.innerHTML = `
+                    <button type="button" onclick="closeBatchRenderModalAndReload()" class="px-5 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md cursor-pointer flex items-center gap-1.5 transition active:scale-95" style="background-color: #4f46e5; color: #ffffff !important;">
+                        <i class="fas fa-check text-white"></i>
+                        <span>Fechar e Atualizar Lista</span>
+                    </button>
+                `;
+            }
+            if (stepperStatus4) {
+                stepperStatus4.innerHTML = `Pausado (${successCount} prontos)`;
+            }
+        } else {
+            if (modalTitle) modalTitle.textContent = "🎉 Fatiamento Concluído!";
+            if (modalSubtitle) modalSubtitle.textContent = `Todos os ${successCount} cortes foram gerados com sucesso!`;
+            if (progressBar) {
+                progressBar.style.width = "100%";
+                progressBar.style.backgroundColor = "#059669";
+            }
+            if (pctBadge) {
+                pctBadge.textContent = "100%";
+                pctBadge.style.backgroundColor = "#059669";
+            }
+            if (pctText) pctText.textContent = `100% concluído (${successCount} vídeos prontos)`;
+            if (itemSpinner) {
+                itemSpinner.innerHTML = `<span class="text-emerald-700 font-black"><i class="fas fa-check-circle"></i> Concluído com sucesso</span>`;
+            }
+            if (actionsContainer) {
+                actionsContainer.innerHTML = `
+                    <button type="button" onclick="closeBatchRenderModalAndReload()" class="px-5 py-2.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md cursor-pointer flex items-center gap-1.5 transition active:scale-95" style="background-color: #059669; color: #ffffff !important;">
+                        <i class="fas fa-check text-white"></i>
+                        <span>Concluir e Ver Cortes</span>
+                    </button>
+                `;
+            }
+            if (stepperBadge4) stepperBadge4.innerHTML = `<i class="fas fa-check"></i>`;
+            if (stepperStatus4) {
+                stepperStatus4.innerHTML = `✓ ${successCount} prontos`;
+                stepperStatus4.style.color = '#15803d';
+            }
         }
-
-        alert(`✅ Processamento concluído: ${successCount} cortes gerados com sucesso!` + (failCount > 0 ? ` (${failCount} falhas)` : ''));
-        window.location.reload();
     }
 
     // ==========================================
@@ -3135,6 +3376,15 @@
                     if (progressBar) progressBar.style.width = Math.max(5, pct) + '%';
                     if (progressPct) progressPct.textContent = pct + '%';
                     if (progressText) progressText.textContent = data.message || "Baixando vídeo...";
+
+                    // Atualiza Stepper 1 no topo
+                    const b1 = document.getElementById("stepper-badge-1");
+                    const s1 = document.getElementById("stepper-status-1");
+                    if (b1) b1.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    if (s1) {
+                        s1.innerHTML = `⚡ Baixando ${pct}%`;
+                        s1.style.color = '#b45309';
+                    }
                 } else if (data.status === 'completed') {
                     clearInterval(timer);
                     if (progressBar) progressBar.style.width = '100%';
@@ -3619,6 +3869,44 @@
             alert("Erro de comunicação: " + e.message);
         }
     }
+
+    // ========================================================
+    // AUTO-RECUPERAÇÃO DE ESTADO AO RECARREGAR A PÁGINA
+    // ========================================================
+    document.addEventListener("DOMContentLoaded", async () => {
+        // 1. Verifica se há download de vídeo em andamento no Passo 1
+        try {
+            const dlRes = await fetch(`/admin/lives/${liveId}/cortes/video-download-status`, { headers: { 'Accept': 'application/json' } });
+            if (dlRes.ok) {
+                const dlData = await dlRes.json();
+                if (dlData.status === 'downloading') {
+                    const b1 = document.getElementById("stepper-badge-1");
+                    const s1 = document.getElementById("stepper-status-1");
+                    if (b1) b1.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    if (s1) {
+                        s1.innerHTML = `⚡ Baixando ${Math.round(dlData.progress || 0)}%`;
+                        s1.style.color = '#b45309';
+                    }
+                    pollVideoDownloadProgress(`/admin/lives/${liveId}/cortes/video-download-status`);
+                }
+            }
+        } catch (e) {
+            console.warn("Verificação de download falhou:", e);
+        }
+
+        // 2. Verifica se há transcrição (Passo 2) ou minutagem (Passo 3) rodando em background
+        try {
+            const transRes = await fetch(`/admin/lives/${liveId}/cortes/transcribe-status`, { headers: { 'Accept': 'application/json' } });
+            if (transRes.ok) {
+                const transData = await transRes.json();
+                if (transData.status === 'processing') {
+                    startTranscriptionPolling();
+                }
+            }
+        } catch (e) {
+            console.warn("Verificação de IA falhou:", e);
+        }
+    });
 </script>
 @endpush
 @endsection
