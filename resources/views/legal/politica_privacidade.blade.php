@@ -68,22 +68,46 @@
                 </ul>
             </section>
 
+            <section class="space-y-3 p-5 bg-pink-50/60 rounded-2xl border border-pink-100">
+                <h2 class="text-lg font-bold text-pink-950 flex items-center gap-2">
+                    <i class="fab fa-tiktok text-gray-900"></i>
+                    4. Integração com Serviços de Desenvolvedor e API do TikTok
+                </h2>
+                <p class="text-sm leading-relaxed text-pink-950">
+                    Nossa plataforma integra-se com a <strong>TikTok API / TikTok for Developers</strong> para publicação de conteúdo, compartilhamento de cortes de transmissões de Live Shopping e interação autorizada com nossa audiência.
+                </p>
+                <ul class="list-disc list-inside text-sm text-pink-950 space-y-2 pl-2">
+                    <li>
+                        <strong>Termos do TikTok:</strong> O uso de recursos conectados ao TikTok respeita integralmente os 
+                        <a href="https://www.tiktok.com/legal/page/row/developer-terms-of-service/en" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Termos de Serviço para Desenvolvedores do TikTok</a> e os 
+                        <a href="https://www.tiktok.com/legal/page/row/terms-of-service/en" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Termos de Serviço Gerais do TikTok</a>.
+                    </li>
+                    <li>
+                        <strong>Privacidade no TikTok:</strong> O tratamento de dados por parte do TikTok é regido pela 
+                        <a href="https://www.tiktok.com/legal/page/row/privacy-policy/en" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Política de Privacidade do TikTok</a>.
+                    </li>
+                    <li>
+                        <strong>Dados Coletados via TikTok API:</strong> Acessamos exclusivamente identificadores públicos e tokens de autorização concedidos explicitamente pelo administrador do canal para publicação e automação de vídeo. Não vendemos, transferimos ou utilizamos dados de usuários do TikTok para finalidades diferentes das expressamente consentidas.
+                    </li>
+                </ul>
+            </section>
+
             <section class="space-y-3">
-                <h2 class="text-lg font-bold text-gray-900">4. Finalidade do Tratamento</h2>
+                <h2 class="text-lg font-bold text-gray-900">5. Finalidade do Tratamento</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
                     Os dados são utilizados estritamente para o processamento de pedidos, entrega de mercadorias, atendimento ao cliente, emissão de documentos fiscais e manutenção da segurança da plataforma. Não comercializamos ou compartilhamos seus dados pessoais com terceiros para fins publicitários não autorizados.
                 </p>
             </section>
 
             <section class="space-y-3">
-                <h2 class="text-lg font-bold text-gray-900">5. Segurança dos Dados</h2>
+                <h2 class="text-lg font-bold text-gray-900">6. Segurança dos Dados</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
                     Adotamos práticas técnicas e administrativas adequadas para proteger os dados pessoais contra acessos não autorizados, perdas ou alterações indevidas, incluindo criptografia em trânsito (HTTPS) e controle rigoroso de permissões de acesso.
                 </p>
             </section>
 
             <section class="space-y-3">
-                <h2 class="text-lg font-bold text-gray-900">6. Contato e Encarregado de Dados</h2>
+                <h2 class="text-lg font-bold text-gray-900">7. Contato e Encarregado de Dados</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
                     Caso tenha dúvidas sobre esta política ou queira solicitar a atualização ou exclusão de seus dados, entre em contato conosco através do e-mail: <strong class="text-gray-800">contato@minhamania.net</strong> ou WhatsApp oficial da loja.
                 </p>

@@ -54,15 +54,31 @@
                 </p>
             </section>
 
+            <section class="space-y-3 p-5 bg-pink-50/60 rounded-2xl border border-pink-100">
+                <h2 class="text-lg font-bold text-pink-950 flex items-center gap-2">
+                    <i class="fab fa-tiktok text-gray-900"></i>
+                    4. Uso dos Serviços de API do TikTok
+                </h2>
+                <p class="text-sm leading-relaxed text-pink-950">
+                    A plataforma integra-se com a <strong>TikTok API / TikTok for Developers</strong> para compartilhamento de cortes de transmissões de Live Shopping, catálogo multimídia e interação em tempo real.
+                </p>
+                <p class="text-sm leading-relaxed text-pink-950">
+                    Os usuários e administradores que utilizam as funcionalidades integradas ao TikTok concordam expressamente com os 
+                    <a href="https://www.tiktok.com/legal/page/row/developer-terms-of-service/en" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Termos de Serviço para Desenvolvedores do TikTok</a>, com os 
+                    <a href="https://www.tiktok.com/legal/page/row/terms-of-service/en" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Termos de Serviço Gerais do TikTok</a> e com as 
+                    <a href="https://www.tiktok.com/community-guidelines/pt-BR" target="_blank" rel="noopener noreferrer" class="font-bold underline text-pink-700 hover:text-pink-900">Diretrizes da Comunidade do TikTok</a>.
+                </p>
+            </section>
+
             <section class="space-y-3">
-                <h2 class="text-lg font-bold text-gray-900">4. Pagamentos e Envios</h2>
+                <h2 class="text-lg font-bold text-gray-900">5. Pagamentos e Envios</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
                     As compras podem ser liquidadas através dos meios de pagamento integrados (PIX, Cartão de Crédito). O envio das mercadorias segue as opções de frete contratadas pelo cliente no momento do fechamento da sacolinha.
                 </p>
             </section>
 
             <section class="space-y-3">
-                <h2 class="text-lg font-bold text-gray-900">5. Contato</h2>
+                <h2 class="text-lg font-bold text-gray-900">6. Contato</h2>
                 <p class="text-sm leading-relaxed text-gray-600">
                     Em caso de dúvidas sobre nossos termos ou serviços, entre em contato através do e-mail: <strong class="text-gray-800">contato@minhamania.net</strong>.
                 </p>

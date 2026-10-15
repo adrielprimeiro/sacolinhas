@@ -99,7 +99,22 @@ Route::get('/password/reset', function () {
 // ===== ROTAS PÚBLICAS =====
 
 Route::get('/', function () {
-    return view('welcome');
+    $featuredItems = \App\Models\Item::whereIn('status', ['loja', 'estoque', 'disponivel'])
+        ->where(function ($q) {
+            $q->where('brecho_id', 1)->orWhereNull('brecho_id');
+        })
+        ->where(function ($q) {
+            $q->has('medias')
+              ->orWhere(function ($sq) {
+                  $sq->whereNotNull('image')->where('image', '!=', '');
+              });
+        })
+        ->with('medias')
+        ->inRandomOrder()
+        ->limit(8)
+        ->get();
+
+    return view('welcome', compact('featuredItems'));
 });
 
 // Verificação automática de domínio para TikTok Developers
