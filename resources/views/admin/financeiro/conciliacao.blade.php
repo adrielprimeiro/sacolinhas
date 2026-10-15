@@ -1153,6 +1153,23 @@
                 valor: ''
             },
 
+            init() {
+                @if(!\Illuminate\Support\Facades\Cache::has('last_extrato_auto_synced_at'))
+                    this.verificarSincronizacaoAutomatica();
+                @endif
+            },
+
+            verificarSincronizacaoAutomatica() {
+                fetch('{{ route("financeiro.conciliacao.auto-sync") }}')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.synced && (data.count_inter > 0 || data.count_mp > 0)) {
+                            console.log('Novas transações sincronizadas em background:', data);
+                        }
+                    })
+                    .catch(e => console.warn('Aviso auto-sync em background:', e));
+            },
+
             editRegra(r) {
                 this.regraForm = {
                     id: r.id || '',

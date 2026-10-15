@@ -174,6 +174,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/financeiro')->name('fi
     // Conciliação
     Route::prefix('conciliacao')->name('conciliacao.')->group(function () {
         Route::get('/',                [ConciliacaoController::class, 'index'])->name('index');
+        Route::get('/auto-sync',       [ConciliacaoController::class, 'autoSync'])->name('auto-sync');
         Route::get('/auditoria',       [ConciliacaoController::class, 'auditoria'])->name('auditoria');
         Route::post('/auditoria/desvincular/{transacao}', [ConciliacaoController::class, 'desvincular'])->name('auditoria.desvincular');
         Route::post('/vincular',       [ConciliacaoController::class, 'vincular'])->name('vincular');

@@ -288,8 +288,8 @@ class LiveChatController extends Controller
             $rows = $query->select($selects)->get();
             $totalCount = $rows->count();
             $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
-                // Como está ordenado desc (mais recente primeiro), o número sequencial é totalCount - index
-                $seqNumber = (string)($totalCount - $index);
+                // Como está ordenado desc (mais recente primeiro), o número sequencial padrão 101+ é 100 + (totalCount - index)
+                $seqNumber = (string)(100 + ($totalCount - $index));
                 $liveCode = ($hasCodigoLiveCol && !empty($row->codigo_live)) ? $row->codigo_live : $seqNumber;
                 $buyerPhone = null;
                 if ($hasBuyerCols) {
@@ -326,6 +326,25 @@ class LiveChatController extends Controller
         }
 
         return view('admin.lives.chat_feed', compact('lives', 'activeLive', 'linkedLiveItems'));
+    }
+
+    /**
+     * Retorna o próximo código sequencial de 3 dígitos (101+) para a live
+     */
+    protected function getNextCodigoLive($liveId): string
+    {
+        $maxNumeric = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->whereNotNull('codigo_live')
+            ->whereRaw("codigo_live REGEXP '^[0-9]+$'")
+            ->selectRaw('MAX(CAST(codigo_live AS UNSIGNED)) as max_code')
+            ->value('max_code');
+
+        if ($maxNumeric && (int)$maxNumeric >= 101) {
+            return (string)((int)$maxNumeric + 1);
+        }
+
+        return '101';
     }
 
     /**
@@ -382,13 +401,12 @@ class LiveChatController extends Controller
             : null;
         $isAlreadyInLive = (bool)$existingLiveItem;
 
-        // Auto-atribuir código sequencial da live se não foi enviado
+        // Auto-atribuir código sequencial da live se não foi enviado (padrão 101+)
         if (empty($codigoLive) && Schema::hasColumn('live_items', 'codigo_live')) {
             if ($existingLiveItem && !empty($existingLiveItem->codigo_live)) {
                 $codigoLive = $existingLiveItem->codigo_live;
             } else {
-                $seqCount = DB::table('live_items')->where('live_id', $liveId)->count();
-                $codigoLive = (string)($seqCount + 1);
+                $codigoLive = $this->getNextCodigoLive($liveId);
             }
         }
 
@@ -2372,11 +2390,11 @@ class LiveChatController extends Controller
                                 'updated_at' => now(),
                             ]);
                     } else {
-                        $seqCount = DB::table('live_items')->where('live_id', $validated['live_id'])->count();
+                        $codigoLive = $this->getNextCodigoLive($validated['live_id']);
                         DB::table('live_items')->insert([
                             'live_id' => $validated['live_id'],
                             'item_id' => $validated['item_id'],
-                            'codigo_live' => (string)($seqCount + 1),
+                            'codigo_live' => $codigoLive,
                             'user_id' => $validated['user_id'],
                             'buyer_username' => $buyerUsername,
                             'buyer_name' => $buyerName,
@@ -2847,8 +2865,7 @@ class LiveChatController extends Controller
             if ($liveId && $request->boolean('link_to_live', true)) {
                 $live = Live::find($liveId);
                 if ($live) {
-                    $lastCodigoLive = DB::table('live_items')->where('live_id', $live->id)->max('codigo_live') ?: 0;
-                    $nextCodigoLive = (int) $lastCodigoLive + 1;
+                    $nextCodigoLive = (int) $this->getNextCodigoLive($live->id);
                     $codigoLive = $nextCodigoLive;
 
                     $liveItemId = DB::table('live_items')->insertGetId([

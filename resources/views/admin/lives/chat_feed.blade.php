@@ -408,7 +408,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-emerald-300 p-2 shrink-0 flex items-center gap-2">
                 <div class="relative flex-1 flex items-center">
                     <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                        placeholder="Aguardando bip do leitor ou digite o código..."
+                        placeholder="Aguardando bip do leitor ou digite o código... (Próxima: #101)"
                         class="w-full pl-9 pr-20 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
                         oninput="handleManualScanInput(event)"
                         onkeydown="handleManualScan(event)">
@@ -420,6 +420,13 @@
                         <i class="fas fa-level-down-alt fa-rotate-90 text-[10px]"></i>
                         <span>Enter</span>
                     </button>
+                </div>
+
+                <!-- Próxima Peça (Sequência 101+) -->
+                <div id="next-seq-badge-container" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 font-black text-xs shrink-0 select-none shadow-xs" title="Código que será atribuído à próxima peça apresentada">
+                    <i class="fas fa-hashtag text-indigo-500 text-xs"></i>
+                    <span class="text-indigo-600 font-bold">Próxima:</span>
+                    <span id="next-seq-val" class="font-mono text-sm font-extrabold text-indigo-700">#101</span>
                 </div>
 
                 <!-- Botão + Cliente -->
@@ -2113,7 +2120,12 @@
                 continue;
             }
 
-            // 3. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
+            // 3. FILTRAR DÚVIDAS / PERGUNTAS: Se tiver '?' e termos interrogativos (ex: "tem 101?", "veste quanto?", "qual valor?", "ainda tem?"), não é arremate
+            if (/\?/.test(msgText) && /(?:tem|ainda|veste|calca|calça|qual|quanto|valor|preco|preço|tamanho|ja\s*foi|já\s*foi|vendeu|mostra)/i.test(msgText)) {
+                continue;
+            }
+
+            // 4. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
             if (itemTimeMs && msg.created_at) {
                 const msgTimeMs = new Date(msg.created_at).getTime();
                 if (msgTimeMs && (itemTimeMs - msgTimeMs) > (25 * 60 * 1000)) {
@@ -2123,16 +2135,17 @@
 
             let matched = false;
 
-            // 4. Testar correspondência precisa com os alvos
+            // 5. Testar correspondência precisa com os alvos
             for (const target of targets) {
-                // Caso A: Mensagem é EXATAMENTE o código ou #código (ex: "22", "#22", " 22 ", "022")
+                // Caso A: Mensagem é EXATAMENTE o código, #código, p-código, peça código (ex: "101", "#101", "p101", "p 101", "peca 101", "0101")
                 const cleanMsgOnly = msgText.replace(/^[#\s]+|[#\s]+$/g, '');
-                if (cleanMsgOnly === target || cleanMsgOnly === ('#' + target)) {
+                const cleanWithoutPrefix = cleanMsgOnly.replace(/^(?:p(?:e[çc]a)?|c[oó]d(?:igo)?|item|#)[\s\-_.]*/i, '');
+                if (cleanMsgOnly === target || cleanMsgOnly === ('#' + target) || cleanWithoutPrefix === target) {
                     matched = true;
                     break;
                 }
 
-                // Caso B: Se for código curto de live (ex: "22", "19", "5"), validar intenção de compra ou separação estrita
+                // Caso B: Se for código de live (ex: "101", "102", "125", "22"), validar intenção de compra ou separação estrita
                 if (shortLiveCodes.includes(target)) {
                     // Ignora se for parte de preço, horas ou medidas
                     if (new RegExp('(?:^|\\s)' + escapeRegex(target) + '(?:h|hrs|horas|reais|conto|\\$|cm|kg|m|g|%)(?:\\s|$)', 'i').test(msgText) ||
@@ -2141,13 +2154,16 @@
                         continue;
                     }
 
-                    // Padrões claros de pedido: "quero 22", "22 eu", "eu 22", "22 meu", "meu 22", "22 pra mim", "22 p", "22 m", "22 g", "22 k", "#22"
-                    const buyIntentRegex = new RegExp('(?:^|\\b)(?:quero|eu|meu|minha|leva|fica|pego|separa|reserva)?\\s*#?' + escapeRegex(target) + '\\s*(?:eu|quero|meu|minha|pra\\s*mim|por\\s*favor|p|m|g|gg|k|pfv)?(?:$|\\b)', 'i');
+                    // Padrões claros de pedido: "quero 101", "101 eu", "eu 101", "101 meu", "meu 101", "p101 eu", "101 pra mim", "101 p", "101 m", "101 g", "101 k", "#101", "p 101", "peça 101"
+                    const buyIntentRegex = new RegExp('(?:^|\\b)(?:p|pe[çc]a|c[oó]d(?:igo)?|item|quero|eu|meu|minha|leva|fica|pego|separa|reserva)?\\s*#?' + escapeRegex(target) + '\\s*(?:eu|quero|meu|minha|pra\\s*mim|por\\s*favor|p|m|g|gg|k|pfv)?(?:$|\\b)', 'i');
                     
+                    // Regex com prefixo colado ao número (ex: "p101", "p-101", "p.101")
+                    const prefixDirectRegex = new RegExp('(?:^|\\b)p[-_.]?' + escapeRegex(target) + '(?:$|\\b)', 'i');
+
                     // Regex de palavra isolada (delimitada por pontuação ou espaço)
                     const isolatedRegex = new RegExp('(?:^|[^a-z0-9])#?' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
 
-                    if (buyIntentRegex.test(msgText) || isolatedRegex.test(msgText)) {
+                    if (buyIntentRegex.test(msgText) || prefixDirectRegex.test(msgText) || isolatedRegex.test(msgText)) {
                         // Certificar de que não é apenas um texto longo de conversa
                         if (msgText.length <= 40) {
                             matched = true;
@@ -2817,18 +2833,28 @@
         return null;
     }
 
-    // Retorna o próximo número sequencial da live (quantidade de itens na live + 1)
+    // Retorna o próximo número sequencial de 3 dígitos (101+) da live
     function getNextSequentialLiveCode() {
-        return String((bgScanItems ? bgScanItems.length : 0) + 1);
+        if (!bgScanItems || bgScanItems.length === 0) {
+            return '101';
+        }
+        let maxNum = 100;
+        for (const item of bgScanItems) {
+            const lc = parseInt(item.liveCode, 10);
+            if (!isNaN(lc) && lc > maxNum) {
+                maxNum = lc;
+            }
+        }
+        return String(maxNum + 1);
     }
 
     function updateNextSeqBadge() {
-        const badge = document.getElementById('next-seq-badge');
+        const badgeVal = document.getElementById('next-seq-val') || document.getElementById('next-seq-badge');
         const input = document.getElementById('scan-manual-input');
         const nextSeq = getNextSequentialLiveCode();
-        if (badge) badge.textContent = nextSeq;
+        if (badgeVal) badgeVal.textContent = '#' + nextSeq;
         if (input) {
-            input.placeholder = `Aguardando bip do leitor... (Código da live: #${nextSeq})`;
+            input.placeholder = `Aguardando bip do leitor... (Próxima peça: #${nextSeq})`;
         }
     }
 
@@ -3467,7 +3493,7 @@
                                     id: 'scan_db_' + (serverItem.live_item_id || Date.now()),
                                     itemId: serverItem.item_id,
                                     code: serverItem.code,
-                                    liveCode: serverItem.codigo_live || String(bgScanItems.length + 1),
+                                    liveCode: serverItem.codigo_live || getNextSequentialLiveCode(),
                                     buyerUserId: serverItem.buyer_user_id || null,
                                     buyerUsername: serverItem.buyer_username || null,
                                     buyerName: serverItem.buyer_name || null,

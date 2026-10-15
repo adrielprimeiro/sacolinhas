@@ -36,8 +36,8 @@ class ConciliacaoController extends Controller
 
     public function index()
     {
-        // 0. Auto-sincronização automática do extrato bancário (Banco Inter e Mercado Pago) a cada 15 minutos ao abrir a tela ou via ?sync=1
-        if (request()->has('sync') || !\Illuminate\Support\Facades\Cache::has('last_extrato_auto_synced_at')) {
+        // 0. Sincronização manual explícita via parâmetro ?sync=1
+        if (request()->has('sync')) {
             try {
                 $startDate = now()->subDays(7)->toDateString();
                 $endDate = now()->toDateString();
@@ -47,15 +47,8 @@ class ConciliacaoController extends Controller
                 
                 \Illuminate\Support\Facades\Cache::put('last_extrato_auto_synced_at', now(), 900); // 15 minutos
             } catch (\Exception $e) {
-                Log::warning("Aviso na sincronização automática de extratos bancários: " . $e->getMessage());
+                Log::warning("Aviso na sincronização manual de extratos bancários: " . $e->getMessage());
             }
-        }
-
-        // Auto-conciliação automática para transações pendentes
-        try {
-            $this->service->autoConciliarTransacoesPendentes();
-        } catch (\Exception $e) {
-            Log::error("Erro na auto-conciliação automática ao abrir Conciliação: " . $e->getMessage());
         }
 
         $extrato = TransacaoExtrato::where('status', 'pendente')
@@ -85,7 +78,7 @@ class ConciliacaoController extends Controller
         // Janela de datas para filtrar lançamentos de candidatos (últimos 90 dias ou pendentes)
         $minDataExtrato = $extrato->min('data') ? \Carbon\Carbon::parse($extrato->min('data'))->subDays(30) : now()->subDays(90);
 
-        $lancamentos = Lancamento::with(['pessoa:id,nome', 'classificacaoFinanceira:id,nome'])
+        $lancamentos = Lancamento::with(['pessoa:id,nome', 'classificacaoFinanceira:id,nome', 'movimentacoes:id,lancamento_id,valor_pago'])
             ->where(function ($q) use ($minDataExtrato) {
                 $q->where('status', 'pendente')
                     ->orWhere(function ($q2) use ($minDataExtrato) {
@@ -102,7 +95,14 @@ class ConciliacaoController extends Controller
         $regrasRaw = \DB::table('configuracoes')->where('chave', 'regras_conciliacao')->value('valor');
         $regras = json_decode($regrasRaw, true) ?: [];
 
-        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras, $historicosGrouped, $transacoesConciliadasGrouped) {
+        // Pré-carregar Pessoas e Classificações em memória para eliminar dezenas de consultas N+1
+        $classificacoes = ClassificacaoFinanceira::all();
+        $classificacoesMap = $classificacoes->keyBy('id');
+
+        $pessoas = Pessoa::all(['id', 'nome']);
+        $pessoasMap = $pessoas->keyBy('id');
+
+        $extratoComSugestoes = $extrato->map(function ($t) use ($lancamentos, $regras, $historicosGrouped, $transacoesConciliadasGrouped, $pessoasMap, $classificacoesMap) {
             $pedidoIdRef = $t->getPedidoId();
             
             // 1. Procurar regra correspondente para a descrição (priorizando match de valor exato)
@@ -269,8 +269,8 @@ class ConciliacaoController extends Controller
 
             // C. Adicionar Sugestões Virtuais de Criação Rápida por Regra (Score 140)
             if ($regraCorrespondente) {
-                $pessoaModel = !empty($regraCorrespondente['pessoa_id']) ? \App\Models\Pessoa::find($regraCorrespondente['pessoa_id']) : null;
-                $classificacaoModel = !empty($regraCorrespondente['classificacao_financeira_id']) ? \App\Models\ClassificacaoFinanceira::find($regraCorrespondente['classificacao_financeira_id']) : null;
+                $pessoaModel = !empty($regraCorrespondente['pessoa_id']) ? $pessoasMap->get($regraCorrespondente['pessoa_id']) : null;
+                $classificacaoModel = !empty($regraCorrespondente['classificacao_financeira_id']) ? $classificacoesMap->get($regraCorrespondente['classificacao_financeira_id']) : null;
                 
                 if ($classificacaoModel) {
                     $virtualRule = (object) [
@@ -300,8 +300,8 @@ class ConciliacaoController extends Controller
                     continue;
                 }
 
-                $pessoaModel = \App\Models\Pessoa::find($par['pessoa_id']);
-                $classificacaoModel = \App\Models\ClassificacaoFinanceira::find($par['classificacao_id']);
+                $pessoaModel = $pessoasMap->get($par['pessoa_id']);
+                $classificacaoModel = $classificacoesMap->get($par['classificacao_id']);
                 
                 if ($pessoaModel && $classificacaoModel) {
                     $virtual = (object) [
@@ -442,6 +442,37 @@ class ConciliacaoController extends Controller
             'contas',
             'ignorados'
         ));
+    }
+
+    /**
+     * Sincronização automática em segundo plano (chamada via AJAX sem travar a navegação)
+     */
+    public function autoSync()
+    {
+        if (\Illuminate\Support\Facades\Cache::has('last_extrato_auto_synced_at')) {
+            return response()->json(['synced' => false, 'message' => 'Sincronizado recentemente.']);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Cache::put('last_extrato_auto_synced_at', now(), 900); // 15 minutos
+
+            $startDate = now()->subDays(7)->toDateString();
+            $endDate = now()->toDateString();
+
+            $countInter = $this->service->sincronizarBancoInter($startDate, $endDate);
+            $countMp = $this->service->sincronizarMercadoPago($startDate, $endDate);
+
+            return response()->json([
+                'synced' => true,
+                'count_inter' => $countInter,
+                'count_mp' => $countMp,
+                'message' => 'Sincronização em background concluída com sucesso!'
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Cache::forget('last_extrato_auto_synced_at');
+            Log::warning("Aviso na auto-sincronização em background: " . $e->getMessage());
+            return response()->json(['synced' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function sincronizarMp(Request $request)

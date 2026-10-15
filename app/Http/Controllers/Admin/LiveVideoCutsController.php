@@ -1074,11 +1074,11 @@ REGRAS DE OURO E PADRÕES DA APRESENTADORA (MINHA MANIA):
 
 3. VALIDAÇÃO CRUZADA COM O CATÁLOGO (TAMANHO, MARCA, PREÇO):
    - Compare o que a apresentadora fala na transcrição com os dados cadastrais da peça (`nome`, `tamanho`, `marca`, `cor`, `preco`).
-   - Exemplo Real: A peça #1 é uma "Melissa Ulitsa" tamanho 39/40 por R$ 65. Quando ela fala "...tamanho 39,40, 65 reais, código 1.", a peça 1 ACABOU.
-   - Quando ela começa a falar "Uma Melissa 38, topzera...", ela já começou a apresentar a peça #2 (tamanho 38). O corte da peça #1 NÃO PODE conter a fala da peça #2!
+   - Exemplo Real: A peça #101 é uma "Melissa Ulitsa" tamanho 39/40 por R$ 65. Quando ela fala "...tamanho 39,40, 65 reais, código 101.", a peça 101 ACABOU.
+   - Quando ela começa a falar "Uma Melissa 38, topzera...", ela já começou a apresentar a peça #102 (tamanho 38). O corte da peça #101 NÃO PODE conter a fala da peça #102!
 
 4. ORDEM CRONOLÓGICA MONOTÔNICA:
-   - As peças são apresentadas sequencialmente (#1, #2, #3, ...).
+   - As peças são apresentadas sequencialmente em 3 dígitos (#101, #102, #103, ...).
    - O início da peça K+1 DEVE ser posterior ou igual ao fim da peça K.
 
 5. DURAÇÃO TÍPICA:
@@ -1093,7 +1093,7 @@ Retorne OBRIGATORIAMENTE um objeto JSON no formato:
   "cuts": [
     {
       "live_item_id": 123,
-      "codigo_live": "1",
+      "codigo_live": "101",
       "cut_start_sec": 570.0,
       "cut_end_sec": 605.5,
       "snippet": "Texto exato da fala correspondente APENAS a esta peça"
