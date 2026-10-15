@@ -1107,6 +1107,7 @@ PROMPT;
         $itemChunks = array_chunk($itemsCatalog, 6);
         $totalChunks = count($itemChunks);
         $lastKnownEndSec = $initialAnchorSec;
+        $lastKnownStartSec = null;
 
         foreach ($itemChunks as $chunkIdx => $chunk) {
             $chunkNumber = $chunkIdx + 1;
@@ -1407,7 +1408,12 @@ PROMPT;
                         }
                     }
 
-                    // 4. Garante que não sobrepõe a peça anterior
+                    // 4. Garante que não sobrepõe a peça anterior e previne início idêntico acidental
+                    if ($lastKnownStartSec !== null && abs($alignedStart - $lastKnownStartSec) < 1.0) {
+                        if ($lastKnownEndSec !== null && $lastKnownEndSec > $alignedStart) {
+                            $alignedStart = $lastKnownEndSec;
+                        }
+                    }
                     if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $alignedStart < $lastKnownEndSec) {
                         $alignedStart = max($lastKnownEndSec, $alignedStart);
                     }
@@ -1417,6 +1423,7 @@ PROMPT;
 
                     $alignedStart = round($alignedStart, 1);
                     $alignedEnd = round($alignedEnd, 1);
+                    $lastKnownStartSec = $alignedStart;
 
                     $snippet = $this->getSnippetForTimeRange($live, $alignedStart, $alignedEnd);
                     if (empty($snippet) && !empty($snippetRaw)) {
@@ -1626,7 +1633,17 @@ PROMPT;
                     $sStart = (float) ($sentences[$i]['start'] ?? 0);
                     if (($mentionTime - $sStart) > 40) break;
 
+                    // Nunca recuar para antes do término da peça anterior
+                    if ($lastEndSec !== null && $lastEndSec > 0 && $sStart < ($lastEndSec - 1.0)) {
+                        break;
+                    }
+
                     $sText = mb_strtolower($sentences[$i]['text'] ?? '');
+
+                    // Se a frase anterior já cita código de outra peça (ex: c 1 5 3), ela pertence à peça anterior!
+                    if ($i < $mentionIndex && preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero|c)\s*\d+/iu', $sText)) {
+                        break;
+                    }
 
                     $hasTransition = false;
                     foreach ($transitionPatterns as $pat) {
@@ -1648,6 +1665,9 @@ PROMPT;
 
                 $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
                 $finalStart = max(0, round($startTime - 0.5, 1));
+                if ($lastEndSec !== null && $lastEndSec > 0) {
+                    $finalStart = max($lastEndSec, $finalStart);
+                }
                 $finalEnd = round($endTime + 1.2, 1);
                 if (isset($sentences[$mentionIndex + 1])) {
                     $nextStart = (float) ($sentences[$mentionIndex + 1]['start'] ?? 0);
