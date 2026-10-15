@@ -1273,93 +1273,88 @@
 </div>
 
 <!-- MODAL DE BUSCA NA TRANSCRIÇÃO POR ITEM -->
-<div id="modal-item-transcription-search" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white border border-gray-200 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] text-gray-900 animate-in fade-in zoom-in-95 duration-150">
+<div id="modal-item-transcription-search" class="fixed inset-0 bg-gray-900/80 backdrop-blur-xs z-50 flex items-center justify-center hidden p-3 sm:p-5">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl flex flex-col h-[85vh] max-h-[85vh] min-h-0 text-gray-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         <!-- Header -->
-        <div class="flex items-start justify-between pb-3 border-b border-gray-200 mb-3 shrink-0">
-            <div class="min-w-0 pr-3">
+        <div class="flex items-center justify-between pb-2.5 border-b border-gray-200 mb-2.5 shrink-0">
+            <div class="min-w-0 pr-2">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-purple-700 text-white shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">
+                    <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-purple-700 text-white shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">
                         Item #<span id="trans-modal-item-code">-</span>
                     </span>
-                    <h3 class="text-base font-extrabold text-gray-900 truncate max-w-md" id="trans-modal-item-name">Buscar na Transcrição</h3>
+                    <h3 class="text-sm sm:text-base font-extrabold text-gray-900 truncate max-w-md" id="trans-modal-item-name">Buscar na Transcrição</h3>
                     <span id="trans-modal-item-sku" class="text-xs text-gray-500 font-bold"></span>
                 </div>
-                <p class="text-xs text-gray-500 mt-1 font-medium">
-                    Encontre no áudio da live as falas correspondentes a este item e defina a minutagem exata do corte.
-                </p>
             </div>
             <button type="button" onclick="closeTranscriptionSearchModal()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none cursor-pointer p-1" title="Fechar">&times;</button>
         </div>
 
         <!-- Barra de Busca e Sugestões -->
-        <div class="space-y-2 mb-3 shrink-0">
+        <div class="space-y-1.5 mb-2 shrink-0">
             <div class="relative">
-                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-purple-700">
-                    <i class="fas fa-search text-sm"></i>
+                <div class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-purple-700">
+                    <i class="fas fa-search text-xs"></i>
                 </div>
                 <input type="text" 
                        id="trans-modal-search-input" 
                        oninput="handleTranscriptionModalSearchInput(this.value)"
-                       placeholder="Filtrar falas deste item ou digitar qualquer palavra para pesquisar..." 
-                       class="w-full pl-9 pr-20 py-2.5 text-xs sm:text-sm bg-gray-50 text-gray-900 rounded-xl border border-gray-300 focus:bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-200 font-bold transition shadow-2xs">
-                <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                       placeholder="Filtrar falas deste item ou digitar palavra..." 
+                       class="w-full pl-8 pr-16 py-1.5 text-xs bg-gray-50 text-gray-900 rounded-xl border border-gray-300 focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-200 font-bold transition shadow-2xs">
+                <div class="absolute inset-y-0 right-0 flex items-center pr-1.5">
                     <button type="button" 
                             onclick="clearTranscriptionModalSearch()" 
-                            class="text-xs text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg font-bold cursor-pointer transition border border-gray-300" 
-                            title="Limpar busca e voltar às falas do item">
+                            class="text-[11px] text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded-lg font-bold cursor-pointer transition border border-gray-300" 
+                            title="Limpar busca">
                         Limpar
                     </button>
                 </div>
             </div>
 
             <!-- Sugestões / Pílulas de Termos do Item -->
-            <div class="flex items-center gap-1.5 flex-wrap text-xs font-semibold text-gray-700 pt-0.5">
-                <span class="text-[11px] text-gray-600 uppercase font-bold mr-1 flex items-center gap-1">
+            <div class="flex items-center gap-1 flex-wrap text-xs font-semibold text-gray-700">
+                <span class="text-[10px] text-gray-500 uppercase font-bold mr-0.5 flex items-center gap-1">
                     <i class="fas fa-tags text-purple-700"></i> Termos:
                 </span>
-                <div id="trans-modal-pills-container" class="flex items-center gap-1.5 flex-wrap">
+                <div id="trans-modal-pills-container" class="flex items-center gap-1 flex-wrap">
                     <!-- Geradas dinamicamente via JS -->
                 </div>
             </div>
 
             <!-- Banner de Alerta quando Minutagem for Aplicada -->
-            <div id="trans-modal-applied-alert" class="hidden p-3 rounded-xl bg-green-50 border border-green-300 text-green-950 text-xs font-bold flex items-center justify-between transition shadow-xs">
-                <span id="trans-modal-applied-text" class="flex items-center gap-1.5">
-                    <i class="fas fa-check-circle text-green-600 text-sm"></i> Minutagem aplicada e salva com sucesso!
+            <div id="trans-modal-applied-alert" class="hidden p-2 rounded-xl bg-green-50 border border-green-300 text-green-950 text-xs font-bold flex items-center justify-between transition shadow-2xs">
+                <span id="trans-modal-applied-text" class="flex items-center gap-1 text-[11px]">
+                    <i class="fas fa-check-circle text-green-600 text-xs"></i> Minutagem aplicada e salva com sucesso!
                 </span>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="previewCurrentAppliedCut()" class="text-xs text-green-800 hover:text-green-950 font-black underline flex items-center gap-1 cursor-pointer">
-                        <i class="fas fa-play text-[10px]"></i> Ouvir Corte
-                    </button>
-                </div>
+                <button type="button" onclick="previewCurrentAppliedCut()" class="text-xs text-green-800 hover:text-green-950 font-black underline flex items-center gap-1 cursor-pointer">
+                    <i class="fas fa-play text-[9px]"></i> Ouvir Corte
+                </button>
             </div>
         </div>
 
         <!-- Abas de Filtro por Categoria -->
         <div id="trans-modal-tabs-wrapper" class="flex items-center gap-1.5 pb-2 mb-2 border-b border-gray-200 shrink-0 overflow-x-auto">
-            <!-- Abas geradas dinamicamente via JS (Todas | Código | Peça/Descrição) -->
+            <!-- Abas geradas dinamicamente via JS (Código | Descrição | Todas) -->
         </div>
 
         <!-- Contador de Resultados & Instruções -->
-        <div class="flex items-center justify-between text-xs text-gray-600 mb-2 px-1 shrink-0 font-medium">
+        <div class="flex items-center justify-between text-xs text-gray-600 mb-1.5 px-0.5 shrink-0 font-medium">
             <span>Resultados: <strong id="trans-modal-results-count" class="text-purple-800 font-black">0</strong> trecho(s)</span>
-            <span class="text-[11px] text-gray-500">Use <strong>Ouvir</strong> no player ou <strong>Aplicar Minutagem</strong></span>
+            <span class="text-[11px] text-gray-400">Clique em <strong>Usar no Corte</strong> para salvar</span>
         </div>
 
-        <!-- Lista de Resultados (Scrollable) -->
-        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 border border-gray-200 rounded-xl p-2.5 bg-gray-50/60" id="trans-modal-results-list" style="min-height: 220px;">
+        <!-- Lista de Resultados (Scrollable & Strict Flex Containment) -->
+        <div class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1.5 border border-gray-200 rounded-xl p-2 bg-gray-50/70" id="trans-modal-results-list">
             <!-- Renderizado dinamicamente via JS -->
         </div>
 
         <!-- Footer -->
-        <div class="pt-3 mt-3 border-t border-gray-200 shrink-0 flex items-center justify-between">
-            <div class="text-xs text-gray-500 flex items-center gap-1.5 font-medium">
-                <i class="fas fa-info-circle text-indigo-500"></i>
-                <span>A minutagem padrão adiciona 5s de introdução e dura ~45s.</span>
+        <div class="pt-2.5 mt-2.5 border-t border-gray-200 shrink-0 flex items-center justify-between">
+            <div class="text-[11px] text-gray-500 flex items-center gap-1 font-medium truncate pr-2">
+                <i class="fas fa-info-circle text-indigo-500 shrink-0"></i>
+                <span class="truncate">O corte inclui 5s de introdução e dura ~45s.</span>
             </div>
-            <button type="button" onclick="closeTranscriptionSearchModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2 rounded-xl transition border border-gray-300 cursor-pointer shadow-xs">
+            <button type="button" onclick="closeTranscriptionSearchModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-1.5 rounded-xl transition border border-gray-300 cursor-pointer shadow-xs shrink-0">
                 Fechar
             </button>
         </div>
@@ -2733,7 +2728,6 @@
         currentSearchItemCode = String(liveCode || '').trim();
         currentSearchItemName = String(itemName || '').trim();
         currentSearchItemCodigo = String(itemCodigo || '').trim();
-        currentSearchActiveTab = 'all';
         currentCustomMatches = null;
 
         // Atualiza cabeçalho
@@ -2754,6 +2748,10 @@
 
         // Calcula os trechos correspondentes ao item
         currentSearchCachedMatches = findItemMatchesInTranscription();
+
+        // Se houver correspondência com o código da peça, prioriza a aba do código por padrão
+        const codeMatchesCount = currentSearchCachedMatches.filter(m => m.categories.includes('code') || m.categories.includes('words')).length;
+        currentSearchActiveTab = codeMatchesCount > 0 ? 'code' : 'all';
 
         // Renderiza pílulas de termos
         renderTranscriptionPills();
@@ -2862,7 +2860,7 @@
         pills.forEach(p => {
             const btn = document.createElement("button");
             btn.type = "button";
-            btn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-purple-50 text-purple-900 border border-purple-200 transition cursor-pointer active:scale-95 shadow-2xs";
+            btn.className = "px-2 py-0.5 rounded-md text-[11px] font-bold bg-white hover:bg-purple-50 text-purple-900 border border-purple-200 transition cursor-pointer active:scale-95 shadow-2xs";
             btn.textContent = p.label;
             btn.onclick = () => {
                 const input = document.getElementById("trans-modal-search-input");
@@ -2874,8 +2872,8 @@
 
         const resetBtn = document.createElement("button");
         resetBtn.type = "button";
-        resetBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 transition cursor-pointer active:scale-95";
-        resetBtn.innerHTML = '<i class="fas fa-rotate-left mr-1"></i> Ver todas do item';
+        resetBtn.className = "px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 transition cursor-pointer active:scale-95";
+        resetBtn.innerHTML = '<i class="fas fa-rotate-left mr-0.5 text-[10px]"></i> Ver todas';
         resetBtn.onclick = () => {
             clearTranscriptionModalSearch();
         };
@@ -2888,12 +2886,12 @@
 
         if (currentCustomMatches !== null) {
             wrapper.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="px-3 py-1.5 rounded-xl text-xs bg-purple-700 text-white font-black shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">
-                        🔍 Busca Manual: "${escapeHtml(document.getElementById("trans-modal-search-input")?.value || '')}"
+                <div class="flex items-center gap-1.5">
+                    <span class="px-2.5 py-1 rounded-lg text-xs bg-purple-700 text-white font-black shadow-2xs" style="background-color: #6b21a8; color: #ffffff !important;">
+                        🔍 Busca: "${escapeHtml(document.getElementById("trans-modal-search-input")?.value || '')}"
                     </span>
-                    <button type="button" onclick="clearTranscriptionModalSearch()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 cursor-pointer">
-                        ✕ Voltar às falas do item
+                    <button type="button" onclick="clearTranscriptionModalSearch()" class="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 cursor-pointer">
+                        ✕ Limpar
                     </button>
                 </div>
             `;
@@ -2904,24 +2902,27 @@
         const countCode = currentSearchCachedMatches.filter(m => m.categories.includes('code') || m.categories.includes('words')).length;
         const countProduct = currentSearchCachedMatches.filter(m => m.categories.includes('product')).length;
 
-        const tabs = [
-            { id: 'all', label: `⭐ Todas Relacionadas (${countAll})`, show: true },
-            { id: 'code', label: `🎯 Código #${currentSearchItemCode} (${countCode})`, show: countCode > 0 },
-            { id: 'product', label: `🏷️ Descrição / Peça (${countProduct})`, show: countProduct > 0 && countProduct !== countAll }
-        ];
+        const tabs = [];
+        if (countCode > 0) {
+            tabs.push({ id: 'code', label: `🎯 Código #${currentSearchItemCode} (${countCode})`, show: true });
+        }
+        tabs.push({ id: 'all', label: `⭐ Todas (${countAll})`, show: true });
+        if (countProduct > 0 && countProduct !== countAll) {
+            tabs.push({ id: 'product', label: `🏷️ Descrição / Peça (${countProduct})`, show: true });
+        }
 
         let html = '';
-        tabs.filter(t => t.show).forEach(tab => {
+        tabs.forEach(tab => {
             const isActive = currentSearchActiveTab === tab.id;
             const activeClass = isActive 
-                ? 'bg-purple-700 text-white shadow-xs font-black' 
+                ? 'bg-purple-700 text-white shadow-2xs font-black' 
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold border border-gray-200';
             const inlineStyle = isActive ? 'background-color: #6b21a8; color: #ffffff !important;' : '';
 
             html += `
                 <button type="button" 
                         onclick="switchTranscriptionTab('${tab.id}')"
-                        class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition cursor-pointer active:scale-95 ${activeClass}"
+                        class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition cursor-pointer active:scale-95 ${activeClass}"
                         style="${inlineStyle}">
                     ${tab.label}
                 </button>
@@ -3078,16 +3079,22 @@
             return;
         }
 
-        // Renderiza cards dos trechos correspondentes
+        // Ordena priorizando correspondência de código e depois por ordem cronológica
+        displayMatches.sort((a, b) => {
+            if (a.hasDirectCode && !b.hasDirectCode) return -1;
+            if (!a.hasDirectCode && b.hasDirectCode) return 1;
+            return a.start - b.start;
+        });
+
+        // Renderiza cards compactos dos trechos correspondentes
         let html = '';
         displayMatches.forEach((m) => {
             const startFmt = formatTime(m.start);
-            const endFmt = formatTime(m.end);
             const durationSec = Math.max(1, Math.round(m.end - m.start));
 
             const hours = Math.floor(m.start / 3600);
             const mins = Math.floor((m.start % 3600) / 60);
-            const relativeTimeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min de live`;
+            const relativeTimeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
 
             // Destaque de todos os termos encontrados
             let highlighted = escapeHtml(m.text);
@@ -3103,88 +3110,57 @@
             // Monta badges de motivo
             const badgesHtml = (m.reasons || []).map(r => {
                 if (r.type === 'code') {
-                    return `<span class="px-2 py-0.5 rounded text-[11px] font-extrabold bg-purple-700 text-white shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">${escapeHtml(r.label)}</span>`;
+                    return `<span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-700 text-white shadow-2xs" style="background-color: #6b21a8; color: #ffffff !important;">${escapeHtml(r.label)}</span>`;
                 } else if (r.type === 'words') {
-                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                    return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
                 } else if (r.type === 'product') {
-                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                    return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-2xs">${escapeHtml(r.label)}</span>`;
                 } else {
-                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 text-gray-800 border border-gray-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                    return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-800 border border-gray-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
                 }
             }).join(' ');
 
             html += `
-                <div class="bg-white border ${m.hasDirectCode ? 'border-purple-300 ring-1 ring-purple-200' : 'border-gray-200'} hover:border-purple-400 rounded-xl p-3.5 transition shadow-xs space-y-2.5 group">
+                <div class="bg-white border ${m.hasDirectCode ? 'border-purple-300 ring-1 ring-purple-200 bg-purple-50/15' : 'border-gray-200'} hover:border-purple-400 rounded-xl p-2.5 transition shadow-2xs space-y-1.5">
                     <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-xs font-mono font-black bg-purple-100 text-purple-950 border border-purple-300 px-2 py-0.5 rounded-lg shadow-2xs">
-                                <i class="fas fa-clock text-purple-700 mr-1 text-[10px]"></i> ${startFmt} ➔ ${endFmt}
-                            </span>
-                            <span class="text-[11px] text-gray-600 font-bold">(${durationSec}s • aos ${relativeTimeStr})</span>
-                            ${m.hasDirectCode ? `
-                                <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300 flex items-center gap-1 shadow-2xs">
-                                    <i class="fas fa-star text-amber-500"></i> Código da Peça
-                                </span>
-                            ` : ''}
-                        </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[11px] font-mono font-bold bg-purple-100 text-purple-950 border border-purple-200 px-1.5 py-0.5 rounded shadow-2xs">
+                                <i class="fas fa-clock text-purple-700 mr-1 text-[9px]"></i>${startFmt}
+                            </span>
                             ${badgesHtml}
-                            <span class="text-[10px] font-bold text-gray-400 ml-1">#${m.index + 1}</span>
+                            <span class="text-[10px] text-gray-500 font-medium">(${relativeTimeStr})</span>
                         </div>
-                    </div>
-
-                    <!-- Frase Anterior (Contexto) -->
-                    ${m.prevText ? `
-                        <div class="text-[11px] text-gray-500 font-medium italic line-clamp-1 border-l-2 border-gray-300 pl-2">
-                            <i class="fas fa-arrow-turn-up text-[9px] mr-1 text-gray-400"></i> "${escapeHtml(m.prevText)}"
-                        </div>
-                    ` : ''}
-
-                    <!-- Frase Principal com Termo Destacado -->
-                    <div class="text-xs font-semibold text-gray-900 leading-relaxed bg-purple-50/40 p-2.5 rounded-lg border border-purple-200">
-                        ${highlighted}
-                    </div>
-
-                    <!-- Frase Seguinte (Contexto) -->
-                    ${m.nextText ? `
-                        <div class="text-[11px] text-gray-500 font-medium italic line-clamp-1 border-l-2 border-gray-300 pl-2">
-                            <i class="fas fa-arrow-turn-down text-[9px] mr-1 text-gray-400"></i> "${escapeHtml(m.nextText)}"
-                        </div>
-                    ` : ''}
-
-                    <!-- Ações no Trecho -->
-                    <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
-                        <button type="button" 
-                                onclick="seekPlayerFromModal(${m.start})" 
-                                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs" 
-                                title="Ouvir no player de vídeo">
-                            <i class="fas fa-play text-[10px] text-indigo-700"></i>
-                            <span>Ouvir no Player</span>
-                        </button>
-
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-1.5 shrink-0">
                             <button type="button" 
-                                    onclick="setModalTimeField(${currentSearchItemId}, 'start', ${m.start})" 
-                                    class="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
-                                    title="Definir início do corte (-2s)">
-                                Início
-                            </button>
-                            <button type="button" 
-                                    onclick="setModalTimeField(${currentSearchItemId}, 'end', ${m.end})" 
-                                    class="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
-                                    title="Definir fim do corte (+2s)">
-                                Fim
+                                    onclick="seekPlayerFromModal(${m.start})" 
+                                    class="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer active:scale-95 shadow-2xs" 
+                                    title="Ouvir no player de vídeo">
+                                <i class="fas fa-play text-[9px] text-indigo-700"></i>
+                                <span>Ouvir</span>
                             </button>
                             <button type="button" 
                                     onclick="applySnippetCutTime(${currentSearchItemId}, ${m.start}, ${m.end}, 45)" 
-                                    class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95" 
-                                    style="background-color: #0d9488; color: #ffffff !important;"
-                                    title="Aplicar início (-5s) e fim (+40s) automaticamente e salvar">
-                                <i class="fas fa-check"></i>
-                                <span>Aplicar Minutagem</span>
+                                    class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3 py-1 rounded-lg text-[11px] flex items-center gap-1 transition cursor-pointer shadow-2xs active:scale-95" 
+                                    style="background-color: #0d9488; color: #ffffff !important;" 
+                                    title="Definir minutagem deste item a partir deste segundo">
+                                <i class="fas fa-check text-[9px]"></i>
+                                <span>Usar no Corte</span>
                             </button>
                         </div>
                     </div>
+
+                    <!-- Frase Principal com Termo Destacado -->
+                    <div class="text-xs font-semibold text-gray-900 leading-snug pl-2 border-l-2 ${m.hasDirectCode ? 'border-purple-500 bg-purple-50/40' : 'border-gray-300 bg-gray-50/50'} py-1.5 px-2 rounded-r-lg">
+                        ${highlighted}
+                    </div>
+
+                    ${(m.prevText || m.nextText) ? `
+                        <div class="text-[10px] text-gray-500 truncate italic pl-2 border-l-2 border-transparent">
+                            <span class="font-bold text-gray-400 not-italic">Contexto:</span> 
+                            ${m.prevText ? `"${escapeHtml(m.prevText)}" ` : ''}
+                            ${m.nextText ? `&rarr; "${escapeHtml(m.nextText)}"` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             `;
         });
