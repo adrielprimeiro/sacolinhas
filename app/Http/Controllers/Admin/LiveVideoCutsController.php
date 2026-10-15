@@ -2099,6 +2099,64 @@ PROMPT;
             ->where('live_id', $liveId)
             ->first();
 
+        $startRaw = $request->input('cut_start_sec');
+        $endRaw = $request->input('cut_end_sec');
+
+        if ($startRaw !== null || $endRaw !== null) {
+            $parsedStart = $this->parseTimeToSeconds($startRaw);
+            $parsedEnd = $this->parseTimeToSeconds($endRaw);
+
+            if ($parsedStart !== null && $parsedEnd !== null && $parsedEnd > $parsedStart) {
+                $boundaries = $this->extractBoundarySentences($live, $parsedStart, $parsedEnd);
+
+                DB::table('live_items')
+                    ->where('id', $liveItemId)
+                    ->where('live_id', $liveId)
+                    ->update([
+                        'cut_start_sec' => round($parsedStart, 2),
+                        'cut_end_sec' => round($parsedEnd, 2),
+                        'transcription_snippet' => $boundaries['full_text'],
+                        'is_reviewed' => true,
+                        'review_quality' => 'human_adjusted',
+                        'updated_at' => now()
+                    ]);
+
+                // Alimenta a memória do Severino (Few-Shot Feedback)
+                if (Schema::hasTable('live_cut_feedbacks')) {
+                    $itemData = DB::table('live_items')
+                        ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+                        ->where('live_items.id', $liveItemId)
+                        ->select('live_items.*', 'items.nome_do_produto', 'items.preco')
+                        ->first();
+
+                    DB::table('live_cut_feedbacks')->updateOrInsert(
+                        ['live_item_id' => $liveItemId],
+                        [
+                            'live_id' => $liveId,
+                            'item_id' => $itemData?->item_id ?? $liveItem->item_id,
+                            'codigo_live' => $itemData?->codigo_live ?? $liveItem->codigo_live,
+                            'product_name' => $itemData?->nome_do_produto,
+                            'product_price' => $itemData?->preco,
+                            'cut_start_sec' => round($parsedStart, 2),
+                            'cut_end_sec' => round($parsedEnd, 2),
+                            'start_sentence_snippet' => $boundaries['start_sentence'],
+                            'end_sentence_snippet' => $boundaries['end_sentence'],
+                            'full_transcription_snippet' => $boundaries['full_text'],
+                            'feedback_type' => 'human_adjusted',
+                            'updated_at' => now(),
+                            'created_at' => now()
+                        ]
+                    );
+                }
+
+                // Recarrega o registro com os novos tempos atualizados
+                $liveItem = DB::table('live_items')
+                    ->where('id', $liveItemId)
+                    ->where('live_id', $liveId)
+                    ->first();
+            }
+        }
+
         if (!$liveItem || $liveItem->cut_start_sec === null || $liveItem->cut_end_sec === null) {
             return response()->json(['success' => false, 'message' => 'Defina os tempos de início e fim antes de gerar o corte.'], 400);
         }

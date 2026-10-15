@@ -2165,6 +2165,12 @@
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
 
+        // Pega automaticamente os valores dos inputs caso o operador tenha editado sem clicar no disquete
+        const startInput = document.getElementById(`input-start-${itemId}`);
+        const endInput = document.getElementById(`input-end-${itemId}`);
+        const startVal = startInput ? startInput.value.trim() : null;
+        const endVal = endInput ? endInput.value.trim() : null;
+
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${itemId}`, {
                 method: 'POST',
@@ -2172,14 +2178,18 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    cut_start_sec: startVal,
+                    cut_end_sec: endVal
+                })
             });
             const data = await res.json();
             btn.disabled = false;
             btn.innerHTML = oldHtml;
 
             if (data.success) {
-                alert("✅ Corte gerado com sucesso!");
+                alert("✅ Corte gerado e minutagem salva com sucesso!");
                 window.location.reload();
             } else {
                 alert("Erro ao cortar: " + data.message);
