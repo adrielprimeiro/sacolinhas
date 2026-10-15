@@ -104,12 +104,19 @@ Route::get('/', function () {
             $q->where('brecho_id', 1)->orWhereNull('brecho_id');
         })
         ->where(function ($q) {
-            $q->has('medias')
-              ->orWhere(function ($sq) {
-                  $sq->whereNotNull('image')->where('image', '!=', '');
-              });
+            $q->whereHas('medias', function ($mq) {
+                $mq->where('media_type', 'image');
+            })
+            ->orWhere(function ($sq) {
+                $sq->whereNotNull('image')->where('image', '!=', '');
+            });
         })
-        ->with('medias')
+        ->with(['medias' => function ($mq) {
+            $mq->where('media_type', 'image')
+               ->orderByDesc('is_cover')
+               ->orderBy('position')
+               ->orderBy('id');
+        }])
         ->inRandomOrder()
         ->limit(8)
         ->get();

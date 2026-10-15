@@ -282,19 +282,14 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                     @forelse($featuredItems ?? [] as $prod)
                         @php
-                            $prodImg = null;
-                            if ($prod->medias && $prod->medias->isNotEmpty()) {
-                                $firstMedia = $prod->medias->first();
-                                $prodImg = $firstMedia->url ?: ($firstMedia->path ? asset('storage/' . $firstMedia->path) : null);
-                            }
-                            if (!$prodImg && !empty($prod->image)) {
-                                $prodImg = str_starts_with($prod->image, 'http') ? $prod->image : asset('storage/' . ltrim($prod->image, '/'));
-                            }
+                            $imageCover = $prod->medias ? $prod->medias->first() : null;
+                            $path = $imageCover?->thumbnail_url ?: $imageCover?->url ?: $prod->image;
+                            $prodImg = $path ? (str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::url($path)) : null;
                             $prodImg = $prodImg ?: 'https://placehold.co/400x500/f3f4f6/a3a3a3?text=Minha+Mania';
                         @endphp
                         <div class="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col group">
                             <!-- Image Container -->
-                            <div class="aspect-4/5 bg-gray-100 relative overflow-hidden">
+                            <a href="{{ route('loja.show', $prod) }}" class="block relative w-full aspect-[4/5] bg-gray-100 overflow-hidden" style="aspect-ratio: 4/5; min-height: 220px;">
                                 <img src="{{ $prodImg }}" alt="{{ $prod->nome_do_produto }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy">
                                 @if(!empty($prod->tamanho))
                                     <span class="absolute top-2 left-2 bg-black/75 backdrop-blur-xs text-white text-[10px] font-black px-2 py-0.5 rounded-md uppercase" style="color: #ffffff !important;">
@@ -304,7 +299,7 @@
                                 <span class="absolute bottom-2 right-2 bg-emerald-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-sm" style="color: #ffffff !important;">
                                     R$ {{ number_format($prod->preco ?? 0, 2, ',', '.') }}
                                 </span>
-                            </div>
+                            </a>
 
                             <!-- Info Container -->
                             <div class="p-3.5 sm:p-4 flex-1 flex flex-col justify-between gap-2">
@@ -312,13 +307,15 @@
                                     <p class="text-[10px] uppercase tracking-wider font-extrabold text-pink-600 truncate">
                                         {{ $prod->marca ?: 'Brechó Selecionado' }}
                                     </p>
-                                    <h4 class="text-xs sm:text-sm font-bold text-gray-900 line-clamp-2 mt-0.5" title="{{ $prod->nome_do_produto }}">
-                                        {{ $prod->nome_do_produto }}
-                                    </h4>
+                                    <a href="{{ route('loja.show', $prod) }}" class="block hover:text-pink-600 transition">
+                                        <h4 class="text-xs sm:text-sm font-bold text-gray-900 line-clamp-2 mt-0.5" title="{{ $prod->nome_do_produto }}">
+                                            {{ $prod->nome_do_produto }}
+                                        </h4>
+                                    </a>
                                 </div>
-                                <a href="{{ route('loja.index') }}" class="w-full py-2 rounded-xl bg-pink-50 hover:bg-pink-600 text-pink-700 hover:text-white text-xs font-bold text-center transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <a href="{{ route('loja.show', $prod) }}" class="w-full py-2 rounded-xl bg-pink-50 hover:bg-pink-600 text-pink-700 hover:text-white text-xs font-bold text-center transition flex items-center justify-center gap-1.5 cursor-pointer">
                                     <i class="fas fa-eye text-[10px]"></i>
-                                    <span>Ver na Loja</span>
+                                    <span>Ver Detalhes</span>
                                 </a>
                             </div>
                         </div>
