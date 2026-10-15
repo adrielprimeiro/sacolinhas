@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\Live;
 use App\Models\Item;
 use App\Models\ItemMedia;
+use App\Services\LiveClipOverlayService;
 
 class LiveVideoCutsController extends Controller
 {
@@ -2268,27 +2269,68 @@ PROMPT;
             @unlink($listPath);
         }
 
-        // Processamento padrão contínuo (com ou sem legenda) se não houver corte no meio ou se a concatenação falhar
+        // Processamento padrão contínuo (com ou sem legenda/overlays) se não houver corte no meio ou se a concatenação falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             // 1. Gera arquivo de legenda SRT para o trecho do corte
             $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
 
-            $subtitleFilter = '';
-            if ($srtFile && file_exists($srtFile)) {
+            // 2. Gera overlay visual (Carimbo de Estado, Card de Tamanho/Preço e Logo da Marca)
+            $applyOverlays = $request->boolean('apply_overlays', true);
+            $overlayPng = null;
+            $hasOverlay = false;
+
+            if ($applyOverlays) {
+                [$vWidth, $vHeight] = $this->getVideoDimensions($inputPath);
+                $overlayPng = $outputDir . '/overlay_' . time() . '_' . uniqid() . '.png';
+                $productItem = DB::table('items')->where('id', $liveItem->item_id)->first();
+                $hasOverlay = LiveClipOverlayService::generateOverlayImage($productItem, $vWidth, $vHeight, $overlayPng);
+                if (!$hasOverlay && file_exists($overlayPng)) {
+                    @unlink($overlayPng);
+                    $overlayPng = null;
+                }
+            }
+
+            $output = [];
+            $returnCode = 1;
+            $hasSrt = ($srtFile && file_exists($srtFile));
+
+            // 3. Monta o pipeline de filtros do FFmpeg
+            if ($hasOverlay && $hasSrt) {
                 $escapedSrt = str_replace('\\', '/', $srtFile);
                 $escapedSrt = str_replace(':', '\\:', $escapedSrt);
-                // Estilo dinâmico moderno (estilo Reels/TikTok): texto branco com contorno preto nítido, tamanho equilibrado, posicionado na parte inferior sem tampar o rosto
+                $filterComplex = sprintf(
+                    "-filter_complex \"[0:v][1:v]overlay=0:0[v1];[v1]subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'[v]\" -map \"[v]\" -map 0:a?",
+                    $escapedSrt
+                );
+                $cmd = sprintf(
+                    'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($overlayPng),
+                    escapeshellarg($duration),
+                    $filterComplex,
+                    escapeshellarg($outputPath)
+                );
+                exec($cmd, $output, $returnCode);
+            } elseif ($hasOverlay && !$hasSrt) {
+                $filterComplex = '-filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a?';
+                $cmd = sprintf(
+                    'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($overlayPng),
+                    escapeshellarg($duration),
+                    $filterComplex,
+                    escapeshellarg($outputPath)
+                );
+                exec($cmd, $output, $returnCode);
+            } elseif (!$hasOverlay && $hasSrt) {
+                $escapedSrt = str_replace('\\', '/', $srtFile);
+                $escapedSrt = str_replace(':', '\\:', $escapedSrt);
                 $subtitleFilter = sprintf(
                     "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
                     $escapedSrt
                 );
-            }
-
-            // 2. Corte de vídeo frame-accurate com legendas embutidas (Burn-in)
-            $output = [];
-            $returnCode = 1;
-
-            if (!empty($subtitleFilter)) {
                 $cmd = sprintf(
                     'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
                     escapeshellarg($start),
@@ -2300,7 +2342,7 @@ PROMPT;
                 exec($cmd, $output, $returnCode);
             }
 
-            // Fallback rápido sem legenda se a queima de legenda falhar
+            // Fallback rápido sem legenda e sem overlay se o comando com filtros falhar
             if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
                 $outputFallback = [];
                 $cmdFallback = sprintf(
@@ -2315,11 +2357,14 @@ PROMPT;
                     $output = $outputFallback;
                 }
             }
-        }
 
-        // Limpa arquivo srt temporário
-        if ($srtFile && file_exists($srtFile)) {
-            @unlink($srtFile);
+            // Limpa arquivos temporários
+            if ($srtFile && file_exists($srtFile)) {
+                @unlink($srtFile);
+            }
+            if ($overlayPng && file_exists($overlayPng)) {
+                @unlink($overlayPng);
+            }
         }
 
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
@@ -2912,5 +2957,24 @@ PROMPT;
         }
 
         return null;
+    }
+
+    /**
+     * Retorna a resolução [largura, altura] do arquivo de vídeo usando ffprobe
+     */
+    protected function getVideoDimensions(?string $inputPath): array
+    {
+        if (empty($inputPath) || !file_exists($inputPath)) {
+            return [720, 1280];
+        }
+
+        $cmd = sprintf('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 %s 2>&1', escapeshellarg($inputPath));
+        $output = trim(shell_exec($cmd) ?? '');
+
+        if (preg_match('/^(\d+)x(\d+)$/', $output, $matches)) {
+            return [(int) $matches[1], (int) $matches[2]];
+        }
+
+        return [720, 1280];
     }
 }

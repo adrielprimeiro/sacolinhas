@@ -580,6 +580,14 @@
                             <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black" style="background-color: #dc2626; color: #ffffff !important;">{{ $stats['items_invalid_times'] }}</span>
                         </button>
                     @endif
+
+                    <div class="ml-auto flex items-center">
+                        <label class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 cursor-pointer text-xs font-bold text-indigo-900 transition shadow-2xs select-none" title="Aplica automaticamente o Carimbo de Estado (Novo/Seminovo/Usado), Card com Tamanho/Preço e Logo da Marca nos vídeos">
+                            <input type="checkbox" id="toggle-apply-overlays" class="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer" checked>
+                            <i class="fas fa-stamp text-indigo-600 text-[11px]"></i>
+                            <span>Selo & Marca</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -2170,6 +2178,7 @@
         const endInput = document.getElementById(`input-end-${itemId}`);
         const startVal = startInput ? startInput.value.trim() : null;
         const endVal = endInput ? endInput.value.trim() : null;
+        const applyOverlays = document.getElementById('toggle-apply-overlays') ? document.getElementById('toggle-apply-overlays').checked : true;
 
         try {
             const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${itemId}`, {
@@ -2181,7 +2190,8 @@
                 },
                 body: JSON.stringify({
                     cut_start_sec: startVal,
-                    cut_end_sec: endVal
+                    cut_end_sec: endVal,
+                    apply_overlays: applyOverlays
                 })
             });
             const data = await res.json();
@@ -2551,13 +2561,17 @@
             }
 
             try {
+                const applyOverlays = document.getElementById('toggle-apply-overlays') ? document.getElementById('toggle-apply-overlays').checked : true;
                 const res = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${item.id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        apply_overlays: applyOverlays
+                    })
                 });
                 const data = await res.json();
                 
