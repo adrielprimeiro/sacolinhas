@@ -640,7 +640,11 @@
 
                                     <!-- Buscar na Transcrição -->
                                     <button type="button" 
-                                            onclick="openTranscriptionSearchModal({{ $item['live_item_id'] }}, '{{ addslashes($item['codigo_live']) }}', '{{ addslashes($item['item_name']) }}', '{{ addslashes($item['item_codigo'] ?? '') }}')" 
+                                            onclick="openTranscriptionSearchModalFromButton(this)"
+                                            data-item-id="{{ $item['live_item_id'] }}"
+                                            data-live-code="{{ $item['codigo_live'] }}"
+                                            data-item-name="{{ $item['item_name'] }}"
+                                            data-item-codigo="{{ $item['item_codigo'] ?? '' }}"
                                             title="Buscar trechos na Transcrição para o item #{{ $item['codigo_live'] }}" 
                                             class="mt-3 p-1.5 text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-200 shadow-xs cursor-pointer">
                                         <i class="fas fa-search text-xs"></i>
@@ -1219,22 +1223,22 @@
                 <input type="text" 
                        id="trans-modal-search-input" 
                        oninput="handleTranscriptionModalSearchInput(this.value)"
-                       placeholder="Buscar por código (ex: 130), número por extenso (cento e trinta) ou palavra..." 
+                       placeholder="Filtrar falas deste item ou digitar qualquer palavra para pesquisar..." 
                        class="w-full pl-9 pr-20 py-2.5 text-xs sm:text-sm bg-gray-50 text-gray-900 rounded-xl border border-gray-300 focus:bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-200 font-bold transition shadow-2xs">
                 <div class="absolute inset-y-0 right-0 flex items-center pr-2">
                     <button type="button" 
                             onclick="clearTranscriptionModalSearch()" 
-                            class="text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg font-bold cursor-pointer transition border border-gray-200" 
-                            title="Limpar busca">
+                            class="text-xs text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg font-bold cursor-pointer transition border border-gray-300" 
+                            title="Limpar busca e voltar às falas do item">
                         Limpar
                     </button>
                 </div>
             </div>
 
-            <!-- Sugestões / Pílulas de Busca Rápida -->
+            <!-- Sugestões / Pílulas de Termos do Item -->
             <div class="flex items-center gap-1.5 flex-wrap text-xs font-semibold text-gray-700 pt-0.5">
                 <span class="text-[11px] text-gray-600 uppercase font-bold mr-1 flex items-center gap-1">
-                    <i class="fas fa-bolt text-amber-500"></i> Sugestões:
+                    <i class="fas fa-tags text-purple-700"></i> Termos:
                 </span>
                 <div id="trans-modal-pills-container" class="flex items-center gap-1.5 flex-wrap">
                     <!-- Geradas dinamicamente via JS -->
@@ -1254,10 +1258,15 @@
             </div>
         </div>
 
+        <!-- Abas de Filtro por Categoria -->
+        <div id="trans-modal-tabs-wrapper" class="flex items-center gap-1.5 pb-2 mb-2 border-b border-gray-200 shrink-0 overflow-x-auto">
+            <!-- Abas geradas dinamicamente via JS (Todas | Código | Peça/Descrição) -->
+        </div>
+
         <!-- Contador de Resultados & Instruções -->
-        <div class="flex items-center justify-between text-xs text-gray-500 mb-2 px-1 shrink-0 font-medium">
-            <span>Resultados: <strong id="trans-modal-results-count" class="text-purple-700 font-black">0</strong> trecho(s)</span>
-            <span class="text-[11px] text-gray-400">Use <strong>Ouvir</strong> para conferir no player ou <strong>Aplicar Minutagem</strong></span>
+        <div class="flex items-center justify-between text-xs text-gray-600 mb-2 px-1 shrink-0 font-medium">
+            <span>Resultados: <strong id="trans-modal-results-count" class="text-purple-800 font-black">0</strong> trecho(s)</span>
+            <span class="text-[11px] text-gray-500">Use <strong>Ouvir</strong> no player ou <strong>Aplicar Minutagem</strong></span>
         </div>
 
         <!-- Lista de Resultados (Scrollable) -->
@@ -2392,9 +2401,23 @@
     let currentSearchItemCode = '';
     let currentSearchItemName = '';
     let currentSearchItemCodigo = '';
+    let currentSearchActiveTab = 'all'; // 'all' | 'code' | 'product' | 'custom'
+    let currentSearchCachedMatches = []; // Armazena os matches do item atual
+    let currentCustomMatches = null; // Armazena matches de busca manual customizada
     let transcriptionSearchDebounce = null;
     let currentAppliedCutStart = null;
     let currentAppliedCutEnd = null;
+
+    const PORTUGUESE_STOPWORDS = new Set([
+        'de', 'da', 'do', 'das', 'dos', 'em', 'no', 'na', 'nos', 'nas',
+        'com', 'sem', 'para', 'por', 'e', 'ou', 'um', 'uma', 'uns', 'umas',
+        'tam', 'tamanho', 'tamanhos', 'cor', 'marca', 'novo', 'nova', 'seminovo', 'seminova',
+        'usado', 'usada', 'peca', 'pecas', 'item', 'codigo', 'cod', 'ref',
+        'live', 'unidade', 'pronta', 'entrega', 'frete', 'oferta', 'promocao',
+        'lindo', 'linda', 'maravilhoso', 'maravilhosa', 'super', 'muito', 'mais',
+        'original', 'estilo', 'colecao', 'modelo', 'tipo', 'sobre', 'esse', 'essa',
+        'aqui', 'olha', 'gente', 'meninas', 'menina', 'bora', 'quem', 'quer'
+    ]);
 
     function numberToPortugueseWords(val) {
         const num = parseInt(val, 10);
@@ -2432,11 +2455,45 @@
             .trim();
     }
 
+    function extractProductKeywords(name) {
+        if (!name) return [];
+        const normalized = normalizeSearchText(name);
+        const words = normalized.split(/\s+/);
+        const valid = [];
+        for (const w of words) {
+            if (w.length >= 3 && !/^\d+$/.test(w) && !PORTUGUESE_STOPWORDS.has(w)) {
+                if (!valid.includes(w)) {
+                    valid.push(w);
+                }
+            }
+        }
+        return valid;
+    }
+
+    function hasTokenMatch(normSentence, token) {
+        if (!token) return false;
+        const clean = normalizeSearchText(token);
+        if (!clean) return false;
+        const regex = new RegExp(`(?:^|\\s)${escapeRegex(clean)}(?:\\s|$)`);
+        return regex.test(normSentence);
+    }
+
+    function openTranscriptionSearchModalFromButton(btn) {
+        if (!btn) return;
+        const itemId = btn.getAttribute('data-item-id');
+        const liveCode = btn.getAttribute('data-live-code');
+        const itemName = btn.getAttribute('data-item-name');
+        const itemCodigo = btn.getAttribute('data-item-codigo');
+        openTranscriptionSearchModal(itemId, liveCode, itemName, itemCodigo);
+    }
+
     function openTranscriptionSearchModal(itemId, liveCode, itemName, itemCodigo) {
         currentSearchItemId = itemId;
         currentSearchItemCode = String(liveCode || '').trim();
         currentSearchItemName = String(itemName || '').trim();
         currentSearchItemCodigo = String(itemCodigo || '').trim();
+        currentSearchActiveTab = 'all';
+        currentCustomMatches = null;
 
         // Atualiza cabeçalho
         const codeEl = document.getElementById("trans-modal-item-code");
@@ -2450,70 +2507,196 @@
         const alertBox = document.getElementById("trans-modal-applied-alert");
         if (alertBox) alertBox.classList.add("hidden");
 
-        // Monta pílulas de sugestão
-        const pillsContainer = document.getElementById("trans-modal-pills-container");
-        if (pillsContainer) {
-            pillsContainer.innerHTML = '';
-            const suggestions = [];
-
-            if (currentSearchItemCode) {
-                suggestions.push(currentSearchItemCode);
-                suggestions.push(`peça ${currentSearchItemCode}`);
-            }
-
-            const words = numberToPortugueseWords(currentSearchItemCode);
-            if (words && words !== currentSearchItemCode) {
-                suggestions.push(words);
-                suggestions.push(`peça ${words}`);
-            }
-
-            if (currentSearchItemCodigo && currentSearchItemCodigo !== currentSearchItemCode) {
-                suggestions.push(currentSearchItemCodigo);
-            }
-
-            // Palavras-chave do nome do produto (ex: 'vestido', 'saia', 'farm')
-            if (currentSearchItemName) {
-                const cleanNameWords = currentSearchItemName
-                    .split(/\s+/)
-                    .map(w => w.trim())
-                    .filter(w => w.length >= 4 && !/^(para|com|sem|tamanho|tam|novo|marca|original)$/i.test(w))
-                    .slice(0, 2);
-                suggestions.push(...cleanNameWords);
-            }
-
-            // Renderiza botões de pílula únicos
-            const uniqueSuggestions = [...new Set(suggestions)];
-            uniqueSuggestions.forEach(sug => {
-                const btn = document.createElement("button");
-                btn.type = "button";
-                btn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 transition cursor-pointer active:scale-95";
-                btn.textContent = sug;
-                btn.onclick = () => {
-                    const input = document.getElementById("trans-modal-search-input");
-                    if (input) input.value = sug;
-                    executeTranscriptionModalSearch(sug);
-                };
-                pillsContainer.appendChild(btn);
-            });
-        }
-
-        // Define valor inicial de busca (o código da peça)
+        // Limpa campo de busca livre
         const searchInput = document.getElementById("trans-modal-search-input");
-        if (searchInput) {
-            searchInput.value = currentSearchItemCode;
-        }
+        if (searchInput) searchInput.value = '';
+
+        // Calcula os trechos correspondentes ao item
+        currentSearchCachedMatches = findItemMatchesInTranscription();
+
+        // Renderiza pílulas de termos
+        renderTranscriptionPills();
+
+        // Renderiza abas de filtro
+        renderTranscriptionTabs();
+
+        // Renderiza lista filtrada de resultados
+        renderTranscriptionResults();
 
         // Abre modal
         const modal = document.getElementById("modal-item-transcription-search");
         if (modal) modal.classList.remove("hidden");
+    }
 
-        // Executa busca inicial
-        executeTranscriptionModalSearch(currentSearchItemCode);
+    function findItemMatchesInTranscription() {
+        if (!Array.isArray(transcriptionData) || transcriptionData.length === 0) {
+            return [];
+        }
 
-        // Foca no input
-        setTimeout(() => {
-            if (searchInput) searchInput.focus();
-        }, 100);
+        const code = currentSearchItemCode;
+        const numberWords = code ? numberToPortugueseWords(code) : '';
+        const normNumberWords = numberWords ? normalizeSearchText(numberWords) : '';
+        const productKeywords = extractProductKeywords(currentSearchItemName);
+        const sku = currentSearchItemCodigo;
+
+        const matches = [];
+
+        for (let i = 0; i < transcriptionData.length; i++) {
+            const item = transcriptionData[i];
+            const sentenceText = item.text || '';
+            const normSentence = normalizeSearchText(sentenceText);
+
+            const reasons = [];
+            const categories = new Set();
+            const highlightTerms = new Set();
+
+            // 1. Código exato do item (token isolado)
+            if (code && hasTokenMatch(normSentence, code)) {
+                categories.add('code');
+                reasons.push({ type: 'code', label: `🎯 Código #${code}`, term: code });
+                highlightTerms.add(code);
+            }
+
+            // 2. Número por extenso (ex: "cento e trinta")
+            if (normNumberWords && normSentence.includes(normNumberWords)) {
+                categories.add('words');
+                reasons.push({ type: 'words', label: `🗣️ Por Extenso: "${numberWords}"`, term: numberWords });
+                highlightTerms.add(numberWords);
+            }
+
+            // 3. Palavras do produto/descrição (ex: "colar", "elos")
+            productKeywords.forEach(kw => {
+                if (hasTokenMatch(normSentence, kw)) {
+                    categories.add('product');
+                    reasons.push({ type: 'product', label: `🏷️ Peça: "${kw}"`, term: kw });
+                    highlightTerms.add(kw);
+                }
+            });
+
+            // 4. SKU se existir
+            if (sku && sku !== code && normSentence.includes(normalizeSearchText(sku))) {
+                categories.add('sku');
+                reasons.push({ type: 'sku', label: `🔖 SKU: ${sku}`, term: sku });
+                highlightTerms.add(sku);
+            }
+
+            if (categories.size > 0) {
+                matches.push({
+                    index: i,
+                    start: parseFloat(item.start ?? item.start_sec ?? 0),
+                    end: parseFloat(item.end ?? item.end_sec ?? 0),
+                    text: sentenceText,
+                    categories: Array.from(categories),
+                    reasons: reasons,
+                    highlightTerms: Array.from(highlightTerms),
+                    hasDirectCode: categories.has('code') || categories.has('words'),
+                    prevText: i > 0 ? transcriptionData[i - 1]?.text : null,
+                    nextText: i < transcriptionData.length - 1 ? transcriptionData[i + 1]?.text : null
+                });
+            }
+        }
+
+        return matches;
+    }
+
+    function renderTranscriptionPills() {
+        const pillsContainer = document.getElementById("trans-modal-pills-container");
+        if (!pillsContainer) return;
+        pillsContainer.innerHTML = '';
+
+        const numberWords = currentSearchItemCode ? numberToPortugueseWords(currentSearchItemCode) : '';
+        const productKeywords = extractProductKeywords(currentSearchItemName);
+
+        const pills = [];
+        if (currentSearchItemCode) {
+            pills.push({ label: `#${currentSearchItemCode}`, query: currentSearchItemCode });
+        }
+        if (numberWords && numberWords !== currentSearchItemCode) {
+            pills.push({ label: numberWords, query: numberWords });
+        }
+        productKeywords.forEach(kw => {
+            pills.push({ label: kw, query: kw });
+        });
+
+        pills.forEach(p => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-purple-50 text-purple-900 border border-purple-200 transition cursor-pointer active:scale-95 shadow-2xs";
+            btn.textContent = p.label;
+            btn.onclick = () => {
+                const input = document.getElementById("trans-modal-search-input");
+                if (input) input.value = p.query;
+                executeCustomSearch(p.query);
+            };
+            pillsContainer.appendChild(btn);
+        });
+
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 transition cursor-pointer active:scale-95";
+        resetBtn.innerHTML = '<i class="fas fa-rotate-left mr-1"></i> Ver todas do item';
+        resetBtn.onclick = () => {
+            clearTranscriptionModalSearch();
+        };
+        pillsContainer.appendChild(resetBtn);
+    }
+
+    function renderTranscriptionTabs() {
+        const wrapper = document.getElementById("trans-modal-tabs-wrapper");
+        if (!wrapper) return;
+
+        if (currentCustomMatches !== null) {
+            wrapper.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1.5 rounded-xl text-xs bg-purple-700 text-white font-black shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">
+                        🔍 Busca Manual: "${escapeHtml(document.getElementById("trans-modal-search-input")?.value || '')}"
+                    </span>
+                    <button type="button" onclick="clearTranscriptionModalSearch()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 cursor-pointer">
+                        ✕ Voltar às falas do item
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        const countAll = currentSearchCachedMatches.length;
+        const countCode = currentSearchCachedMatches.filter(m => m.categories.includes('code') || m.categories.includes('words')).length;
+        const countProduct = currentSearchCachedMatches.filter(m => m.categories.includes('product')).length;
+
+        const tabs = [
+            { id: 'all', label: `⭐ Todas Relacionadas (${countAll})`, show: true },
+            { id: 'code', label: `🎯 Código #${currentSearchItemCode} (${countCode})`, show: countCode > 0 },
+            { id: 'product', label: `🏷️ Descrição / Peça (${countProduct})`, show: countProduct > 0 && countProduct !== countAll }
+        ];
+
+        let html = '';
+        tabs.filter(t => t.show).forEach(tab => {
+            const isActive = currentSearchActiveTab === tab.id;
+            const activeClass = isActive 
+                ? 'bg-purple-700 text-white shadow-xs font-black' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold border border-gray-200';
+            const inlineStyle = isActive ? 'background-color: #6b21a8; color: #ffffff !important;' : '';
+
+            html += `
+                <button type="button" 
+                        onclick="switchTranscriptionTab('${tab.id}')"
+                        class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition cursor-pointer active:scale-95 ${activeClass}"
+                        style="${inlineStyle}">
+                    ${tab.label}
+                </button>
+            `;
+        });
+
+        wrapper.innerHTML = html;
+    }
+
+    function switchTranscriptionTab(tabId) {
+        currentSearchActiveTab = tabId;
+        currentCustomMatches = null;
+        const searchInput = document.getElementById("trans-modal-search-input");
+        if (searchInput) searchInput.value = '';
+        renderTranscriptionTabs();
+        renderTranscriptionResults();
     }
 
     function closeTranscriptionSearchModal() {
@@ -2525,19 +2708,81 @@
         const searchInput = document.getElementById("trans-modal-search-input");
         if (searchInput) {
             searchInput.value = '';
-            searchInput.focus();
         }
-        executeTranscriptionModalSearch('');
+        currentCustomMatches = null;
+        currentSearchActiveTab = 'all';
+        renderTranscriptionTabs();
+        renderTranscriptionResults();
     }
 
     function handleTranscriptionModalSearchInput(val) {
         clearTimeout(transcriptionSearchDebounce);
         transcriptionSearchDebounce = setTimeout(() => {
-            executeTranscriptionModalSearch(val);
+            const raw = String(val || '').trim();
+            if (!raw) {
+                clearTranscriptionModalSearch();
+            } else {
+                executeCustomSearch(raw);
+            }
         }, 180);
     }
 
-    function executeTranscriptionModalSearch(term) {
+    function executeCustomSearch(term) {
+        const raw = String(term || '').trim();
+        if (!raw) {
+            clearTranscriptionModalSearch();
+            return;
+        }
+
+        const normQuery = normalizeSearchText(raw);
+        const queryTerms = normQuery.split(' ').filter(Boolean);
+        const numberWords = numberToPortugueseWords(raw);
+        const normNumberWords = numberWords ? normalizeSearchText(numberWords) : '';
+
+        const matches = [];
+
+        for (let i = 0; i < transcriptionData.length; i++) {
+            const item = transcriptionData[i];
+            const sentenceText = item.text || '';
+            const normSentence = normalizeSearchText(sentenceText);
+
+            let isMatch = false;
+            let matchedTerm = raw;
+
+            if (hasTokenMatch(normSentence, normQuery) || normSentence.includes(normQuery)) {
+                isMatch = true;
+                matchedTerm = raw;
+            } else if (normNumberWords && normSentence.includes(normNumberWords)) {
+                isMatch = true;
+                matchedTerm = numberWords;
+            } else if (queryTerms.length > 1 && queryTerms.every(t => normSentence.includes(t))) {
+                isMatch = true;
+                matchedTerm = queryTerms.join(' ');
+            }
+
+            if (isMatch) {
+                matches.push({
+                    index: i,
+                    start: parseFloat(item.start ?? item.start_sec ?? 0),
+                    end: parseFloat(item.end ?? item.end_sec ?? 0),
+                    text: sentenceText,
+                    categories: ['custom'],
+                    reasons: [{ type: 'custom', label: `🔍 "${raw}"`, term: matchedTerm }],
+                    highlightTerms: [matchedTerm, raw],
+                    hasDirectCode: false,
+                    prevText: i > 0 ? transcriptionData[i - 1]?.text : null,
+                    nextText: i < transcriptionData.length - 1 ? transcriptionData[i + 1]?.text : null
+                });
+            }
+        }
+
+        currentCustomMatches = matches;
+        currentSearchActiveTab = 'custom';
+        renderTranscriptionTabs();
+        renderTranscriptionResults();
+    }
+
+    function renderTranscriptionResults() {
         const resultsList = document.getElementById("trans-modal-results-list");
         const countEl = document.getElementById("trans-modal-results-count");
         if (!resultsList) return;
@@ -2554,129 +2799,115 @@
             return;
         }
 
-        const rawTerm = String(term || '').trim();
-        if (!rawTerm) {
-            resultsList.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <i class="fas fa-magnifying-glass text-3xl mb-2 text-gray-300"></i>
-                    <p class="text-xs font-bold text-gray-600">Digite um código ou palavra para pesquisar na transcrição.</p>
-                    <p class="text-[11px] text-gray-400 mt-0.5">Ou clique em uma das sugestões acima.</p>
-                </div>
-            `;
-            if (countEl) countEl.textContent = '0';
+        let displayMatches = [];
+        if (currentCustomMatches !== null) {
+            displayMatches = currentCustomMatches;
+        } else if (currentSearchActiveTab === 'code') {
+            displayMatches = currentSearchCachedMatches.filter(m => m.categories.includes('code') || m.categories.includes('words'));
+        } else if (currentSearchActiveTab === 'product') {
+            displayMatches = currentSearchCachedMatches.filter(m => m.categories.includes('product'));
+        } else {
+            displayMatches = currentSearchCachedMatches;
+        }
+
+        if (countEl) countEl.textContent = String(displayMatches.length);
+
+        if (displayMatches.length === 0) {
+            if (currentCustomMatches !== null) {
+                resultsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300 p-6">
+                        <i class="fas fa-comment-slash text-3xl mb-2 text-gray-400"></i>
+                        <p class="text-xs font-bold text-gray-800">Nenhum trecho encontrado com a busca manual.</p>
+                        <button type="button" onclick="clearTranscriptionModalSearch()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100 cursor-pointer">
+                            <i class="fas fa-rotate-left"></i> Voltar às falas do item #${currentSearchItemCode}
+                        </button>
+                    </div>
+                `;
+            } else {
+                resultsList.innerHTML = `
+                    <div class="text-center py-8 bg-amber-50/60 rounded-xl border border-dashed border-amber-300 p-6">
+                        <i class="fas fa-search text-3xl mb-2 text-amber-600"></i>
+                        <p class="text-xs font-bold text-gray-900">Nenhuma fala identificada automaticamente com o código #${currentSearchItemCode} ou com os termos de "${escapeHtml(currentSearchItemName)}".</p>
+                        <p class="text-[11px] text-gray-600 mt-1 max-w-md mx-auto">
+                            Tente digitar palavras-chave no campo de busca acima (ex: tipo de peça, detalhes, cor) ou confira a transcrição completa.
+                        </p>
+                    </div>
+                `;
+            }
             return;
         }
 
-        const normQuery = normalizeSearchText(rawTerm);
-        const queryTerms = normQuery.split(' ').filter(Boolean);
-
-        // Se a busca for numérica (ex: 130), também busca a versão por extenso (ex: "cento e trinta")
-        const numberWords = numberToPortugueseWords(rawTerm);
-        const normNumberWords = numberWords ? normalizeSearchText(numberWords) : '';
-
-        const matches = [];
-
-        for (let i = 0; i < transcriptionData.length; i++) {
-            const item = transcriptionData[i];
-            const sentenceText = item.text || '';
-            const normSentence = normalizeSearchText(sentenceText);
-
-            let isMatch = false;
-            let matchedTermFound = rawTerm;
-
-            // 1. Busca exata da expressão
-            if (normSentence.includes(normQuery)) {
-                isMatch = true;
-                matchedTermFound = rawTerm;
-            }
-            // 2. Busca por extenso do número se aplicável
-            else if (normNumberWords && normSentence.includes(normNumberWords)) {
-                isMatch = true;
-                matchedTermFound = numberWords;
-            }
-            // 3. Busca por todas as palavras se múltiplas
-            else if (queryTerms.length > 1 && queryTerms.every(t => normSentence.includes(t))) {
-                isMatch = true;
-                matchedTermFound = queryTerms.join(' ');
-            }
-
-            if (isMatch) {
-                matches.push({
-                    index: i,
-                    start: parseFloat(item.start ?? item.start_sec ?? 0),
-                    end: parseFloat(item.end ?? item.end_sec ?? 0),
-                    text: sentenceText,
-                    matchedTerm: matchedTermFound,
-                    prevText: i > 0 ? transcriptionData[i - 1]?.text : null,
-                    nextText: i < transcriptionData.length - 1 ? transcriptionData[i + 1]?.text : null
-                });
-            }
-        }
-
-        if (countEl) countEl.textContent = String(matches.length);
-
-        if (matches.length === 0) {
-            resultsList.innerHTML = `
-                <div class="text-center py-8 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300 p-6">
-                    <i class="fas fa-comment-slash text-3xl mb-2 text-gray-400"></i>
-                    <p class="text-xs font-bold text-gray-800">Nenhum trecho encontrado com "${rawTerm}".</p>
-                    <p class="text-[11px] text-gray-500 mt-1 max-w-md mx-auto">
-                        Tente clicar nas outras sugestões (como número por extenso ou palavras do produto) ou digite outro termo que a apresentadora costuma falar.
-                    </p>
-                </div>
-            `;
-            return;
-        }
-
-        // Renderiza lista de correspondências
+        // Renderiza cards dos trechos correspondentes
         let html = '';
-        matches.forEach((m, idx) => {
+        displayMatches.forEach((m) => {
             const startFmt = formatTime(m.start);
             const endFmt = formatTime(m.end);
             const durationSec = Math.max(1, Math.round(m.end - m.start));
 
-            // Tempo relativo na live
             const hours = Math.floor(m.start / 3600);
             const mins = Math.floor((m.start % 3600) / 60);
             const relativeTimeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min de live`;
 
-            // Destaque do termo
+            // Destaque de todos os termos encontrados
             let highlighted = escapeHtml(m.text);
             try {
-                const regex = new RegExp(`(${escapeRegex(m.matchedTerm)}|${escapeRegex(rawTerm)})`, 'gi');
-                highlighted = highlighted.replace(regex, '<mark class="bg-amber-200 text-amber-950 font-black px-1 py-0.5 rounded shadow-2xs">$1</mark>');
+                const allTerms = (m.highlightTerms || []).filter(Boolean);
+                if (allTerms.length > 0) {
+                    const sortedTerms = [...allTerms].sort((a, b) => b.length - a.length);
+                    const regex = new RegExp(`(${sortedTerms.map(escapeRegex).join('|')})`, 'gi');
+                    highlighted = highlighted.replace(regex, '<mark class="bg-amber-200 text-amber-950 font-black px-1 py-0.5 rounded shadow-2xs">$1</mark>');
+                }
             } catch(e) {}
 
+            // Monta badges de motivo
+            const badgesHtml = (m.reasons || []).map(r => {
+                if (r.type === 'code') {
+                    return `<span class="px-2 py-0.5 rounded text-[11px] font-extrabold bg-purple-700 text-white shadow-xs" style="background-color: #6b21a8; color: #ffffff !important;">${escapeHtml(r.label)}</span>`;
+                } else if (r.type === 'words') {
+                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                } else if (r.type === 'product') {
+                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                } else {
+                    return `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 text-gray-800 border border-gray-300 shadow-2xs">${escapeHtml(r.label)}</span>`;
+                }
+            }).join(' ');
+
             html += `
-                <div class="bg-white border border-gray-200 hover:border-purple-400 rounded-xl p-3 transition shadow-xs space-y-2 group">
+                <div class="bg-white border ${m.hasDirectCode ? 'border-purple-300 ring-1 ring-purple-200' : 'border-gray-200'} hover:border-purple-400 rounded-xl p-3.5 transition shadow-xs space-y-2.5 group">
                     <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-mono font-black bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-lg">
-                                <i class="fas fa-clock text-purple-600 mr-1 text-[10px]"></i> ${startFmt} ➔ ${endFmt}
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs font-mono font-black bg-purple-100 text-purple-950 border border-purple-300 px-2 py-0.5 rounded-lg shadow-2xs">
+                                <i class="fas fa-clock text-purple-700 mr-1 text-[10px]"></i> ${startFmt} ➔ ${endFmt}
                             </span>
-                            <span class="text-[11px] text-gray-500 font-bold">(${durationSec}s • aos ${relativeTimeStr})</span>
+                            <span class="text-[11px] text-gray-600 font-bold">(${durationSec}s • aos ${relativeTimeStr})</span>
+                            ${m.hasDirectCode ? `
+                                <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300 flex items-center gap-1 shadow-2xs">
+                                    <i class="fas fa-star text-amber-500"></i> Código da Peça
+                                </span>
+                            ` : ''}
                         </div>
-                        <div class="text-[10px] font-bold text-gray-400">
-                            Trecho #${m.index + 1}
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            ${badgesHtml}
+                            <span class="text-[10px] font-bold text-gray-400 ml-1">#${m.index + 1}</span>
                         </div>
                     </div>
 
                     <!-- Frase Anterior (Contexto) -->
                     ${m.prevText ? `
-                        <div class="text-[11px] text-gray-400 font-medium italic line-clamp-1 border-l-2 border-gray-200 pl-2">
-                            <i class="fas fa-arrow-turn-up text-[9px] mr-1 text-gray-300"></i> "${escapeHtml(m.prevText)}"
+                        <div class="text-[11px] text-gray-500 font-medium italic line-clamp-1 border-l-2 border-gray-300 pl-2">
+                            <i class="fas fa-arrow-turn-up text-[9px] mr-1 text-gray-400"></i> "${escapeHtml(m.prevText)}"
                         </div>
                     ` : ''}
 
                     <!-- Frase Principal com Termo Destacado -->
-                    <div class="text-xs font-semibold text-gray-900 leading-relaxed bg-purple-50/30 p-2 rounded-lg border border-purple-100">
+                    <div class="text-xs font-semibold text-gray-900 leading-relaxed bg-purple-50/40 p-2.5 rounded-lg border border-purple-200">
                         ${highlighted}
                     </div>
 
                     <!-- Frase Seguinte (Contexto) -->
                     ${m.nextText ? `
-                        <div class="text-[11px] text-gray-400 font-medium italic line-clamp-1 border-l-2 border-gray-200 pl-2">
-                            <i class="fas fa-arrow-turn-down text-[9px] mr-1 text-gray-300"></i> "${escapeHtml(m.nextText)}"
+                        <div class="text-[11px] text-gray-500 font-medium italic line-clamp-1 border-l-2 border-gray-300 pl-2">
+                            <i class="fas fa-arrow-turn-down text-[9px] mr-1 text-gray-400"></i> "${escapeHtml(m.nextText)}"
                         </div>
                     ` : ''}
 
@@ -2684,28 +2915,28 @@
                     <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
                         <button type="button" 
                                 onclick="seekPlayerFromModal(${m.start})" 
-                                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95" 
+                                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs" 
                                 title="Ouvir no player de vídeo">
-                            <i class="fas fa-play text-[10px]"></i>
+                            <i class="fas fa-play text-[10px] text-indigo-700"></i>
                             <span>Ouvir no Player</span>
                         </button>
 
                         <div class="flex items-center gap-1.5">
                             <button type="button" 
                                     onclick="setModalTimeField(${currentSearchItemId}, 'start', ${m.start})" 
-                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
-                                    title="Definir apenas como início do corte (-2s)">
+                                    class="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
+                                    title="Definir início do corte (-2s)">
                                 Início
                             </button>
                             <button type="button" 
                                     onclick="setModalTimeField(${currentSearchItemId}, 'end', ${m.end})" 
-                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
-                                    title="Definir apenas como fim do corte (+2s)">
+                                    class="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-95" 
+                                    title="Definir fim do corte (+2s)">
                                 Fim
                             </button>
                             <button type="button" 
                                     onclick="applySnippetCutTime(${currentSearchItemId}, ${m.start}, ${m.end}, 45)" 
-                                    class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95" 
+                                    class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95" 
                                     style="background-color: #0d9488; color: #ffffff !important;"
                                     title="Aplicar início (-5s) e fim (+40s) automaticamente e salvar">
                                 <i class="fas fa-check"></i>
