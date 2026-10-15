@@ -77,6 +77,13 @@ class LiveVideoAutoProcessorService
             return ['success' => false, 'message' => 'Nenhuma live encontrada para processar.'];
         }
 
+        // Concurrency lock: se já tem processamento em andamento e não foi passado URL direta nova, evita duplicidade
+        $currentStatus = Cache::get("live_transcription_status_{$live->id}");
+        if ($currentStatus && ($currentStatus['status'] ?? '') === 'processing' && empty($directVideoUrl)) {
+            Log::info("[AutoProcessor] Live #{$live->id} já possui processamento em andamento ({$currentStatus['progress']}% - {$currentStatus['message']}). Ignorando execução concorrente.");
+            return ['success' => true, 'message' => 'Processamento já em andamento.'];
+        }
+
         $this->updateStatus($live, 5, "Iniciando verificação para Live #{$live->id}...", 'processing', $progressCallback);
 
         $destFolder = storage_path('app/public/live_recordings');
@@ -116,6 +123,11 @@ class LiveVideoAutoProcessorService
             }
 
             if (!$latestVideoUrl) {
+                if (!$directVideoUrl) {
+                    Log::info("[AutoProcessor] Nenhuma URL fornecida e nenhum vídeo detectado via perfil @{$instagramHandle}. Aguardando link manual.");
+                    return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}."];
+                }
+
                 $this->updateStatus($live, 0, "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação ou envie o arquivo da gravação.", 'error', $progressCallback);
                 return ['success' => false, 'message' => "Nenhum vídeo novo detectado no perfil @{$instagramHandle}. Forneça o link da publicação ou envie o arquivo da gravação."];
             }

@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\Schedule;
 
 // Schedule::job(new PollGeminiBatchStatusJob())->everyMinute();
 
-// Processamento automático de cortes e vídeos do Instagram após o término da live (a cada 5 min)
-Schedule::command('app:auto-process-live-video --username=de_minha_mania')
-    ->everyFiveMinutes()
-    ->withoutOverlapping();
+// Processamento automático de cortes e vídeos do Instagram após o término da live (disparado via painel ou evento)
+// Schedule::command('app:auto-process-live-video --username=de_minha_mania')
+//     ->everyFiveMinutes()
+//     ->withoutOverlapping();
 
 // Monitoramento automático de comentários em YouTube Shorts (a cada 10 min)
 Schedule::command('app:check-youtube-shorts-comments')

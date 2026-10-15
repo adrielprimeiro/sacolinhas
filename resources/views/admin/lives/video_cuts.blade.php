@@ -1001,6 +1001,8 @@
                     type="url" 
                     id="auto-process-url-input" 
                     name="url" 
+                    onblur="this.value = sanitizeInstagramUrl(this.value)"
+                    onpaste="setTimeout(() => this.value = sanitizeInstagramUrl(this.value), 20)"
                     placeholder="Ex: https://www.instagram.com/reel/C... ou https://www.instagram.com/p/..." 
                     class="w-full px-3.5 py-2.5 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 font-medium placeholder-gray-400 outline-none transition"
                 >
@@ -2532,13 +2534,23 @@
         }
     }
 
+    function sanitizeInstagramUrl(raw) {
+        if (!raw) return '';
+        let cleaned = String(raw).trim();
+        const match = cleaned.match(/https?:\/\/(?:www\.)?instagram\.com\/(reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+        if (match) {
+            return `https://www.instagram.com/${match[1]}/${match[2]}/`;
+        }
+        return cleaned;
+    }
+
     async function pasteClipboardToUrlInput() {
         try {
             const text = await navigator.clipboard.readText();
             if (text) {
                 const input = document.getElementById("auto-process-url-input");
                 if (input) {
-                    input.value = text.trim();
+                    input.value = sanitizeInstagramUrl(text);
                     input.focus();
                 }
             }
@@ -2555,7 +2567,8 @@
         if (event) event.preventDefault();
 
         const inputUrl = document.getElementById("auto-process-url-input");
-        const videoUrl = inputUrl ? inputUrl.value.trim() : '';
+        let videoUrl = inputUrl ? sanitizeInstagramUrl(inputUrl.value) : '';
+        if (inputUrl && videoUrl) inputUrl.value = videoUrl;
 
         const btnSubmit = document.getElementById("btn-submit-auto-process");
         const btnTop = document.getElementById("btn-auto-process");

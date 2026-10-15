@@ -674,7 +674,27 @@ class LiveVideoCutsController extends Controller
         $username = $request->input('username', 'de_minha_mania');
         $url = $request->input('url');
 
-        \Illuminate\Support\Facades\Cache::put("live_transcription_status_{$liveId}", [
+        // Limpa URL do Instagram removendo query strings de rastreamento
+        if ($url) {
+            $url = trim($url);
+            if (preg_match('#https?://(?:www\.)?instagram\.com/(reel|p|tv)/([a-zA-Z0-9_-]+)#i', $url, $m)) {
+                $url = "https://www.instagram.com/{$m[1]}/{$m[2]}/";
+            }
+        }
+
+        // Se já está processando, retorna status sem disparar novos processos concorrentes
+        $statusKey = "live_transcription_status_{$liveId}";
+        $currentStatus = \Illuminate\Support\Facades\Cache::get($statusKey);
+        if ($currentStatus && ($currentStatus['status'] ?? '') === 'processing' && ($currentStatus['progress'] ?? 0) >= 15) {
+            return response()->json([
+                'success' => true,
+                'is_async' => true,
+                'message' => 'O processamento desta live já está em andamento (' . ($currentStatus['progress'] ?? 0) . '%: ' . ($currentStatus['message'] ?? '') . ').',
+                'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+            ]);
+        }
+
+        \Illuminate\Support\Facades\Cache::put($statusKey, [
             'status' => 'processing',
             'progress' => 5,
             'message' => 'Iniciando verificação e download do vídeo da live...'
