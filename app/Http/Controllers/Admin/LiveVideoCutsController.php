@@ -1433,6 +1433,16 @@ PROMPT;
             $code = trim(strtolower($li->codigo_live ?: ''));
             if (!$code) continue;
 
+            // Determina a âncora correta com base no item imediatamente anterior com corte definido
+            $priorItem = DB::table('live_items')
+                ->where('live_id', $live->id)
+                ->where('id', '<', $li->id)
+                ->whereNotNull('cut_end_sec')
+                ->orderByDesc('id')
+                ->first();
+            $itemAnchor = $priorItem ? (float) $priorItem->cut_end_sec : ($lastEndSec > 0 ? $lastEndSec : 0.0);
+            $searchAnchor = max(0.0, $itemAnchor - 5.0);
+
             $variations = $this->getCodeSearchVariations($code);
             $regexPatterns = [];
             foreach ($variations as $var) {
@@ -1443,11 +1453,11 @@ PROMPT;
 
             $bestMention = null;
 
-            // 1ª tentativa: Menção explícita na janela sequencial à frente ($lastEndSec até +6 minutos)
+            // 1ª tentativa: Menção explícita na janela sequencial à frente ($searchAnchor até +6 minutos)
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
-                if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
-                if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break; // Limita a busca a 6 minutos à frente para evitar saltos acidentais para o final da live
+                if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break; // Limita a busca a 6 minutos à frente para evitar saltos acidentais para o final da live
 
                 $text = $s['text'] ?? '';
                 if (preg_match($combinedRegex, $text)) {
@@ -1465,8 +1475,8 @@ PROMPT;
             if (!$bestMention) {
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
-                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
-                    if ($lastEndSec > 0 && $sStart > ($lastEndSec + 900.0)) break;
+                    if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                    if ($searchAnchor > 0 && $sStart > ($searchAnchor + 900.0)) break;
 
                     $text = $s['text'] ?? '';
                     if (preg_match($combinedRegex, $text)) {
@@ -1486,8 +1496,8 @@ PROMPT;
                 $numRegex = '/\b' . preg_quote($code, '/') . '\b/i';
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
-                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
-                    if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break;
+                    if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                    if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break;
 
                     $text = $s['text'] ?? '';
                     if (preg_match($numRegex, $text)) {
@@ -1513,8 +1523,8 @@ PROMPT;
                 if (!empty($keyWords)) {
                     foreach ($sentences as $idx => $s) {
                         $sStart = (float) ($s['start'] ?? 0);
-                        if ($lastEndSec > 0 && $sStart < ($lastEndSec - 5.0)) continue;
-                        if ($lastEndSec > 0 && $sStart > ($lastEndSec + 360.0)) break;
+                        if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                        if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break;
 
                         $sText = mb_strtolower($s['text'] ?? '');
                         foreach ($keyWords as $kw) {
@@ -1528,6 +1538,22 @@ PROMPT;
                                 break 2;
                             }
                         }
+                    }
+                }
+            }
+
+            // 5ª tentativa: Se não achou na janela local, busca menção explícita de código em toda a live (evita o fallback cego no timestamp errado)
+            if (!$bestMention) {
+                foreach ($sentences as $idx => $s) {
+                    $text = $s['text'] ?? '';
+                    if (preg_match($combinedRegex, $text)) {
+                        $bestMention = [
+                            'index' => $idx,
+                            'start' => (float) ($s['start'] ?? 0),
+                            'end' => (float) ($s['end'] ?? 0),
+                            'text' => $text
+                        ];
+                        break;
                     }
                 }
             }
@@ -1652,13 +1678,7 @@ PROMPT;
 
         if ($pendingItems->isNotEmpty()) {
             Log::info("[LiveVideoCuts] Complementando minutagem com fallback heurístico para " . $pendingItems->count() . " itens pendentes na Live #{$live->id}...");
-            $lastSetItem = DB::table('live_items')
-                ->where('live_id', $live->id)
-                ->whereNotNull('cut_end_sec')
-                ->orderByDesc('cut_end_sec')
-                ->first();
-            $lastEnd = $lastSetItem ? (float) $lastSetItem->cut_end_sec : 0.0;
-            $heuristicResults = $this->performChronologicalHeuristicDetection($live, $sentences, $pendingItems, $lastEnd);
+            $heuristicResults = $this->performChronologicalHeuristicDetection($live, $sentences, $pendingItems);
             $aiResults = array_merge($aiResults, $heuristicResults);
         }
 
