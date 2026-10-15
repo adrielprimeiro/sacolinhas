@@ -2451,10 +2451,11 @@ PROMPT;
      */
     protected function formatSecondsToSrtTime(float $seconds): string
     {
-        $hours = floor($seconds / 3600);
-        $minutes = floor(($seconds % 3600) / 60);
-        $secs = floor($seconds % 60);
-        $millis = floor(($seconds - floor($seconds)) * 1000);
+        $intSec = (int) floor($seconds);
+        $hours = floor($intSec / 3600);
+        $minutes = floor(($intSec % 3600) / 60);
+        $secs = $intSec % 60;
+        $millis = (int) round(($seconds - floor($seconds)) * 1000);
 
         return sprintf('%02d:%02d:%02d,%03d', $hours, $minutes, $secs, $millis);
     }
