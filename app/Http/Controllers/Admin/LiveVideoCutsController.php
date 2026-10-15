@@ -493,6 +493,11 @@ class LiveVideoCutsController extends Controller
         if ($request->filled('video_path_manual')) {
             $path = trim((string) $request->input('video_path_manual'));
 
+            // Limpa query strings de rastreamento do Instagram (ex: ?utm_source=...&exln=...)
+            if (preg_match('#https?://(?:www\.)?instagram\.com/(reel|p|tv)/([a-zA-Z0-9_-]+)#i', $path, $m)) {
+                $path = "https://www.instagram.com/{$m[1]}/{$m[2]}/";
+            }
+
             // Se for uma URL externa (Instagram, TikTok, YouTube, ou link web)
             if (preg_match('/^https?:\/\//i', $path)) {
                 $isSocialOrWebUrl = preg_match('/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|twitter\.com|x\.com/i', $path)

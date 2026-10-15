@@ -116,7 +116,9 @@ class TranscribeLiveVideoCommand extends Command
             Cache::put("live_transcription_status_{$liveId}", [
                 'status' => 'completed',
                 'progress' => 100,
-                'message' => "Transcrição e minutagens concluídas com sucesso! (" . count($sentences) . " trechos de fala transcritos)",
+                'message' => $autoDetect
+                    ? "Transcrição e minutagens concluídas com sucesso! (" . count($sentences) . " trechos de fala transcritos)"
+                    : "Transcrição de áudio concluída com sucesso! (" . count($sentences) . " trechos de fala transcritos)",
                 'sentences_count' => count($sentences)
             ], 3600);
 

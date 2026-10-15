@@ -19,6 +19,18 @@
         </div>
     @endif
 
+    <!-- Cálculo dos Status das Etapas (Passos 1 a 5) -->
+    @php
+        $step1Done = !empty($recordingUrl);
+        $step2Done = !empty($transcriptionData) && count($transcriptionData) > 0;
+        $step3Done = ($stats['total_items'] > 0 && $stats['items_with_cuts'] >= $stats['total_items']);
+        $step3Partial = ($stats['items_with_cuts'] > 0 && $stats['items_with_cuts'] < $stats['total_items']);
+        $step4Done = ($stats['total_items'] > 0 && $stats['items_rendered'] >= $stats['total_items']);
+        $step4Partial = ($stats['items_rendered'] > 0 && $stats['items_rendered'] < $stats['total_items']);
+        $step5Done = ($stats['total_items'] > 0 && ($stats['items_youtube'] ?? 0) >= $stats['total_items']);
+        $step5Partial = (($stats['items_youtube'] ?? 0) > 0);
+    @endphp
+
     <!-- Top Header Bar -->
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -90,18 +102,39 @@
             <!-- Filtro de Início por Código -->
             <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-xs" title="Defina um código para processar apenas dele em diante (ex: 20)">
                 <span class="text-[10px] uppercase font-extrabold text-gray-500 whitespace-nowrap">A partir do #:</span>
-                <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900">
             </div>
 
-            <button type="button" onclick="autoDetectWithAI()" id="btn-auto-detect-header" class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0d9488; color: #ffffff !important;" title="Detectar minutagens inteligentes com Severino IA">
-                <i class="fas fa-brain text-white"></i>
-                <span style="color: #ffffff !important; font-weight: 800;">Minutar com IA</span>
-            </button>
+            <!-- PASSOS INDIVIDUAIS (1 A 4) -->
+            <div class="inline-flex rounded-xl shadow-xs border border-gray-200 bg-gray-100 p-1 gap-1 flex-wrap">
+                <!-- 1. Baixar Vídeo -->
+                <button type="button" onclick="openStep1Modal()" id="btn-step1-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step1Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #d97706; color: #ffffff !important;' }}" title="Passo 1: Baixar ou carregar gravação da live">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">1</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Baixar Vídeo</span>
+                    @if($step1Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
 
-            <button type="button" onclick="generateAllClips()" id="btn-batch-clips" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
-                <i class="fas fa-scissors text-white"></i>
-                <span style="color: #ffffff !important; font-weight: 800;">Gerar Cortes (FFmpeg)</span>
-            </button>
+                <!-- 2. Transcrever -->
+                <button type="button" onclick="openStep2Modal()" id="btn-step2-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step2Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #0d9488; color: #ffffff !important;' }}" title="Passo 2: Transcrever áudio com Whisper IA">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">2</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Transcrever</span>
+                    @if($step2Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
+
+                <!-- 3. Minutar IA -->
+                <button type="button" onclick="openStep3Modal()" id="btn-step3-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step3Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step3Partial ? 'background-color: #9333ea; color: #ffffff !important;' : 'background-color: #6b7280; color: #ffffff !important;') }}" title="Passo 3: Minutar peças com Severino IA">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">3</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Minutar IA</span>
+                    @if($step3Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
+
+                <!-- 4. Gerar Cortes -->
+                <button type="button" onclick="openStep4Modal()" id="btn-step4-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step4Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step4Partial ? 'background-color: #4f46e5; color: #ffffff !important;' : 'background-color: #6b7280; color: #ffffff !important;') }}" title="Passo 4: Gerar cortes MP4 com FFmpeg">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">4</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Gerar Cortes</span>
+                    @if($step4Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
+            </div>
 
             @if(!empty($youtubeAccount))
                 <button type="button" onclick="batchUploadToYouTube()" id="btn-youtube-batch" class="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #dc2626; color: #ffffff !important;" title="Publicar todas as peças não-vendidas no canal '{{ $youtubeAccount->channel_name }}'">
@@ -139,25 +172,14 @@
                 </a>
             @endif
 
-            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
-                <i class="fab fa-instagram text-white"></i>
-                <span class="text-white font-black">Auto-Processar Instagram</span>
+            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" title="Executar todo o fluxo de 1 a 4 automaticamente">
+                <i class="fas fa-magic text-white"></i>
+                <span class="text-white font-black">Auto-Processar Tudo</span>
             </button>
         </div>
     </div>
 
     <!-- LINHA DO TEMPO COMPACTA (TIMELINE DE PONTOS) -->
-    @php
-        $step1Done = !empty($recordingUrl);
-        $step2Done = !empty($transcriptionData) && count($transcriptionData) > 0;
-        $step3Done = ($stats['total_items'] > 0 && $stats['items_with_cuts'] >= $stats['total_items']);
-        $step3Partial = ($stats['items_with_cuts'] > 0 && $stats['items_with_cuts'] < $stats['total_items']);
-        $step4Done = ($stats['total_items'] > 0 && $stats['items_rendered'] >= $stats['total_items']);
-        $step4Partial = ($stats['items_rendered'] > 0 && $stats['items_rendered'] < $stats['total_items']);
-        $step5Done = ($stats['total_items'] > 0 && ($stats['items_youtube'] ?? 0) >= $stats['total_items']);
-        $step5Partial = (($stats['items_youtube'] ?? 0) > 0);
-    @endphp
-
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-6" style="background-color: #ffffff;">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             
@@ -165,7 +187,7 @@
             <div class="flex-1 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
                 
                 <!-- PONTO 1: VÍDEO -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="triggerAutoProcess()" title="Clique para Auto-Processar gravação do Instagram">
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep1Modal()" title="Passo 1: Baixar ou carregar gravação da live">
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step1Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #d97706; color: #ffffff !important;' }}">
                         {!! $step1Done ? '<i class="fas fa-check"></i>' : '1' !!}
@@ -182,14 +204,14 @@
                 <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step1Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 2: TRANSCRIÇÃO -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="transcribeAudioWithAI()" title="Clique para transcrever áudio com Whisper">
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep2Modal()" title="Passo 2: Transcrever áudio com Whisper IA">
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
-                         style="{{ $step2Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step1Done ? 'background-color: #4f46e5; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
+                         style="{{ $step2Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step1Done ? 'background-color: #0d9488; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step2Done ? '<i class="fas fa-check"></i>' : '2' !!}
                     </div>
                     <div>
                         <div class="text-xs font-bold leading-tight" style="color: #111827;">2. Transcrição</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step2Done ? 'color: #15803d;' : 'color: #4338ca;' }}">
+                        <div class="text-[11px] font-semibold" style="{{ $step2Done ? 'color: #15803d;' : 'color: #0f766e;' }}">
                             {{ $step2Done ? '✓ ' . count($transcriptionData) . ' falas' : 'Pendente' }}
                         </div>
                     </div>
@@ -199,20 +221,18 @@
                 <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step2Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 3: MINUTAGEM IA -->
-                <div class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-50 transition">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs cursor-pointer"
-                         onclick="autoDetectWithAI()"
-                         title="Clique para detectar minutagens com Severino IA"
-                         style="{{ $step3Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step3Partial ? 'background-color: #0d9488; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep3Modal()" title="Passo 3: Minutar peças com Severino IA">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                         style="{{ $step3Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step3Partial ? 'background-color: #9333ea; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step3Done ? '<i class="fas fa-check"></i>' : '3' !!}
                     </div>
                     <div>
-                        <div class="text-xs font-bold leading-tight cursor-pointer" onclick="autoDetectWithAI()" style="color: #111827;">3. Minutagem IA</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step3Done ? 'color: #15803d;' : ($step3Partial ? 'color: #0f766e;' : 'color: #4b5563;') }}">
+                        <div class="text-xs font-bold leading-tight" style="color: #111827;">3. Minutagem IA</div>
+                        <div class="text-[11px] font-semibold" style="{{ $step3Done ? 'color: #15803d;' : ($step3Partial ? 'color: #7e22ce;' : 'color: #4b5563;') }}">
                             {{ $stats['items_with_cuts'] }}/{{ $stats['total_items'] }} minutados
                         </div>
                         @if(($stats['items_without_cuts'] ?? 0) > 0)
-                            <button type="button" onclick="setItemsFilter('unminuted')" class="text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-2xs" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="Filtrar apenas os itens que não foram minutados">
+                            <button type="button" onclick="event.stopPropagation(); setItemsFilter('unminuted')" class="text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-2xs" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="Filtrar apenas os itens que não foram minutados">
                                 <i class="fas fa-exclamation-circle text-amber-600"></i> Ver {{ $stats['items_without_cuts'] }} pendente(s)
                             </button>
                         @endif
@@ -223,7 +243,7 @@
                 <div class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step3Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
                 <!-- PONTO 4: FATIAMENTO FFmpeg -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="generateAllClips()" title="Clique para gerar todos os cortes">
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep4Modal()" title="Passo 4: Gerar cortes MP4 com FFmpeg">
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
                          style="{{ $step4Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step4Partial ? 'background-color: #4f46e5; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
                         {!! $step4Done ? '<i class="fas fa-check"></i>' : '4' !!}
@@ -783,41 +803,81 @@
 
 </div>
 
-<!-- MODAL UPLOAD VÍDEO -->
-<div id="modal-upload-video" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl text-gray-800">
+<!-- ==================================================== -->
+<!-- PASSO 1: MODAL BAIXAR / CARREGAR VÍDEO DA LIVE       -->
+<!-- ==================================================== -->
+<div id="modal-upload-video" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
-            <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
-                <i class="fas fa-video text-indigo-600"></i> Carregar Gravação da Live
-            </h3>
-            <button onclick="toggleUploadModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">Passo 1 de 4</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-video text-amber-600"></i> Passo 1: Baixar / Carregar Vídeo
+                </h3>
+            </div>
+            <button type="button" onclick="toggleUploadModal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
         </div>
+
+        <div class="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium">
+            <p class="font-bold flex items-center gap-1.5 text-amber-900">
+                <i class="fas fa-info-circle text-amber-600"></i> Somente Gravação do Vídeo:
+            </p>
+            <p class="mt-1 text-amber-950 text-[11px] leading-relaxed">
+                Este passo realiza <strong>APENAS</strong> o download do link ou upload do arquivo de gravação completa para o servidor. 
+                <strong>Não executa transcrição nem gera cortes automaticamente.</strong>
+            </p>
+        </div>
+
+        @if(!empty($recordingUrl))
+            <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-950">
+                <div class="flex items-center gap-2 min-w-0 pr-2">
+                    <i class="fas fa-check-circle text-emerald-600 text-base shrink-0"></i>
+                    <div class="truncate">
+                        <div class="font-bold text-emerald-900">Vídeo atualmente salvo no servidor:</div>
+                        <div class="text-[11px] text-emerald-800 font-mono truncate">{{ $live->recording_filename ?: basename($live->recording_path) }}</div>
+                    </div>
+                </div>
+                <button type="button" onclick="seekPlayer(0)" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0 transition cursor-pointer" style="background-color: #059669; color: #ffffff !important;">
+                    Ver no Player
+                </button>
+            </div>
+        @endif
 
         <form id="form-upload-video" onsubmit="handleVideoUpload(event)" class="space-y-4">
             <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1.5">Arquivo de Vídeo (.mp4, .mov, .mkv):</label>
-                <input type="file" id="video-file-input" name="video_file" accept="video/*" class="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer bg-gray-50 p-2 rounded-xl border border-gray-300">
+                <label for="video-path-manual-input" class="block text-xs font-bold text-gray-900 mb-1 flex items-center justify-between">
+                    <span>Link do Instagram (Reel/Live), YouTube ou TikTok:</span>
+                    <button type="button" onclick="pasteClipboardToManualPath()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-extrabold flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-paste"></i> Colar do Teclado
+                    </button>
+                </label>
+                <input 
+                    type="text" 
+                    id="video-path-manual-input" 
+                    name="video_path_manual" 
+                    onblur="this.value = sanitizeInstagramUrl(this.value)"
+                    onpaste="setTimeout(() => this.value = sanitizeInstagramUrl(this.value), 20)"
+                    placeholder="Ex: https://www.instagram.com/reel/DefqY4pEZug/..." 
+                    class="w-full px-3.5 py-2 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-600 font-medium outline-none transition"
+                >
+                <p class="text-[11px] text-gray-600 mt-1">Cole a URL pública do post/vídeo postado no Instagram para baixar via yt-dlp.</p>
             </div>
 
-            <div class="relative flex py-2 items-center">
+            <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-gray-200"></div>
-                <span class="flex-shrink mx-3 text-gray-400 text-[10px] uppercase font-bold">OU LINK / CAMINHO DO VÍDEO</span>
+                <span class="flex-shrink mx-3 text-gray-500 text-[10px] uppercase font-bold">OU ENVIE UM ARQUIVO DO COMPUTADOR</span>
                 <div class="flex-grow border-t border-gray-200"></div>
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-                    <span>Link do Instagram / TikTok / YouTube ou Caminho:</span>
-                    <span class="text-[10px] text-indigo-700 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">✨ Download Automático</span>
-                </label>
-                <input type="text" id="video-path-manual-input" name="video_path_manual" placeholder="Ex: https://www.instagram.com/p/... ou /var/www/..." class="w-full px-3 py-2 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-500 font-medium">
-                <p class="text-[10px] text-gray-500 mt-1">Cole a URL do post/vídeo do Instagram, TikTok ou YouTube para baixar diretamente no servidor.</p>
+                <label for="video-file-input" class="block text-xs font-bold text-gray-900 mb-1">Arquivo de Vídeo (.mp4, .mov, .mkv):</label>
+                <input type="file" id="video-file-input" name="video_file" accept="video/*" class="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer bg-gray-50 p-2 rounded-xl border border-gray-300">
             </div>
 
-            <div id="upload-progress-box" class="hidden space-y-1">
-                <div class="flex justify-between text-[11px] text-gray-700 font-bold">
-                    <span id="upload-progress-text">Processando vídeo...</span>
-                    <span id="upload-progress-pct">0%</span>
+            <div id="upload-progress-box" class="hidden space-y-1.5 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <div class="flex justify-between text-xs text-indigo-950 font-bold">
+                    <span id="upload-progress-text">Processando download...</span>
+                    <span id="upload-progress-pct" class="font-mono text-indigo-700">0%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                     <div id="upload-progress-bar" class="bg-indigo-600 h-full w-0 transition-all duration-150"></div>
@@ -825,12 +885,265 @@
             </div>
 
             <div class="pt-3 flex justify-end gap-2 border-t border-gray-200">
-                <button type="button" onclick="toggleUploadModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">Cancelar</button>
-                <button type="submit" id="btn-submit-upload" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow flex items-center gap-1.5" style="background-color: #4f46e5; color: #ffffff !important;">
-                    <i class="fas fa-check"></i> Salvar Vídeo
+                <button type="button" onclick="toggleUploadModal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">Cancelar</button>
+                <button type="submit" id="btn-submit-upload" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition shadow flex items-center gap-1.5 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
+                    <i class="fas fa-download text-white"></i>
+                    <span class="text-white font-black">Baixar / Salvar Vídeo (Passo 1)</span>
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PASSO 2: MODAL TRANSCREVER ÁUDIO COM WHISPER IA      -->
+<!-- ==================================================== -->
+<div id="modal-step2-transcription" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-100 text-teal-900 border border-teal-200">Passo 2 de 4</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-microphone-lines text-teal-600"></i> Passo 2: Transcrever Áudio com IA (Whisper)
+                </h3>
+            </div>
+            <button type="button" onclick="toggleStep2Modal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="p-3.5 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-950 font-medium">
+                <p class="font-bold flex items-center gap-1.5 text-teal-900">
+                    <i class="fas fa-info-circle text-teal-600"></i> Somente Transcrição:
+                </p>
+                <p class="mt-1 text-teal-950 text-[11px] leading-relaxed">
+                    Extrai a faixa de áudio do vídeo salvo no <strong>Passo 1</strong> e utiliza IA Whisper para transcrever tudo o que foi falado na live com timestamps exatos. 
+                    <strong>Não altera minutagens de peças nem gera arquivos de corte.</strong>
+                </p>
+            </div>
+
+            @if(empty($recordingUrl))
+                <div class="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-950 font-medium flex items-start gap-2.5">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-base shrink-0 mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-red-900">Nenhum vídeo salvo no Passo 1!</div>
+                        <div class="text-[11px] text-red-800 mt-0.5">Você precisa primeiro baixar ou carregar a gravação da live no Passo 1 antes de iniciar a transcrição de áudio.</div>
+                        <button type="button" onclick="toggleStep2Modal(false); openStep1Modal();" class="mt-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer shadow-xs" style="background-color: #dc2626; color: #ffffff !important;">
+                            <i class="fas fa-arrow-left mr-1"></i> Ir para Passo 1: Baixar Vídeo
+                        </button>
+                    </div>
+                </div>
+            @else
+                <div class="p-3.5 {{ $step2Done ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-amber-50 border-amber-200 text-amber-950' }} border rounded-xl text-xs font-medium">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas {{ $step2Done ? 'fa-check-circle text-emerald-600' : 'fa-clock text-amber-600' }} text-base shrink-0"></i>
+                            <div>
+                                <div class="font-bold {{ $step2Done ? 'text-emerald-900' : 'text-amber-900' }}">
+                                    {{ $step2Done ? '✓ Transcrição ativa' : '⏳ Transcrição ainda não realizada' }}
+                                </div>
+                                <div class="text-[11px] {{ $step2Done ? 'text-emerald-800' : 'text-amber-800' }}">
+                                    {{ $step2Done ? count($transcriptionData) . ' frases transcritas e indexadas.' : 'O vídeo gravado está pronto para ser transcrito.' }}
+                                </div>
+                            </div>
+                        </div>
+                        @if($step2Done)
+                            <button type="button" onclick="toggleStep2Modal(false); toggleTranscriptionModal();" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0 transition cursor-pointer shadow-xs" style="background-color: #059669; color: #ffffff !important;">
+                                Ver Frases
+                            </button>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-gray-200">
+                    <button type="button" onclick="promptPasteTranscription()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-paste"></i> Colar JSON Manualmente
+                    </button>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button type="button" onclick="toggleStep2Modal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
+                            Fechar
+                        </button>
+                        <button type="button" onclick="executeStep2Transcription()" id="btn-execute-step2" class="bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0d9488; color: #ffffff !important;">
+                            <i class="fas fa-play text-white"></i>
+                            <span class="text-white font-black">{{ $step2Done ? 'Retranscrever Áudio' : 'Iniciar Transcrição IA (Passo 2)' }}</span>
+                        </button>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PASSO 3: MODAL MINUTAR PEÇAS COM SEVERINO IA         -->
+<!-- ==================================================== -->
+<div id="modal-step3-minutagem" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">Passo 3 de 4</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-wand-magic-sparkles text-purple-600"></i> Passo 3: Minutar Peças com Severino IA
+                </h3>
+            </div>
+            <button type="button" onclick="toggleStep3Modal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-950 font-medium">
+                <p class="font-bold flex items-center gap-1.5 text-purple-900">
+                    <i class="fas fa-info-circle text-purple-600"></i> Somente Minutagem:
+                </p>
+                <p class="mt-1 text-purple-950 text-[11px] leading-relaxed">
+                    O Severino IA analisa o texto da transcrição (Passo 2) e cruza com a lista de peças cadastradas na live para definir o início e fim de cada produto. 
+                    <strong>Não renderiza arquivos de vídeo nem altera o áudio.</strong>
+                </p>
+            </div>
+
+            @if(empty($transcriptionData) || count($transcriptionData) == 0)
+                <div class="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-950 font-medium flex items-start gap-2.5">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-base shrink-0 mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-red-900">Transcrição não encontrada!</div>
+                        <div class="text-[11px] text-red-800 mt-0.5">Você precisa primeiro transcrever o áudio no Passo 2 antes de iniciar a minutagem inteligente.</div>
+                        <button type="button" onclick="toggleStep3Modal(false); openStep2Modal();" class="mt-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer shadow-xs" style="background-color: #dc2626; color: #ffffff !important;">
+                            <i class="fas fa-arrow-left mr-1"></i> Ir para Passo 2: Transcrever Áudio
+                        </button>
+                    </div>
+                </div>
+            @else
+                <div class="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-950">
+                    <div class="flex items-center justify-between font-bold text-indigo-900 mb-1">
+                        <span>Progresso Atual das Peças:</span>
+                        <span class="font-mono text-indigo-950 font-extrabold">{{ $stats['items_with_cuts'] }} / {{ $stats['total_items'] }} minutadas</span>
+                    </div>
+                    <div class="text-[11px] text-indigo-900">
+                        @if(($stats['items_without_cuts'] ?? 0) > 0)
+                            Restam <strong>{{ $stats['items_without_cuts'] }} peça(s)</strong> sem minutagem definida.
+                        @else
+                            ✓ Todas as peças desta live já possuem minutagem!
+                        @endif
+                    </div>
+                </div>
+
+                <div class="space-y-2.5 border border-gray-200 rounded-xl p-3 bg-gray-50">
+                    <div class="text-xs font-bold text-gray-900 mb-1">Escolha o modo de minutagem:</div>
+                    
+                    <label class="flex items-start gap-2 text-xs text-gray-900 font-medium cursor-pointer p-2 rounded-lg bg-white border border-gray-200 hover:border-purple-300 transition">
+                        <input type="radio" name="step3_mode" value="unreviewed" checked class="mt-0.5 text-purple-600 focus:ring-purple-500">
+                        <div>
+                            <span class="font-bold text-gray-900">Apenas peças pendentes / sem minutagem (Recomendado)</span>
+                            <p class="text-[11px] text-gray-600">Preserva todas as peças já minutadas ou revisadas manualmente e processa só o que falta.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-2 text-xs text-gray-900 font-medium cursor-pointer p-2 rounded-lg bg-white border border-gray-200 hover:border-purple-300 transition">
+                        <input type="radio" name="step3_mode" value="all" class="mt-0.5 text-purple-600 focus:ring-purple-500">
+                        <div>
+                            <span class="font-bold text-gray-900">Todas as peças do zero</span>
+                            <p class="text-[11px] text-gray-600">Recalcula a minutagem de todos os itens da live com base na transcrição.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-2 text-xs text-gray-900 font-medium cursor-pointer p-2 rounded-lg bg-white border border-gray-200 hover:border-purple-300 transition">
+                        <input type="radio" name="step3_mode" value="from_code" class="mt-0.5 text-purple-600 focus:ring-purple-500">
+                        <div class="flex-1">
+                            <span class="font-bold text-gray-900">A partir de um código específico</span>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[11px] text-gray-600">Código da peça inicial: #</span>
+                                <input type="number" id="step3-start-code" placeholder="Ex: 50" class="w-20 px-2 py-1 text-xs bg-white text-gray-900 rounded-lg border border-gray-300 font-bold">
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2 border-t border-gray-200">
+                    <button type="button" onclick="toggleStep3Modal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="executeStep3Minutagem()" id="btn-execute-step3" class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #9333ea; color: #ffffff !important;">
+                        <i class="fas fa-wand-magic-sparkles text-white"></i>
+                        <span class="text-white font-black">Iniciar Minutagem IA (Passo 3)</span>
+                    </button>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PASSO 4: MODAL FATIAMENTO DE VÍDEO COM FFmpeg        -->
+<!-- ==================================================== -->
+<div id="modal-step4-fatiamento" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200">Passo 4 de 4</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-scissors text-indigo-600"></i> Passo 4: Gerar Cortes de Vídeo (FFmpeg)
+                </h3>
+            </div>
+            <button type="button" onclick="toggleStep4Modal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-950 font-medium">
+                <p class="font-bold flex items-center gap-1.5 text-indigo-900">
+                    <i class="fas fa-info-circle text-indigo-600"></i> Somente Renderização de Cortes:
+                </p>
+                <p class="mt-1 text-indigo-950 text-[11px] leading-relaxed">
+                    Renderiza os vídeos individuais (.mp4) de cada peça em alta resolução com legendas automáticas e capas de abertura. 
+                    <strong>Não altera transcrições nem minutagens.</strong>
+                </p>
+            </div>
+
+            @if($stats['items_with_cuts'] == 0)
+                <div class="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-950 font-medium flex items-start gap-2.5">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-base shrink-0 mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-red-900">Nenhuma peça minutada ainda!</div>
+                        <div class="text-[11px] text-red-800 mt-0.5">Você precisa definir os tempos de início e fim no Passo 3 antes de renderizar os vídeos.</div>
+                        <button type="button" onclick="toggleStep4Modal(false); openStep3Modal();" class="mt-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer shadow-xs" style="background-color: #dc2626; color: #ffffff !important;">
+                            <i class="fas fa-arrow-left mr-1"></i> Ir para Passo 3: Minutar Peças
+                        </button>
+                    </div>
+                </div>
+            @else
+                <div class="p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 space-y-1.5">
+                    <div class="flex items-center justify-between font-bold text-gray-900">
+                        <span>Vídeos Renderizados:</span>
+                        <span class="font-mono text-emerald-800 font-extrabold">{{ $stats['items_rendered'] }} / {{ $stats['total_items'] }} prontos</span>
+                    </div>
+                    @php
+                        $pendingCuts = max(0, $stats['total_items'] - $stats['items_rendered']);
+                    @endphp
+                    <div class="text-[11px] text-gray-600">
+                        @if($pendingCuts > 0)
+                            Restam <strong>{{ $pendingCuts }} vídeo(s)</strong> pendentes de renderização.
+                        @else
+                            ✓ Todos os vídeos desta live já foram fatiados e salvos em disco!
+                        @endif
+                    </div>
+                </div>
+
+                <div class="pt-3 flex flex-col gap-2.5 border-t border-gray-200">
+                    @if($pendingCuts > 0)
+                        <button type="button" onclick="toggleStep4Modal(false); generateAllClips(false);" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
+                            <i class="fas fa-play text-white"></i>
+                            <span class="text-white font-black">Fatiar Apenas os {{ $pendingCuts }} Pendentes</span>
+                        </button>
+                    @endif
+
+                    <button type="button" onclick="toggleStep4Modal(false); generateAllClips(true);" class="w-full {{ $pendingCuts > 0 ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' : 'bg-indigo-600 hover:bg-indigo-700 text-white' }} font-extrabold px-5 py-2.5 rounded-xl text-xs border border-gray-300 shadow-xs flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer" style="{{ $pendingCuts > 0 ? 'color: #1f2937 !important;' : 'background-color: #4f46e5; color: #ffffff !important;' }}">
+                        <i class="fas fa-rotate {{ $pendingCuts > 0 ? 'text-gray-600' : 'text-white' }}"></i>
+                        <span>Forçar Refatiar Todos os {{ $stats['total_items'] }} Vídeos</span>
+                    </button>
+
+                    <button type="button" onclick="toggleStep4Modal(false)" class="w-full px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 transition text-center cursor-pointer">
+                        Cancelar
+                    </button>
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 
@@ -1463,12 +1776,17 @@
 
         const btns = [
             document.getElementById("btn-auto-detect-header"),
-            document.getElementById("btn-auto-detect")
+            document.getElementById("btn-auto-detect"),
+            document.getElementById("btn-step2-header"),
+            document.getElementById("btn-step3-header"),
+            document.getElementById("btn-transcribe-ai"),
+            document.getElementById("btn-execute-step2"),
+            document.getElementById("btn-execute-step3")
         ].filter(Boolean);
 
         btns.forEach(b => {
             b.disabled = true;
-            b.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Minutando com Severino...`;
+            b.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Processando IA...`;
         });
 
         if (transcribePollTimer) clearInterval(transcribePollTimer);
@@ -1483,7 +1801,7 @@
                     const textEl = document.getElementById("ai-process-text");
                     const pctEl = document.getElementById("ai-process-pct");
                     const barEl = document.getElementById("ai-process-bar");
-                    if (textEl) textEl.textContent = data.message || 'Processando minutagens com Severino IA...';
+                    if (textEl) textEl.textContent = data.message || 'Processando com IA...';
                     if (pctEl) pctEl.textContent = `${data.progress || 0}%`;
                     if (barEl) barEl.style.width = `${data.progress || 0}%`;
                 } else if (data.status === 'completed') {
@@ -1491,18 +1809,15 @@
                     const barEl = document.getElementById("ai-process-bar");
                     if (barEl) barEl.style.width = '100%';
                     const textEl = document.getElementById("ai-process-text");
-                    if (textEl) textEl.textContent = '✅ ' + (data.message || 'Minutagem concluída com sucesso! Recarregando...');
+                    if (textEl) textEl.textContent = '✅ ' + (data.message || 'Processamento IA concluído com sucesso! Recarregando...');
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else if (data.status === 'error') {
                     clearInterval(transcribePollTimer);
-                    alert("Atenção: " + (data.message || 'Erro durante a minutagem com IA.'));
+                    alert("Atenção: " + (data.message || 'Erro durante o processamento com IA.'));
                     if (progressBox) progressBox.classList.add("hidden");
-                    btns.forEach(b => {
-                        b.disabled = false;
-                        b.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Auto-Detectar com IA`;
-                    });
+                    window.location.reload();
                 }
             } catch (e) {
                 console.error("Erro ao consultar status:", e);
@@ -1510,14 +1825,14 @@
         }, 2000);
     }
 
-    async function transcribeAudioWithAI() {
-        if (!confirm("Deseja extrair o áudio e gerar a transcrição completa com IA em segundo plano?")) return;
+    async function transcribeAudioWithAI(skipConfirm = false) {
+        if (!skipConfirm && !confirm("Deseja extrair o áudio e gerar a transcrição completa com IA em segundo plano?")) return;
 
-        const btn = document.getElementById("btn-transcribe-ai");
+        const btn = document.getElementById("btn-transcribe-ai") || document.getElementById("btn-execute-step2");
         const oldHtml = btn ? btn.innerHTML : '';
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando...`;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Iniciando Whisper...`;
         }
 
         try {
@@ -1536,7 +1851,10 @@
             }
 
             if (data.is_async) {
-                toggleTranscriptionModal();
+                const transModal = document.getElementById("modal-transcription");
+                if (transModal && !transModal.classList.contains("hidden")) {
+                    toggleTranscriptionModal(false);
+                }
                 startTranscriptionPolling();
             } else if (data.success) {
                 alert("✅ " + data.message);
@@ -1553,20 +1871,28 @@
         }
     }
 
-    async function autoDetectWithAI() {
+    async function autoDetectWithAI(customStartCode = null, customOnlyUnreviewed = null) {
         const startCodeInput = document.getElementById("global-start-code");
-        const startCode = startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null;
+        const startCode = customStartCode !== null 
+            ? customStartCode 
+            : (startCodeInput && startCodeInput.value.trim() ? parseInt(startCodeInput.value.trim()) : null);
+        const onlyUnreviewed = customOnlyUnreviewed !== null 
+            ? customOnlyUnreviewed 
+            : (startCode ? false : true);
 
-        let confirmMsg = "Deseja que o Severino IA analise a transcrição e detecte automaticamente os cortes de todas as peças?";
-        if (startCode) {
-            confirmMsg = `Deseja que o Severino IA analise e detecte os cortes a partir da peça #${startCode} em diante? (Os cortes anteriores serão preservados)`;
+        if (customStartCode === null && customOnlyUnreviewed === null) {
+            let confirmMsg = "Deseja que o Severino IA analise a transcrição e detecte automaticamente os cortes de todas as peças?";
+            if (startCode) {
+                confirmMsg = `Deseja que o Severino IA analise e detecte os cortes a partir da peça #${startCode} em diante? (Os cortes anteriores serão preservados)`;
+            }
+            if (!confirm(confirmMsg)) return;
         }
-
-        if (!confirm(confirmMsg)) return;
 
         const btns = [
             document.getElementById("btn-auto-detect-header"),
-            document.getElementById("btn-auto-detect")
+            document.getElementById("btn-auto-detect"),
+            document.getElementById("btn-step3-header"),
+            document.getElementById("btn-execute-step3")
         ].filter(Boolean);
 
         btns.forEach(b => {
@@ -1583,7 +1909,8 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    start_code: startCode
+                    start_code: startCode,
+                    only_unreviewed: onlyUnreviewed
                 })
             });
 
@@ -1941,12 +2268,121 @@
         window.location.reload();
     }
 
-    function toggleUploadModal() {
-        document.getElementById("modal-upload-video").classList.toggle("hidden");
+    // ==========================================
+    // CONTROLE DOS MODAIS DE CADA PASSO (1 A 4)
+    // ==========================================
+    function openStep1Modal() {
+        toggleUploadModal(true);
     }
 
-    function toggleTranscriptionModal() {
-        document.getElementById("modal-transcription").classList.toggle("hidden");
+    function toggleUploadModal(show = null) {
+        const modal = document.getElementById("modal-upload-video");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
+        } else {
+            modal.classList.add("hidden");
+        }
+    }
+
+    async function pasteClipboardToManualPath() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                const input = document.getElementById("video-path-manual-input");
+                if (input) {
+                    input.value = sanitizeInstagramUrl(text);
+                    input.focus();
+                }
+            }
+        } catch (e) {
+            console.warn("Clipboard access not available or denied:", e);
+        }
+    }
+
+    function openStep2Modal() {
+        toggleStep2Modal(true);
+    }
+
+    function toggleStep2Modal(show = null) {
+        const modal = document.getElementById("modal-step2-transcription");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
+        } else {
+            modal.classList.add("hidden");
+        }
+    }
+
+    async function executeStep2Transcription() {
+        toggleStep2Modal(false);
+        await transcribeAudioWithAI(true);
+    }
+
+    function openStep3Modal() {
+        toggleStep3Modal(true);
+    }
+
+    function toggleStep3Modal(show = null) {
+        const modal = document.getElementById("modal-step3-minutagem");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
+        } else {
+            modal.classList.add("hidden");
+        }
+    }
+
+    async function executeStep3Minutagem() {
+        const modeRadio = document.querySelector('input[name="step3_mode"]:checked');
+        const mode = modeRadio ? modeRadio.value : 'unreviewed';
+        let startCode = null;
+        let onlyUnreviewed = true;
+
+        if (mode === 'all') {
+            onlyUnreviewed = false;
+        } else if (mode === 'from_code') {
+            const codeInput = document.getElementById("step3-start-code");
+            startCode = codeInput && codeInput.value ? parseInt(codeInput.value) : null;
+            onlyUnreviewed = false;
+        }
+
+        toggleStep3Modal(false);
+        await autoDetectWithAI(startCode, onlyUnreviewed);
+    }
+
+    function openStep4Modal() {
+        toggleStep4Modal(true);
+    }
+
+    function toggleStep4Modal(show = null) {
+        const modal = document.getElementById("modal-step4-fatiamento");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
+        } else {
+            modal.classList.add("hidden");
+        }
+    }
+
+    function toggleTranscriptionModal(show = null) {
+        const modal = document.getElementById("modal-transcription");
+        if (!modal) return;
+        if (show === null) {
+            modal.classList.toggle("hidden");
+        } else if (show) {
+            modal.classList.remove("hidden");
+        } else {
+            modal.classList.add("hidden");
+        }
     }
 
     // ==========================================
@@ -2474,7 +2910,7 @@
                     if (progressPct) progressPct.textContent = '100%';
                     if (progressText) progressText.textContent = 'Download concluído! Atualizando player...';
                     setTimeout(() => {
-                        alert(data.message || "Vídeo baixado e vinculado com sucesso!");
+                        alert("✅ " + (data.message || "Vídeo baixado e vinculado com sucesso! Agora você pode avançar para o Passo 2: Transcrever Áudio."));
                         window.location.reload();
                     }, 1000);
                 } else if (data.status === 'error') {
