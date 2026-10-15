@@ -532,6 +532,18 @@
                         <span>Vídeos Prontos</span>
                         <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_rendered'] }}</span>
                     </button>
+
+                    @if(($stats['items_invalid_times'] ?? 0) > 0)
+                        <button type="button" 
+                                onclick="setItemsFilter('invalid_time')"
+                                data-filter="invalid_time"
+                                class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs animate-pulse"
+                                style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">
+                            <i class="fas fa-clock text-rose-600"></i>
+                            <span>Horário Inválido</span>
+                            <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black" style="background-color: #dc2626; color: #ffffff !important;">{{ $stats['items_invalid_times'] }}</span>
+                        </button>
+                    @endif
                 </div>
             </div>
 
@@ -543,6 +555,17 @@
                 </div>
                 <p class="text-[11px] text-amber-900 mt-1 leading-relaxed font-medium">
                     Estes itens não tiveram correspondência direta na fala do áudio. Clique no item para carregar o vídeo, navegue até o trecho em que a peça aparece e clique em <b>Início (I)</b> e <b>Fim (O)</b> para salvar.
+                </p>
+            </div>
+
+            <!-- Banner Informativo quando filtrado por Horário Inválido -->
+            <div id="filter-invalid-time-banner" class="hidden p-3.5 bg-rose-50 border border-rose-300 rounded-2xl text-xs text-rose-950 shadow-xs">
+                <div class="font-black flex items-center gap-2 text-rose-900 text-xs">
+                    <i class="fas fa-exclamation-circle text-rose-600"></i>
+                    <span>Exibindo itens com horário além da duração do vídeo gravado ({{ $videoDurationFormatted ?? '' }})</span>
+                </div>
+                <p class="text-[11px] text-rose-900 mt-1 leading-relaxed font-medium">
+                    Estes itens receberam um horário inicial superior à duração do vídeo gravado. Clique na lupinha roxa <i class="fas fa-search text-purple-700"></i> para localizar a fala correta na transcrição e ajustar a minutagem antes de fatiar.
                 </p>
             </div>
 
@@ -562,14 +585,16 @@
                     @php
                         $hasCutTimes = $item['cut_start_sec'] !== null && $item['cut_end_sec'] !== null;
                         $isRendered = $item['video_cut_status'] === 'recorded' && !empty($item['video_cut_url']);
+                        $isInvalidTime = !empty($item['is_past_video']);
                     @endphp
                     <div id="item-card-{{ $item['live_item_id'] }}" 
                          data-has-cut="{{ $hasCutTimes ? '1' : '0' }}"
                          data-is-rendered="{{ $isRendered ? '1' : '0' }}"
+                         data-is-invalid-time="{{ $isInvalidTime ? '1' : '0' }}"
                          data-code="{{ $item['codigo_live'] }}"
                          data-search="{{ strtolower($item['codigo_live'] . ' ' . $item['item_codigo'] . ' ' . $item['item_name'] . ' ' . ($item['buyer_name'] ?? '')) }}"
                          onclick="selectActiveItem({{ $item['live_item_id'] }}, '{{ $item['cut_start_formatted'] ?: ($item['cut_start_sec'] ?? 0) }}')"
-                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30') }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
+                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($isInvalidTime ? 'border-rose-400 bg-rose-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30')) }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             
@@ -585,13 +610,17 @@
                                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
                                                 <i class="fas fa-exclamation-triangle text-amber-600"></i> Não Minutado
                                             </span>
+                                        @elseif($isInvalidTime)
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1 shadow-xs" title="O horário deste item ({{ $item['cut_start_formatted'] }}) ultrapassa o final do vídeo ({{ $videoDurationFormatted ?? '' }})">
+                                                <i class="fas fa-clock text-rose-600"></i> Além do Vídeo
+                                            </span>
                                         @endif
                                         @php
                                             $isGold = !empty($item['review_quality']) && $item['review_quality'] === 'gold';
                                             $isAdjusted = !empty($item['is_reviewed']) && !$isGold;
                                         @endphp
                                         <span id="badge-gold-{{ $item['live_item_id'] }}" class="{{ $isGold ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs" title="Corte memorizado como padrão-ouro para o aprendizado do Severino">
-                                            <i class="fas fa-crown text-amber-600"></i> Padrão-Ouro
+                                             <i class="fas fa-crown text-amber-600"></i> Padrão-Ouro
                                         </span>
                                         <span id="badge-adj-{{ $item['live_item_id'] }}" class="{{ $isAdjusted ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1 shadow-xs" title="Corte ajustado manualmente">
                                             <i class="fas fa-user-check text-blue-600"></i> Revisado
@@ -1153,9 +1182,9 @@
 
 <!-- MODAL DE PROGRESSO DE FATIAMENTO EM TEMPO REAL (PASSO 4) -->
 <div id="modal-batch-render-progress" class="fixed inset-0 bg-gray-900/80 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white border border-gray-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl text-gray-900 animate-in fade-in zoom-in-95 duration-150">
+    <div class="bg-white border border-gray-200 rounded-3xl max-w-xl w-full p-6 shadow-2xl text-gray-900 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
         
-        <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 shrink-0">
             <div class="flex items-center gap-2.5">
                 <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
                     <i class="fas fa-scissors text-base animate-pulse"></i>
@@ -1168,59 +1197,78 @@
             <span id="batch-render-pct-badge" class="px-2.5 py-1 rounded-xl text-xs font-mono font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">0%</span>
         </div>
 
-        <!-- Card do Item Atual Sendo Cortado -->
-        <div id="batch-render-current-card" class="bg-indigo-50/70 rounded-2xl p-4 border border-indigo-200 mb-4 space-y-2">
-            <div class="flex items-center justify-between text-xs font-bold text-indigo-950">
-                <span class="flex items-center gap-1.5">
-                    <i class="fas fa-film text-indigo-600"></i> Cortando agora:
-                </span>
-                <span id="batch-render-counter" class="font-mono text-indigo-800">0 / 0</span>
+        <div class="overflow-y-auto flex-1 pr-1 min-h-0 space-y-4">
+            <!-- Card do Item Atual Sendo Cortado -->
+            <div id="batch-render-current-card" class="bg-indigo-50/70 rounded-2xl p-4 border border-indigo-200 space-y-2">
+                <div class="flex items-center justify-between text-xs font-bold text-indigo-950">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fas fa-film text-indigo-600"></i> Cortando agora:
+                    </span>
+                    <span id="batch-render-counter" class="font-mono text-indigo-800">0 / 0</span>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <span id="batch-render-item-code" class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shrink-0 shadow-2xs" style="background-color: #4f46e5; color: #ffffff !important;">#-</span>
+                    <h4 id="batch-render-item-name" class="text-sm font-extrabold text-gray-900 truncate">Iniciando...</h4>
+                </div>
+                <div class="text-[11px] text-gray-600 flex items-center justify-between pt-1 font-medium">
+                    <span id="batch-render-time-range" class="font-mono text-gray-700 font-bold">00:00:00 ➔ 00:00:00</span>
+                    <span id="batch-render-item-spinner" class="flex items-center gap-1 text-indigo-800 font-bold">
+                        <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Processando FFmpeg...
+                    </span>
+                </div>
             </div>
-            <div class="flex items-center gap-2.5">
-                <span id="batch-render-item-code" class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shrink-0 shadow-2xs" style="background-color: #4f46e5; color: #ffffff !important;">#-</span>
-                <h4 id="batch-render-item-name" class="text-sm font-extrabold text-gray-900 truncate">Iniciando...</h4>
-            </div>
-            <div class="text-[11px] text-gray-600 flex items-center justify-between pt-1 font-medium">
-                <span id="batch-render-time-range" class="font-mono text-gray-700 font-bold">00:00:00 ➔ 00:00:00</span>
-                <span id="batch-render-item-spinner" class="flex items-center gap-1 text-indigo-800 font-bold">
-                    <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Processando FFmpeg...
-                </span>
-            </div>
-        </div>
 
-        <!-- Barra de Progresso Geral -->
-        <div class="space-y-1.5 mb-4">
-            <div class="flex items-center justify-between text-xs font-bold text-gray-700">
-                <span>Progresso Geral</span>
-                <span id="batch-render-pct-text">0% concluído</span>
+            <!-- Barra de Progresso Geral -->
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-bold text-gray-700">
+                    <span>Progresso Geral</span>
+                    <span id="batch-render-pct-text">0% concluído</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden border border-gray-300">
+                    <div id="batch-render-progress-bar" class="h-full bg-indigo-600 transition-all duration-300 rounded-full" style="width: 0%; background-color: #4f46e5;"></div>
+                </div>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden border border-gray-300">
-                <div id="batch-render-progress-bar" class="h-full bg-indigo-600 transition-all duration-300 rounded-full" style="width: 0%; background-color: #4f46e5;"></div>
-            </div>
-        </div>
 
-        <!-- Estatísticas em Tempo Real -->
-        <div class="grid grid-cols-3 gap-2 mb-4 text-center">
-            <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 shadow-2xs">
-                <div id="batch-render-success-count" class="text-base font-black text-green-800 font-mono">0</div>
-                <div class="text-[10px] font-bold text-green-950 uppercase">Prontos</div>
+            <!-- Estatísticas em Tempo Real -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 shadow-2xs">
+                    <div id="batch-render-success-count" class="text-base font-black text-green-800 font-mono">0</div>
+                    <div class="text-[10px] font-bold text-green-950 uppercase">Prontos</div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 shadow-2xs">
+                    <div id="batch-render-pending-count" class="text-base font-black text-amber-800 font-mono">0</div>
+                    <div class="text-[10px] font-bold text-amber-950 uppercase">Restantes</div>
+                </div>
+                <div id="batch-render-failed-card" class="bg-rose-50 border border-rose-200 rounded-xl p-2.5 shadow-2xs">
+                    <div id="batch-render-failed-count" class="text-base font-black text-rose-800 font-mono">0</div>
+                    <div class="text-[10px] font-bold text-rose-950 uppercase">Falhas</div>
+                </div>
             </div>
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 shadow-2xs">
-                <div id="batch-render-pending-count" class="text-base font-black text-amber-800 font-mono">0</div>
-                <div class="text-[10px] font-bold text-amber-950 uppercase">Restantes</div>
-            </div>
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 shadow-2xs">
-                <div id="batch-render-failed-count" class="text-base font-black text-gray-800 font-mono">0</div>
-                <div class="text-[10px] font-bold text-gray-600 uppercase">Falhas</div>
+
+            <!-- Painel Detalhado de Itens que Falharam (Visível apenas se houver falhas) -->
+            <div id="batch-render-failures-box" class="hidden bg-rose-50 border border-rose-300 rounded-2xl p-4 text-xs space-y-2.5 shadow-xs">
+                <div class="flex items-center justify-between border-b border-rose-200 pb-2">
+                    <div class="flex items-center gap-1.5 font-black text-rose-900 text-xs">
+                        <i class="fas fa-triangle-exclamation text-rose-600"></i>
+                        <span>Itens que Não Puderam ser Fatiados</span>
+                    </div>
+                    <span id="batch-render-failures-badge" class="px-2 py-0.5 rounded-lg bg-rose-200 text-rose-900 font-mono font-bold text-[11px]">0</span>
+                </div>
+                <p class="text-[11px] text-rose-800 leading-snug font-medium">
+                    Veja abaixo os motivos detalhados de cada falha. Ajuste os horários ou verifique os trechos na transcrição:
+                </p>
+                <div id="batch-render-failures-list" class="max-h-48 overflow-y-auto space-y-2 pr-1">
+                    <!-- Cards de itens com falha inseridos dinamicamente -->
+                </div>
             </div>
         </div>
 
         <!-- Rodapé do Modal -->
-        <div class="pt-3 border-t border-gray-200 flex items-center justify-between">
+        <div class="pt-4 border-t border-gray-200 flex items-center justify-between shrink-0 mt-2">
             <p id="batch-render-footer-tip" class="text-[11px] text-gray-500 font-medium">
                 <i class="fas fa-info-circle text-indigo-600 mr-1"></i> Mantenha esta aba aberta enquanto corta.
             </p>
-            <div id="batch-render-actions">
+            <div id="batch-render-actions" class="flex items-center gap-2">
                 <button type="button" id="btn-cancel-batch-render" onclick="cancelBatchRender()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition cursor-pointer shadow-xs">
                     Parar Fatiamento
                 </button>
@@ -1444,6 +1492,9 @@
                 if (f === 'unminuted') {
                     btn.style.backgroundColor = '#fef3c7';
                     btn.style.color = '#92400e';
+                } else if (f === 'invalid_time') {
+                    btn.style.backgroundColor = '#fee2e2';
+                    btn.style.color = '#991b1b';
                 } else {
                     btn.style.backgroundColor = '#f3f4f6';
                     btn.style.color = '#374151';
@@ -1452,12 +1503,22 @@
         });
 
         // Banner informativo de Não Minutados
-        const banner = document.getElementById('filter-unminuted-banner');
-        if (banner) {
+        const bannerUnminuted = document.getElementById('filter-unminuted-banner');
+        if (bannerUnminuted) {
             if (filterType === 'unminuted') {
-                banner.classList.remove('hidden');
+                bannerUnminuted.classList.remove('hidden');
             } else {
-                banner.classList.add('hidden');
+                bannerUnminuted.classList.add('hidden');
+            }
+        }
+
+        // Banner informativo de Horário Inválido
+        const bannerInvalid = document.getElementById('filter-invalid-time-banner');
+        if (bannerInvalid) {
+            if (filterType === 'invalid_time') {
+                bannerInvalid.classList.remove('hidden');
+            } else {
+                bannerInvalid.classList.add('hidden');
             }
         }
 
@@ -1476,6 +1537,7 @@
         cards.forEach(card => {
             const hasCut = card.getAttribute('data-has-cut') === '1';
             const isRendered = card.getAttribute('data-is-rendered') === '1';
+            const isInvalidTime = card.getAttribute('data-is-invalid-time') === '1';
             const searchData = (card.getAttribute('data-search') || '').toLowerCase();
             const code = (card.getAttribute('data-code') || '').toLowerCase();
 
@@ -1486,6 +1548,8 @@
                 matchesTab = hasCut;
             } else if (currentItemFilter === 'rendered') {
                 matchesTab = isRendered;
+            } else if (currentItemFilter === 'invalid_time') {
+                matchesTab = isInvalidTime;
             }
 
             let matchesSearch = true;
@@ -2354,6 +2418,9 @@
 
         // Reseta estados do modal
         batchRenderCancelled = false;
+        const failedItems = [];
+        window.lastBatchFailedItems = failedItems;
+
         const modalTitle = document.getElementById("batch-render-modal-title");
         const modalSubtitle = document.getElementById("batch-render-modal-subtitle");
         const pctBadge = document.getElementById("batch-render-pct-badge");
@@ -2368,6 +2435,12 @@
         const itemNameEl = document.getElementById("batch-render-item-name");
         const timeRangeEl = document.getElementById("batch-render-time-range");
         const counterEl = document.getElementById("batch-render-counter");
+
+        const failuresBox = document.getElementById("batch-render-failures-box");
+        const failuresList = document.getElementById("batch-render-failures-list");
+        const failuresBadge = document.getElementById("batch-render-failures-badge");
+        if (failuresBox) failuresBox.classList.add("hidden");
+        if (failuresList) failuresList.innerHTML = "";
 
         if (modalTitle) modalTitle.textContent = "Fatiando Vídeos com FFmpeg";
         if (modalSubtitle) modalSubtitle.textContent = `Passo 4 de 4 • Processando ${itemsToProcess.length} cortes individuais`;
@@ -2437,15 +2510,41 @@
                     const card = document.getElementById(`item-card-${item.id}`);
                     if (card) {
                         card.setAttribute('data-is-rendered', '1');
-                        card.classList.remove('border-gray-200', 'border-indigo-300');
+                        card.classList.remove('border-gray-200', 'border-indigo-300', 'border-rose-400', 'bg-rose-50/20');
                         card.classList.add('border-green-400', 'bg-green-50/20');
                     }
                 } else {
                     failCount++;
-                    console.warn(`Falha ao fatiar item ${item.id}:`, data.message);
+                    const reason = data.message || 'Falha ao processar corte de vídeo via FFmpeg.';
+                    failedItems.push({
+                        id: item.id,
+                        code: item.code,
+                        name: item.name,
+                        start: item.start,
+                        end: item.end,
+                        reason: reason
+                    });
+                    const card = document.getElementById(`item-card-${item.id}`);
+                    if (card) {
+                        card.classList.add('border-rose-400', 'bg-rose-50/20');
+                    }
+                    console.warn(`Falha ao fatiar item ${item.id}:`, reason);
                 }
             } catch (e) {
                 failCount++;
+                const reason = 'Erro de comunicação ao conectar com o servidor.';
+                failedItems.push({
+                    id: item.id,
+                    code: item.code,
+                    name: item.name,
+                    start: item.start,
+                    end: item.end,
+                    reason: reason
+                });
+                const card = document.getElementById(`item-card-${item.id}`);
+                if (card) {
+                    card.classList.add('border-rose-400', 'bg-rose-50/20');
+                }
                 console.error(`Erro de conexão ao fatiar item ${item.id}:`, e);
             }
 
@@ -2482,7 +2581,62 @@
             if (stepperStatus4) {
                 stepperStatus4.innerHTML = `Pausado (${successCount} prontos)`;
             }
+        } else if (failCount > 0) {
+            // Concluído mas com falhas reportadas
+            if (modalTitle) modalTitle.textContent = "⚠️ Fatiamento Finalizado com Falhas";
+            if (modalSubtitle) modalSubtitle.textContent = `${successCount} corte(s) gerado(s) com sucesso, mas ${failCount} item(ns) não puderam ser fatiados.`;
+            if (progressBar) {
+                progressBar.style.width = "100%";
+                progressBar.style.backgroundColor = successCount > 0 ? "#f59e0b" : "#dc2626";
+            }
+            if (pctBadge) {
+                pctBadge.textContent = "Atenção";
+                pctBadge.style.backgroundColor = "#dc2626";
+            }
+            if (pctText) pctText.textContent = `${successCount} cortes prontos • ${failCount} falhas detectadas`;
+            if (itemSpinner) {
+                itemSpinner.innerHTML = `<span class="text-rose-700 font-black"><i class="fas fa-exclamation-triangle"></i> ${failCount} item(ns) precisam de correção</span>`;
+            }
+
+            // Popula lista de erros detalhados
+            if (failuresBadge) failuresBadge.textContent = `${failCount} item(ns)`;
+            if (failuresList) {
+                failuresList.innerHTML = failedItems.map(f => `
+                    <div class="p-2.5 bg-white rounded-xl border border-rose-200 flex flex-col gap-1 text-gray-900 shadow-2xs">
+                        <div class="flex items-center justify-between text-xs font-bold">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shrink-0" style="background-color: #4f46e5; color: #ffffff !important;">${f.code}</span>
+                                <span class="font-bold text-gray-900 truncate">${f.name}</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-gray-500 shrink-0">${f.start} ➔ ${f.end}</span>
+                        </div>
+                        <div class="text-[11px] font-semibold text-rose-700 flex items-start gap-1 mt-0.5">
+                            <i class="fas fa-times-circle text-rose-600 mt-0.5 shrink-0"></i>
+                            <span>${f.reason}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            if (failuresBox) failuresBox.classList.remove("hidden");
+
+            if (actionsContainer) {
+                actionsContainer.innerHTML = `
+                    <button type="button" onclick="closeBatchRenderModalAndReload()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition cursor-pointer shadow-xs">
+                        Fechar e Atualizar
+                    </button>
+                    <button type="button" onclick="filterFailedBatchItems()" class="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-md cursor-pointer flex items-center gap-1.5 transition active:scale-95" style="background-color: #dc2626; color: #ffffff !important;">
+                        <i class="fas fa-filter text-white"></i>
+                        <span>Ver os ${failCount} com Falha</span>
+                    </button>
+                `;
+            }
+            if (stepperBadge4) stepperBadge4.innerHTML = `<i class="fas fa-exclamation-triangle text-rose-600"></i>`;
+            if (stepperStatus4) {
+                stepperStatus4.innerHTML = `⚠️ ${successCount} prontos (${failCount} falhas)`;
+                stepperStatus4.style.color = '#dc2626';
+            }
         } else {
+            // 100% Sucesso
             if (modalTitle) modalTitle.textContent = "🎉 Fatiamento Concluído!";
             if (modalSubtitle) modalSubtitle.textContent = `Todos os ${successCount} cortes foram gerados com sucesso!`;
             if (progressBar) {
@@ -2512,6 +2666,38 @@
             }
         }
     }
+
+    window.filterFailedBatchItems = function() {
+        const modal = document.getElementById("modal-batch-render-progress");
+        if (modal) modal.classList.add("hidden");
+
+        const failedList = window.lastBatchFailedItems || [];
+        if (failedList.length === 0) return;
+
+        const failedIds = new Set(failedList.map(it => String(it.id)));
+        const cards = document.querySelectorAll('.item-card');
+        let firstCard = null;
+
+        cards.forEach(card => {
+            const idMatch = card.id ? card.id.match(/^item-card-(\d+)$/) : null;
+            if (idMatch && failedIds.has(idMatch[1])) {
+                card.classList.remove('hidden');
+                if (!firstCard) firstCard = card;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        // Reseta estilo visual das abas
+        document.querySelectorAll('.item-filter-tab').forEach(btn => {
+            btn.style.backgroundColor = '#f3f4f6';
+            btn.style.color = '#374151';
+        });
+
+        if (firstCard) {
+            firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
 
     // ==========================================
     // CONTROLE DOS MODAIS DE CADA PASSO (1 A 4)

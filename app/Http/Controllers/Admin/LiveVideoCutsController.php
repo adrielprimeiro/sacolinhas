@@ -318,7 +318,18 @@ class LiveVideoCutsController extends Controller
             ->select($selectCols)
             ->orderBy('live_items.id', 'asc');
 
-        $liveItems = $query->get()->map(function ($row) {
+        $videoDurationSec = null;
+        if ($live->recording_path) {
+            $rawInputPath = Storage::disk('public')->path($live->recording_path);
+            if (!file_exists($rawInputPath) && file_exists($live->recording_path)) {
+                $rawInputPath = $live->recording_path;
+            }
+            if (file_exists($rawInputPath)) {
+                $videoDurationSec = $this->getVideoDuration($rawInputPath);
+            }
+        }
+
+        $liveItems = $query->get()->map(function ($row) use ($videoDurationSec) {
             // Nome do produto
             $name = $row->item_nome ?: ($row->item_descricao ?: 'Produto #' . $row->item_id);
 
@@ -358,6 +369,8 @@ class LiveVideoCutsController extends Controller
                 }
             }
 
+            $isPastVideo = ($videoDurationSec !== null && $row->cut_start_sec !== null && (float) $row->cut_start_sec >= $videoDurationSec);
+
             return [
                 'live_item_id' => $row->live_item_id,
                 'item_id' => $row->item_id,
@@ -381,6 +394,7 @@ class LiveVideoCutsController extends Controller
                 'thumbnail_candidates' => $candidates,
                 'is_reviewed' => !empty($row->is_reviewed),
                 'review_quality' => $row->review_quality ?? null,
+                'is_past_video' => $isPastVideo,
                 'youtube_video_id' => $row->youtube_video_id ?? null,
                 'youtube_url' => $row->youtube_url ?? null,
                 'youtube_status' => $row->youtube_status ?? 'none',
@@ -426,6 +440,7 @@ class LiveVideoCutsController extends Controller
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
         $itemsWithoutCuts = max(0, $totalItems - $itemsWithCuts);
         $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
+        $itemsInvalidTimes = $liveItems->where('is_past_video', true)->count();
         $itemsPublishedYouTube = $liveItems->whereNotNull('youtube_video_id')->count();
         $itemsPublishedTikTok = $liveItems->whereNotNull('tiktok_publish_id')->count();
         $itemsPublishedInstagram = $liveItems->whereNotNull('instagram_media_id')->count();
@@ -444,6 +459,8 @@ class LiveVideoCutsController extends Controller
             'liveItems' => $liveItems,
             'transcriptionData' => $transcriptionData,
             'recordingUrl' => $recordingUrl,
+            'videoDurationSec' => $videoDurationSec,
+            'videoDurationFormatted' => $videoDurationSec !== null ? $this->formatSecondsToTime($videoDurationSec) : null,
             'youtubeAccount' => $youtubeAccount,
             'youtubeConfigured' => $youtubeConfigured,
             'tiktokAccount' => $tiktokAccount,
@@ -455,6 +472,7 @@ class LiveVideoCutsController extends Controller
                 'items_with_cuts' => $itemsWithCuts,
                 'items_without_cuts' => $itemsWithoutCuts,
                 'items_rendered' => $itemsRendered,
+                'items_invalid_times' => $itemsInvalidTimes,
                 'items_youtube' => $itemsPublishedYouTube,
                 'items_tiktok' => $itemsPublishedTikTok,
                 'items_instagram' => $itemsPublishedInstagram,
@@ -907,6 +925,38 @@ class LiveVideoCutsController extends Controller
             $variations[] = sprintf('%02d', $intVal);
             $words = $this->numberToPortugueseWords($intVal);
             $variations = array_merge($variations, $words);
+
+            // Variações com dígitos espaçados ou com vírgula (formato característico do Whisper)
+            // Ex: "78" -> "7, 8", "7 8" | "134" -> "1, 3, 4", "1 3 4"
+            $digits = str_split((string)$intVal);
+            if (count($digits) > 1) {
+                $variations[] = implode(', ', $digits);
+                $variations[] = implode(' ', $digits);
+                $variations[] = implode(',', $digits);
+            }
+
+            // Variações compostas faladas em português
+            // Ex: 38 -> "30 e 8"
+            if ($intVal >= 21 && $intVal <= 99) {
+                $tens = (int)($digits[0] . '0');
+                $unit = (int)$digits[1];
+                if ($unit > 0) {
+                    $variations[] = "{$tens} e {$unit}";
+                }
+            } elseif ($intVal >= 101 && $intVal <= 199) {
+                $remainder = (int)substr((string)$intVal, 1);
+                $variations[] = "cento e {$remainder}";
+                $variations[] = "100 e {$remainder}";
+                if ($remainder >= 21 && $remainder <= 99) {
+                    $rDigits = str_split((string)$remainder);
+                    $rTens = (int)($rDigits[0] . '0');
+                    $rUnit = (int)$rDigits[1];
+                    if ($rUnit > 0) {
+                        $variations[] = "cento e {$rTens} e {$rUnit}";
+                        $variations[] = "100 e {$rTens} e {$rUnit}";
+                    }
+                }
+            }
         }
         return array_unique(array_filter($variations));
     }
@@ -1427,7 +1477,11 @@ PROMPT;
         ];
 
         $results = [];
-        $lastEndSec = (float) ($initialStartSec ?? 0.0);
+        $inputPath = Storage::disk('public')->path($live->recording_path);
+        if (!file_exists($inputPath) && file_exists($live->recording_path)) {
+            $inputPath = $live->recording_path;
+        }
+        $videoDuration = $this->getVideoDuration($inputPath);
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
@@ -1447,7 +1501,9 @@ PROMPT;
             $regexPatterns = [];
             foreach ($variations as $var) {
                 $escaped = preg_quote($var, '/');
-                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)\s*' . $escaped;
+                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*[:.]?\s*' . $escaped;
+                $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?c[oó]digo';
+                $regexPatterns[] = '(?:saiu\s+pra|fila\s+pra|vai\s+pro)\s*' . $escaped;
             }
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
 
@@ -1542,7 +1598,7 @@ PROMPT;
                 }
             }
 
-            // 5ª tentativa: Se não achou na janela local, busca menção explícita de código em toda a live (evita o fallback cego no timestamp errado)
+            // 5ª tentativa: Se não achou na janela local, busca menção explícita de código em toda a live (inclusive fora de ordem)
             if (!$bestMention) {
                 foreach ($sentences as $idx => $s) {
                     $text = $s['text'] ?? '';
@@ -1562,16 +1618,13 @@ PROMPT;
                 $mentionIndex = $bestMention['index'];
                 $mentionTime = $bestMention['start'];
 
-                // Busca início do bloco respeitando o fim da peça anterior
+                // Busca início do bloco respeitando transições de fala
                 $startIndex = max(0, $mentionIndex - 5);
                 $startTime = $mentionTime;
 
                 for ($i = $mentionIndex; $i >= $startIndex; $i--) {
                     $sStart = (float) ($sentences[$i]['start'] ?? 0);
-                    if ($lastEndSec > 0 && $sStart < ($lastEndSec - 2.0)) {
-                        break;
-                    }
-                    if (($mentionTime - $sStart) > 60) break;
+                    if (($mentionTime - $sStart) > 40) break;
 
                     $sText = mb_strtolower($sentences[$i]['text'] ?? '');
 
@@ -1588,7 +1641,7 @@ PROMPT;
                         if ($i < $mentionIndex) {
                             break;
                         }
-                    } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 25) {
+                    } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 20) {
                         $startTime = $sStart;
                     }
                 }
@@ -1602,17 +1655,32 @@ PROMPT;
                         $finalEnd = max($endTime, round($nextStart - 0.2, 1));
                     }
                 }
+
+                $lastEndSec = max($lastEndSec, $finalEnd);
             } else {
                 // Fallback sequencial estimado cronologicamente
                 $finalStart = round(max(0, $lastEndSec), 1);
                 $finalEnd = round($finalStart + 35.0, 1);
+
+                // Evita que o fallback sequencial extrapole o fim do vídeo
+                if ($videoDuration !== null && $finalStart >= ($videoDuration - 10)) {
+                    $finalStart = max(0.0, round($videoDuration - 30.0, 1));
+                    $finalEnd = round($videoDuration, 1);
+                }
+
+                $lastEndSec = $finalEnd;
             }
 
-            if ($lastEndSec > 0 && $finalStart < $lastEndSec) {
-                $finalStart = $lastEndSec;
+            if ($videoDuration !== null) {
+                if ($finalStart >= $videoDuration) {
+                    $finalStart = max(0.0, round($videoDuration - 20.0, 1));
+                }
+                if ($finalEnd > $videoDuration) {
+                    $finalEnd = $videoDuration;
+                }
             }
             if ($finalEnd <= $finalStart) {
-                $finalEnd = $finalStart + 25.0;
+                $finalEnd = $videoDuration !== null ? min($videoDuration, $finalStart + 20.0) : ($finalStart + 20.0);
             }
 
             $lastEndSec = $finalEnd;
@@ -2042,6 +2110,27 @@ PROMPT;
 
         $start = (float) $liveItem->cut_start_sec;
         $duration = max(1, round($liveItem->cut_end_sec - $start, 2));
+
+        // Validação da duração real do arquivo de vídeo para evitar erro no FFmpeg
+        $videoDuration = $this->getVideoDuration($inputPath);
+        if ($videoDuration !== null) {
+            if ($start >= $videoDuration) {
+                return response()->json([
+                    'success' => false,
+                    'message' => sprintf(
+                        'Horário de início (%s) está após o término da gravação (%s). Verifique a minutagem.',
+                        $this->formatSecondsToTime($start),
+                        $this->formatSecondsToTime($videoDuration)
+                    ),
+                    'error_type' => 'timestamp_beyond_video',
+                    'cut_start_sec' => $start,
+                    'video_duration_sec' => $videoDuration
+                ], 422);
+            }
+            if (($start + $duration) > $videoDuration) {
+                $duration = max(1.0, round($videoDuration - $start, 2));
+            }
+        }
 
         $middleStart = isset($liveItem->middle_cut_start_sec) ? (float) $liveItem->middle_cut_start_sec : null;
         $middleEnd = isset($liveItem->middle_cut_end_sec) ? (float) $liveItem->middle_cut_end_sec : null;
@@ -2725,5 +2814,24 @@ PROMPT;
             return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
         }
         return sprintf('%02d:%02d', $minutes, $remainingSeconds);
+    }
+
+    /**
+     * Retorna a duração real em segundos de um arquivo de vídeo usando ffprobe
+     */
+    protected function getVideoDuration(?string $inputPath): ?float
+    {
+        if (empty($inputPath) || !file_exists($inputPath)) {
+            return null;
+        }
+
+        $cmd = sprintf('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s 2>&1', escapeshellarg($inputPath));
+        $output = trim(shell_exec($cmd) ?? '');
+
+        if (is_numeric($output) && (float) $output > 0) {
+            return round((float) $output, 2);
+        }
+
+        return null;
     }
 }
