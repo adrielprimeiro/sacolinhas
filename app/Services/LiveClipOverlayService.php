@@ -192,18 +192,22 @@ class LiveClipOverlayService
 
         if (file_exists($fontBold)) {
             // Título 1: ACHADINHO DO DIA
-            $bbox1 = imagettfbbox(20, 0, $fontBold, $title1);
-            $tw1 = abs($bbox1[4] - bbox1[0]);
-            $tx1 = intval(($canvasW - $tw1) / 2);
-            imagettftext($img, 20, 0, $tx1, 56, $textWhite, $fontBold, $title1);
+            $bbox1 = @imagettfbbox(20, 0, $fontBold, $title1);
+            if ($bbox1) {
+                $tw1 = abs($bbox1[4] - $bbox1[0]);
+                $tx1 = intval(($canvasW - $tw1) / 2);
+                imagettftext($img, 20, 0, $tx1, 56, $textWhite, $fontBold, $title1);
+            }
         }
 
         if (file_exists($fontItalic)) {
             // Título 2: curadoria exclusiva
-            $bbox2 = imagettfbbox(22, 0, $fontItalic, $title2);
-            $tw2 = abs($bbox2[4] - bbox2[0]);
-            $tx2 = intval(($canvasW - $tw2) / 2);
-            imagettftext($img, 22, 0, $tx2, 92, $textOrange, $fontItalic, $title2);
+            $bbox2 = @imagettfbbox(22, 0, $fontItalic, $title2);
+            if ($bbox2) {
+                $tw2 = abs($bbox2[4] - $bbox2[0]);
+                $tx2 = intval(($canvasW - $tw2) / 2);
+                imagettftext($img, 22, 0, $tx2, 92, $textOrange, $fontItalic, $title2);
+            }
         }
 
         // Borda Laranja da Moldura do Vídeo
@@ -328,11 +332,13 @@ class LiveClipOverlayService
 
             if (file_exists($fontBold)) {
                 $pFontSize = strlen($precoStr) > 9 ? 15 : 18;
-                $bboxP = imagettfbbox($pFontSize, 0, $fontBold, $precoStr);
-                $pw = abs($bboxP[4] - bboxP[0]);
-                $px = $pricePillX + intval(($pricePillW - $pw) / 2);
-                $py = $pillY + intval($pillH * 0.68);
-                imagettftext($img, $pFontSize, 0, $px, $py, $textWhite, $fontBold, $precoStr);
+                $bboxP = @imagettfbbox($pFontSize, 0, $fontBold, $precoStr);
+                if ($bboxP) {
+                    $pw = abs($bboxP[4] - $bboxP[0]);
+                    $px = $pricePillX + intval(($pricePillW - $pw) / 2);
+                    $py = $pillY + intval($pillH * 0.68);
+                    imagettftext($img, $pFontSize, 0, $px, $py, $textWhite, $fontBold, $precoStr);
+                }
             } else {
                 imagestring($img, 4, $pricePillX + 14, $pillY + 10, $precoStr, $textWhite);
             }
