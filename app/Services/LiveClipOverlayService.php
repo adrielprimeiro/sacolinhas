@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 class LiveClipOverlayService
 {
     /**
-     * Retorna o caminho do carimbo condizente com o estado da peça.
+     * Retorna o caminho do carimbo realista condizente com o estado da peça.
      */
     public static function getStampPath(?string $estado): string
     {
@@ -28,22 +28,20 @@ class LiveClipOverlayService
     }
 
     /**
-     * Mapeia e retorna o caminho do card de logo da marca.
+     * Mapeia e retorna o caminho do arquivo PNG de logo da marca (se existir).
      */
-    public static function getBrandCardPath(?string $marca): ?string
+    public static function getBrandLogoPath(?string $marca): ?string
     {
         $norm = mb_strtolower(trim($marca ?? ''));
         if (empty($norm)) {
             return null;
         }
 
-        // Ignora marcas genéricas para não poluir o vídeo
         $generics = ['outros', 'outro', 'biju', 'bijuteria', 'bijuterias', 'outlet', 'mania', 'mani', 'saldo', 'diversos', 'geral', 'sem marca'];
         if (in_array($norm, $generics)) {
             return null;
         }
 
-        // Mapeamento de slugs
         $map = [
             'refarm' => 'refarm',
             're-farm' => 'refarm',
@@ -80,221 +78,320 @@ class LiveClipOverlayService
             return $brandsDir . '/' . $slug . '.png';
         }
 
-        // Se for outra marca com nome válido, gera um card temporário estilizado
-        return self::generateDynamicBrandCard($marca);
+        return null;
     }
 
     /**
-     * Gera dinamicamente um card branco elegante para marcas que ainda não possuem PNG cadastrado.
+     * Retorna o caminho da fonte em negrito principal.
      */
-    protected static function generateDynamicBrandCard(string $marca): ?string
+    public static function getFontBoldPath(): string
     {
-        $clean = trim($marca);
-        if (strlen($clean) < 2) {
-            return null;
+        $primary = resource_path('fonts/Roboto-Bold.ttf');
+        if (file_exists($primary)) return $primary;
+
+        $fallbacks = [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            'C:/Windows/Fonts/arialbd.ttf',
+            'C:/Windows/Fonts/Roboto-Bold.ttf',
+        ];
+        foreach ($fallbacks as $f) {
+            if (file_exists($f)) return $f;
         }
-
-        $cacheDir = storage_path('app/temp/brand_cards');
-        if (!file_exists($cacheDir)) {
-            @mkdir($cacheDir, 0755, true);
-        }
-
-        $hash = md5(mb_strtolower($clean));
-        $cacheFile = $cacheDir . '/dyn_' . $hash . '.png';
-        if (file_exists($cacheFile)) {
-            return $cacheFile;
-        }
-
-        $w = 420;
-        $h = 180;
-        $img = imagecreatetruecolor($w, $h);
-        imagesavealpha($img, true);
-        $transparent = imagecolorallocatealpha($img, 0, 0, 0, 127);
-        imagefilledrectangle($img, 0, 0, $w, $h, $transparent);
-
-        // Fundo do card
-        $white = imagecolorallocate($img, 255, 255, 255);
-        $border = imagecolorallocate($img, 215, 220, 230);
-        $textDark = imagecolorallocate($img, 20, 20, 20);
-
-        self::drawRoundedRectangle($img, 4, 4, $w - 4, $h - 4, 20, $white, $border);
-
-        $fontPath = resource_path('fonts/Roboto-Bold.ttf');
-        $displayName = mb_strtoupper($clean);
-        $fontSize = strlen($displayName) > 12 ? 22 : 28;
-
-        if (file_exists($fontPath)) {
-            $bbox = imagettfbbox($fontSize, 0, $fontPath, $displayName);
-            $tw = abs($bbox[4] - bbox[0]);
-            $th = abs($bbox[5] - bbox[1]);
-            $tx = intval(($w - $tw) / 2);
-            $ty = intval(($h + $th) / 2) - 4;
-            imagettftext($img, $fontSize, 0, $tx, $ty, $textDark, $fontPath, $displayName);
-        } else {
-            // Fallback sem TTF
-            $tx = intval(($w - strlen($displayName) * 9) / 2);
-            imagestring($img, 5, $tx, intval($h / 2) - 8, $displayName, $textDark);
-        }
-
-        imagepng($img, $cacheFile);
-        imagedestroy($img);
-
-        return $cacheFile;
+        return $primary;
     }
 
     /**
-     * Gera a imagem PNG transparente do overlay com todos os elementos posicionados.
+     * Retorna o caminho da fonte serifada/itálica para títulos elegantes.
      */
-    public static function generateOverlayImage($item, int $videoWidth, int $videoHeight, string $outputPngPath): bool
+    public static function getFontItalicPath(): string
     {
-        if (!extension_loaded('gd')) {
-            Log::warning('[LiveClipOverlayService] Extensão PHP GD não disponível.');
-            return false;
+        $primary = resource_path('fonts/Georgia-Italic.ttf');
+        if (file_exists($primary)) return $primary;
+
+        $fallbacks = [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf',
+            'C:/Windows/Fonts/georgiai.ttf',
+            resource_path('fonts/Roboto-Bold.ttf')
+        ];
+        foreach ($fallbacks as $f) {
+            if (file_exists($f)) return $f;
         }
+        return self::getFontBoldPath();
+    }
 
-        $canvas = imagecreatetruecolor($videoWidth, $videoHeight);
-        imagesavealpha($canvas, true);
-        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-        imagefilledrectangle($canvas, 0, 0, $videoWidth, $videoHeight, $transparent);
-
-        // 1. CARIMBO DE ESTADO (Superior Direito)
-        $stampFile = self::getStampPath($item?->estado);
-        if (file_exists($stampFile)) {
-            $stampImg = @imagecreatefrompng($stampFile);
-            if ($stampImg) {
-                $sw = imagesx($stampImg);
-                $sh = imagesy($stampImg);
-                $targetStampSize = intval($videoWidth * 0.26); // ~187px em 720p
-                $stampX = $videoWidth - $targetStampSize - intval($videoWidth * 0.035);
-                $stampY = intval($videoHeight * 0.065); // seguro contra barras superiores do Instagram Stories
-
-                imagecopyresampled($canvas, $stampImg, $stampX, $stampY, 0, 0, $targetStampSize, $targetStampSize, $sw, $sh);
-                imagedestroy($stampImg);
-            }
-        }
-
-        // 2. CARD DE TAMANHO & PREÇO (Meio Direito)
-        $tamanho = trim($item?->tamanho ?? '');
-        $precoVal = floatval($item?->preco ?? 0);
-        $precoStr = $precoVal > 0 ? ('R$ ' . (floor($precoVal) == $precoVal ? number_format($precoVal, 0, ',', '.') : number_format($precoVal, 2, ',', '.'))) : '';
-
-        if (!empty($tamanho) || !empty($precoStr)) {
-            $cardW = intval($videoWidth * 0.28);
-            $cardH = intval($videoHeight * 0.095);
-            $cardX = $videoWidth - $cardW - intval($videoWidth * 0.035);
-            $cardY = intval($videoHeight * 0.38);
-
-            $cardImg = imagecreatetruecolor($cardW, $cardH);
-            imagesavealpha($cardImg, true);
-            $cardTrans = imagecolorallocatealpha($cardImg, 0, 0, 0, 127);
-            imagefilledrectangle($cardImg, 0, 0, $cardW, $cardH, $cardTrans);
-
-            $white = imagecolorallocate($cardImg, 255, 255, 255);
-            $border = imagecolorallocate($cardImg, 220, 225, 230);
-            $textDark = imagecolorallocate($cardImg, 15, 15, 15);
-
-            self::drawRoundedRectangle($cardImg, 2, 2, $cardW - 2, $cardH - 2, 16, $white, $border);
-
-            $fontPath = resource_path('fonts/Roboto-Bold.ttf');
-            $tamText = !empty($tamanho) ? ('Tam ' . $tamanho) : '';
-
-            if (file_exists($fontPath)) {
-                $fontSize = max(14, intval($videoWidth * 0.030));
-                
-                if (!empty($tamText) && !empty($precoStr)) {
-                    // Duas linhas
-                    $bbox1 = imagettfbbox($fontSize, 0, $fontPath, $tamText);
-                    $tw1 = abs($bbox1[4] - $bbox1[0]);
-                    $tx1 = intval(($cardW - $tw1) / 2);
-                    $ty1 = intval($cardH * 0.44);
-                    imagettftext($cardImg, $fontSize, 0, $tx1, $ty1, $textDark, $fontPath, $tamText);
-
-                    $bbox2 = imagettfbbox($fontSize, 0, $fontPath, $precoStr);
-                    $tw2 = abs($bbox2[4] - $bbox2[0]);
-                    $tx2 = intval(($cardW - $tw2) / 2);
-                    $ty2 = intval($cardH * 0.85);
-                    imagettftext($cardImg, $fontSize, 0, $tx2, $ty2, $textDark, $fontPath, $precoStr);
-                } else {
-                    // Linha única centralizada
-                    $singleText = $tamText ?: $precoStr;
-                    $bbox = imagettfbbox($fontSize + 4, 0, $fontPath, $singleText);
-                    $tw = abs($bbox[4] - $bbox[0]);
-                    $th = abs($bbox[5] - $bbox[1]);
-                    $tx = intval(($cardW - $tw) / 2);
-                    $ty = intval(($cardH + $th) / 2);
-                    imagettftext($cardImg, $fontSize + 4, 0, $tx, $ty, $textDark, $fontPath, $singleText);
-                }
-            } else {
-                // Fallback imagestring
-                if (!empty($tamText)) {
-                    imagestring($cardImg, 5, intval(($cardW - strlen($tamText) * 9) / 2), intval($cardH * 0.20), $tamText, $textDark);
-                }
-                if (!empty($precoStr)) {
-                    imagestring($cardImg, 5, intval(($cardW - strlen($precoStr) * 9) / 2), intval($cardH * 0.60), $precoStr, $textDark);
-                }
-            }
-
-            imagecopy($canvas, $cardImg, $cardX, $cardY, 0, 0, $cardW, $cardH);
-            imagedestroy($cardImg);
-        }
-
-        // 3. CARD DO LOGO DA MARCA (Inferior Direito)
-        $brandCardFile = self::getBrandCardPath($item?->marca);
-        if ($brandCardFile && file_exists($brandCardFile)) {
-            $brandImg = @imagecreatefrompng($brandCardFile);
-            if ($brandImg) {
-                $bwOrig = imagesx($brandImg);
-                $bhOrig = imagesy($brandImg);
-
-                $targetBw = intval($videoWidth * 0.29); // ~210px em 720p
-                $targetBh = intval($targetBw * ($bhOrig / $bwOrig));
-                $brandX = $videoWidth - $targetBw - intval($videoWidth * 0.035);
-                $brandY = intval($videoHeight * 0.68); // acima da zona de rodapé dos Stories
-
-                imagecopyresampled($canvas, $brandImg, $brandX, $brandY, 0, 0, $targetBw, $targetBh, $bwOrig, $bhOrig);
-                imagedestroy($brandImg);
-            }
-        }
-
-        // Salva imagem final
-        $dir = dirname($outputPngPath);
+    /**
+     * Gera a máscara alfa com cantos arredondados (para o corte do vídeo no card).
+     */
+    public static function getRoundedMaskPath(int $width = 580, int $height = 940, int $radius = 28): string
+    {
+        $dir = storage_path('app/temp/masks');
         if (!file_exists($dir)) {
             @mkdir($dir, 0755, true);
         }
 
-        $res = imagepng($canvas, $outputPngPath);
-        imagedestroy($canvas);
+        $maskFile = $dir . "/mask_{$width}_{$height}_{$radius}.png";
+        if (file_exists($maskFile) && filesize($maskFile) > 100) {
+            return $maskFile;
+        }
 
+        if (!extension_loaded('gd')) {
+            return $maskFile;
+        }
+
+        $img = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        $white = imagecolorallocate($img, 255, 255, 255);
+        imagefilledrectangle($img, 0, 0, $width, $height, $black);
+
+        self::drawRoundedRectangle($img, 0, 0, $width, $height, $radius, $white);
+
+        imagepng($img, $maskFile);
+        imagedestroy($img);
+
+        return $maskFile;
+    }
+
+    /**
+     * Gera o fundo Canvas estilizado (estilo Reel 2027 do vídeo de referência):
+     * - Fundo grafite ultra escuro com grid de micro-pontos (dot-grid)
+     * - Título no topo: "ACHADINHO DO DIA / curadoria exclusiva"
+     * - Moldura arredondada com borda gradiente/laranja para o vídeo
+     */
+    public static function generateCanvasBackground(
+        int $canvasW, 
+        int $canvasH, 
+        int $frameW, 
+        int $frameH, 
+        string $outputPath,
+        ?string $title1 = "ACHADINHO DO DIA",
+        ?string $title2 = "curadoria exclusiva"
+    ): bool {
+        if (!extension_loaded('gd')) return false;
+
+        $img = imagecreatetruecolor($canvasW, $canvasH);
+
+        // Fundo escuro premium
+        $bg = imagecolorallocate($img, 10, 12, 16);
+        imagefilledrectangle($img, 0, 0, $canvasW, $canvasH, $bg);
+
+        // Micro-pontos (Dot grid)
+        $dotColor = imagecolorallocate($img, 38, 42, 54);
+        $spacing = 24;
+        for ($x = intval($spacing / 2); $x < $canvasW; $x += $spacing) {
+            for ($y = intval($spacing / 2); $y < $canvasH; $y += $spacing) {
+                imagefilledellipse($img, $x, $y, 3, 3, $dotColor);
+            }
+        }
+
+        // Tipografia do Topo
+        $fontBold = self::getFontBoldPath();
+        $fontItalic = self::getFontItalicPath();
+
+        $textWhite = imagecolorallocate($img, 245, 247, 250);
+        $textOrange = imagecolorallocate($img, 251, 146, 60);
+
+        if (file_exists($fontBold)) {
+            // Título 1: ACHADINHO DO DIA
+            $bbox1 = imagettfbbox(20, 0, $fontBold, $title1);
+            $tw1 = abs($bbox1[4] - bbox1[0]);
+            $tx1 = intval(($canvasW - $tw1) / 2);
+            imagettftext($img, 20, 0, $tx1, 56, $textWhite, $fontBold, $title1);
+        }
+
+        if (file_exists($fontItalic)) {
+            // Título 2: curadoria exclusiva
+            $bbox2 = imagettfbbox(22, 0, $fontItalic, $title2);
+            $tw2 = abs($bbox2[4] - bbox2[0]);
+            $tx2 = intval(($canvasW - $tw2) / 2);
+            imagettftext($img, 22, 0, $tx2, 92, $textOrange, $fontItalic, $title2);
+        }
+
+        // Borda Laranja da Moldura do Vídeo
+        $frameX = intval(($canvasW - $frameW) / 2);
+        $frameY = 145;
+        $borderOrange = imagecolorallocate($img, 249, 115, 22);
+        $radius = 28;
+        $thickness = 4;
+
+        for ($t = 0; $t < $thickness; $t++) {
+            self::drawRoundedBorder(
+                $img, 
+                $frameX - $t - 1, 
+                $frameY - $t - 1, 
+                $frameX + $frameW + $t + 1, 
+                $frameY + $frameH + $t + 1, 
+                $radius + $t, 
+                $borderOrange
+            );
+        }
+
+        $dir = dirname($outputPath);
+        if (!file_exists($dir)) @mkdir($dir, 0755, true);
+
+        $res = imagepng($img, $outputPath);
+        imagedestroy($img);
         return $res;
     }
 
     /**
-     * Desenha um retângulo com cantos arredondados e borda.
+     * Gera o Card de Informações do Produto em Glassmorphism Dark moderno:
+     * - Fundo translúcido slate-900 / rgba(15,23,42,0.90) com cantos arredondados
+     * - Ponto verde pulsante (live dot) + Nome da Marca em caixa alta
+     * - Pílula com o Tamanho ("TAM 38")
+     * - Badge em verde esmeralda com o Preço ("R$ 65,00")
+     */
+    public static function generateGlassmorphicCard(
+        $item, 
+        int $cardW, 
+        int $cardH, 
+        string $outputPath
+    ): bool {
+        if (!extension_loaded('gd')) return false;
+
+        $img = imagecreatetruecolor($cardW, $cardH);
+        imagesavealpha($img, true);
+        $transparent = imagecolorallocatealpha($img, 0, 0, 0, 127);
+        imagefilledrectangle($img, 0, 0, $cardW, $cardH, $transparent);
+
+        // Fundo glassmorphism escuro
+        // GD alpha varia de 0 (opaco) a 127 (transparente) -> 15% transparência = alpha ~18
+        $bgGlass = imagecolorallocatealpha($img, 15, 23, 42, 16);
+        $borderGlass = imagecolorallocatealpha($img, 255, 255, 255, 85);
+        $radius = 18;
+
+        self::drawRoundedRectangle($img, 2, 2, $cardW - 2, $cardH - 2, $radius, $bgGlass, $borderGlass);
+
+        // Header: Ponto verde + Nome da Marca
+        $brandName = trim($item?->marca ?? '');
+        if (empty($brandName)) {
+            $brandName = 'Minha Mania';
+        }
+        $brandNameUpper = mb_strtoupper($brandName);
+
+        // Ponto verde esmeralda
+        $dotGreen = imagecolorallocate($img, 16, 185, 129);
+        imagefilledellipse($img, 24, 26, 10, 10, $dotGreen);
+
+        $fontBold = self::getFontBoldPath();
+        $textWhite = imagecolorallocate($img, 255, 255, 255);
+        $textLight = imagecolorallocate($img, 226, 232, 240);
+        $divider = imagecolorallocatealpha($img, 255, 255, 255, 105);
+
+        if (file_exists($fontBold)) {
+            $brandFontSize = strlen($brandNameUpper) > 16 ? 12 : 14;
+            imagettftext($img, $brandFontSize, 0, 38, 31, $textWhite, $fontBold, $brandNameUpper);
+        } else {
+            imagestring($img, 4, 38, 18, $brandNameUpper, $textWhite);
+        }
+
+        // Linha divisória fina
+        imageline($img, 16, 44, $cardW - 16, 44, $divider);
+
+        // Conteúdo: Tamanho & Preço
+        $tamanho = trim($item?->tamanho ?? '');
+        $precoVal = floatval($item?->preco ?? 0);
+        $precoStr = $precoVal > 0 
+            ? ('R$ ' . (floor($precoVal) == $precoVal ? number_format($precoVal, 0, ',', '.') : number_format($precoVal, 2, ',', '.')))
+            : '';
+
+        $tamText = !empty($tamanho) ? ('TAM ' . mb_strtoupper($tamanho)) : 'TAM ÚNICO';
+
+        $pillY = 56;
+        $pillH = $cardH - $pillY - 14;
+
+        if (!empty($precoStr)) {
+            $sizePillW = intval($cardW * 0.36);
+            $sizePillX = 16;
+
+            // Pílula do Tamanho
+            $bgPill = imagecolorallocatealpha($img, 30, 41, 59, 20);
+            $borderPill = imagecolorallocatealpha($img, 255, 255, 255, 90);
+            self::drawRoundedRectangle($img, $sizePillX, $pillY, $sizePillX + $sizePillW, $pillY + $pillH, 12, $bgPill, $borderPill);
+
+            if (file_exists($fontBold)) {
+                $bboxS = imagettfbbox(12, 0, $fontBold, $tamText);
+                $sw = abs($bboxS[4] - $bboxS[0]);
+                $sx = $sizePillX + intval(($sizePillW - $sw) / 2);
+                $sy = $pillY + intval($pillH * 0.65);
+                imagettftext($img, 12, 0, $sx, $sy, $textLight, $fontBold, $tamText);
+            } else {
+                imagestring($img, 3, $sizePillX + 10, $pillY + 10, $tamText, $textLight);
+            }
+
+            // Pílula do Preço em Destaque Verde Esmeralda
+            $pricePillX = $sizePillX + $sizePillW + 10;
+            $pricePillW = $cardW - $pricePillX - 16;
+
+            $bgPrice = imagecolorallocatealpha($img, 16, 185, 129, 10);
+            $borderPrice = imagecolorallocate($img, 52, 211, 153);
+            self::drawRoundedRectangle($img, $pricePillX, $pillY, $pricePillX + $pricePillW, $pillY + $pillH, 12, $bgPrice, $borderPrice);
+
+            if (file_exists($fontBold)) {
+                $pFontSize = strlen($precoStr) > 9 ? 15 : 18;
+                $bboxP = imagettfbbox($pFontSize, 0, $fontBold, $precoStr);
+                $pw = abs($bboxP[4] - bboxP[0]);
+                $px = $pricePillX + intval(($pricePillW - $pw) / 2);
+                $py = $pillY + intval($pillH * 0.68);
+                imagettftext($img, $pFontSize, 0, $px, $py, $textWhite, $fontBold, $precoStr);
+            } else {
+                imagestring($img, 4, $pricePillX + 14, $pillY + 10, $precoStr, $textWhite);
+            }
+        } else {
+            // Apenas tamanho centralizado
+            $fullPillX = 16;
+            $fullPillW = $cardW - 32;
+            $bgPill = imagecolorallocatealpha($img, 30, 41, 59, 20);
+            $borderPill = imagecolorallocatealpha($img, 255, 255, 255, 90);
+            self::drawRoundedRectangle($img, $fullPillX, $pillY, $fullPillX + $fullPillW, $pillY + $pillH, 12, $bgPill, $borderPill);
+
+            if (file_exists($fontBold)) {
+                $bboxS = imagettfbbox(14, 0, $fontBold, $tamText);
+                $sw = abs($bboxS[4] - $bboxS[0]);
+                $sx = $fullPillX + intval(($fullPillW - $sw) / 2);
+                $sy = $pillY + intval($pillH * 0.65);
+                imagettftext($img, 14, 0, $sx, $sy, $textLight, $fontBold, $tamText);
+            }
+        }
+
+        $dir = dirname($outputPath);
+        if (!file_exists($dir)) @mkdir($dir, 0755, true);
+
+        $res = imagepng($img, $outputPath);
+        imagedestroy($img);
+        return $res;
+    }
+
+    /**
+     * Desenha um retângulo com cantos arredondados preenchido e borda opcional.
      */
     protected static function drawRoundedRectangle($img, $x1, $y1, $x2, $y2, $radius, $fillColor, $borderColor = null)
     {
-        // Retângulo central
         imagefilledrectangle($img, $x1 + $radius, $y1, $x2 - $radius, $y2, $fillColor);
         imagefilledrectangle($img, $x1, $y1 + $radius, $x2, $y2 - $radius, $fillColor);
 
-        // Cantos
         imagefilledellipse($img, $x1 + $radius, $y1 + $radius, $radius * 2, $radius * 2, $fillColor);
         imagefilledellipse($img, $x2 - $radius, $y1 + $radius, $radius * 2, $radius * 2, $fillColor);
         imagefilledellipse($img, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, $fillColor);
         imagefilledellipse($img, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, $fillColor);
 
         if ($borderColor !== null) {
-            // Bordas horizontais e verticais
-            imageline($img, $x1 + $radius, $y1, $x2 - $radius, $y1, $borderColor);
-            imageline($img, $x1 + $radius, $y2, $x2 - $radius, $y2, $borderColor);
-            imageline($img, $x1, $y1 + $radius, $x1, $y2 - $radius, $borderColor);
-            imageline($img, $x2, $y1 + $radius, $x2, $y2 - $radius, $borderColor);
-
-            // Arcos dos cantos
-            imagearc($img, $x1 + $radius, $y1 + $radius, $radius * 2, $radius * 2, 180, 270, $borderColor);
-            imagearc($img, $x2 - $radius, $y1 + $radius, $radius * 2, $radius * 2, 270, 360, $borderColor);
-            imagearc($img, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, 0, 90, $borderColor);
-            imagearc($img, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, 90, 180, $borderColor);
+            self::drawRoundedBorder($img, $x1, $y1, $x2, $y2, $radius, $borderColor);
         }
+    }
+
+    /**
+     * Desenha o contorno arredondado.
+     */
+    protected static function drawRoundedBorder($img, $x1, $y1, $x2, $y2, $radius, $borderColor)
+    {
+        imageline($img, $x1 + $radius, $y1, $x2 - $radius, $y1, $borderColor);
+        imageline($img, $x1 + $radius, $y2, $x2 - $radius, $y2, $borderColor);
+        imageline($img, $x1, $y1 + $radius, $x1, $y2 - $radius, $borderColor);
+        imageline($img, $x2, $y1 + $radius, $x2, $y2 - $radius, $borderColor);
+
+        imagearc($img, $x1 + $radius, $y1 + $radius, $radius * 2, $radius * 2, 180, 270, $borderColor);
+        imagearc($img, $x2 - $radius, $y1 + $radius, $radius * 2, $radius * 2, 270, 360, $borderColor);
+        imagearc($img, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, 0, 90, $borderColor);
+        imagearc($img, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, 90, 180, $borderColor);
     }
 }

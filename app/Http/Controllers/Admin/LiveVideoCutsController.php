@@ -2967,35 +2967,101 @@ PROMPT;
             return $res;
         }
 
-        // O vídeo já foi fatiado: aplica os overlays diretamente no corte em MP4 (leva apenas ~1s!)
-        [$vWidth, $vHeight] = $this->getVideoDimensions($existingCutPath);
+        // O vídeo já foi fatiado: aplica os motions e carimbo diretamente no corte em MP4
         $outputDir = dirname($existingCutPath);
-        $overlayPng = $outputDir . '/overlay_' . time() . '_' . uniqid() . '.png';
         $productItem = DB::table('items')->where('id', $liveItem->item_id)->first();
+        $editionStyle = $request->input('edition_style', 'reel_canvas'); // 'reel_canvas' (default) ou 'fullscreen'
+        $tempFiles = [];
 
-        $hasOverlay = LiveClipOverlayService::generateOverlayImage($productItem, $vWidth, $vHeight, $overlayPng);
-        if (!$hasOverlay || !file_exists($overlayPng)) {
-            if (file_exists($overlayPng)) @unlink($overlayPng);
-            return response()->json(['success' => false, 'message' => 'Não foi possível gerar os selos visuais para este item.'], 500);
-        }
+        $stampPath = LiveClipOverlayService::getStampPath($productItem?->estado ?? null);
+        $stampFileExists = file_exists($stampPath);
 
         $editedFilename = 'edited_' . time() . '_' . basename($existingCutPath);
         $editedPath = $outputDir . '/' . $editedFilename;
 
-        // Aplica o overlay sobre o vídeo já fatiado
-        $cmd = sprintf(
-            'ffmpeg -i %s -i %s -filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
-            escapeshellarg($existingCutPath),
-            escapeshellarg($overlayPng),
-            escapeshellarg($editedPath)
-        );
+        if ($editionStyle === 'fullscreen') {
+            // Estilo Fullscreen com motions flutuantes
+            $cardPath = $outputDir . '/card_float_' . uniqid() . '.png';
+            $tempFiles[] = $cardPath;
+            LiveClipOverlayService::generateGlassmorphicCard($productItem, 360, 120, $cardPath);
+
+            if ($stampFileExists) {
+                $filterComplex = '[1:v]format=rgba[card]; [2:v]format=rgba,scale=260:-1[stamp]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v1]; [v1][stamp]overlay=x=435:y=\'if(lt(t,0.35), -350, if(lt(t,0.55), -350 + 445*(t-0.35)/0.20, if(lt(t,0.65), 110 - 25*(t-0.55)/0.10, 85)))\':enable=\'gte(t,0.35)\'[v]';
+                $cmd = sprintf(
+                    'ffmpeg -i %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($existingCutPath),
+                    escapeshellarg($cardPath),
+                    escapeshellarg($stampPath),
+                    escapeshellarg($filterComplex),
+                    escapeshellarg($editedPath)
+                );
+            } else {
+                $filterComplex = '[1:v]format=rgba[card]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v]';
+                $cmd = sprintf(
+                    'ffmpeg -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($existingCutPath),
+                    escapeshellarg($cardPath),
+                    escapeshellarg($filterComplex),
+                    escapeshellarg($editedPath)
+                );
+            }
+        } else {
+            // Estilo Reel Canvas 2027 (inspirado no formato trending do Instagram)
+            $canvasW = 720;
+            $canvasH = 1280;
+            $frameW = 580;
+            $frameH = 940;
+
+            $canvasBgPath = $outputDir . '/canvas_bg_' . uniqid() . '.png';
+            $tempFiles[] = $canvasBgPath;
+            LiveClipOverlayService::generateCanvasBackground($canvasW, $canvasH, $frameW, $frameH, $canvasBgPath);
+
+            $cardPath = $outputDir . '/card_dock_' . uniqid() . '.png';
+            $tempFiles[] = $cardPath;
+            LiveClipOverlayService::generateGlassmorphicCard($productItem, $frameW, 126, $cardPath);
+
+            $maskPath = LiveClipOverlayService::getRoundedMaskPath($frameW, $frameH, 28);
+
+            if ($stampFileExists) {
+                $filterComplex = sprintf(
+                    '[0:v]scale=%d:%d,format=rgba[scaled_v]; [scaled_v][4:v]alphamerge[rounded_v]; [2:v]format=rgba,scale=260:-1[stamp]; [1:v][rounded_v]overlay=x=70:y=145[v1]; [v1][3:v]overlay=x=\'if(lt(t,0.7), -600, if(lt(t,1.1), -600 + 670*(1 - pow(1 - (t - 0.7)/0.4, 3)), 70))\':y=1100[v2]; [v2][stamp]overlay=x=415:y=\'if(lt(t,0.35), -300, if(lt(t,0.55), -300 + 430*(t-0.35)/0.20, if(lt(t,0.65), 150 - 25*(t-0.55)/0.10, 125)))\':enable=\'gte(t,0.35)\'[v]',
+                    $frameW,
+                    $frameH
+                );
+                $cmd = sprintf(
+                    'ffmpeg -i %s -i %s -i %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($existingCutPath),
+                    escapeshellarg($canvasBgPath),
+                    escapeshellarg($stampPath),
+                    escapeshellarg($cardPath),
+                    escapeshellarg($maskPath),
+                    escapeshellarg($filterComplex),
+                    escapeshellarg($editedPath)
+                );
+            } else {
+                $filterComplex = sprintf(
+                    '[0:v]scale=%d:%d,format=rgba[scaled_v]; [scaled_v][3:v]alphamerge[rounded_v]; [1:v][rounded_v]overlay=x=70:y=145[v1]; [v1][2:v]overlay=x=\'if(lt(t,0.7), -600, if(lt(t,1.1), -600 + 670*(1 - pow(1 - (t - 0.7)/0.4, 3)), 70))\':y=1100[v]',
+                    $frameW,
+                    $frameH
+                );
+                $cmd = sprintf(
+                    'ffmpeg -i %s -i %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($existingCutPath),
+                    escapeshellarg($canvasBgPath),
+                    escapeshellarg($cardPath),
+                    escapeshellarg($maskPath),
+                    escapeshellarg($filterComplex),
+                    escapeshellarg($editedPath)
+                );
+            }
+        }
 
         $output = [];
         $returnCode = 1;
         exec($cmd, $output, $returnCode);
 
-        if (file_exists($overlayPng)) {
-            @unlink($overlayPng);
+        foreach ($tempFiles as $tf) {
+            if (file_exists($tf)) @unlink($tf);
         }
 
         if ($returnCode === 0 && file_exists($editedPath) && filesize($editedPath) >= 5000) {

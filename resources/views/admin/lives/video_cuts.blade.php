@@ -1305,22 +1305,51 @@
         </div>
 
         <div class="space-y-4">
+            <!-- Seletor de Estilo dos Motions -->
+            <div class="p-3.5 bg-gray-50 border border-gray-200 rounded-2xl space-y-2">
+                <label class="text-xs font-black text-gray-900 block flex items-center gap-1.5">
+                    <i class="fas fa-film text-purple-600"></i> Estilo dos Motions & Layout:
+                </label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl border border-purple-300 bg-purple-50/60 cursor-pointer hover:bg-purple-100/50 transition">
+                        <input type="radio" name="edition_style" value="reel_canvas" checked class="mt-0.5 text-purple-600 focus:ring-purple-500">
+                        <div>
+                            <div class="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                                <i class="fas fa-mobile-screen-button text-purple-600"></i>
+                                <span>Reel Canvas 2027 (Recomendado)</span>
+                            </div>
+                            <div class="text-[10px] text-purple-900 mt-1 leading-relaxed">
+                                Formato trending do Instagram: fundo canvas com micro-pontos, vídeo em card arredondado com borda sunset e card de motions dockado.
+                            </div>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 bg-white cursor-pointer hover:bg-gray-50 transition">
+                        <input type="radio" name="edition_style" value="fullscreen" class="mt-0.5 text-purple-600 focus:ring-purple-500">
+                        <div>
+                            <div class="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                                <i class="fas fa-expand text-gray-600"></i>
+                                <span>Fullscreen Motions</span>
+                            </div>
+                            <div class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+                                Mantém o vídeo em tela cheia original com carimbo realista na batida e card flutuante em glassmorphism.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
             <div class="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-950 font-medium">
                 <p class="font-bold flex items-center gap-1.5 text-purple-900">
-                    <i class="fas fa-stamp text-purple-600"></i> Elementos Visuais Aplicados no Corte:
+                    <i class="fas fa-stamp text-purple-600"></i> Elementos e Motions Aplicados:
                 </p>
                 <div class="mt-2 space-y-1.5 text-[11px] text-purple-950">
                     <div class="flex items-center gap-2">
                         <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
-                        <span><strong>Selo de Estado:</strong> Carimbo circular (Novo, Seminovo ou Usado) condizente com o cadastro da peça.</span>
+                        <span><strong>Carimbo Realista:</strong> Batida de carimbo físico (Novo, Seminovo ou Usado) com textura grunge e inclinação em -11°.</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
-                        <span><strong>Card de Informações:</strong> Tamanho e Preço (R$) em destaque no canto direito.</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
-                        <span><strong>Logo da Marca:</strong> Melissa, Farm, ReFarm (Moda Circular), Zara, Schutz, etc.</span>
+                        <span><strong>Card Glassmorphism:</strong> Entrada suave (slide-in) com Marca, Tamanho e Preço em destaque.</span>
                     </div>
                 </div>
             </div>
@@ -3213,6 +3242,11 @@
         }
     }
 
+    function getSelectedEditionStyle() {
+        const radio = document.querySelector('input[name="edition_style"]:checked');
+        return radio ? radio.value : 'reel_canvas';
+    }
+
     // Aplica edição em um corte individual (Passo 5)
     async function applyItemEdition(itemId) {
         const btn = document.getElementById(`btn-edition-${itemId}`);
@@ -3229,7 +3263,10 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    edition_style: getSelectedEditionStyle()
+                })
             });
             const data = await res.json();
             if (btn) {
@@ -3275,6 +3312,7 @@
 
     // Executa edição em lote (Passo 5)
     async function executeBatchEdition(forceAll = false) {
+        const selectedStyle = getSelectedEditionStyle();
         toggleStep5Modal(false);
 
         try {
@@ -3371,7 +3409,10 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({
+                            edition_style: selectedStyle
+                        })
                     });
                     const resData = await res.json();
                     if (resData.success) {
