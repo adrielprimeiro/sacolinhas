@@ -440,11 +440,25 @@ class LiveVideoCutsController extends Controller
         $totalItems = $liveItems->count();
         $itemsWithCuts = $liveItems->whereNotNull('cut_start_sec')->whereNotNull('cut_end_sec')->count();
         $itemsWithoutCuts = max(0, $totalItems - $itemsWithCuts);
-        $itemsRendered = $liveItems->where('video_cut_status', 'recorded')->count();
+        $itemsRendered = $liveItems->filter(function ($i) {
+            $status = is_array($i) ? ($i['video_cut_status'] ?? '') : ($i->video_cut_status ?? '');
+            $url = is_array($i) ? ($i['video_cut_url'] ?? '') : ($i->video_cut_url ?? '');
+            return in_array($status, ['recorded', 'edited']) || !empty($url);
+        })->count();
+        $itemsEdited = $liveItems->filter(function ($i) {
+            $status = is_array($i) ? ($i['video_cut_status'] ?? '') : ($i->video_cut_status ?? '');
+            return $status === 'edited';
+        })->count();
         $itemsInvalidTimes = $liveItems->where('is_past_video', true)->count();
         $itemsPublishedYouTube = $liveItems->whereNotNull('youtube_video_id')->count();
         $itemsPublishedTikTok = $liveItems->whereNotNull('tiktok_publish_id')->count();
         $itemsPublishedInstagram = $liveItems->whereNotNull('instagram_media_id')->count();
+        $itemsPublishedTotal = $liveItems->filter(function ($i) {
+            $yt = is_array($i) ? ($i['youtube_video_id'] ?? null) : ($i->youtube_video_id ?? null);
+            $tt = is_array($i) ? ($i['tiktok_publish_id'] ?? null) : ($i->tiktok_publish_id ?? null);
+            $ig = is_array($i) ? ($i['instagram_media_id'] ?? null) : ($i->instagram_media_id ?? null);
+            return !empty($yt) || !empty($tt) || !empty($ig);
+        })->count();
 
         // URL da gravação bruta
         $recordingUrl = null;
@@ -473,10 +487,12 @@ class LiveVideoCutsController extends Controller
                 'items_with_cuts' => $itemsWithCuts,
                 'items_without_cuts' => $itemsWithoutCuts,
                 'items_rendered' => $itemsRendered,
+                'items_edited' => $itemsEdited,
                 'items_invalid_times' => $itemsInvalidTimes,
                 'items_youtube' => $itemsPublishedYouTube,
                 'items_tiktok' => $itemsPublishedTikTok,
                 'items_instagram' => $itemsPublishedInstagram,
+                'items_published_total' => $itemsPublishedTotal,
             ]
         ]);
     }
@@ -2921,6 +2937,129 @@ PROMPT;
             'message' => "Processamento concluído: {$successCount} cortes gerados com sucesso." . ($failedCount > 0 ? " ({$failedCount} falhas)" : ''),
             'success_count' => $successCount,
             'failed_count' => $failedCount
+        ]);
+    }
+
+    /**
+     * Passo 5: Aplica a Edição Visual (Selo, Marca, Preço/Tamanho e Legendas) no corte de vídeo
+     */
+    public function applyEdition(Request $request, $liveId, $liveItemId)
+    {
+        $live = Live::findOrFail($liveId);
+        $liveItem = DB::table('live_items')
+            ->where('id', $liveItemId)
+            ->where('live_id', $liveId)
+            ->first();
+
+        if (!$liveItem) {
+            return response()->json(['success' => false, 'message' => 'Item da live não encontrado.'], 404);
+        }
+
+        // Se o vídeo ainda não foi fatiado, fatia aplicando a edição
+        $existingCutPath = $liveItem->video_cut_path ? Storage::disk('public')->path($liveItem->video_cut_path) : null;
+        if (!$existingCutPath || !file_exists($existingCutPath)) {
+            $req = new Request(['apply_overlays' => true]);
+            $res = $this->generateSingleClip($req, $liveId, $liveItemId);
+            $data = $res->getData(true);
+            if (!empty($data['success'])) {
+                DB::table('live_items')->where('id', $liveItemId)->update(['video_cut_status' => 'edited', 'updated_at' => now()]);
+            }
+            return $res;
+        }
+
+        // O vídeo já foi fatiado: aplica os overlays diretamente no corte em MP4 (leva apenas ~1s!)
+        [$vWidth, $vHeight] = $this->getVideoDimensions($existingCutPath);
+        $outputDir = dirname($existingCutPath);
+        $overlayPng = $outputDir . '/overlay_' . time() . '_' . uniqid() . '.png';
+        $productItem = DB::table('items')->where('id', $liveItem->item_id)->first();
+
+        $hasOverlay = LiveClipOverlayService::generateOverlayImage($productItem, $vWidth, $vHeight, $overlayPng);
+        if (!$hasOverlay || !file_exists($overlayPng)) {
+            if (file_exists($overlayPng)) @unlink($overlayPng);
+            return response()->json(['success' => false, 'message' => 'Não foi possível gerar os selos visuais para este item.'], 500);
+        }
+
+        $editedFilename = 'edited_' . time() . '_' . basename($existingCutPath);
+        $editedPath = $outputDir . '/' . $editedFilename;
+
+        // Aplica o overlay sobre o vídeo já fatiado
+        $cmd = sprintf(
+            'ffmpeg -i %s -i %s -filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+            escapeshellarg($existingCutPath),
+            escapeshellarg($overlayPng),
+            escapeshellarg($editedPath)
+        );
+
+        $output = [];
+        $returnCode = 1;
+        exec($cmd, $output, $returnCode);
+
+        if (file_exists($overlayPng)) {
+            @unlink($overlayPng);
+        }
+
+        if ($returnCode === 0 && file_exists($editedPath) && filesize($editedPath) >= 5000) {
+            @unlink($existingCutPath);
+            rename($editedPath, $existingCutPath);
+
+            DB::table('live_items')
+                ->where('id', $liveItemId)
+                ->update([
+                    'video_cut_status' => 'edited',
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Edição visual (Selo & Marca) aplicada com sucesso!',
+                'video_url' => Storage::url($liveItem->video_cut_path) . '?v=' . time()
+            ]);
+        }
+
+        if (file_exists($editedPath)) {
+            @unlink($editedPath);
+        }
+
+        Log::error("[LiveVideoCuts] Erro ao aplicar edição: " . implode("\n", $output));
+        return response()->json([
+            'success' => false,
+            'message' => 'Falha ao aplicar edição no vídeo via FFmpeg.',
+            'debug' => implode("\n", array_slice($output, -10))
+        ], 500);
+    }
+
+    /**
+     * Passo 5: Retorna itens para edição em lote
+     */
+    public function batchApplyEdition(Request $request, $liveId)
+    {
+        $live = Live::findOrFail($liveId);
+        $forceAll = (bool) $request->input('force_all', false);
+
+        $query = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->whereNotNull('cut_start_sec')
+            ->whereNotNull('cut_end_sec');
+
+        if (!$forceAll) {
+            $query->where(function($q) {
+                $q->whereNull('video_cut_status')
+                  ->orWhere('video_cut_status', '!=', 'edited');
+            });
+        }
+
+        $items = $query->orderBy('id', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'items' => $items->map(function ($i) {
+                return [
+                    'id' => $i->id,
+                    'code' => $i->codigo_live ?: $i->item_id,
+                    'is_rendered' => in_array($i->video_cut_status, ['recorded', 'edited']) && !empty($i->video_cut_path),
+                    'is_edited' => $i->video_cut_status === 'edited'
+                ];
+            })
         ]);
     }
 

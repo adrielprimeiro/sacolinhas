@@ -55,7 +55,7 @@
         </div>
     @endif
 
-    <!-- Cálculo dos Status das Etapas (Passos 1 a 5) -->
+    <!-- Cálculo dos Status das Etapas (Passos 1 a 6) -->
     @php
         $step1Done = !empty($recordingUrl);
         $step2Done = !empty($transcriptionData) && count($transcriptionData) > 0;
@@ -63,8 +63,10 @@
         $step3Partial = ($stats['items_with_cuts'] > 0 && $stats['items_with_cuts'] < $stats['total_items']);
         $step4Done = ($stats['total_items'] > 0 && $stats['items_rendered'] >= $stats['total_items']);
         $step4Partial = ($stats['items_rendered'] > 0 && $stats['items_rendered'] < $stats['total_items']);
-        $step5Done = ($stats['total_items'] > 0 && ($stats['items_youtube'] ?? 0) >= $stats['total_items']);
-        $step5Partial = (($stats['items_youtube'] ?? 0) > 0);
+        $step5Done = ($stats['total_items'] > 0 && ($stats['items_edited'] ?? 0) >= $stats['total_items']);
+        $step5Partial = (($stats['items_edited'] ?? 0) > 0);
+        $step6Done = ($stats['total_items'] > 0 && ($stats['items_published_total'] ?? 0) >= $stats['total_items']);
+        $step6Partial = (($stats['items_published_total'] ?? 0) > 0);
     @endphp
 
     <!-- Top Header Bar -->
@@ -130,8 +132,13 @@
                 </div>
                 <div class="w-px h-5 bg-gray-200"></div>
                 <div class="text-center">
-                    <div class="text-[10px] uppercase font-bold text-green-700">Vídeos Prontos</div>
-                    <div id="stat-items-rendered" class="text-sm font-black text-green-800">{{ $stats['items_rendered'] }}</div>
+                    <div class="text-[10px] uppercase font-bold text-indigo-700">Fatiados</div>
+                    <div id="stat-items-rendered" class="text-sm font-black text-indigo-800">{{ $stats['items_rendered'] }}</div>
+                </div>
+                <div class="w-px h-5 bg-gray-200"></div>
+                <div class="text-center">
+                    <div class="text-[10px] uppercase font-bold text-purple-700">Editados (Selo)</div>
+                    <div id="stat-items-edited" class="text-sm font-black text-purple-800">{{ $stats['items_edited'] ?? 0 }}</div>
                 </div>
             </div>
 
@@ -141,7 +148,7 @@
                 <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900">
             </div>
 
-            <!-- PASSOS INDIVIDUAIS (1 A 4) -->
+            <!-- PASSOS INDIVIDUAIS (1 A 6) -->
             <div class="inline-flex rounded-xl shadow-xs border border-gray-200 bg-gray-100 p-1 gap-1 flex-wrap">
                 <!-- 1. Baixar Vídeo -->
                 <button type="button" onclick="openStep1Modal()" id="btn-step1-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step1Done ? 'background-color: #16a34a; color: #ffffff !important;' : 'background-color: #d97706; color: #ffffff !important;' }}" title="Passo 1: Baixar ou carregar gravação da live">
@@ -164,11 +171,25 @@
                     @if($step3Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
                 </button>
 
-                <!-- 4. Gerar Cortes -->
+                <!-- 4. Fatiar -->
                 <button type="button" onclick="openStep4Modal()" id="btn-step4-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step4Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step4Partial ? 'background-color: #4f46e5; color: #ffffff !important;' : 'background-color: #6b7280; color: #ffffff !important;') }}" title="Passo 4: Gerar cortes MP4 com FFmpeg">
                     <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">4</span>
-                    <span style="color: #ffffff !important; font-weight: 800;">Gerar Cortes</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Fatiar</span>
                     @if($step4Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
+
+                <!-- 5. Edição (Selo/Marca) -->
+                <button type="button" onclick="openStep5Modal()" id="btn-step5-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step5Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step5Partial ? 'background-color: #9333ea; color: #ffffff !important;' : 'background-color: #6b7280; color: #ffffff !important;') }}" title="Passo 5: Aplicar Selo de Autenticidade e Logo da Marca">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">5</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Edição</span>
+                    @if($step5Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
+                </button>
+
+                <!-- 6. Publicar -->
+                <button type="button" onclick="openStep6Modal()" id="btn-step6-header" class="px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs" style="{{ $step6Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step6Partial ? 'background-color: #2563eb; color: #ffffff !important;' : 'background-color: #6b7280; color: #ffffff !important;') }}" title="Passo 6: Publicar nas redes sociais (YouTube, TikTok, Instagram)">
+                    <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black" style="background-color: rgba(255,255,255,0.25); color: #ffffff !important;">6</span>
+                    <span style="color: #ffffff !important; font-weight: 800;">Publicar</span>
+                    @if($step6Done) <i class="fas fa-check text-white text-[10px]"></i> @endif
                 </button>
             </div>
 
@@ -208,14 +229,14 @@
                 </a>
             @endif
 
-            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" title="Executar todo o fluxo de 1 a 4 automaticamente">
+            <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" title="Executar todo o fluxo automaticamente">
                 <i class="fas fa-magic text-white"></i>
                 <span class="text-white font-black">Auto-Processar Tudo</span>
             </button>
         </div>
     </div>
 
-    <!-- LINHA DO TEMPO COMPACTA (TIMELINE DE PONTOS) -->
+    <!-- LINHA DO TEMPO COMPACTA (TIMELINE DE PONTOS 1 A 6) -->
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-6" style="background-color: #ffffff;">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             
@@ -295,16 +316,33 @@
                 <!-- LINHA CONECTORA 4-5 -->
                 <div id="stepper-line-4" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step4Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
 
-                <!-- PONTO 5: YOUTUBE SHORTS -->
-                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="batchUploadToYouTube()" title="Clique para gerenciar publicações no YouTube Shorts">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
-                         style="{{ $step5Done ? 'background-color: #dc2626; color: #ffffff !important;' : ($step5Partial ? 'background-color: #ef4444; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
-                        <i class="fab fa-youtube"></i>
+                <!-- PONTO 5: EDIÇÃO (SELO & MARCA) -->
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep5Modal()" title="Passo 5: Aplicar Selo de Autenticidade e Logo da Marca">
+                    <div id="stepper-badge-5" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                         style="{{ $step5Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step5Partial ? 'background-color: #9333ea; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
+                        {!! $step5Done ? '<i class="fas fa-check"></i>' : '5' !!}
                     </div>
                     <div>
-                        <div class="text-xs font-bold leading-tight" style="color: #111827;">5. YouTube Shorts</div>
-                        <div class="text-[11px] font-semibold" style="{{ $step5Partial ? 'color: #b91c1c;' : 'color: #4b5563;' }}">
-                            {{ $stats['items_youtube'] ?? 0 }}/{{ $stats['total_items'] }} no ar
+                        <div class="text-xs font-bold leading-tight" style="color: #111827;">5. Edição</div>
+                        <div id="stepper-status-5" class="text-[11px] font-semibold" style="{{ $step5Done ? 'color: #15803d;' : ($step5Partial ? 'color: #7e22ce;' : 'color: #4b5563;') }}">
+                            {{ $stats['items_edited'] ?? 0 }}/{{ $stats['total_items'] }} com selo
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LINHA CONECTORA 5-6 -->
+                <div id="stepper-line-5" class="hidden sm:block flex-1 h-0.5 mx-1" style="{{ $step5Done ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}"></div>
+
+                <!-- PONTO 6: PUBLICAÇÃO -->
+                <div class="flex items-center gap-2 cursor-pointer group p-1.5 rounded-xl hover:bg-gray-50 transition" onclick="openStep6Modal()" title="Passo 6: Opções de publicação para YouTube, TikTok e Instagram">
+                    <div id="stepper-badge-6" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-xs"
+                         style="{{ $step6Done ? 'background-color: #16a34a; color: #ffffff !important;' : ($step6Partial ? 'background-color: #2563eb; color: #ffffff !important;' : 'background-color: #9ca3af; color: #ffffff !important;') }}">
+                        {!! $step6Done ? '<i class="fas fa-check"></i>' : '6' !!}
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold leading-tight" style="color: #111827;">6. Publicação</div>
+                        <div id="stepper-status-6" class="text-[11px] font-semibold" style="{{ $step6Done ? 'color: #15803d;' : ($step6Partial ? 'color: #1d4ed8;' : 'color: #4b5563;') }}">
+                            {{ $stats['items_published_total'] ?? 0 }}/{{ $stats['total_items'] }} no ar
                         </div>
                     </div>
                 </div>
@@ -569,6 +607,16 @@
                         <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_rendered'] }}</span>
                     </button>
 
+                    <button type="button" 
+                            onclick="setItemsFilter('edited')"
+                            data-filter="edited"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            style="background-color: #f3f4f6; color: #374151;">
+                        <i class="fas fa-wand-magic-sparkles text-purple-600"></i>
+                        <span>Editados (Selo)</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_edited'] ?? 0 }}</span>
+                    </button>
+
                     @if(($stats['items_invalid_times'] ?? 0) > 0)
                         <button type="button" 
                                 onclick="setItemsFilter('invalid_time')"
@@ -628,17 +676,19 @@
                 @forelse($liveItems as $item)
                     @php
                         $hasCutTimes = $item['cut_start_sec'] !== null && $item['cut_end_sec'] !== null;
-                        $isRendered = $item['video_cut_status'] === 'recorded' && !empty($item['video_cut_url']);
+                        $isEdited = ($item['video_cut_status'] ?? '') === 'edited';
+                        $isRendered = (in_array(($item['video_cut_status'] ?? ''), ['recorded', 'edited']) || !empty($item['video_cut_url']));
                         $isInvalidTime = !empty($item['is_past_video']);
                     @endphp
                     <div id="item-card-{{ $item['live_item_id'] }}" 
                          data-has-cut="{{ $hasCutTimes ? '1' : '0' }}"
                          data-is-rendered="{{ $isRendered ? '1' : '0' }}"
+                         data-is-edited="{{ $isEdited ? '1' : '0' }}"
                          data-is-invalid-time="{{ $isInvalidTime ? '1' : '0' }}"
                          data-code="{{ $item['codigo_live'] }}"
                          data-search="{{ strtolower($item['codigo_live'] . ' ' . $item['item_codigo'] . ' ' . $item['item_name'] . ' ' . ($item['buyer_name'] ?? '')) }}"
                          onclick="selectActiveItem({{ $item['live_item_id'] }}, '{{ $item['cut_start_formatted'] ?: ($item['cut_start_sec'] ?? 0) }}')"
-                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isRendered ? 'border-green-400 bg-green-50/20' : ($isInvalidTime ? 'border-rose-400 bg-rose-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30')) }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
+                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isEdited ? 'border-purple-400 bg-purple-50/20' : ($isRendered ? 'border-green-400 bg-green-50/20' : ($isInvalidTime ? 'border-rose-400 bg-rose-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30'))) }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             
@@ -669,9 +719,13 @@
                                         <span id="badge-adj-{{ $item['live_item_id'] }}" class="{{ $isAdjusted ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1 shadow-xs" title="Corte ajustado manualmente">
                                             <i class="fas fa-user-check text-blue-600"></i> Revisado
                                         </span>
-                                        @if($isRendered)
-                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-green-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #16a34a; color: #ffffff !important;">
-                                                <i class="fas fa-check-circle"></i> Vídeo Pronto
+                                        @if($isEdited)
+                                            <span id="badge-status-{{ $item['live_item_id'] }}" class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #9333ea; color: #ffffff !important;" title="Selo de Estado e Logo da Marca aplicados no corte">
+                                                <i class="fas fa-wand-magic-sparkles"></i> Editado ✓
+                                            </span>
+                                        @elseif($isRendered)
+                                            <span id="badge-status-{{ $item['live_item_id'] }}" class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-green-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #16a34a; color: #ffffff !important;" title="Corte fatiado em MP4">
+                                                <i class="fas fa-check-circle"></i> Fatiado
                                             </span>
                                         @endif
                                     </div>
@@ -744,8 +798,19 @@
                                         <i class="fas fa-camera"></i>
                                     </button>
 
-                                    <button type="button" onclick="generateSingleClip({{ $item['live_item_id'] }})" id="btn-cut-{{ $item['live_item_id'] }}" title="Gerar Corte Individual & Thumbnail com FFmpeg" class="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #0d9488; color: #ffffff !important;">
+                                    <!-- Passo 4: Fatiar Corte FFmpeg -->
+                                    <button type="button" onclick="generateSingleClip({{ $item['live_item_id'] }})" id="btn-cut-{{ $item['live_item_id'] }}" title="Passo 4: Gerar Corte Individual com FFmpeg" class="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer active:scale-95" style="background-color: #0d9488; color: #ffffff !important;">
                                         <i class="fas fa-scissors"></i>
+                                    </button>
+
+                                    <!-- Passo 5: Aplicar Edição Visual (Selo & Marca) -->
+                                    <button type="button" 
+                                            onclick="applyItemEdition({{ $item['live_item_id'] }})" 
+                                            id="btn-edition-{{ $item['live_item_id'] }}" 
+                                            title="Passo 5: Aplicar Edição Visual (Selo Original/Seminovo/Usado, Card e Marca)" 
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs flex items-center justify-center {{ $isEdited ? 'bg-purple-600 text-white font-black' : 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200' }}"
+                                            style="{{ $isEdited ? 'background-color: #9333ea; color: #ffffff !important;' : '' }}">
+                                        <i class="fas fa-wand-magic-sparkles"></i>
                                     </button>
 
                                     @if($isRendered)
@@ -979,7 +1044,7 @@
     <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
             <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-100 text-teal-900 border border-teal-200">Passo 2 de 4</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-teal-100 text-teal-900 border border-teal-200">Passo 2 de 6</span>
                 <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
                     <i class="fas fa-microphone-lines text-teal-600"></i> Passo 2: Transcrever Áudio com IA (Whisper)
                 </h3>
@@ -1057,7 +1122,7 @@
     <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
             <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">Passo 3 de 4</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">Passo 3 de 6</span>
                 <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
                     <i class="fas fa-wand-magic-sparkles text-purple-600"></i> Passo 3: Minutar Peças com Severino IA
                 </h3>
@@ -1154,7 +1219,7 @@
     <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
             <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200">Passo 4 de 4</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200">Passo 4 de 6</span>
                 <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
                     <i class="fas fa-scissors text-indigo-600"></i> Passo 4: Gerar Cortes de Vídeo (FFmpeg)
                 </h3>
@@ -1220,6 +1285,230 @@
                     </button>
                 </div>
             @endif
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PASSO 5: MODAL EDIÇÃO VISUAL (SELO DE ESTADO & MARCA) -->
+<!-- ==================================================== -->
+<div id="modal-step5-edicao" onclick="if(event.target === this) toggleStep5Modal(false)" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4" style="background-color: rgba(17, 24, 39, 0.8);">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">Passo 5 de 6</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-wand-magic-sparkles text-purple-600"></i> Passo 5: Edição Visual (Selo & Marca)
+                </h3>
+            </div>
+            <button type="button" onclick="toggleStep5Modal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+            <div class="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-950 font-medium">
+                <p class="font-bold flex items-center gap-1.5 text-purple-900">
+                    <i class="fas fa-stamp text-purple-600"></i> Elementos Visuais Aplicados no Corte:
+                </p>
+                <div class="mt-2 space-y-1.5 text-[11px] text-purple-950">
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
+                        <span><strong>Selo de Estado:</strong> Carimbo circular (Novo, Seminovo ou Usado) condizente com o cadastro da peça.</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
+                        <span><strong>Card de Informações:</strong> Tamanho e Preço (R$) em destaque no canto direito.</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
+                        <span><strong>Logo da Marca:</strong> Melissa, Farm, ReFarm (Moda Circular), Zara, Schutz, etc.</span>
+                    </div>
+                </div>
+            </div>
+
+            @php
+                $pendingEdition = max(0, $stats['items_rendered'] - ($stats['items_edited'] ?? 0));
+            @endphp
+
+            @if($stats['items_rendered'] == 0)
+                <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium flex items-start gap-2.5">
+                    <i class="fas fa-exclamation-triangle text-amber-600 text-base shrink-0 mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-amber-900">Nenhum vídeo fatiado ainda!</div>
+                        <div class="text-[11px] text-amber-800 mt-0.5">Você pode fatiar os vídeos no Passo 4 antes de aplicar a edição, ou aplicar diretamente (o sistema fatiará e aplicará a edição em seguida).</div>
+                    </div>
+                </div>
+            @else
+                <div class="p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 space-y-1.5">
+                    <div class="flex items-center justify-between font-bold text-gray-900">
+                        <span>Status da Edição Visual:</span>
+                        <span class="font-mono text-purple-800 font-extrabold">{{ $stats['items_edited'] ?? 0 }} / {{ $stats['items_rendered'] }} com selo</span>
+                    </div>
+                    <div class="text-[11px] text-gray-600">
+                        @if($pendingEdition > 0)
+                            Restam <strong>{{ $pendingEdition }} corte(s)</strong> fatiado(s) sem a edição visual aplicada.
+                        @else
+                            ✓ Todos os {{ $stats['items_edited'] ?? 0 }} vídeos fatiados já estão editados com selo e marca!
+                        @endif
+                    </div>
+                </div>
+            @endif
+
+            <div class="pt-3 flex flex-col gap-2.5 border-t border-gray-200">
+                @if($pendingEdition > 0)
+                    <button type="button" onclick="executeBatchEdition(false)" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer" style="background-color: #9333ea; color: #ffffff !important;">
+                        <i class="fas fa-wand-magic-sparkles text-white"></i>
+                        <span class="text-white font-black">Aplicar Edição nos {{ $pendingEdition }} Cortes Pendentes</span>
+                    </button>
+                @endif
+
+                <button type="button" onclick="executeBatchEdition(true)" class="w-full {{ $pendingEdition > 0 ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' : 'bg-purple-600 hover:bg-purple-700 text-white' }} font-extrabold px-5 py-2.5 rounded-xl text-xs border border-gray-300 shadow-xs flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer" style="{{ $pendingEdition > 0 ? 'color: #1f2937 !important;' : 'background-color: #9333ea; color: #ffffff !important;' }}">
+                    <i class="fas fa-rotate {{ $pendingEdition > 0 ? 'text-gray-600' : 'text-white' }}"></i>
+                    <span>Reaplicar Selos & Marcas em Todos os Vídeos</span>
+                </button>
+
+                <button type="button" onclick="toggleStep5Modal(false)" class="w-full px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 transition text-center cursor-pointer">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================== -->
+<!-- PASSO 6: MODAL PUBLICAÇÃO MULTI-REDE                -->
+<!-- ==================================================== -->
+<div id="modal-step6-publicacao" onclick="if(event.target === this) toggleStep6Modal(false)" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4" style="background-color: rgba(17, 24, 39, 0.8);">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-xl w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">Passo 6 de 6</span>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
+                    <i class="fas fa-share-nodes text-blue-600"></i> Passo 6: Publicação de Vídeos nas Redes
+                </h3>
+            </div>
+            <button type="button" onclick="toggleStep6Modal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+            <p class="text-xs text-gray-600 font-medium">
+                Escolha para qual rede social você deseja publicar os vídeos cortados e editados:
+            </p>
+
+            <!-- Cards de Canais / Redes -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <!-- YouTube Shorts -->
+                <div class="border rounded-2xl p-3.5 flex flex-col justify-between {{ !empty($youtubeAccount) ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-gray-50' }}">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fab fa-youtube text-2xl text-red-600"></i>
+                            <span class="text-[10px] font-mono font-bold text-gray-600">{{ $stats['items_youtube'] ?? 0 }} postados</span>
+                        </div>
+                        <h4 class="text-xs font-black text-gray-900">YouTube Shorts</h4>
+                        <p class="text-[11px] text-gray-500 mt-0.5">
+                            @if(!empty($youtubeAccount))
+                                <span class="text-emerald-700 font-bold flex items-center gap-1">
+                                    <i class="fas fa-check-circle text-xs"></i> {{ $youtubeAccount->channel_name }}
+                                </span>
+                            @else
+                                <span class="text-gray-500">Canal desconectado</span>
+                            @endif
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-gray-200">
+                        @if(!empty($youtubeAccount))
+                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToYouTube();" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #dc2626; color: #ffffff !important;">
+                                <i class="fab fa-youtube text-white"></i> Publicar Shorts
+                            </button>
+                        @else
+                            <a href="{{ route('admin.youtube.connect') }}" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #dc2626; color: #ffffff !important;">
+                                Conectar Canal
+                            </a>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- TikTok -->
+                <div class="border rounded-2xl p-3.5 flex flex-col justify-between {{ !empty($tiktokAccount) ? 'border-slate-300 bg-slate-50' : 'border-gray-200 bg-gray-50' }}">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fab fa-tiktok text-2xl text-slate-900"></i>
+                            <span class="text-[10px] font-mono font-bold text-gray-600">{{ $stats['items_tiktok'] ?? 0 }} postados</span>
+                        </div>
+                        <h4 class="text-xs font-black text-gray-900">TikTok</h4>
+                        <p class="text-[11px] text-gray-500 mt-0.5">
+                            @if(!empty($tiktokAccount))
+                                <span class="text-emerald-700 font-bold flex items-center gap-1">
+                                    <i class="fas fa-check-circle text-xs"></i> {{ $tiktokAccount->channel_name }}
+                                </span>
+                            @else
+                                <span class="text-gray-500">Conta desconectada</span>
+                            @endif
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-gray-200">
+                        @if(!empty($tiktokAccount))
+                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToTikTok();" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #0f172a; color: #ffffff !important;">
+                                <i class="fab fa-tiktok text-white"></i> Publicar TikTok
+                            </button>
+                        @else
+                            <a href="{{ route('admin.tiktok.connect') }}" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #0f172a; color: #ffffff !important;">
+                                Conectar TikTok
+                            </a>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Instagram Reels -->
+                <div class="border rounded-2xl p-3.5 flex flex-col justify-between {{ !empty($instagramAccount) ? 'border-pink-200 bg-pink-50/30' : 'border-gray-200 bg-gray-50' }}">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fab fa-instagram text-2xl text-pink-600"></i>
+                            <span class="text-[10px] font-mono font-bold text-gray-600">{{ $stats['items_instagram'] ?? 0 }} postados</span>
+                        </div>
+                        <h4 class="text-xs font-black text-gray-900">Instagram Reels</h4>
+                        <p class="text-[11px] text-gray-500 mt-0.5">
+                            @if(!empty($instagramAccount))
+                                <span class="text-emerald-700 font-bold flex items-center gap-1">
+                                    <i class="fas fa-check-circle text-xs"></i> {{ $instagramAccount->channel_name }}
+                                </span>
+                            @else
+                                <span class="text-gray-500">Conta desconectada</span>
+                            @endif
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-gray-200">
+                        @if(!empty($instagramAccount))
+                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToInstagram();" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
+                                <i class="fab fa-instagram text-white"></i> Publicar Reels
+                            </button>
+                        @else
+                            <a href="{{ route('admin.instagram.connect') }}" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
+                                Conectar Instagram
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Central de Redes & Download -->
+            <div class="p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-film text-gray-600 text-base"></i>
+                    <div>
+                        <div class="font-bold text-gray-900">Feed Social Completo</div>
+                        <div class="text-[11px] text-gray-500">Visualize todas as peças, status de upload em cada rede e links diretos.</div>
+                    </div>
+                </div>
+                <a href="{{ route('admin.lives.cortes.social.live', ['liveId' => $live->id]) }}" class="px-3 py-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-bold transition shadow-xs">
+                    Abrir Feed
+                </a>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button type="button" onclick="toggleStep6Modal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 transition text-center cursor-pointer">
+                    Fechar
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1587,6 +1876,7 @@
         cards.forEach(card => {
             const hasCut = card.getAttribute('data-has-cut') === '1';
             const isRendered = card.getAttribute('data-is-rendered') === '1';
+            const isEdited = card.getAttribute('data-is-edited') === '1';
             const isInvalidTime = card.getAttribute('data-is-invalid-time') === '1';
             const searchData = (card.getAttribute('data-search') || '').toLowerCase();
             const code = (card.getAttribute('data-code') || '').toLowerCase();
@@ -1598,6 +1888,8 @@
                 matchesTab = hasCut;
             } else if (currentItemFilter === 'rendered') {
                 matchesTab = isRendered;
+            } else if (currentItemFilter === 'edited') {
+                matchesTab = isEdited;
             } else if (currentItemFilter === 'invalid_time') {
                 matchesTab = isInvalidTime;
             }
@@ -2882,6 +3174,279 @@
         } else {
             modal.style.display = 'none';
             modal.classList.add("hidden");
+        }
+    }
+
+    function openStep5Modal() {
+        toggleStep5Modal(true);
+    }
+
+    function toggleStep5Modal(show = null) {
+        const modal = document.getElementById("modal-step5-edicao");
+        if (!modal) return;
+        const isHidden = modal.classList.contains("hidden") || modal.style.display === 'none';
+        const willShow = (show === null) ? isHidden : Boolean(show);
+        if (willShow) {
+            modal.style.display = 'flex';
+            modal.classList.remove("hidden");
+        } else {
+            modal.style.display = 'none';
+            modal.classList.add("hidden");
+        }
+    }
+
+    function openStep6Modal() {
+        toggleStep6Modal(true);
+    }
+
+    function toggleStep6Modal(show = null) {
+        const modal = document.getElementById("modal-step6-publicacao");
+        if (!modal) return;
+        const isHidden = modal.classList.contains("hidden") || modal.style.display === 'none';
+        const willShow = (show === null) ? isHidden : Boolean(show);
+        if (willShow) {
+            modal.style.display = 'flex';
+            modal.classList.remove("hidden");
+        } else {
+            modal.style.display = 'none';
+            modal.classList.add("hidden");
+        }
+    }
+
+    // Aplica edição em um corte individual (Passo 5)
+    async function applyItemEdition(itemId) {
+        const btn = document.getElementById(`btn-edition-${itemId}`);
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin text-xs"></i>`;
+        }
+
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/apply-edition/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+
+            if (data.success) {
+                if (btn) {
+                    btn.classList.remove('bg-purple-50', 'text-purple-700', 'border-purple-200');
+                    btn.classList.add('bg-purple-600', 'text-white', 'font-black');
+                    btn.style.backgroundColor = '#9333ea';
+                    btn.style.color = '#ffffff';
+                }
+                const card = document.getElementById(`item-card-${itemId}`);
+                if (card) {
+                    card.setAttribute('data-is-edited', '1');
+                    card.setAttribute('data-is-rendered', '1');
+                    card.classList.remove('border-gray-200', 'border-indigo-300', 'border-green-400', 'bg-green-50/20');
+                    card.classList.add('border-purple-400', 'bg-purple-50/20');
+
+                    const statusBadge = document.getElementById(`badge-status-${itemId}`);
+                    if (statusBadge) {
+                        statusBadge.outerHTML = `
+                            <span id="badge-status-${itemId}" class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #9333ea; color: #ffffff !important;" title="Selo de Estado e Logo da Marca aplicados no corte">
+                                <i class="fas fa-wand-magic-sparkles"></i> Editado ✓
+                            </span>
+                        `;
+                    }
+                }
+                alert("✅ " + data.message);
+            } else {
+                alert("Erro ao aplicar edição: " + (data.message || 'Falha no processamento.'));
+            }
+        } catch (e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            alert("Erro de comunicação ao aplicar edição visual.");
+        }
+    }
+
+    // Executa edição em lote (Passo 5)
+    async function executeBatchEdition(forceAll = false) {
+        toggleStep5Modal(false);
+
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/batch-edition?force_all=${forceAll ? 1 : 0}`);
+            const data = await resp.json();
+            if (!data.success || !data.items || data.items.length === 0) {
+                alert("Nenhum vídeo fatiado disponível para aplicar a edição.");
+                return;
+            }
+
+            const itemsToProcess = data.items;
+
+            // Abre modal de progresso em tempo real
+            const modal = document.getElementById("modal-batch-render-progress");
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove("hidden");
+            }
+
+            batchRenderCancelled = false;
+            const failedItems = [];
+
+            const modalTitle = document.getElementById("batch-render-modal-title");
+            const modalSubtitle = document.getElementById("batch-render-modal-subtitle");
+            const pctBadge = document.getElementById("batch-render-pct-badge");
+            const pctText = document.getElementById("batch-render-pct-text");
+            const progressBar = document.getElementById("batch-render-progress-bar");
+            const successCountEl = document.getElementById("batch-render-success-count");
+            const pendingCountEl = document.getElementById("batch-render-pending-count");
+            const failedCountEl = document.getElementById("batch-render-failed-count");
+            const actionsContainer = document.getElementById("batch-render-actions");
+            const itemSpinner = document.getElementById("batch-render-item-spinner");
+            const itemCodeEl = document.getElementById("batch-render-item-code");
+            const itemNameEl = document.getElementById("batch-render-item-name");
+            const timeRangeEl = document.getElementById("batch-render-time-range");
+            const counterEl = document.getElementById("batch-render-counter");
+
+            const failuresBox = document.getElementById("batch-render-failures-box");
+            const failuresList = document.getElementById("batch-render-failures-list");
+            if (failuresBox) failuresBox.classList.add("hidden");
+            if (failuresList) failuresList.innerHTML = "";
+
+            if (modalTitle) modalTitle.textContent = "Aplicando Selos e Marcas nos Vídeos";
+            if (modalSubtitle) modalSubtitle.textContent = `Passo 5 de 6 • Editando ${itemsToProcess.length} cortes com selo de estado e marca`;
+            if (pctBadge) {
+                pctBadge.textContent = "0%";
+                pctBadge.style.backgroundColor = "#9333ea";
+            }
+            if (pctText) pctText.textContent = `0 de ${itemsToProcess.length} concluídos (0%)`;
+            if (progressBar) {
+                progressBar.style.width = "0%";
+                progressBar.style.backgroundColor = "#9333ea";
+            }
+            if (successCountEl) successCountEl.textContent = "0";
+            if (pendingCountEl) pendingCountEl.textContent = String(itemsToProcess.length);
+            if (failedCountEl) failedCountEl.textContent = "0";
+            if (actionsContainer) {
+                actionsContainer.innerHTML = `
+                    <button type="button" id="btn-cancel-batch-render" onclick="cancelBatchRender()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 transition cursor-pointer shadow-xs">
+                        Parar Edição
+                    </button>
+                `;
+            }
+
+            const stepperBadge5 = document.getElementById("stepper-badge-5");
+            const stepperStatus5 = document.getElementById("stepper-status-5");
+            if (stepperBadge5) stepperBadge5.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            if (stepperStatus5) {
+                stepperStatus5.innerHTML = `⚡ 0/${itemsToProcess.length} (0%)`;
+                stepperStatus5.style.color = '#7e22ce';
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < itemsToProcess.length; i++) {
+                if (batchRenderCancelled) break;
+
+                const item = itemsToProcess[i];
+                const currentIdx = i + 1;
+
+                if (counterEl) counterEl.textContent = `${currentIdx} / ${itemsToProcess.length}`;
+                if (itemCodeEl) itemCodeEl.textContent = `#${item.code}`;
+                if (itemNameEl) itemNameEl.textContent = `Item #${item.code}`;
+                if (timeRangeEl) timeRangeEl.textContent = `Passo 5: Selo + Marca`;
+                if (itemSpinner) {
+                    itemSpinner.innerHTML = `<i class="fas fa-wand-magic-sparkles fa-spin text-[10px]"></i> Gravando selo e marca com FFmpeg...`;
+                }
+
+                try {
+                    const res = await fetch(`/admin/lives/${liveId}/cortes/apply-edition/${item.id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const resData = await res.json();
+                    if (resData.success) {
+                        successCount++;
+                        const card = document.getElementById(`item-card-${item.id}`);
+                        if (card) {
+                            card.setAttribute('data-is-edited', '1');
+                            card.classList.remove('border-gray-200', 'border-indigo-300', 'border-green-400', 'bg-green-50/20');
+                            card.classList.add('border-purple-400', 'bg-purple-50/20');
+
+                            const statusBadge = document.getElementById(`badge-status-${item.id}`);
+                            if (statusBadge) {
+                                statusBadge.outerHTML = `
+                                    <span id="badge-status-${item.id}" class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-xs" style="background-color: #9333ea; color: #ffffff !important;" title="Selo de Estado e Logo da Marca aplicados no corte">
+                                        <i class="fas fa-wand-magic-sparkles"></i> Editado ✓
+                                    </span>
+                                `;
+                            }
+                            const btnEd = document.getElementById(`btn-edition-${item.id}`);
+                            if (btnEd) {
+                                btnEd.classList.remove('bg-purple-50', 'text-purple-700', 'border-purple-200');
+                                btnEd.classList.add('bg-purple-600', 'text-white', 'font-black');
+                                btnEd.style.backgroundColor = '#9333ea';
+                                btnEd.style.color = '#ffffff';
+                            }
+                        }
+                    } else {
+                        failCount++;
+                        failedItems.push({
+                            id: item.id,
+                            code: item.code,
+                            reason: resData.message || 'Falha ao aplicar selo e marca.'
+                        });
+                    }
+                } catch (e) {
+                    failCount++;
+                    failedItems.push({
+                        id: item.id,
+                        code: item.code,
+                        reason: 'Erro de comunicação ao conectar com o servidor.'
+                    });
+                }
+
+                const completedPct = Math.round(((currentIdx) / itemsToProcess.length) * 100);
+                const remainingCount = Math.max(0, itemsToProcess.length - (successCount + failCount));
+
+                if (pctBadge) pctBadge.textContent = `${completedPct}%`;
+                if (pctText) pctText.textContent = `${currentIdx} de ${itemsToProcess.length} concluídos (${completedPct}%)`;
+                if (progressBar) progressBar.style.width = `${completedPct}%`;
+                if (successCountEl) successCountEl.textContent = String(successCount);
+                if (pendingCountEl) pendingCountEl.textContent = String(remainingCount);
+                if (failedCountEl) failedCountEl.textContent = String(failCount);
+
+                if (stepperStatus5) {
+                    stepperStatus5.innerHTML = `⚡ ${currentIdx}/${itemsToProcess.length} (${completedPct}%)`;
+                }
+            }
+
+            // Finalização
+            if (modalTitle) modalTitle.textContent = "Edição Visual Concluída!";
+            if (modalSubtitle) modalSubtitle.textContent = `${successCount} vídeo(s) editado(s) com selos e marcas.`;
+            if (itemSpinner) {
+                itemSpinner.innerHTML = `<span class="text-emerald-700 font-bold"><i class="fas fa-check-circle"></i> Concluído!</span>`;
+            }
+            if (actionsContainer) {
+                actionsContainer.innerHTML = `
+                    <button type="button" onclick="closeBatchRenderModalAndReload()" class="px-5 py-2.5 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-700 text-white shadow-md cursor-pointer flex items-center gap-1.5 transition active:scale-95" style="background-color: #9333ea; color: #ffffff !important;">
+                        <i class="fas fa-check text-white"></i>
+                        <span>Fechar e Atualizar Lista</span>
+                    </button>
+                `;
+            }
+        } catch (err) {
+            console.error("Erro na edição em lote:", err);
+            alert("Erro ao buscar itens para edição em lote.");
         }
     }
 
