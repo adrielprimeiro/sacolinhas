@@ -108,7 +108,18 @@ class YouTubeIntegrationController extends Controller
         if (!$account) {
             return response()->json([
                 'success' => false,
+                'needs_reconnect' => true,
                 'message' => 'Conecte o canal do YouTube antes de publicar em lote.'
+            ], 400);
+        }
+
+        // Valida se o token de acesso é válido / renovável
+        $token = $this->youtubeService->getValidAccessToken();
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'needs_reconnect' => true,
+                'message' => 'A autorização do YouTube expirou ou foi revogada pelo Google. Por favor, reconecte o canal.'
             ], 400);
         }
 
@@ -127,7 +138,7 @@ class YouTubeIntegrationController extends Controller
             })
             ->where(function ($q) {
                 $q->whereNotNull('live_items.video_cut_path')
-                  ->orWhere('live_items.video_cut_status', 'recorded');
+                  ->orWhereIn('live_items.video_cut_status', ['recorded', 'edited']);
             })
             ->where(function ($q) {
                 $q->whereNull('live_items.youtube_video_id')

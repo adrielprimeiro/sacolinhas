@@ -4422,6 +4422,12 @@
                     btn.disabled = false;
                     btn.innerHTML = oldHtml;
                 }
+                if (data.needs_reconnect || (data.message && (data.message.includes('não conectado') || data.message.includes('token inválido') || data.message.includes('expirou')))) {
+                    if (confirm("⚠️ " + (data.message || 'Autorização do YouTube expirada.') + "\n\nDeseja reconectar o canal do YouTube agora?")) {
+                        window.location.href = "{{ route('admin.youtube.connect') }}";
+                        return;
+                    }
+                }
                 alert("⚠️ " + (data.message || 'Falha no upload para o YouTube.'));
             }
         } catch(e) {
@@ -4472,6 +4478,12 @@
             if (data.success) {
                 alert("🚀 " + data.message);
             } else {
+                if (data.needs_reconnect || (data.message && (data.message.includes('não conectado') || data.message.includes('token inválido') || data.message.includes('expirou')))) {
+                    if (confirm("⚠️ " + (data.message || 'Autorização do YouTube expirada.') + "\n\nDeseja reconectar o canal do YouTube agora?")) {
+                        window.location.href = "{{ route('admin.youtube.connect') }}";
+                        return;
+                    }
+                }
                 alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote.'));
             }
         } catch(e) {

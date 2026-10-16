@@ -171,7 +171,16 @@ class YouTubeService
         ]);
 
         if (!$response->successful()) {
-            Log::error('[YouTubeService] Falha ao renovar token de acesso: ' . $response->body());
+            $errBody = $response->body();
+            Log::error('[YouTubeService] Falha ao renovar token de acesso: ' . $errBody);
+
+            $errData = $response->json();
+            $errCode = $errData['error'] ?? '';
+            // Se o token foi revogado ou expirou no Google, desativa no banco para exigir reconexão
+            if (in_array($errCode, ['invalid_grant', 'unauthorized_client', 'invalid_request'])) {
+                $account->is_active = false;
+                $account->save();
+            }
             return null;
         }
 
@@ -191,7 +200,11 @@ class YouTubeService
     {
         $accessToken = $this->getValidAccessToken();
         if (!$accessToken) {
-            return ['success' => false, 'message' => 'Canal do YouTube não conectado ou token inválido.'];
+            return [
+                'success' => false,
+                'needs_reconnect' => true,
+                'message' => 'O token do YouTube expirou ou foi revogado pelo Google. Por favor, reconecte o canal.'
+            ];
         }
 
         // 1. Localizar o arquivo de vídeo

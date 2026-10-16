@@ -68,7 +68,7 @@ class PublishYouTubeShortsCommand extends Command
                 })
                 ->where(function ($q) {
                     $q->whereNotNull('live_items.video_cut_path')
-                      ->orWhere('live_items.video_cut_status', 'recorded');
+                      ->orWhereIn('live_items.video_cut_status', ['recorded', 'edited']);
                 })
                 ->where(function ($q) {
                     $q->whereNull('live_items.youtube_video_id')
