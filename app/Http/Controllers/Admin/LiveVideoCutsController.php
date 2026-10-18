@@ -2290,21 +2290,8 @@ PROMPT;
             // 1. Gera arquivo de legenda SRT para o trecho do corte
             $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
 
-            // 2. Gera overlay visual (Carimbo de Estado, Card de Tamanho/Preço e Logo da Marca)
-            $applyOverlays = $request->boolean('apply_overlays', true);
             $overlayPng = null;
             $hasOverlay = false;
-
-            if ($applyOverlays) {
-                [$vWidth, $vHeight] = $this->getVideoDimensions($inputPath);
-                $overlayPng = $outputDir . '/overlay_' . time() . '_' . uniqid() . '.png';
-                $productItem = DB::table('items')->where('id', $liveItem->item_id)->first();
-                $hasOverlay = LiveClipOverlayService::generateOverlayImage($productItem, $vWidth, $vHeight, $overlayPng);
-                if (!$hasOverlay && file_exists($overlayPng)) {
-                    @unlink($overlayPng);
-                    $overlayPng = null;
-                }
-            }
 
             $output = [];
             $returnCode = 1;
@@ -2973,8 +2960,11 @@ PROMPT;
         $editionStyle = $request->input('edition_style', 'reel_canvas'); // 'reel_canvas' (default) ou 'fullscreen'
         $tempFiles = [];
 
-        $stampPath = LiveClipOverlayService::getStampPath($productItem?->estado ?? null);
+        $motionStampPath = LiveClipOverlayService::getMotionStampPath($productItem?->estado ?? null);
+        $staticStampPath = LiveClipOverlayService::getStampPath($productItem?->estado ?? null);
+        $stampPath = ($motionStampPath && file_exists($motionStampPath)) ? $motionStampPath : $staticStampPath;
         $stampFileExists = file_exists($stampPath);
+        $isMotion = ($stampFileExists && $stampPath === $motionStampPath);
 
         $editedFilename = 'edited_' . time() . '_' . basename($existingCutPath);
         $editedPath = $outputDir . '/' . $editedFilename;
@@ -2986,12 +2976,17 @@ PROMPT;
             LiveClipOverlayService::generateGlassmorphicCard($productItem, 360, 120, $cardPath);
 
             if ($stampFileExists) {
-                $filterComplex = '[1:v]format=rgba[card]; [2:v]format=rgba,scale=260:-1[stamp]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v1]; [v1][stamp]overlay=x=435:y=\'if(lt(t,0.35), -350, if(lt(t,0.55), -350 + 445*(t-0.35)/0.20, if(lt(t,0.65), 110 - 25*(t-0.55)/0.10, 85)))\':enable=\'gte(t,0.35)\'[v]';
+                $stampInputArg = $isMotion ? ('-stream_loop -1 -i ' . escapeshellarg($stampPath)) : ('-i ' . escapeshellarg($stampPath));
+                $shortestArg = $isMotion ? ':shortest=1' : '';
+                $filterComplex = sprintf(
+                    '[1:v]format=rgba[card]; [2:v]scale=220:-1,format=rgba[stamp]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v1]; [v1][stamp]overlay=x=475:y=70%s[v]',
+                    $shortestArg
+                );
                 $cmd = sprintf(
-                    'ffmpeg -i %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    'ffmpeg -i %s -i %s %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
                     escapeshellarg($existingCutPath),
                     escapeshellarg($cardPath),
-                    escapeshellarg($stampPath),
+                    $stampInputArg,
                     escapeshellarg($filterComplex),
                     escapeshellarg($editedPath)
                 );
@@ -3023,16 +3018,19 @@ PROMPT;
             $maskPath = LiveClipOverlayService::getRoundedMaskPath($frameW, $frameH, 28);
 
             if ($stampFileExists) {
+                $stampInputArg = $isMotion ? ('-stream_loop -1 -i ' . escapeshellarg($stampPath)) : ('-i ' . escapeshellarg($stampPath));
+                $shortestArg = $isMotion ? ':shortest=1' : '';
                 $filterComplex = sprintf(
-                    '[0:v]scale=%d:%d,format=rgba[scaled_v]; [scaled_v][4:v]alphamerge[rounded_v]; [2:v]format=rgba,scale=260:-1[stamp]; [1:v][rounded_v]overlay=x=70:y=145[v1]; [v1][3:v]overlay=x=\'if(lt(t,0.7), -600, if(lt(t,1.1), -600 + 670*(1 - pow(1 - (t - 0.7)/0.4, 3)), 70))\':y=1100[v2]; [v2][stamp]overlay=x=415:y=\'if(lt(t,0.35), -300, if(lt(t,0.55), -300 + 430*(t-0.35)/0.20, if(lt(t,0.65), 150 - 25*(t-0.55)/0.10, 125)))\':enable=\'gte(t,0.35)\'[v]',
+                    '[0:v]scale=%d:%d,format=rgba[scaled_v]; [scaled_v][4:v]alphamerge[rounded_v]; [2:v]scale=215:-1,format=rgba[stamp]; [1:v][rounded_v]overlay=x=70:y=145[v1]; [v1][3:v]overlay=x=\'if(lt(t,0.7), -600, if(lt(t,1.1), -600 + 670*(1 - pow(1 - (t - 0.7)/0.4, 3)), 70))\':y=1100[v2]; [v2][stamp]overlay=x=420:y=160%s[v]',
                     $frameW,
-                    $frameH
+                    $frameH,
+                    $shortestArg
                 );
                 $cmd = sprintf(
-                    'ffmpeg -i %s -i %s -i %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                    'ffmpeg -i %s -i %s %s -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
                     escapeshellarg($existingCutPath),
                     escapeshellarg($canvasBgPath),
-                    escapeshellarg($stampPath),
+                    $stampInputArg,
                     escapeshellarg($cardPath),
                     escapeshellarg($maskPath),
                     escapeshellarg($filterComplex),

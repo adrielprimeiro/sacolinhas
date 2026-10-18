@@ -7,7 +7,36 @@ use Illuminate\Support\Facades\Log;
 class LiveClipOverlayService
 {
     /**
-     * Retorna o caminho do carimbo realista condizente com o estado da peça.
+     * Retorna o caminho do vídeo motion transparente (WebM) do carimbo condizente com o estado da peça.
+     */
+    public static function getMotionStampPath(?string $estado): ?string
+    {
+        $stampsDir = public_path('images/cuts_overlay/stamps');
+        $norm = mb_strtolower(trim($estado ?? ''));
+
+        if (str_contains($norm, 'novo') && !str_contains($norm, 'semi')) {
+            $file = $stampsDir . '/stamp_motion_novo.mov';
+            if (file_exists($file)) return $file;
+            $file = $stampsDir . '/stamp_motion_novo.webm';
+            if (file_exists($file)) return $file;
+        }
+
+        if (str_contains($norm, 'usado')) {
+            $file = $stampsDir . '/stamp_motion_usado.mov';
+            if (file_exists($file)) return $file;
+            $file = $stampsDir . '/stamp_motion_usado.webm';
+            if (file_exists($file)) return $file;
+        }
+
+        $file = $stampsDir . '/stamp_motion_seminovo.mov';
+        if (file_exists($file)) return $file;
+
+        $file = $stampsDir . '/stamp_motion_seminovo.webm';
+        return file_exists($file) ? $file : null;
+    }
+
+    /**
+     * Retorna o caminho do carimbo realista condizente com o estado da peça (fallback PNG).
      */
     public static function getStampPath(?string $estado): string
     {
