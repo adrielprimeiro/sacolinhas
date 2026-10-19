@@ -50,21 +50,25 @@
         </div>
     @endif
 
+    <script>
+        window.avaliacaoConfig = {
+            categorias: @json($categorias),
+            marcas: @json($marcas),
+            editingAvaliacao: @json(isset($avaliacao) ? $avaliacao : null),
+            editingItems: @json(isset($avaliacao) ? $avaliacao->items : []),
+            oldItemsJson: @json(old('items_json', '')),
+            oldFornecedorId: @json(old('fornecedor_id', '')),
+            oldTipoCliente: @json(old('tipo_cliente', '')),
+            oldTipoCompra: @json(old('tipo_compra', '')),
+            oldFrete: @json(old('frete', '')),
+            oldObservacoes: @json(old('observacoes', ''))
+        };
+    </script>
+
     {{-- Card Principal (Padrão de Layout de Pedidos) --}}
     <div class="bg-white shadow-lg rounded-lg p-4"
          id="evaluation-container"
-         x-data="evaluationForm({
-            categorias: {{ json_encode($categorias) }},
-            marcas: {{ $marcas->toJson() }},
-            editingAvaliacao: {{ isset($avaliacao) ? $avaliacao->toJson() : 'null' }},
-            editingItems: {{ isset($avaliacao) ? $avaliacao->items->toJson() : '[]' }},
-            oldItemsJson: {!! json_encode(old('items_json', '')) !!},
-            oldFornecedorId: {!! json_encode(old('fornecedor_id', '')) !!},
-            oldTipoCliente: {!! json_encode(old('tipo_cliente', '')) !!},
-            oldTipoCompra: {!! json_encode(old('tipo_compra', '')) !!},
-            oldFrete: {!! json_encode(old('frete', '')) !!},
-            oldObservacoes: {!! json_encode(old('observacoes', '')) !!}
-         })"
+         x-data="evaluationForm(window.avaliacaoConfig)"
          @user-selected.window="onUserSelected($event.detail)">
         
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-2 border-b border-gray-100">
@@ -164,8 +168,8 @@
 
             {{-- Observações --}}
             <div class="mb-6">
-                <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações do Lote</label>
-                <textarea name="observacoes" id="observacoes" x-model="observacoes" rows="2"
+                <label for="avaliacao_observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações do Lote</label>
+                <textarea name="observacoes" id="avaliacao_observacoes" x-model="observacoes" rows="2"
                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           placeholder="Detalhes adicionais (marcas, defeitos, observações gerais)..."></textarea>
             </div>
@@ -666,9 +670,10 @@ function evaluationForm(config) {
                     }
                 }
 
-                if (!loaded || this.items.length === 0) {
-                    this.addItem(false);
-                }
+            }
+
+            if (this.items.length === 0) {
+                this.addItem(false);
             }
 
             this.recalculateAll();
