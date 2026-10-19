@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class AvaliacaoController extends Controller
 {
@@ -59,24 +60,100 @@ class AvaliacaoController extends Controller
     /**
      * Store a newly created evaluation in storage (as draft).
      */
+    /**
+     * Pre-processa e sanitiza os itens enviados no payload JSON antes da validação.
+     */
+    private function prepareEvaluationItems(Request $request)
+    {
+        if (!$request->has('items_json')) {
+            return null;
+        }
+
+        $rawJson = $request->input('items_json');
+        $items = is_array($rawJson) ? $rawJson : json_decode($rawJson, true);
+        if (!is_array($items)) {
+            return null;
+        }
+
+        // Filtrar apenas itens com nome preenchido
+        $items = array_filter($items, function($item) {
+            return !empty($item['nome']) && trim($item['nome']) !== '';
+        });
+
+        $defaultSemMarca = \App\Models\Marca::whereRaw('LOWER(nome) in (?, ?)', ['sem marca', 'sem_marca'])->first();
+        $defaultMarcaId = $defaultSemMarca ? $defaultSemMarca->id : 1;
+
+        foreach ($items as &$it) {
+            $it['nome'] = trim($it['nome']);
+
+            // Tratar categoria_id (se vazio ou 0, converte para null para passar no nullable|exists)
+            if (empty($it['categoria_id'])) {
+                $it['categoria_id'] = null;
+            }
+
+            // Tratar marca_id e marca
+            if (empty($it['marca_id'])) {
+                $marcaNome = !empty($it['marca']) ? trim($it['marca']) : (!empty($it['brandSearch']) ? trim($it['brandSearch']) : '');
+                if (!empty($marcaNome)) {
+                    $brand = \App\Models\Marca::whereRaw('LOWER(nome) = ?', [strtolower($marcaNome)])->first();
+                    if ($brand) {
+                        $it['marca_id'] = $brand->id;
+                        $it['marca'] = $brand->nome;
+                    } else {
+                        $newBrand = \App\Models\Marca::firstOrCreate(
+                            ['nome' => $marcaNome],
+                            ['porcentagem_valor' => 100]
+                        );
+                        $it['marca_id'] = $newBrand->id;
+                        $it['marca'] = $newBrand->nome;
+                    }
+                } else {
+                    $it['marca_id'] = $defaultMarcaId;
+                    $it['marca'] = $defaultSemMarca ? $defaultSemMarca->nome : 'Sem Marca';
+                }
+            }
+
+            if (empty($it['nota_curadoria'])) {
+                $it['nota_curadoria'] = 10;
+            }
+
+            if (empty($it['estado']) || !in_array($it['estado'], ['Novo', 'Seminovo', 'Usado'])) {
+                $it['estado'] = 'Seminovo';
+            }
+
+            if (!isset($it['preco_base']) || $it['preco_base'] === '') {
+                $it['preco_base'] = 0.00;
+            } else {
+                $it['preco_base'] = (float) $it['preco_base'];
+            }
+
+            if (isset($it['preco_venda']) && $it['preco_venda'] !== '') {
+                $it['preco_venda'] = (float) $it['preco_venda'];
+            } else {
+                $it['preco_venda'] = null;
+            }
+        }
+        unset($it);
+
+        $sanitizedItems = array_values($items);
+        $request->merge(['items' => $sanitizedItems]);
+        $request->merge(['items_json' => json_encode($sanitizedItems)]);
+
+        return $sanitizedItems;
+    }
+
     public function store(Request $request)
     {
         if (!$request->has('items_json')) {
-            return redirect()->back()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente. Nenhuma alteração foi salva para proteger seus dados.');
-        }
-
-        if ($request->has('items_json')) {
-            $items = json_decode($request->input('items_json'), true);
-            // Filtrar itens vazios no backend
-            if (is_array($items)) {
-                $items = array_filter($items, function($item) {
-                    return !empty($item['nome']);
-                });
-                $request->merge(['items' => array_values($items)]);
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => false, 'message' => 'Nenhum item foi enviado.'], 422);
             }
+            return redirect()->back()->withInput()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente.');
         }
 
-        $validated = $request->validate([
+        $this->prepareEvaluationItems($request);
+
+        $validator = Validator::make($request->all(), [
             'fornecedor_id' => 'required|string',
             'tipo_compra' => 'required|in:avaliados,direta',
             'tipo_cliente' => 'required|in:clube,fora_clube',
@@ -93,7 +170,29 @@ class AvaliacaoController extends Controller
             'items.*.tamanho' => 'nullable|string|max:50',
             'items.*.preco_base' => 'required|numeric|min:0',
             'items.*.preco_venda' => 'nullable|numeric|min:0',
+        ], [
+            'fornecedor_id.required' => 'Por favor, selecione um Fornecedor/Cliente válido pesquisando pelo nome.',
+            'items.required' => 'Adicione pelo menos 1 peça na avaliação.',
+            'items.min' => 'Adicione pelo menos 1 peça com nome na avaliação.',
+            'items.*.nome.required' => 'O nome da peça é obrigatório.',
+            'items.*.marca_id.required' => 'Selecione uma marca válida.',
+            'items.*.marca_id.exists' => 'A marca selecionada é inválida.',
+            'items.*.categoria_id.exists' => 'A categoria selecionada é inválida.',
         ]);
+
+        if ($validator->fails()) {
+            Log::warning('Erro de validação ao criar avaliação: ' . json_encode($validator->errors()->toArray(), JSON_UNESCAPED_UNICODE));
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            return redirect()->back()->withInput()->withErrors($validator);
+        }
+
+        $validated = $validator->validated();
 
         DB::beginTransaction();
         try {
@@ -244,21 +343,15 @@ class AvaliacaoController extends Controller
         }
 
         if (!$request->has('items_json')) {
-            return redirect()->back()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente. Nenhuma alteração foi salva para proteger seus dados.');
-        }
-
-        if ($request->has('items_json')) {
-            $items = json_decode($request->input('items_json'), true);
-            // Filtrar itens vazios no backend
-            if (is_array($items)) {
-                $items = array_filter($items, function($item) {
-                    return !empty($item['nome']);
-                });
-                $request->merge(['items' => array_values($items)]);
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json(['success' => false, 'message' => 'Nenhum item foi enviado.'], 422);
             }
+            return redirect()->back()->withInput()->with('error', 'O seu navegador está usando uma versão desatualizada da página em cache. Por favor, pressione CTRL + F5 para atualizar a página e tente novamente.');
         }
 
-        $validated = $request->validate([
+        $this->prepareEvaluationItems($request);
+
+        $validator = Validator::make($request->all(), [
             'fornecedor_id' => 'required|string',
             'tipo_compra' => 'required|in:avaliados,direta',
             'tipo_cliente' => 'required|in:clube,fora_clube',
@@ -275,7 +368,29 @@ class AvaliacaoController extends Controller
             'items.*.tamanho' => 'nullable|string|max:50',
             'items.*.preco_base' => 'required|numeric|min:0',
             'items.*.preco_venda' => 'nullable|numeric|min:0',
+        ], [
+            'fornecedor_id.required' => 'Por favor, selecione um Fornecedor/Cliente válido pesquisando pelo nome.',
+            'items.required' => 'Adicione pelo menos 1 peça na avaliação.',
+            'items.min' => 'Adicione pelo menos 1 peça com nome na avaliação.',
+            'items.*.nome.required' => 'O nome da peça é obrigatório.',
+            'items.*.marca_id.required' => 'Selecione uma marca válida.',
+            'items.*.marca_id.exists' => 'A marca selecionada é inválida.',
+            'items.*.categoria_id.exists' => 'A categoria selecionada é inválida.',
         ]);
+
+        if ($validator->fails()) {
+            Log::warning('Erro de validação ao atualizar avaliação #' . $avaliacao->id . ': ' . json_encode($validator->errors()->toArray(), JSON_UNESCAPED_UNICODE));
+            if ($request->wantsJson() || $request->has('ajax')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            return redirect()->back()->withInput()->withErrors($validator);
+        }
+
+        $validated = $validator->validated();
 
         DB::beginTransaction();
         try {

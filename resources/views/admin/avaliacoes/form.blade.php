@@ -27,6 +27,29 @@
         </nav>
     </div>
 
+    {{-- Alertas de Erro / Validação --}}
+    @if (session('error'))
+        <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded text-sm text-red-700 shadow-sm">
+            <div class="font-bold flex items-center gap-1.5 mb-1 text-red-800">
+                <i class="fas fa-exclamation-circle"></i> Atenção
+            </div>
+            <div>{{ session('error') }}</div>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded text-sm text-red-700 shadow-sm">
+            <div class="font-bold flex items-center gap-1.5 mb-1 text-red-800">
+                <i class="fas fa-exclamation-triangle"></i> Não foi possível salvar o lote. Corrija os detalhes abaixo:
+            </div>
+            <ul class="list-disc list-inside text-xs space-y-1 mt-1 text-red-600">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- Card Principal (Padrão de Layout de Pedidos) --}}
     <div class="bg-white shadow-lg rounded-lg p-4"
          id="evaluation-container"
@@ -34,13 +57,35 @@
             categorias: {{ json_encode($categorias) }},
             marcas: {{ $marcas->toJson() }},
             editingAvaliacao: {{ isset($avaliacao) ? $avaliacao->toJson() : 'null' }},
-            editingItems: {{ isset($avaliacao) ? $avaliacao->items->toJson() : '[]' }}
+            editingItems: {{ isset($avaliacao) ? $avaliacao->items->toJson() : '[]' }},
+            oldItemsJson: {!! json_encode(old('items_json', '')) !!},
+            oldFornecedorId: {!! json_encode(old('fornecedor_id', '')) !!},
+            oldTipoCliente: {!! json_encode(old('tipo_cliente', '')) !!},
+            oldTipoCompra: {!! json_encode(old('tipo_compra', '')) !!},
+            oldFrete: {!! json_encode(old('frete', '')) !!},
+            oldObservacoes: {!! json_encode(old('observacoes', '')) !!}
          })"
          @user-selected.window="onUserSelected($event.detail)">
         
-        <h1 class="text-3xl font-semibold text-gray-800 mb-6">
-            {{ isset($avaliacao) ? 'Editar Lote de Avaliação #' . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) : 'Nova Avaliação (Entrada)' }}
-        </h1>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-2 border-b border-gray-100">
+            <h1 class="text-2xl sm:text-3xl font-semibold text-gray-800">
+                {{ isset($avaliacao) ? 'Editar Lote de Avaliação #' . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) : 'Nova Avaliação (Entrada)' }}
+            </h1>
+
+            {{-- Indicador visual de salvamento e recuperação --}}
+            <div class="flex items-center gap-3 text-xs">
+                <span x-show="isSavingSilently" class="text-blue-600 font-medium inline-flex items-center gap-1.5">
+                    <i class="fas fa-spinner fa-spin"></i> Salvando rascunho...
+                </span>
+                <span x-show="!isSavingSilently && lastSavedAt" class="text-emerald-700 font-medium inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded">
+                    <i class="fas fa-check-circle text-emerald-600"></i> Salvo às <span x-text="lastSavedAt"></span>
+                </span>
+                <div x-show="hasRestoredLocalDraft" x-cloak class="bg-amber-100 text-amber-900 px-2.5 py-1 rounded font-medium flex items-center gap-1.5">
+                    <i class="fas fa-history text-amber-700"></i> Rascunho recuperado
+                    <button type="button" @click="clearLocalDraft()" class="underline text-amber-900 font-bold ml-1 hover:text-red-700" title="Apagar rascunho recuperado">Limpar</button>
+                </div>
+            </div>
+        </div>
 
         <form action="{{ isset($avaliacao) ? route('admin.avaliacoes.update', $avaliacao) : route('admin.avaliacoes.store') }}" method="POST" id="evaluation-form" @submit="onSubmit($event)">
             @csrf
@@ -61,6 +106,15 @@
                             if ($avaliacao->user->apelido) {
                                 $oldUserText .= ' (' . $avaliacao->user->apelido . ')';
                             }
+                        }
+                    } elseif (old('fornecedor_id')) {
+                        $rawOld = old('fornecedor_id');
+                        if (str_starts_with($rawOld, 'user_')) {
+                            $u = \App\Models\User::find(str_replace('user_', '', $rawOld));
+                            if ($u) $oldUserText = $u->name . ($u->apelido ? ' (' . $u->apelido . ')' : '');
+                        } elseif (str_starts_with($rawOld, 'pessoa_')) {
+                            $p = \App\Models\Pessoa::find(str_replace('pessoa_', '', $rawOld));
+                            if ($p) $oldUserText = $p->nome . ' (Fornecedor)';
                         }
                     }
                 @endphp
@@ -400,9 +454,10 @@
                    class="bg-white py-2.5 px-5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none transition">
                     Cancelar
                 </a>
-                <button type="submit"
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 px-5 rounded-lg shadow-sm transition">
-                    <i class="far fa-save mr-1.5"></i> Salvar Lote em Rascunho
+                <button type="submit" :disabled="isSubmitting"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 px-5 rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-2">
+                    <span x-show="!isSubmitting"><i class="far fa-save mr-1.5"></i> Salvar Lote em Rascunho</span>
+                    <span x-show="isSubmitting"><i class="fas fa-spinner fa-spin mr-1.5"></i> Salvando...</span>
                 </button>
             </div>
 
@@ -461,6 +516,84 @@ function evaluationForm(config) {
         marcaTargetItem: null,
         marcaTargetIndex: null,
         isSavingSilently: false,
+        isSubmitting: false,
+        lastSavedAt: null,
+        hasRestoredLocalDraft: false,
+
+        mapLoadedItem(item) {
+            let matchedMarcaId = item.marca_id;
+            if (!matchedMarcaId && item.marca) {
+                let lowerName = item.marca.toLowerCase().replace('_', ' ');
+                const matchedBrand = this.marcas.find(m => m.nome.toLowerCase().replace('_', ' ') === lowerName);
+                if (matchedBrand) {
+                    matchedMarcaId = matchedBrand.id;
+                }
+            }
+            if (!matchedMarcaId) {
+                const semMarca = this.marcas.find(m => m.nome.toLowerCase() === 'sem marca' || m.nome.toLowerCase() === 'sem_marca');
+                matchedMarcaId = semMarca ? semMarca.id : (this.marcas[0] ? this.marcas[0].id : '');
+            }
+
+            const catObj = this.categorias.find(c => c.id == item.categoria_id);
+            const brandObj = this.marcas.find(b => b.id == matchedMarcaId);
+
+            const isSemMarca = brandObj && (brandObj.nome.toLowerCase() === 'sem marca' || brandObj.nome.toLowerCase() === 'sem_marca');
+            const precoBase = parseFloat(item.preco_base || 0);
+
+            return {
+                id: item.id || null,
+                categoria_id: item.categoria_id || '',
+                catSearch: item.catSearch || (catObj ? (catObj.path || catObj.formatted_name || catObj.name) : ''),
+                showCatDropdown: false,
+                activeCatIndex: 0,
+                marca_id: matchedMarcaId,
+                brandSearch: item.brandSearch || ((brandObj && !isSemMarca) ? (brandObj.nome + ' (' + parseInt(brandObj.porcentagem_valor) + '%)') : ''),
+                showBrandDropdown: false,
+                activeBrandIndex: 0,
+                nome: item.nome || '',
+                marca: isSemMarca ? '' : (item.marca || (brandObj ? brandObj.nome : '')),
+                estado: item.estado || 'Seminovo',
+                nota_curadoria: item.nota_curadoria || 10,
+                motivo_curadoria: item.motivo_curadoria || 'Cadastro',
+                cor: item.cor || '',
+                tamanho: item.tamanho || '',
+                preco_base: precoBase,
+                preco_base_raw: (item.is_fixed_price ? '*' : '') + precoBase.toFixed(2).replace('.', ','),
+                is_fixed_price: !!item.is_fixed_price,
+                preco_venda: parseFloat(item.preco_venda || 0),
+                venda_editada: !!item.venda_editada,
+                taxa_curadoria: parseFloat(item.taxa_curadoria || 0),
+                payout_credito: parseFloat(item.payout_credito || 0),
+                payout_dinheiro: parseFloat(item.payout_dinheiro || 0)
+            };
+        },
+
+        persistToLocalStorage() {
+            if (config.editingAvaliacao) return;
+            const valid = this.items.filter(i => (i.nome && i.nome.trim()) || i.categoria_id || i.preco_base > 0);
+            if (valid.length > 0) {
+                const userSearchEl = document.getElementById('user_search');
+                localStorage.setItem('minhamania_avaliacao_draft', JSON.stringify({
+                    timestamp: Date.now(),
+                    fornecedorId: this.fornecedorId,
+                    fornecedorText: userSearchEl ? userSearchEl.value : '',
+                    tipoCliente: this.tipoCliente,
+                    tipoCompra: this.tipoCompra,
+                    frete: this.frete,
+                    observacoes: this.observacoes,
+                    items: valid
+                }));
+            }
+        },
+
+        clearLocalDraft() {
+            if (confirm('Deseja realmente descartar o rascunho recuperado e começar uma nova avaliação em branco?')) {
+                localStorage.removeItem('minhamania_avaliacao_draft');
+                this.items = [];
+                this.addItem(false);
+                this.hasRestoredLocalDraft = false;
+            }
+        },
 
         init() {
             if (config.editingAvaliacao) {
@@ -469,59 +602,83 @@ function evaluationForm(config) {
                 this.freteRaw = this.frete.toFixed(2).replace('.', ',');
                 this.observacoes = av.observacoes || '';
                 this.fornecedorId = av.pessoa_id ? 'pessoa_' + av.pessoa_id : (av.user_id ? 'user_' + av.user_id : '');
-                this.tipoCliente = av.tipo_cliente;
-                this.tipoCompra = av.tipo_compra;
-                
-                this.items = config.editingItems.map(item => {
-                    let matchedMarcaId = item.marca_id;
-                    if (!matchedMarcaId && item.marca) {
-                        let lowerName = item.marca.toLowerCase().replace('_', ' ');
-                        const matchedBrand = this.marcas.find(m => m.nome.toLowerCase().replace('_', ' ') === lowerName);
-                        if (matchedBrand) {
-                            matchedMarcaId = matchedBrand.id;
-                        }
-                    }
-                    if (!matchedMarcaId) {
-                        const semMarca = this.marcas.find(m => m.nome.toLowerCase() === 'sem marca' || m.nome.toLowerCase() === 'sem_marca');
-                        matchedMarcaId = semMarca ? semMarca.id : '';
-                    }
-
-                    const catObj = this.categorias.find(c => c.id == item.categoria_id);
-                    const brandObj = this.marcas.find(b => b.id == matchedMarcaId);
-
-                    const isSemMarca = brandObj && (brandObj.nome.toLowerCase() === 'sem marca' || brandObj.nome.toLowerCase() === 'sem_marca');
-                    return {
-                        id: item.id,
-                        categoria_id: item.categoria_id || '',
-                        catSearch: catObj ? catObj.name : '',
-                        showCatDropdown: false,
-                        activeCatIndex: 0,
-                        marca_id: matchedMarcaId,
-                        brandSearch: (brandObj && !isSemMarca) ? (brandObj.nome + ' (' + parseInt(brandObj.porcentagem_valor) + '%)') : '',
-                        showBrandDropdown: false,
-                        activeBrandIndex: 0,
-                        nome: item.nome,
-                        marca: isSemMarca ? '' : (item.marca || (brandObj ? brandObj.nome : '')),
-                        estado: item.estado,
-                        nota_curadoria: item.nota_curadoria,
-                        motivo_curadoria: item.motivo_curadoria || 'Cadastro',
-                        cor: item.cor || '',
-                        tamanho: item.tamanho || '',
-                        preco_base: parseFloat(item.preco_base),
-                        preco_base_raw: parseFloat(item.preco_base).toFixed(2).replace('.', ','),
-                        is_fixed_price: item.is_fixed_price || false,
-                        preco_venda: parseFloat(item.preco_venda),
-                        venda_editada: true,
-                        taxa_curadoria: parseFloat(item.taxa_curadoria),
-                        payout_credito: parseFloat(item.payout_credito),
-                        payout_dinheiro: parseFloat(item.payout_dinheiro)
-                    };
-                });
+                this.tipoCliente = av.tipo_cliente || 'fora_clube';
+                this.tipoCompra = av.tipo_compra || 'avaliados';
+                this.items = (config.editingItems || []).map(item => this.mapLoadedItem(item));
             } else {
-                this.addItem(false);
+                let loaded = false;
+
+                // 1. Tentar recuperar de old() do Laravel (se houve redirect)
+                if (config.oldItemsJson) {
+                    try {
+                        const parsed = JSON.parse(config.oldItemsJson);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            this.items = parsed.map(item => this.mapLoadedItem(item));
+                            loaded = true;
+                        }
+                    } catch (e) {
+                        console.error('Erro ao ler oldItemsJson', e);
+                    }
+                }
+                if (config.oldFornecedorId) {
+                    this.fornecedorId = config.oldFornecedorId;
+                }
+                if (config.oldTipoCliente) {
+                    this.tipoCliente = config.oldTipoCliente;
+                }
+                if (config.oldTipoCompra) {
+                    this.tipoCompra = config.oldTipoCompra;
+                }
+                if (config.oldFrete) {
+                    this.frete = parseFloat(config.oldFrete || 0);
+                    this.freteRaw = this.frete.toFixed(2).replace('.', ',');
+                }
+                if (config.oldObservacoes) {
+                    this.observacoes = config.oldObservacoes;
+                }
+
+                // 2. Se não veio de old(), verificar se há rascunho salvo no localStorage
+                if (!loaded) {
+                    try {
+                        const saved = localStorage.getItem('minhamania_avaliacao_draft');
+                        if (saved) {
+                            const draft = JSON.parse(saved);
+                            if (draft && Array.isArray(draft.items) && draft.items.length > 0 && (Date.now() - (draft.timestamp || 0) < 86400000)) {
+                                this.items = draft.items.map(item => this.mapLoadedItem(item));
+                                if (draft.fornecedorId && !this.fornecedorId) {
+                                    this.fornecedorId = draft.fornecedorId;
+                                }
+                                if (draft.tipoCliente && !config.oldTipoCliente) {
+                                    this.tipoCliente = draft.tipoCliente;
+                                }
+                                if (draft.tipoCompra && !config.oldTipoCompra) {
+                                    this.tipoCompra = draft.tipoCompra;
+                                }
+                                if (draft.fornecedorText && document.getElementById('user_search')) {
+                                    document.getElementById('user_search').value = draft.fornecedorText;
+                                }
+                                this.hasRestoredLocalDraft = true;
+                                loaded = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Erro ao ler localStorage', e);
+                    }
+                }
+
+                if (!loaded || this.items.length === 0) {
+                    this.addItem(false);
+                }
             }
 
             this.recalculateAll();
+
+            // Salva backup local periodicamente a cada 3 segundos
+            if (!config.editingAvaliacao) {
+                setInterval(() => {
+                    this.persistToLocalStorage();
+                }, 3000);
+            }
         },
 
         onUserSelected(detail) {
@@ -642,37 +799,55 @@ function evaluationForm(config) {
             if (validItems.length === 0) return;
             
             const form = document.getElementById('evaluation-form');
-            // Removemos form.checkValidity() pois pode bloquear silenciosamente o auto-save se um campo não obrigatório para rascunho estiver vazio
-            
+            if (!form) return;
+
             this.isSavingSilently = true;
             try {
                 const formData = new FormData(form);
                 formData.append('ajax', '1');
                 
-                // Usar payload JSON em vez de dezenas de arrays para evitar limite max_input_vars do PHP
-                const validItems = this.items.filter(item => item.nome && item.nome.trim());
-                formData.append('items_json', JSON.stringify(validItems));
+                const defaultSemMarca = this.marcas.find(m => m.nome.toLowerCase() === 'sem marca' || m.nome.toLowerCase() === 'sem_marca');
+                const defaultMarcaId = defaultSemMarca ? defaultSemMarca.id : (this.marcas[0] ? this.marcas[0].id : 1);
+
+                const itemsToSend = validItems.map(item => {
+                    const copy = Object.assign({}, item);
+                    if (!copy.marca_id) {
+                        const searchTxt = (copy.brandSearch || copy.marca || '').trim().toLowerCase();
+                        const matched = searchTxt ? this.marcas.find(m => m.nome.toLowerCase() === searchTxt) : null;
+                        copy.marca_id = matched ? matched.id : defaultMarcaId;
+                        copy.marca = matched ? matched.nome : (copy.marca || 'Sem Marca');
+                    }
+                    return copy;
+                });
+
+                formData.append('items_json', JSON.stringify(itemsToSend));
 
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: formData,
-                    headers: { 'Accept': 'application/json' }
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
                 
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.success && data.id && !form.action.endsWith('/' + data.id)) {
-                        form.action = '{{ url("admin/avaliacoes") }}/' + data.id;
-                        if (!form.querySelector('input[name="_method"]')) {
-                            const methodInput = document.createElement('input');
-                            methodInput.type = 'hidden';
-                            methodInput.name = '_method';
-                            methodInput.value = 'PUT';
-                            form.appendChild(methodInput);
-                        }
-                        const title = document.querySelector('h1');
-                        if (title && title.innerText.includes('Nova')) {
-                            title.innerText = 'Editar Lote de Avaliação #' + String(data.id).padStart(5, '0');
+                    if (data.success && data.id) {
+                        this.lastSavedAt = new Date().toLocaleTimeString('pt-BR');
+                        if (!form.action.endsWith('/' + data.id)) {
+                            form.action = '{{ url("admin/avaliacoes") }}/' + data.id;
+                            if (!form.querySelector('input[name="_method"]')) {
+                                const methodInput = document.createElement('input');
+                                methodInput.type = 'hidden';
+                                methodInput.name = '_method';
+                                methodInput.value = 'PUT';
+                                form.appendChild(methodInput);
+                            }
+                            const title = document.querySelector('h1');
+                            if (title && title.innerText.includes('Nova')) {
+                                title.innerText = 'Editar Lote de Avaliação #' + String(data.id).padStart(5, '0');
+                            }
                         }
                     }
                 } else {
@@ -923,31 +1098,92 @@ function evaluationForm(config) {
             return 'R$ ' + parseFloat(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },
 
-        onSubmit(event) {
-            this.isSaving = true;
-            
-            // Cria um campo hidden com todos os itens em formato JSON
-            const hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'items_json';
-            
-            const validItems = this.items.filter(item => item.nome && item.nome.trim());
-            hidden.value = JSON.stringify(validItems);
-            
-            event.target.appendChild(hidden);
-            
+        async onSubmit(event) {
+            event.preventDefault();
+
+            if (this.isSubmitting) return;
+
+            // 1. Validar Fornecedor
             if (!this.fornecedorId) {
-                event.preventDefault();
                 alert('Por favor, selecione um Fornecedor / Cliente válido pesquisando pelo nome.');
+                document.getElementById('user_search')?.focus();
                 return;
             }
 
-            for (let i = 0; i < this.items.length; i++) {
-                if (!this.items[i].categoria_id) {
-                    event.preventDefault();
-                    alert(`Por favor, selecione uma categoria válida para o item #${i + 1} pesquisando e clicando na opção.`);
+            // 2. Pre-processar itens e validar
+            const defaultSemMarca = this.marcas.find(m => m.nome.toLowerCase() === 'sem marca' || m.nome.toLowerCase() === 'sem_marca');
+            const defaultMarcaId = defaultSemMarca ? defaultSemMarca.id : (this.marcas[0] ? this.marcas[0].id : 1);
+
+            let validItems = this.items.filter(item => (item.nome && item.nome.trim()) || item.categoria_id || item.preco_base > 0);
+            
+            if (validItems.length === 0) {
+                alert('Adicione pelo menos 1 peça com nome para salvar o lote.');
+                return;
+            }
+
+            for (let i = 0; i < validItems.length; i++) {
+                const item = validItems[i];
+                if (!item.nome || !item.nome.trim()) {
+                    alert(`Por favor, preencha o nome/descrição da peça #${i + 1}.`);
+                    document.getElementById(`item-nome-${i}`)?.focus();
                     return;
                 }
+                if (!item.categoria_id) {
+                    alert(`Por favor, selecione uma categoria válida para a peça #${i + 1} (${item.nome}).`);
+                    return;
+                }
+                if (!item.marca_id) {
+                    const searchTxt = (item.brandSearch || item.marca || '').trim().toLowerCase();
+                    if (searchTxt) {
+                        const matched = this.marcas.find(m => m.nome.toLowerCase() === searchTxt);
+                        if (matched) {
+                            item.marca_id = matched.id;
+                            item.marca = matched.nome;
+                        } else {
+                            item.marca = item.brandSearch || item.marca;
+                        }
+                    } else {
+                        item.marca_id = defaultMarcaId;
+                        item.marca = defaultSemMarca ? defaultSemMarca.nome : 'Sem Marca';
+                    }
+                }
+            }
+
+            this.isSubmitting = true;
+
+            const form = document.getElementById('evaluation-form');
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+            formData.append('items_json', JSON.stringify(validItems));
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    localStorage.removeItem('minhamania_avaliacao_draft');
+                    window.location.href = '{{ route("admin.avaliacoes.index") }}';
+                } else {
+                    this.isSubmitting = false;
+                    let errorMsg = data.message || 'Erro ao salvar o lote.';
+                    if (data.errors) {
+                        const details = Object.values(data.errors).flat().join('\n- ');
+                        errorMsg += '\n- ' + details;
+                    }
+                    alert('Não foi possível salvar o lote:\n' + errorMsg + '\n\nSeus dados NÃO foram perdidos e continuam na tela para correção.');
+                }
+            } catch (err) {
+                this.isSubmitting = false;
+                console.error(err);
+                alert('Erro de comunicação com o servidor ao salvar o lote. Seus dados continuam preservados na tela. Tente clicar em salvar novamente.');
             }
         }
     };
