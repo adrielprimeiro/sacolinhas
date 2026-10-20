@@ -1511,52 +1511,36 @@ PROMPT;
         }
         $videoDuration = $this->getVideoDuration($inputPath);
 
-        // Inicializa a âncora cronológica para evitar erro de variável indefinida
+        // Inicializa a âncora cronológica
         $lastEndSec = (float) ($initialStartSec ?? 0.0);
-        if ($lastEndSec <= 0.0) {
-            $maxExisting = DB::table('live_items')
-                ->where('live_id', $live->id)
-                ->whereNotNull('cut_end_sec')
-                ->max('cut_end_sec');
-            if ($maxExisting > 0) {
-                $lastEndSec = (float) $maxExisting;
-            }
-        }
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
             if (!$code) continue;
 
-            // Determina a âncora correta com base no item imediatamente anterior com corte definido
-            $priorItem = DB::table('live_items')
-                ->where('live_id', $live->id)
-                ->where('id', '<', $li->id)
-                ->whereNotNull('cut_end_sec')
-                ->orderByDesc('id')
-                ->first();
-            $itemAnchor = $priorItem ? (float) $priorItem->cut_end_sec : ($lastEndSec > 0 ? $lastEndSec : 0.0);
-            $searchAnchor = max(0.0, $itemAnchor - 5.0);
+            $searchAnchor = max(0.0, $lastEndSec - 15.0);
 
             $variations = $this->getCodeSearchVariations($code);
             $regexPatterns = [];
             foreach ($variations as $var) {
                 $escaped = preg_quote($var, '/');
-                $regexPatterns[] = '(?:c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escaped;
-                $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?c.{1,3}digo';
-                $regexPatterns[] = '(?:saiu\s+pra|fila\s+pra|vai\s+pro)\s*' . $escaped;
+                $regexPatterns[] = '(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escaped;
+                $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?(?:codigo|c.{1,3}digo|c[oó]digo)';
             }
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
 
             $bestMention = null;
 
-            // 1ª tentativa: Menção explícita na janela sequencial à frente ($searchAnchor até +6 minutos)
+            // 1ª tentativa: Menção explícita de apresentação na janela sequencial à frente ($searchAnchor até +8 minutos)
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
                 if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
-                if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break; // Limita a busca a 6 minutos à frente para evitar saltos acidentais para o final da live
+                if ($searchAnchor > 0 && $sStart > ($searchAnchor + 480.0)) break;
 
                 $text = $s['text'] ?? '';
-                if (preg_match($combinedRegex, $text)) {
+                // Normaliza ruído e caracteres corrompidos de encoding (ex: cdigo -> codigo)
+                $normText = preg_replace('/c\s*digo/iu', 'codigo', $text);
+                if (preg_match($combinedRegex, $normText)) {
                     $bestMention = [
                         'index' => $idx,
                         'start' => $sStart,
@@ -1567,7 +1551,7 @@ PROMPT;
                 }
             }
 
-            // 2ª tentativa: Se não achou em 6min, expande a janela para até 15 minutos à frente
+            // 2ª tentativa: Se não achou em 8min, expande a janela para até 15 minutos à frente
             if (!$bestMention) {
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
@@ -1575,7 +1559,8 @@ PROMPT;
                     if ($searchAnchor > 0 && $sStart > ($searchAnchor + 900.0)) break;
 
                     $text = $s['text'] ?? '';
-                    if (preg_match($combinedRegex, $text)) {
+                    $normText = preg_replace('/c\s*digo/iu', 'codigo', $text);
+                    if (preg_match($combinedRegex, $normText)) {
                         $bestMention = [
                             'index' => $idx,
                             'start' => $sStart,
