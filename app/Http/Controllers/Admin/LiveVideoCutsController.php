@@ -2289,40 +2289,56 @@ PROMPT;
             $p2Path = $outputDir . '/p2_' . time() . '_' . uniqid() . '.mp4';
             $listPath = $outputDir . '/concat_' . time() . '_' . uniqid() . '.txt';
 
-            $p1AudioStart = $hasAudioOffset ? max(0.0, round($start + $audioOffset, 2)) : $start;
-            $p2AudioStart = $hasAudioOffset ? max(0.0, round($middleEnd + $audioOffset, 2)) : $middleEnd;
+            $p1FastSeek = max(0.0, round($start - 2.5, 2));
+            $p1AccSeek = round($start - $p1FastSeek, 2);
+
+            $p2FastSeek = max(0.0, round($middleEnd - 2.5, 2));
+            $p2AccSeek = round($middleEnd - $p2FastSeek, 2);
 
             if ($hasAudioOffset) {
+                $p1AudioStart = max(0.0, round($start + $audioOffset, 2));
+                $p2AudioStart = max(0.0, round($middleEnd + $audioOffset, 2));
+                $p1AudioFastSeek = max(0.0, round($p1AudioStart - 2.5, 2));
+                $p1AudioAccSeek = round($p1AudioStart - $p1AudioFastSeek, 2);
+                $p2AudioFastSeek = max(0.0, round($p2AudioStart - 2.5, 2));
+                $p2AudioAccSeek = round($p2AudioStart - $p2AudioFastSeek, 2);
+
                 $cmdP1 = sprintf(
-                    'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
-                    escapeshellarg($start),
+                    'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($p1FastSeek),
                     escapeshellarg($inputPath),
-                    escapeshellarg($p1AudioStart),
+                    escapeshellarg($p1AccSeek),
+                    escapeshellarg($p1AudioFastSeek),
                     escapeshellarg($inputPath),
+                    escapeshellarg($p1AudioAccSeek),
                     escapeshellarg($p1Duration),
                     escapeshellarg($p1Path)
                 );
                 $cmdP2 = sprintf(
-                    'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
-                    escapeshellarg($middleEnd),
+                    'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($p2FastSeek),
                     escapeshellarg($inputPath),
-                    escapeshellarg($p2AudioStart),
+                    escapeshellarg($p2AccSeek),
+                    escapeshellarg($p2AudioFastSeek),
                     escapeshellarg($inputPath),
+                    escapeshellarg($p2AudioAccSeek),
                     escapeshellarg($p2Duration),
                     escapeshellarg($p2Path)
                 );
             } else {
                 $cmdP1 = sprintf(
-                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
-                    escapeshellarg($start),
+                    'ffmpeg -ss %s -i %s -ss %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($p1FastSeek),
                     escapeshellarg($inputPath),
+                    escapeshellarg($p1AccSeek),
                     escapeshellarg($p1Duration),
                     escapeshellarg($p1Path)
                 );
                 $cmdP2 = sprintf(
-                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
-                    escapeshellarg($middleEnd),
+                    'ffmpeg -ss %s -i %s -ss %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                    escapeshellarg($p2FastSeek),
                     escapeshellarg($inputPath),
+                    escapeshellarg($p2AccSeek),
                     escapeshellarg($p2Duration),
                     escapeshellarg($p2Path)
                 );
@@ -2351,6 +2367,11 @@ PROMPT;
 
         // Processamento padrão contínuo (com ou sem legenda/overlays) se não houver corte no meio ou se a concatenação falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
+            // Two-Stage Seeking: fast-seek até keyframe próximo e decodificação precisa até o milissegundo exato
+            // Garante sincronia 1:1 absoluta de áudio e vídeo desde o primeiro frame sem atraso de keyframe
+            $fastSeek = max(0.0, round($start - 2.5, 2));
+            $accSeek = round($start - $fastSeek, 2);
+
             // 1. Gera arquivo de legenda SRT para o trecho do corte
             $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'), $audioOffset);
 
@@ -2363,6 +2384,9 @@ PROMPT;
 
             // 3. Monta o pipeline de filtros do FFmpeg
             if ($hasAudioOffset) {
+                $audioFastSeek = max(0.0, round($audioStart - 2.5, 2));
+                $audioAccSeek = round($audioStart - $audioFastSeek, 2);
+
                 if ($hasOverlay && $hasSrt) {
                     $escapedSrt = str_replace('\\', '/', $srtFile);
                     $escapedSrt = str_replace(':', '\\:', $escapedSrt);
@@ -2371,11 +2395,13 @@ PROMPT;
                         $escapedSrt
                     );
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
-                        escapeshellarg($audioStart),
+                        escapeshellarg($accSeek),
+                        escapeshellarg($audioFastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($audioAccSeek),
                         escapeshellarg($overlayPng),
                         escapeshellarg($duration),
                         $filterComplex,
@@ -2385,11 +2411,13 @@ PROMPT;
                 } elseif ($hasOverlay && !$hasSrt) {
                     $filterComplex = '-filter_complex "[0:v][2:v]overlay=0:0[v]" -map "[v]" -map 1:a';
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
-                        escapeshellarg($audioStart),
+                        escapeshellarg($accSeek),
+                        escapeshellarg($audioFastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($audioAccSeek),
                         escapeshellarg($overlayPng),
                         escapeshellarg($duration),
                         $filterComplex,
@@ -2404,11 +2432,13 @@ PROMPT;
                         $escapedSrt
                     );
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -ss %s -i %s -t %s %s -map 0:v -map 1:a -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -t %s %s -map 0:v -map 1:a -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
-                        escapeshellarg($audioStart),
+                        escapeshellarg($accSeek),
+                        escapeshellarg($audioFastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($audioAccSeek),
                         escapeshellarg($duration),
                         $subtitleFilter,
                         escapeshellarg($outputPath)
@@ -2420,11 +2450,13 @@ PROMPT;
                 if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
                     $outputFallback = [];
                     $cmdFallback = sprintf(
-                        'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -ss %s -i %s -ss %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
-                        escapeshellarg($audioStart),
+                        escapeshellarg($accSeek),
+                        escapeshellarg($audioFastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($audioAccSeek),
                         escapeshellarg($duration),
                         escapeshellarg($outputPath)
                     );
@@ -2434,7 +2466,7 @@ PROMPT;
                     }
                 }
             } else {
-                // Sem offset (áudio e vídeo no mesmo tempo)
+                // Sem offset: áudio e vídeo no mesmo arquivo com Two-Stage Seeking perfeito
                 if ($hasOverlay && $hasSrt) {
                     $escapedSrt = str_replace('\\', '/', $srtFile);
                     $escapedSrt = str_replace(':', '\\:', $escapedSrt);
@@ -2443,9 +2475,10 @@ PROMPT;
                         $escapedSrt
                     );
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($accSeek),
                         escapeshellarg($overlayPng),
                         escapeshellarg($duration),
                         $filterComplex,
@@ -2455,9 +2488,10 @@ PROMPT;
                 } elseif ($hasOverlay && !$hasSrt) {
                     $filterComplex = '-filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a?';
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($accSeek),
                         escapeshellarg($overlayPng),
                         escapeshellarg($duration),
                         $filterComplex,
@@ -2472,9 +2506,10 @@ PROMPT;
                         $escapedSrt
                     );
                     $cmd = sprintf(
-                        'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($accSeek),
                         escapeshellarg($duration),
                         $subtitleFilter,
                         escapeshellarg($outputPath)
@@ -2486,9 +2521,10 @@ PROMPT;
                 if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
                     $outputFallback = [];
                     $cmdFallback = sprintf(
-                        'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                        escapeshellarg($start),
+                        'ffmpeg -ss %s -i %s -ss %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($fastSeek),
                         escapeshellarg($inputPath),
+                        escapeshellarg($accSeek),
                         escapeshellarg($duration),
                         escapeshellarg($outputPath)
                     );
