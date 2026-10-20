@@ -19,13 +19,20 @@ class Live extends Model
         'tipo_live',
         'plataformas',
         'ativo',
-        'encerrada_em'
+        'encerrada_em',
+        'recording_path',
+        'recording_filename',
+        'recording_duration',
+        'audio_offset_sec',
+        'transcription_raw',
+        'transcription_status',
     ];
 
     protected $casts = [
         'data' => 'date',
         'ativo' => 'boolean',
         'encerrada_em' => 'datetime',
+        'audio_offset_sec' => 'float',
     ];
 
     // ✅ TODOS SEUS MÉTODOS ORIGINAIS (mantidos 100%)

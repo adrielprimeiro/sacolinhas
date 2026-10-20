@@ -148,6 +148,24 @@
                 <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900">
             </div>
 
+            <!-- Ajuste de Sincronia de Áudio -->
+            <div class="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-xs" title="Compensação de atraso do som em relação aos movimentos da boca">
+                <i class="fas fa-volume-high text-indigo-600 text-xs"></i>
+                <span class="text-[10px] uppercase font-extrabold text-gray-500 whitespace-nowrap">Sincronia:</span>
+                <select id="header-audio-offset" onchange="handleAudioOffsetChange(this.value)" class="audio-offset-select text-xs font-black bg-gray-50 border border-gray-300 rounded-lg px-2 py-0.5 focus:bg-white focus:border-indigo-500 text-gray-900 cursor-pointer">
+                    <option value="0.0" {{ abs(($live->audio_offset_sec ?? 0) - 0.0) < 0.05 ? 'selected' : '' }}>0.0s (Padrão)</option>
+                    <option value="0.5" {{ abs(($live->audio_offset_sec ?? 0) - 0.5) < 0.05 ? 'selected' : '' }}>+0.5s</option>
+                    <option value="0.8" {{ abs(($live->audio_offset_sec ?? 0) - 0.8) < 0.05 ? 'selected' : '' }}>+0.8s</option>
+                    <option value="1.0" {{ abs(($live->audio_offset_sec ?? 0) - 1.0) < 0.05 ? 'selected' : '' }}>+1.0s</option>
+                    <option value="1.2" {{ abs(($live->audio_offset_sec ?? 0) - 1.2) < 0.05 ? 'selected' : '' }}>+1.2s (Recomendado Live 359)</option>
+                    <option value="1.5" {{ abs(($live->audio_offset_sec ?? 0) - 1.5) < 0.05 ? 'selected' : '' }}>+1.5s</option>
+                    <option value="2.0" {{ abs(($live->audio_offset_sec ?? 0) - 2.0) < 0.05 ? 'selected' : '' }}>+2.0s</option>
+                    @if(!in_array(round($live->audio_offset_sec ?? 0, 1), [0.0, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0]))
+                    <option value="{{ $live->audio_offset_sec }}" selected>{{ sprintf('%+.2fs', $live->audio_offset_sec) }}</option>
+                    @endif
+                </select>
+            </div>
+
             <!-- PASSOS INDIVIDUAIS (1 A 6) -->
             <div class="inline-flex rounded-xl shadow-xs border border-gray-200 bg-gray-100 p-1 gap-1 flex-wrap">
                 <!-- 1. Baixar Vídeo -->
@@ -1264,6 +1282,33 @@
                         @else
                             ✓ Todos os vídeos desta live já foram fatiados e salvos em disco!
                         @endif
+                    </div>
+                </div>
+
+                <!-- Configuração de Sincronia de Áudio (Compensação de Lip-Sync) -->
+                <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
+                    <label class="text-xs font-black text-indigo-950 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fas fa-volume-high text-indigo-600"></i> Sincronia de Áudio (Compensação de Atraso):
+                        </span>
+                        <span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">Lip-Sync</span>
+                    </label>
+                    <p class="text-[11px] text-indigo-900 leading-relaxed">
+                        Se o som da live estiver atrasado em relação aos movimentos da boca, selecione o adiantamento de áudio abaixo para que voz, lábios e legendas fiquem 100% sincronizados:
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <select id="modal-audio-offset" onchange="handleAudioOffsetChange(this.value)" class="audio-offset-select text-xs font-black bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-600 text-gray-900 cursor-pointer flex-1">
+                            <option value="0.0" {{ abs(($live->audio_offset_sec ?? 0) - 0.0) < 0.05 ? 'selected' : '' }}>0.0s (Padrão - Sem compensação)</option>
+                            <option value="0.5" {{ abs(($live->audio_offset_sec ?? 0) - 0.5) < 0.05 ? 'selected' : '' }}>+0.5s (Atraso leve)</option>
+                            <option value="0.8" {{ abs(($live->audio_offset_sec ?? 0) - 0.8) < 0.05 ? 'selected' : '' }}>+0.8s (Atraso médio)</option>
+                            <option value="1.0" {{ abs(($live->audio_offset_sec ?? 0) - 1.0) < 0.05 ? 'selected' : '' }}>+1.0s (Atraso comum)</option>
+                            <option value="1.2" {{ abs(($live->audio_offset_sec ?? 0) - 1.2) < 0.05 ? 'selected' : '' }}>+1.2s (Recomendado Live 359 - Alinhamento Perfeito)</option>
+                            <option value="1.5" {{ abs(($live->audio_offset_sec ?? 0) - 1.5) < 0.05 ? 'selected' : '' }}>+1.5s (Atraso alto)</option>
+                            <option value="2.0" {{ abs(($live->audio_offset_sec ?? 0) - 2.0) < 0.05 ? 'selected' : '' }}>+2.0s (Atraso severo)</option>
+                            @if(!in_array(round($live->audio_offset_sec ?? 0, 1), [0.0, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0]))
+                            <option value="{{ $live->audio_offset_sec }}" selected>{{ sprintf('%+.2fs', $live->audio_offset_sec) }}</option>
+                            @endif
+                        </select>
                     </div>
                 </div>
 
@@ -2488,6 +2533,38 @@
 
 
 
+    function getSelectedAudioOffset() {
+        const el = document.getElementById('header-audio-offset');
+        if (!el) return 0.0;
+        return parseFloat(el.value) || 0.0;
+    }
+
+    async function handleAudioOffsetChange(newOffset) {
+        document.querySelectorAll('.audio-offset-select').forEach(sel => {
+            sel.value = newOffset;
+        });
+
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/save-audio-offset`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    audio_offset_sec: parseFloat(newOffset) || 0.0
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                console.log("Audio offset salvo:", data.audio_offset_sec);
+            }
+        } catch(e) {
+            console.error("Erro ao salvar audio offset:", e);
+        }
+    }
+
     async function generateSingleClip(itemId) {
         const btn = document.getElementById(`btn-cut-${itemId}`);
         const oldHtml = btn.innerHTML;
@@ -2512,7 +2589,8 @@
                 body: JSON.stringify({
                     cut_start_sec: startVal,
                     cut_end_sec: endVal,
-                    apply_overlays: applyOverlays
+                    apply_overlays: applyOverlays,
+                    audio_offset_sec: getSelectedAudioOffset()
                 })
             });
             const data = await res.json();
@@ -2891,7 +2969,8 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        apply_overlays: applyOverlays
+                        apply_overlays: applyOverlays,
+                        audio_offset_sec: getSelectedAudioOffset()
                     })
                 });
                 const data = await res.json();

@@ -2037,6 +2037,24 @@ PROMPT;
     }
 
     /**
+     * Atualiza o ajuste de sincronia de áudio (offset em segundos) para a Live
+     */
+    public function saveAudioOffset(Request $request, $liveId)
+    {
+        $live = Live::findOrFail($liveId);
+        $offset = (float) $request->input('audio_offset_sec', 0.0);
+
+        $live->audio_offset_sec = $offset;
+        $live->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => sprintf('Sincronia de áudio atualizada para %+.2fs.', $offset),
+            'audio_offset_sec' => $offset
+        ]);
+    }
+
+    /**
      * Aprova um Corte como Padrão-Ouro (Severino grava como exemplo de alta qualidade)
      */
     public function approveItemCut(Request $request, $liveId, $liveItemId)
@@ -2243,6 +2261,12 @@ PROMPT;
             }
         }
 
+        $audioOffset = $request->filled('audio_offset_sec') 
+            ? (float) $request->input('audio_offset_sec') 
+            : (float) ($live->audio_offset_sec ?? 0.0);
+        $hasAudioOffset = abs($audioOffset) > 0.01;
+        $audioStart = $hasAudioOffset ? max(0.0, round($start + $audioOffset, 2)) : $start;
+
         $middleStart = isset($liveItem->middle_cut_start_sec) ? (float) $liveItem->middle_cut_start_sec : null;
         $middleEnd = isset($liveItem->middle_cut_end_sec) ? (float) $liveItem->middle_cut_end_sec : null;
         if ($request->filled('middle_cut_start_sec')) {
@@ -2265,20 +2289,44 @@ PROMPT;
             $p2Path = $outputDir . '/p2_' . time() . '_' . uniqid() . '.mp4';
             $listPath = $outputDir . '/concat_' . time() . '_' . uniqid() . '.txt';
 
-            $cmdP1 = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -y %s 2>&1',
-                escapeshellarg($start),
-                escapeshellarg($inputPath),
-                escapeshellarg($p1Duration),
-                escapeshellarg($p1Path)
-            );
-            $cmdP2 = sprintf(
-                'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -y %s 2>&1',
-                escapeshellarg($middleEnd),
-                escapeshellarg($inputPath),
-                escapeshellarg($p2Duration),
-                escapeshellarg($p2Path)
-            );
+            $p1AudioStart = $hasAudioOffset ? max(0.0, round($start + $audioOffset, 2)) : $start;
+            $p2AudioStart = $hasAudioOffset ? max(0.0, round($middleEnd + $audioOffset, 2)) : $middleEnd;
+
+            if ($hasAudioOffset) {
+                $cmdP1 = sprintf(
+                    'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p1AudioStart),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p1Duration),
+                    escapeshellarg($p1Path)
+                );
+                $cmdP2 = sprintf(
+                    'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
+                    escapeshellarg($middleEnd),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p2AudioStart),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p2Duration),
+                    escapeshellarg($p2Path)
+                );
+            } else {
+                $cmdP1 = sprintf(
+                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
+                    escapeshellarg($start),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p1Duration),
+                    escapeshellarg($p1Path)
+                );
+                $cmdP2 = sprintf(
+                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -y %s 2>&1',
+                    escapeshellarg($middleEnd),
+                    escapeshellarg($inputPath),
+                    escapeshellarg($p2Duration),
+                    escapeshellarg($p2Path)
+                );
+            }
 
             exec($cmdP1, $outP1, $retP1);
             exec($cmdP2, $outP2, $retP2);
@@ -2304,7 +2352,7 @@ PROMPT;
         // Processamento padrão contínuo (com ou sem legenda/overlays) se não houver corte no meio ou se a concatenação falhar
         if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
             // 1. Gera arquivo de legenda SRT para o trecho do corte
-            $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'));
+            $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'), $audioOffset);
 
             $overlayPng = null;
             $hasOverlay = false;
@@ -2314,66 +2362,140 @@ PROMPT;
             $hasSrt = ($srtFile && file_exists($srtFile));
 
             // 3. Monta o pipeline de filtros do FFmpeg
-            if ($hasOverlay && $hasSrt) {
-                $escapedSrt = str_replace('\\', '/', $srtFile);
-                $escapedSrt = str_replace(':', '\\:', $escapedSrt);
-                $filterComplex = sprintf(
-                    "-filter_complex \"[0:v][1:v]overlay=0:0[v1];[v1]subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'[v]\" -map \"[v]\" -map 0:a?",
-                    $escapedSrt
-                );
-                $cmd = sprintf(
-                    'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                    escapeshellarg($start),
-                    escapeshellarg($inputPath),
-                    escapeshellarg($overlayPng),
-                    escapeshellarg($duration),
-                    $filterComplex,
-                    escapeshellarg($outputPath)
-                );
-                exec($cmd, $output, $returnCode);
-            } elseif ($hasOverlay && !$hasSrt) {
-                $filterComplex = '-filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a?';
-                $cmd = sprintf(
-                    'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                    escapeshellarg($start),
-                    escapeshellarg($inputPath),
-                    escapeshellarg($overlayPng),
-                    escapeshellarg($duration),
-                    $filterComplex,
-                    escapeshellarg($outputPath)
-                );
-                exec($cmd, $output, $returnCode);
-            } elseif (!$hasOverlay && $hasSrt) {
-                $escapedSrt = str_replace('\\', '/', $srtFile);
-                $escapedSrt = str_replace(':', '\\:', $escapedSrt);
-                $subtitleFilter = sprintf(
-                    "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
-                    $escapedSrt
-                );
-                $cmd = sprintf(
-                    'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                    escapeshellarg($start),
-                    escapeshellarg($inputPath),
-                    escapeshellarg($duration),
-                    $subtitleFilter,
-                    escapeshellarg($outputPath)
-                );
-                exec($cmd, $output, $returnCode);
-            }
+            if ($hasAudioOffset) {
+                if ($hasOverlay && $hasSrt) {
+                    $escapedSrt = str_replace('\\', '/', $srtFile);
+                    $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                    $filterComplex = sprintf(
+                        "-filter_complex \"[0:v][2:v]overlay=0:0[v1];[v1]subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'[v]\" -map \"[v]\" -map 1:a",
+                        $escapedSrt
+                    );
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($audioStart),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($overlayPng),
+                        escapeshellarg($duration),
+                        $filterComplex,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                } elseif ($hasOverlay && !$hasSrt) {
+                    $filterComplex = '-filter_complex "[0:v][2:v]overlay=0:0[v]" -map "[v]" -map 1:a';
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($audioStart),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($overlayPng),
+                        escapeshellarg($duration),
+                        $filterComplex,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                } elseif (!$hasOverlay && $hasSrt) {
+                    $escapedSrt = str_replace('\\', '/', $srtFile);
+                    $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                    $subtitleFilter = sprintf(
+                        "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
+                        $escapedSrt
+                    );
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -t %s %s -map 0:v -map 1:a -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($audioStart),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($duration),
+                        $subtitleFilter,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                }
 
-            // Fallback rápido sem legenda e sem overlay se o comando com filtros falhar
-            if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
-                $outputFallback = [];
-                $cmdFallback = sprintf(
-                    'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
-                    escapeshellarg($start),
-                    escapeshellarg($inputPath),
-                    escapeshellarg($duration),
-                    escapeshellarg($outputPath)
-                );
-                exec($cmdFallback, $outputFallback, $returnCode);
-                if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
-                    $output = $outputFallback;
+                // Fallback rápido com offset de áudio se o comando com filtros falhar
+                if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
+                    $outputFallback = [];
+                    $cmdFallback = sprintf(
+                        'ffmpeg -ss %s -i %s -ss %s -i %s -map 0:v -map 1:a -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($audioStart),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($duration),
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmdFallback, $outputFallback, $returnCode);
+                    if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
+                        $output = $outputFallback;
+                    }
+                }
+            } else {
+                // Sem offset (áudio e vídeo no mesmo tempo)
+                if ($hasOverlay && $hasSrt) {
+                    $escapedSrt = str_replace('\\', '/', $srtFile);
+                    $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                    $filterComplex = sprintf(
+                        "-filter_complex \"[0:v][1:v]overlay=0:0[v1];[v1]subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'[v]\" -map \"[v]\" -map 0:a?",
+                        $escapedSrt
+                    );
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($overlayPng),
+                        escapeshellarg($duration),
+                        $filterComplex,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                } elseif ($hasOverlay && !$hasSrt) {
+                    $filterComplex = '-filter_complex "[0:v][1:v]overlay=0:0[v]" -map "[v]" -map 0:a?';
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($overlayPng),
+                        escapeshellarg($duration),
+                        $filterComplex,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                } elseif (!$hasOverlay && $hasSrt) {
+                    $escapedSrt = str_replace('\\', '/', $srtFile);
+                    $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                    $subtitleFilter = sprintf(
+                        "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
+                        $escapedSrt
+                    );
+                    $cmd = sprintf(
+                        'ffmpeg -ss %s -i %s -t %s %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($duration),
+                        $subtitleFilter,
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmd, $output, $returnCode);
+                }
+
+                // Fallback rápido sem legenda e sem overlay se o comando com filtros falhar
+                if ($returnCode !== 0 || !file_exists($outputPath) || filesize($outputPath) < 5000) {
+                    $outputFallback = [];
+                    $cmdFallback = sprintf(
+                        'ffmpeg -ss %s -i %s -t %s -c:v libx264 -preset veryfast -crf 22 -r 30 -c:a aac -b:a 128k -af aresample=async=1:first_pts=0 -avoid_negative_ts make_zero -movflags +faststart -y %s 2>&1',
+                        escapeshellarg($start),
+                        escapeshellarg($inputPath),
+                        escapeshellarg($duration),
+                        escapeshellarg($outputPath)
+                    );
+                    exec($cmdFallback, $outputFallback, $returnCode);
+                    if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
+                        $output = $outputFallback;
+                    }
                 }
             }
 
@@ -2461,11 +2583,12 @@ PROMPT;
     /**
      * Gera arquivo de legendas .srt para o trecho do corte com blocos curtos dinâmicos (estilo TikTok/Reels)
      */
-    protected function generateSubtitleFileForClip(Live $live, $liveItem, float $start, float $duration, string $outputDir, ?string $customSnippet = null): ?string
+    protected function generateSubtitleFileForClip(Live $live, $liveItem, float $start, float $duration, string $outputDir, ?string $customSnippet = null, float $audioOffset = 0.0): ?string
     {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
         $allSegments = [];
-        $end = $start + $duration;
+        $effectiveAudioStart = max(0.0, $start + $audioOffset);
+        $effectiveAudioEnd = $start + $duration + $audioOffset;
 
         foreach ($sentences as $s) {
             $sStart = (float) ($s['start'] ?? 0);
@@ -2474,10 +2597,10 @@ PROMPT;
 
             if (empty($text)) continue;
 
-            // Frases que sobrepõem o intervalo do corte
-            if ($sEnd > ($start + 0.1) && $sStart < ($end - 0.1)) {
-                $relStart = max(0.0, round($sStart - $start, 2));
-                $relEnd = min($duration, round($sEnd - $start, 2));
+            // Frases que sobrepõem o intervalo do corte de áudio
+            if ($sEnd > ($effectiveAudioStart + 0.1) && $sStart < ($effectiveAudioEnd - 0.1)) {
+                $relStart = max(0.0, round($sStart - $effectiveAudioStart, 2));
+                $relEnd = min($duration, round($sEnd - $effectiveAudioStart, 2));
 
                 if ($relEnd > $relStart) {
                     $chunks = $this->chunkTextIntoTimedSegments($relStart, $relEnd, $text);
@@ -2924,8 +3047,13 @@ PROMPT;
         $successCount = 0;
         $failedCount = 0;
 
+        $batchParams = [];
+        if ($request->filled('audio_offset_sec')) {
+            $batchParams['audio_offset_sec'] = (float) $request->input('audio_offset_sec');
+        }
+
         foreach ($items as $item) {
-            $req = new Request();
+            $req = new Request($batchParams);
             $res = $this->generateSingleClip($req, $liveId, $item->id);
             $data = $res->getData(true);
             if (!empty($data['success'])) {
