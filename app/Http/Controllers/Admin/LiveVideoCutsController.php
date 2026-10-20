@@ -1133,11 +1133,11 @@ PROMPT;
             if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
                 $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
                 $windowStart = max(0, $lastKnownEndSec - 20);
-                $windowEnd = $lastKnownEndSec + 450; // Janela compacta de ~7 minutos para 6 peças
+                $windowEnd = $lastKnownEndSec + 280; // Janela compacta de ~4.5 minutos para 6 peças
             } else {
                 $estimatedStartSec = max(0, ($chunkIdx * count($chunk) * 35) - 60);
                 $windowStart = $estimatedStartSec;
-                $windowEnd = $estimatedStartSec + 500;
+                $windowEnd = $estimatedStartSec + 320;
             }
 
             // Segmenta apenas a janela temporal da transcrição relevante para este lote
@@ -1150,13 +1150,14 @@ PROMPT;
                 $text = trim($s['text'] ?? '');
                 if ($text) {
                     $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
+                    if (count($transcriptFormatted) >= 60) break; // Limita a 60 falas para nunca estourar tokens
                 }
             }
 
             // Fallback de janela segura se estiver vazia (para nunca enviar a transcrição inteira de 30k tokens)
             if (empty($transcriptFormatted)) {
                 $sliceStart = max(0, (int) (($chunkIdx / max(1, $totalChunks)) * count($sentences)) - 10);
-                $slice = array_slice($sentences, $sliceStart, 60);
+                $slice = array_slice($sentences, $sliceStart, 40);
                 foreach ($slice as $s) {
                     $sStart = round((float) ($s['start'] ?? 0), 1);
                     $sEnd = round((float) ($s['end'] ?? 0), 1);
@@ -1172,9 +1173,9 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Groq (LPU Ultrarrápido com modelos ativos)
+            // 1. Groq (LPU Ultrarrápido com modelos de altíssimo throughput)
             if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+                $groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'];
                 foreach ($groqModels as $grModel) {
                     try {
                         $groqPayload = [
@@ -1197,6 +1198,9 @@ PROMPT;
                             }
                         } else {
                             Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                            if ($response->status() === 429) {
+                                sleep(2);
+                            }
                         }
                     } catch (\Exception $e) {
                         Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
@@ -1206,7 +1210,7 @@ PROMPT;
 
             // 2. OpenRouter (Alta disponibilidade)
             if (empty($rawResponse) && !empty($openrouterKey)) {
-                $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.5-flash'];
+                $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-001'];
                 foreach ($orModels as $orModel) {
                     try {
                         $orPayload = [
@@ -1235,9 +1239,9 @@ PROMPT;
                 }
             }
 
-            // 3. Google Gemini Nativo
+            // 3. Google Gemini Nativo (Modelos com alta cota RPM)
             if (empty($rawResponse) && !empty($geminiKey)) {
-                $geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest'];
+                $geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
                 foreach ($geminiModels as $gModel) {
                     try {
                         $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key={$geminiKey}";
@@ -1270,8 +1274,8 @@ PROMPT;
                 }
             }
 
-            // Pausa de 200ms para respeitar limites de requisição
-            usleep(200000);
+            // Pausa de 500ms para respeitar limites de requisição
+            usleep(500000);
 
             $decoded = null;
             if (!empty($rawResponse)) {
@@ -1506,6 +1510,18 @@ PROMPT;
             $inputPath = $live->recording_path;
         }
         $videoDuration = $this->getVideoDuration($inputPath);
+
+        // Inicializa a âncora cronológica para evitar erro de variável indefinida
+        $lastEndSec = (float) ($initialStartSec ?? 0.0);
+        if ($lastEndSec <= 0.0) {
+            $maxExisting = DB::table('live_items')
+                ->where('live_id', $live->id)
+                ->whereNotNull('cut_end_sec')
+                ->max('cut_end_sec');
+            if ($maxExisting > 0) {
+                $lastEndSec = (float) $maxExisting;
+            }
+        }
 
         foreach ($liveItems as $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
