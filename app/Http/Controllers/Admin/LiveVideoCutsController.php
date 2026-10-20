@@ -1173,73 +1173,7 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Groq (LPU Ultrarrápido com modelos ativos)
-            if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
-                foreach ($groqModels as $grModel) {
-                    try {
-                        $groqPayload = [
-                            'model' => $grModel,
-                            'messages' => [
-                                ['role' => 'system', 'content' => $systemPrompt],
-                                ['role' => 'user', 'content' => $userPrompt]
-                            ],
-                            'response_format' => ['type' => 'json_object'],
-                            'temperature' => 0.1,
-                            'max_tokens' => 500
-                        ];
-
-                        $response = Http::withToken($groqKey)->timeout(20)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
-                        if ($response->successful()) {
-                            $json = $response->json();
-                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
-                            if (!empty($rawResponse)) {
-                                break;
-                            }
-                        } else {
-                            Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
-                            if ($response->status() === 429) {
-                                sleep(2);
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
-                    }
-                }
-            }
-
-            // 2. OpenRouter (Alta disponibilidade)
-            if (empty($rawResponse) && !empty($openrouterKey)) {
-                $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-001'];
-                foreach ($orModels as $orModel) {
-                    try {
-                        $orPayload = [
-                            'model' => $orModel,
-                            'messages' => [
-                                ['role' => 'system', 'content' => $systemPrompt],
-                                ['role' => 'user', 'content' => $userPrompt]
-                            ],
-                            'response_format' => ['type' => 'json_object'],
-                            'temperature' => 0.1
-                        ];
-
-                        $response = Http::withToken($openrouterKey)->timeout(30)->post('https://openrouter.ai/api/v1/chat/completions', $orPayload);
-                        if ($response->successful()) {
-                            $json = $response->json();
-                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
-                            if (!empty($rawResponse)) {
-                                break;
-                            }
-                        } else {
-                            Log::warning("[LiveVideoCuts] OpenRouter ({$orModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning("[LiveVideoCuts] Exceção no OpenRouter ({$orModel}) (Lote {$chunkNumber}): " . $e->getMessage());
-                    }
-                }
-            }
-
-            // 3. Google Gemini Nativo
+            // 1. Google Gemini Nativo (Prioritário - Chave Paga e Contexto Amplo)
             if (empty($rawResponse) && !empty($geminiKey)) {
                 $geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest'];
                 foreach ($geminiModels as $gModel) {
@@ -1270,6 +1204,72 @@ PROMPT;
                         }
                     } catch (\Exception $e) {
                         Log::warning("[LiveVideoCuts] Exceção no Gemini nativo ({$gModel}) (Lote {$chunkNumber}): " . $e->getMessage());
+                    }
+                }
+            }
+
+            // 2. Groq (LPU Ultrarrápido com modelos oficiais ativos)
+            if (empty($rawResponse) && !empty($groqKey)) {
+                $groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+                foreach ($groqModels as $grModel) {
+                    try {
+                        $groqPayload = [
+                            'model' => $grModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
+                            ],
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1,
+                            'max_tokens' => 800
+                        ];
+
+                        $response = Http::withToken($groqKey)->timeout(20)->post('https://api.groq.com/openai/v1/chat/completions', $groqPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] Groq ({$grModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                            if ($response->status() === 429) {
+                                sleep(2);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no Groq ({$grModel}) (Lote {$chunkNumber}): " . $e->getMessage());
+                    }
+                }
+            }
+
+            // 3. OpenRouter (Fallback)
+            if (empty($rawResponse) && !empty($openrouterKey)) {
+                $orModels = ['meta-llama/llama-3.3-70b-instruct', 'google/gemini-2.0-flash-001'];
+                foreach ($orModels as $orModel) {
+                    try {
+                        $orPayload = [
+                            'model' => $orModel,
+                            'messages' => [
+                                ['role' => 'system', 'content' => $systemPrompt],
+                                ['role' => 'user', 'content' => $userPrompt]
+                            ],
+                            'response_format' => ['type' => 'json_object'],
+                            'temperature' => 0.1
+                        ];
+
+                        $response = Http::withToken($openrouterKey)->timeout(30)->post('https://openrouter.ai/api/v1/chat/completions', $orPayload);
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            $rawResponse = $json['choices'][0]['message']['content'] ?? null;
+                            if (!empty($rawResponse)) {
+                                break;
+                            }
+                        } else {
+                            Log::warning("[LiveVideoCuts] OpenRouter ({$orModel}) falhou no lote {$chunkNumber}: " . $response->status() . " - " . $response->body());
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[LiveVideoCuts] Exceção no OpenRouter ({$orModel}) (Lote {$chunkNumber}): " . $e->getMessage());
                     }
                 }
             }
@@ -1541,8 +1541,8 @@ PROMPT;
             $regexPatterns = [];
             foreach ($variations as $var) {
                 $escaped = preg_quote($var, '/');
-                $regexPatterns[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*[:.]?\s*' . $escaped;
-                $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?c[oó]digo';
+                $regexPatterns[] = '(?:c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escaped;
+                $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?c.{1,3}digo';
                 $regexPatterns[] = '(?:saiu\s+pra|fila\s+pra|vai\s+pro)\s*' . $escaped;
             }
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
@@ -1788,12 +1788,28 @@ PROMPT;
         Log::info("[LiveVideoCuts] Executando segmentação de minutagem com IA para Live #{$live->id} (startCode: " . ($startCode ?: 'todos') . ")...");
         $aiResults = $this->detectItemTimestampsWithAI($live, $sentences, $liveItems, $startCode, $onlyUnreviewed, $progressCallback);
 
-        // 2. Complementação: verifica se ainda existem itens da live sem corte definido e aplica o fallback heurístico neles
-        $pendingItems = DB::table('live_items')
+        // 2. Complementação: verifica os itens pendentes que não foram processados pela IA e aplica o matcher cronológico neles
+        $alreadyDetectedIds = array_filter(array_column($aiResults, 'live_item_id'));
+        $pendingQuery = DB::table('live_items')
             ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
-            ->where('live_items.live_id', $live->id)
-            ->whereNull('live_items.cut_start_sec')
-            ->select('live_items.*', 'items.nome_do_produto', 'items.preco', 'items.tamanho', 'items.marca', 'items.cor', 'items.descricao')
+            ->where('live_items.live_id', $live->id);
+
+        if (!empty($alreadyDetectedIds)) {
+            $pendingQuery->whereNotIn('live_items.id', $alreadyDetectedIds);
+        }
+
+        if ($startCode !== null) {
+            $pendingQuery->where('live_items.codigo_live', '>=', $startCode);
+        }
+
+        if ($onlyUnreviewed && Schema::hasColumn('live_items', 'is_reviewed')) {
+            $pendingQuery->where(function($q) {
+                $q->whereNull('live_items.is_reviewed')
+                  ->orWhere('live_items.is_reviewed', false);
+            });
+        }
+
+        $pendingItems = $pendingQuery->select('live_items.*', 'items.nome_do_produto', 'items.preco', 'items.tamanho', 'items.marca', 'items.cor', 'items.descricao')
             ->orderBy('live_items.id', 'asc')
             ->get();
 
