@@ -1173,9 +1173,9 @@ PROMPT;
 
             $rawResponse = null;
 
-            // 1. Groq (LPU Ultrarrápido com modelos de altíssimo throughput)
+            // 1. Groq (LPU Ultrarrápido com modelos ativos)
             if (empty($rawResponse) && !empty($groqKey)) {
-                $groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'];
+                $groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
                 foreach ($groqModels as $grModel) {
                     try {
                         $groqPayload = [
@@ -1239,9 +1239,9 @@ PROMPT;
                 }
             }
 
-            // 3. Google Gemini Nativo (Modelos com alta cota RPM)
+            // 3. Google Gemini Nativo
             if (empty($rawResponse) && !empty($geminiKey)) {
-                $geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+                $geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest'];
                 foreach ($geminiModels as $gModel) {
                     try {
                         $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$gModel}:generateContent?key={$geminiKey}";
