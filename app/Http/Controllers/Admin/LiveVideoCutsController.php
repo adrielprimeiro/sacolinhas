@@ -2056,6 +2056,26 @@ PROMPT;
     }
 
     /**
+     * Executa a análise e reparo automático de sincronia/congelamentos na gravação da Live
+     */
+    public function repairRecording(Request $request, $liveId)
+    {
+        $live = Live::findOrFail($liveId);
+        if (empty($live->recording_path)) {
+            return response()->json(['success' => false, 'message' => 'Nenhum vídeo vinculado para reparar.'], 400);
+        }
+
+        $artisan = base_path('artisan');
+        $cmd = sprintf('nohup php %s app:repair-live-recording %d --force > /dev/null 2>&1 &', escapeshellarg($artisan), (int) $liveId);
+        exec($cmd);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reparo e normalização de sinal da live iniciados em segundo plano via FFmpeg! O vídeo será atualizado automaticamente ao concluir.'
+        ]);
+    }
+
+    /**
      * Aprova um Corte como Padrão-Ouro (Severino grava como exemplo de alta qualidade)
      */
     public function approveItemCut(Request $request, $liveId, $liveItemId)

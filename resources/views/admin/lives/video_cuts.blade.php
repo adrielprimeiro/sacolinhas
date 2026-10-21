@@ -148,7 +148,7 @@
                 <input type="number" id="global-start-code" placeholder="Tudo" min="1" class="w-14 px-1 py-0.5 text-xs font-black text-center bg-gray-50 border border-gray-300 rounded-lg focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900">
             </div>
 
-            <!-- Ajuste de Sincronia de Áudio -->
+            <!-- Ajuste de Sincronia de Áudio & Reparo de Sinal -->
             <div class="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-xs" title="Compensação de atraso do som em relação aos movimentos da boca">
                 <i class="fas fa-volume-high text-indigo-600 text-xs"></i>
                 <span class="text-[10px] uppercase font-extrabold text-gray-500 whitespace-nowrap">Sincronia:</span>
@@ -157,13 +157,17 @@
                     <option value="0.5" {{ abs(($live->audio_offset_sec ?? 0) - 0.5) < 0.05 ? 'selected' : '' }}>+0.5s</option>
                     <option value="0.8" {{ abs(($live->audio_offset_sec ?? 0) - 0.8) < 0.05 ? 'selected' : '' }}>+0.8s</option>
                     <option value="1.0" {{ abs(($live->audio_offset_sec ?? 0) - 1.0) < 0.05 ? 'selected' : '' }}>+1.0s</option>
-                    <option value="1.2" {{ abs(($live->audio_offset_sec ?? 0) - 1.2) < 0.05 ? 'selected' : '' }}>+1.2s (Recomendado Live 359)</option>
+                    <option value="1.2" {{ abs(($live->audio_offset_sec ?? 0) - 1.2) < 0.05 ? 'selected' : '' }}>+1.2s</option>
                     <option value="1.5" {{ abs(($live->audio_offset_sec ?? 0) - 1.5) < 0.05 ? 'selected' : '' }}>+1.5s</option>
                     <option value="2.0" {{ abs(($live->audio_offset_sec ?? 0) - 2.0) < 0.05 ? 'selected' : '' }}>+2.0s</option>
                     @if(!in_array(round($live->audio_offset_sec ?? 0, 1), [0.0, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0]))
                     <option value="{{ $live->audio_offset_sec }}" selected>{{ sprintf('%+.2fs', $live->audio_offset_sec) }}</option>
                     @endif
                 </select>
+                <button type="button" onclick="repairLiveRecording()" id="btn-repair-recording" title="Escanear e reparar congelamentos/sincronia da transmissão com FFmpeg" class="px-2 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-2xs">
+                    <i class="fas fa-wrench text-indigo-600 text-[10px]"></i>
+                    <span class="text-[11px] font-extrabold">Reparar Sinal</span>
+                </button>
             </div>
 
             <!-- PASSOS INDIVIDUAIS (1 A 6) -->
@@ -2562,6 +2566,34 @@
             }
         } catch(e) {
             console.error("Erro ao salvar audio offset:", e);
+        }
+    }
+
+    async function repairLiveRecording() {
+        if (!confirm("Deseja escanear e normalizar a gravação da live para 30 FPS constantes? O FFmpeg preencherá eventuais congelamentos da transmissão para garantir sincronia 1:1 absoluta.")) return;
+        const btn = document.getElementById("btn-repair-recording");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin text-[10px]"></i> <span class="text-[11px] font-extrabold">Reparando...</span>`;
+        }
+        try {
+            const res = await fetch(`/admin/lives/${liveId}/cortes/repair-recording`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+            alert(data.message || 'Processo de reparo iniciado em segundo plano!');
+        } catch (e) {
+            alert('Erro ao iniciar reparo: ' + e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-wrench text-indigo-600 text-[10px]"></i> <span class="text-[11px] font-extrabold">Reparar Sinal</span>`;
+            }
         }
     }
 
