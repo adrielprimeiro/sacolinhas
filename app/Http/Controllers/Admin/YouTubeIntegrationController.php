@@ -63,6 +63,11 @@ class YouTubeIntegrationController extends Controller
     public function disconnect(Request $request)
     {
         SocialChannelAccount::where('provider', 'youtube')->update(['is_active' => false]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Canal do YouTube desconectado com sucesso.']);
+        }
+
         return back()->with('success', 'Canal do YouTube desconectado com sucesso.');
     }
 

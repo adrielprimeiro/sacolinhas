@@ -377,6 +377,9 @@
                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border" style="background-color: #fef2f2; color: #991b1b; border-color: #fecaca;" title="Canal YouTube conectado: {{ $youtubeAccount->channel_name }}">
                         <i class="fab fa-youtube text-red-600"></i>
                         <span class="max-w-[120px] truncate">{{ $youtubeAccount->channel_name }}</span>
+                        <a href="{{ route('admin.youtube.disconnect') }}" onclick="return confirm('Deseja realmente desconectar o canal {{ $youtubeAccount->channel_name }}?')" class="text-gray-400 hover:text-red-700 ml-1 transition" title="Desconectar / Trocar Canal">
+                            <i class="fas fa-times"></i>
+                        </a>
                     </div>
                 @endif
 
@@ -1494,9 +1497,14 @@
                     </div>
                     <div class="mt-3 pt-2.5 border-t border-gray-200">
                         @if(!empty($youtubeAccount))
-                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToYouTube();" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #dc2626; color: #ffffff !important;">
-                                <i class="fab fa-youtube text-white"></i> Publicar Shorts
-                            </button>
+                            <div class="flex flex-col gap-1.5">
+                                <button type="button" onclick="toggleStep6Modal(false); batchUploadToYouTube();" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #dc2626; color: #ffffff !important;">
+                                    <i class="fab fa-youtube text-white"></i> Publicar Shorts
+                                </button>
+                                <a href="{{ route('admin.youtube.disconnect') }}" onclick="return confirm('Deseja realmente desconectar o canal {{ $youtubeAccount->channel_name }} do YouTube?')" class="text-center text-[11px] text-gray-500 hover:text-red-600 hover:underline py-0.5 font-bold transition">
+                                    <i class="fas fa-sign-out-alt"></i> Desconectar / Trocar Canal
+                                </a>
+                            </div>
                         @else
                             <a href="{{ route('admin.youtube.connect') }}" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #dc2626; color: #ffffff !important;">
                                 Conectar Canal
@@ -1525,9 +1533,14 @@
                     </div>
                     <div class="mt-3 pt-2.5 border-t border-gray-200">
                         @if(!empty($tiktokAccount))
-                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToTikTok();" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #0f172a; color: #ffffff !important;">
-                                <i class="fab fa-tiktok text-white"></i> Publicar TikTok
-                            </button>
+                            <div class="flex flex-col gap-1.5">
+                                <button type="button" onclick="toggleStep6Modal(false); batchUploadToTikTok();" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #0f172a; color: #ffffff !important;">
+                                    <i class="fab fa-tiktok text-white"></i> Publicar TikTok
+                                </button>
+                                <a href="{{ route('admin.tiktok.disconnect') }}" onclick="return confirm('Deseja realmente desconectar a conta do TikTok?')" class="text-center text-[11px] text-gray-500 hover:text-slate-900 hover:underline py-0.5 font-bold transition">
+                                    <i class="fas fa-sign-out-alt"></i> Desconectar / Trocar Conta
+                                </a>
+                            </div>
                         @else
                             <a href="{{ route('admin.tiktok.connect') }}" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background-color: #0f172a; color: #ffffff !important;">
                                 Conectar TikTok
@@ -1556,9 +1569,14 @@
                     </div>
                     <div class="mt-3 pt-2.5 border-t border-gray-200">
                         @if(!empty($instagramAccount))
-                            <button type="button" onclick="toggleStep6Modal(false); batchUploadToInstagram();" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
-                                <i class="fab fa-instagram text-white"></i> Publicar Reels
-                            </button>
+                            <div class="flex flex-col gap-1.5">
+                                <button type="button" onclick="toggleStep6Modal(false); batchUploadToInstagram();" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
+                                    <i class="fab fa-instagram text-white"></i> Publicar Reels
+                                </button>
+                                <a href="{{ route('admin.instagram.disconnect') }}" onclick="return confirm('Deseja realmente desconectar a conta do Instagram?')" class="text-center text-[11px] text-gray-500 hover:text-pink-600 hover:underline py-0.5 font-bold transition">
+                                    <i class="fas fa-sign-out-alt"></i> Desconectar / Trocar Conta
+                                </a>
+                            </div>
                         @else
                             <a href="{{ route('admin.instagram.connect') }}" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
                                 Conectar Instagram

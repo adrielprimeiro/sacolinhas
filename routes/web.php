@@ -364,7 +364,7 @@ Route::middleware('auth')->group(function () {
         // ===== INTEGRAÇÃO YOUTUBE SHORTS AUTOMÁTICO =====
         Route::get('youtube/connect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'connect'])->name('admin.youtube.connect');
         Route::get('youtube/callback', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'callback'])->name('admin.youtube.callback');
-        Route::post('youtube/disconnect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'disconnect'])->name('admin.youtube.disconnect');
+        Route::match(['get', 'post'], 'youtube/disconnect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'disconnect'])->name('admin.youtube.disconnect');
         Route::post('youtube/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'uploadCut'])->name('admin.youtube.upload-cut');
         Route::post('lives/{liveId}/youtube/batch-upload', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'batchUploadUnsold'])->name('admin.youtube.batch-upload');
         Route::get('youtube/status/{liveId?}', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'status'])->name('admin.youtube.status');
@@ -372,7 +372,7 @@ Route::middleware('auth')->group(function () {
         // ===== INTEGRAÇÃO TIKTOK PUBLICAÇÃO AUTOMÁTICA =====
         Route::get('tiktok/connect', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'connect'])->name('admin.tiktok.connect');
         Route::get('tiktok/callback', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'callback'])->name('admin.tiktok.callback');
-        Route::post('tiktok/disconnect', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'disconnect'])->name('admin.tiktok.disconnect');
+        Route::match(['get', 'post'], 'tiktok/disconnect', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'disconnect'])->name('admin.tiktok.disconnect');
         Route::post('tiktok/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'uploadCut'])->name('admin.tiktok.upload-cut');
         Route::post('lives/{liveId}/tiktok/batch-upload', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'batchUploadUnsold'])->name('admin.tiktok.batch-upload');
         Route::get('tiktok/status/{liveId?}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'status'])->name('admin.tiktok.status');
@@ -380,7 +380,7 @@ Route::middleware('auth')->group(function () {
         // ===== INTEGRAÇÃO INSTAGRAM REELS PUBLICAÇÃO AUTOMÁTICA =====
         Route::get('instagram/connect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'connect'])->name('admin.instagram.connect');
         Route::get('instagram/callback', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'callback'])->name('admin.instagram.callback');
-        Route::post('instagram/disconnect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'disconnect'])->name('admin.instagram.disconnect');
+        Route::match(['get', 'post'], 'instagram/disconnect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'disconnect'])->name('admin.instagram.disconnect');
         Route::post('instagram/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'uploadCut'])->name('admin.instagram.upload-cut');
         Route::post('lives/{liveId}/instagram/batch-upload', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'batchUploadUnsold'])->name('admin.instagram.batch-upload');
         Route::get('instagram/status/{liveId?}', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'status'])->name('admin.instagram.status');

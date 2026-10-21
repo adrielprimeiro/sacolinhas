@@ -47,7 +47,7 @@ class YouTubeService
             'response_type' => 'code',
             'scope' => implode(' ', $scopes),
             'access_type' => 'offline',
-            'prompt' => 'consent',
+            'prompt' => 'consent select_account',
             'state' => $state ?: csrf_token(),
         ];
 
@@ -86,6 +86,9 @@ class YouTubeService
 
         // Buscar dados do canal no YouTube
         $channelInfo = $this->fetchChannelProfile($accessToken);
+
+        // Desativar qualquer outra conta anterior do YouTube
+        SocialChannelAccount::where('provider', 'youtube')->update(['is_active' => false]);
 
         // Salvar ou atualizar a conta conectada no banco
         $account = SocialChannelAccount::where('provider', 'youtube')
