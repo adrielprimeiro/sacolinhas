@@ -3,14 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sacolinhas</title> <!-- Título correto para login -->
+    <title>Login - Minha Mania</title>
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-6">
-                <div class="card mt-5">
+                <div class="text-center mt-5 mb-3">
+                    <img src="{{ asset('favicon-32x32.png') }}" alt="Ícone Minha Mania" style="width: 42px; height: 42px; vertical-align: middle; margin-right: 8px;">
+                    <img src="{{ asset('images/Logo_Grande_Preto.png') }}" alt="Minha Mania" style="height: 48px; max-width: 200px; object-fit: contain; vertical-align: middle;">
+                </div>
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h4 class="mb-0">Acessar Conta</h4> <!-- Cabeçalho correto para login -->
                     </div>

@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termos de Serviço - Minha Mania Brechó</title>
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -11,6 +16,7 @@
     <header class="bg-white border-b border-gray-200 py-6">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between">
             <a href="/" class="flex items-center gap-3">
+                <img src="{{ asset('favicon-32x32.png') }}" alt="Ícone Minha Mania" class="w-8 h-8 object-contain">
                 <span class="text-xl font-black text-pink-600 tracking-tight">Minha Mania</span>
                 <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Brechó & Live Shopping</span>
             </a>

@@ -6,6 +6,12 @@
     <title>Minha Mania - Brechó & Live Shopping Online</title>
     <meta name="description" content="Moda consciente, peças exclusivas e compras ao vivo no TikTok e Instagram. Junte suas peças na sacolinha inteligente e economize no frete!">
 
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,6 +58,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
             <!-- Brand Logo -->
             <a href="/" class="flex items-center gap-3 shrink-0">
+                <img src="{{ asset('favicon-32x32.png') }}" alt="Ícone Minha Mania" class="h-9 w-9 object-contain">
                 <img src="{{ asset('images/Logo_Grande_Preto.png') }}" alt="Minha Mania Brechó" class="h-10 sm:h-12 w-auto object-contain">
             </a>
 
