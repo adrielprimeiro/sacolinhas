@@ -75,7 +75,7 @@ class LiveVideoCutsController extends Controller
             ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
             ->where('live_items.live_id', $live->id)
             ->where(function ($q) {
-                $q->where('live_items.video_cut_status', 'recorded')
+                $q->whereIn('live_items.video_cut_status', ['recorded', 'edited'])
                   ->orWhereNotNull('live_items.video_cut_url')
                   ->orWhereNotNull('live_items.video_cut_path');
             });
@@ -95,6 +95,7 @@ class LiveVideoCutsController extends Controller
             'live_items.video_cut_url',
             'live_items.video_cut_duration',
             'live_items.video_cut_status',
+            'live_items.updated_at',
             'items.nome_do_produto as item_nome',
             'items.descricao as item_descricao',
             'items.codigo as item_codigo',
@@ -164,8 +165,12 @@ class LiveVideoCutsController extends Controller
                     ? $row->video_cut_path
                     : Storage::url($row->video_cut_path);
             }
+            if ($videoUrl && !str_contains($videoUrl, '?v=')) {
+                $ver = !empty($row->updated_at) ? strtotime($row->updated_at) : time();
+                $videoUrl .= (str_contains($videoUrl, '?') ? '&' : '?') . 'v=' . $ver;
+            }
 
-            $isReady = (!empty($videoUrl) || $row->video_cut_status === 'recorded');
+            $isReady = (!empty($videoUrl) || in_array($row->video_cut_status, ['recorded', 'edited']));
             $buyer = $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null));
             $isSold = !empty($row->user_id) || (!empty($buyer) && trim($buyer) !== '' && trim($buyer) !== '0');
 
@@ -2298,6 +2303,8 @@ PROMPT;
         }
 
         $hasMiddleCut = ($middleStart !== null && $middleEnd !== null && $middleStart > $start && $middleEnd < $liveItem->cut_end_sec && $middleStart < $middleEnd);
+        $withoutSubtitles = $request->boolean('without_subtitles', false);
+        $wasAlreadyEdited = (($liveItem->video_cut_status ?? '') === 'edited');
         $output = [];
         $returnCode = 1;
         $srtFile = null;
@@ -2378,6 +2385,43 @@ PROMPT;
                 exec($cmdConcat, $outConcat, $returnCode);
                 if ($returnCode === 0 && file_exists($outputPath) && filesize($outputPath) >= 5000) {
                     $duration = round($p1Duration + $p2Duration, 2);
+
+                    if (!$withoutSubtitles) {
+                        $srtMidFile = $this->generateSubtitleFileForClip(
+                            $live,
+                            $liveItem,
+                            $start,
+                            $duration,
+                            $outputDir,
+                            $request->input('transcription_snippet'),
+                            $audioOffset,
+                            $middleStart,
+                            $middleEnd
+                        );
+                        if ($srtMidFile && file_exists($srtMidFile)) {
+                            $escapedSrt = str_replace('\\', '/', $srtMidFile);
+                            $escapedSrt = str_replace(':', '\\:', $escapedSrt);
+                            $subbedPath = $outputDir . '/subbed_' . time() . '_' . uniqid() . '.mp4';
+                            $subtitleFilter = sprintf(
+                                "-vf \"subtitles='%s':force_style='FontName=Arial,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.2,Shadow=1.0,MarginV=26,Alignment=2'\"",
+                                $escapedSrt
+                            );
+                            $cmdSub = sprintf(
+                                'ffmpeg -i %s %s -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
+                                escapeshellarg($outputPath),
+                                $subtitleFilter,
+                                escapeshellarg($subbedPath)
+                            );
+                            exec($cmdSub, $outSub, $retSub);
+                            if ($retSub === 0 && file_exists($subbedPath) && filesize($subbedPath) >= 5000) {
+                                @unlink($outputPath);
+                                rename($subbedPath, $outputPath);
+                            } else {
+                                @unlink($subbedPath);
+                            }
+                            @unlink($srtMidFile);
+                        }
+                    }
                 }
             }
 
@@ -2393,8 +2437,10 @@ PROMPT;
             $fastSeek = max(0.0, round($start - 2.5, 2));
             $accSeek = round($start - $fastSeek, 2);
 
-            // 1. Gera arquivo de legenda SRT para o trecho do corte
-            $srtFile = $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'), $audioOffset);
+            // 1. Gera arquivo de legenda SRT para o trecho do corte (se legenda não foi desativada)
+            $srtFile = $withoutSubtitles
+                ? null
+                : $this->generateSubtitleFileForClip($live, $liveItem, $start, $duration, $outputDir, $request->input('transcription_snippet'), $audioOffset);
 
             $overlayPng = null;
             $hasOverlay = false;
@@ -2626,11 +2672,25 @@ PROMPT;
             }
         }
 
+        $finalStatus = 'recorded';
+        if ($request->boolean('apply_edition', false) || $wasAlreadyEdited) {
+            $editionRes = $this->applyEdition($request, $liveId, $liveItemId);
+            $editionData = $editionRes->getData(true);
+            if (!empty($editionData['success']) && !empty($editionData['video_url'])) {
+                $videoUrl = $editionData['video_url'];
+                $finalStatus = 'edited';
+            }
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Corte com legendas dinâmicas e 3 Miniaturas Inteligentes geradas com sucesso!',
+            'message' => $finalStatus === 'edited'
+                ? 'Corte com edição visual (Selo & Marca) gerado com sucesso!'
+                : 'Corte com legendas dinâmicas e 3 Miniaturas Inteligentes geradas com sucesso!',
             'video_url' => $videoUrl,
             'video_cut_url' => $videoUrl,
+            'video_cut_status' => $finalStatus,
+            'without_subtitles' => $withoutSubtitles,
             'thumbnail_url' => $primaryUrl,
             'candidates' => $candidates,
             'duration' => $duration
@@ -2640,29 +2700,73 @@ PROMPT;
     /**
      * Gera arquivo de legendas .srt para o trecho do corte com blocos curtos dinâmicos (estilo TikTok/Reels)
      */
-    protected function generateSubtitleFileForClip(Live $live, $liveItem, float $start, float $duration, string $outputDir, ?string $customSnippet = null, float $audioOffset = 0.0): ?string
-    {
+    protected function generateSubtitleFileForClip(
+        Live $live,
+        $liveItem,
+        float $start,
+        float $duration,
+        string $outputDir,
+        ?string $customSnippet = null,
+        float $audioOffset = 0.0,
+        ?float $middleStart = null,
+        ?float $middleEnd = null
+    ): ?string {
         $sentences = json_decode($live->transcription_raw, true) ?: [];
         $allSegments = [];
-        $effectiveAudioStart = max(0.0, $start + $audioOffset);
-        $effectiveAudioEnd = $start + $duration + $audioOffset;
+        $hasMid = ($middleStart !== null && $middleEnd !== null && $middleStart > $start && $middleEnd > $middleStart);
 
-        foreach ($sentences as $s) {
-            $sStart = (float) ($s['start'] ?? 0);
-            $sEnd = (float) ($s['end'] ?? 0);
-            $text = trim($s['text'] ?? '');
+        if ($hasMid) {
+            $p1Dur = max(0.5, round($middleStart - $start, 2));
+            $effP1Start = max(0.0, $start + $audioOffset);
+            $effP1End = max(0.0, $middleStart + $audioOffset);
+            $effP2Start = max(0.0, $middleEnd + $audioOffset);
+            $effP2End = $effP2Start + max(0.5, $duration - $p1Dur);
 
-            if (empty($text)) continue;
+            foreach ($sentences as $s) {
+                $sStart = (float) ($s['start'] ?? 0);
+                $sEnd = (float) ($s['end'] ?? 0);
+                $text = trim($s['text'] ?? '');
+                if (empty($text)) continue;
 
-            // Frases que sobrepõem o intervalo do corte de áudio
-            if ($sEnd > ($effectiveAudioStart + 0.1) && $sStart < ($effectiveAudioEnd - 0.1)) {
-                $relStart = max(0.0, round($sStart - $effectiveAudioStart, 2));
-                $relEnd = min($duration, round($sEnd - $effectiveAudioStart, 2));
+                if ($sEnd > ($effP1Start + 0.1) && $sStart < ($effP1End - 0.1)) {
+                    $relStart = max(0.0, round($sStart - $effP1Start, 2));
+                    $relEnd = min($p1Dur, round($sEnd - $effP1Start, 2));
+                    if ($relEnd > $relStart) {
+                        foreach ($this->chunkTextIntoTimedSegments($relStart, $relEnd, $text) as $c) {
+                            $allSegments[] = $c;
+                        }
+                    }
+                } elseif ($sEnd > ($effP2Start + 0.1) && $sStart < ($effP2End - 0.1)) {
+                    $relStart = max($p1Dur, round($p1Dur + ($sStart - $effP2Start), 2));
+                    $relEnd = min($duration, round($p1Dur + ($sEnd - $effP2Start), 2));
+                    if ($relEnd > $relStart) {
+                        foreach ($this->chunkTextIntoTimedSegments($relStart, $relEnd, $text) as $c) {
+                            $allSegments[] = $c;
+                        }
+                    }
+                }
+            }
+        } else {
+            $effectiveAudioStart = max(0.0, $start + $audioOffset);
+            $effectiveAudioEnd = $start + $duration + $audioOffset;
 
-                if ($relEnd > $relStart) {
-                    $chunks = $this->chunkTextIntoTimedSegments($relStart, $relEnd, $text);
-                    foreach ($chunks as $c) {
-                        $allSegments[] = $c;
+            foreach ($sentences as $s) {
+                $sStart = (float) ($s['start'] ?? 0);
+                $sEnd = (float) ($s['end'] ?? 0);
+                $text = trim($s['text'] ?? '');
+
+                if (empty($text)) continue;
+
+                // Frases que sobrepõem o intervalo do corte de áudio
+                if ($sEnd > ($effectiveAudioStart + 0.1) && $sStart < ($effectiveAudioEnd - 0.1)) {
+                    $relStart = max(0.0, round($sStart - $effectiveAudioStart, 2));
+                    $relEnd = min($duration, round($sEnd - $effectiveAudioStart, 2));
+
+                    if ($relEnd > $relStart) {
+                        $chunks = $this->chunkTextIntoTimedSegments($relStart, $relEnd, $text);
+                        foreach ($chunks as $c) {
+                            $allSegments[] = $c;
+                        }
                     }
                 }
             }
@@ -3284,17 +3388,20 @@ PROMPT;
             @unlink($existingCutPath);
             rename($editedPath, $existingCutPath);
 
+            $editedVideoUrl = Storage::url($liveItem->video_cut_path) . '?v=' . time();
+
             DB::table('live_items')
                 ->where('id', $liveItemId)
                 ->update([
                     'video_cut_status' => 'edited',
+                    'video_cut_url' => $editedVideoUrl,
                     'updated_at' => now()
                 ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Edição visual (Selo & Marca) aplicada com sucesso!',
-                'video_url' => Storage::url($liveItem->video_cut_path) . '?v=' . time()
+                'video_url' => $editedVideoUrl
             ]);
         }
 

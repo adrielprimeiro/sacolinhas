@@ -198,7 +198,7 @@
                     <span id="modalSourceBadge" 
                           onclick="toggleModalVideoSource()"
                           class="hidden text-[10px] px-2.5 py-0.5 rounded-full font-extrabold border shrink-0 transition flex items-center gap-1 cursor-pointer">
-                        <i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Modo Edição
+                        <i class="fas fa-wand-magic-sparkles mr-1 text-emerald-300"></i>Com Edição <span class="text-[9px] text-emerald-200 opacity-90">(tirar legenda)</span>
                     </span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
@@ -337,9 +337,9 @@
                         </span>
                         <button type="button" 
                                 id="btnDirectSaveCut"
-                                onclick="showConfirmModal()" 
+                                onclick="closeAfterSave = false; showConfirmModal();" 
                                 class="hidden px-2.5 sm:px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer border border-emerald-400 shrink-0"
-                                title="Salvar nova minutagem e processar corte">
+                                title="Salvar nova minutagem e processar corte com Selo e Marca">
                             <i class="fas fa-check text-xs text-emerald-100"></i>
                             <span>Salvar</span>
                         </button>
@@ -500,6 +500,10 @@
                     <span>Duração Final:</span>
                     <span class="font-bold text-pink-400" id="confirmDurationNew">0s</span>
                 </div>
+                <div class="flex items-center justify-between text-gray-300 pt-1.5 border-t border-gray-700">
+                    <span>Acabamento:</span>
+                    <span class="font-bold text-emerald-400" id="confirmEditionStatus">Selo + Marca + Legenda</span>
+                </div>
             </div>
 
             {{-- Botões de Decisão com Destaque Máximo para Salvar --}}
@@ -552,6 +556,9 @@ let splitPoints = [];
 let selectedSegmentIndex = null;
 let draggingHandle = null;
 let isUsingRecording = false;
+let withoutSubtitles = false;
+let originalWithoutSubtitles = false;
+let closeAfterSave = false;
 let toastTimeout = null;
 let isScrubbing = false;
 
@@ -580,7 +587,7 @@ function getWindowBounds() {
     }
 
     // Fallback caso esteja reproduzindo apenas arquivo de corte isolado (sem gravação bruta)
-    if (!isUsingRecording) {
+    if (!isUsingRecording && (!liveGlobalRecordingUrl || liveGlobalRecordingUrl.trim() === '')) {
         const player = document.getElementById('modalVideoPlayer');
         if (player && player.duration && !isNaN(player.duration) && player.duration > 0) {
             wStart = originalStart;
@@ -713,20 +720,19 @@ function renderFilmstrip(imageUrl) {
     }
 }
 
-function updateSourceBadgeUI(isRecording) {
+function updateSourceBadgeUI() {
     const badgeEl = document.getElementById('modalSourceBadge');
     if (!badgeEl) return;
     badgeEl.classList.remove('hidden');
 
-    if (isRecording) {
+    if (withoutSubtitles) {
         badgeEl.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-extrabold bg-indigo-900/80 text-indigo-200 border border-indigo-400 shrink-0 transition flex items-center gap-1 cursor-pointer hover:bg-indigo-800';
-        const hasCut = (currentItem && currentItem.video_cut_url && currentItem.video_cut_url.trim() !== '');
-        badgeEl.innerHTML = `<i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Modo Edição${hasCut ? ' <span class="text-[9px] text-gray-300 opacity-75">(ver legenda)</span>' : ''}`;
-        badgeEl.title = hasCut ? 'Clique para alternar para o vídeo gerado com legenda' : 'Edição na gravação da live';
+        badgeEl.innerHTML = `<i class="fas fa-sliders-h mr-1 text-indigo-300"></i>Sem Legenda <span class="text-[9px] text-gray-300 opacity-90">(ver legenda)</span>`;
+        badgeEl.title = 'Clique para ativar a legenda novamente neste corte';
     } else {
         badgeEl.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-extrabold bg-emerald-900/80 text-emerald-200 border border-emerald-400 shrink-0 transition flex items-center gap-1 cursor-pointer hover:bg-emerald-800';
-        badgeEl.innerHTML = '<i class="fas fa-closed-captioning mr-1 text-emerald-300"></i>Com Legenda <span class="text-[9px] text-emerald-200 opacity-75">(editar)</span>';
-        badgeEl.title = 'Clique para alternar para o modo de edição na gravação da live';
+        badgeEl.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-1 text-emerald-300"></i>Com Edição <span class="text-[9px] text-emerald-200 opacity-90">(tirar legenda)</span>';
+        badgeEl.title = 'Clique para tirar a legenda deste corte';
     }
 }
 
@@ -735,30 +741,33 @@ function toggleModalVideoSource() {
     const player = document.getElementById('modalVideoPlayer');
     if (!player) return;
 
-    if (isUsingRecording) {
-        if (currentItem.video_cut_url && currentItem.video_cut_url.trim() !== '') {
-            isUsingRecording = false;
-            player.src = currentItem.video_cut_url;
-            updateSourceBadgeUI(false);
-            player.currentTime = 0;
-            player.play().then(() => updatePlayIcon(true)).catch(() => {});
-            renderTimeRuler();
-            renderTimeBadges();
-            showToast('🎬 Exibindo corte gerado com legendas');
-        } else {
-            showToast('⚠️ Este corte ainda não foi renderizado com legendas.');
-        }
-    } else {
+    withoutSubtitles = !withoutSubtitles;
+
+    if (withoutSubtitles) {
+        // Alterna para a gravação da live (se disponível) para pré-visualizar sem legenda embutida
         if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
             isUsingRecording = true;
             player.src = liveGlobalRecordingUrl;
-            updateSourceBadgeUI(true);
             player.currentTime = activeStart;
             player.play().then(() => updatePlayIcon(true)).catch(() => {});
-            renderTimeRuler();
-            renderTimeBadges();
-            showToast('✂️ Modo Edição ativado (Gravação)');
         }
+        updateSourceBadgeUI();
+        renderTimeRuler();
+        renderTimeBadges();
+        showToast('🚫 Legenda removida! Clique em Salvar para aplicar Selo e Marca sem legenda.');
+    } else {
+        // Volta para o vídeo com edição e legenda (se o corte estiver dentro da faixa original)
+        const withinOriginalBounds = (activeStart >= originalStart - 0.3 && activeEnd <= originalEnd + 0.3);
+        if (currentItem.video_cut_url && currentItem.video_cut_url.trim() !== '' && withinOriginalBounds) {
+            isUsingRecording = false;
+            player.src = currentItem.video_cut_url;
+            player.currentTime = Math.max(0, activeStart - originalStart);
+            player.play().then(() => updatePlayIcon(true)).catch(() => {});
+        }
+        updateSourceBadgeUI();
+        renderTimeRuler();
+        renderTimeBadges();
+        showToast('🎬 Exibindo vídeo com edição (Selo, Marca e Legenda)');
     }
 }
 
@@ -784,22 +793,24 @@ function openPreviewModal(item) {
     middleCutEnd = (item.middle_cut_end_sec !== null && item.middle_cut_end_sec !== undefined && item.middle_cut_end_sec !== '') ? Number(item.middle_cut_end_sec) : null;
     originalMiddleCutStart = middleCutStart;
     originalMiddleCutEnd = middleCutEnd;
+    withoutSubtitles = Boolean(item.without_subtitles || false);
+    originalWithoutSubtitles = withoutSubtitles;
+    closeAfterSave = false;
     splitPoints = [];
     selectedSegmentIndex = null;
     draggingHandle = null;
 
     const badgeEl = document.getElementById('modalSourceBadge');
 
-    // No editor de cortes: se a gravação bruta estiver disponível, priorizamos ela
-    // para permitir navegar livremente antes e depois do corte original com a barra centralizada!
-    if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
-        isUsingRecording = true;
-        player.src = liveGlobalRecordingUrl;
-        updateSourceBadgeUI(true);
-    } else if (item.video_cut_url && item.video_cut_url.trim() !== '') {
+    // Prioriza sempre exibir o vídeo do corte já com a edição (Selo, Marca e Legenda)!
+    if (item.video_cut_url && item.video_cut_url.trim() !== '') {
         isUsingRecording = false;
         player.src = item.video_cut_url;
-        updateSourceBadgeUI(false);
+        updateSourceBadgeUI();
+    } else if (liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+        isUsingRecording = true;
+        player.src = liveGlobalRecordingUrl;
+        updateSourceBadgeUI();
     } else {
         isUsingRecording = false;
         player.src = '';
@@ -830,7 +841,7 @@ function openPreviewModal(item) {
         if (isUsingRecording && activeStart > 0) {
             player.currentTime = activeStart;
         } else {
-            player.currentTime = 0;
+            player.currentTime = Math.max(0, activeStart - originalStart);
         }
         player.play().then(() => updatePlayIcon(true)).catch(() => updatePlayIcon(false));
     };
@@ -846,11 +857,20 @@ function openPreviewModal(item) {
         if (isUsingRecording) {
             currentAbsTime = player.currentTime;
         } else {
-            currentAbsTime = originalStart + player.currentTime;
+            const origMidLoss = (originalMiddleCutStart !== null && originalMiddleCutEnd !== null)
+                ? Math.max(0, originalMiddleCutEnd - originalMiddleCutStart)
+                : 0;
+            const splitRelSec = (originalMiddleCutStart !== null) ? Math.max(0, originalMiddleCutStart - originalStart) : null;
+            if (origMidLoss > 0 && splitRelSec !== null && player.currentTime >= splitRelSec) {
+                currentAbsTime = Math.min(originalEnd, originalStart + player.currentTime + origMidLoss);
+            } else {
+                currentAbsTime = Math.min(originalEnd, originalStart + player.currentTime);
+            }
         }
 
-        // Pular trecho cortado no meio em tempo real durante a reprodução!
-        if (middleCutStart !== null && middleCutEnd !== null) {
+        // Pular trecho cortado no meio em tempo real durante a reprodução (na gravação ou quando um novo corte no meio foi criado)
+        const middleCutWasModified = (middleCutStart !== originalMiddleCutStart || middleCutEnd !== originalMiddleCutEnd);
+        if (middleCutStart !== null && middleCutEnd !== null && (isUsingRecording || middleCutWasModified)) {
             if (currentAbsTime >= middleCutStart && currentAbsTime < middleCutEnd) {
                 if (isUsingRecording) {
                     player.currentTime = middleCutEnd;
@@ -861,13 +881,14 @@ function openPreviewModal(item) {
             }
         }
 
-        // Pausa ao atingir o fim ativo do corte
-        if (currentAbsTime >= activeEnd) {
+        // Pausa ao atingir o fim ativo do corte (quando na gravação bruta ou quando o fim foi encurtado)
+        if (isUsingRecording && currentAbsTime >= activeEnd) {
             player.pause();
             updatePlayIcon(false);
-            if (isUsingRecording) {
-                player.currentTime = activeEnd;
-            }
+            player.currentTime = activeEnd;
+        } else if (!isUsingRecording && activeEnd < originalEnd - 0.2 && currentAbsTime >= activeEnd) {
+            player.pause();
+            updatePlayIcon(false);
         }
 
         const { wStart, span } = getWindowBounds();
@@ -878,14 +899,17 @@ function openPreviewModal(item) {
         }
 
         if (currentText) {
-            const displayOffset = isUsingRecording ? Math.max(0, currentAbsTime - activeStart) : (currentAbsTime - originalStart);
+            const displayOffset = isUsingRecording ? Math.max(0, currentAbsTime - activeStart) : player.currentTime;
             currentText.textContent = formatTime(Math.max(0, displayOffset));
         }
 
         let baseDuration = Math.max(0, activeEnd - activeStart);
         let cutLoss = (middleCutStart !== null && middleCutEnd !== null) ? Math.max(0, middleCutEnd - middleCutStart) : 0;
         if (totalText) {
-            totalText.textContent = formatTime(Math.max(0, baseDuration - cutLoss));
+            const totalDur = (!isUsingRecording && player.duration && !isNaN(player.duration) && activeStart === originalStart && activeEnd === originalEnd && !middleCutWasModified)
+                ? player.duration
+                : Math.max(0, baseDuration - cutLoss);
+            totalText.textContent = formatTime(totalDur);
         }
     };
 }
@@ -1166,6 +1190,11 @@ function onTrimDrag(clientX, type) {
             middleCutEnd = null;
         }
 
+        if (!isUsingRecording && activeStart < originalStart - 0.3 && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+            isUsingRecording = true;
+            player.src = liveGlobalRecordingUrl;
+        }
+
         try {
             if (isUsingRecording) {
                 player.currentTime = activeStart;
@@ -1182,6 +1211,11 @@ function onTrimDrag(clientX, type) {
         if (middleCutEnd !== null && activeEnd <= middleCutEnd) {
             middleCutStart = null;
             middleCutEnd = null;
+        }
+
+        if (!isUsingRecording && activeEnd > originalEnd + 0.3 && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+            isUsingRecording = true;
+            player.src = liveGlobalRecordingUrl;
         }
 
         try {
@@ -1255,7 +1289,8 @@ function renderTimeBadgesNumbersOnly() {
         activeStart !== originalStart || 
         activeEnd !== originalEnd || 
         middleCutStart !== originalMiddleCutStart || 
-        middleCutEnd !== originalMiddleCutEnd
+        middleCutEnd !== originalMiddleCutEnd ||
+        withoutSubtitles !== originalWithoutSubtitles
     );
     if (editedFlag) {
         if (hasChanged) editedFlag.classList.remove('hidden');
@@ -1486,7 +1521,8 @@ function renderTimeBadges() {
         activeStart !== originalStart || 
         activeEnd !== originalEnd || 
         middleCutStart !== originalMiddleCutStart || 
-        middleCutEnd !== originalMiddleCutEnd
+        middleCutEnd !== originalMiddleCutEnd ||
+        withoutSubtitles !== originalWithoutSubtitles
     );
 
     const btnDirectSave = document.getElementById('btnDirectSaveCut');
@@ -1602,11 +1638,23 @@ function seekToTrackPosition(clientX) {
 
     const targetAbsTime = wStart + (span * pct);
 
+    if (!isUsingRecording && (targetAbsTime < originalStart - 0.3 || targetAbsTime > originalEnd + 0.3) && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
+        isUsingRecording = true;
+        player.src = liveGlobalRecordingUrl;
+    }
+
     try {
         if (isUsingRecording) {
             player.currentTime = targetAbsTime;
         } else {
-            player.currentTime = Math.max(0, targetAbsTime - originalStart);
+            const origMidLoss = (originalMiddleCutStart !== null && originalMiddleCutEnd !== null)
+                ? Math.max(0, originalMiddleCutEnd - originalMiddleCutStart)
+                : 0;
+            if (origMidLoss > 0 && targetAbsTime >= originalMiddleCutEnd) {
+                player.currentTime = Math.max(0, (targetAbsTime - originalStart) - origMidLoss);
+            } else {
+                player.currentTime = Math.max(0, targetAbsTime - originalStart);
+            }
         }
     } catch(e) {}
 
@@ -1722,7 +1770,7 @@ function jumpMinus10() {
         if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
             isUsingRecording = true;
             player.src = liveGlobalRecordingUrl;
-            updateSourceBadgeUI(true);
+            updateSourceBadgeUI();
         }
         if (isUsingRecording) {
             player.currentTime = activeStart;
@@ -1749,7 +1797,7 @@ function jumpPlus10() {
         if (!isUsingRecording && liveGlobalRecordingUrl && liveGlobalRecordingUrl.trim() !== '') {
             isUsingRecording = true;
             player.src = liveGlobalRecordingUrl;
-            updateSourceBadgeUI(true);
+            updateSourceBadgeUI();
         }
         if (isUsingRecording) {
             player.play().then(() => updatePlayIcon(true)).catch(() => {});
@@ -1781,9 +1829,11 @@ function requestClosePreviewModal() {
         activeStart !== originalStart || 
         activeEnd !== originalEnd || 
         middleCutStart !== originalMiddleCutStart || 
-        middleCutEnd !== originalMiddleCutEnd
+        middleCutEnd !== originalMiddleCutEnd ||
+        withoutSubtitles !== originalWithoutSubtitles
     );
     if (hasChanged) {
+        closeAfterSave = true;
         showConfirmModal();
     } else {
         forceClosePreviewModal();
@@ -1801,6 +1851,7 @@ function showConfirmModal() {
     const durNew = document.getElementById('confirmDurationNew');
     const middleRow = document.getElementById('confirmMiddleCutRow');
     const middleText = document.getElementById('confirmMiddleCutText');
+    const editionStatus = document.getElementById('confirmEditionStatus');
 
     if (startOld) startOld.textContent = formatTime(originalStart);
     if (startNew) startNew.textContent = formatTime(activeStart);
@@ -1812,6 +1863,11 @@ function showConfirmModal() {
     let finalDur = Math.max(0, Math.round(baseDuration - cutLoss));
 
     if (durNew) durNew.textContent = `${finalDur} segundos`;
+
+    if (editionStatus) {
+        editionStatus.textContent = withoutSubtitles ? 'Selo + Marca (Sem Legenda)' : 'Selo + Marca + Legenda';
+        editionStatus.className = withoutSubtitles ? 'font-bold text-indigo-300' : 'font-bold text-emerald-400';
+    }
 
     if (middleRow && middleText) {
         if (middleCutStart !== null && middleCutEnd !== null) {
@@ -1905,8 +1961,8 @@ async function saveAndReCutItem() {
     if (progressBar) progressBar.style.width = '5%';
     if (percentText) percentText.textContent = '5%';
     if (timerElapsed) timerElapsed.textContent = '0.0s';
-    if (statusTitle) statusTitle.textContent = 'Recortando Vídeo...';
-    if (statusDesc) statusDesc.textContent = 'Severino FFmpeg está processando o novo corte com a minutagem ajustada.';
+    if (statusTitle) statusTitle.textContent = 'Recortando e Aplicando Edição...';
+    if (statusDesc) statusDesc.textContent = 'Severino FFmpeg está recortando o vídeo e aplicando o Selo e a Marca.';
 
     const startTime = Date.now();
     let currentPct = 5;
@@ -1917,17 +1973,17 @@ async function saveAndReCutItem() {
 
         // Incremento suave até 94% enquanto aguarda a resposta do servidor
         if (currentPct < 94) {
-            currentPct = Math.min(94, Math.floor(5 + (elapsedSec * 14)));
+            currentPct = Math.min(94, Math.floor(5 + (elapsedSec * 10)));
             if (progressBar) progressBar.style.width = `${currentPct}%`;
             if (percentText) percentText.textContent = `${currentPct}%`;
             if (progressCircle) progressCircle.setAttribute('stroke-dasharray', `${currentPct}, 100`);
         }
 
         if (elapsedSec > 2.5 && statusDesc) {
-            statusDesc.textContent = 'Otimizando frames e faixas de áudio...';
+            statusDesc.textContent = 'Renderizando Selo flutuante e tela final da Marca...';
         }
-        if (elapsedSec > 5.0 && statusDesc) {
-            statusDesc.textContent = 'Finalizando gravação do arquivo MP4 no disco...';
+        if (elapsedSec > 5.5 && statusDesc) {
+            statusDesc.textContent = 'Finalizando gravação do arquivo MP4 editado no disco...';
         }
     }, 100);
 
@@ -1955,7 +2011,7 @@ async function saveAndReCutItem() {
             throw new Error(saveJson.message || 'Erro ao salvar novo timestamp.');
         }
 
-        // 2. Re-gerar o corte de vídeo no FFmpeg
+        // 2. Re-gerar o corte de vídeo no FFmpeg e aplicar Selo + Marca automaticamente
         const cutResp = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${liveItemId}`, {
             method: 'POST',
             headers: {
@@ -1965,7 +2021,10 @@ async function saveAndReCutItem() {
             },
             body: JSON.stringify({
                 middle_cut_start_sec: middleCutStart,
-                middle_cut_end_sec: middleCutEnd
+                middle_cut_end_sec: middleCutEnd,
+                without_subtitles: withoutSubtitles ? 1 : 0,
+                apply_edition: 1,
+                edition_style: 'reel_canvas'
             })
         });
         const cutJson = await cutResp.json();
@@ -1980,8 +2039,8 @@ async function saveAndReCutItem() {
         if (progressBar) progressBar.style.width = '100%';
         if (percentText) percentText.textContent = '100%';
         if (progressCircle) progressCircle.setAttribute('stroke-dasharray', '100, 100');
-        if (statusTitle) statusTitle.textContent = '✅ Corte Finalizado!';
-        if (statusDesc) statusDesc.textContent = `Vídeo recortado com sucesso em ${totalElapsed}s.`;
+        if (statusTitle) statusTitle.textContent = '✅ Corte e Edição Finalizados!';
+        if (statusDesc) statusDesc.textContent = `Vídeo recortado com Selo e Marca em ${totalElapsed}s.`;
 
         // 3. Atualizar dados do item local
         const newUrl = cutJson.video_url || cutJson.video_cut_url || currentItem.video_cut_url;
@@ -1990,10 +2049,12 @@ async function saveAndReCutItem() {
         currentItem.cut_end_sec = activeEnd;
         currentItem.middle_cut_start_sec = middleCutStart;
         currentItem.middle_cut_end_sec = middleCutEnd;
+        currentItem.without_subtitles = withoutSubtitles;
         originalStart = activeStart;
         originalEnd = activeEnd;
         originalMiddleCutStart = middleCutStart;
         originalMiddleCutEnd = middleCutEnd;
+        originalWithoutSubtitles = withoutSubtitles;
 
         if (typeof liveItemsMap !== 'undefined' && liveItemsMap[liveItemId]) {
             liveItemsMap[liveItemId].video_cut_url = newUrl;
@@ -2001,11 +2062,12 @@ async function saveAndReCutItem() {
             liveItemsMap[liveItemId].cut_end_sec = activeEnd;
             liveItemsMap[liveItemId].middle_cut_start_sec = middleCutStart;
             liveItemsMap[liveItemId].middle_cut_end_sec = middleCutEnd;
+            liveItemsMap[liveItemId].without_subtitles = withoutSubtitles;
             liveItemsMap[liveItemId].is_ready = true;
         }
 
         renderTimeBadges();
-        showToast('✅ Corte atualizado e recortado com sucesso!');
+        showToast('✅ Corte salvo com Selo e Marca!');
 
         setTimeout(() => {
             if (overlay) {
@@ -2013,7 +2075,19 @@ async function saveAndReCutItem() {
                 overlay.classList.remove('flex');
                 overlay.style.display = 'none';
             }
-            forceClosePreviewModal();
+            if (closeAfterSave) {
+                closeAfterSave = false;
+                forceClosePreviewModal();
+            } else {
+                const player = document.getElementById('modalVideoPlayer');
+                if (player && newUrl) {
+                    isUsingRecording = false;
+                    player.src = newUrl;
+                    updateSourceBadgeUI();
+                    player.currentTime = 0;
+                    player.play().then(() => updatePlayIcon(true)).catch(() => {});
+                }
+            }
         }, 700);
 
     } catch (err) {
