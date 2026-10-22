@@ -3143,16 +3143,33 @@ PROMPT;
             return response()->json(['success' => false, 'message' => 'Item da live não encontrado.'], 404);
         }
 
-        // Se o vídeo ainda não foi fatiado, fatia aplicando a edição
+        // Se o vídeo ainda não foi fatiado, fatia primeiro para depois aplicar a edição
         $existingCutPath = $liveItem->video_cut_path ? Storage::disk('public')->path($liveItem->video_cut_path) : null;
         if (!$existingCutPath || !file_exists($existingCutPath)) {
             $req = new Request(['apply_overlays' => true]);
             $res = $this->generateSingleClip($req, $liveId, $liveItemId);
             $data = $res->getData(true);
-            if (!empty($data['success'])) {
-                DB::table('live_items')->where('id', $liveItemId)->update(['video_cut_status' => 'edited', 'updated_at' => now()]);
+            if (empty($data['success'])) {
+                return $res;
             }
-            return $res;
+            $liveItem = DB::table('live_items')
+                ->where('id', $liveItemId)
+                ->where('live_id', $liveId)
+                ->first();
+            $existingCutPath = ($liveItem && $liveItem->video_cut_path) ? Storage::disk('public')->path($liveItem->video_cut_path) : null;
+            if (!$existingCutPath || !file_exists($existingCutPath)) {
+                return $res;
+            }
+        }
+
+        // Mantém backup do corte limpo (sem moldura/selo) para permitir reaplicar edição sem duplicar camadas
+        $rawBackupPath = preg_replace('/\.mp4$/i', '_raw.mp4', $existingCutPath);
+        if ($rawBackupPath && $rawBackupPath !== $existingCutPath) {
+            if (!file_exists($rawBackupPath) && ($liveItem->video_cut_status ?? '') !== 'edited') {
+                @copy($existingCutPath, $rawBackupPath);
+            } elseif (file_exists($rawBackupPath) && filesize($rawBackupPath) >= 5000) {
+                @copy($rawBackupPath, $existingCutPath);
+            }
         }
 
         // O vídeo já foi fatiado: aplica os motions e carimbo diretamente no corte em MP4

@@ -3445,7 +3445,20 @@
         toggleStep5Modal(false);
 
         try {
-            const resp = await fetch(`/admin/lives/${liveId}/cortes/batch-edition?force_all=${forceAll ? 1 : 0}`);
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/batch-edition?force_all=${forceAll ? 1 : 0}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    force_all: forceAll ? 1 : 0
+                })
+            });
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
             const data = await resp.json();
             if (!data.success || !data.items || data.items.length === 0) {
                 alert("Nenhum vídeo fatiado disponível para aplicar a edição.");
@@ -3601,10 +3614,34 @@
             }
 
             // Finalização
+            window.lastBatchFailedItems = failedItems;
             if (modalTitle) modalTitle.textContent = "Edição Visual Concluída!";
-            if (modalSubtitle) modalSubtitle.textContent = `${successCount} vídeo(s) editado(s) com selos e marcas.`;
+            if (modalSubtitle) {
+                modalSubtitle.textContent = `${successCount} vídeo(s) editado(s) com selos e marcas.` + (failCount > 0 ? ` (${failCount} falha(s))` : '');
+            }
             if (itemSpinner) {
                 itemSpinner.innerHTML = `<span class="text-emerald-700 font-bold"><i class="fas fa-check-circle"></i> Concluído!</span>`;
+            }
+            if (failCount > 0 && failuresList && failuresBox) {
+                failuresList.innerHTML = failedItems.map(f => `
+                    <div class="p-2 bg-white border border-rose-200 rounded-xl text-xs flex flex-col gap-0.5 shadow-2xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-mono font-black text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded">#${f.code}</span>
+                        </div>
+                        <div class="text-[11px] font-semibold text-rose-700 flex items-start gap-1 mt-0.5">
+                            <i class="fas fa-times-circle text-rose-600 mt-0.5 shrink-0"></i>
+                            <span>${f.reason}</span>
+                        </div>
+                    </div>
+                `).join('');
+                failuresBox.classList.remove("hidden");
+            }
+            if (stepperBadge5) {
+                stepperBadge5.innerHTML = `<i class="fas fa-check"></i>`;
+            }
+            if (stepperStatus5) {
+                stepperStatus5.innerHTML = `✓ ${successCount} editados`;
+                stepperStatus5.style.color = '#7e22ce';
             }
             if (actionsContainer) {
                 actionsContainer.innerHTML = `

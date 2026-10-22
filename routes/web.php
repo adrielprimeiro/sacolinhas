@@ -359,7 +359,7 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/select-thumbnail/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'selectThumbnail'])->name('admin.lives.cortes.select-thumbnail');
         Route::post('lives/{liveId}/cortes/generate-thumbnails/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSmartThumbnailsAction'])->name('admin.lives.cortes.generate-thumbnails');
         Route::post('lives/{liveId}/cortes/apply-edition/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'applyEdition'])->name('admin.lives.cortes.apply-edition');
-        Route::post('lives/{liveId}/cortes/batch-edition', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'batchApplyEdition'])->name('admin.lives.cortes.batch-edition');
+        Route::match(['get', 'post'], 'lives/{liveId}/cortes/batch-edition', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'batchApplyEdition'])->name('admin.lives.cortes.batch-edition');
 
         // ===== INTEGRAÇÃO YOUTUBE SHORTS AUTOMÁTICO =====
         Route::get('youtube/connect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'connect'])->name('admin.youtube.connect');
