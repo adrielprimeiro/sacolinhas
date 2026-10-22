@@ -28,6 +28,10 @@ class InstagramIntegrationController extends Controller
             return back()->with('error', 'Credenciais do Instagram (INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET) não configuradas no .env.');
         }
 
+        if ($request->headers->get('referer')) {
+            session(['instagram_return_url' => $request->headers->get('referer')]);
+        }
+
         $authUrl = $this->instagramService->getAuthUrl();
         return redirect()->away($authUrl);
     }
@@ -42,7 +46,8 @@ class InstagramIntegrationController extends Controller
         $errorDesc = $request->query('error_description');
 
         $latest = Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? Live::orderBy('id', 'desc')->first();
-        $targetRoute = $latest ? route('admin.lives.cortes', ['liveId' => $latest->id]) : route('admin.lives.cortes.latest');
+        $defaultRoute = $latest ? route('admin.lives.cortes', ['liveId' => $latest->id]) : route('admin.lives.cortes.latest');
+        $targetRoute = session()->pull('instagram_return_url', $defaultRoute) ?: $defaultRoute;
 
         if ($error) {
             Log::warning("[Instagram callback] Erro retornado na URL: {$error} - {$errorDesc}");
@@ -97,7 +102,10 @@ class InstagramIntegrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
         }
 
-        $result = $this->instagramService->publishVideo($liveItem);
+        $mediaType = strtoupper(trim((string) $request->input('media_type', 'REELS')));
+        $result = $this->instagramService->publishVideo($liveItem, [
+            'media_type' => $mediaType,
+        ]);
 
         return response()->json($result);
     }

@@ -140,39 +140,56 @@
                             </p>
                         </div>
 
-                        {{-- Ações na Lateral Direita (Baixar e Publicar no YouTube) --}}
+                        {{-- Ações na Lateral Direita (Baixar, Publicar no YouTube e Instagram) --}}
                         <div class="flex-shrink-0 flex flex-col gap-1.5" onclick="event.stopPropagation()">
                             {{-- Botão de Baixar Vídeo --}}
                             <a href="{{ route('admin.lives.cortes.download', $item['live_item_id']) }}" 
                                download="{{ $item['download_filename'] }}"
                                style="background-color: #16a34a; color: #ffffff !important;"
-                               class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition"
+                               class="w-full h-8 sm:h-9 inline-flex items-center justify-center bg-green-600 hover:bg-green-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition px-2"
                                title="Baixar Vídeo">
-                                <i class="fas fa-download text-white text-sm sm:text-base"></i>
+                                <i class="fas fa-download text-white text-xs sm:text-sm"></i>
                             </a>
 
-                            {{-- Botão Publicar no YouTube --}}
-                            @if(!empty($item['youtube_video_id']))
-                                <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
-                                   target="_blank" 
-                                   style="background-color: #dc2626; color: #ffffff !important;"
-                                   class="relative w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400" 
-                                   title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴) - Clique para assistir' : 'Publicado no YouTube Shorts - Clique para assistir' }}">
-                                    <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
-                                    <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow ring-1 ring-white">
-                                        <i class="fas fa-check"></i>
-                                    </span>
-                                </a>
-                            @else
+                            <div class="flex items-center gap-1.5">
+                                {{-- Botão Publicar no YouTube --}}
+                                @if(!empty($item['youtube_video_id']))
+                                    <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
+                                       target="_blank" 
+                                       style="background-color: #dc2626; color: #ffffff !important;"
+                                       class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400" 
+                                       title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴) - Clique para assistir' : 'Publicado no YouTube Shorts - Clique para assistir' }}">
+                                        <i class="fab fa-youtube text-white text-xs sm:text-sm"></i>
+                                        <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
+                                            <i class="fas fa-check"></i>
+                                        </span>
+                                    </a>
+                                @else
+                                    <button type="button" 
+                                            onclick="uploadCutToYouTubeSocial({{ $item['live_item_id'] }})" 
+                                            id="btn-yt-social-{{ $item['live_item_id'] }}" 
+                                            style="background-color: #dc2626; color: #ffffff !important;"
+                                            class="w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer"
+                                            title="Publicar este corte no YouTube Shorts">
+                                        <i class="fab fa-youtube text-white text-xs sm:text-sm"></i>
+                                    </button>
+                                @endif
+
+                                {{-- Botão Publicar no Instagram (Reels / Stories) --}}
                                 <button type="button" 
-                                        onclick="uploadCutToYouTubeSocial({{ $item['live_item_id'] }})" 
-                                        id="btn-yt-social-{{ $item['live_item_id'] }}" 
-                                        style="background-color: #dc2626; color: #ffffff !important;"
-                                        class="w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer"
-                                        title="Publicar este corte no YouTube Shorts">
-                                    <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
+                                        onclick="openInstagramPublishModal({{ $item['live_item_id'] }})" 
+                                        id="btn-ig-social-{{ $item['live_item_id'] }}" 
+                                        style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;"
+                                        class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center hover:opacity-90 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer {{ !empty($item['instagram_media_id']) ? 'ring-2 ring-emerald-400' : '' }}"
+                                        title="{{ !empty($item['instagram_media_id']) ? 'Já publicado no Instagram - Clique para publicar nos Stories ou Reels' : 'Publicar este corte no Instagram (Stories ou Reels)' }}">
+                                    <i class="fab fa-instagram text-white text-xs sm:text-sm"></i>
+                                    @if(!empty($item['instagram_media_id']))
+                                        <span class="ig-check-badge absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
+                                            <i class="fas fa-check"></i>
+                                        </span>
+                                    @endif
                                 </button>
-                            @endif
+                            </div>
                         </div>
                     </div>
 
@@ -532,6 +549,92 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    {{-- MODAL DE ESCOLHA DE PUBLICAÇÃO NO INSTAGRAM (STORIES / REELS / AMBOS) --}}
+    <div id="instagramPublishModal" 
+         class="fixed inset-0 bg-black/85 hidden items-center justify-center p-4 backdrop-blur-sm"
+         style="z-index: 10002; display: none;"
+         onclick="if(event.target === this) closeInstagramPublishModal()">
+        
+        <div class="bg-gray-900 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-700 p-5 text-white animate-scale-in">
+            
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg text-white shadow-md"
+                         style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);">
+                        <i class="fab fa-instagram"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-black text-white leading-tight">Publicar no Instagram</h3>
+                        <p class="text-[11px] text-gray-300 font-semibold truncate max-w-[200px]" id="igModalItemSubtitle">Peça</p>
+                    </div>
+                </div>
+                <button type="button" 
+                        onclick="closeInstagramPublishModal()" 
+                        class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+
+            {{-- Box caso já tenha sido publicado anteriormente --}}
+            <div id="igModalAlreadyPublishedBox" class="hidden mb-3 p-2.5 rounded-xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-between text-xs">
+                <span class="text-emerald-200 font-bold flex items-center gap-1.5">
+                    <i class="fas fa-check-circle text-emerald-400"></i>
+                    <span>Já publicado no Instagram</span>
+                </span>
+                <a id="igModalPublishedLink" href="https://www.instagram.com" target="_blank" class="text-emerald-300 hover:text-white underline font-black">
+                    Abrir ↗
+                </a>
+            </div>
+
+            <p class="text-xs text-gray-300 mb-3.5">
+                Escolha onde deseja publicar este vídeo na conta <strong class="text-pink-400">{{ $instagramAccount->channel_name ?? '@minhamania' }}</strong>:
+            </p>
+
+            <div class="flex flex-col gap-2.5">
+                {{-- Opção 1: STORIES --}}
+                <button type="button"
+                        onclick="uploadCutToInstagramSocial('STORIES')"
+                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-orange-500 hover:opacity-95 active:scale-[0.98] text-white font-black text-xs sm:text-sm shadow-lg transition flex items-center justify-between cursor-pointer border border-pink-400/40">
+                    <span class="flex items-center gap-2.5">
+                        <i class="fas fa-circle-notch text-base text-white"></i>
+                        <span class="text-left">
+                            <span class="block text-white font-black">Publicar nos Stories</span>
+                            <span class="block text-[10px] text-pink-100 font-medium">Story vertical de 24h direto no perfil</span>
+                        </span>
+                    </span>
+                    <i class="fas fa-chevron-right text-xs text-white/80"></i>
+                </button>
+
+                {{-- Opção 2: REELS --}}
+                <button type="button"
+                        onclick="uploadCutToInstagramSocial('REELS')"
+                        class="w-full py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-[0.98] text-white font-black text-xs sm:text-sm shadow transition flex items-center justify-between cursor-pointer border border-gray-600">
+                    <span class="flex items-center gap-2.5">
+                        <i class="fas fa-film text-base text-purple-400"></i>
+                        <span class="text-left">
+                            <span class="block text-white font-black">Publicar no Reels</span>
+                            <span class="block text-[10px] text-gray-300 font-medium">Reel no Feed com descrição e preço</span>
+                        </span>
+                    </span>
+                    <i class="fas fa-chevron-right text-xs text-gray-400"></i>
+                </button>
+
+                {{-- Opção 3: AMBOS (REELS + STORIES) --}}
+                <button type="button"
+                        onclick="uploadCutToInstagramSocial('BOTH')"
+                        class="w-full py-2.5 px-4 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 active:scale-[0.98] text-indigo-100 font-bold text-xs shadow transition flex items-center justify-between cursor-pointer border border-indigo-500/50">
+                    <span class="flex items-center gap-2.5">
+                        <i class="fas fa-rocket text-sm text-indigo-300"></i>
+                        <span class="text-left">
+                            <span class="block text-white font-extrabold">Publicar em Ambos (Reels + Stories)</span>
+                        </span>
+                    </span>
+                    <i class="fas fa-chevron-right text-xs text-indigo-300"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -2184,11 +2287,135 @@ async function uploadCutToYouTubeSocial(itemId) {
 }
 window.uploadCutToYouTubeSocial = uploadCutToYouTubeSocial;
 
+let currentInstagramItemId = null;
+
+function openInstagramPublishModal(itemId) {
+    const isConnected = {{ !empty($instagramAccount) ? 'true' : 'false' }};
+    if (!isConnected) {
+        if (confirm("Você precisa conectar a conta do Instagram primeiro. Deseja conectar agora?")) {
+            window.location.href = "{{ route('admin.instagram.connect') }}";
+        }
+        return;
+    }
+
+    currentInstagramItemId = itemId;
+    const item = typeof liveItemsMap !== 'undefined' ? liveItemsMap[itemId] : null;
+    const modal = document.getElementById('instagramPublishModal');
+    const subtitle = document.getElementById('igModalItemSubtitle');
+    const publishedBox = document.getElementById('igModalAlreadyPublishedBox');
+    const publishedLink = document.getElementById('igModalPublishedLink');
+
+    if (subtitle && item) {
+        subtitle.textContent = `#${item.codigo_live || item.item_sku || ''} - ${item.item_name || 'Produto'}`;
+    }
+
+    if (publishedBox && publishedLink) {
+        if (item && item.instagram_media_id) {
+            publishedBox.classList.remove('hidden');
+            publishedBox.classList.add('flex');
+            publishedLink.href = item.instagram_url || 'https://www.instagram.com';
+        } else {
+            publishedBox.classList.add('hidden');
+            publishedBox.classList.remove('flex');
+        }
+    }
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.style.display = 'flex';
+    }
+}
+
+function closeInstagramPublishModal() {
+    const modal = document.getElementById('instagramPublishModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
+    }
+}
+
+async function uploadCutToInstagramSocial(mediaType = 'STORIES') {
+    const itemId = currentInstagramItemId;
+    if (!itemId) return;
+
+    closeInstagramPublishModal();
+
+    const btn = document.getElementById(`btn-ig-social-${itemId}`);
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white text-xs sm:text-sm"></i>';
+    }
+
+    const labelMap = {
+        'STORIES': 'Stories do Instagram',
+        'REELS': 'Instagram Reels',
+        'BOTH': 'Reels e Stories do Instagram'
+    };
+    const destLabel = labelMap[mediaType] || 'Instagram';
+
+    showGlobalToast(`Enviando vídeo para ${destLabel}... Aguarde alguns segundos.`, "📸", 25000);
+
+    try {
+        const res = await fetch(`{{ url('admin/instagram/upload-cut') }}/${itemId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ media_type: mediaType })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.add('ring-2', 'ring-emerald-400');
+                btn.innerHTML = `
+                    <i class="fab fa-instagram text-white text-xs sm:text-sm"></i>
+                    <span class="ig-check-badge absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
+                        <i class="fas fa-check"></i>
+                    </span>
+                `;
+            }
+            if (typeof liveItemsMap !== 'undefined' && liveItemsMap[itemId]) {
+                liveItemsMap[itemId].instagram_media_id = data.media_id || 'published';
+                liveItemsMap[itemId].instagram_url = data.url || 'https://www.instagram.com';
+                liveItemsMap[itemId].instagram_status = 'published';
+            }
+            const linkHtml = data.url ? ` <a href="${data.url}" target="_blank" style="color: #f472b6; text-decoration: underline; font-weight: bold; margin-left: 6px;">Abrir no Instagram ↗</a>` : '';
+            showGlobalToast(`${data.message || 'Publicado com sucesso no Instagram!'}${linkHtml}`, "🎉", 10000);
+        } else {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+            showGlobalToast(data.message || 'Falha ao publicar no Instagram. Tente novamente.', "⚠️", 8000);
+        }
+    } catch (e) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
+        showGlobalToast("Instabilidade ao comunicar com o servidor: " + e.message, "❌", 8000);
+    }
+}
+
+window.openInstagramPublishModal = openInstagramPublishModal;
+window.closeInstagramPublishModal = closeInstagramPublishModal;
+window.uploadCutToInstagramSocial = uploadCutToInstagramSocial;
+
 // Fechar com tecla ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        const igModal = document.getElementById('instagramPublishModal');
         const confirmModal = document.getElementById('saveConfirmModal');
-        if (confirmModal && !confirmModal.classList.contains('hidden')) {
+        if (igModal && !igModal.classList.contains('hidden')) {
+            closeInstagramPublishModal();
+        } else if (confirmModal && !confirmModal.classList.contains('hidden')) {
             hideConfirmModal();
         } else {
             requestClosePreviewModal();

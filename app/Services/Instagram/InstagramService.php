@@ -179,7 +179,7 @@ class InstagramService
     }
 
     /**
-     * Publica o corte de vídeo no Instagram Reels (Instagram Graph API)
+     * Publica o corte de vídeo no Instagram (Reels, Stories ou Ambos via Instagram Graph API)
      */
     public function publishVideo($liveItem, array $options = []): array
     {
@@ -190,6 +190,12 @@ class InstagramService
 
         $igUserId = $account->channel_id;
         $accessToken = $account->access_token;
+        $igUsername = $account->settings['username'] ?? ltrim((string) ($account->channel_name ?? 'minhamania'), '@');
+
+        $requestedType = strtoupper(trim((string) ($options['media_type'] ?? 'REELS')));
+        if (!in_array($requestedType, ['REELS', 'STORIES', 'BOTH'], true)) {
+            $requestedType = 'REELS';
+        }
 
         // 1. Validar existência do arquivo local de vídeo
         $videoPath = null;
@@ -204,7 +210,7 @@ class InstagramService
             return ['success' => false, 'message' => 'Arquivo de vídeo do corte não encontrado no servidor.'];
         }
 
-        // 2. Montar Título / Legenda Dinâmica da Peça
+        // 2. Montar Título / Legenda Dinâmica da Peça (usada no Reels)
         $code = $liveItem->codigo_live ?: $liveItem->item_id;
         $productName = $liveItem->item_nome ?: ($liveItem->item_descricao ?: "Peça #{$code}");
         $price = !empty($liveItem->item_price) ? 'R$ ' . number_format($liveItem->item_price, 2, ',', '.') : '';
@@ -226,11 +232,13 @@ class InstagramService
             $caption = mb_substr($caption, 0, 2095) . '...';
         }
 
-        // 3. Montar URL pública absoluta HTTPS do vídeo
+        // 3. Montar URL pública absoluta HTTPS do vídeo (com cache-buster do arquivo editado)
         $publicVideoUrl = url(Storage::url($liveItem->video_cut_path));
         if (str_starts_with($publicVideoUrl, 'http://')) {
             $publicVideoUrl = str_replace('http://', 'https://', $publicVideoUrl);
         }
+        $mtime = @filemtime($videoPath) ?: time();
+        $publicVideoUrl .= (str_contains($publicVideoUrl, '?') ? '&' : '?') . 'v=' . $mtime;
 
         DB::table('live_items')
             ->where('id', $liveItem->id)
@@ -239,106 +247,142 @@ class InstagramService
                 'updated_at' => now(),
             ]);
 
+        $typesToPublish = $requestedType === 'BOTH' ? ['REELS', 'STORIES'] : [$requestedType];
+        $results = [];
+        $lastMediaId = null;
+        $lastPermalink = null;
+
         try {
-            // PASSO 1: Criar Container de Vídeo (Reels) na Meta
-            Log::info("[InstagramService] Criando container de Reel para peça #{$code}...", [
-                'video_url' => $publicVideoUrl,
-                'ig_user_id' => $igUserId,
-            ]);
+            foreach ($typesToPublish as $mediaType) {
+                $typeLabel = $mediaType === 'STORIES' ? 'Story' : 'Reel';
 
-            $createRes = Http::post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", [
-                'media_type' => 'REELS',
-                'video_url' => $publicVideoUrl,
-                'caption' => $caption,
-                'share_to_feed' => true,
-                'access_token' => $accessToken,
-            ]);
+                // PASSO 1: Criar Container de Vídeo na Meta (REELS ou STORIES)
+                Log::info("[InstagramService] Criando container de {$typeLabel} ({$mediaType}) para peça #{$code}...", [
+                    'video_url' => $publicVideoUrl,
+                    'ig_user_id' => $igUserId,
+                ]);
 
-            if (!$createRes->successful() || empty($createRes->json('id'))) {
-                $err = $createRes->json('error.message') ?? $createRes->body();
-                Log::error("[InstagramService] Erro ao criar container de Reel: {$err}");
-                throw new \Exception("Erro ao iniciar publicação no Instagram: {$err}");
-            }
+                $containerPayload = [
+                    'media_type' => $mediaType,
+                    'video_url' => $publicVideoUrl,
+                    'access_token' => $accessToken,
+                ];
 
-            $containerId = $createRes->json('id');
-            Log::info("[InstagramService] Container criado (ID: {$containerId}). Aguardando processamento da Meta...");
+                if ($mediaType === 'REELS') {
+                    $containerPayload['caption'] = $caption;
+                    $containerPayload['share_to_feed'] = true;
+                }
 
-            // PASSO 2: Aguardar a Meta processar o vídeo (Polling com backoff curto)
-            $isReady = false;
-            $maxAttempts = 12; // até 36 segundos
-            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-                sleep(3);
+                $createRes = Http::post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", $containerPayload);
 
-                $statusRes = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$containerId}", [
-                    'fields' => 'status_code,status',
+                if (!$createRes->successful() || empty($createRes->json('id'))) {
+                    $err = $createRes->json('error.message') ?? $createRes->body();
+                    Log::error("[InstagramService] Erro ao criar container de {$typeLabel}: {$err}");
+                    throw new \Exception("Erro ao iniciar publicação de {$typeLabel} no Instagram: {$err}");
+                }
+
+                $containerId = $createRes->json('id');
+                Log::info("[InstagramService] Container {$typeLabel} criado (ID: {$containerId}). Aguardando processamento da Meta...");
+
+                // PASSO 2: Aguardar a Meta processar o vídeo (Polling até 60s)
+                $isReady = false;
+                $maxAttempts = 20;
+                for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                    sleep(3);
+
+                    $statusRes = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$containerId}", [
+                        'fields' => 'status_code,status',
+                        'access_token' => $accessToken,
+                    ]);
+
+                    $statusCode = $statusRes->json('status_code');
+                    Log::info("[InstagramService] [{$typeLabel}] Tentativa {$attempt}/{$maxAttempts}: status={$statusCode}");
+
+                    if ($statusCode === 'FINISHED') {
+                        $isReady = true;
+                        break;
+                    }
+
+                    if ($statusCode === 'ERROR') {
+                        $errMsg = $statusRes->json('status') ?? 'Erro durante processamento do vídeo pela Meta.';
+                        throw new \Exception("Instagram falhou ao processar o vídeo ({$typeLabel}): {$errMsg}");
+                    }
+                }
+
+                if (!$isReady) {
+                    throw new \Exception("O vídeo demorou para ser processado pelos servidores do Instagram ({$typeLabel}). Tente novamente em instantes.");
+                }
+
+                // PASSO 3: Publicar o Container no Instagram
+                Log::info("[InstagramService] Publicando container {$containerId} ({$typeLabel}) no Instagram...");
+                $publishRes = Http::post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media_publish", [
+                    'creation_id' => $containerId,
                     'access_token' => $accessToken,
                 ]);
 
-                $statusCode = $statusRes->json('status_code');
-                Log::info("[InstagramService] Tentativa {$attempt}/{$maxAttempts}: status={$statusCode}");
-
-                if ($statusCode === 'FINISHED') {
-                    $isReady = true;
-                    break;
+                if (!$publishRes->successful() || empty($publishRes->json('id'))) {
+                    $err = $publishRes->json('error.message') ?? $publishRes->body();
+                    Log::error("[InstagramService] Erro no media_publish ({$typeLabel}): {$err}");
+                    throw new \Exception("Erro ao concluir publicação de {$typeLabel} no Instagram: {$err}");
                 }
 
-                if ($statusCode === 'ERROR') {
-                    $errMsg = $statusRes->json('status') ?? 'Erro durante processamento do vídeo pela Meta.';
-                    throw new \Exception("Instagram falhou ao processar o vídeo: {$errMsg}");
+                $mediaId = $publishRes->json('id');
+
+                // PASSO 4: Obter permalink
+                $permalink = $mediaType === 'STORIES'
+                    ? "https://www.instagram.com/stories/{$igUsername}/"
+                    : "https://www.instagram.com/reel/{$mediaId}/";
+
+                try {
+                    $infoRes = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}", [
+                        'fields' => 'permalink',
+                        'access_token' => $accessToken,
+                    ]);
+                    if ($infoRes->successful() && !empty($infoRes->json('permalink'))) {
+                        $permalink = $infoRes->json('permalink');
+                    }
+                } catch (\Throwable $t) {
+                    // mantém link fallback
                 }
-            }
 
-            if (!$isReady) {
-                throw new \Exception('O vídeo demorou para ser processado pelos servidores do Instagram. Tente novamente em instantes.');
-            }
-
-            // PASSO 3: Publicar o Container no Instagram
-            Log::info("[InstagramService] Publicando container {$containerId} no Instagram...");
-            $publishRes = Http::post("https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media_publish", [
-                'creation_id' => $containerId,
-                'access_token' => $accessToken,
-            ]);
-
-            if (!$publishRes->successful() || empty($publishRes->json('id'))) {
-                $err = $publishRes->json('error.message') ?? $publishRes->body();
-                Log::error("[InstagramService] Erro no media_publish: {$err}");
-                throw new \Exception("Erro ao concluir publicação no Instagram: {$err}");
-            }
-
-            $mediaId = $publishRes->json('id');
-
-            // PASSO 4: Obter permalink do Reel
-            $permalink = "https://www.instagram.com/reel/{$mediaId}/";
-            try {
-                $infoRes = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}", [
-                    'fields' => 'permalink',
-                    'access_token' => $accessToken,
-                ]);
-                if ($infoRes->successful() && !empty($infoRes->json('permalink'))) {
-                    $permalink = $infoRes->json('permalink');
+                $lastMediaId = $mediaId;
+                // Se publicou ambos, prioriza guardar o permalink do Reel ou do último publicado
+                if (!$lastPermalink || $mediaType === 'REELS') {
+                    $lastPermalink = $permalink;
                 }
-            } catch (\Throwable $t) {
-                // mantém link fallback
+
+                $results[$mediaType] = [
+                    'media_id' => $mediaId,
+                    'url' => $permalink,
+                ];
+
+                Log::info("[InstagramService] {$typeLabel} da peça #{$code} publicado com sucesso! Media ID: {$mediaId} | Link: {$permalink}");
             }
 
             DB::table('live_items')
                 ->where('id', $liveItem->id)
                 ->update([
-                    'instagram_media_id' => $mediaId,
-                    'instagram_url' => $permalink,
+                    'instagram_media_id' => $lastMediaId,
+                    'instagram_url' => $lastPermalink,
                     'instagram_status' => 'published',
                     'instagram_published_at' => now(),
                     'instagram_error' => null,
                     'updated_at' => now(),
                 ]);
 
-            Log::info("[InstagramService] Reel da peça #{$code} publicado com sucesso! Media ID: {$mediaId} | Link: {$permalink}");
+            $msgLabel = match ($requestedType) {
+                'STORIES' => "Story da peça #{$code} publicado com sucesso no Instagram!",
+                'BOTH' => "Peça #{$code} publicada no Reels e nos Stories do Instagram!",
+                default => "Reel da peça #{$code} publicado com sucesso no Instagram!",
+            };
 
             return [
                 'success' => true,
-                'message' => "Reel da peça #{$code} publicado com sucesso no Instagram!",
-                'media_id' => $mediaId,
-                'url' => $permalink,
+                'message' => $msgLabel,
+                'media_type' => $requestedType,
+                'media_id' => $lastMediaId,
+                'url' => $lastPermalink,
+                'results' => $results,
             ];
 
         } catch (\Throwable $e) {

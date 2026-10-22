@@ -109,6 +109,11 @@ class LiveVideoCutsController extends Controller
             $selectCols[] = 'live_items.youtube_url';
             $selectCols[] = 'live_items.youtube_status';
         }
+        if (Schema::hasColumn('live_items', 'instagram_media_id')) {
+            $selectCols[] = 'live_items.instagram_media_id';
+            $selectCols[] = 'live_items.instagram_url';
+            $selectCols[] = 'live_items.instagram_status';
+        }
         if (Schema::hasColumn('live_items', 'middle_cut_start_sec')) {
             $selectCols[] = 'live_items.middle_cut_start_sec';
             $selectCols[] = 'live_items.middle_cut_end_sec';
@@ -199,6 +204,9 @@ class LiveVideoCutsController extends Controller
                 'youtube_video_id' => $row->youtube_video_id ?? null,
                 'youtube_url' => $row->youtube_url ?? null,
                 'youtube_status' => $row->youtube_status ?? 'none',
+                'instagram_media_id' => $row->instagram_media_id ?? null,
+                'instagram_url' => $row->instagram_url ?? null,
+                'instagram_status' => $row->instagram_status ?? 'none',
             ];
         });
 
@@ -210,6 +218,7 @@ class LiveVideoCutsController extends Controller
         }
 
         $youtubeAccount = \App\Models\SocialChannelAccount::getActiveAccount('youtube');
+        $instagramAccount = \App\Models\SocialChannelAccount::getActiveAccount('instagram');
 
         return view('admin.lives.social_cuts', [
             'live' => $live,
@@ -217,6 +226,7 @@ class LiveVideoCutsController extends Controller
             'liveItems' => $liveItems,
             'recordingUrl' => $recordingUrl,
             'youtubeAccount' => $youtubeAccount,
+            'instagramAccount' => $instagramAccount,
             'stats' => [
                 'total' => $totalReadyCount,
                 'unsold' => $unsoldReadyCount,
