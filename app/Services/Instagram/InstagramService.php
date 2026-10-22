@@ -284,9 +284,12 @@ class InstagramService
                 $containerId = $createRes->json('id');
                 Log::info("[InstagramService] Container {$typeLabel} criado (ID: {$containerId}). Aguardando processamento da Meta...");
 
-                // PASSO 2: Aguardar a Meta processar o vídeo (Polling até 60s)
+                // PASSO 2: Aguardar a Meta processar o vídeo (Polling até 75s)
+                // Nota: A API da Meta frequentemente retorna status_code=ERROR (2207077) de forma transitória
+                // nos primeiros 15-25s enquanto os workers baixam/transcodificam o vídeo, mudando depois para FINISHED.
                 $isReady = false;
-                $maxAttempts = 20;
+                $lastErrorMsg = null;
+                $maxAttempts = 25;
                 for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
                     sleep(3);
 
@@ -296,21 +299,30 @@ class InstagramService
                     ]);
 
                     $statusCode = $statusRes->json('status_code');
-                    Log::info("[InstagramService] [{$typeLabel}] Tentativa {$attempt}/{$maxAttempts}: status={$statusCode}");
+                    $statusDetail = $statusRes->json('status') ?? '';
+                    Log::info("[InstagramService] [{$typeLabel}] Tentativa {$attempt}/{$maxAttempts}: status={$statusCode} ({$statusDetail})");
 
                     if ($statusCode === 'FINISHED') {
                         $isReady = true;
                         break;
                     }
 
+                    if ($statusCode === 'EXPIRED') {
+                        throw new \Exception("Container do Instagram expirou ({$typeLabel}).");
+                    }
+
                     if ($statusCode === 'ERROR') {
-                        $errMsg = $statusRes->json('status') ?? 'Erro durante processamento do vídeo pela Meta.';
-                        throw new \Exception("Instagram falhou ao processar o vídeo ({$typeLabel}): {$errMsg}");
+                        $lastErrorMsg = $statusDetail ?: 'Erro durante processamento do vídeo pela Meta.';
+                        // Só aborta se continuar em ERROR após 14 tentativas (~42 segundos)
+                        if ($attempt >= 14) {
+                            throw new \Exception("Instagram falhou ao processar o vídeo ({$typeLabel}): {$lastErrorMsg}");
+                        }
                     }
                 }
 
                 if (!$isReady) {
-                    throw new \Exception("O vídeo demorou para ser processado pelos servidores do Instagram ({$typeLabel}). Tente novamente em instantes.");
+                    $extra = $lastErrorMsg ? " ({$lastErrorMsg})" : '';
+                    throw new \Exception("O vídeo demorou para ser processado pelos servidores do Instagram ({$typeLabel}){$extra}. Tente novamente em instantes.");
                 }
 
                 // PASSO 3: Publicar o Container no Instagram

@@ -157,11 +157,12 @@
                                     <a href="{{ $item['youtube_url'] ?: ('https://youtube.com/shorts/' . $item['youtube_video_id']) }}" 
                                        target="_blank" 
                                        style="background-color: #dc2626; color: #ffffff !important;"
-                                       class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400" 
-                                       title="{{ $item['youtube_status'] === 'sold_updated' ? 'Short no YouTube (VENDIDO 🔴) - Clique para assistir' : 'Publicado no YouTube Shorts - Clique para assistir' }}">
+                                       class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-gray-900" 
+                                       title="{{ $item['youtube_status'] === 'sold_updated' ? 'Enviado ao YouTube (VENDIDO 🔴) - Clique para assistir' : 'Enviado ao YouTube Shorts ✓ - Clique para assistir' }}">
                                         <i class="fab fa-youtube text-white text-xs sm:text-sm"></i>
-                                        <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
-                                            <i class="fas fa-check"></i>
+                                        <span class="absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                                              style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                                            <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
                                         </span>
                                     </a>
                                 @else
@@ -180,12 +181,13 @@
                                         onclick="openInstagramPublishModal({{ $item['live_item_id'] }})" 
                                         id="btn-ig-social-{{ $item['live_item_id'] }}" 
                                         style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;"
-                                        class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center hover:opacity-90 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer {{ !empty($item['instagram_media_id']) ? 'ring-2 ring-emerald-400' : '' }}"
-                                        title="{{ !empty($item['instagram_media_id']) ? 'Já publicado no Instagram - Clique para publicar nos Stories ou Reels' : 'Publicar este corte no Instagram (Stories ou Reels)' }}">
+                                        class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center hover:opacity-90 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer {{ !empty($item['instagram_media_id']) || ($item['instagram_status'] ?? '') === 'published' ? 'ring-2 ring-gray-900' : '' }}"
+                                        title="{{ !empty($item['instagram_media_id']) || ($item['instagram_status'] ?? '') === 'published' ? 'Enviado ao Instagram ✓ - Clique para abrir ou publicar novamente (Stories/Reels)' : 'Publicar este corte no Instagram (Stories ou Reels)' }}">
                                     <i class="fab fa-instagram text-white text-xs sm:text-sm"></i>
-                                    @if(!empty($item['instagram_media_id']))
-                                        <span class="ig-check-badge absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
-                                            <i class="fas fa-check"></i>
+                                    @if(!empty($item['instagram_media_id']) || ($item['instagram_status'] ?? '') === 'published')
+                                        <span class="ig-check-badge absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                                              style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                                            <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
                                         </span>
                                     @endif
                                 </button>
@@ -2256,10 +2258,11 @@ async function uploadCutToYouTubeSocial(itemId) {
         if (data.success) {
             if (btn) {
                 btn.outerHTML = `
-                    <a href="${data.url}" target="_blank" title="Publicado no YouTube Shorts - Clique para assistir" style="background-color: #dc2626; color: #ffffff !important;" class="relative w-9 h-9 sm:w-10 sm:h-10 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-emerald-400">
-                        <i class="fab fa-youtube text-white text-sm sm:text-base"></i>
-                        <span class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow ring-1 ring-white">
-                            <i class="fas fa-check"></i>
+                    <a href="${data.url}" target="_blank" title="Enviado ao YouTube Shorts ✓ - Clique para assistir" style="background-color: #dc2626; color: #ffffff !important;" class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition ring-2 ring-gray-900">
+                        <i class="fab fa-youtube text-white text-xs sm:text-sm"></i>
+                        <span class="absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                              style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                            <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
                         </span>
                     </a>
                 `;
@@ -2373,11 +2376,13 @@ async function uploadCutToInstagramSocial(mediaType = 'STORIES') {
         if (data.success) {
             if (btn) {
                 btn.disabled = false;
-                btn.classList.add('ring-2', 'ring-emerald-400');
+                btn.classList.add('ring-2', 'ring-gray-900');
+                btn.title = 'Enviado ao Instagram ✓ - Clique para abrir ou publicar novamente (Stories/Reels)';
                 btn.innerHTML = `
                     <i class="fab fa-instagram text-white text-xs sm:text-sm"></i>
-                    <span class="ig-check-badge absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center font-bold shadow ring-1 ring-white">
-                        <i class="fas fa-check"></i>
+                    <span class="ig-check-badge absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                          style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                        <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
                     </span>
                 `;
             }
