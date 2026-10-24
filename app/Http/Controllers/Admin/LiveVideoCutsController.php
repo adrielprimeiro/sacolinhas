@@ -958,13 +958,27 @@ class LiveVideoCutsController extends Controller
             $words = $this->numberToPortugueseWords($intVal);
             $variations = array_merge($variations, $words);
 
-            // Variações com dígitos espaçados ou com vírgula (formato característico do Whisper)
-            // Ex: "78" -> "7, 8", "7 8" | "134" -> "1, 3, 4", "1 3 4"
+            // Variações com dígitos espaçados ou por extenso dígito-a-dígito (Ex: "133" -> "1, 3, 3", "um três três")
             $digits = str_split((string)$intVal);
             if (count($digits) > 1) {
                 $variations[] = implode(', ', $digits);
                 $variations[] = implode(' ', $digits);
                 $variations[] = implode(',', $digits);
+
+                $digitWordMap = [
+                    '0' => 'zero', '1' => 'um', '2' => 'dois', '3' => 'três', '4' => 'quatro',
+                    '5' => 'cinco', '6' => 'seis', '7' => 'sete', '8' => 'oito', '9' => 'nove'
+                ];
+                $digitWords = array_map(fn($d) => $digitWordMap[$d] ?? $d, $digits);
+                $variations[] = implode(' ', $digitWords);
+                $variations[] = implode(', ', $digitWords);
+                $variations[] = str_replace('três', 'tres', implode(' ', $digitWords));
+                $variations[] = str_replace('três', 'tres', implode(', ', $digitWords));
+                if (in_array('6', $digits, true)) {
+                    $meiaWords = array_map(fn($d) => $d === '6' ? 'meia' : ($digitWordMap[$d] ?? $d), $digits);
+                    $variations[] = implode(' ', $meiaWords);
+                    $variations[] = implode(', ', $meiaWords);
+                }
             }
 
             // Variações compostas faladas em português
@@ -994,10 +1008,133 @@ class LiveVideoCutsController extends Controller
     }
 
     /**
+     * Subdivide segmentos longos do Whisper que misturam frases de bate-papo/transição ("Vamos lá! Continuando!")
+     * com o início da apresentação da peça na mesma linha da transcrição.
+     */
+    protected function normalizeTranscriptSentences(array $sentences): array
+    {
+        if (empty($sentences)) {
+            return [];
+        }
+
+        $fillerClausePatterns = [
+            'mais coisas', 'vamos lá', 'vamos la', 'bora lá', 'bora la',
+            'começando de novo', 'comecando de novo', 'boa noite', 'boa tarde', 'deixa eu ver',
+            'tem sim', 'tentar fazer rápido', 'tentar fazer rapido', 'só um minutinho',
+            'continuando', 'ok, ok', 'vamos fazer umas', 'saiu para', 'saiu pra', 'saiu a ', 'saiu o ',
+            'fila pro', 'fila para', 'fila pra', 'quem pediu', 'ficou para', 'ficou pra',
+            'tá bom', 'ta bom', 'pronto, a live', 'respondi lá'
+        ];
+
+        $productProtectWords = [
+            'olha', 'vestido', 'conjunto', 'conjuntinho', 'blusa', 'blusinha', 'calça', 'calca',
+            'saia', 'sainha', 'camiseta', 'camisetinha', 'melissa', 'melissinha', 'macacão', 'macacao',
+            'macaquinho', 'short', 'shortinho', 'pijama', 'pijaminha', 'casaco', 'jaqueta', 'tamanho', 'reais', 'código', 'codigo'
+        ];
+
+        // Pré-passo: Junta segmentos onde o Whisper quebrou a pronúncia do código no meio entre duas linhas consecutivas (ex: "...código um" + "três três.")
+        $mergedSentences = [];
+        $countRaw = count($sentences);
+        for ($i = 0; $i < $countRaw; $i++) {
+            $curr = $sentences[$i];
+            $currText = trim($curr['text'] ?? '');
+            if ($i + 1 < $countRaw && preg_match('/\b(?:c[oó]digo|pe[cç]a)(?:\s+(?:um|dois|tr[eê]s|quatro|cinco|seis|meia|sete|oito|nove|\d+))?\s*[, ]*$/iu', $currText)) {
+                $next = $sentences[$i + 1];
+                $nextText = trim($next['text'] ?? '');
+                if (preg_match('/^(?:[\d,\s]+|(?:zero|um|dois|tr[eê]s|quatro|cinco|seis|meia|sete|oito|nove|e|\s|,)+)[.!?]?$/iu', $nextText)) {
+                    $curr['end'] = $next['end'] ?? $curr['end'];
+                    $curr['text'] = $currText . ' ' . $nextText;
+                    $mergedSentences[] = $curr;
+                    $i++;
+                    continue;
+                }
+            }
+            $mergedSentences[] = $curr;
+        }
+        $sentences = $mergedSentences;
+
+        $normalized = [];
+
+        foreach ($sentences as $s) {
+            $text = trim($s['text'] ?? '');
+            $sStart = (float) ($s['start'] ?? 0);
+            $sEnd = (float) ($s['end'] ?? $sStart);
+            $duration = max(0.1, $sEnd - $sStart);
+
+            if ($text === '' || $duration < 3.0) {
+                $normalized[] = $s;
+                continue;
+            }
+
+            $clauses = preg_split('/(?<=[.!?])\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
+            if (!is_array($clauses) || count($clauses) <= 1) {
+                $normalized[] = $s;
+                continue;
+            }
+
+            $fillerPrefixClauses = [];
+            $remainingClauses = [];
+            $inPrefix = true;
+
+            foreach ($clauses as $clause) {
+                $cClean = trim(mb_strtolower($clause));
+                if ($inPrefix) {
+                    $isClauseFiller = false;
+                    foreach ($fillerClausePatterns as $fp) {
+                        if (str_contains($cClean, $fp)) {
+                            $isClauseFiller = true;
+                            break;
+                        }
+                    }
+                    if (!$isClauseFiller && preg_match('/\b\d+\s+saiu\b/iu', $cClean)) {
+                        $isClauseFiller = true;
+                    }
+
+                    if ($isClauseFiller) {
+                        $fillerPrefixClauses[] = $clause;
+                    } else {
+                        $inPrefix = false;
+                        $remainingClauses[] = $clause;
+                    }
+                } else {
+                    $remainingClauses[] = $clause;
+                }
+            }
+
+            if (!empty($fillerPrefixClauses) && !empty($remainingClauses)) {
+                $prefixText = implode(' ', $fillerPrefixClauses);
+                $restText = implode(' ', $remainingClauses);
+                $totalLen = max(1, mb_strlen($prefixText) + 1 + mb_strlen($restText));
+                $prefixRatio = (mb_strlen($prefixText) + 1) / $totalLen;
+                $splitTime = round($sStart + ($prefixRatio * $duration), 2);
+
+                if ($splitTime > ($sStart + 0.3) && $splitTime < ($sEnd - 0.3)) {
+                    $normalized[] = [
+                        'start' => $sStart,
+                        'end' => $splitTime,
+                        'text' => $prefixText
+                    ];
+                    $normalized[] = [
+                        'start' => $splitTime,
+                        'end' => $sEnd,
+                        'text' => $restText
+                    ];
+                    continue;
+                }
+            }
+
+            $normalized[] = $s;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Segmentação de IA de Alta Precisão usando Gemini 2.5 Flash / Groq LLaMA 3.3 70B com Aprendizado Severino (Few-Shot Feedback)
      */
     protected function detectItemTimestampsWithAI(Live $live, array $sentences, $liveItems, ?int $startCode = null, bool $onlyUnreviewed = false, ?callable $progressCallback = null): array
     {
+        $sentences = $this->normalizeTranscriptSentences($sentences);
         $geminiKey = config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
         $groqKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
         $openrouterKey = config('services.openrouter.api_key') ?: env('OPENROUTER_API_KEY', '');
@@ -1057,8 +1194,8 @@ class LiveVideoCutsController extends Controller
         // Formata as frases da transcrição de forma compacta e indexada por tempo
         $transcriptFormatted = [];
         foreach ($sentences as $s) {
-            $sStart = round((float) ($s['start'] ?? 0), 1);
-            $sEnd = round((float) ($s['end'] ?? 0), 1);
+            $sStart = round((float) ($s['start'] ?? 0), 2);
+            $sEnd = round((float) ($s['end'] ?? 0), 2);
             $text = trim($s['text'] ?? '');
             if ($text) {
                 $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
@@ -1145,10 +1282,51 @@ PROMPT;
             $chunkNumber = $chunkIdx + 1;
             $currentAnchor = '';
 
+            // Localiza na transcrição onde os códigos deste lote aparecem de fato (evita perder o Lote 1 quando há 10+ min de intro/brindes no início da live)
+            $chunkFirstMentionSec = null;
+            $chunkLastMentionSec = null;
+            $minSearchSec = ($lastKnownEndSec !== null && $lastKnownEndSec > 0) ? max(0.0, $lastKnownEndSec - 5.0) : 0.0;
+
+            foreach ($chunk as $cItem) {
+                $cCode = trim((string) ($cItem['codigo_live'] ?? ''));
+                if ($cCode === '') continue;
+                $cVars = $this->getCodeSearchVariations($cCode);
+                $cPatList = [];
+                foreach ($cVars as $cv) {
+                    $esc = preg_quote($cv, '/');
+                    $cPatList[] = '(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $esc;
+                    $cPatList[] = $esc . '\s*[,.]?\s*(?:o\s+)?(?:codigo|c.{1,3}digo|c[oó]digo)';
+                }
+                $cPatRegex = '/\b(?:' . implode('|', $cPatList) . ')\b/iu';
+
+                foreach ($sentences as $s) {
+                    $sStart = (float) ($s['start'] ?? 0);
+                    if ($sStart < $minSearchSec) continue;
+                    if ($chunkFirstMentionSec !== null && $sStart > ($chunkFirstMentionSec + 420.0)) break;
+                    $normTxt = preg_replace('/c\s*digo/iu', 'codigo', $s['text'] ?? '');
+                    if (preg_match($cPatRegex, $normTxt)) {
+                        if ($chunkFirstMentionSec === null || $sStart < $chunkFirstMentionSec) {
+                            $chunkFirstMentionSec = $sStart;
+                        }
+                        $sEnd = (float) ($s['end'] ?? $sStart);
+                        if ($chunkLastMentionSec === null || $sEnd > $chunkLastMentionSec) {
+                            $chunkLastMentionSec = $sEnd;
+                        }
+                        break;
+                    }
+                }
+            }
+
             if ($lastKnownEndSec !== null && $lastKnownEndSec > 0) {
-                $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
-                $windowStart = max(0, $lastKnownEndSec - 20);
-                $windowEnd = $lastKnownEndSec + 280; // Janela compacta de ~4.5 minutos para 6 peças
+                $currentAnchor = "\nÂNCORA TEMPORAL: A peça anterior foi finalizada exatamente em {$lastKnownEndSec}s. Os itens desta lista começam a partir de {$lastKnownEndSec}s em diante.\n";
+                $windowStart = max(0, $lastKnownEndSec - 10);
+                if ($chunkFirstMentionSec !== null && $chunkFirstMentionSec > ($lastKnownEndSec + 180)) {
+                    $windowStart = max($lastKnownEndSec, $chunkFirstMentionSec - 45);
+                }
+                $windowEnd = max($windowStart + 280, ($chunkLastMentionSec !== null ? $chunkLastMentionSec + 45 : 0));
+            } elseif ($chunkFirstMentionSec !== null) {
+                $windowStart = max(0, $chunkFirstMentionSec - 45);
+                $windowEnd = max($windowStart + 300, ($chunkLastMentionSec !== null ? $chunkLastMentionSec + 45 : 0));
             } else {
                 $estimatedStartSec = max(0, ($chunkIdx * count($chunk) * 35) - 60);
                 $windowStart = $estimatedStartSec;
@@ -1158,14 +1336,14 @@ PROMPT;
             // Segmenta apenas a janela temporal da transcrição relevante para este lote
             $transcriptFormatted = [];
             foreach ($sentences as $s) {
-                $sStart = round((float) ($s['start'] ?? 0), 1);
-                $sEnd = round((float) ($s['end'] ?? 0), 1);
+                $sStart = round((float) ($s['start'] ?? 0), 2);
+                $sEnd = round((float) ($s['end'] ?? 0), 2);
                 if ($sStart < $windowStart) continue;
                 if ($sStart > $windowEnd) break;
                 $text = trim($s['text'] ?? '');
                 if ($text) {
                     $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
-                    if (count($transcriptFormatted) >= 60) break; // Limita a 60 falas para nunca estourar tokens
+                    if (count($transcriptFormatted) >= 75) break; // Limita a 75 falas para nunca estourar tokens
                 }
             }
 
@@ -1174,8 +1352,8 @@ PROMPT;
                 $sliceStart = max(0, (int) (($chunkIdx / max(1, $totalChunks)) * count($sentences)) - 10);
                 $slice = array_slice($sentences, $sliceStart, 40);
                 foreach ($slice as $s) {
-                    $sStart = round((float) ($s['start'] ?? 0), 1);
-                    $sEnd = round((float) ($s['end'] ?? 0), 1);
+                    $sStart = round((float) ($s['start'] ?? 0), 2);
+                    $sEnd = round((float) ($s['end'] ?? 0), 2);
                     $text = trim($s['text'] ?? '');
                     if ($text) {
                         $transcriptFormatted[] = "[{$sStart}s - {$sEnd}s] {$text}";
@@ -1327,8 +1505,8 @@ PROMPT;
                     $li = $liveItemsById->get($liveItemId);
                     $liCode = trim((string) ($li ? $li->codigo_live : ($entry['codigo_live'] ?? '')));
 
-                    $start = round((float) ($entry['cut_start_sec'] ?? 0), 1);
-                    $end = round((float) ($entry['cut_end_sec'] ?? 0), 1);
+                    $start = round((float) ($entry['cut_start_sec'] ?? 0), 2);
+                    $end = round((float) ($entry['cut_end_sec'] ?? 0), 2);
 
                     if ($start < 0 || $end <= $start) continue;
 
@@ -1368,7 +1546,7 @@ PROMPT;
                                 } else {
                                     // Posição proporcional dentro da frase
                                     $ratio = $pos / max(1, mb_strlen($sText));
-                                    $alignedStart = round($sStart + ($ratio * ($sEnd - $sStart)), 1);
+                                    $alignedStart = round($sStart + ($ratio * ($sEnd - $sStart)), 2);
                                 }
                                 break;
                             } elseif (str_contains($snippetHead, mb_substr($sText, 0, 20))) {
@@ -1383,7 +1561,7 @@ PROMPT;
                         foreach ($sentences as $s) {
                             $sStart = (float) ($s['start'] ?? 0);
                             $sEnd = (float) ($s['end'] ?? 0);
-                            if ($start >= $sStart && $start <= $sEnd) {
+                            if ($start >= $sStart && $start < ($sEnd - 0.1)) {
                                 $alignedStart = $sStart;
                                 break;
                             }
@@ -1397,7 +1575,7 @@ PROMPT;
                         $codeVariations = $this->getCodeSearchVariations($liCode);
                         $cRegexList = [];
                         foreach ($codeVariations as $cv) {
-                            $cRegexList[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)\s*' . preg_quote($cv, '/');
+                            $cRegexList[] = '(?:c[oó]digo|pe[cç]a|n[uú]mero|item)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . preg_quote($cv, '/');
                         }
                         $cRegex = '/\b(?:' . implode('|', $cRegexList) . ')\b/iu';
 
@@ -1417,12 +1595,24 @@ PROMPT;
 
                         // Se encontrou a menção do código, verifica se a frase anterior era o início da apresentação da peça
                         if ($mentionIndex !== null && $mentionIndex > 0) {
-                            $transPatterns = ['olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'mais uma', 'essa daqui', 'esse daqui', 'próxima peça', 'vamos para', 'agora vamos'];
+                            $transPatterns = ['olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'mais uma', 'mais um', 'essa daqui', 'esse daqui', 'próxima peça', 'vamos para', 'agora vamos'];
+                            $fillerStopPatterns = ['mais coisas', 'vamos lá', 'vamos la', 'bora lá', 'bora la', 'começando de novo', 'boa noite', 'deixa eu ver', 'tem sim', 'tentar fazer rápido', 'só um minutinho'];
                             for ($bk = $mentionIndex - 1; $bk >= max(0, $mentionIndex - 4); $bk--) {
                                 $bkStart = (float) ($sentences[$bk]['start'] ?? 0);
-                                if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $bkStart < ($lastKnownEndSec - 2.0)) break;
+                                if ($lastKnownEndSec !== null && $lastKnownEndSec > 0 && $bkStart < ($lastKnownEndSec - 0.1)) break;
                                 
-                                $bkText = mb_strtolower($sentences[$bk]['text'] ?? '');
+                                $bkText = trim(mb_strtolower($sentences[$bk]['text'] ?? ''));
+                                if (preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero)\s*\d+/iu', $bkText)) break;
+
+                                $isFiller = false;
+                                foreach ($fillerStopPatterns as $fp) {
+                                    if (str_contains($bkText, $fp)) {
+                                        $isFiller = true;
+                                        break;
+                                    }
+                                }
+                                if ($isFiller) break;
+
                                 foreach ($transPatterns as $tp) {
                                     if (str_contains($bkText, $tp)) {
                                         $alignedStart = $bkStart;
@@ -1437,7 +1627,7 @@ PROMPT;
                         foreach ($sentences as $s) {
                             $sStart = (float) ($s['start'] ?? 0);
                             $sEnd = (float) ($s['end'] ?? 0);
-                            if ($end >= $sStart && $end <= $sEnd) {
+                            if ($end > ($sStart + 0.1) && $end <= $sEnd) {
                                 $alignedEnd = $sEnd;
                                 break;
                             }
@@ -1457,8 +1647,8 @@ PROMPT;
                         $alignedEnd = max($end, $alignedStart + 5.0);
                     }
 
-                    $alignedStart = round($alignedStart, 1);
-                    $alignedEnd = round($alignedEnd, 1);
+                    $alignedStart = round($alignedStart, 2);
+                    $alignedEnd = round($alignedEnd, 2);
                     $lastKnownStartSec = $alignedStart;
 
                     $snippet = $this->getSnippetForTimeRange($live, $alignedStart, $alignedEnd);
@@ -1507,17 +1697,7 @@ PROMPT;
      */
     protected function performChronologicalHeuristicDetection(Live $live, array $sentences, $liveItems, ?float $initialStartSec = 0.0): array
     {
-        $transitionPatterns = [
-            'olha essa', 'olha esse', 'olha que', 'olha aí', 'olha ai', 'olha só', 'olha so',
-            'meninas', 'agora vamos', 'vamos para', 'vamos ver', 'próxima peça', 'proxima peca',
-            'próximo item', 'proximo item', 'vou mostrar', 'essa daqui', 'esse daqui',
-            'mais uma', 'outra peça', 'outro modelo', 'achado', 'linda demais', 'maravilhosa'
-        ];
-
-        $closingPatterns = [
-            'entregando', 'vou entregar', 'passando', 'anotou',
-            'quem pegou', 'fechou', 'vendido', 'vai para'
-        ];
+        $sentences = $this->normalizeTranscriptSentences($sentences);
 
         $results = [];
         $inputPath = Storage::disk('public')->path($live->recording_path);
@@ -1528,18 +1708,52 @@ PROMPT;
 
         // Inicializa a âncora cronológica
         $lastEndSec = (float) ($initialStartSec ?? 0.0);
+        $itemsList = $liveItems instanceof \Illuminate\Support\Collection ? $liveItems->values()->all() : array_values((array) $liveItems);
+        $totalItems = count($itemsList);
+        $winnerAnnounceRegex = '/\b(?:saiu\s+(?:para|pra|pro|a|o)|fila\s+(?:para|pra|pro)|ficou\s+(?:para|pra))\b/iu';
 
-        foreach ($liveItems as $li) {
+        foreach ($itemsList as $itemIdx => $li) {
             $code = trim(strtolower($li->codigo_live ?: ''));
             if (!$code) continue;
 
-            $searchAnchor = max(0.0, $lastEndSec - 15.0);
+            $searchAnchor = max(0.0, $lastEndSec - 5.0);
+
+            // Calcula o teto temporal ($nextItemCeilingSec) olhando a menção explícita da próxima peça (evita pular peças quando a apresentadora erra/repete um código)
+            $nextItemCeilingSec = null;
+            for ($lookIdx = $itemIdx + 1; $lookIdx <= min($totalItems - 1, $itemIdx + 2); $lookIdx++) {
+                $nextCode = trim(strtolower($itemsList[$lookIdx]->codigo_live ?: ''));
+                if ($nextCode === '' || $nextCode === $code) continue;
+
+                $nextVars = $this->getCodeSearchVariations($nextCode);
+                $nextPats = [];
+                foreach ($nextVars as $nv) {
+                    $escNv = preg_quote($nv, '/');
+                    $nextPats[] = '(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escNv;
+                    $nextPats[] = $escNv . '\s*[,.]?\s*(?:o\s+)?(?:codigo|c.{1,3}digo|c[oó]digo)';
+                }
+                $nextRegex = '/\b(?:' . implode('|', $nextPats) . ')\b/iu';
+
+                foreach ($sentences as $s) {
+                    $sStart = (float) ($s['start'] ?? 0);
+                    if ($sStart < max(0.0, $lastEndSec + 5.0)) continue;
+                    if ($lastEndSec > 0 && $sStart > ($lastEndSec + 480.0)) break;
+
+                    $sText = $s['text'] ?? '';
+                    if (preg_match($winnerAnnounceRegex, $sText)) continue;
+
+                    $normNext = preg_replace('/c\s*digo/iu', 'codigo', $sText);
+                    if (preg_match($nextRegex, $normNext)) {
+                        $nextItemCeilingSec = $sStart;
+                        break 2;
+                    }
+                }
+            }
 
             $variations = $this->getCodeSearchVariations($code);
             $regexPatterns = [];
             foreach ($variations as $var) {
                 $escaped = preg_quote($var, '/');
-                $regexPatterns[] = '(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escaped;
+                $regexPatterns[] = '(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item|c[oó]d\.?|\bc\b)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*' . $escaped;
                 $regexPatterns[] = $escaped . '\s*[,.]?\s*(?:o\s+)?(?:codigo|c.{1,3}digo|c[oó]digo)';
             }
             $combinedRegex = '/\b(?:' . implode('|', $regexPatterns) . ')\b/iu';
@@ -1550,9 +1764,12 @@ PROMPT;
             foreach ($sentences as $idx => $s) {
                 $sStart = (float) ($s['start'] ?? 0);
                 if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                if ($nextItemCeilingSec !== null && $sStart >= $nextItemCeilingSec) break;
                 if ($searchAnchor > 0 && $sStart > ($searchAnchor + 480.0)) break;
 
                 $text = $s['text'] ?? '';
+                if (preg_match($winnerAnnounceRegex, $text)) continue;
+
                 // Normaliza ruído e caracteres corrompidos de encoding (ex: cdigo -> codigo)
                 $normText = preg_replace('/c\s*digo/iu', 'codigo', $text);
                 if (preg_match($combinedRegex, $normText)) {
@@ -1571,9 +1788,12 @@ PROMPT;
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
                     if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                    if ($nextItemCeilingSec !== null && $sStart >= $nextItemCeilingSec) break;
                     if ($searchAnchor > 0 && $sStart > ($searchAnchor + 900.0)) break;
 
                     $text = $s['text'] ?? '';
+                    if (preg_match($winnerAnnounceRegex, $text)) continue;
+
                     $normText = preg_replace('/c\s*digo/iu', 'codigo', $text);
                     if (preg_match($combinedRegex, $normText)) {
                         $bestMention = [
@@ -1587,15 +1807,40 @@ PROMPT;
                 }
             }
 
-            // 3ª tentativa: Número isolado no texto na janela sequencial à frente
+            // 3ª tentativa: Se a apresentadora trocou/repetiu o número do código por engano entre a peça anterior e a próxima peça conhecida
+            if (!$bestMention && $lastEndSec > 0 && $nextItemCeilingSec !== null && ($nextItemCeilingSec - $lastEndSec) <= 180.0) {
+                $anyCodeClosingRegex = '/\b(?:codigo|c.{1,3}digo|c[oó]digo|pe[cç]a|n[uú]mero|item)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?[:.]?\s*\d+/iu';
+                foreach ($sentences as $idx => $s) {
+                    $sStart = (float) ($s['start'] ?? 0);
+                    if ($sStart < ($lastEndSec + 1.0)) continue;
+                    if ($sStart >= ($nextItemCeilingSec - 2.0)) break;
+
+                    $text = $s['text'] ?? '';
+                    if (preg_match($winnerAnnounceRegex, $text)) continue;
+                    $normText = preg_replace('/c\s*digo/iu', 'codigo', $text);
+                    if (preg_match($anyCodeClosingRegex, $normText)) {
+                        $bestMention = [
+                            'index' => $idx,
+                            'start' => $sStart,
+                            'end' => (float) ($s['end'] ?? 0),
+                            'text' => $text
+                        ];
+                        break;
+                    }
+                }
+            }
+
+            // 4ª tentativa: Número isolado no texto na janela sequencial à frente (ignorando anúncios de ganhadoras)
             if (!$bestMention && is_numeric($code)) {
                 $numRegex = '/\b' . preg_quote($code, '/') . '\b/i';
                 foreach ($sentences as $idx => $s) {
                     $sStart = (float) ($s['start'] ?? 0);
                     if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                    if ($nextItemCeilingSec !== null && $sStart >= $nextItemCeilingSec) break;
                     if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break;
 
                     $text = $s['text'] ?? '';
+                    if (preg_match($winnerAnnounceRegex, $text)) continue;
                     if (preg_match($numRegex, $text)) {
                         $bestMention = [
                             'index' => $idx,
@@ -1608,7 +1853,7 @@ PROMPT;
                 }
             }
 
-            // 4ª tentativa: Correspondência por palavras-chave do produto (marca/nome) na janela à frente
+            // 5ª tentativa: Correspondência por palavras-chave do produto (marca/nome) na janela à frente
             if (!$bestMention) {
                 $pName = trim(strtolower($li->nome_do_produto ?? ''));
                 $pBrand = trim(strtolower($li->marca ?? ''));
@@ -1620,9 +1865,11 @@ PROMPT;
                     foreach ($sentences as $idx => $s) {
                         $sStart = (float) ($s['start'] ?? 0);
                         if ($searchAnchor > 0 && $sStart < $searchAnchor) continue;
+                        if ($nextItemCeilingSec !== null && $sStart >= $nextItemCeilingSec) break;
                         if ($searchAnchor > 0 && $sStart > ($searchAnchor + 360.0)) break;
 
                         $sText = mb_strtolower($s['text'] ?? '');
+                        if (preg_match($winnerAnnounceRegex, $sText)) continue;
                         foreach ($keyWords as $kw) {
                             if (str_contains($sText, $kw)) {
                                 $bestMention = [
@@ -1658,54 +1905,69 @@ PROMPT;
                 $mentionIndex = $bestMention['index'];
                 $mentionTime = $bestMention['start'];
 
-                // Busca início do bloco respeitando transições de fala
-                $startIndex = max(0, $mentionIndex - 5);
+                // Busca início do bloco respeitando transições de fala e descartando frases curtas de bate-papo/transição vazia
+                $startIndex = max(0, $mentionIndex - 6);
                 $startTime = $mentionTime;
+                $fillerStopPatterns = [
+                    'mais coisas', 'vamos lá', 'vamos la', 'bora lá', 'bora la',
+                    'começando de novo', 'comecando de novo', 'boa noite', 'boa tarde', 'deixa eu ver',
+                    'tem sim', 'tentar fazer rápido', 'tentar fazer rapido', 'só um minutinho',
+                    'continuando', 'ok, ok', 'vamos fazer umas', 'saiu para', 'saiu pra', 'fila pro', 'fila para',
+                    'quem pediu', 'ficou para', 'ficou pra'
+                ];
 
                 for ($i = $mentionIndex; $i >= $startIndex; $i--) {
                     $sStart = (float) ($sentences[$i]['start'] ?? 0);
-                    if (($mentionTime - $sStart) > 40) break;
+                    $sEnd = (float) ($sentences[$i]['end'] ?? 0);
+                    if (($mentionTime - $sStart) > 38) break;
 
                     // Nunca recuar para antes do término da peça anterior
-                    if ($lastEndSec !== null && $lastEndSec > 0 && $sStart < ($lastEndSec - 1.0)) {
+                    if ($lastEndSec !== null && $lastEndSec > 0 && $sStart < ($lastEndSec - 0.1)) {
                         break;
                     }
 
-                    $sText = mb_strtolower($sentences[$i]['text'] ?? '');
-
-                    // Se a frase anterior já cita código de outra peça (ex: c 1 5 3), ela pertence à peça anterior!
-                    if ($i < $mentionIndex && preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero|c)\s*\d+/iu', $sText)) {
-                        break;
-                    }
-
-                    $hasTransition = false;
-                    foreach ($transitionPatterns as $pat) {
-                        if (str_contains($sText, $pat)) {
-                            $hasTransition = true;
+                    // Se houver um buraco de silêncio maior que 10s entre esta frase e a próxima, o bloco da peça começou depois do silêncio
+                    if ($i < $mentionIndex) {
+                        $nextSentenceStart = (float) ($sentences[$i + 1]['start'] ?? $sEnd);
+                        if (($nextSentenceStart - $sEnd) > 10.0) {
                             break;
                         }
                     }
 
-                    if ($hasTransition) {
-                        $startTime = $sStart;
-                        if ($i < $mentionIndex) {
+                    $sText = trim(mb_strtolower($sentences[$i]['text'] ?? ''));
+
+                    if ($i < $mentionIndex) {
+                        // Se a frase anterior já cita código numérico de outra peça, ela pertence à peça anterior!
+                        if (preg_match('/\b(?:c[oó]digo|pe[cç]a|n[uú]mero|c)\s*(?:dela\s+|dele\s+)?(?:[eé]\s+(?:o\s+)?)?\d+/iu', $sText)) {
                             break;
                         }
-                    } elseif ($i < $mentionIndex && ($mentionTime - $sStart) <= 20) {
-                        $startTime = $sStart;
+
+                        // Ignora frases de bate-papo/transição de bloco (ex: "Mais coisas.", "Vamos lá!", "Continuando")
+                        $isFiller = false;
+                        foreach ($fillerStopPatterns as $fp) {
+                            if (str_contains($sText, $fp)) {
+                                $isFiller = true;
+                                break;
+                            }
+                        }
+                        if ($isFiller) {
+                            break;
+                        }
                     }
+
+                    $startTime = $sStart;
                 }
 
                 $endTime = (float) ($sentences[$mentionIndex]['end'] ?? ($mentionTime + 15));
-                $finalStart = max(0, round($startTime - 0.5, 1));
+                $finalStart = max(0, round($startTime, 2));
                 if ($lastEndSec !== null && $lastEndSec > 0) {
                     $finalStart = max($lastEndSec, $finalStart);
                 }
-                $finalEnd = round($endTime + 1.2, 1);
+                $finalEnd = round($endTime, 2);
                 if (isset($sentences[$mentionIndex + 1])) {
                     $nextStart = (float) ($sentences[$mentionIndex + 1]['start'] ?? 0);
-                    if ($nextStart > $endTime && $finalEnd > $nextStart) {
-                        $finalEnd = max($endTime, round($nextStart - 0.2, 1));
+                    if ($nextStart >= $endTime && $finalEnd > $nextStart) {
+                        $finalEnd = round($nextStart, 2);
                     }
                 }
 
@@ -1895,6 +2157,7 @@ PROMPT;
         if (empty($sentences)) {
             return ['start_sentence' => '', 'end_sentence' => '', 'full_text' => ''];
         }
+        $sentences = $this->normalizeTranscriptSentences($sentences);
 
         $matchedTexts = [];
         $firstSentence = '';
