@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Services\Instagram\InstagramService;
 use App\Models\SocialCutComment;
+use App\Models\Live;
 use App\Models\LiveItem;
 use App\Models\LiveMessage;
 use App\Models\LiveCodeRequest;
@@ -14,11 +15,11 @@ class CheckInstagramReelsCommentsCommand extends Command
 {
     protected $signature = 'app:check-instagram-reels-comments {--media_id= : Filtrar apenas por um Reel/post específico} {--auto_reply=1 : Responder automaticamente comentários de intenção de compra}';
 
-    protected $description = 'Monitora comentários em Reels do Instagram, detecta intenção de compra (QUERO) e vincula às peças.';
+    protected $description = 'Monitora comentários em Reels do Instagram, detecta intenção de compra (QUERO) e vincula às peças e lives.';
 
     public function handle(InstagramService $instagramService)
     {
-        $this->info('Iniciando verificação de novos comentários nos Reels do Instagram...');
+        $this->info('Iniciando verificação de comentários nos Reels do Instagram...');
 
         $targetMediaId = $this->option('media_id');
         $autoReply = (bool) $this->option('auto_reply');
@@ -40,9 +41,13 @@ class CheckInstagramReelsCommentsCommand extends Command
                 $commentsList = $res['items'];
             }
 
-            // 2. Complementar verificando cortes publicados em live_items com instagram_media_id
+            // 2. Complementar verificando cortes publicados em live_items com instagram_media_id (apenas Reels)
             $recentCutItems = LiveItem::whereNotNull('instagram_media_id')
                 ->where('instagram_status', 'published')
+                ->where(function ($q) {
+                    $q->whereNull('instagram_url')
+                      ->orWhere('instagram_url', 'not like', '%/stories/%');
+                })
                 ->orderByDesc('id')
                 ->limit(25)
                 ->get();
@@ -61,6 +66,7 @@ class CheckInstagramReelsCommentsCommand extends Command
                     foreach ($mRes['items'] as $c) {
                         $c['media_id'] = $mId;
                         $c['live_item_id'] = $cutItem->id;
+                        $c['media_permalink'] = $cutItem->instagram_url;
                         $commentsList[] = $c;
                     }
                 }
@@ -72,19 +78,16 @@ class CheckInstagramReelsCommentsCommand extends Command
             return Command::SUCCESS;
         }
 
-        $intentPattern = '/\b(quero|eu\s+quero|quero\s+essa|quero\s+esse|reserva|reservar|tenho\s+interesse|comprar|ainda\s+tem|ta\s+disponivel|tá\s+disponivel|disponivel|disponível|qual\s+o\s+valor|compro|fica\s+comigo|minha|meu)\b/iu';
+        $intentPattern = '/\b(quero|eu\s+quero|quero\s+essa|quero\s+esse|reserva|reservar|tenho\s+interesse|comprar|ainda\s+tem|ta\s+disponivel|tá\s+disponivel|disponivel|disponível|qual\s+o\s+valor|valor|pre[cç]o|quanto|tens|vc\s+tem|voc[eê]\s+tem|compro|fica\s+comigo|minha|meu)\b/iu';
 
         $newCount = 0;
+        $updatedCount = 0;
         $intentCount = 0;
         $repliedCount = 0;
 
         foreach ($commentsList as $c) {
             $commentId = (string) ($c['id'] ?? '');
             if ($commentId === '') continue;
-
-            if (SocialCutComment::where('platform', 'instagram')->where('comment_id', $commentId)->exists()) {
-                continue;
-            }
 
             $mediaId = (string) ($c['media_id'] ?? 'unknown');
             $text = trim((string) ($c['text'] ?? ''));
@@ -93,10 +96,15 @@ class CheckInstagramReelsCommentsCommand extends Command
             $authorId = $c['from']['id'] ?? null;
             $publishedAt = !empty($c['timestamp']) ? Carbon::parse($c['timestamp']) : now();
 
+            $videoUrl = $c['media_permalink'] ?? null;
+            $rawCaption = trim(preg_replace('/\s+/', ' ', (string) ($c['media_caption'] ?? '')));
+            $videoTitle = $rawCaption !== '' ? mb_substr($rawCaption, 0, 140) : null;
+            $videoThumb = $c['media_thumbnail'] ?? null;
+
             $isPurchaseIntent = (bool) preg_match($intentPattern, $text, $matches);
             $detectedKeyword = $matches[0] ?? null;
 
-            // Localizar a peça correspondente (pelo instagram_media_id, pelo permalink ou pelo #código na legenda do Reel)
+            // 1. Localizar a peça correspondente (pelo instagram_media_id, pelo permalink ou pelo #código na legenda do Reel)
             $liveItem = null;
             if (!empty($c['live_item_id'])) {
                 $liveItem = LiveItem::with(['item', 'live'])->find($c['live_item_id']);
@@ -106,13 +114,13 @@ class CheckInstagramReelsCommentsCommand extends Command
                     ->where('instagram_media_id', $mediaId)
                     ->first();
             }
-            if (!$liveItem && !empty($c['media_permalink'])) {
+            if (!$liveItem && $videoUrl) {
                 $liveItem = LiveItem::with(['item', 'live'])
-                    ->where('instagram_url', $c['media_permalink'])
+                    ->where('instagram_url', $videoUrl)
                     ->first();
             }
-            if (!$liveItem && !empty($c['media_caption'])) {
-                if (preg_match('/Pe[cç]a\s*#(\d+)/iu', $c['media_caption'], $capMatch)) {
+            if (!$liveItem && $rawCaption !== '') {
+                if (preg_match('/Pe[cç]a\s*#(\d+)/iu', $rawCaption, $capMatch)) {
                     $liveItem = LiveItem::with(['item', 'live'])
                         ->where('codigo_live', $capMatch[1])
                         ->orderByDesc('id')
@@ -120,12 +128,83 @@ class CheckInstagramReelsCommentsCommand extends Command
                 }
             }
 
+            // 2. Se o Reel é a gravação de uma Live inteira, localizar a Live correspondente pela data do Reel
+            $matchedLiveId = $liveItem ? $liveItem->live_id : null;
+            if (!$matchedLiveId && !empty($c['media_timestamp'])) {
+                $mediaDate = Carbon::parse($c['media_timestamp'])->timezone('America/Sao_Paulo');
+                $candidateLive = Live::whereBetween('data', [
+                    $mediaDate->copy()->subDays(2)->startOfDay(),
+                    $mediaDate->copy()->endOfDay()
+                ])->orderByDesc('data')->orderByDesc('id')->first();
+
+                if ($candidateLive) {
+                    $matchedLiveId = $candidateLive->id;
+                }
+            }
+
+            // 3. Se o comentário cita um código numérico de peça (ex: "Tens esse 86", "98 vc tem", "Quero 105"), vincula à peça da Live!
+            if (!$liveItem && preg_match('/\b(\d{2,3})\b/', $text, $codeMatch)) {
+                $spokenCode = $codeMatch[1];
+                $itemQuery = LiveItem::with(['item', 'live'])->where('codigo_live', $spokenCode);
+                if ($matchedLiveId) {
+                    $liveItem = (clone $itemQuery)->where('live_id', $matchedLiveId)->first();
+                }
+                if (!$liveItem) {
+                    $liveItem = $itemQuery->orderByDesc('id')->first();
+                }
+                if ($liveItem) {
+                    $matchedLiveId = $liveItem->live_id;
+                    if (!$isPurchaseIntent) {
+                        $isPurchaseIntent = true;
+                        $detectedKeyword = "#{$spokenCode}";
+                    }
+                }
+            }
+
+            $existing = SocialCutComment::where('platform', 'instagram')
+                ->where('comment_id', $commentId)
+                ->first();
+
+            if ($existing) {
+                $updates = [];
+                if ($authorUsername !== '' && ($existing->author_name === 'Cliente Instagram' || empty($existing->author_name))) {
+                    $updates['author_name'] = $authorName;
+                }
+                if ($videoUrl && empty($existing->video_url)) {
+                    $updates['video_url'] = $videoUrl;
+                }
+                if ($videoTitle && empty($existing->video_title)) {
+                    $updates['video_title'] = $videoTitle;
+                }
+                if ($videoThumb && ($existing->video_thumbnail !== $videoThumb)) {
+                    $updates['video_thumbnail'] = $videoThumb;
+                }
+                if ($liveItem && empty($existing->live_item_id)) {
+                    $updates['live_item_id'] = $liveItem->id;
+                }
+                if ($matchedLiveId && empty($existing->live_id)) {
+                    $updates['live_id'] = $matchedLiveId;
+                }
+                if ($isPurchaseIntent && !$existing->is_purchase_intent) {
+                    $updates['is_purchase_intent'] = true;
+                    $updates['detected_keyword'] = $detectedKeyword;
+                }
+                if (!empty($updates)) {
+                    $existing->update($updates);
+                    $updatedCount++;
+                }
+                continue;
+            }
+
             $igComment = SocialCutComment::create([
                 'platform' => 'instagram',
                 'comment_id' => $commentId,
                 'video_id' => $mediaId,
+                'video_url' => $videoUrl,
+                'video_title' => $videoTitle,
+                'video_thumbnail' => $videoThumb,
                 'live_item_id' => $liveItem ? $liveItem->id : null,
-                'live_id' => $liveItem ? $liveItem->live_id : null,
+                'live_id' => $matchedLiveId,
                 'author_name' => $authorName,
                 'author_channel_id' => $authorId,
                 'author_profile_image' => null,
@@ -173,7 +252,8 @@ class CheckInstagramReelsCommentsCommand extends Command
                     if ($isSold) {
                         $replyText = "Olá {$authorName}! 🔴 A peça #{$codigo} ({$productName}) já foi arrematada. Mas temos novidades parecidas todos os dias em https://minhamania.net ✨";
                     } else {
-                        $replyText = "Olá {$authorName}! ✨ Para garantir a peça #{$codigo} ({$productName}) na sua sacolinha, chame agora no nosso WhatsApp oficial (48) 98481-3589 ou clique no link da bio! 🛍️";
+                        $codeLabel = $codigo ? "a peça #{$codigo} ({$productName})" : "essa peça";
+                        $replyText = "Olá {$authorName}! ✨ Para garantir {$codeLabel} na sua sacolinha, chame agora no nosso WhatsApp oficial (48) 98481-3589 ou clique no link da bio! 🛍️";
                     }
 
                     $replyRes = $instagramService->replyToComment($commentId, $replyText);
@@ -189,7 +269,7 @@ class CheckInstagramReelsCommentsCommand extends Command
             }
         }
 
-        $this->info("✅ Instagram Reels sincronizado: {$newCount} novos comentários ({$intentCount} intenções QUERO, {$repliedCount} respostas enviadas).");
+        $this->info("✅ Instagram Reels sincronizado: {$newCount} novos, {$updatedCount} enriquecidos ({$intentCount} intenções QUERO, {$repliedCount} respostas enviadas).");
         return Command::SUCCESS;
     }
 }

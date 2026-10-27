@@ -263,16 +263,22 @@
                             $thumbnailUrl = asset('storage/cuts/' . $thumbName);
                         }
                     }
+                    if (!$thumbnailUrl && !empty($comment->video_thumbnail)) {
+                        $thumbnailUrl = $comment->video_thumbnail;
+                    }
 
                     // Link externo do vídeo
-                    $externalVideoUrl = null;
-                    if ($isYT && $comment->video_id) {
-                        $externalVideoUrl = "https://youtube.com/shorts/{$comment->video_id}";
-                    } elseif ($isInsta && $liveItem?->instagram_url) {
-                        $externalVideoUrl = $liveItem->instagram_url;
-                    } elseif ($isTikTok && $liveItem?->tiktok_url) {
-                        $externalVideoUrl = $liveItem->tiktok_url;
+                    $externalVideoUrl = $comment->video_url ?: null;
+                    if (!$externalVideoUrl) {
+                        if ($isYT && $comment->video_id) {
+                            $externalVideoUrl = "https://youtube.com/shorts/{$comment->video_id}";
+                        } elseif ($isInsta && $liveItem?->instagram_url) {
+                            $externalVideoUrl = $liveItem->instagram_url;
+                        } elseif ($isTikTok && $liveItem?->tiktok_url) {
+                            $externalVideoUrl = $liveItem->tiktok_url;
+                        }
                     }
+                    $resolvedLiveId = $liveItem?->live_id ?: $comment->live_id;
                 @endphp
 
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border {{ $comment->is_purchase_intent ? 'border-amber-300 dark:border-amber-700 shadow-md ring-1 ring-amber-200 dark:ring-amber-900/40' : 'border-gray-200 dark:border-gray-700 shadow-xs' }} transition hover:shadow-md">
@@ -359,11 +365,16 @@
 
                             <!-- Ações Rápidas do Comentário -->
                             <div class="flex flex-wrap items-center gap-2 pt-1">
-                                <!-- Botão de Resposta no YouTube -->
+                                <!-- Botão de Resposta no YouTube / Instagram -->
                                 @if($isYT)
                                     <button type="button" onclick="openReplyModal({{ $comment->id }}, '{{ addslashes($comment->author_name) }}', '{{ $comment->reply_sent ? addslashes($comment->reply_text) : '' }}')" class="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 border border-red-200 dark:border-red-800 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
                                         <i class="fab fa-youtube"></i>
                                         <span>{{ $comment->reply_sent ? 'Reenviar Resposta' : 'Responder no YouTube' }}</span>
+                                    </button>
+                                @elseif($isInsta)
+                                    <button type="button" onclick="openReplyModal({{ $comment->id }}, '{{ addslashes($comment->author_name) }}', '{{ $comment->reply_sent ? addslashes($comment->reply_text) : '' }}')" class="px-3 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:hover:bg-pink-900/60 dark:text-pink-300 border border-pink-200 dark:border-pink-800 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                        <i class="fab fa-instagram"></i>
+                                        <span>{{ $comment->reply_sent ? 'Reenviar Resposta' : 'Responder no Instagram' }}</span>
                                     </button>
                                 @endif
 
@@ -386,6 +397,11 @@
                                         <span>Colocar na Sacolinha</span>
                                     </button>
                                 @endif
+
+                                <button type="button" onclick="openLinkItemModal({{ $comment->id }}, '{{ $resolvedLiveId ?: '' }}', '{{ $liveItem?->codigo_live ?: '' }}')" class="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border border-gray-200 dark:border-gray-600 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fas fa-link text-indigo-600 dark:text-indigo-400"></i>
+                                    <span>{{ $liveItem ? 'Trocar Peça' : 'Vincular Peça (#Código)' }}</span>
+                                </button>
                             </div>
                         </div>
 
@@ -393,8 +409,8 @@
                         <div class="lg:col-span-5 bg-gray-50 dark:bg-gray-750 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 flex flex-col justify-between space-y-3">
                             <div class="text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center justify-between">
                                 <span>Peça & Vídeo do Corte</span>
-                                @if($liveItem)
-                                    <span class="text-indigo-600 dark:text-indigo-400">Live #{{ $liveItem->live_id }}</span>
+                                @if($resolvedLiveId)
+                                    <span class="text-indigo-600 dark:text-indigo-400">Live #{{ $resolvedLiveId }}</span>
                                 @endif
                             </div>
 
@@ -461,10 +477,41 @@
                                         </div>
                                     </div>
                                 </div>
+                            @elseif($thumbnailUrl || $comment->video_title)
+                                <div class="flex items-start gap-3">
+                                    <div class="relative w-20 h-28 rounded-xl bg-gray-900 overflow-hidden shrink-0 border border-gray-300 dark:border-gray-600 shadow-sm flex items-center justify-center">
+                                        @if($thumbnailUrl)
+                                            <img src="{{ $thumbnailUrl }}" alt="Miniatura do Reel" referrerpolicy="no-referrer" class="w-full h-full object-cover">
+                                        @else
+                                            <i class="fab fa-instagram text-pink-500 text-2xl"></i>
+                                        @endif
+                                        @if($externalVideoUrl)
+                                            <a href="{{ $externalVideoUrl }}" target="_blank" class="absolute inset-0 bg-black/30 hover:bg-black/10 flex items-center justify-center text-white transition group" title="Assistir Vídeo">
+                                                <i class="fas fa-play-circle text-2xl group-hover:scale-110 transition shadow-sm"></i>
+                                            </a>
+                                        @endif
+                                    </div>
+                                    <div class="flex-1 min-w-0 space-y-1.5">
+                                        <span class="inline-block px-2 py-0.5 rounded-lg text-[10px] font-black bg-pink-100 text-pink-800 dark:bg-pink-950/60 dark:text-pink-300">
+                                            Vídeo / Replay da Live
+                                        </span>
+                                        <h4 class="text-xs font-extrabold text-gray-900 dark:text-gray-100 line-clamp-2" title="{{ $comment->video_title }}">
+                                            {{ $comment->video_title ?: 'Publicação do Instagram' }}
+                                        </h4>
+                                        <button type="button" onclick="openLinkItemModal({{ $comment->id }}, '{{ $resolvedLiveId ?: '' }}', '')" class="mt-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                                            <i class="fas fa-link text-[10px]"></i>
+                                            <span>Vincular Peça (#Código)</span>
+                                        </button>
+                                    </div>
+                                </div>
                             @else
-                                <div class="py-6 text-center text-gray-400 text-xs">
+                                <div class="py-4 text-center text-gray-400 text-xs space-y-2">
                                     <i class="fas fa-unlink text-xl mb-1"></i>
                                     <p>Nenhuma peça específica vinculada ao vídeo deste comentário.</p>
+                                    <button type="button" onclick="openLinkItemModal({{ $comment->id }}, '{{ $resolvedLiveId ?: '' }}', '')" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                                        <i class="fas fa-link"></i>
+                                        <span>Vincular Peça (#Código)</span>
+                                    </button>
                                 </div>
                             @endif
 
@@ -472,7 +519,7 @@
                             @if($externalVideoUrl)
                                 <a href="{{ $externalVideoUrl }}" target="_blank" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold border border-gray-200 dark:border-gray-600 flex items-center justify-center gap-2 transition shadow-2xs">
                                     <i class="{{ $isYT ? 'fab fa-youtube text-red-600' : ($isInsta ? 'fab fa-instagram text-pink-600' : 'fab fa-tiktok') }}"></i>
-                                    <span>Ver Vídeo no {{ $isYT ? 'YouTube Shorts' : ($isInsta ? 'Instagram' : 'TikTok') }}</span>
+                                    <span>Ver Vídeo no {{ $isYT ? 'YouTube Shorts' : ($isInsta ? 'Instagram Reels' : 'TikTok') }}</span>
                                     <i class="fas fa-external-link-alt text-[10px] text-gray-400"></i>
                                 </a>
                             @endif
@@ -561,6 +608,48 @@
             <button type="button" onclick="submitArrematar()" id="arrematar-submit-btn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
                 <i class="fas fa-check"></i>
                 <span>Confirmar e Adicionar</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE VINCULAR COMENTÁRIO A UMA PEÇA (#CÓDIGO) -->
+<div id="link-item-modal" class="fixed inset-0 bg-gray-900/75 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+            <h3 class="text-base font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <i class="fas fa-link text-indigo-600"></i>
+                <span>Relacionar Comentário a uma Peça</span>
+            </h3>
+            <button onclick="closeLinkItemModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">&times;</button>
+        </div>
+
+        <input type="hidden" id="link-item-comment-id">
+
+        <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Live da Peça:</label>
+            <select id="link-item-live-id" class="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                <option value="">Buscar em qualquer Live recente</option>
+                @foreach($lives as $l)
+                    <option value="{{ $l->id }}">
+                        Live #{{ $l->id }} ({{ $l->data ? \Carbon\Carbon::parse($l->data)->format('d/m/Y') : 'Data n/d' }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Código da Peça na Live (ou Ref do Catálogo):</label>
+            <input type="text" id="link-item-code" placeholder="Ex: 105, 86, 07DI..." class="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs font-semibold text-gray-900 dark:text-gray-100">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onclick="closeLinkItemModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer">
+                Cancelar
+            </button>
+            <button type="button" onclick="submitLinkItem()" id="link-item-submit-btn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fas fa-check"></i>
+                <span>Vincular Peça</span>
             </button>
         </div>
     </div>
@@ -700,6 +789,63 @@
             alert('Falha de comunicação com o servidor.');
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-check"></i> Confirmar e Adicionar';
+        }
+    }
+
+    // Modal de Vincular Comentário a uma Peça (#Código)
+    function openLinkItemModal(commentId, liveId, currentCode) {
+        document.getElementById('link-item-comment-id').value = commentId;
+        document.getElementById('link-item-live-id').value = liveId || '';
+        document.getElementById('link-item-code').value = currentCode || '';
+        document.getElementById('link-item-modal').classList.remove('hidden');
+        setTimeout(() => document.getElementById('link-item-code').focus(), 100);
+    }
+
+    function closeLinkItemModal() {
+        document.getElementById('link-item-modal').classList.add('hidden');
+    }
+
+    async function submitLinkItem() {
+        const commentId = document.getElementById('link-item-comment-id').value;
+        const liveId = document.getElementById('link-item-live-id').value;
+        const codigo = document.getElementById('link-item-code').value;
+        const btn = document.getElementById('link-item-submit-btn');
+
+        if (!codigo.trim()) {
+            alert('Informe o código da peça.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vinculando...';
+
+        try {
+            const res = await fetch(`/admin/lives/cortes/comentarios/${commentId}/link-item`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    codigo: codigo
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Peça vinculada com sucesso!');
+                window.location.reload();
+            } else {
+                alert('Erro: ' + (data.message || 'Não foi possível localizar a peça.'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Vincular Peça';
+            }
+        } catch (e) {
+            console.error('Erro ao vincular peça:', e);
+            alert('Falha de comunicação com o servidor.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Vincular Peça';
         }
     }
 </script>

@@ -465,7 +465,7 @@ class InstagramService
 
         try {
             $res = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$account->channel_id}/media", [
-                'fields' => 'id,caption,media_type,media_product_type,permalink,timestamp,comments_count',
+                'fields' => 'id,caption,media_type,media_product_type,permalink,timestamp,comments_count,thumbnail_url,media_url',
                 'limit' => $limit,
                 'access_token' => $account->access_token,
             ]);
@@ -496,6 +496,8 @@ class InstagramService
                         $comment['media_id'] = $mediaId;
                         $comment['media_permalink'] = $media['permalink'] ?? null;
                         $comment['media_caption'] = $media['caption'] ?? '';
+                        $comment['media_thumbnail'] = $media['thumbnail_url'] ?? ($media['media_url'] ?? null);
+                        $comment['media_timestamp'] = $media['timestamp'] ?? null;
                         $allComments[] = $comment;
                     }
                 }

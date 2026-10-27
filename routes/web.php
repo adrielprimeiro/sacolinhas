@@ -339,6 +339,7 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/cortes/comentarios/sync', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'syncComments'])->name('admin.lives.cortes.comentarios.sync');
         Route::post('lives/cortes/comentarios/{id}/reply', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'sendReply'])->name('admin.lives.cortes.comentarios.reply');
         Route::post('lives/cortes/comentarios/{id}/arrematar', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'linkItemBuyer'])->name('admin.lives.cortes.comentarios.arrematar');
+        Route::post('lives/cortes/comentarios/{id}/link-item', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'attachLiveItem'])->name('admin.lives.cortes.comentarios.link-item');
         Route::get('lives/cortes/download/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'downloadCut'])->name('admin.lives.cortes.download');
         Route::get('lives/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'indexLatest'])->name('admin.lives.cortes.latest');
         Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');

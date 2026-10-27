@@ -317,4 +317,54 @@ class SocialCutsCommentsController extends Controller
             'buyer_user_id' => $userId
         ]);
     }
+
+    /**
+     * Vincula manualmente um comentário a uma peça específica (pelo código da live ou código do catálogo)
+     */
+    public function attachLiveItem(Request $request, $id)
+    {
+        $comment = SocialCutComment::findOrFail($id);
+        $code = trim((string) $request->input('codigo', ''), '# ');
+        $liveId = $request->input('live_id') ?: $comment->live_id;
+
+        if ($code === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Informe o código da peça (ex: 105).'
+            ], 422);
+        }
+
+        $query = LiveItem::with(['item', 'live'])
+            ->where(function ($q) use ($code) {
+                $q->where('codigo_live', $code)
+                  ->orWhereHas('item', fn($sub) => $sub->where('codigo', $code));
+            });
+
+        if ($liveId) {
+            $liveItem = (clone $query)->where('live_id', $liveId)->first();
+        } else {
+            $liveItem = null;
+        }
+
+        if (!$liveItem) {
+            $liveItem = $query->orderByDesc('id')->first();
+        }
+
+        if (!$liveItem) {
+            return response()->json([
+                'success' => false,
+                'message' => "Nenhuma peça encontrada com o código #{$code}."
+            ], 404);
+        }
+
+        $comment->update([
+            'live_item_id' => $liveItem->id,
+            'live_id' => $liveItem->live_id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Comentário vinculado à Peça #{$liveItem->codigo_live} (Live #{$liveItem->live_id}) com sucesso!"
+        ]);
+    }
 }
