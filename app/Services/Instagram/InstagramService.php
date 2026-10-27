@@ -38,6 +38,7 @@ class InstagramService
         $scopes = [
             'instagram_basic',
             'instagram_content_publish',
+            'instagram_manage_comments',
             'pages_show_list',
             'pages_read_engagement',
             'business_management',
@@ -357,8 +358,10 @@ class InstagramService
                     // mantém link fallback
                 }
 
-                $lastMediaId = $mediaId;
-                // Se publicou ambos, prioriza guardar o permalink do Reel ou do último publicado
+                // Se publicou ambos (REELS + STORIES), prioriza guardar o media_id e permalink do Reel (que recebe comentários públicos e não expira em 24h)
+                if (!$lastMediaId || $mediaType === 'REELS') {
+                    $lastMediaId = $mediaId;
+                }
                 if (!$lastPermalink || $mediaType === 'REELS') {
                     $lastPermalink = $permalink;
                 }
@@ -412,6 +415,134 @@ class InstagramService
                 'success' => false,
                 'message' => 'Erro ao publicar no Instagram: ' . $e->getMessage(),
             ];
+        }
+    }
+
+    /**
+     * Busca comentários de um vídeo/Reel específico no Instagram
+     */
+    public function fetchMediaComments(string $mediaId, int $limit = 50): array
+    {
+        $account = $this->getActiveAccount();
+        if (!$account || empty($account->access_token)) {
+            return ['success' => false, 'message' => 'Conta do Instagram não conectada.', 'items' => []];
+        }
+
+        try {
+            $res = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}/comments", [
+                'fields' => 'id,text,username,timestamp,from',
+                'limit' => $limit,
+                'access_token' => $account->access_token,
+            ]);
+
+            if (!$res->successful()) {
+                return [
+                    'success' => false,
+                    'message' => $res->json('error.message') ?? 'Falha ao buscar comentários do Reel.',
+                    'items' => [],
+                ];
+            }
+
+            return [
+                'success' => true,
+                'items' => $res->json('data') ?? [],
+            ];
+        } catch (\Throwable $e) {
+            Log::error("[InstagramService@fetchMediaComments] Erro no media {$mediaId}: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage(), 'items' => []];
+        }
+    }
+
+    /**
+     * Busca as publicações/Reels recentes da conta do Instagram que possuem comentários
+     */
+    public function fetchRecentAccountMediaWithComments(int $limit = 35): array
+    {
+        $account = $this->getActiveAccount();
+        if (!$account || empty($account->access_token) || empty($account->channel_id)) {
+            return ['success' => false, 'message' => 'Conta do Instagram não conectada.', 'items' => []];
+        }
+
+        try {
+            $res = Http::get("https://graph.facebook.com/{$this->graphVersion}/{$account->channel_id}/media", [
+                'fields' => 'id,caption,media_type,media_product_type,permalink,timestamp,comments_count',
+                'limit' => $limit,
+                'access_token' => $account->access_token,
+            ]);
+
+            if (!$res->successful()) {
+                return [
+                    'success' => false,
+                    'message' => $res->json('error.message') ?? 'Falha ao listar Reels da conta.',
+                    'items' => [],
+                ];
+            }
+
+            $mediaList = $res->json('data') ?? [];
+            $allComments = [];
+
+            foreach ($mediaList as $media) {
+                $commentsCount = (int) ($media['comments_count'] ?? 0);
+                if ($commentsCount <= 0) {
+                    continue;
+                }
+
+                $mediaId = $media['id'] ?? null;
+                if (!$mediaId) continue;
+
+                $cRes = $this->fetchMediaComments($mediaId, 50);
+                if (!empty($cRes['success']) && !empty($cRes['items'])) {
+                    foreach ($cRes['items'] as $comment) {
+                        $comment['media_id'] = $mediaId;
+                        $comment['media_permalink'] = $media['permalink'] ?? null;
+                        $comment['media_caption'] = $media['caption'] ?? '';
+                        $allComments[] = $comment;
+                    }
+                }
+            }
+
+            return [
+                'success' => true,
+                'items' => $allComments,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[InstagramService@fetchRecentAccountMediaWithComments] Erro: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage(), 'items' => []];
+        }
+    }
+
+    /**
+     * Responde diretamente a um comentário de Reel/Post no Instagram
+     */
+    public function replyToComment(string $commentId, string $replyText): array
+    {
+        $account = $this->getActiveAccount();
+        if (!$account || empty($account->access_token)) {
+            return ['success' => false, 'message' => 'Conta do Instagram não conectada.'];
+        }
+
+        try {
+            $res = Http::post("https://graph.facebook.com/{$this->graphVersion}/{$commentId}/replies", [
+                'message' => $replyText,
+                'access_token' => $account->access_token,
+            ]);
+
+            if (!$res->successful()) {
+                $errMsg = $res->json('error.message') ?? $res->body();
+                Log::warning("[InstagramService@replyToComment] Falha ao responder comentário {$commentId}: {$errMsg}");
+                return [
+                    'success' => false,
+                    'message' => $errMsg,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'reply_id' => $res->json('id'),
+            ];
+        } catch (\Throwable $e) {
+            Log::error("[InstagramService@replyToComment] Exceção: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
         }
     }
 }

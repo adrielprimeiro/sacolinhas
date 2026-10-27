@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\Sacolinhas;
 use App\Models\User;
 use App\Services\YouTube\YouTubeService;
+use App\Services\Instagram\InstagramService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,10 +19,12 @@ use Illuminate\Support\Facades\Log;
 class SocialCutsCommentsController extends Controller
 {
     protected YouTubeService $youtubeService;
+    protected InstagramService $instagramService;
 
-    public function __construct(YouTubeService $youtubeService)
+    public function __construct(YouTubeService $youtubeService, InstagramService $instagramService)
     {
         $this->youtubeService = $youtubeService;
+        $this->instagramService = $instagramService;
     }
 
     /**
@@ -116,18 +119,31 @@ class SocialCutsCommentsController extends Controller
     }
 
     /**
-     * Dispara sincronização em segundo plano dos comentários
+     * Dispara sincronização em segundo plano dos comentários (YouTube Shorts + Instagram Reels)
      */
     public function syncComments(Request $request)
     {
         try {
-            $exitCode = Artisan::call('app:check-youtube-shorts-comments');
-            $output = Artisan::output();
+            $outputs = [];
+
+            try {
+                Artisan::call('app:check-youtube-shorts-comments');
+                $outputs[] = trim(Artisan::output());
+            } catch (\Throwable $ytErr) {
+                Log::warning('[SocialCutsCommentsController@syncComments] Aviso YouTube: ' . $ytErr->getMessage());
+            }
+
+            try {
+                Artisan::call('app:check-instagram-reels-comments');
+                $outputs[] = trim(Artisan::output());
+            } catch (\Throwable $igErr) {
+                Log::warning('[SocialCutsCommentsController@syncComments] Aviso Instagram: ' . $igErr->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Sincronização de comentários concluída com sucesso!',
-                'output' => $output
+                'message' => 'Sincronização de comentários (YouTube + Instagram) concluída com sucesso!',
+                'output' => implode("\n", array_filter($outputs))
             ]);
         } catch (\Throwable $e) {
             Log::error('[SocialCutsCommentsController@syncComments] Erro: ' . $e->getMessage());
@@ -170,6 +186,14 @@ class SocialCutsCommentsController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Erro ao enviar resposta no YouTube: ' . ($replyRes['message'] ?? 'Falha na API.')
+                    ], 400);
+                }
+            } elseif ($comment->platform === 'instagram') {
+                $replyRes = $this->instagramService->replyToComment($comment->comment_id, $customText);
+                if (!$replyRes['success']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Erro ao enviar resposta no Instagram: ' . ($replyRes['message'] ?? 'Reconecte o Instagram com permissão de comentários.')
                     ], 400);
                 }
             }

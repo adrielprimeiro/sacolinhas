@@ -16,8 +16,12 @@ use Illuminate\Support\Facades\Schedule;
 //     ->everyFiveMinutes()
 //     ->withoutOverlapping();
 
-// Monitoramento automático de comentários em YouTube Shorts (a cada 10 min)
+// Monitoramento automático de comentários em YouTube Shorts e Instagram Reels (a cada 10 min)
 Schedule::command('app:check-youtube-shorts-comments')
+    ->everyTenMinutes()
+    ->withoutOverlapping();
+
+Schedule::command('app:check-instagram-reels-comments')
     ->everyTenMinutes()
     ->withoutOverlapping();
 
