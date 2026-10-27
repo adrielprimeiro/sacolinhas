@@ -1573,9 +1573,15 @@
                                 <button type="button" onclick="toggleStep6Modal(false); batchUploadToInstagram();" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">
                                     <i class="fab fa-instagram text-white"></i> Publicar Reels
                                 </button>
-                                <a href="{{ route('admin.instagram.disconnect') }}" onclick="return confirm('Deseja realmente desconectar a conta do Instagram?')" class="text-center text-[11px] text-gray-500 hover:text-pink-600 hover:underline py-0.5 font-bold transition">
-                                    <i class="fas fa-sign-out-alt"></i> Desconectar / Trocar Conta
-                                </a>
+                                <div class="flex items-center justify-center gap-3 py-0.5">
+                                    <a href="{{ route('admin.instagram.connect') }}" class="text-[11px] text-pink-700 hover:text-pink-900 hover:underline font-bold transition">
+                                        <i class="fas fa-sync-alt"></i> Reconectar
+                                    </a>
+                                    <span class="text-gray-300">|</span>
+                                    <a href="{{ route('admin.instagram.disconnect') }}" onclick="return confirm('Deseja realmente desconectar a conta do Instagram?')" class="text-[11px] text-gray-500 hover:text-pink-600 hover:underline font-bold transition">
+                                        <i class="fas fa-sign-out-alt"></i> Desconectar
+                                    </a>
+                                </div>
                             </div>
                         @else
                             <a href="{{ route('admin.instagram.connect') }}" class="w-full hover:opacity-95 text-white font-extrabold py-2 px-3 rounded-xl text-xs transition active:scale-95 shadow-xs cursor-pointer flex items-center justify-center gap-1.5" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;">

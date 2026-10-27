@@ -23,7 +23,11 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+            <a href="{{ route('admin.instagram.connect') }}" class="px-3.5 py-2.5 rounded-2xl text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2 hover:opacity-95" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;" title="Reconectar Instagram para atualizar permissões de comentários e @username">
+                <i class="fab fa-instagram"></i>
+                <span>Reconectar Instagram</span>
+            </a>
             <button type="button" onclick="syncComments()" id="sync-btn" class="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
                 <i class="fas fa-sync-alt" id="sync-icon"></i>
                 <span id="sync-text">Sincronizar Comentários</span>
