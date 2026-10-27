@@ -11,7 +11,7 @@ class AdminMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Você precisa estar logado.');
+            return redirect()->guest(route('login'))->with('error', 'Você precisa estar logado.');
         }
 
         if (!auth()->user()->isAdmin()) {

@@ -248,6 +248,13 @@
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') closeDrawer();
             });
+
+            @auth
+            try {
+                localStorage.setItem('sacolinhas_last_url', window.location.pathname + window.location.search);
+                sessionStorage.removeItem('sacolinhas_redirect_to');
+            } catch (e) {}
+            @endauth
         });
     </script>
 

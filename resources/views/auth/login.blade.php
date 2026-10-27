@@ -24,6 +24,11 @@
                         <h4 class="mb-0">Acessar Conta</h4> <!-- Cabeçalho correto para login -->
                     </div>
                     <div class="card-body">
+                        @if (session('error'))
+                            <div class="alert alert-warning text-dark">
+                                {{ session('error') }}
+                            </div>
+                        @endif
                         @if ($errors->any())
                             <div class="alert alert-danger">
                                 <ul class="mb-0">
@@ -35,6 +40,7 @@
                         @endif
                         <form method="POST" action="{{ route('login') }}"> <!-- Formulário apontando para a rota de login -->
                             @csrf
+                            <input type="hidden" name="redirect_to" id="redirect_to" value="{{ old('redirect_to', $redirectTo ?? request('redirect_to')) }}">
 
                             <div class="mb-3">
                                 <label for="email" class="form-label">Email</label>
@@ -77,5 +83,35 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var redirectInput = document.getElementById('redirect_to');
+            if (!redirectInput) return;
+
+            var currentVal = (redirectInput.value || '').trim();
+            if (currentVal) {
+                try { sessionStorage.setItem('sacolinhas_redirect_to', currentVal); } catch (e) {}
+                return;
+            }
+
+            var candidate = '';
+            try {
+                candidate = sessionStorage.getItem('sacolinhas_redirect_to') || localStorage.getItem('sacolinhas_last_url') || '';
+            } catch (e) {}
+
+            if (!candidate && document.referrer) {
+                try {
+                    var refUrl = new URL(document.referrer);
+                    if (refUrl.origin === window.location.origin && !refUrl.pathname.match(/^\/($|home$|login|logout|register|password|forgot-password|reset-password)/)) {
+                        candidate = refUrl.pathname + refUrl.search;
+                    }
+                } catch (e) {}
+            }
+
+            if (candidate) {
+                redirectInput.value = candidate;
+            }
+        });
+    </script>
 </body>
 </html>

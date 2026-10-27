@@ -12,7 +12,7 @@ class CheckClient
     {
         // Verifica se está logado
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Faça login no portal do cliente.');
+            return redirect()->guest(route('login'))->with('error', 'Faça login no portal do cliente.');
         }
 
         $user = auth()->user();

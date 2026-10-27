@@ -13,7 +13,7 @@ class CheckAdmin
     {
         // Verifica se está logado
         if (!auth()->check()) {
-            return redirect()->route('login')->with('error', 'Você precisa estar logado.');
+            return redirect()->guest(route('login'))->with('error', 'Você precisa estar logado.');
         }
 
         $user = auth()->user();
