@@ -183,7 +183,6 @@ class LiveClipOverlayService
     /**
      * Gera o fundo Canvas estilizado (estilo Reel 2027 do vídeo de referência):
      * - Fundo grafite ultra escuro com grid de micro-pontos (dot-grid)
-     * - Título no topo: "ACHADINHO DO DIA / curadoria exclusiva"
      * - Moldura arredondada com borda gradiente/laranja para o vídeo
      */
     public static function generateCanvasBackground(
@@ -192,8 +191,8 @@ class LiveClipOverlayService
         int $frameW, 
         int $frameH, 
         string $outputPath,
-        ?string $title1 = "ACHADINHO DO DIA",
-        ?string $title2 = "curadoria exclusiva"
+        ?string $title1 = null,
+        ?string $title2 = null
     ): bool {
         if (!extension_loaded('gd')) return false;
 
@@ -212,15 +211,14 @@ class LiveClipOverlayService
             }
         }
 
-        // Tipografia do Topo
+        // Tipografia do Topo (opcional - desativado por padrão conforme solicitado)
         $fontBold = self::getFontBoldPath();
         $fontItalic = self::getFontItalicPath();
 
         $textWhite = imagecolorallocate($img, 245, 247, 250);
         $textOrange = imagecolorallocate($img, 251, 146, 60);
 
-        if (file_exists($fontBold)) {
-            // Título 1: ACHADINHO DO DIA
+        if (!empty($title1) && file_exists($fontBold)) {
             $bbox1 = @imagettfbbox(20, 0, $fontBold, $title1);
             if ($bbox1) {
                 $tw1 = abs($bbox1[4] - $bbox1[0]);
@@ -229,8 +227,7 @@ class LiveClipOverlayService
             }
         }
 
-        if (file_exists($fontItalic)) {
-            // Título 2: curadoria exclusiva
+        if (!empty($title2) && file_exists($fontItalic)) {
             $bbox2 = @imagettfbbox(22, 0, $fontItalic, $title2);
             if ($bbox2) {
                 $tw2 = abs($bbox2[4] - $bbox2[0]);
