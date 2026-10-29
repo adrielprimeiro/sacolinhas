@@ -255,8 +255,8 @@ class TrackLastVisitedUrl
         }
 
         if ($isAdmin) {
-            // Administradores não devem ser redirecionados para rotas exclusivas de clientes (CheckClient desloga quem não é client)
-            if (Str::is(['portal/*'], $cleanPath)) {
+            // Administradores não devem ser redirecionados para rotas exclusivas de clientes ou vitrine pública da loja
+            if (Str::is(['portal/*', 'loja*', 'loja'], $cleanPath)) {
                 return false;
             }
 
@@ -271,6 +271,8 @@ class TrackLastVisitedUrl
                     'admin/knowledge-base*',
                     'classificacao_financeira*',
                     'severino*',
+                    'loja*',
+                    'loja',
                 ], $cleanPath)) {
                     return false;
                 }

@@ -44,8 +44,17 @@
                 <a href="{{ route('loja.index') }}" class="text-sm font-semibold text-zinc-900 hover:text-zinc-700">
                     ← Voltar para a loja
                 </a>
-                <div class="text-xs text-zinc-500">
-                    Código: <span class="font-medium text-zinc-700">{{ $item->codigo }}</span>
+                <div class="flex items-center gap-4">
+                    @auth
+                        @if(in_array(auth()->user()->role, ['admin', 'admin_master', 'brecho_admin'], true) || !empty(auth()->user()->is_admin))
+                            <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-800">
+                                <i class="fas fa-layer-group"></i> Painel Admin
+                            </a>
+                        @endif
+                    @endauth
+                    <div class="text-xs text-zinc-500">
+                        Código: <span class="font-medium text-zinc-700">{{ $item->codigo }}</span>
+                    </div>
                 </div>
             </div>
         </header>

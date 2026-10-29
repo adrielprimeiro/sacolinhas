@@ -13,6 +13,10 @@ class LojaController extends Controller
 {
     public function index(Request $request)
     {
+        if (auth()->check() && method_exists(auth()->user(), 'isBrechoParceiro') && auth()->user()->isBrechoParceiro()) {
+            return redirect()->route('dashboard');
+        }
+
         $query = Item::query()
             ->whereIn('status', ['loja', 'estoque', 'disponivel'])
             ->where(function ($q) {
@@ -233,6 +237,10 @@ class LojaController extends Controller
 
     public function show(Item $item)
     {
+        if (auth()->check() && method_exists(auth()->user(), 'isBrechoParceiro') && auth()->user()->isBrechoParceiro()) {
+            return redirect()->route('dashboard');
+        }
+
         if ((!empty($item->brecho_id) && (int)$item->brecho_id > 1) || !in_array($item->status, ['loja', 'estoque', 'disponivel']) || (!$item->medias()->exists() && empty($item->image))) {
             abort(404);
         }

@@ -28,13 +28,16 @@
 
                     <div class="flex items-center gap-3">
                         @auth
+                            @php
+                                $isUserAdmin = in_array(auth()->user()->role, ['admin', 'admin_master', 'brecho_admin'], true) || !empty(auth()->user()->is_admin);
+                            @endphp
                             <div class="flex items-center gap-3">
                                 <div class="hidden sm:block text-right">
                                     <div class="text-sm font-semibold leading-5 text-zinc-900">
                                         {{ auth()->user()->name }}
                                     </div>
                                     <div class="text-xs text-zinc-500">
-                                        Logado
+                                        {{ $isUserAdmin ? 'Painel Admin' : 'Logado' }}
                                     </div>
                                 </div>
 
@@ -45,16 +48,33 @@
                                 </div>
                             </div>
 
-                            <a href="{{ route('portal.sacolinha') }}"
-                               class="group relative flex items-center justify-center h-11 w-11 rounded-xl bg-white border border-zinc-200 shadow-sm hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 active:scale-95"
-                               title="Minha Sacolinha">
-                                <i class="fas fa-shopping-bag text-xl text-zinc-600 group-hover:text-purple-600 transition-colors"></i>
+                            @if($isUserAdmin)
+                                <a href="{{ route('dashboard') }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm transition active:scale-95"
+                                   title="Ir para o Painel Administrativo">
+                                    <i class="fas fa-layer-group"></i>
+                                    <span>Painel</span>
+                                </a>
+                                <form action="{{ route('logout') }}" method="POST" class="inline m-0">
+                                    @csrf
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition"
+                                            title="Sair">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                    </button>
+                                </form>
+                            @else
+                                <a href="{{ route('portal.sacolinha') }}"
+                                   class="group relative flex items-center justify-center h-11 w-11 rounded-xl bg-white border border-zinc-200 shadow-sm hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 active:scale-95"
+                                   title="Minha Sacolinha">
+                                    <i class="fas fa-shopping-bag text-xl text-zinc-600 group-hover:text-purple-600 transition-colors"></i>
 
-                                <span class="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white shadow-lg ring-2 ring-white">
-                                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-20"></span>
-                                    !
-                                </span>
-                            </a>
+                                    <span class="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] font-bold text-white shadow-lg ring-2 ring-white">
+                                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-20"></span>
+                                        !
+                                    </span>
+                                </a>
+                            @endif
                         @else
                             <a href="{{ route('login') }}"
                                class="inline-flex items-center rounded-xl bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800">

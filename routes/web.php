@@ -99,6 +99,10 @@ Route::get('/password/reset', function () {
 // ===== ROTAS PÚBLICAS =====
 
 Route::get('/', function () {
+    if (auth()->check() && method_exists(auth()->user(), 'isBrechoParceiro') && auth()->user()->isBrechoParceiro()) {
+        return redirect()->route('dashboard');
+    }
+
     $featuredItems = \App\Models\Item::whereIn('status', ['loja', 'estoque', 'disponivel'])
         ->where(function ($q) {
             $q->where('brecho_id', 1)->orWhereNull('brecho_id');
@@ -341,6 +345,16 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/cortes/comentarios/{id}/arrematar', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'linkItemBuyer'])->name('admin.lives.cortes.comentarios.arrematar');
         Route::post('lives/cortes/comentarios/{id}/link-item', [\App\Http\Controllers\Admin\SocialCutsCommentsController::class, 'attachLiveItem'])->name('admin.lives.cortes.comentarios.link-item');
         Route::get('lives/cortes/download/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'downloadCut'])->name('admin.lives.cortes.download');
+
+        // ===== SEVERINO CLIPER (GESTOR AUTÔNOMO DE REDES SOCIAIS) =====
+        Route::get('severino/cliper', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'index'])->name('admin.severino.cliper');
+        Route::post('severino/cliper/toggle-autopilot', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'toggleAutopilot'])->name('admin.severino.cliper.toggle-autopilot');
+        Route::post('severino/cliper/settings', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'updateSettings'])->name('admin.severino.cliper.settings');
+        Route::post('severino/cliper/generate-queue', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'generateQueue'])->name('admin.severino.cliper.generate-queue');
+        Route::post('severino/cliper/publish/{id}', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'publishNow'])->name('admin.severino.cliper.publish');
+        Route::post('severino/cliper/post/{id}/update', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'updatePost'])->name('admin.severino.cliper.update-post');
+        Route::delete('severino/cliper/post/{id}', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'deletePost'])->name('admin.severino.cliper.delete-post');
+        Route::post('severino/cliper/post/{id}/regenerate-copy', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'regenerateCopy'])->name('admin.severino.cliper.regenerate-copy');
         Route::get('lives/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'indexLatest'])->name('admin.lives.cortes.latest');
         Route::get('lives/{liveId}/cortes', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'index'])->name('admin.lives.cortes');
         Route::post('lives/{liveId}/cortes/upload-video', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'uploadVideo'])->name('admin.lives.cortes.upload-video');

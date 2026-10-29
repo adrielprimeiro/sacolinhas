@@ -11,6 +11,11 @@ class LoginController extends Controller
 {
     public function showLoginForm(Request $request)
     {
+        if (auth()->check()) {
+            $user = auth()->user();
+            return redirect(TrackLastVisitedUrl::resolveRedirectUrlForUser($request, $user));
+        }
+
         $candidates = [
             $request->query('redirect_to'),
             $request->session()->get('url.intended'),
@@ -50,7 +55,10 @@ class LoginController extends Controller
 
             $request->session()->regenerate();
 
-            return redirect($targetUrl);
+            // Atualiza o cookie de última URL para o destino resolvido, limpando qualquer resquício antigo
+            $cookie = cookie(TrackLastVisitedUrl::COOKIE_NAME, $targetUrl, 60 * 24 * 7);
+
+            return redirect($targetUrl)->withCookie($cookie);
         }
 
         return back()->withErrors([
