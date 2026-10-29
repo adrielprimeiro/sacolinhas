@@ -1054,10 +1054,8 @@
                     ? `<span class="bg-amber-500/25 text-amber-300 border-2 border-amber-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm" title="Audiência da Loja Parceira (@${escapeHtml(msg.host_account)})"><i class="fas fa-store text-amber-400"></i> Loja @${escapeHtml(msg.host_account)}</span>`
                     : (msg.host_account ? `<span class="bg-purple-500/25 text-purple-200 border-2 border-purple-400 text-xs sm:text-sm font-black px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm"><i class="fas fa-crown text-purple-300"></i> Minha Mania</span>` : '');
 
-                // Badge de Cliente Cadastrada com Nome Real em Destaque
-                const clientBadge = hasRegisteredClient
-                    ? `<span class="bg-emerald-500/25 text-emerald-300 border-2 border-emerald-400 ${fontStyles.clientName} px-2.5 py-0.5 rounded-xl shrink-0 flex items-center gap-1.5 shadow-sm"><i class="fas fa-star text-emerald-400"></i> ${escapeHtml(realClientName)}</span>`
-                    : (msg.user_id ? `<span class="bg-emerald-500/25 text-emerald-300 border-2 border-emerald-400 text-xs sm:text-sm font-black px-2 py-0.5 rounded-xl shrink-0 flex items-center gap-1"><i class="fas fa-star text-emerald-400"></i> Cliente</span>` : '');
+                // Badge de Cliente Cadastrada removido do card para exibir apenas o IG e mensagem
+                const clientBadge = '';
 
                 const handleColorClass = isTikTok ? 'text-cyan-300' : 'text-pink-300';
 

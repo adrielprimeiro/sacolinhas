@@ -533,6 +533,103 @@
     </div>
 </div>
 
+<!-- MODAL DECISÃO ESTOQUE MÚLTIPLO: INSERIR TAMBÉM OU TRANSFERIR -->
+<div id="modal-multi-stock-action" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-emerald-700 via-teal-800 to-indigo-800 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-boxes-stacked"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black tracking-tight text-white">Item com Múltiplos Compradores</h3>
+                    <p id="multi-stock-item-info" class="text-xs text-emerald-200 font-semibold truncate max-w-xs">Peça selecionada</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeMultiStockActionModal()" class="text-emerald-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-5 space-y-4">
+            <!-- Box informativo dos compradores atuais -->
+            <div class="bg-gray-50 dark:bg-gray-800/60 rounded-2xl p-3 border border-gray-200 dark:border-gray-700">
+                <p class="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fas fa-shopping-bag text-emerald-600"></i> Já está na sacola de:
+                </p>
+                <div id="multi-stock-current-buyers" class="flex flex-wrap gap-1.5">
+                    <!-- Badges dos compradores atuais -->
+                </div>
+            </div>
+
+            <!-- Box da nova cliente selecionada -->
+            <div class="bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl p-3 border border-indigo-200 dark:border-indigo-800">
+                <p class="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <i class="fas fa-user-plus"></i> Nova cliente selecionada:
+                </p>
+                <div class="flex items-center gap-2">
+                    <span id="multi-stock-target-badge" class="font-black text-indigo-950 dark:text-indigo-100 text-sm">@cliente</span>
+                    <span id="multi-stock-target-name" class="text-xs text-indigo-800 dark:text-indigo-200 font-bold"></span>
+                </div>
+            </div>
+
+            <p class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                Como deseja proceder com esta peça para <span id="multi-stock-target-highlight" class="text-indigo-600 font-black">@cliente</span>?
+            </p>
+
+            <!-- Ações Principais -->
+            <div class="space-y-2.5">
+                <!-- Botão 1: Adicionar Também (Estoque múltiplo) -->
+                <button type="button" id="btn-multi-stock-add" class="w-full text-left p-3.5 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-2 border-emerald-500 rounded-2xl transition cursor-pointer shadow-xs group flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm group-hover:scale-105 transition">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-black text-emerald-900 dark:text-emerald-100 flex items-center gap-1.5">
+                            <span>Inserir Também na Sacola</span>
+                            <span class="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Estoque Melissa</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-900 dark:text-emerald-200 font-medium mt-0.5 leading-snug">
+                            Mantém quem já comprou e adiciona mais <strong>1 unidade</strong> na sacola desta nova cliente.
+                        </p>
+                    </div>
+                </button>
+
+                <!-- Botão 2: Transferir Peça -->
+                <div id="multi-stock-transfer-section" class="w-full">
+                    <button type="button" id="btn-multi-stock-transfer" class="w-full text-left p-3.5 bg-indigo-50/70 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-300 dark:border-indigo-700 rounded-2xl transition cursor-pointer shadow-xs group flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm group-hover:scale-105 transition">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-black text-indigo-950 dark:text-indigo-100">
+                                Transferir a Peça
+                            </div>
+                            <p class="text-[11px] text-indigo-900 dark:text-indigo-200 font-medium mt-0.5 leading-snug">
+                                Retira da sacola atual e passa para esta cliente (caso a anterior tenha desistido ou passado a vez).
+                            </p>
+                        </div>
+                    </button>
+                    <!-- Sub-opções de quem transferir quando há mais de 1 comprador -->
+                    <div id="multi-stock-transfer-pick-user" class="hidden mt-2 p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700">
+                        <p class="text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-1.5">Transferir a vaga de qual cliente?</p>
+                        <div id="multi-stock-transfer-pick-buttons" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
+            <button type="button" onclick="closeMultiStockActionModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-xl text-xs transition cursor-pointer">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL DE BUSCA DE CLIENTE AVULSO PARA ANEXAR À PEÇA -->
 <div id="manual-buyer-search-modal" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
     <div class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
@@ -2208,51 +2305,84 @@
     }
 
     function renderScanItemBuyerHtml(item) {
+        if (!item.buyers) {
+            item.buyers = [];
+            if (item.buyerUsername) {
+                item.buyers.push({
+                    sacolinhaId: item.sacolinhaId || null,
+                    userId: item.buyerUserId || null,
+                    username: item.buyerUsername,
+                    displayName: item.buyerName || item.buyerUsername,
+                    phone: item.buyerPhone || null,
+                    hasPhone: Boolean(item.hasPhone || item.buyerPhone),
+                    quantity: 1,
+                    liveMessageId: item.liveMessageId || null
+                });
+            }
+        }
+
         const queue = findAllSpeakersForCode(item.liveCode, item.code, item.timestamp);
 
-        // CASO 1: A peça JÁ FOI VINCULADA a uma cliente (ou @username da transmissão)
-        if (item.buyerUsername) {
-            const cleanUser = String(item.buyerUsername).replace(/^@/, '');
-            const otherSpeakers = queue.filter(q => q.username.toLowerCase() !== item.buyerUsername.toLowerCase() && q.username.toLowerCase() !== cleanUser.toLowerCase());
-            const hasPhone = Boolean(item.buyerPhone || item.hasPhone);
+        // CASO 1: A peça JÁ TEM 1 OU MAIS COMPRADORES VINCULADOS
+        if (item.buyers.length > 0) {
+            const linkedUsers = new Set(item.buyers.map(b => String(b.username).replace(/^@/, '').toLowerCase()));
+            const otherSpeakers = queue.filter(q => !linkedUsers.has(String(q.username).replace(/^@/, '').toLowerCase()));
 
             return `
-                <div class="flex flex-col gap-1 items-start">
-                    ${hasPhone ? `
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-xs text-xs justify-start text-left" style="background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;" title="Cliente com telefone/WhatsApp cadastrado">
-                            <span style="width: 18px; height: 18px; border-radius: 9999px; background-color: #059669; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; flex-shrink: 0;">
-                                <i class="fas fa-check"></i>
+                <div class="flex flex-col gap-1 items-start w-full">
+                    ${item.buyers.length > 1 ? `
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
+                                <i class="fas fa-boxes-stacked mr-1"></i> ${item.buyers.length} Sacolas (${item.buyers.length} un.)
                             </span>
-                            <span class="font-black truncate max-w-[120px]" style="color: #064e3b;">@${escapeHtml(cleanUser)}</span>
-                            ${item.buyerName ? `<span class="text-[10.5px] font-semibold truncate max-w-[80px]" style="color: #047857;">(${escapeHtml(item.buyerName)})</span>` : ''}
-                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular cliente" class="ml-1 text-[11px] cursor-pointer" style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
-                                <i class="fas fa-times"></i>
-                            </button>
                         </div>
-                    ` : `
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-xs text-xs justify-start text-left animate-pulse" style="background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;" title="Cliente SEM Telefone / WhatsApp! Aguardando telefone.">
-                            <span style="width: 18px; height: 18px; border-radius: 9999px; background-color: #dc2626; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; flex-shrink: 0;">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </span>
-                            <span class="font-black truncate max-w-[110px]" style="color: #7f1d1d;">@${escapeHtml(cleanUser)}</span>
-                            ${item.buyerName ? `<span class="text-[10px] font-bold truncate max-w-[70px]" style="color: #991b1b;">(${escapeHtml(item.buyerName)})</span>` : ''}
-                            <span style="background-color: #dc2626; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 6px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">Sem Telefone</span>
-                            <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerAction('${item.id}')" title="Desvincular" class="ml-1 text-[11px] cursor-pointer" style="color: #991b1b;" onmouseover="this.style.color='#7f1d1d'" onmouseout="this.style.color='#991b1b'">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    `}
-                    ${otherSpeakers.length > 0 ? `
-                        <div class="flex flex-col gap-1 items-start w-full">
-                            ${otherSpeakers.map(q => `
-                                <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" title="Transferir para ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs w-full justify-start text-left">
-                                    <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
-                                    <span class="truncate max-w-[120px]">@${escapeHtml(q.username)}</span>
+                    ` : ''}
+
+                    ${item.buyers.map(b => {
+                        const cleanUser = String(b.username).replace(/^@/, '');
+                        const hasPhone = Boolean(b.phone || b.hasPhone);
+                        return `
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[230px]" 
+                                 style="${hasPhone ? 'background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;' : 'background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;'}" 
+                                 title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'}">
+                                <div class="flex items-center gap-1.5 min-w-0 truncate">
+                                    <span style="width: 17px; height: 17px; border-radius: 9999px; background-color: ${hasPhone ? '#059669' : '#dc2626'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; flex-shrink: 0;">
+                                        <i class="fas ${hasPhone ? 'fa-check' : 'fa-exclamation-triangle'}"></i>
+                                    </span>
+                                    <span class="font-black truncate max-w-[100px]" style="color: ${hasPhone ? '#064e3b' : '#7f1d1d'};">@${escapeHtml(cleanUser)}</span>
+                                    ${b.displayName ? `<span class="text-[10px] font-semibold truncate max-w-[65px]" style="color: ${hasPhone ? '#047857' : '#991b1b'};">(${escapeHtml(b.displayName)})</span>` : ''}
+                                </div>
+                                <button type="button" onclick="event.stopPropagation(); unlinkSpecificBuyerAction('${item.id}', '${escapeHtml(cleanUser)}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
+                                        title="Desvincular @${escapeHtml(cleanUser)}" 
+                                        class="ml-1 text-[11px] cursor-pointer hover:scale-110 p-0.5 rounded transition" 
+                                        style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
+                                    <i class="fas fa-times"></i>
                                 </button>
+                            </div>
+                        `;
+                    }).join('')}
+
+                    ${otherSpeakers.length > 0 ? `
+                        <div class="flex flex-col gap-1 items-start w-full mt-1">
+                            ${otherSpeakers.map(q => `
+                                <div class="inline-flex items-center gap-1 w-full max-w-[230px]">
+                                    <button type="button" onclick="event.stopPropagation(); promptMultiStockAction('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" 
+                                            title="Clique para transferir ou inserir também na sacola de @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" 
+                                            class="flex-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-800 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs justify-start text-left truncate">
+                                        <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
+                                        <span class="truncate">@${escapeHtml(q.username)}</span>
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" 
+                                            title="Inserir direto na sacola de @${escapeHtml(q.username)} (+1 un. Melissa)" 
+                                            class="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 rounded-md text-[10px] font-black transition cursor-pointer shrink-0 shadow-2xs active:scale-95 flex items-center gap-0.5">
+                                        <i class="fas fa-plus text-[9px]"></i> Sacola
+                                    </button>
+                                </div>
                             `).join('')}
                         </div>
                     ` : ''}
-                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar outro cliente para anexar" class="text-[10px] text-gray-400 hover:text-indigo-600 font-bold self-start mt-0.5 px-1.5 py-0.5 hover:bg-gray-100 rounded transition cursor-pointer flex items-center gap-1">
+
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar outro cliente para anexar" class="text-[10px] text-gray-500 hover:text-indigo-600 font-bold self-start mt-0.5 px-1.5 py-0.5 hover:bg-gray-100 rounded transition cursor-pointer flex items-center gap-1">
                         <i class="fas fa-search text-[9px]"></i> <span>Avulso</span>
                     </button>
                 </div>
@@ -2264,7 +2394,7 @@
             return `
                 <div class="flex flex-col gap-1 items-start w-full">
                     ${queue.map(q => `
-                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
                             <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
                             <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
                         </button>
@@ -2541,16 +2671,144 @@
         }
     }
 
+    let pendingMultiStockData = null;
+
+    function promptMultiStockAction(scanId, username, displayName, userId, msgId, phone) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (!item.buyers) item.buyers = [];
+
+        // Se o item ainda não tem compradores, vincula direto como 'add'
+        if (item.buyers.length === 0) {
+            linkItemToBuyer(scanId, username, displayName, userId, msgId, phone, 'add');
+            return;
+        }
+
+        const cleanUser = String(username).replace(/^@/, '');
+        pendingMultiStockData = {
+            scanId,
+            username: cleanUser,
+            displayName: displayName || cleanUser,
+            userId: userId || null,
+            msgId: msgId || null,
+            phone: phone || ''
+        };
+
+        const modal = document.getElementById('modal-multi-stock-action');
+        if (!modal) return;
+
+        // Info do item
+        const itemInfoEl = document.getElementById('multi-stock-item-info');
+        if (itemInfoEl) {
+            itemInfoEl.textContent = `Peça #${item.liveCode || item.code} - ${item.productName || 'Produto'} (${item.productPrice || ''})`;
+        }
+
+        // Compradores atuais
+        const currentBuyersEl = document.getElementById('multi-stock-current-buyers');
+        if (currentBuyersEl) {
+            currentBuyersEl.innerHTML = item.buyers.map(b => {
+                const u = escapeHtml(String(b.username).replace(/^@/, ''));
+                const n = b.displayName ? ` (${escapeHtml(b.displayName)})` : '';
+                return `
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700">
+                        <i class="fas fa-check-circle text-emerald-600"></i>
+                        <span>@${u}${n}</span>
+                    </span>
+                `;
+            }).join('');
+        }
+
+        // Nova cliente selecionada
+        const targetBadgeEl = document.getElementById('multi-stock-target-badge');
+        const targetNameEl = document.getElementById('multi-stock-target-name');
+        const targetHighlightEl = document.getElementById('multi-stock-target-highlight');
+        if (targetBadgeEl) targetBadgeEl.textContent = '@' + cleanUser;
+        if (targetNameEl) targetNameEl.textContent = displayName ? `(${displayName})` : '';
+        if (targetHighlightEl) targetHighlightEl.textContent = '@' + cleanUser;
+
+        // Configurar Botão 1: Adicionar Também
+        const btnAdd = document.getElementById('btn-multi-stock-add');
+        if (btnAdd) {
+            btnAdd.onclick = function() {
+                closeMultiStockActionModal();
+                linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'add');
+            };
+        }
+
+        // Configurar Botão 2: Transferir
+        const btnTransfer = document.getElementById('btn-multi-stock-transfer');
+        const transferPickBox = document.getElementById('multi-stock-transfer-pick-user');
+        const transferPickBtns = document.getElementById('multi-stock-transfer-pick-buttons');
+
+        if (item.buyers.length === 1) {
+            // Apenas 1 comprador: transfere direto dele
+            if (transferPickBox) transferPickBox.classList.add('hidden');
+            if (btnTransfer) {
+                btnTransfer.onclick = function() {
+                    const transferFrom = item.buyers[0];
+                    closeMultiStockActionModal();
+                    linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'transfer', transferFrom);
+                };
+            }
+        } else {
+            // Mais de 1 comprador: mostra quem vai transferir
+            if (transferPickBox) transferPickBox.classList.remove('hidden');
+            if (transferPickBtns) {
+                transferPickBtns.innerHTML = item.buyers.map(b => {
+                    const u = escapeHtml(String(b.username).replace(/^@/, ''));
+                    return `
+                        <button type="button" onclick="executeTransferFromBuyer('${item.id}', '${u}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
+                                class="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-indigo-600 hover:text-white text-gray-800 dark:text-gray-100 text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 transition cursor-pointer flex items-center gap-1">
+                            <i class="fas fa-arrow-right text-[10px]"></i> De @${u}
+                        </button>
+                    `;
+                }).join('');
+            }
+            if (btnTransfer) {
+                btnTransfer.onclick = function() {
+                    if (transferPickBox) transferPickBox.classList.toggle('hidden');
+                };
+            }
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function executeTransferFromBuyer(scanId, fromUsername, fromUserId, fromSacolinhaId) {
+        if (!pendingMultiStockData) return;
+        const transferFrom = {
+            username: fromUsername,
+            userId: fromUserId,
+            sacolinhaId: fromSacolinhaId
+        };
+        closeMultiStockActionModal();
+        linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'transfer', transferFrom);
+    }
+
+    function closeMultiStockActionModal() {
+        const modal = document.getElementById('modal-multi-stock-action');
+        if (modal) modal.classList.add('hidden');
+        pendingMultiStockData = null;
+    }
+
     function selectManualBuyerUser(userId, username, displayName, phone) {
         if (!currentManualBuyerScanId) return;
         const scanId = currentManualBuyerScanId;
         closeManualBuyerSearchModal();
-        linkItemToBuyer(scanId, username, displayName, userId, null, phone);
+
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (item && item.buyers && item.buyers.length > 0) {
+            promptMultiStockAction(scanId, username, displayName, userId, null, phone);
+        } else {
+            linkItemToBuyer(scanId, username, displayName, userId, null, phone, 'add');
+        }
     }
 
     // Fechar modais ao pressionar tecla ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' || e.key === 'Esc') {
+            closeMultiStockActionModal();
             closeManualBuyerSearchModal();
             closeEditItemPriceModal();
             closeQuickProductModal();
@@ -2574,16 +2832,61 @@
         });
     }
 
-    async function linkItemToBuyer(scanId, username, displayName, userId, msgId, phone) {
+    function updateSacolinhasStatsUI(stats) {
+        if (!stats) return;
+        const itensEl = document.getElementById("sacolinhas-itens-badge");
+        const valorEl = document.getElementById("sacolinhas-valor-badge");
+        if (itensEl && stats.sacolinhas_itens !== undefined) {
+            const qtd = stats.sacolinhas_itens;
+            itensEl.textContent = `${qtd} ${qtd === 1 ? 'item' : 'itens'}`;
+        }
+        if (valorEl && stats.sacolinhas_valor !== undefined) {
+            const valor = parseFloat(stats.sacolinhas_valor);
+            valorEl.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    }
+
+    async function linkItemToBuyer(scanId, username, displayName, userId, msgId, phone, mode = 'add', transferFrom = null) {
         const item = bgScanItems.find(x => x.id === scanId);
         if (!item) return;
 
-        item.buyerUsername = username;
-        item.buyerName = displayName || '';
-        item.buyerUserId = userId || null;
-        item.buyerPhone = phone || null;
-        item.hasPhone = Boolean(phone);
-        item.liveMessageId = msgId || null;
+        if (!item.buyers) item.buyers = [];
+        const cleanUser = String(username).replace(/^@/, '');
+        const cleanUserLower = cleanUser.toLowerCase();
+
+        if (mode === 'transfer' && transferFrom) {
+            const fromUserLower = String(transferFrom.username || '').replace(/^@/, '').toLowerCase();
+            item.buyers = item.buyers.filter(b => {
+                if (transferFrom.sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== transferFrom.sacolinhaId;
+                if (transferFrom.userId && b.userId) return b.userId !== transferFrom.userId;
+                return String(b.username).replace(/^@/, '').toLowerCase() !== fromUserLower;
+            });
+        }
+
+        const existingIdx = item.buyers.findIndex(b => String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower);
+        const newBuyerObj = {
+            sacolinhaId: null,
+            userId: userId || null,
+            username: cleanUser,
+            displayName: displayName || cleanUser,
+            phone: phone || '',
+            hasPhone: Boolean(phone),
+            quantity: 1,
+            liveMessageId: msgId || null
+        };
+
+        if (existingIdx !== -1) {
+            item.buyers[existingIdx] = newBuyerObj;
+        } else {
+            item.buyers.push(newBuyerObj);
+        }
+
+        item.buyerUsername = item.buyers[0].username;
+        item.buyerName = item.buyers[0].displayName;
+        item.buyerUserId = item.buyers[0].userId;
+        item.buyerPhone = item.buyers[0].phone;
+        item.hasPhone = item.buyers[0].hasPhone;
+        item.liveMessageId = item.buyers[0].liveMessageId;
 
         updateScanItemBuyerUI(scanId);
 
@@ -2607,7 +2910,7 @@
         const banner = document.getElementById('scan-last-item-banner');
         const bannerText = document.getElementById('scan-last-item-text');
         if (banner && bannerText) {
-            bannerText.textContent = `Peça #${item.code} vinculada a @${username}!`;
+            bannerText.textContent = `Peça #${item.code} vinculada a @${cleanUser}!`;
             banner.classList.remove('hidden');
             clearTimeout(window._scanBannerTimeout);
             window._scanBannerTimeout = setTimeout(() => banner.classList.add('hidden'), 3500);
@@ -2625,10 +2928,13 @@
                         live_id: liveId,
                         item_id: item.itemId || null,
                         code: item.code || null,
-                        username: username,
+                        username: cleanUser,
                         buyer_name: displayName || '',
                         user_id: userId || null,
-                        message_id: msgId || null
+                        message_id: msgId || null,
+                        action_mode: mode,
+                        transfer_from_user_id: transferFrom ? (transferFrom.userId || null) : null,
+                        transfer_from_sacolinha_id: transferFrom ? (transferFrom.sacolinhaId || null) : null
                     })
                 });
                 const resData = await resp.json();
@@ -2638,22 +2944,92 @@
                         const el = document.querySelector(`[data-scan-id="${scanId}"]`);
                         if (el) el.dataset.itemId = resData.data.item_id;
                     }
-                    if (resData.data.user_id !== undefined) {
-                        item.buyerUserId = resData.data.user_id;
+                    if (Array.isArray(resData.data.buyers) && resData.data.buyers.length > 0) {
+                        item.buyers = resData.data.buyers;
+                    } else {
+                        const target = item.buyers.find(b => String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower);
+                        if (target) {
+                            if (resData.data.sacolinha_id) target.sacolinhaId = resData.data.sacolinha_id;
+                            if (resData.data.user_id) target.userId = resData.data.user_id;
+                            if (resData.data.buyer_phone !== undefined) {
+                                target.phone = resData.data.buyer_phone;
+                                target.hasPhone = Boolean(resData.data.buyer_phone);
+                            }
+                        }
                     }
-                    if (resData.data.buyer_name) {
-                        item.buyerName = resData.data.buyer_name;
-                    }
-                    if (resData.data.buyer_phone !== undefined) {
-                        item.buyerPhone = resData.data.buyer_phone;
-                        item.hasPhone = Boolean(resData.data.buyer_phone);
-                    } else if (resData.data.has_phone !== undefined) {
-                        item.hasPhone = Boolean(resData.data.has_phone);
+                    if (item.buyers.length > 0) {
+                        item.buyerUsername = item.buyers[0].username;
+                        item.buyerName = item.buyers[0].displayName;
+                        item.buyerUserId = item.buyers[0].userId;
+                        item.buyerPhone = item.buyers[0].phone;
+                        item.hasPhone = item.buyers[0].hasPhone;
                     }
                     updateScanItemBuyerUI(scanId);
+
+                    if (resData.stats) {
+                        updateSacolinhasStatsUI(resData.stats);
+                    }
                 }
             } catch(e) {
                 console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
+            }
+        }
+    }
+
+    async function unlinkSpecificBuyerAction(scanId, username, userId, sacolinhaId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (!item.buyers) item.buyers = [];
+        const cleanUserLower = String(username).replace(/^@/, '').toLowerCase();
+
+        item.buyers = item.buyers.filter(b => {
+            if (sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== sacolinhaId;
+            if (userId && b.userId) return b.userId !== userId;
+            return String(b.username).replace(/^@/, '').toLowerCase() !== cleanUserLower;
+        });
+
+        if (item.buyers.length > 0) {
+            item.buyerUsername = item.buyers[0].username;
+            item.buyerName = item.buyers[0].displayName;
+            item.buyerUserId = item.buyers[0].userId;
+            item.buyerPhone = item.buyers[0].phone;
+            item.hasPhone = item.buyers[0].hasPhone;
+            item.liveMessageId = item.buyers[0].liveMessageId;
+        } else {
+            item.buyerUsername = null;
+            item.buyerName = null;
+            item.buyerUserId = null;
+            item.buyerPhone = null;
+            item.hasPhone = false;
+            item.liveMessageId = null;
+        }
+
+        updateScanItemBuyerUI(scanId);
+
+        if (liveId && (item.itemId || item.code)) {
+            try {
+                const resp = await fetch('/admin/live-chat/unlink-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: item.itemId || null,
+                        code: item.code || null,
+                        user_id: userId || null,
+                        username: username,
+                        sacolinha_id: sacolinhaId || null
+                    })
+                });
+                const resData = await resp.json();
+                if (resData && resData.stats) {
+                    updateSacolinhasStatsUI(resData.stats);
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao desvincular comprador específico:', e);
             }
         }
     }
@@ -2666,9 +3042,12 @@
         const itemId = item.itemId;
         const code = item.code;
 
+        item.buyers = [];
         item.buyerUsername = null;
         item.buyerName = null;
         item.buyerUserId = null;
+        item.buyerPhone = null;
+        item.hasPhone = false;
         item.liveMessageId = null;
 
         updateScanItemBuyerUI(scanId);
@@ -2690,7 +3069,7 @@
 
         if (liveId && (itemId || code || oldMsgId)) {
             try {
-                await fetch('/admin/live-chat/unlink-item-buyer', {
+                const resp = await fetch('/admin/live-chat/unlink-item-buyer', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2703,6 +3082,10 @@
                         message_id: oldMsgId || null
                     })
                 });
+                const resData = await resp.json();
+                if (resData && resData.stats) {
+                    updateSacolinhasStatsUI(resData.stats);
+                }
             } catch(e) {
                 console.warn('[Scan] Erro ao desvincular comprador no servidor:', e);
             }
@@ -2894,6 +3277,12 @@
             if (manualInput) manualInput.value = '';
 
             playSuccessBeep();
+
+            // Se o item já possui comprador(es) vinculado(s), abre a busca para vincular outra cliente/sacolinha (estoque múltiplo)
+            if (existingItem.buyers && existingItem.buyers.length > 0) {
+                openManualBuyerSearchModal(existingItem.id);
+            }
+
             setTimeout(() => ensureScannerFocus(true), 50);
             return;
         }
@@ -2916,6 +3305,7 @@
             buyerPhone: null,
             hasPhone: false,
             liveMessageId: null,
+            buyers: [],
             videoCutPath: null,
             videoCutFilename: null,
             videoCutDuration: null,
@@ -3033,11 +3423,26 @@
                 };
             }
 
+            item.buyers = Array.isArray(item.buyers) ? item.buyers : [];
+            if (item.buyers.length === 0 && item.buyerUsername) {
+                item.buyers.push({
+                    sacolinhaId: null,
+                    userId: item.buyerUserId || null,
+                    username: item.buyerUsername,
+                    displayName: item.buyerName || item.buyerUsername,
+                    phone: item.buyerPhone || null,
+                    hasPhone: Boolean(item.hasPhone || item.buyerPhone),
+                    quantity: 1,
+                    liveMessageId: item.liveMessageId || null
+                });
+            }
+
             bgScanItems.push(item);
             if (list) {
                 list.appendChild(createScanItemElement(item, false));
             }
         });
+        refreshAllScanItemsBuyerUI();
         refreshAllScanItemsLiveCodeUI();
         updateScanCount();
     }
@@ -3787,27 +4192,9 @@
                 ? `<img src="${safeAttr(msg.avatar_url)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.src='${illustratedAvatar}';" style="width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; object-fit: cover; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;" /><div style="display: none; width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; background: ${gradientBg}; align-items: center; justify-content: center; font-weight: 900; font-size: ${fontSizes.initials}; color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;">${initials}</div>`
                 : `<img src="${illustratedAvatar}" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; object-fit: cover; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;" /><div style="display: none; width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; background: ${gradientBg}; align-items: center; justify-content: center; font-weight: 900; font-size: ${fontSizes.initials}; color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;">${initials}</div>`;
 
-            // Badge de Cliente Cadastrada
+            // Badge de Cliente Cadastrada e Telefone removidos do card para exibir apenas o IG e mensagem
             let clientBadge = '';
-            if (msg.user_id) {
-                let nameText = escapeHtml(msg.user_name || '');
-                if (msg.user_apelido) nameText = `${nameText} (${escapeHtml(msg.user_apelido)})`;
-                clientBadge = `
-                    <span class="chat-client-badge" style="font-size: ${fontSizes.badge};">
-                        <i class="fas fa-check-circle"></i> ${nameText || 'Cliente Cadastrada'}
-                    </span>
-                `;
-            }
-
-            // WhatsApp Badge se disponível
             let whatsappBadge = '';
-            if (msg.user_whatsapp) {
-                whatsappBadge = `
-                    <span class="chat-client-badge" style="background-color: #064e3b; color: #34d399; font-size: ${fontSizes.badge};" title="WhatsApp: ${escapeHtml(msg.user_whatsapp)}">
-                        <i class="fab fa-whatsapp"></i> ${escapeHtml(msg.user_whatsapp)}
-                    </span>
-                `;
-            }
 
             // Destacar códigos de produtos na mensagem
             let formattedMessage = escapeHtml(msg.message || '');
@@ -3913,8 +4300,6 @@
                                 <span class="${userClass}" style="font-size: ${fontSizes.username};">
                                     @${escapeHtml(cleanUser)}
                                 </span>
-                                ${clientBadge}
-                                ${whatsappBadge}
                             </div>
 
                             <div class="flex items-center gap-2 flex-shrink-0">
