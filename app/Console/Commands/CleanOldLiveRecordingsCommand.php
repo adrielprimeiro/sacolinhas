@@ -156,13 +156,20 @@ class CleanOldLiveRecordingsCommand extends Command
             }
         }
 
-        // 4. Cortes de itens ja vendidos (se solicitado)
+        // 4. Cortes de itens ja vendidos (regra de negocio: vendido = item em pedido ativo)
         if ($cleanSoldCuts) {
-            $this->info("Verificando cortes de itens vendidos para limpeza...");
+            $this->info("Verificando cortes de itens vinculados a pedidos ativos para limpeza...");
 
             $soldItems = DB::table('live_items')
                 ->join('lives', 'live_items.live_id', '=', 'lives.id')
-                ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+                ->join('items_pedido', function ($join) {
+                    $join->on('live_items.item_id', '=', 'items_pedido.item_id')
+                         ->where('items_pedido.status_item', '=', 'ativo');
+                })
+                ->join('pedidos', function ($join) {
+                    $join->on('items_pedido.pedido_id', '=', 'pedidos.id')
+                         ->where('pedidos.status_pedido', '!=', 'cancelado');
+                })
                 ->whereNotNull('live_items.video_cut_path')
                 ->where('live_items.video_cut_path', '!=', '')
                 ->where(function ($q) {
@@ -170,31 +177,18 @@ class CleanOldLiveRecordingsCommand extends Command
                     $q->where('lives.ativo', 0)
                       ->orWhereNull('lives.ativo');
                 })
-                ->where(function ($q) {
-                    $q->whereIn('items.status', ['vendido', 'sacolinha'])
-                      ->orWhereNotNull('live_items.user_id')
-                      ->orWhere(function ($sub) {
-                          $sub->whereNotNull('live_items.buyer_name')
-                              ->where('live_items.buyer_name', '!=', '')
-                              ->where('live_items.buyer_name', '!=', '0');
-                      })
-                      ->orWhere(function ($sub) {
-                          $sub->whereNotNull('live_items.buyer_username')
-                              ->where('live_items.buyer_username', '!=', '');
-                      });
-                })
                 ->select(
                     'live_items.id',
                     'live_items.video_cut_path',
                     'live_items.live_id',
                     'live_items.codigo_live',
-                    'items.status as item_status',
-                    'live_items.buyer_name',
-                    'live_items.buyer_username'
+                    'pedidos.id as pedido_id',
+                    'pedidos.status_pedido'
                 )
+                ->distinct()
                 ->get();
 
-            $this->info("Encontrados {$soldItems->count()} itens com cortes vinculados a pecas vendidas.");
+            $this->info("Encontrados {$soldItems->count()} itens com cortes vinculados a pedidos ativos.");
 
             $soldCutsDeleted = 0;
             $soldCutsBytes = 0;
