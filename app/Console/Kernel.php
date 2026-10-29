@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('mp:sync --days=14')->hourly();
         $schedule->command('me:sync')->everyThreeHours();
         $schedule->command('portal:cancelar-expirados')->hourly();
+        $schedule->command('lives:clean-old-recordings --days=15 --clean-duplicate-cuts')->dailyAt('04:00');
     }
 
     protected function commands(): void

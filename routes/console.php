@@ -25,6 +25,11 @@ Schedule::command('app:check-instagram-reels-comments')
     ->everyTenMinutes()
     ->withoutOverlapping();
 
+// Limpeza automática diária de gravações brutas antigas (> 15 dias), cortes órfãos e cortes de peças vendidas
+Schedule::command('lives:clean-old-recordings --days=15 --clean-duplicate-cuts --clean-sold-cuts')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
