@@ -66,8 +66,8 @@
             </form>
 
             {{-- Registrar Repasse / Pix Pago --}}
-            <button type="button" @click="repasseModalOpen = true" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-xs font-bold shadow-sm transition">
-                <i class="fas fa-money-bill-wave mr-2"></i> Registrar Repasse (Pix)
+            <button type="button" @click="repasseModalOpen = true" class="inline-flex items-center px-4 py-2 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 border-2 border-emerald-600 rounded-lg text-xs font-black shadow-xs transition">
+                <i class="fas fa-money-bill-wave mr-2 text-emerald-700"></i> Registrar Repasse (Pix)
             </button>
 
             {{-- Imprimir --}}
@@ -127,20 +127,21 @@
     {{-- Cards de Indicadores Financeiros (KPIs) --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {{-- Card 1: Saldo a Repassar (Destaque Carteira) --}}
-        <div class="bg-gradient-to-br from-indigo-900 to-indigo-950 rounded-xl p-5 text-white shadow-md relative overflow-hidden">
-            <div class="absolute -right-4 -bottom-4 text-white/10 text-7xl font-bold">
-                <i class="fas fa-wallet"></i>
+        <div class="bg-white rounded-xl border-2 border-indigo-600 p-5 shadow-xs relative">
+            <div class="text-xs uppercase font-extrabold text-indigo-900 tracking-wider flex items-center justify-between gap-1.5 mb-1">
+                <span class="flex items-center gap-1.5"><i class="fas fa-wallet text-indigo-600"></i> Saldo Atual na Carteira</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase {{ $saldoCarteira > 0 ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : ($saldoCarteira < 0 ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-gray-100 text-gray-800 border border-gray-300') }}">
+                    {{ $saldoCarteira > 0 ? 'A Repassar' : ($saldoCarteira < 0 ? 'Em Débito' : 'Zerado') }}
+                </span>
             </div>
-            <div class="text-xs uppercase font-bold text-indigo-300 tracking-wider flex items-center gap-1.5 mb-1">
-                <i class="fas fa-wallet text-indigo-400"></i> Saldo Atual na Carteira
-            </div>
-            <div class="text-3xl font-black text-white mt-1">
+            <div class="text-3xl font-black {{ $saldoCarteira > 0 ? 'text-emerald-700' : ($saldoCarteira < 0 ? 'text-red-700' : 'text-gray-900') }} mt-1">
                 R$ {{ number_format($saldoCarteira, 2, ',', '.') }}
             </div>
-            <div class="mt-2 text-[11px] text-indigo-200 flex items-center justify-between">
-                <span>Disponível para repasse</span>
-                <button type="button" @click="repasseModalOpen = true" class="underline text-emerald-300 font-bold hover:text-emerald-200">
-                    Pagar Saldo &rarr;
+            <div class="mt-2 text-xs text-gray-600 flex items-center justify-between pt-2 border-t border-gray-100">
+                <span class="font-medium text-gray-700">Disponível para repasse</span>
+                <button type="button" @click="repasseModalOpen = true" class="font-black text-indigo-700 hover:text-indigo-950 underline flex items-center gap-1">
+                    <span>Pagar Saldo</span>
+                    <i class="fas fa-arrow-right text-[10px]"></i>
                 </button>
             </div>
         </div>
@@ -233,19 +234,19 @@
             <form method="GET" action="{{ route('admin.brechos.prestacao_contas', $brecho) }}" class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-1.5 w-full sm:w-auto">
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'todos']) }}" 
-                       class="px-3 py-1.5 text-xs rounded-lg font-bold border transition {{ $statusFiltro === 'todos' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'todos' ? 'bg-indigo-100 text-indigo-950 border-2 border-indigo-700 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Todas ({{ $totalPecas }})
                     </a>
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'disponivel']) }}" 
-                       class="px-3 py-1.5 text-xs rounded-lg font-bold border transition {{ $statusFiltro === 'disponivel' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'disponivel' ? 'bg-blue-100 text-blue-950 border-2 border-blue-700 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Em Estoque ({{ $pecasEstoque }})
                     </a>
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'em_sacolinha']) }}" 
-                       class="px-3 py-1.5 text-xs rounded-lg font-bold border transition {{ $statusFiltro === 'em_sacolinha' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'em_sacolinha' ? 'bg-amber-100 text-amber-950 border-2 border-amber-600 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Sacolinhas ({{ $pecasSacolinha }})
                     </a>
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'vendido']) }}" 
-                       class="px-3 py-1.5 text-xs rounded-lg font-bold border transition {{ $statusFiltro === 'vendido' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'vendido' ? 'bg-emerald-100 text-emerald-950 border-2 border-emerald-700 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Vendidas ({{ $pecasVendidas }})
                     </a>
                 </div>
@@ -505,8 +506,8 @@
                         <button type="button" @click="repasseModalOpen = false" class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-100">
                             Cancelar
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center gap-1.5">
-                            <i class="fas fa-check"></i> Confirmar Baixa na Carteira
+                        <button type="submit" class="px-4 py-2 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 border-2 border-emerald-600 rounded-lg text-xs font-black shadow-xs flex items-center gap-1.5 transition">
+                            <i class="fas fa-check text-emerald-700"></i> Confirmar Baixa na Carteira
                         </button>
                     </div>
                 </form>
