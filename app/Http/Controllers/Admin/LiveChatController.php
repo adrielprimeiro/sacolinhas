@@ -287,25 +287,132 @@ class LiveChatController extends Controller
 
             $rows = $query->select($selects)->get();
             $totalCount = $rows->count();
-            $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols) {
+
+            // Buscar sacolinhas ativas desta live para suportar múltiplos compradores por peça (ex: Melissas com estoque)
+            $liveSacolinhas = DB::table('sacolinhas')
+                ->join('users', 'sacolinhas.user_id', '=', 'users.id')
+                ->where('sacolinhas.live_id', $activeLive->id)
+                ->where('sacolinhas.status', '!=', 'pedido')
+                ->select(
+                    'sacolinhas.id as sacolinha_id',
+                    'sacolinhas.item_id',
+                    'sacolinhas.user_id',
+                    'sacolinhas.quantity',
+                    'sacolinhas.price',
+                    'users.name as buyer_name',
+                    'users.whatsapp as buyer_whatsapp',
+                    'users.phone as buyer_phone',
+                    'users.telefone_principal as buyer_telefone_principal',
+                    'users.instagram as buyer_instagram',
+                    'users.tiktok as buyer_tiktok'
+                )
+                ->get()
+                ->groupBy('item_id');
+
+            $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols, $liveSacolinhas) {
                 // Como está ordenado desc (mais recente primeiro), o número sequencial padrão 101+ é 100 + (totalCount - index)
                 $seqNumber = (string)(100 + ($totalCount - $index));
                 $liveCode = ($hasCodigoLiveCol && !empty($row->codigo_live)) ? $row->codigo_live : $seqNumber;
-                $buyerPhone = null;
-                if ($hasBuyerCols) {
-                    $buyerPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
+
+                // Montar lista de compradores desta peça a partir das sacolinhas
+                $itemSacolinhas = $liveSacolinhas->get($row->item_id, collect());
+                $buyersList = [];
+                $seenBuyerUserIds = [];
+                $seenBuyerUsernames = [];
+
+                foreach ($itemSacolinhas as $sac) {
+                    $phone = $sac->buyer_whatsapp ?: ($sac->buyer_phone ?: ($sac->buyer_telefone_principal ?: null));
+                    
+                    // Se a peça foi vinculada a um username específico (ex: TikTok ou Instagram), preserva o username correto daquela venda
+                    $cleanRowUser = ($hasBuyerCols && !empty($row->buyer_username)) ? strtolower(ltrim($row->buyer_username, '@')) : null;
+                    $cleanIg = !empty($sac->buyer_instagram) ? strtolower(ltrim($sac->buyer_instagram, '@')) : null;
+                    $cleanTt = !empty($sac->buyer_tiktok) ? strtolower(ltrim($sac->buyer_tiktok, '@')) : null;
+
+                    $uname = null;
+                    if ($cleanRowUser && ($cleanRowUser === $cleanTt)) {
+                        $uname = $sac->buyer_tiktok;
+                    } elseif ($cleanRowUser && ($cleanRowUser === $cleanIg)) {
+                        $uname = $sac->buyer_instagram;
+                    } else {
+                        $uname = $sac->buyer_instagram ?: ($sac->buyer_tiktok ?: ($sac->buyer_name ?: 'cliente'));
+                    }
+                    $uname = ltrim($uname, '@');
+
+                    // Evita duplicar se a mesma usuária já estiver na lista (ex: por user_id)
+                    if ($sac->user_id && in_array((int)$sac->user_id, $seenBuyerUserIds, true)) {
+                        continue;
+                    }
+                    if ($sac->user_id) {
+                        $seenBuyerUserIds[] = (int)$sac->user_id;
+                    }
+                    $seenBuyerUsernames[] = strtolower($uname);
+                    if ($cleanIg) $seenBuyerUsernames[] = $cleanIg;
+                    if ($cleanTt) $seenBuyerUsernames[] = $cleanTt;
+
+                    $buyersList[] = [
+                        'sacolinhaId' => $sac->sacolinha_id,
+                        'userId' => $sac->user_id,
+                        'username' => $uname,
+                        'displayName' => $sac->buyer_name ?: $uname,
+                        'phone' => $phone,
+                        'hasPhone' => !empty($phone),
+                        'quantity' => (int)($sac->quantity ?? 1),
+                        'liveMessageId' => null,
+                        'instagram' => $cleanIg,
+                        'tiktok' => $cleanTt
+                    ];
                 }
+
+                // Se houver comprador em live_items (ex: cliente sem telefone cadastrado que ainda não virou sacolinha)
+                if ($hasBuyerCols && !empty($row->buyer_username)) {
+                    $cleanRowUser = strtolower(ltrim($row->buyer_username, '@'));
+                    $rowBuyerUserId = $row->buyer_user_id ? (int)$row->buyer_user_id : null;
+
+                    $alreadyInList = false;
+                    if ($rowBuyerUserId && in_array($rowBuyerUserId, $seenBuyerUserIds, true)) {
+                        $alreadyInList = true;
+                    } elseif (in_array($cleanRowUser, $seenBuyerUsernames, true)) {
+                        $alreadyInList = true;
+                    } else {
+                        $alreadyInList = collect($buyersList)->contains(function($b) use ($cleanRowUser, $rowBuyerUserId) {
+                            if ($rowBuyerUserId && !empty($b['userId']) && (int)$b['userId'] === $rowBuyerUserId) return true;
+                            if (strtolower(ltrim($b['username'] ?? '', '@')) === $cleanRowUser) return true;
+                            if (!empty($b['instagram']) && $b['instagram'] === $cleanRowUser) return true;
+                            if (!empty($b['tiktok']) && $b['tiktok'] === $cleanRowUser) return true;
+                            return false;
+                        });
+                    }
+
+                    if (!$alreadyInList) {
+                        $bPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
+                        $buyersList[] = [
+                            'sacolinhaId' => null,
+                            'userId' => $row->buyer_user_id,
+                            'username' => ltrim($row->buyer_username, '@'),
+                            'displayName' => $row->buyer_name ?: ltrim($row->buyer_username, '@'),
+                            'phone' => $bPhone,
+                            'hasPhone' => !empty($bPhone),
+                            'quantity' => 1,
+                            'liveMessageId' => $row->live_message_id ?? null
+                        ];
+                    }
+                }
+
+                $primaryBuyer = !empty($buyersList) ? $buyersList[0] : null;
+                $buyerPhone = $primaryBuyer ? $primaryBuyer['phone'] : null;
+
                 return [
                     'id' => 'scan_db_' . $row->live_item_id,
                     'itemId' => $row->item_id,
                     'code' => $row->codigo,
                     'liveCode' => $liveCode,
-                    'buyerUserId' => $hasBuyerCols ? ($row->buyer_user_id ?? null) : null,
-                    'buyerUsername' => $hasBuyerCols ? ($row->buyer_username ?? null) : null,
-                    'buyerName' => $hasBuyerCols ? ($row->buyer_name ?? null) : null,
+                    'buyers' => $buyersList,
+                    'buyerUserId' => $primaryBuyer ? $primaryBuyer['userId'] : ($hasBuyerCols ? ($row->buyer_user_id ?? null) : null),
+                    'buyerUsername' => $primaryBuyer ? $primaryBuyer['username'] : ($hasBuyerCols ? ($row->buyer_username ?? null) : null),
+                    'buyerName' => $primaryBuyer ? $primaryBuyer['displayName'] : ($hasBuyerCols ? ($row->buyer_name ?? null) : null),
                     'buyerPhone' => $buyerPhone,
                     'hasPhone' => !empty($buyerPhone),
-                    'liveMessageId' => $hasBuyerCols ? ($row->live_message_id ?? null) : null,
+                    'liveMessageId' => $primaryBuyer ? ($primaryBuyer['liveMessageId'] ?? null) : ($hasBuyerCols ? ($row->live_message_id ?? null) : null),
                     'videoCutPath' => $hasVideoCutCols ? ($row->video_cut_path ?? null) : null,
                     'videoCutFilename' => $hasVideoCutCols ? ($row->video_cut_filename ?? null) : null,
                     'videoCutDuration' => $hasVideoCutCols ? ($row->video_cut_duration ?? null) : null,
@@ -710,6 +817,7 @@ class LiveChatController extends Controller
 
     /**
      * Vincula um item da live a um comprador (e opcionalmente a uma mensagem do chat)
+     * Suporta inserção direta ('add' - estoque múltiplo) ou transferência ('transfer')
      */
     public function linkItemBuyer(Request $request)
     {
@@ -720,7 +828,10 @@ class LiveChatController extends Controller
             'username' => 'required|string',
             'buyer_name' => 'nullable|string',
             'user_id' => 'nullable|integer',
-            'message_id' => 'nullable|integer'
+            'message_id' => 'nullable|integer',
+            'action_mode' => 'nullable|in:add,transfer',
+            'transfer_from_user_id' => 'nullable|integer',
+            'transfer_from_sacolinha_id' => 'nullable|integer'
         ]);
 
         $liveId = $request->input('live_id');
@@ -729,6 +840,9 @@ class LiveChatController extends Controller
         $buyerName = trim((string) $request->input('buyer_name'));
         $userId = $request->input('user_id') ?: null;
         $messageId = $request->input('message_id') ?: null;
+        $actionMode = $request->input('action_mode', 'add');
+        $transferFromUserId = $request->input('transfer_from_user_id');
+        $transferFromSacolinhaId = $request->input('transfer_from_sacolinha_id');
         $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
@@ -779,7 +893,7 @@ class LiveChatController extends Controller
             }
         }
 
-        // 1. Atualizar ou inserir em live_items
+        // 1. Atualizar ou inserir em live_items (mantém registro de que a peça está sendo movimentada na live)
         $updateData = [
             'status_movimentacao' => 'enviado',
             'updated_at' => now()
@@ -812,38 +926,78 @@ class LiveChatController extends Controller
             exec(sprintf('nohup php %s app:mark-youtube-sold --item_id=%d > /dev/null 2>&1 &', escapeshellarg($artisan), $targetLiveItem->id));
         }
 
+        $live = Live::find($liveId);
+        $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
+        $price = $item->preco;
+        if ($live && $live->tipo_live === 'precinho') {
+            $price = $price * 0.5;
+        }
+
+        $createdSacolinhaId = null;
+
         // 2. Colocar o item na Sacolinha da cliente (se tiver cadastro com telefone)
         if ($userId) {
-            $live = Live::find($liveId);
-            $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
-            $price = $item->preco;
-            if ($live && $live->tipo_live === 'precinho') {
-                $price = $price * 0.5;
-            }
+            if ($actionMode === 'transfer') {
+                // Modo TRANSFERÊNCIA: transfere a sacolinha anterior para a nova cliente
+                $queryTransfer = Sacolinhas::where('item_id', $itemId)
+                    ->where('live_id', $liveId)
+                    ->where('status', '!=', 'pedido');
 
-            $existingSacolinha = Sacolinhas::where('item_id', $itemId)
-                ->where('live_id', $liveId)
-                ->first();
+                if ($transferFromSacolinhaId) {
+                    $queryTransfer->where('id', $transferFromSacolinhaId);
+                } elseif ($transferFromUserId) {
+                    $queryTransfer->where('user_id', $transferFromUserId);
+                }
 
-            if ($existingSacolinha) {
-                $existingSacolinha->update([
-                    'user_id' => $userId,
-                    'brecho_id' => $liveBrechoId,
-                    'price' => $price,
-                    'add_at' => now(),
-                    'status' => 'live'
-                ]);
+                $sacolinhaToTransfer = $queryTransfer->first();
+
+                if ($sacolinhaToTransfer) {
+                    $sacolinhaToTransfer->update([
+                        'user_id' => $userId,
+                        'brecho_id' => $liveBrechoId,
+                        'price' => $price,
+                        'add_at' => now(),
+                        'status' => 'live'
+                    ]);
+                    $createdSacolinhaId = $sacolinhaToTransfer->id;
+                } else {
+                    $newSac = Sacolinhas::create([
+                        'user_id' => $userId,
+                        'item_id' => $itemId,
+                        'live_id' => $liveId,
+                        'brecho_id' => $liveBrechoId,
+                        'price' => $price,
+                        'add_at' => now(),
+                        'quantity' => 1,
+                        'status' => 'live'
+                    ]);
+                    $createdSacolinhaId = $newSac->id;
+                }
             } else {
-                Sacolinhas::create([
-                    'user_id' => $userId,
-                    'item_id' => $itemId,
-                    'live_id' => $liveId,
-                    'brecho_id' => $liveBrechoId,
-                    'price' => $price,
-                    'add_at' => now(),
-                    'quantity' => 1,
-                    'status' => 'live'
-                ]);
+                // Modo ADICIONAR TAMBÉM (Estoque Múltiplo - Melissas etc):
+                // Cria ou incrementa sacolinha para este novo usuário sem mexer nas sacolinhas das outras clientes
+                $userExistingSac = Sacolinhas::where('item_id', $itemId)
+                    ->where('live_id', $liveId)
+                    ->where('user_id', $userId)
+                    ->where('status', '!=', 'pedido')
+                    ->first();
+
+                if ($userExistingSac) {
+                    $userExistingSac->increment('quantity');
+                    $createdSacolinhaId = $userExistingSac->id;
+                } else {
+                    $newSac = Sacolinhas::create([
+                        'user_id' => $userId,
+                        'item_id' => $itemId,
+                        'live_id' => $liveId,
+                        'brecho_id' => $liveBrechoId,
+                        'price' => $price,
+                        'add_at' => now(),
+                        'quantity' => 1,
+                        'status' => 'live'
+                    ]);
+                    $createdSacolinhaId = $newSac->id;
+                }
             }
 
             DB::table('brecho_clientes')->updateOrInsert(
@@ -859,9 +1013,20 @@ class LiveChatController extends Controller
 
             $item->update(['status' => 'sacolinha', 'localizacao' => 'Sacolinha']);
         } else {
-            // Sem cadastro com telefone: remove resquício de sacolinha e mantém item na live
-            DB::table('sacolinhas')->where('item_id', $itemId)->delete();
-            $item->update(['status' => 'live', 'localizacao' => 'Live']);
+            // Sem cadastro com telefone:
+            if ($actionMode === 'transfer') {
+                if ($transferFromSacolinhaId) {
+                    Sacolinhas::where('id', $transferFromSacolinhaId)->delete();
+                } elseif ($transferFromUserId) {
+                    Sacolinhas::where('item_id', $itemId)->where('live_id', $liveId)->where('user_id', $transferFromUserId)->delete();
+                }
+            }
+
+            // Se não restar nenhuma sacolinha ativa deste item, mantém status como 'live'
+            $hasAnySacolinha = Sacolinhas::where('item_id', $itemId)->where('live_id', $liveId)->where('status', '!=', 'pedido')->exists();
+            if (!$hasAnySacolinha) {
+                $item->update(['status' => 'live', 'localizacao' => 'Live']);
+            }
         }
 
         // 3. Se houver messageId e a tabela live_messages tiver os campos, atualiza a mensagem
@@ -878,6 +1043,89 @@ class LiveChatController extends Controller
             }
         }
 
+        // Montar a lista atualizada de TODOS os compradores deste item nesta live
+        $currentSacolinhas = DB::table('sacolinhas')
+            ->join('users', 'sacolinhas.user_id', '=', 'users.id')
+            ->where('sacolinhas.live_id', $liveId)
+            ->where('sacolinhas.item_id', $itemId)
+            ->where('sacolinhas.status', '!=', 'pedido')
+            ->select(
+                'sacolinhas.id as sacolinha_id',
+                'sacolinhas.user_id',
+                'sacolinhas.quantity',
+                'sacolinhas.price',
+                'users.name as buyer_name',
+                'users.whatsapp as buyer_whatsapp',
+                'users.phone as buyer_phone',
+                'users.telefone_principal as buyer_telefone_principal',
+                'users.instagram as buyer_instagram',
+                'users.tiktok as buyer_tiktok'
+            )
+            ->get();
+
+        $allBuyers = [];
+        $seenBuyerUserIds = [];
+        $seenBuyerUsernames = [];
+
+        foreach ($currentSacolinhas as $cs) {
+            $p = $cs->buyer_whatsapp ?: ($cs->buyer_phone ?: ($cs->buyer_telefone_principal ?: null));
+            $cleanRowUser = strtolower(ltrim($username, '@'));
+            $cleanIg = !empty($cs->buyer_instagram) ? strtolower(ltrim($cs->buyer_instagram, '@')) : null;
+            $cleanTt = !empty($cs->buyer_tiktok) ? strtolower(ltrim($cs->buyer_tiktok, '@')) : null;
+
+            $u = null;
+            if ($cleanRowUser && ($cleanRowUser === $cleanTt)) {
+                $u = $cs->buyer_tiktok;
+            } elseif ($cleanRowUser && ($cleanRowUser === $cleanIg)) {
+                $u = $cs->buyer_instagram;
+            } else {
+                $u = $cs->buyer_instagram ?: ($cs->buyer_tiktok ?: ($cs->buyer_name ?: 'cliente'));
+            }
+            $u = ltrim($u, '@');
+
+            // Evita duplicar comprador por user_id
+            if ($cs->user_id && in_array((int)$cs->user_id, $seenBuyerUserIds, true)) {
+                continue;
+            }
+            if ($cs->user_id) {
+                $seenBuyerUserIds[] = (int)$cs->user_id;
+            }
+            $seenBuyerUsernames[] = strtolower($u);
+            if ($cleanIg) $seenBuyerUsernames[] = $cleanIg;
+            if ($cleanTt) $seenBuyerUsernames[] = $cleanTt;
+
+            $allBuyers[] = [
+                'sacolinhaId' => $cs->sacolinha_id,
+                'userId' => $cs->user_id,
+                'username' => $u,
+                'displayName' => $cs->buyer_name ?: $u,
+                'phone' => $p,
+                'hasPhone' => !empty($p),
+                'quantity' => (int)$cs->quantity,
+                'instagram' => $cleanIg,
+                'tiktok' => $cleanTt
+            ];
+        }
+
+        // Se o usuário selecionado ainda não possui telefone (esperando cadastro), garante que apareça na lista de compradores
+        if (!$userId && $username) {
+            $cleanU = strtolower(ltrim($username, '@'));
+            $alreadyIncluded = in_array($cleanU, $seenBuyerUsernames, true) || collect($allBuyers)->contains(function($b) use ($cleanU) {
+                return strtolower($b['username']) === $cleanU || ($b['instagram'] ?? null) === $cleanU || ($b['tiktok'] ?? null) === $cleanU;
+            });
+            if (!$alreadyIncluded) {
+                $allBuyers[] = [
+                    'sacolinhaId' => null,
+                    'userId' => null,
+                    'username' => ltrim($username, '@'),
+                    'displayName' => $buyerName ?: ltrim($username, '@'),
+                    'phone' => null,
+                    'hasPhone' => false,
+                    'quantity' => 1
+                ];
+            }
+        }
+
         $buyerPhone = null;
         if ($userId) {
             $userObj = User::find($userId);
@@ -886,8 +1134,20 @@ class LiveChatController extends Controller
             }
         }
 
+        // Totais das sacolinhas da live
+        $totals = DB::table('sacolinhas')
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+            ->first();
+
+        $stats = [
+            'sacolinhas_itens' => (int)($totals->total_itens ?? 0),
+            'sacolinhas_valor' => (float)($totals->total_valor ?? 0)
+        ];
+
         $message = ($userId && $buyerPhone) 
-            ? 'Item vinculado e inserido na sacolinha com sucesso!' 
+            ? ($actionMode === 'add' ? 'Item inserido também na sacolinha com sucesso!' : 'Item transferido com sucesso!')
             : 'Comprador @' . ltrim($username, '@') . ' anexado à peça. ' . ($userId ? 'Cliente sem telefone cadastrado.' : 'Aguardando telefone no chat para cadastrar cliente e abrir sacolinha.');
 
         return response()->json([
@@ -902,13 +1162,17 @@ class LiveChatController extends Controller
                 'buyer_phone' => $buyerPhone,
                 'has_phone' => !empty($buyerPhone),
                 'message_id' => $messageId,
-                'waiting_phone' => empty($buyerPhone)
-            ]
+                'waiting_phone' => empty($buyerPhone),
+                'sacolinha_id' => $createdSacolinhaId,
+                'buyers' => $allBuyers
+            ],
+            'stats' => $stats
         ]);
     }
 
     /**
-     * Remove o comprador vinculado a um item da live e remove da sacolinha
+     * Remove o comprador vinculado a um item da live e remove da sacolinha.
+     * Suporta remoção de um comprador específico ou desvinculação completa.
      */
     public function unlinkItemBuyer(Request $request)
     {
@@ -916,12 +1180,18 @@ class LiveChatController extends Controller
             'live_id' => 'required|exists:lives,id',
             'item_id' => 'nullable|exists:items,id',
             'code' => 'nullable|string',
-            'message_id' => 'nullable|integer'
+            'message_id' => 'nullable|integer',
+            'user_id' => 'nullable|integer',
+            'username' => 'nullable|string',
+            'sacolinha_id' => 'nullable|integer'
         ]);
 
         $liveId = $request->input('live_id');
         $itemId = $request->input('item_id');
         $messageId = $request->input('message_id');
+        $userId = $request->input('user_id');
+        $username = $request->input('username');
+        $sacolinhaId = $request->input('sacolinha_id');
         $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
@@ -957,23 +1227,95 @@ class LiveChatController extends Controller
             }
         }
 
-        if ($itemId && Schema::hasTable('live_items')) {
-            $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
-            $messageId = $messageId ?: ($existing ? ($existing->live_message_id ?? null) : null);
-
-            $updateData = ['updated_at' => now()];
-            if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
-            if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = null;
-            if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = null;
-            if (Schema::hasColumn('live_items', 'live_message_id')) $updateData['live_message_id'] = null;
-
-            DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+        // Remover sacolinha
+        if ($sacolinhaId) {
+            DB::table('sacolinhas')->where('id', $sacolinhaId)->delete();
+        } elseif ($userId && $itemId) {
+            DB::table('sacolinhas')->where('item_id', $itemId)->where('user_id', $userId)->where('live_id', $liveId)->delete();
+        } elseif ($username && $itemId) {
+            $matchedUser = $this->findUserByUsername($username);
+            if ($matchedUser) {
+                DB::table('sacolinhas')->where('item_id', $itemId)->where('user_id', $matchedUser->id)->where('live_id', $liveId)->delete();
+            } else {
+                DB::table('sacolinhas')->where('item_id', $itemId)->where('live_id', $liveId)->delete();
+            }
+        } elseif ($itemId) {
+            // Se nenhum comprador específico foi informado, desvincula todas as sacolinhas desse item nesta live
+            DB::table('sacolinhas')->where('item_id', $itemId)->where('live_id', $liveId)->delete();
         }
 
+        // Verificar compradores restantes deste item nesta live
+        $remainingSacolinhas = collect();
         if ($itemId) {
-            // Remove da sacolinha de forma direta no banco para evitar scopes que possam esconder o registro
-            DB::table('sacolinhas')->where('item_id', $itemId)->delete();
-            Item::where('id', $itemId)->update(['status' => 'live', 'localizacao' => 'Live']);
+            $remainingSacolinhas = DB::table('sacolinhas')
+                ->join('users', 'sacolinhas.user_id', '=', 'users.id')
+                ->where('sacolinhas.live_id', $liveId)
+                ->where('sacolinhas.item_id', $itemId)
+                ->where('sacolinhas.status', '!=', 'pedido')
+                ->select(
+                    'sacolinhas.id as sacolinha_id',
+                    'sacolinhas.user_id',
+                    'sacolinhas.quantity',
+                    'sacolinhas.price',
+                    'users.name as buyer_name',
+                    'users.whatsapp as buyer_whatsapp',
+                    'users.phone as buyer_phone',
+                    'users.telefone_principal as buyer_telefone_principal',
+                    'users.instagram as buyer_instagram',
+                    'users.tiktok as buyer_tiktok'
+                )
+                ->get();
+        }
+
+        $allRemainingBuyers = [];
+        $seenBuyerUserIds = [];
+        foreach ($remainingSacolinhas as $rs) {
+            if ($rs->user_id && in_array((int)$rs->user_id, $seenBuyerUserIds, true)) {
+                continue;
+            }
+            if ($rs->user_id) {
+                $seenBuyerUserIds[] = (int)$rs->user_id;
+            }
+
+            $p = $rs->buyer_whatsapp ?: ($rs->buyer_phone ?: ($rs->buyer_telefone_principal ?: null));
+            $u = $rs->buyer_instagram ?: ($rs->buyer_tiktok ?: ($rs->buyer_name ?: 'cliente'));
+            $allRemainingBuyers[] = [
+                'sacolinhaId' => $rs->sacolinha_id,
+                'userId' => $rs->user_id,
+                'username' => ltrim($u, '@'),
+                'displayName' => $rs->buyer_name ?: ltrim($u, '@'),
+                'phone' => $p,
+                'hasPhone' => !empty($p),
+                'quantity' => (int)$rs->quantity
+            ];
+        }
+
+        if ($itemId && Schema::hasTable('live_items')) {
+            $existing = DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->first();
+
+            if ($remainingSacolinhas->isEmpty()) {
+                // Não restam mais sacolinhas ativas para o item: limpa live_items e volta item para 'live'
+                $updateData = ['updated_at' => now()];
+                if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = null;
+                if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = null;
+                if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = null;
+                if (Schema::hasColumn('live_items', 'live_message_id')) $updateData['live_message_id'] = null;
+
+                DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+                Item::where('id', $itemId)->update(['status' => 'live', 'localizacao' => 'Live']);
+            } else {
+                // Ainda existem sacolinhas ativas! Atualiza live_items com os dados do primeiro comprador restante
+                $firstRem = $allRemainingBuyers[0];
+                $updateData = [
+                    'updated_at' => now()
+                ];
+                if (Schema::hasColumn('live_items', 'user_id')) $updateData['user_id'] = $firstRem['userId'];
+                if (Schema::hasColumn('live_items', 'buyer_username')) $updateData['buyer_username'] = $firstRem['username'];
+                if (Schema::hasColumn('live_items', 'buyer_name')) $updateData['buyer_name'] = $firstRem['displayName'];
+
+                DB::table('live_items')->where('live_id', $liveId)->where('item_id', $itemId)->update($updateData);
+                Item::where('id', $itemId)->update(['status' => 'sacolinha', 'localizacao' => 'Sacolinha']);
+            }
         }
 
         if ($messageId && Schema::hasTable('live_messages')) {
@@ -985,9 +1327,26 @@ class LiveChatController extends Controller
             }
         }
 
+        // Totais das sacolinhas da live
+        $totals = DB::table('sacolinhas')
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+            ->first();
+
+        $stats = [
+            'sacolinhas_itens' => (int)($totals->total_itens ?? 0),
+            'sacolinhas_valor' => (float)($totals->total_valor ?? 0)
+        ];
+
         return response()->json([
             'success' => true,
-            'message' => 'Comprador desvinculado e item retirado da sacolinha.'
+            'message' => 'Comprador desvinculado com sucesso.',
+            'data' => [
+                'remaining_buyers' => $allRemainingBuyers,
+                'has_remaining' => count($allRemainingBuyers) > 0
+            ],
+            'stats' => $stats
         ]);
     }
 
@@ -1211,6 +1570,96 @@ class LiveChatController extends Controller
     }
 
     /**
+     * Retorna a live se estiver ATIVA (ativo = 1) e NÃO ENCERRADA (encerrada_em IS NULL).
+     * Garante que mensagens só sejam gravadas enquanto a transmissão estiver efetivamente ao vivo.
+     */
+    private function getActiveLiveForChat(?int $requestedLiveId = null): ?Live
+    {
+        if ($requestedLiveId) {
+            $live = Live::find($requestedLiveId);
+            if ($live && (int)$live->ativo === 1 && is_null($live->encerrada_em)) {
+                return $live;
+            }
+            return null;
+        }
+
+        return Live::where('ativo', 1)
+            ->whereNull('encerrada_em')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Detecta textos espúrios de interface (Instagram/TikTok Web) ou scraping acidental de páginas.
+     */
+    private function isLiveMessageGarbage(string $username, string $message): bool
+    {
+        $len = mb_strlen($message);
+        // Comentários de live dificilmente passam de 300 caracteres; descartar dumps de HTML / documentação
+        if ($len < 1 || $len > 300) {
+            return true;
+        }
+
+        $cleanU = mb_strtolower(trim($username));
+        $cleanM = mb_strtolower(trim($message));
+
+        // Nome de usuário idêntico à mensagem (comum em botões lidos como autor e texto)
+        if ($cleanU === $cleanM) {
+            return true;
+        }
+
+        // Se contiver tags HTML
+        if (str_contains($message, '<') && str_contains($message, '>')) {
+            return true;
+        }
+
+        // Termos de interface do Instagram e TikTok que não são comentários reais de compra
+        $blacklist = [
+            'turbinar reel',
+            'patrocinado',
+            'áudio original',
+            'audio original',
+            'carrossel',
+            'ver tradução',
+            'ver traducao',
+            'content posting api',
+            'share kit',
+            'login kit',
+            'docs: support',
+            'tiktok minis',
+            'tiktok developers',
+            'data portability api',
+            'bytedance transparency',
+            'terms of service',
+            'privacy policy',
+            'mensagens5mensagens',
+            'magiadailhafoodhall',
+            'start building today',
+            'manage exports',
+            'research api',
+            'display api',
+            'embed videos',
+        ];
+
+        foreach ($blacklist as $term) {
+            if (str_contains($cleanM, $term) || str_contains($cleanU, $term)) {
+                return true;
+            }
+        }
+
+        // Palavras de botões avulsos capturados por seletores frouxos
+        $isolatedButtons = [
+            'seguir', 'seguindo', 'trocar', 'remover', 'editar', 'ver mais', 
+            'clipe', 'nota...', '•', '...', '…', 'responder', 'reply'
+        ];
+        if (in_array($cleanM, $isolatedButtons, true) || in_array($cleanU, $isolatedButtons, true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Recebe mensagens do script do navegador ou extensão
      */
     public function receiveMessage(Request $request)
@@ -1259,12 +1708,19 @@ class LiveChatController extends Controller
         ]);
 
         $liveIdInput = $payload['live_id'] ?? $request->input('live_id');
-        if (!$liveIdInput || $liveIdInput === 'auto' || !\App\Models\Live::where('id', $liveIdInput)->exists()) {
-            $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() ?? \App\Models\Live::orderBy('id', 'desc')->first();
-            $liveId = $activeLive ? $activeLive->id : null;
-        } else {
-            $liveId = $liveIdInput;
+        $targetLiveId = ($liveIdInput && is_numeric($liveIdInput) && (int)$liveIdInput > 0) ? (int)$liveIdInput : null;
+        $activeLive = $this->getActiveLiveForChat($targetLiveId);
+
+        if (!$activeLive) {
+            return response()->json([
+                'success' => false,
+                'paused' => true,
+                'message' => 'Nenhuma live ao vivo no momento. A gravação de chat só ocorre com a live aberta.'
+            ], 200)
+            ->header('Access-Control-Allow-Origin', '*');
         }
+
+        $liveId = $activeLive->id;
 
         $plat = strtolower((string) ($payload['platform'] ?? $payload['source'] ?? $payload['provider'] ?? $request->input('platform', 'instagram')));
         if (str_contains($plat, 'tiktok')) {
@@ -1330,11 +1786,12 @@ class LiveChatController extends Controller
             ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Origin');
         }
 
-        if (!$liveId) {
+        if ($this->isLiveMessageGarbage($cleanUsername, $messageText)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Nenhuma live ativa encontrada'
-            ], 422)
+                'ignored' => true,
+                'message' => 'Mensagem ignorada por filtro de ruído da interface.'
+            ], 200)
             ->header('Access-Control-Allow-Origin', '*');
         }
 
@@ -1437,17 +1894,19 @@ class LiveChatController extends Controller
         }
 
         $liveIdInput = $request->input('live_id');
-        if ($liveIdInput && is_numeric($liveIdInput) && \App\Models\Live::where('id', $liveIdInput)->exists()) {
-            $liveId = (int)$liveIdInput;
-        } else {
-            $activeLive = \App\Models\Live::where('ativo', true)->orderBy('id', 'desc')->first() 
-                       ?? \App\Models\Live::orderBy('id', 'desc')->first();
-            if (!$activeLive) {
-                return response()->json(['success' => false, 'message' => 'Nenhuma live ativa'])
-                    ->header('Access-Control-Allow-Origin', '*');
-            }
-            $liveId = $activeLive->id;
+        $targetLiveId = ($liveIdInput && is_numeric($liveIdInput) && (int)$liveIdInput > 0) ? (int)$liveIdInput : null;
+        $activeLive = $this->getActiveLiveForChat($targetLiveId);
+
+        if (!$activeLive) {
+            return response()->json([
+                'success' => false,
+                'paused' => true,
+                'message' => 'Nenhuma live ao vivo no momento. Lote ignorado.'
+            ], 200)
+            ->header('Access-Control-Allow-Origin', '*');
         }
+
+        $liveId = $activeLive->id;
 
         $createdCount = 0;
         try {
@@ -1457,6 +1916,7 @@ class LiveChatController extends Controller
 
                     $cleanUsername = trim($item['username']);
                     $messageText = trim($item['message']);
+                    if ($this->isLiveMessageGarbage($cleanUsername, $messageText)) continue;
                     $plat = strtolower((string) ($item['platform'] ?? 'instagram'));
                     if (str_contains($plat, 'tiktok')) {
                         $platform = 'tiktok';
@@ -1553,20 +2013,35 @@ class LiveChatController extends Controller
         $limitParam = $request->query('limit', '200');
         $limit = ($limitParam === 'all' || (int)$limitParam >= 5000) ? 5000 : 200;
 
+        $liveObj = Live::find($liveId);
+
         // 1. Mensagens da live (200 recentes ou todas até 5000)
-        $rawMessages = LiveMessage::where('live_id', $liveId)
+        // Se a live já foi encerrada, restringe a busca estritamente até a data/hora do encerramento
+        $msgQuery = LiveMessage::where('live_id', $liveId);
+        if ($liveObj && !empty($liveObj->encerrada_em)) {
+            $msgQuery->where('created_at', '<=', $liveObj->encerrada_em);
+        }
+        $rawMessages = $msgQuery
             ->orderBy('id', 'desc')
             ->limit($limit)
             ->get();
 
-        $userCounts = LiveMessage::where('live_id', $liveId)
+        $userCountsQuery = LiveMessage::where('live_id', $liveId);
+        if ($liveObj && !empty($liveObj->encerrada_em)) {
+            $userCountsQuery->where('created_at', '<=', $liveObj->encerrada_em);
+        }
+        $userCounts = $userCountsQuery
             ->select('username', DB::raw('COUNT(*) as total_msgs'), DB::raw('SUM(CASE WHEN is_marked = 1 THEN 1 ELSE 0 END) as marked_msgs'))
             ->groupBy('username')
             ->get()
             ->keyBy('username');
 
         // 2. Pessoas online (quem comentou, ordenado por data mais recente)
-        $onlineRaw = LiveMessage::where('live_id', $liveId)
+        $onlineQuery = LiveMessage::where('live_id', $liveId);
+        if ($liveObj && !empty($liveObj->encerrada_em)) {
+            $onlineQuery->where('created_at', '<=', $liveObj->encerrada_em);
+        }
+        $onlineRaw = $onlineQuery
             ->select('username', 'plataforma', DB::raw('MAX(host_account) as host_account'), DB::raw('MAX(created_at) as last_seen'), DB::raw('MAX(id) as max_id'))
             ->groupBy('username', 'plataforma')
             ->orderByDesc('max_id')
@@ -1880,6 +2355,26 @@ class LiveChatController extends Controller
                 $selects[] = 'live_items.video_cut_trigger';
             }
 
+            $liveSacolinhas = DB::table('sacolinhas')
+                ->join('users', 'sacolinhas.user_id', '=', 'users.id')
+                ->where('sacolinhas.live_id', $liveId)
+                ->where('sacolinhas.status', '!=', 'pedido')
+                ->select(
+                    'sacolinhas.id as sacolinha_id',
+                    'sacolinhas.item_id',
+                    'sacolinhas.user_id',
+                    'sacolinhas.quantity',
+                    'sacolinhas.price',
+                    'users.name as buyer_name',
+                    'users.whatsapp as buyer_whatsapp',
+                    'users.phone as buyer_phone',
+                    'users.telefone_principal as buyer_telefone_principal',
+                    'users.instagram as buyer_instagram',
+                    'users.tiktok as buyer_tiktok'
+                )
+                ->get()
+                ->groupBy('item_id');
+
             $liveItems = DB::table('live_items')
                 ->join('items', 'live_items.item_id', '=', 'items.id')
                 ->leftJoin('users', 'live_items.user_id', '=', 'users.id')
@@ -1887,18 +2382,105 @@ class LiveChatController extends Controller
                 ->orderBy('live_items.id', 'asc')
                 ->select($selects)
                 ->get()
-                ->map(function($row) {
+                ->map(function($row) use ($liveSacolinhas, $hasBuyerCols) {
                     $row->productPrice = 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.');
                     $row->time = $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '';
-                    $buyerPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
-                    $row->buyer_phone = $buyerPhone;
-                    $row->has_phone = !empty($buyerPhone);
+                    
+                    $itemSacolinhas = $liveSacolinhas->get($row->item_id, collect());
+                    $buyersList = [];
+                    $seenBuyerUserIds = [];
+                    $seenBuyerUsernames = [];
+
+                    foreach ($itemSacolinhas as $sac) {
+                        $p = $sac->buyer_whatsapp ?: ($sac->buyer_phone ?: ($sac->buyer_telefone_principal ?: null));
+                        $cleanRowUser = ($hasBuyerCols && !empty($row->buyer_username)) ? strtolower(ltrim($row->buyer_username, '@')) : null;
+                        $cleanIg = !empty($sac->buyer_instagram) ? strtolower(ltrim($sac->buyer_instagram, '@')) : null;
+                        $cleanTt = !empty($sac->buyer_tiktok) ? strtolower(ltrim($sac->buyer_tiktok, '@')) : null;
+
+                        $u = null;
+                        if ($cleanRowUser && ($cleanRowUser === $cleanTt)) {
+                            $u = $sac->buyer_tiktok;
+                        } elseif ($cleanRowUser && ($cleanRowUser === $cleanIg)) {
+                            $u = $sac->buyer_instagram;
+                        } else {
+                            $u = $sac->buyer_instagram ?: ($sac->buyer_tiktok ?: ($sac->buyer_name ?: 'cliente'));
+                        }
+                        $u = ltrim($u, '@');
+
+                        // Evita duplicar se a mesma usuária já estiver na lista (ex: por user_id)
+                        if ($sac->user_id && in_array((int)$sac->user_id, $seenBuyerUserIds, true)) {
+                            continue;
+                        }
+                        if ($sac->user_id) {
+                            $seenBuyerUserIds[] = (int)$sac->user_id;
+                        }
+                        $seenBuyerUsernames[] = strtolower($u);
+                        if ($cleanIg) $seenBuyerUsernames[] = $cleanIg;
+                        if ($cleanTt) $seenBuyerUsernames[] = $cleanTt;
+
+                        $buyersList[] = [
+                            'sacolinhaId' => $sac->sacolinha_id,
+                            'userId' => $sac->user_id,
+                            'username' => $u,
+                            'displayName' => $sac->buyer_name ?: $u,
+                            'phone' => $p,
+                            'hasPhone' => !empty($p),
+                            'quantity' => (int)($sac->quantity ?? 1),
+                            'liveMessageId' => null,
+                            'instagram' => $cleanIg,
+                            'tiktok' => $cleanTt
+                        ];
+                    }
+
+                    if ($hasBuyerCols && !empty($row->buyer_username)) {
+                        $cleanRowUser = strtolower(ltrim($row->buyer_username, '@'));
+                        $rowBuyerUserId = $row->buyer_user_id ? (int)$row->buyer_user_id : null;
+
+                        $alreadyInList = false;
+                        if ($rowBuyerUserId && in_array($rowBuyerUserId, $seenBuyerUserIds, true)) {
+                            $alreadyInList = true;
+                        } elseif (in_array($cleanRowUser, $seenBuyerUsernames, true)) {
+                            $alreadyInList = true;
+                        } else {
+                            $alreadyInList = collect($buyersList)->contains(function($b) use ($cleanRowUser, $rowBuyerUserId) {
+                                if ($rowBuyerUserId && !empty($b['userId']) && (int)$b['userId'] === $rowBuyerUserId) return true;
+                                if (strtolower(ltrim($b['username'] ?? '', '@')) === $cleanRowUser) return true;
+                                if (!empty($b['instagram']) && $b['instagram'] === $cleanRowUser) return true;
+                                if (!empty($b['tiktok']) && $b['tiktok'] === $cleanRowUser) return true;
+                                return false;
+                            });
+                        }
+
+                        if (!$alreadyInList) {
+                            $bPhone = $row->buyer_whatsapp ?: ($row->buyer_phone ?: ($row->buyer_telefone_principal ?: null));
+                            $buyersList[] = [
+                                'sacolinhaId' => null,
+                                'userId' => $row->buyer_user_id,
+                                'username' => ltrim($row->buyer_username, '@'),
+                                'displayName' => $row->buyer_name ?: ltrim($row->buyer_username, '@'),
+                                'phone' => $bPhone,
+                                'hasPhone' => !empty($bPhone),
+                                'quantity' => 1,
+                                'liveMessageId' => $row->live_message_id ?? null
+                            ];
+                        }
+                    }
+
+                    $primaryBuyer = !empty($buyersList) ? $buyersList[0] : null;
+                    $row->buyers = $buyersList;
+                    $row->buyer_username = $primaryBuyer ? $primaryBuyer['username'] : null;
+                    $row->buyer_name = $primaryBuyer ? $primaryBuyer['displayName'] : null;
+                    $row->buyer_user_id = $primaryBuyer ? $primaryBuyer['userId'] : null;
+                    $row->buyer_phone = $primaryBuyer ? $primaryBuyer['phone'] : null;
+                    $row->has_phone = $primaryBuyer ? $primaryBuyer['hasPhone'] : false;
+
                     return $row;
                 });
         }
 
         return response()->json([
             'success' => true,
+            'is_live_active' => (bool)($liveObj && (int)$liveObj->ativo === 1 && is_null($liveObj->encerrada_em)),
             'is_paused' => Cache::get('live_capture_paused', false),
             'insta_active' => !Cache::get('instagram_capture_stopped', false),
             'tiktok_active' => !Cache::get('tiktok_capture_stopped', false),
@@ -2001,22 +2583,32 @@ class LiveChatController extends Controller
     {
         $clean = trim($username);
         if (empty($clean)) return null;
-        $uLower = strtolower($clean);
+        $uLower = strtolower(ltrim($clean, '@'));
 
-        return Cache::remember("find_user_{$platform}_{$uLower}", 300, function() use ($uLower, $platform) {
-            if ($platform === 'tiktok') {
-                return User::where('tiktok', $uLower)
-                    ->orWhere('apelido', $uLower)
-                    ->orWhere('nome_cliente', $uLower)
-                    ->orWhere('name', $uLower)
-                    ->first();
+        return Cache::remember("find_user_any_{$uLower}", 60, function() use ($uLower) {
+            // 1. Busca exata nas colunas principais (tanto instagram quanto tiktok)
+            $user = User::where(function($q) use ($uLower) {
+                $q->where('instagram', $uLower)
+                  ->orWhere('tiktok', $uLower)
+                  ->orWhere('apelido', $uLower)
+                  ->orWhere('nome_cliente', $uLower)
+                  ->orWhere('name', $uLower);
+            })->first();
+
+            if ($user) return $user;
+
+            // 2. Busca ignorando pontos e underscores (ex: jessika_camila vs jessikkamila)
+            $normalized = str_replace(['_', '.', '-'], '', $uLower);
+            if (strlen($normalized) >= 4) {
+                $user = User::where(function($q) use ($normalized) {
+                    $q->where(DB::raw("REPLACE(REPLACE(REPLACE(instagram, '_', ''), '.', ''), '-', '')"), $normalized)
+                      ->orWhere(DB::raw("REPLACE(REPLACE(REPLACE(tiktok, '_', ''), '.', ''), '-', '')"), $normalized)
+                      ->orWhere(DB::raw("REPLACE(REPLACE(REPLACE(apelido, '_', ''), '.', ''), '-', '')"), $normalized);
+                })->first();
+                if ($user) return $user;
             }
 
-            return User::where('instagram', $uLower)
-                ->orWhere('apelido', $uLower)
-                ->orWhere('nome_cliente', $uLower)
-                ->orWhere('name', $uLower)
-                ->first();
+            return null;
         });
     }
 
@@ -2146,7 +2738,7 @@ class LiveChatController extends Controller
         $brechoId = $live ? ($live->brecho_id ?: 1) : 1;
 
         $userData = [
-            'brecho_id' => $brechoId,
+            'brecho_id' => null,
             'name' => '@' . $cleanUser,
             'apelido' => $cleanUser,
             'nome_cliente' => $cleanUser,
@@ -2163,6 +2755,16 @@ class LiveChatController extends Controller
         }
 
         $user = User::create($userData);
+
+        if ($brechoId > 1) {
+            \Illuminate\Support\Facades\DB::table('brecho_clientes')->insertOrIgnore([
+                'brecho_id' => $brechoId,
+                'user_id' => $user->id,
+                'origem' => 'live_chat',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Associar foto salva se existir
         $uLower = strtolower($cleanUser);
@@ -2209,6 +2811,7 @@ class LiveChatController extends Controller
 
             $existingSacolinha = Sacolinhas::where('item_id', $it->item_id)
                 ->where('live_id', $liveId)
+                ->where('user_id', $user->id)
                 ->first();
 
             if ($existingSacolinha) {
@@ -2320,21 +2923,6 @@ class LiveChatController extends Controller
                     throw new \Exception("Este produto (#{$item->codigo}) pertence a outro brechó e não pode entrar na live deste brechó!");
                 }
 
-                // Prevenção estrita de duplicidade na live
-                $existing = Sacolinhas::where('item_id', $validated['item_id'])
-                    ->where('live_id', $validated['live_id'])
-                    ->first();
-
-                if ($existing) {
-                    if ($existing->user_id == $validated['user_id']) {
-                        return 'Item já está na sacola desta cliente!';
-                    } else {
-                        $otherUser = User::find($existing->user_id);
-                        $otherName = $otherUser ? $otherUser->name : "outro cliente";
-                        throw new \Exception("Esta peça já foi bipada e está na sacola de {$otherName}!");
-                    }
-                }
-
                 $price = $item->preco;
                 if ($live->tipo_live === 'precinho') {
                     $price = $price * 0.5;
@@ -2342,17 +2930,30 @@ class LiveChatController extends Controller
 
                 $brechoId = $liveBrechoId;
 
-                // 1. Criar a sacolinha do cliente nesta live
-                Sacolinhas::create([
-                    'user_id' => $validated['user_id'],
-                    'item_id' => $validated['item_id'],
-                    'live_id' => $validated['live_id'],
-                    'brecho_id' => $brechoId,
-                    'price' => $price,
-                    'add_at' => now(),
-                    'quantity' => 1,
-                    'status' => 'live'
-                ]);
+                // Suporte a estoque múltiplo: se já estiver na sacola desta mesma cliente, incrementa quantidade
+                $userExisting = Sacolinhas::where('item_id', $validated['item_id'])
+                    ->where('live_id', $validated['live_id'])
+                    ->where('user_id', $validated['user_id'])
+                    ->where('status', '!=', 'pedido')
+                    ->first();
+
+                if ($userExisting) {
+                    $userExisting->increment('quantity');
+                    $msgSuccess = 'Mais 1 unidade adicionada à sacola desta cliente!';
+                } else {
+                    // 1. Criar a sacolinha do cliente nesta live (permite colocar o mesmo item em sacolinhas de clientes diferentes)
+                    Sacolinhas::create([
+                        'user_id' => $validated['user_id'],
+                        'item_id' => $validated['item_id'],
+                        'live_id' => $validated['live_id'],
+                        'brecho_id' => $brechoId,
+                        'price' => $price,
+                        'add_at' => now(),
+                        'quantity' => 1,
+                        'status' => 'live'
+                    ]);
+                    $msgSuccess = 'Item adicionado à sacola com sucesso!';
+                }
 
                 // 2. Vincular cliente a este brechó
                 DB::table('brecho_clientes')->updateOrInsert(
@@ -2410,7 +3011,7 @@ class LiveChatController extends Controller
                     LiveCodeRequest::where('id', $validated['code_request_id'])->update(['status' => 'added']);
                 }
 
-                return 'Item adicionado à sacola com sucesso!';
+                return $msgSuccess;
             });
 
             return response()->json(['success' => true, 'message' => $msg]);

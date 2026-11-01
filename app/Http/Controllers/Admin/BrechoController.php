@@ -103,14 +103,15 @@ class BrechoController extends Controller
             'whatsapp' => 'nullable|string|max:20',
         ]);
 
+        $isAdminMatriz = ($brecho->id == 1);
         $user = \App\Models\User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
             'whatsapp' => $validated['whatsapp'] ?? null,
-            'role' => 'brecho_admin',
+            'role' => $isAdminMatriz ? 'admin' : 'brecho_admin',
             'brecho_id' => $brecho->id,
-            'is_admin' => 0,
+            'is_admin' => $isAdminMatriz ? 1 : 0,
         ]);
 
         return redirect()->back()->with('success', "Usuário '{$user->name}' ({$user->email}) criado com sucesso para o brechó '{$brecho->nome}'!");

@@ -174,7 +174,7 @@ class User extends Authenticatable
 	 */
 	public function isBrechoParceiro(): bool
 	{
-		return ($this->role === 'brecho_admin' || !empty($this->brecho_id)) 
-			&& !in_array($this->role, ['admin_master', 'admin']);
+		return $this->role === 'brecho_admin' 
+			|| (!empty($this->brecho_id) && $this->brecho_id > 1 && in_array($this->role, ['brecho_admin', 'operador']));
 	}
 }

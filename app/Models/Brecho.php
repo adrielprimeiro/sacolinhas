@@ -53,7 +53,27 @@ class Brecho extends Model
      */
     public function users(): HasMany
     {
-        return $this->hasMany(User::class, 'brecho_id');
+        return $this->hasMany(User::class, 'brecho_id')->where('role', '!=', 'client');
+    }
+
+    /**
+     * Retorna a lista de operadores/administradores para exibição no painel
+     */
+    public function operadores()
+    {
+        if ($this->id == 1) {
+            return User::where(function ($q) {
+                $q->whereIn('role', ['admin_master', 'admin', 'operador'])
+                  ->orWhere(function ($sub) {
+                      $sub->where('brecho_id', 1)->where('role', '!=', 'client');
+                  });
+            })->where('role', '!=', 'client')->orderBy('name')->get();
+        }
+
+        return User::where('brecho_id', $this->id)
+            ->where('role', '!=', 'client')
+            ->orderBy('name')
+            ->get();
     }
 
     /**

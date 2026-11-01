@@ -80,9 +80,12 @@
                         </a>
                     </td>
                     <td class="px-5 py-4 whitespace-nowrap text-xs">
-                        @if($b->users->count() > 0)
+                        @php
+                            $operadores = $b->operadores();
+                        @endphp
+                        @if($operadores->count() > 0)
                             <div class="space-y-1">
-                                @foreach($b->users as $u)
+                                @foreach($operadores as $u)
                                     <div class="flex items-center gap-1.5 text-gray-700">
                                         <i class="fas fa-user-circle text-indigo-500"></i>
                                         <span class="font-semibold">{{ $u->name }}</span>
