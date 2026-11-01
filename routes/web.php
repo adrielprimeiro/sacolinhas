@@ -300,7 +300,8 @@ Route::middleware('auth')->group(function () {
     // Admin Items
     Route::prefix('admin')->group(function () {
 
-        // ===== LIVE CHAT =====
+        // ===== LIVE CHAT & DASHBOARD =====
+        Route::get('live-dashboard', [\App\Http\Controllers\Admin\LiveDashboardController::class, 'index'])->name('admin.lives.dashboard');
         Route::get('live-chat', [\App\Http\Controllers\Admin\LiveChatController::class, 'dashboard'])->name('admin.live-chat.dashboard');
         Route::get('live-feed', [\App\Http\Controllers\Admin\LiveChatController::class, 'feed'])->name('admin.live-chat.feed');
         Route::get('live-bipagem', [\App\Http\Controllers\Admin\LiveChatController::class, 'bipagem'])->name('admin.live-chat.bipagem');

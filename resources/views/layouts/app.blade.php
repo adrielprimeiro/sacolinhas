@@ -108,37 +108,64 @@
 					<span>Dashboard</span>
 				</a>
 
-                {{-- 2. Comercial & Captação --}}
-                <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.vencimentos*', 'admin.lives.cortes*') ? 'true' : 'false' }} }">
+                {{-- 2. Lives & Transmissão (Específico para Live) --}}
+                <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.live-chat.*', 'admin.lives.cortes*', 'admin.severino.cliper*', 'admin.lives.dashboard*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.vencimentos*', 'admin.lives.cortes*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.live-chat.*', 'admin.lives.cortes*', 'admin.severino.cliper*', 'admin.lives.dashboard*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
                         <div class="flex items-center gap-3">
-                            <i class="fas fa-shopping-cart w-5 text-center text-indigo-500"></i>
-                            <span>Comercial & Captação</span>
+                            <i class="fas fa-broadcast-tower w-5 text-center text-pink-500"></i>
+                            <span>Lives & Transmissão</span>
                         </div>
                         <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
                         <a href="{{ route('bags.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('bags.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-broadcast-tower mr-1.5 text-indigo-400"></i> Lives
+                            <i class="fas fa-calendar-alt mr-1.5 text-indigo-400"></i> Gerenciar Lives
                         </a>
 						@if(!$isBrecho)
-                        <a href="{{ route('admin.live-chat.feed') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.feed') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                        <a href="{{ route('admin.lives.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-emerald-600 hover:bg-white {{ request()->routeIs('admin.lives.dashboard*') ? 'font-bold text-emerald-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-chart-line mr-1.5 text-emerald-500"></i> Dashboard das Lives
+                        </a>
+                        <a href="{{ route('admin.live-chat.feed') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-pink-600 hover:bg-white {{ request()->routeIs('admin.live-chat.feed') ? 'font-bold text-pink-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-comment-dots mr-1.5 text-pink-500"></i> Chat da Transmissão
                         </a>
                         <a href="{{ route('admin.live-chat.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-sliders-h mr-1.5 text-indigo-400"></i> Painel de Captura (Config)
+                            <i class="fas fa-sliders-h mr-1.5 text-indigo-400"></i> Painel de Captura (OBS)
                         </a>
-                        <a href="{{ route('admin.lives.cortes.social') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.social*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-film mr-1.5 text-pink-500"></i> Cortes de Vídeo
-                        </a>
-                        <a href="{{ route('admin.lives.cortes.comentarios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.comentarios*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-comments mr-1.5 text-red-500"></i> Comentários dos Cortes
+                        <a href="{{ route('admin.live-chat.bipagem') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.live-chat.bipagem') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-barcode mr-1.5 text-indigo-500"></i> Bipagem do Operador
                         </a>
                         <a href="{{ route('admin.live-chat.contador') }}" target="_blank" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-purple-600 hover:bg-white {{ request()->routeIs('admin.live-chat.contador') ? 'font-bold text-purple-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-calculator mr-1.5 text-purple-500"></i> Contador de Itens (Telão)
                         </a>
+                        <a href="{{ route('admin.lives.cortes.social') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-pink-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.social*') ? 'font-bold text-pink-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-film mr-1.5 text-pink-500"></i> Cortes de Vídeo
+                        </a>
+                        <a href="{{ route('admin.severino.cliper') }}" class="flex items-center justify-between py-1 px-2 rounded text-xs text-gray-600 hover:text-pink-600 hover:bg-white {{ request()->routeIs('admin.severino.cliper*') ? 'font-bold text-pink-600 bg-white shadow-xs' : '' }}">
+                            <div class="flex items-center">
+                                <i class="fas fa-robot mr-1.5 text-pink-500"></i>
+                                <span>Severino Cliper</span>
+                            </div>
+                            <span class="px-1 py-0.2 rounded text-[9px] font-black uppercase bg-pink-100 text-pink-700 border border-pink-200">IA</span>
+                        </a>
+                        <a href="{{ route('admin.lives.cortes.comentarios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-red-600 hover:bg-white {{ request()->routeIs('admin.lives.cortes.comentarios*') ? 'font-bold text-red-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-comments mr-1.5 text-red-500"></i> Comentários dos Cortes
+                        </a>
 						@endif
+                    </div>
+                </div>
+
+                {{-- 3. Comercial & Sacolas --}}
+                <div x-data="{ open: {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.vencimentos*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.fiscal.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.vencimentos*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.fiscal.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-shopping-bag w-5 text-center text-indigo-500"></i>
+                            <span>Comercial & Sacolas</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
                         <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live
                         </a>
@@ -155,17 +182,17 @@
                             <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
                         </a>
 						@if(!$isBrecho)
-                        <a href="{{ route('admin.fiscal.configuracoes') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.fiscal.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
-                            <i class="fas fa-file-invoice-dollar mr-1.5 text-purple-500"></i> Configurações NF-e
-                        </a>
-                        <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                        <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-emerald-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-emerald-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos
+                        </a>
+                        <a href="{{ route('admin.fiscal.configuracoes') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-purple-600 hover:bg-white {{ request()->routeIs('admin.fiscal.*') ? 'font-bold text-purple-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-file-invoice-dollar mr-1.5 text-purple-500"></i> Configurações NF-e
                         </a>
 						@endif
                     </div>
                 </div>
 
-                {{-- 3. Produtos & Estoque --}}
+                {{-- 4. Produtos & Estoque --}}
                 <div x-data="{ open: {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -202,7 +229,7 @@
                     </div>
                 </div>
 
-                {{-- 4. Clientes & Atendimento --}}
+                {{-- 5. Clientes & Atendimento --}}
                 <div x-data="{ open: {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -231,7 +258,7 @@
                 </div>
 
 				@if(!$isBrecho)
-                {{-- 5. Financeiro --}}
+                {{-- 6. Financeiro --}}
                 <div x-data="{ 
                     open: {{ (request()->routeIs('financeiro.*') || request()->routeIs('classificacao_financeira.*')) ? 'true' : 'false' }},
                     openAnalises: {{ (request()->routeIs('financeiro.dashboard') || request()->routeIs('financeiro.fluxodecaixa') || request()->routeIs('financeiro.relatoriogerencial') || request()->routeIs('financeiro.dre') || request()->routeIs('financeiro.orcamento.*')) ? 'true' : 'false' }},
@@ -291,7 +318,7 @@
                     </div>
                 </div>
 
-                {{-- 6. Clube & Engajamento --}}
+                {{-- 7. Clube & Engajamento --}}
                 <div x-data="{ open: {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -314,7 +341,7 @@
                     </div>
                 </div>
 
-                {{-- 7. Relatórios --}}
+                {{-- 8. Relatórios --}}
                 <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -353,6 +380,11 @@
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('severino.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
 							<i class="fas fa-robot w-5 text-center text-indigo-500"></i>
 							<span>Severino AI</span>
+						</a>
+						<a href="{{ route('admin.severino.cliper') }}"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.severino.cliper*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
+							<i class="fas fa-share-nodes w-5 text-center text-pink-500"></i>
+							<span>Severino Cliper</span>
 						</a>
 						<a href="{{ route('admin.knowledge-base.index') ?? '#' }}"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.knowledge-base.*') ? 'bg-gray-100 font-bold text-indigo-600' : '' }}">
