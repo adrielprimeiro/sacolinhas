@@ -240,7 +240,7 @@ class BrechoController extends Controller
             ->leftJoin('lives', 'lives.id', '=', 'sacolinhas.live_id')
             ->whereIn('sacolinhas.item_id', $itemIds)
             ->where('sacolinhas.status', '!=', 'pedido')
-            ->select('sacolinhas.item_id', 'users.name as cliente_nome', 'lives.tema as live_tema', 'sacolinhas.created_at as sacolinha_data')
+            ->select('sacolinhas.item_id', 'users.name as cliente_nome', 'lives.data as live_data', 'lives.tipo_live', 'sacolinhas.created_at as sacolinha_data')
             ->get()
             ->keyBy('item_id');
 

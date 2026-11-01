@@ -334,9 +334,9 @@
                                     <div class="text-amber-800 font-semibold truncate max-w-[180px]">
                                         {{ $item->sacolinha_info->cliente_nome }}
                                     </div>
-                                    @if($item->sacolinha_info->live_tema)
+                                    @if($item->sacolinha_info->live_data)
                                         <div class="text-[10px] text-gray-400 truncate max-w-[180px]">
-                                            Live: {{ $item->sacolinha_info->live_tema }}
+                                            Live: {{ \Carbon\Carbon::parse($item->sacolinha_info->live_data)->format('d/m/Y') }}
                                         </div>
                                     @endif
                                 @else
