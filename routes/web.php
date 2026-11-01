@@ -1016,11 +1016,14 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
     Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
 
-    // Gestão de Brechós Parceiros
+    // Gestão de Brechós Parceiros & Consignação
     Route::get('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'index'])->name('brechos.index');
     Route::post('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'store'])->name('brechos.store');
     Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
     Route::post('brechos/{brecho}/operador', [\App\Http\Controllers\Admin\BrechoController::class, 'createOperator'])->name('brechos.createOperator');
+    Route::get('brechos/{brecho}/prestacao-contas', [\App\Http\Controllers\Admin\BrechoController::class, 'prestacaoContas'])->name('brechos.prestacao_contas');
+    Route::post('brechos/{brecho}/repasse', [\App\Http\Controllers\Admin\BrechoController::class, 'registrarRepasse'])->name('brechos.registrar_repasse');
+    Route::post('brechos/{brecho}/sincronizar-vendas', [\App\Http\Controllers\Admin\BrechoController::class, 'sincronizarVendasCarteira'])->name('brechos.sincronizar_vendas');
 
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');

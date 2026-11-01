@@ -148,6 +148,11 @@
                             @endif
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap text-right text-xs font-medium space-x-1">
+                            @if($b->id !== 1)
+                                <a href="{{ route('admin.brechos.prestacao_contas', $b) }}" class="text-emerald-800 hover:text-emerald-950 bg-emerald-100 px-2.5 py-1.5 rounded-lg hover:bg-emerald-200 transition font-bold inline-flex items-center border border-emerald-300 shadow-xs" title="Prestação de Contas, Vendas e Carteira">
+                                    <i class="fas fa-file-invoice-dollar mr-1.5 text-emerald-700"></i> Prestação de Contas
+                                </a>
+                            @endif
                             <a href="{{ route('items.index', ['brecho_id' => $b->id]) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition font-semibold inline-flex items-center" title="Ver itens deste brechó">
                                 <i class="fas fa-boxes mr-1"></i> Itens
                             </a>
