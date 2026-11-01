@@ -15,6 +15,10 @@ class Avaliacao extends Model
         'user_id',
         'pessoa_id',
         'tipo_compra',
+        'prefixo_codigo',
+        'parceiro_id',
+        'taxa_cadastro_peca',
+        'comissao_parceiro_porcentagem',
         'tipo_cliente',
         'frete',
         'pagamento_escolhido',
@@ -30,7 +34,17 @@ class Avaliacao extends Model
         'frete' => 'decimal:2',
         'total_venda' => 'decimal:2',
         'total_payout' => 'decimal:2',
+        'taxa_cadastro_peca' => 'decimal:2',
+        'comissao_parceiro_porcentagem' => 'decimal:2',
     ];
+
+    /**
+     * Relacionamento com o brechó parceiro (se for consignação/parceria).
+     */
+    public function parceiro()
+    {
+        return $this->belongsTo(Brecho::class, 'parceiro_id');
+    }
 
     /**
      * Relacionamento com o fornecedor (cliente).

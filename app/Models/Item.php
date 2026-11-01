@@ -16,6 +16,8 @@ class Item extends Model
 
     protected $fillable = [
         'brecho_id',
+        'parceiro_id',
+        'origem_parceiro',
         'codigo',
         'nome_do_produto',
         'descricao',
@@ -103,6 +105,14 @@ class Item extends Model
 			->orderBy('position')
 			->orderBy('id');
 	}
+
+    /**
+     * Relacionamento com Brechó Parceiro (Consignação).
+     */
+    public function parceiro()
+    {
+        return $this->belongsTo(Brecho::class, 'parceiro_id');
+    }
 
     /**
      * Relacionamento com Categorias

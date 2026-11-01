@@ -54,7 +54,8 @@ class AvaliacaoController extends Controller
         $clientes = Cliente::clientes()->orderBy('name')->get();
         $categorias = $this->getTreeCategoriesList();
         $marcas = \App\Models\Marca::orderBy('total_registros', 'desc')->orderBy('nome')->get();
-        return view('admin.avaliacoes.form', compact('clientes', 'categorias', 'marcas'));
+        $parceiros = \App\Models\Brecho::where('id', '!=', 1)->where('ativo', true)->orderBy('nome')->get();
+        return view('admin.avaliacoes.form', compact('clientes', 'categorias', 'marcas', 'parceiros'));
     }
 
     /**
@@ -155,7 +156,11 @@ class AvaliacaoController extends Controller
 
         $validator = Validator::make($request->all(), [
             'fornecedor_id' => 'required|string',
-            'tipo_compra' => 'required|in:avaliados,direta',
+            'tipo_compra' => 'required|in:avaliados,direta,parceria',
+            'prefixo_codigo' => 'nullable|string|max:6',
+            'parceiro_id' => 'nullable|exists:brechos,id',
+            'taxa_cadastro_peca' => 'nullable|numeric|min:0',
+            'comissao_parceiro_porcentagem' => 'nullable|numeric|min:0|max:100',
             'tipo_cliente' => 'required|in:clube,fora_clube',
             'frete' => 'nullable|numeric|min:0',
             'observacoes' => 'nullable|string',
@@ -226,10 +231,19 @@ class AvaliacaoController extends Controller
                 $userId = $pessoa->user_id;
             }
 
+            $prefixo = !empty($validated['prefixo_codigo']) ? strtoupper(trim($validated['prefixo_codigo'])) : null;
+            if ($validated['tipo_compra'] === 'parceria' && empty($prefixo)) {
+                $prefixo = 'PAR';
+            }
+
             $avaliacao = Avaliacao::create([
                 'user_id' => $userId,
                 'pessoa_id' => $pessoaId,
                 'tipo_compra' => $validated['tipo_compra'],
+                'prefixo_codigo' => $prefixo,
+                'parceiro_id' => $validated['parceiro_id'] ?? null,
+                'taxa_cadastro_peca' => $validated['taxa_cadastro_peca'] ?? 0.00,
+                'comissao_parceiro_porcentagem' => $validated['comissao_parceiro_porcentagem'] ?? 20.00,
                 'tipo_cliente' => $validated['tipo_cliente'],
                 'frete' => $frete,
                 'pagamento_escolhido' => 'pendente',
@@ -276,6 +290,20 @@ class AvaliacaoController extends Controller
                     $avItem->taxa_curadoria = 0.00;
                     $avItem->payout_credito = $itemData['preco_base'];
                     $avItem->payout_dinheiro = $itemData['preco_base'];
+                } elseif ($avaliacao->tipo_compra === 'parceria') {
+                    // Parceria/Consignação: Preço de venda é definido no cadastro da peça.
+                    // O repasse estimado é a % de comissão acordada (ex: 80% do valor de venda) menos a taxa de cadastro por peça
+                    $precoVendaItem = (!is_null($avItem->preco_venda) && $avItem->preco_venda > 0) ? $avItem->preco_venda : $avItem->preco_base;
+                    $avItem->preco_venda = $precoVendaItem;
+                    $avItem->taxa_curadoria = 0.00;
+                    
+                    $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+                    $repassePct = max(0, (100.00 - $comissaoPct) / 100.00);
+                    $taxaCad = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00);
+                    
+                    $payoutEstimado = max(0, ($precoVendaItem * $repassePct) - $taxaCad);
+                    $avItem->payout_credito = $payoutEstimado;
+                    $avItem->payout_dinheiro = $payoutEstimado;
                 } else {
                     $avItem->recalculate($fretePorItem, $avaliacao->tipo_cliente);
                 }
@@ -283,8 +311,7 @@ class AvaliacaoController extends Controller
                 $avItem->save();
 
                 $totalVenda += $avItem->preco_venda;
-                // Calculamos um payout temporário com base na preferência padrão (crédito)
-                $totalPayout += ($avaliacao->tipo_cliente === 'clube' ? $avItem->payout_credito : $avItem->payout_credito);
+                $totalPayout += $avItem->payout_dinheiro;
             }
 
             $avaliacao->update([
@@ -328,9 +355,10 @@ class AvaliacaoController extends Controller
         $clientes = Cliente::clientes()->orderBy('name')->get();
         $categorias = $this->getTreeCategoriesList();
         $marcas = \App\Models\Marca::orderBy('total_registros', 'desc')->orderBy('nome')->get();
-        $avaliacao->load('items');
+        $parceiros = \App\Models\Brecho::where('id', '!=', 1)->where('ativo', true)->orderBy('nome')->get();
+        $avaliacao->load(['items', 'parceiro']);
 
-        return view('admin.avaliacoes.form', compact('avaliacao', 'clientes', 'categorias', 'marcas'));
+        return view('admin.avaliacoes.form', compact('avaliacao', 'clientes', 'categorias', 'marcas', 'parceiros'));
     }
 
     /**
@@ -353,7 +381,11 @@ class AvaliacaoController extends Controller
 
         $validator = Validator::make($request->all(), [
             'fornecedor_id' => 'required|string',
-            'tipo_compra' => 'required|in:avaliados,direta',
+            'tipo_compra' => 'required|in:avaliados,direta,parceria',
+            'prefixo_codigo' => 'nullable|string|max:6',
+            'parceiro_id' => 'nullable|exists:brechos,id',
+            'taxa_cadastro_peca' => 'nullable|numeric|min:0',
+            'comissao_parceiro_porcentagem' => 'nullable|numeric|min:0|max:100',
             'tipo_cliente' => 'required|in:clube,fora_clube',
             'frete' => 'nullable|numeric|min:0',
             'observacoes' => 'nullable|string',
@@ -424,10 +456,19 @@ class AvaliacaoController extends Controller
                 $userId = $pessoa->user_id;
             }
 
+            $prefixo = !empty($validated['prefixo_codigo']) ? strtoupper(trim($validated['prefixo_codigo'])) : null;
+            if ($validated['tipo_compra'] === 'parceria' && empty($prefixo)) {
+                $prefixo = 'PAR';
+            }
+
             $avaliacao->update([
                 'user_id' => $userId,
                 'pessoa_id' => $pessoaId,
                 'tipo_compra' => $validated['tipo_compra'],
+                'prefixo_codigo' => $prefixo,
+                'parceiro_id' => $validated['parceiro_id'] ?? null,
+                'taxa_cadastro_peca' => $validated['taxa_cadastro_peca'] ?? 0.00,
+                'comissao_parceiro_porcentagem' => $validated['comissao_parceiro_porcentagem'] ?? 20.00,
                 'tipo_cliente' => $validated['tipo_cliente'],
                 'frete' => $frete,
                 'observacoes' => $validated['observacoes'] ?? null,
@@ -472,6 +513,18 @@ class AvaliacaoController extends Controller
                     $avItem->taxa_curadoria = 0.00;
                     $avItem->payout_credito = $itemData['preco_base'];
                     $avItem->payout_dinheiro = $itemData['preco_base'];
+                } elseif ($avaliacao->tipo_compra === 'parceria') {
+                    $precoVendaItem = (!is_null($avItem->preco_venda) && $avItem->preco_venda > 0) ? $avItem->preco_venda : $avItem->preco_base;
+                    $avItem->preco_venda = $precoVendaItem;
+                    $avItem->taxa_curadoria = 0.00;
+                    
+                    $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+                    $repassePct = max(0, (100.00 - $comissaoPct) / 100.00);
+                    $taxaCad = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00);
+                    
+                    $payoutEstimado = max(0, ($precoVendaItem * $repassePct) - $taxaCad);
+                    $avItem->payout_credito = $payoutEstimado;
+                    $avItem->payout_dinheiro = $payoutEstimado;
                 } else {
                     $avItem->recalculate($fretePorItem, $avaliacao->tipo_cliente);
                 }
@@ -479,7 +532,7 @@ class AvaliacaoController extends Controller
                 $avItem->save();
 
                 $totalVenda += $avItem->preco_venda;
-                $totalPayout += ($avaliacao->tipo_cliente === 'clube' ? $avItem->payout_credito : $avItem->payout_credito);
+                $totalPayout += $avItem->payout_dinheiro;
             }
 
             $avaliacao->update([
@@ -566,12 +619,26 @@ class AvaliacaoController extends Controller
 
                 // 1. Cadastra ou atualiza o item no estoque (tabela items) se o preço de venda > 0
                 if ($item->preco_venda > 0) {
-                    $uniqueCode = 'DES-' . $avaliacao->id . '-' . str_pad($seqIndex, 3, '0', STR_PAD_LEFT);
+                    $prefixoLote = $avaliacao->prefixo_codigo ?: 'DES';
+                    $uniqueCode = $prefixoLote . '-' . $avaliacao->id . '-' . str_pad($seqIndex, 3, '0', STR_PAD_LEFT);
                     $brechoId = $avaliacao->brecho_id ?: (auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1);
                     $marcaTxt = $item->marcaRel ? $item->marcaRel->nome : ($item->marca ?: 'Sem Marca');
 
+                    $parceiroNome = null;
+                    if ($avaliacao->tipo_compra === 'parceria') {
+                        if ($avaliacao->parceiro) {
+                            $parceiroNome = $avaliacao->parceiro->nome;
+                        } elseif ($avaliacao->pessoa) {
+                            $parceiroNome = $avaliacao->pessoa->nome;
+                        } elseif ($avaliacao->user) {
+                            $parceiroNome = $avaliacao->user->name;
+                        }
+                    }
+
                     $itemData = [
                         'brecho_id' => $brechoId,
+                        'parceiro_id' => $avaliacao->tipo_compra === 'parceria' ? $avaliacao->parceiro_id : null,
+                        'origem_parceiro' => $parceiroNome,
                         'codigo' => $uniqueCode,
                         'nome_do_produto' => $item->nome,
                         'custo' => $payout,
@@ -613,7 +680,9 @@ class AvaliacaoController extends Controller
             }
 
             // 2. Realiza o lançamento contábil/carteira do repasse
-            if ($totalPayout > 0) {
+            // NOTA: Se for do tipo 'parceria', é consignação. Não lança despesa no contas a pagar agora,
+            // pois o repasse só é feito após as peças serem vendidas e pagas pelas clientes!
+            if ($totalPayout > 0 && $avaliacao->tipo_compra !== 'parceria') {
                 if ($pagamento === 'credito') {
                     if (!$avaliacao->user_id) {
                         throw new \Exception("Apenas fornecedores do tipo 'Cliente do App' podem receber créditos na loja. Como este fornecedor é do tipo 'Pessoa do Financeiro', selecione a opção 'Dinheiro/PIX' para gerar o contas a pagar.");
@@ -739,11 +808,24 @@ class AvaliacaoController extends Controller
             
             $precoEtiqueta = $avaliacaoItem->item ? $avaliacaoItem->item->preco : $avaliacaoItem->preco_venda;
             
+            $avaliacao = $avaliacaoItem->avaliacao;
+            $nomeParceiro = null;
+            if ($avaliacao && $avaliacao->tipo_compra === 'parceria') {
+                if ($avaliacao->parceiro) {
+                    $nomeParceiro = $avaliacao->parceiro->nome;
+                } elseif ($avaliacao->pessoa) {
+                    $nomeParceiro = $avaliacao->pessoa->nome;
+                } elseif ($avaliacao->user) {
+                    $nomeParceiro = $avaliacao->user->name;
+                }
+            }
+
             $etiqueta = [
                 'codigo' => $codigo,
                 'produto' => strtoupper($marcaLabel) . '   ' . \Illuminate\Support\Str::title($avaliacaoItem->nome) . ' ' . \Illuminate\Support\Str::title($avaliacaoItem->cor) . ' [' . strtolower($avaliacaoItem->estado) . ']',
                 'tamanho' => trim($avaliacaoItem->tamanho),
-                'preco' => number_format($precoEtiqueta, 2, ',', '')
+                'parceiro' => $nomeParceiro,
+                'preco' => number_format($precoEtiqueta, 2, ',', '.')
             ];
 
             return response()->json([
@@ -911,13 +993,24 @@ class AvaliacaoController extends Controller
             ->get(['id', 'nome', 'documento']);
 
         // 1. Busca em Users (Clientes) - Prioridade
-        $users = User::where(function($q) use ($term) {
+        $cleanTerm = ltrim(trim($term), '@');
+        $cleanAlnum = strtolower(preg_replace('/[^a-zA-Z0-9À-ÿ]/u', '', $cleanTerm));
+        $users = User::where(function($q) use ($term, $cleanTerm, $cleanAlnum) {
                 $q->where('name', 'like', "%{$term}%")
+                  ->orWhere('nome_cliente', 'like', "%{$term}%")
                   ->orWhere('apelido', 'like', "%{$term}%")
-                  ->orWhere('tiktok', 'like', "%{$term}%")
-                  ->orWhere('instagram', 'like', "%{$term}%")
+                  ->orWhere('tiktok', 'like', "%{$cleanTerm}%")
+                  ->orWhere('instagram', 'like', "%{$cleanTerm}%")
+                  ->orWhere('email', 'like', "%{$term}%")
+                  ->orWhere('whatsapp', 'like', "%{$term}%")
                   ->orWhere('id', $term);
+                if (mb_strlen($cleanAlnum) >= 3) {
+                    $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(name, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"])
+                      ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(instagram, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"])
+                      ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(tiktok, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"]);
+                }
             })
+            ->orderByDesc('id')
             ->limit(20)
             ->get(['id', 'name', 'cpf', 'apelido']);
 

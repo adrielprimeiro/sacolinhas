@@ -206,7 +206,7 @@
                     <label for="skipA4" class="text-xs text-gray-500 pl-2">Pular:</label>
                     <input type="number" id="skipA4" min="0" max="29" value="0" class="w-12 px-1 py-1 text-sm border-none focus:ring-0 text-center" title="Etiquetas em branco p/ pular">
                     <button type="button" id="btnPrintSelectedA4" class="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-sm transition flex items-center border-l border-gray-300">
-                        <i class="fas fa-file-alt mr-2"></i> Imprimir A4
+                        <i class="fas fa-file-alt mr-2"></i> Imprimir Folha (CC180)
                     </button>
                 </div>
                 @endif
@@ -267,11 +267,19 @@
 
                             $detalhes = count($detalhesParts) ? implode(' • ', $detalhesParts) : '-';
 
+                            $nomeParceiro = null;
+                            if ($item->parceiro_id && $item->parceiro) {
+                                $nomeParceiro = $item->parceiro->nome;
+                            } elseif ($item->origem_parceiro) {
+                                $nomeParceiro = $item->origem_parceiro;
+                            }
+
                             $etiquetaData = [
                                 'codigo' => (string)$codigo,
                                 'produto' => strtoupper($marca ?: '') . '   ' . \Illuminate\Support\Str::title($nome) . ' ' . \Illuminate\Support\Str::title($cor ?: '') . ' [' . strtolower($estado ?: '') . ']',
                                 'tamanho' => (string)$tamanho,
-                                'preco' => number_format((float)$preco, 2, ',', '')
+                                'parceiro' => $nomeParceiro,
+                                'preco' => number_format((float)$preco, 2, ',', '.')
                             ];
                         @endphp
 
@@ -296,6 +304,13 @@
                                     <i class="fas fa-store mr-1 text-[10px]"></i>
                                     {{ $item->brecho->nome ?? 'Matriz' }}
                                 </span>
+                                @if ($item->origem_parceiro)
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Peça em Consignação">
+                                            <i class="fas fa-handshake mr-1"></i> {{ $item->origem_parceiro }}
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
                             @endif
 
@@ -571,6 +586,18 @@
                         gap: 0.1mm;
                         overflow: hidden;
                     }
+                    .parceiro-tag {
+                        font-weight: bold;
+                        font-size: 8px;
+                        background: #000;
+                        color: #fff;
+                        padding: 0.5px 3px;
+                        border-radius: 2px;
+                        margin-bottom: 0.5mm;
+                        display: inline-block;
+                        text-transform: uppercase;
+                        letter-spacing: 0.3px;
+                    }
                     .produto {
                         font-weight: normal;
                         font-size: 9px;
@@ -627,6 +654,7 @@
                     ${etiquetas.map(etiqueta => `
                         <div class="label">
                             <div class="left">
+                                ${etiqueta.parceiro ? `<div><span class="parceiro-tag">[PARCEIRO: ${etiqueta.parceiro.replace(/'/g, "\\'")}]</span></div>` : ''}
                                 <div>
                                     <span class="produto">- ${etiqueta.produto.replace(/'/g, "\\'")}</span>
                                 </div>
@@ -663,11 +691,21 @@
             printWindow.document.close();
         }
 
+        function escapeLabelHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         window.printLabelsA4 = function(etiquetasRaw) {
             const skipInput = document.getElementById('skipA4');
             const skip = skipInput ? (parseInt(skipInput.value) || 0) : 0;
             
-            const printWindow = window.open('', 'EtiquetasA4', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+            const printWindow = window.open('', 'EtiquetasCC180', 'width=1000,height=800,scrollbars=yes,resizable=yes');
             if (!printWindow) {
                 alert("Por favor, permita a abertura de pop-ups no seu navegador para imprimir as etiquetas.");
                 return;
@@ -675,7 +713,7 @@
             
             // Cria um novo array com os itens nulos no começo para dar o "pulo"
             let etiquetas = [];
-            for(let i = 0; i < skip; i++) {
+            for (let i = 0; i < skip; i++) {
                 etiquetas.push(null);
             }
             etiquetas = etiquetas.concat(etiquetasRaw);
@@ -686,27 +724,31 @@
                 pagesHtml += '<div class="page">';
                 pagesHtml += pageLabels.map(etiqueta => {
                     if (!etiqueta) {
-                        return '<div class="label-a4 empty-label"></div>';
+                        return '<div class="label-cc180 empty-label"></div>';
                     }
+                    const safeCodigo = escapeLabelHtml(etiqueta.codigo || '');
+                    const safeProduto = escapeLabelHtml(etiqueta.produto || '');
+                    const safeTamanho = escapeLabelHtml(etiqueta.tamanho || '');
+                    const safePreco = escapeLabelHtml(etiqueta.preco || '');
+                    const safeParceiro = escapeLabelHtml(etiqueta.parceiro || '');
+                    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(etiqueta.codigo || '')}&margin=1`;
+
                     return `
-                    <div class="label-a4">
-                        <div class="left-a4">
-                            <div>
-                                <span class="produto-a4">${etiqueta.produto.replace(/'/g, "\\'")}</span>
-                            </div>
-                            <div class="tamanho-a4">${etiqueta.tamanho ? etiqueta.tamanho : ''}</div>
-                            <div>
-                                <span class="preco-a4">Preço:  </span>
-                                <span class="valor-a4">${etiqueta.preco ? etiqueta.preco : ''}</span>
+                    <div class="label-cc180">
+                        <div class="left-cc180">
+                            ${safeParceiro ? `<div class="parceiro-tag-cc180">[${safeParceiro}]</div>` : ''}
+                            <span class="produto-cc180">${safeProduto}</span>
+                            <div class="tamanho-cc180">${safeTamanho}</div>
+                            <div class="preco-wrap-cc180">
+                                <span class="preco-label-cc180">Preço:</span>
+                                <span class="preco-valor-cc180">${safePreco}</span>
                             </div>
                         </div>
-                        <div class="right-a4">
-                        <img class="barcode-a4" 
-                             src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(etiqueta.codigo)}"
-                             alt="QR" 
-                             onload="this.style.opacity=1;" 
-                             style="opacity:0.5;" />
-                            <div class="codigoBarra-a4">${etiqueta.codigo}</div>
+                        <div class="right-cc180">
+                            <img class="barcode-cc180" 
+                                 src="${qrUrl}" 
+                                 alt="QR" />
+                            <div class="codigoBarra-cc180">${safeCodigo}</div>
                         </div>
                     </div>
                     `;
@@ -718,96 +760,155 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta charset="utf-8">
+                    <title>Etiquetas Colacril CC180</title>
                     <style>
                     @page {
-                        size: A4;
-                        margin: 21.2mm 4mm;
-                    }
-                    body {
+                        size: letter;
                         margin: 0;
-                        padding: 0;
-                        font-family: Arial, sans-serif;
-                        line-height: 1.05;
                     }
-                    .page {
-                        display: grid;
-                        grid-template-columns: repeat(3, 66.7mm);
-                        grid-template-rows: repeat(10, 25.4mm);
-                        column-gap: 2.1mm;
-                        row-gap: 0;
-                        page-break-after: always;
+                    * {
                         box-sizing: border-box;
                     }
-                    .label-a4 {
-                        width: 66.7mm;
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        background: #fff;
+                        font-family: Arial, Helvetica, sans-serif;
+                        line-height: 1.1;
+                        color: #000;
+                    }
+                    @media print {
+                        html, body {
+                            width: 215.9mm !important;
+                            height: 279.4mm !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        .page {
+                            page-break-after: always;
+                            break-after: page;
+                        }
+                        .page:last-child {
+                            page-break-after: avoid;
+                            break-after: avoid;
+                        }
+                    }
+                    /* Folha Carta (Letter) 215.9mm x 279.4mm - Modelo Colacril CC180 */
+                    .page {
+                        width: 215.9mm;
+                        height: 279.4mm;
+                        max-height: 279.4mm;
+                        padding-top: 12.6mm;
+                        padding-bottom: 12.8mm;
+                        padding-left: 5.2mm;
+                        padding-right: 5.3mm;
+                        display: grid;
+                        grid-template-columns: 66.8mm 66.8mm 66.8mm;
+                        grid-template-rows: repeat(10, 25.4mm);
+                        column-gap: 2.5mm;
+                        row-gap: 0;
+                        overflow: hidden;
+                    }
+                    .label-cc180 {
+                        width: 66.8mm;
                         height: 25.4mm;
+                        max-width: 66.8mm;
+                        max-height: 25.4mm;
                         display: flex;
                         flex-direction: row;
                         justify-content: space-between;
-                        align-items: flex-start;
-                        padding: 1mm 2mm;
-                        box-sizing: border-box;
+                        align-items: center;
+                        padding: 1.5mm 2.5mm;
                         overflow: hidden;
                     }
-                    .left-a4 {
-                        flex: 1.3;
+                    .empty-label {
+                        visibility: hidden;
+                    }
+                    .left-cc180 {
+                        flex: 1;
+                        min-width: 0;
                         display: flex;
                         flex-direction: column;
-                        justify-content: flex-start;
+                        justify-content: center;
                         align-items: flex-start;
                         height: 100%;
-                        gap: 0.1mm;
+                        gap: 0.5mm;
                         overflow: hidden;
+                        padding-right: 1.5mm;
                     }
-                    .produto-a4 {
+                    .parceiro-tag-cc180 {
+                        font-weight: bold;
+                        font-size: 7px;
+                        background: #000;
+                        color: #fff;
+                        padding: 0.5px 2px;
+                        border-radius: 2px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.2px;
+                        line-height: 1;
+                    }
+                    .produto-cc180 {
                         font-weight: normal;
                         font-size: 8px;
                         text-align: left;
-                        word-wrap: break-word;
+                        word-break: break-word;
                         white-space: normal;
                         margin: 0;
-                        line-height: 1.1;
+                        line-height: 1.15;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
                     }
-                    .tamanho-a4 {
+                    .tamanho-cc180 {
                         font-weight: bold;
-                        font-size: 16px;
-                        text-align: center;
-                        margin-top: 0 !important;
-                        margin-bottom: 0;
+                        font-size: 15px;
+                        text-align: left;
+                        margin: 0;
                         line-height: 1;
                     }
-                    .preco-a4 {
-                        font-weight: bold;
-                        font-size: 10px;
-                        margin-top: 0 !important;
+                    .preco-wrap-cc180 {
+                        display: flex;
+                        align-items: baseline;
+                        gap: 1mm;
                         white-space: nowrap;
                     }
-                    .valor-a4 {
-                        font-weight: normal;
-                        font-size: 10px;
-                        margin-top: 0 !important;
-                        margin-left: 0.5mm;
+                    .preco-label-cc180 {
+                        font-weight: bold;
+                        font-size: 9px;
                     }
-                    .right-a4 {
-                        flex: 0 0 16mm;
+                    .preco-valor-cc180 {
+                        font-weight: normal;
+                        font-size: 9px;
+                    }
+                    .right-cc180 {
+                        flex: 0 0 17mm;
+                        width: 17mm;
                         display: flex;
                         flex-direction: column;
-                        align-items: flex-end;
+                        align-items: center;
+                        justify-content: center;
                         height: 100%;
-                        gap: 0.1mm;
+                        gap: 0.5mm;
                     }
-                    .barcode-a4 {
-                        width: 16mm;
-                        height: 16mm;
+                    .barcode-cc180 {
+                        width: 15mm;
+                        height: 15mm;
+                        display: block;
+                        object-fit: contain;
                     }
-                    .codigoBarra-a4 {
-                        font-weight: normal;
+                    .codigoBarra-cc180 {
+                        font-weight: bold;
                         font-size: 8px;
                         text-align: center;
-                        margin-top: 0 !important;
-                    }
-                    @media print {
-                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        line-height: 1;
+                        width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
                     </style>
                 </head>
@@ -815,10 +916,41 @@
                     ${pagesHtml}
                     <script>
                         window.onload = function() {
-                            setTimeout(function() {
-                                window.focus();
-                                window.print();
-                            }, 500);
+                            const images = Array.from(document.querySelectorAll('img.barcode-cc180'));
+                            let printed = false;
+                            const doPrint = function() {
+                                if (printed) return;
+                                printed = true;
+                                setTimeout(function() {
+                                    window.focus();
+                                    window.print();
+                                }, 250);
+                            };
+
+                            if (images.length === 0) {
+                                doPrint();
+                                return;
+                            }
+
+                            let loadedCount = 0;
+                            const onDone = function() {
+                                loadedCount++;
+                                if (loadedCount >= images.length) {
+                                    doPrint();
+                                }
+                            };
+
+                            images.forEach(img => {
+                                if (img.complete && img.naturalHeight !== 0) {
+                                    onDone();
+                                } else {
+                                    img.addEventListener('load', onDone);
+                                    img.addEventListener('error', onDone);
+                                }
+                            });
+
+                            // Timeout de contingencia
+                            setTimeout(doPrint, 2500);
                         };
                     <\/script>
                 </body>

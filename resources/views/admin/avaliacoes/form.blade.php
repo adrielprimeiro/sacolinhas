@@ -54,12 +54,17 @@
         window.avaliacaoConfig = {
             categorias: @json($categorias),
             marcas: @json($marcas),
+            parceiros: @json($parceiros ?? []),
             editingAvaliacao: @json(isset($avaliacao) ? $avaliacao : null),
             editingItems: @json(isset($avaliacao) ? $avaliacao->items : []),
             oldItemsJson: @json(old('items_json', '')),
             oldFornecedorId: @json(old('fornecedor_id', '')),
             oldTipoCliente: @json(old('tipo_cliente', '')),
             oldTipoCompra: @json(old('tipo_compra', '')),
+            oldPrefixoCodigo: @json(old('prefixo_codigo', '')),
+            oldParceiroId: @json(old('parceiro_id', '')),
+            oldTaxaCadastroPeca: @json(old('taxa_cadastro_peca', '')),
+            oldComissaoParceiroPorcentagem: @json(old('comissao_parceiro_porcentagem', '')),
             oldFrete: @json(old('frete', '')),
             oldObservacoes: @json(old('observacoes', ''))
         };
@@ -151,11 +156,12 @@
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         <option value="avaliados">Avaliados (Avaliação e Precificação de Desapegos)</option>
                         <option value="direta">Compra Direta (Multiplica pelo Markup Contábil)</option>
+                        <option value="parceria">Parceria / Consignação (Peças de Brechós Parceiros)</option>
                     </select>
                 </div>
 
                 {{-- Custo de Frete --}}
-                <div>
+                <div x-show="tipoCompra !== 'parceria'">
                     <label for="frete_display" class="block text-sm font-medium text-gray-700 mb-1">Custo de Frete Total (R$)</label>
                     <input type="text" id="frete_display" x-model="freteRaw" 
                            @input="updateFrete()"
@@ -163,6 +169,46 @@
                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                            placeholder="0,00">
                     <input type="hidden" name="frete" :value="frete">
+                </div>
+
+                {{-- Configurações exclusivas de Parceria / Consignação --}}
+                <div x-show="tipoCompra === 'parceria'" x-cloak class="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-4 transition-all">
+                    <div class="flex items-center gap-2 mb-3 text-indigo-900 font-bold text-sm">
+                        <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Brechó Parceiro <span class="text-red-500">*</span></label>
+                            <select name="parceiro_id" x-model="parceiroId" @change="onParceiroChange()"
+                                    class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+                                <option value="">Selecione o Parceiro...</option>
+                                <template x-for="p in parceiros" :key="p.id">
+                                    <option :value="p.id" x-text="p.nome" :selected="p.id == parceiroId"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Prefixo do Código (SKU)</label>
+                            <input type="text" name="prefixo_codigo" x-model="prefixoCodigo" maxlength="6"
+                                   placeholder="Ex: TCB, BDM"
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 font-bold uppercase text-xs focus:ring-indigo-500 focus:border-indigo-500">
+                            <span class="text-[10px] text-gray-500">Ex: TCB-00089-001</span>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Taxa Cadastro / Peça (R$)</label>
+                            <input type="text" x-model="taxaCadastroPecaRaw" @input="updateTaxaCadastro()" @blur="formatTaxaCadastro()"
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+                            <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
+                            <span class="text-[10px] text-gray-500">Custo de catalogação cobrado</span>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 mb-1">Comissão da Mania (%)</label>
+                            <input type="number" step="0.5" min="0" max="100" name="comissao_parceiro_porcentagem" 
+                                   x-model="comissaoParceiroPorcentagem" @input="recalculateAll()"
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+                            <span class="text-[10px] text-gray-500">% sobre venda (Padrão 20%)</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -504,6 +550,12 @@ function evaluationForm(config) {
     return {
         categorias: config.categorias,
         marcas: config.marcas,
+        parceiros: config.parceiros || [],
+        parceiroId: '',
+        prefixoCodigo: 'PAR',
+        taxaCadastroPeca: 1.80,
+        taxaCadastroPecaRaw: '1,80',
+        comissaoParceiroPorcentagem: 20.00,
         frete: 0.00,
         freteRaw: '0,00',
         observacoes: '',
@@ -572,6 +624,34 @@ function evaluationForm(config) {
             };
         },
 
+        onParceiroChange() {
+            if (!this.parceiroId) return;
+            const p = this.parceiros.find(x => x.id == this.parceiroId);
+            if (p && p.nome) {
+                const words = p.nome.trim().split(/\s+/);
+                let acronym = '';
+                if (words.length >= 3) {
+                    acronym = (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+                } else if (words.length === 2) {
+                    acronym = (words[0].substring(0, 2) + words[1][0]).toUpperCase();
+                } else {
+                    acronym = words[0].substring(0, 3).toUpperCase();
+                }
+                this.prefixoCodigo = acronym;
+            }
+            this.recalculateAll();
+        },
+
+        updateTaxaCadastro() {
+            let val = (this.taxaCadastroPecaRaw || '').replace(/[^\d,.-]/g, '').replace(',', '.');
+            this.taxaCadastroPeca = parseFloat(val) || 0.00;
+            this.recalculateAll();
+        },
+
+        formatTaxaCadastro() {
+            this.taxaCadastroPecaRaw = parseFloat(this.taxaCadastroPeca || 0).toFixed(2).replace('.', ',');
+        },
+
         persistToLocalStorage() {
             if (config.editingAvaliacao) return;
             const valid = this.items.filter(i => (i.nome && i.nome.trim()) || i.categoria_id || i.preco_base > 0);
@@ -583,6 +663,10 @@ function evaluationForm(config) {
                     fornecedorText: userSearchEl ? userSearchEl.value : '',
                     tipoCliente: this.tipoCliente,
                     tipoCompra: this.tipoCompra,
+                    parceiroId: this.parceiroId,
+                    prefixoCodigo: this.prefixoCodigo,
+                    taxaCadastroPeca: this.taxaCadastroPeca,
+                    comissaoParceiroPorcentagem: this.comissaoParceiroPorcentagem,
                     frete: this.frete,
                     observacoes: this.observacoes,
                     items: valid
@@ -608,6 +692,11 @@ function evaluationForm(config) {
                 this.fornecedorId = av.pessoa_id ? 'pessoa_' + av.pessoa_id : (av.user_id ? 'user_' + av.user_id : '');
                 this.tipoCliente = av.tipo_cliente || 'fora_clube';
                 this.tipoCompra = av.tipo_compra || 'avaliados';
+                this.parceiroId = av.parceiro_id || '';
+                this.prefixoCodigo = av.prefixo_codigo || 'PAR';
+                this.taxaCadastroPeca = parseFloat(av.taxa_cadastro_peca !== null && av.taxa_cadastro_peca !== undefined ? av.taxa_cadastro_peca : 1.80);
+                this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
+                this.comissaoParceiroPorcentagem = parseFloat(av.comissao_parceiro_porcentagem !== null && av.comissao_parceiro_porcentagem !== undefined ? av.comissao_parceiro_porcentagem : 20.00);
                 this.items = (config.editingItems || []).map(item => this.mapLoadedItem(item));
             } else {
                 let loaded = false;
@@ -633,6 +722,19 @@ function evaluationForm(config) {
                 if (config.oldTipoCompra) {
                     this.tipoCompra = config.oldTipoCompra;
                 }
+                if (config.oldParceiroId) {
+                    this.parceiroId = config.oldParceiroId;
+                }
+                if (config.oldPrefixoCodigo) {
+                    this.prefixoCodigo = config.oldPrefixoCodigo;
+                }
+                if (config.oldTaxaCadastroPeca !== null && config.oldTaxaCadastroPeca !== '') {
+                    this.taxaCadastroPeca = parseFloat(config.oldTaxaCadastroPeca || 1.80);
+                    this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
+                }
+                if (config.oldComissaoParceiroPorcentagem !== null && config.oldComissaoParceiroPorcentagem !== '') {
+                    this.comissaoParceiroPorcentagem = parseFloat(config.oldComissaoParceiroPorcentagem || 20.00);
+                }
                 if (config.oldFrete) {
                     this.frete = parseFloat(config.oldFrete || 0);
                     this.freteRaw = this.frete.toFixed(2).replace('.', ',');
@@ -657,6 +759,19 @@ function evaluationForm(config) {
                                 }
                                 if (draft.tipoCompra && !config.oldTipoCompra) {
                                     this.tipoCompra = draft.tipoCompra;
+                                }
+                                if (draft.parceiroId && !config.oldParceiroId) {
+                                    this.parceiroId = draft.parceiroId;
+                                }
+                                if (draft.prefixoCodigo && !config.oldPrefixoCodigo) {
+                                    this.prefixoCodigo = draft.prefixoCodigo;
+                                }
+                                if (draft.taxaCadastroPeca !== undefined && !config.oldTaxaCadastroPeca) {
+                                    this.taxaCadastroPeca = parseFloat(draft.taxaCadastroPeca || 1.80);
+                                    this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
+                                }
+                                if (draft.comissaoParceiroPorcentagem !== undefined && !config.oldComissaoParceiroPorcentagem) {
+                                    this.comissaoParceiroPorcentagem = parseFloat(draft.comissaoParceiroPorcentagem || 20.00);
                                 }
                                 if (draft.fornecedorText && document.getElementById('user_search')) {
                                     document.getElementById('user_search').value = draft.fornecedorText;
@@ -1051,6 +1166,18 @@ function evaluationForm(config) {
                 item.taxa_curadoria = 0.00;
                 item.payout_credito = parseFloat(item.preco_base || 0);
                 item.payout_dinheiro = parseFloat(item.preco_base || 0);
+            } else if (this.tipoCompra === 'parceria') {
+                if (!skipVendaCalc && !item.venda_editada) {
+                    item.preco_venda = parseFloat(item.preco_base || 0);
+                }
+                item.taxa_curadoria = 0.00;
+                const comissaoPct = parseFloat(this.comissaoParceiroPorcentagem !== null && this.comissaoParceiroPorcentagem !== undefined ? this.comissaoParceiroPorcentagem : 20.00);
+                const repassePct = Math.max(0, (100.00 - comissaoPct) / 100.00);
+                const taxaCad = parseFloat(this.taxaCadastroPeca || 0.00);
+                const precoV = parseFloat(item.preco_venda || 0);
+                const payoutEstimado = Math.max(0, (precoV * repassePct) - taxaCad);
+                item.payout_credito = payoutEstimado;
+                item.payout_dinheiro = payoutEstimado;
             } else {
                 const brand = this.marcas.find(m => m.id == item.marca_id);
                 const brandPct = brand ? parseFloat(brand.porcentagem_valor) : 100.00;
@@ -1112,6 +1239,12 @@ function evaluationForm(config) {
             if (!this.fornecedorId) {
                 alert('Por favor, selecione um Fornecedor / Cliente válido pesquisando pelo nome.');
                 document.getElementById('user_search')?.focus();
+                return;
+            }
+
+            // 1.1 Validar Parceiro se for Consignação
+            if (this.tipoCompra === 'parceria' && !this.parceiroId) {
+                alert('Por favor, selecione o Brechó Parceiro para este lote de consignação.');
                 return;
             }
 

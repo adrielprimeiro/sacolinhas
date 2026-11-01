@@ -73,6 +73,7 @@
                     <option value="">Todos</option>
                     <option value="avaliados" {{ request('tipo_compra') === 'avaliados' ? 'selected' : '' }}>Avaliados (Brechó/Desapego)</option>
                     <option value="direta" {{ request('tipo_compra') === 'direta' ? 'selected' : '' }}>Compra Direta (Estoque)</option>
+                    <option value="parceria" {{ request('tipo_compra') === 'parceria' ? 'selected' : '' }}>Parceria / Consignação</option>
                 </select>
             </div>
 
@@ -119,8 +120,16 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">
-                                    {{ $av->tipo_compra === 'avaliados' ? 'Avaliados (Brechó)' : 'Compra Direta' }}
+                                <div class="text-sm text-gray-900 font-medium">
+                                    @if ($av->tipo_compra === 'parceria')
+                                        <span class="inline-flex items-center gap-1.5 text-indigo-700 font-semibold">
+                                            <i class="fas fa-handshake"></i> Parceria ({{ $av->parceiro ? $av->parceiro->nome : ($av->prefixo_codigo ?: 'Consignado') }})
+                                        </span>
+                                    @elseif ($av->tipo_compra === 'avaliados')
+                                        Avaliados (Brechó)
+                                    @else
+                                        Compra Direta
+                                    @endif
                                 </div>
                                 <div class="text-xs text-gray-400 mt-0.5">
                                     @if ($av->status === 'finalizada')
@@ -258,9 +267,9 @@
                 <div class="mb-5">
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Opção de Pagamento</label>
                     
-                    <div class="space-y-3">
+                    <div class="space-y-3" x-show="activeFinalizeTipoCompra !== 'parceria'">
                         <label x-show="activeFinalizeIsUser" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="pagamento_escolhido" value="credito" x-model="pagamentoSelecionado" class="text-blue-600 focus:ring-blue-500">
+                            <input type="radio" name="pagamento_escolhido" value="credito" x-model="pagamentoSelecionado" :disabled="activeFinalizeTipoCompra === 'parceria'" class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="block text-sm font-semibold text-gray-900">
                                     Créditos na Loja 
@@ -272,7 +281,7 @@
                         </label>
                         
                         <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                            <input type="radio" name="pagamento_escolhido" value="dinheiro" x-model="pagamentoSelecionado" class="text-blue-600 focus:ring-blue-500">
+                            <input type="radio" name="pagamento_escolhido" value="dinheiro" x-model="pagamentoSelecionado" :disabled="activeFinalizeTipoCompra === 'parceria'" class="text-blue-600 focus:ring-blue-500">
                             <div>
                                 <span class="block text-sm font-semibold text-gray-900">
                                     Dinheiro/PIX imediato 
@@ -282,6 +291,19 @@
                                 <span class="block text-xs text-gray-500">Lança uma despesa paga no caixa do sistema financeiro.</span>
                             </div>
                         </label>
+                    </div>
+
+                    <div x-show="activeFinalizeTipoCompra === 'parceria'" class="bg-indigo-50 border border-indigo-200 rounded-lg p-3.5 text-xs text-indigo-900 space-y-2">
+                        <div class="font-bold flex items-center gap-1.5 text-indigo-800">
+                            <i class="fas fa-handshake"></i> Lote em Parceria & Consignação
+                        </div>
+                        <p class="text-indigo-700">
+                            Ao efetivar este lote, todas as peças serão disponibilizadas no estoque da <strong>Mania</strong> com o prefixo e identificação do parceiro.
+                        </p>
+                        <p class="text-[11px] text-gray-600 italic">
+                            * Como se trata de consignação, <strong>nenhuma saída financeira</strong> é lançada de imediato. O repasse será realizado após a venda e faturamento dos itens.
+                        </p>
+                        <input type="hidden" name="pagamento_escolhido" value="dinheiro" :disabled="activeFinalizeTipoCompra !== 'parceria'">
                     </div>
                 </div>
 
