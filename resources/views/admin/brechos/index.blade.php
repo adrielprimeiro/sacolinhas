@@ -38,27 +38,27 @@
         </button>
     </div>
 
-    <!-- Tabela de Brechós com Scroll Horizontal e Colunas Visíveis -->
-    <div class="bg-white shadow sm:rounded-xl border border-gray-200 overflow-hidden">
+    <!-- Tabela de Brechós com Colunas Ajustadas e Visíveis -->
+    <div class="bg-white shadow sm:rounded-xl border border-gray-200">
         <div class="overflow-x-auto w-full">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                     <tr>
-                        <th scope="col" class="px-4 py-3 text-left w-12">ID</th>
-                        <th scope="col" class="px-5 py-3 text-left">Nome do Brechó</th>
-                        <th scope="col" class="px-5 py-3 text-left">Regras de Consignação</th>
-                        <th scope="col" class="px-5 py-3 text-left">Contato / Pix</th>
-                        <th scope="col" class="px-4 py-3 text-left">Estoque</th>
-                        <th scope="col" class="px-5 py-3 text-left">Operadores (Login)</th>
-                        <th scope="col" class="px-4 py-3 text-center">Status</th>
-                        <th scope="col" class="px-5 py-3 text-right">Ações</th>
+                        <th scope="col" class="px-3 py-3 text-left w-12">ID</th>
+                        <th scope="col" class="px-4 py-3 text-left">Nome do Brechó</th>
+                        <th scope="col" class="px-4 py-3 text-left">Regras de Consignação</th>
+                        <th scope="col" class="px-4 py-3 text-left">Contato / Pix</th>
+                        <th scope="col" class="px-3 py-3 text-left">Estoque</th>
+                        <th scope="col" class="px-4 py-3 text-left">Operadores (Login)</th>
+                        <th scope="col" class="px-3 py-3 text-center">Status</th>
+                        <th scope="col" class="px-4 py-3 text-right">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($brechos as $b)
                     <tr class="hover:bg-gray-50/70 transition-colors">
-                        <td class="px-4 py-4 whitespace-nowrap text-xs font-bold text-gray-400">#{{ $b->id }}</td>
-                        <td class="px-5 py-4 whitespace-nowrap">
+                        <td class="px-3 py-4 whitespace-nowrap text-xs font-bold text-gray-400">#{{ $b->id }}</td>
+                        <td class="px-4 py-4">
                             <div class="text-sm font-bold text-gray-900 flex items-center gap-2">
                                 <i class="fas fa-store text-indigo-500"></i>
                                 {{ $b->nome }}
@@ -70,7 +70,7 @@
                             </div>
                             <div class="text-xs text-gray-400 mt-0.5">slug: {{ $b->slug }} | {{ $b->lives_count }} lives</div>
                         </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-xs">
+                        <td class="px-4 py-4 text-xs">
                             @if($b->id === 1)
                                 <span class="inline-flex items-center text-[11px] font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">
                                     <i class="fas fa-warehouse mr-1.5 text-gray-400"></i> Estoque Próprio
@@ -88,10 +88,20 @@
                                     <div class="text-[11px] text-gray-600">
                                         Comissão: <strong class="text-emerald-700">{{ number_format((float)($b->comissao_porcentagem ?: 20.00), 1, ',', '.') }}%</strong> Mania
                                     </div>
+                                    @if($b->fornecedor_id)
+                                        <div class="text-[11px] text-indigo-900 font-semibold flex items-center gap-1 mt-1 bg-indigo-50/90 px-1.5 py-0.5 rounded border border-indigo-200 max-w-[200px] truncate" title="{{ $b->fornecedor_nome ?: $b->fornecedor_id }}">
+                                            <i class="fas fa-link text-[10px] text-indigo-600 flex-shrink-0"></i>
+                                            <span class="truncate">Forn: {{ $b->fornecedor_nome ?: $b->fornecedor_id }}</span>
+                                        </div>
+                                    @else
+                                        <div class="text-[10px] text-gray-400 mt-1 italic flex items-center gap-1">
+                                            <i class="fas fa-unlink text-[10px]"></i> Sem forn. vinculado
+                                        </div>
+                                    @endif
                                 </div>
                             @endif
                         </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-xs text-gray-500">
+                        <td class="px-4 py-4 text-xs text-gray-500">
                             <div class="font-medium text-gray-800">{{ $b->whatsapp ?: ($b->telefone ?: 'Não informado') }}</div>
                             @if($b->chave_pix)
                                 <div class="text-[11px] text-emerald-700 mt-0.5 flex items-center gap-1">
@@ -99,26 +109,30 @@
                                 </div>
                             @endif
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">
                             <a href="{{ route('items.index', ['brecho_id' => $b->id]) }}" class="text-indigo-600 hover:text-indigo-800 font-bold hover:underline inline-flex items-center gap-1.5" title="Ver itens deste brechó">
                                 <i class="fas fa-tshirt text-xs text-indigo-400"></i>
                                 {{ $b->items_count }} itens
                                 <i class="fas fa-external-link-alt text-[10px] opacity-60"></i>
                             </a>
                         </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-xs">
+                        <td class="px-4 py-4 text-xs">
                             @php
                                 $operadores = $b->operadores();
                             @endphp
                             @if($operadores->count() > 0)
-                                <div class="space-y-1">
-                                    @foreach($operadores as $u)
-                                        <div class="flex items-center gap-1.5 text-gray-700">
-                                            <i class="fas fa-user-circle text-indigo-500"></i>
-                                            <span class="font-semibold">{{ $u->name }}</span>
-                                            <span class="text-gray-400 text-[11px]">({{ $u->email }})</span>
+                                <div class="space-y-1 max-w-[210px]">
+                                    @foreach($operadores->take(2) as $u)
+                                        <div class="flex items-center gap-1.5 text-gray-700 truncate" title="{{ $u->name }} ({{ $u->email }})">
+                                            <i class="fas fa-user-circle text-indigo-500 text-xs flex-shrink-0"></i>
+                                            <span class="font-semibold text-xs truncate">{{ $u->name }}</span>
                                         </div>
                                     @endforeach
+                                    @if($operadores->count() > 2)
+                                        <div class="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200" title="{{ $operadores->pluck('name')->join(', ') }}">
+                                            <i class="fas fa-users text-[10px]"></i> +{{ $operadores->count() - 2 }} outros operadores
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <span class="inline-flex items-center text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -126,14 +140,14 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap text-center">
+                        <td class="px-3 py-4 whitespace-nowrap text-center">
                             @if($b->ativo)
                                 <span class="px-2.5 py-1 inline-flex text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800">Ativo</span>
                             @else
                                 <span class="px-2.5 py-1 inline-flex text-[11px] font-bold rounded-full bg-red-100 text-red-800">Inativo</span>
                             @endif
                         </td>
-                        <td class="px-5 py-4 whitespace-nowrap text-right text-xs font-medium space-x-1">
+                        <td class="px-4 py-4 whitespace-nowrap text-right text-xs font-medium space-x-1">
                             <a href="{{ route('items.index', ['brecho_id' => $b->id]) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition font-semibold inline-flex items-center" title="Ver itens deste brechó">
                                 <i class="fas fa-boxes mr-1"></i> Itens
                             </a>
@@ -201,7 +215,7 @@
                             </div>
 
                             {{-- Card Configuração da Parceria & Consignação --}}
-                            <div class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3">
+                            <div class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3" x-data="fornecedorPicker()">
                                 <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
                                     <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
                                 </h4>
@@ -222,6 +236,45 @@
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Comissão Mania (%)</label>
                                         <input type="number" step="0.5" min="0" max="100" name="comissao_porcentagem" value="20.00" class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs py-2 px-2.5 bg-white font-medium">
                                         <span class="text-[10px] text-gray-500">Padrão: 20%</span>
+                                    </div>
+                                </div>
+
+                                {{-- Vínculo Fornecedor Mania --}}
+                                <div class="pt-2 border-t border-indigo-200/60 relative">
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1">
+                                        Fornecedor Vinculado (Minha Mania)
+                                        <span class="text-[10px] text-gray-500 font-normal ml-1">— Trava as regras comerciais na Nova Avaliação</span>
+                                    </label>
+                                    <div class="relative">
+                                        <div class="relative flex items-center">
+                                            <input type="text" x-model="searchQuery" @input.debounce.250ms="search()" @focus="if(results.length > 0) showDropdown = true"
+                                                   placeholder="Buscar fornecedor/cliente (ex: Taco balaio, Val...)"
+                                                   class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs py-2 pl-3 pr-8 bg-white">
+                                            <button type="button" x-show="selectedId" @click="clear()" class="absolute right-2 text-gray-400 hover:text-red-500 text-xs" title="Remover vínculo">
+                                                <i class="fas fa-times-circle"></i>
+                                            </button>
+                                        </div>
+                                        <input type="hidden" name="fornecedor_id" :value="selectedId">
+                                        <input type="hidden" name="fornecedor_nome" :value="selectedNome">
+                                        
+                                        <div x-show="selectedId" x-cloak class="mt-1 flex items-center justify-between text-[11px] text-indigo-900 bg-white px-2 py-1 rounded border border-indigo-200 shadow-xs">
+                                            <div class="flex items-center gap-1.5 truncate">
+                                                <i class="fas fa-check-circle text-emerald-600 text-xs"></i>
+                                                <span class="truncate">Vinculado a: <strong class="text-indigo-950 font-bold" x-text="selectedNome"></strong> (<span class="font-mono text-[10px] text-gray-500" x-text="selectedId"></span>)</span>
+                                            </div>
+                                            <button type="button" @click="clear()" class="text-gray-400 hover:text-red-600 ml-2 text-[10px] font-semibold">Desvincular</button>
+                                        </div>
+
+                                        <div x-show="showDropdown && results.length > 0" x-cloak @click.away="showDropdown = false" class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                                            <template x-for="r in results" :key="r.id">
+                                                <button type="button" @click="select(r)" class="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 border-b border-gray-100 flex items-center justify-between text-gray-900 transition-colors">
+                                                    <div>
+                                                        <span class="font-medium text-gray-900" x-text="r.text"></span>
+                                                    </div>
+                                                    <span class="text-[10px] text-gray-500 font-mono flex-shrink-0 ml-2" x-text="r.id"></span>
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -308,7 +361,7 @@
                             </div>
 
                             {{-- Card Configuração da Parceria & Consignação --}}
-                            <div class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3" x-show="editBrecho.id != 1">
+                            <div class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3" x-show="editBrecho.id != 1" x-data="fornecedorPicker()">
                                 <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
                                     <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
                                 </h4>
@@ -329,6 +382,45 @@
                                         <label class="block text-xs font-medium text-gray-700 mb-1">Comissão Mania (%)</label>
                                         <input type="number" step="0.5" min="0" max="100" name="comissao_porcentagem" x-model="editBrecho.comissao_porcentagem" class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs py-2 px-2.5 bg-white font-medium">
                                         <span class="text-[10px] text-gray-500">Padrão: 20%</span>
+                                    </div>
+                                </div>
+
+                                {{-- Vínculo Fornecedor Mania --}}
+                                <div class="pt-2 border-t border-indigo-200/60 relative">
+                                    <label class="block text-xs font-semibold text-gray-700 mb-1">
+                                        Fornecedor Vinculado (Minha Mania)
+                                        <span class="text-[10px] text-gray-500 font-normal ml-1">— Trava as regras comerciais na Nova Avaliação</span>
+                                    </label>
+                                    <div class="relative">
+                                        <div class="relative flex items-center">
+                                            <input type="text" x-model="searchQuery" @input.debounce.250ms="search()" @focus="if(results.length > 0) showDropdown = true"
+                                                   placeholder="Buscar fornecedor/cliente (ex: Taco balaio, Val...)"
+                                                   class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs py-2 pl-3 pr-8 bg-white">
+                                            <button type="button" x-show="selectedId" @click="clear()" class="absolute right-2 text-gray-400 hover:text-red-500 text-xs" title="Remover vínculo">
+                                                <i class="fas fa-times-circle"></i>
+                                            </button>
+                                        </div>
+                                        <input type="hidden" name="fornecedor_id" :value="selectedId">
+                                        <input type="hidden" name="fornecedor_nome" :value="selectedNome">
+                                        
+                                        <div x-show="selectedId" x-cloak class="mt-1 flex items-center justify-between text-[11px] text-indigo-900 bg-white px-2 py-1 rounded border border-indigo-200 shadow-xs">
+                                            <div class="flex items-center gap-1.5 truncate">
+                                                <i class="fas fa-check-circle text-emerald-600 text-xs"></i>
+                                                <span class="truncate">Vinculado a: <strong class="text-indigo-950 font-bold" x-text="selectedNome"></strong> (<span class="font-mono text-[10px] text-gray-500" x-text="selectedId"></span>)</span>
+                                            </div>
+                                            <button type="button" @click="clear()" class="text-gray-400 hover:text-red-600 ml-2 text-[10px] font-semibold">Desvincular</button>
+                                        </div>
+
+                                        <div x-show="showDropdown && results.length > 0" x-cloak @click.away="showDropdown = false" class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                                            <template x-for="r in results" :key="r.id">
+                                                <button type="button" @click="select(r)" class="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 border-b border-gray-100 flex items-center justify-between text-gray-900 transition-colors">
+                                                    <div>
+                                                        <span class="font-medium text-gray-900" x-text="r.text"></span>
+                                                    </div>
+                                                    <span class="text-[10px] text-gray-500 font-mono flex-shrink-0 ml-2" x-text="r.id"></span>
+                                                </button>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -394,4 +486,55 @@
         </div>
     </div>
 </div>
+
+<script>
+function fornecedorPicker(initialId = '', initialNome = '') {
+    return {
+        selectedId: initialId || '',
+        selectedNome: initialNome || '',
+        searchQuery: initialNome || '',
+        results: [],
+        showDropdown: false,
+        loading: false,
+        init() {
+            this.$watch('$data.editBrecho', (b) => {
+                if (b && typeof b === 'object') {
+                    this.selectedId = b.fornecedor_id || '';
+                    this.selectedNome = b.fornecedor_nome || '';
+                    this.searchQuery = b.fornecedor_nome || '';
+                }
+            });
+        },
+        search() {
+            if (!this.searchQuery || this.searchQuery.trim().length < 2) {
+                this.results = [];
+                this.showDropdown = false;
+                return;
+            }
+            this.loading = true;
+            fetch('/admin/avaliacoes/search-fornecedor-cliente?q=' + encodeURIComponent(this.searchQuery))
+                .then(r => r.json())
+                .then(data => {
+                    this.results = Array.isArray(data) ? data : (data.data || []);
+                    this.showDropdown = this.results.length > 0;
+                })
+                .catch(() => { this.results = []; })
+                .finally(() => { this.loading = false; });
+        },
+        select(item) {
+            this.selectedId = item.id;
+            this.selectedNome = item.text ? item.text.replace(/ ✦ Brechó Parceiro: .*/, '').replace(/ \(Fornecedor\)/, '') : item.id;
+            this.searchQuery = this.selectedNome;
+            this.showDropdown = false;
+        },
+        clear() {
+            this.selectedId = '';
+            this.selectedNome = '';
+            this.searchQuery = '';
+            this.results = [];
+            this.showDropdown = false;
+        }
+    };
+}
+</script>
 @endsection

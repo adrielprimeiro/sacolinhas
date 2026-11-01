@@ -44,6 +44,8 @@ class Brecho extends Model
         'prefixo_codigo',
         'taxa_cadastro_peca',
         'comissao_porcentagem',
+        'fornecedor_id',
+        'fornecedor_nome',
     ];
 
     protected $casts = [

@@ -151,13 +151,23 @@
 
                 {{-- Tipo de Entrada (Regime) --}}
                 <div>
-                    <label for="tipo_compra" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Entrada (Regime) <span class="text-red-500">*</span></label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="tipo_compra" class="block text-sm font-medium text-gray-700">Tipo de Entrada (Regime) <span class="text-red-500">*</span></label>
+                        <span x-show="isParceiroPreConfigured" x-cloak class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                            <i class="fas fa-lock mr-1 text-indigo-600"></i> Regime Parceria Travado
+                        </span>
+                    </div>
                     <select name="tipo_compra" id="tipo_compra" x-model="tipoCompra" @change="recalculateAll()"
+                            :disabled="isParceiroPreConfigured"
+                            :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900'"
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         <option value="avaliados">Avaliados (Avaliação e Precificação de Desapegos)</option>
                         <option value="direta">Compra Direta (Multiplica pelo Markup Contábil)</option>
                         <option value="parceria">Parceria / Consignação (Peças de Brechós Parceiros)</option>
                     </select>
+                    <template x-if="isParceiroPreConfigured">
+                        <input type="hidden" name="tipo_compra" value="parceria">
+                    </template>
                 </div>
 
                 {{-- Custo de Frete --}}
@@ -173,40 +183,74 @@
 
                 {{-- Configurações exclusivas de Parceria / Consignação --}}
                 <div x-show="tipoCompra === 'parceria'" x-cloak class="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-4 transition-all">
-                    <div class="flex items-center gap-2 mb-3 text-indigo-900 font-bold text-sm">
-                        <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-indigo-200">
+                        <div class="flex items-center gap-2 text-indigo-900 font-bold text-sm">
+                            <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
+                        </div>
+                        <template x-if="isParceiroPreConfigured">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 shadow-sm">
+                                <i class="fas fa-lock mr-1.5 text-indigo-600"></i> Condições Fixas do Parceiro (Somente Leitura)
+                            </span>
+                        </template>
                     </div>
+
+                    <template x-if="isParceiroPreConfigured">
+                        <div class="mb-3 text-xs text-indigo-900 bg-white/90 border border-indigo-200 rounded-lg p-2.5 flex items-start gap-2 shadow-sm">
+                            <i class="fas fa-info-circle text-indigo-600 mt-0.5 text-sm flex-shrink-0"></i>
+                            <div>
+                                Fornecedor vinculado ao brechó parceiro <strong class="text-indigo-950 font-bold" x-text="parceiroPreConfiguredNome"></strong>. As regras comerciais (prefixo SKU, taxa de cadastro e comissão da Mania) são definidas no cadastro do parceiro e não podem ser alteradas neste lote.
+                            </div>
+                        </div>
+                    </template>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                         <div>
                             <label class="block font-medium text-gray-700 mb-1">Brechó Parceiro <span class="text-red-500">*</span></label>
                             <select name="parceiro_id" x-model="parceiroId" @change="onParceiroChange()"
-                                    class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+                                    :disabled="isParceiroPreConfigured"
+                                    :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900'"
+                                    class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
                                 <option value="">Selecione o Parceiro...</option>
                                 <template x-for="p in parceiros" :key="p.id">
                                     <option :value="p.id" x-text="p.nome" :selected="p.id == parceiroId"></option>
                                 </template>
                             </select>
+                            <template x-if="isParceiroPreConfigured">
+                                <input type="hidden" name="parceiro_id" :value="parceiroId">
+                            </template>
                         </div>
                         <div>
                             <label class="block font-medium text-gray-700 mb-1">Prefixo do Código (SKU)</label>
                             <input type="text" name="prefixo_codigo" x-model="prefixoCodigo" maxlength="6"
+                                   :readonly="isParceiroPreConfigured"
+                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-bold' : 'bg-white text-gray-900 font-bold'"
                                    placeholder="Ex: TCB, BDM"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 font-bold uppercase text-xs focus:ring-indigo-500 focus:border-indigo-500">
-                            <span class="text-[10px] text-gray-500">Ex: TCB-00089-001</span>
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 uppercase text-xs focus:ring-indigo-500 focus:border-indigo-500">
+                            <template x-if="isParceiroPreConfigured">
+                                <input type="hidden" name="prefixo_codigo" :value="prefixoCodigo">
+                            </template>
+                            <span class="text-[10px] text-gray-500" x-text="'Ex: ' + (prefixoCodigo || 'PAR') + '-00089-001'"></span>
                         </div>
                         <div>
                             <label class="block font-medium text-gray-700 mb-1">Taxa Cadastro / Peça (R$)</label>
                             <input type="text" x-model="taxaCadastroPecaRaw" @input="updateTaxaCadastro()" @blur="formatTaxaCadastro()"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+                                   :readonly="isParceiroPreConfigured"
+                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900 font-medium'"
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500">
                             <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
-                            <span class="text-[10px] text-gray-500">Custo de catalogação cobrado</span>
+                            <span class="text-[10px] text-gray-500">Custo de catalogação acordado</span>
                         </div>
                         <div>
                             <label class="block font-medium text-gray-700 mb-1">Comissão da Mania (%)</label>
                             <input type="number" step="0.5" min="0" max="100" name="comissao_parceiro_porcentagem" 
                                    x-model="comissaoParceiroPorcentagem" @input="recalculateAll()"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 bg-white text-gray-900 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
-                            <span class="text-[10px] text-gray-500">% sobre venda (Padrão 20%)</span>
+                                   :readonly="isParceiroPreConfigured"
+                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900 font-medium'"
+                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500">
+                            <template x-if="isParceiroPreConfigured">
+                                <input type="hidden" name="comissao_parceiro_porcentagem" :value="comissaoParceiroPorcentagem">
+                            </template>
+                            <span class="text-[10px] text-gray-500">% sobre venda (Mania)</span>
                         </div>
                     </div>
                 </div>
@@ -556,6 +600,8 @@ function evaluationForm(config) {
         taxaCadastroPeca: 1.80,
         taxaCadastroPecaRaw: '1,80',
         comissaoParceiroPorcentagem: 20.00,
+        isParceiroPreConfigured: false,
+        parceiroPreConfiguredNome: '',
         frete: 0.00,
         freteRaw: '0,00',
         observacoes: '',
@@ -710,6 +756,20 @@ function evaluationForm(config) {
                 this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
                 this.comissaoParceiroPorcentagem = parseFloat(av.comissao_parceiro_porcentagem !== null && av.comissao_parceiro_porcentagem !== undefined ? av.comissao_parceiro_porcentagem : 20.00);
                 this.items = (config.editingItems || []).map(item => this.mapLoadedItem(item));
+
+                if (this.tipoCompra === 'parceria' && this.parceiroId) {
+                    const p = this.parceiros.find(x => x.id == this.parceiroId);
+                    this.isParceiroPreConfigured = true;
+                    this.parceiroPreConfiguredNome = p ? p.nome : (av.parceiro ? av.parceiro.nome : 'Parceiro');
+                } else if (this.fornecedorId) {
+                    const p = this.parceiros.find(x => x.fornecedor_id == this.fornecedorId);
+                    if (p) {
+                        this.tipoCompra = 'parceria';
+                        this.parceiroId = p.id;
+                        this.isParceiroPreConfigured = true;
+                        this.parceiroPreConfiguredNome = p.nome;
+                    }
+                }
             } else {
                 let loaded = false;
 
@@ -797,6 +857,22 @@ function evaluationForm(config) {
                     }
                 }
 
+                if (this.tipoCompra === 'parceria' && this.parceiroId) {
+                    const p = this.parceiros.find(x => x.id == this.parceiroId);
+                    if (p) {
+                        this.isParceiroPreConfigured = true;
+                        this.parceiroPreConfiguredNome = p.nome;
+                    }
+                } else if (this.fornecedorId) {
+                    const p = this.parceiros.find(x => x.fornecedor_id == this.fornecedorId);
+                    if (p) {
+                        this.tipoCompra = 'parceria';
+                        this.parceiroId = p.id;
+                        this.isParceiroPreConfigured = true;
+                        this.parceiroPreConfiguredNome = p.nome;
+                    }
+                }
+
             }
 
             if (this.items.length === 0) {
@@ -816,6 +892,25 @@ function evaluationForm(config) {
         onUserSelected(detail) {
             this.fornecedorId = detail.id;
             this.tipoCliente = detail.tipo_cliente || 'fora_clube';
+            if (detail.parceiro) {
+                this.tipoCompra = 'parceria';
+                this.parceiroId = detail.parceiro.id;
+                this.prefixoCodigo = detail.parceiro.prefixo_codigo || 'PAR';
+                this.taxaCadastroPeca = parseFloat(detail.parceiro.taxa_cadastro_peca !== undefined && detail.parceiro.taxa_cadastro_peca !== null ? detail.parceiro.taxa_cadastro_peca : 1.80);
+                this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
+                this.comissaoParceiroPorcentagem = parseFloat(detail.parceiro.comissao_porcentagem !== undefined && detail.parceiro.comissao_porcentagem !== null ? detail.parceiro.comissao_porcentagem : 20.00);
+                this.isParceiroPreConfigured = true;
+                this.parceiroPreConfiguredNome = detail.parceiro.nome;
+            } else {
+                if (this.isParceiroPreConfigured) {
+                    this.isParceiroPreConfigured = false;
+                    this.parceiroPreConfiguredNome = '';
+                    if (this.tipoCompra === 'parceria') {
+                        this.tipoCompra = 'avaliados';
+                        this.parceiroId = '';
+                    }
+                }
+            }
             this.recalculateAll();
         },
 
@@ -1429,7 +1524,8 @@ document.addEventListener('DOMContentLoaded', function () {
     window.dispatchEvent(new CustomEvent('user-selected', {
       detail: {
         id: user.id,
-        tipo_cliente: user.tipo_cliente || 'fora_clube'
+        tipo_cliente: user.tipo_cliente || 'fora_clube',
+        parceiro: user.parceiro || null
       }
     }));
     
@@ -1510,12 +1606,18 @@ document.addEventListener('DOMContentLoaded', function () {
           escapeHtml(rawName.substring(pos + qLower.length));
       }
 
+      var parceiroBadge = '';
+      if (u.parceiro) {
+        parceiroBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fas fa-handshake mr-1"></i> Parceiro</span>';
+      }
+
       html += ''
         + '<button type="button" '
         + 'class="user-item w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100" '
         + 'data-idx="' + i + '">'
         +   '<div class="flex items-center justify-between gap-3">'
         +     '<div class="font-medium text-gray-900">' + displayName + '</div>'
+        +     (parceiroBadge ? '<div class="flex-shrink-0">' + parceiroBadge + '</div>' : '')
         +   '</div>'
         + '</button>';
     }

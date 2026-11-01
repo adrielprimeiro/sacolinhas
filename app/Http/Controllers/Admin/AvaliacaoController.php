@@ -1025,6 +1025,42 @@ class AvaliacaoController extends Controller
 
         $results = collect();
 
+        // Carrega brechós parceiros ativos
+        $parceiros = \App\Models\Brecho::where('id', '!=', 1)->where('ativo', true)->get();
+        $parceirosByFornecedor = $parceiros->whereNotNull('fornecedor_id')->keyBy('fornecedor_id');
+
+        // Helper para resolver informações do parceiro
+        $resolveParceiro = function ($formattedId, $nome = '') use ($parceirosByFornecedor, $parceiros) {
+            if ($parceirosByFornecedor->has($formattedId)) {
+                $b = $parceirosByFornecedor->get($formattedId);
+                return [
+                    'id' => $b->id,
+                    'nome' => $b->nome,
+                    'prefixo_codigo' => $b->prefixo_codigo ?: 'PAR',
+                    'taxa_cadastro_peca' => (float) ($b->taxa_cadastro_peca ?? 1.80),
+                    'comissao_porcentagem' => (float) ($b->comissao_porcentagem ?? 20.00),
+                ];
+            }
+
+            // Fallback por similaridade de nome se o vínculo fornecedor_id ainda não foi salvo
+            $nomeLower = mb_strtolower($nome);
+            foreach ($parceiros as $b) {
+                $bNomeLower = mb_strtolower($b->nome);
+                $bSlugLower = mb_strtolower($b->slug ?? '');
+                if (($bSlugLower && str_contains($nomeLower, $bSlugLower)) || str_contains($nomeLower, $bNomeLower) || str_contains($bNomeLower, $nomeLower)) {
+                    return [
+                        'id' => $b->id,
+                        'nome' => $b->nome,
+                        'prefixo_codigo' => $b->prefixo_codigo ?: 'PAR',
+                        'taxa_cadastro_peca' => (float) ($b->taxa_cadastro_peca ?? 1.80),
+                        'comissao_porcentagem' => (float) ($b->comissao_porcentagem ?? 20.00),
+                    ];
+                }
+            }
+
+            return null;
+        };
+
         // Adiciona os Users
         foreach ($users as $u) {
             $text = $u->name;
@@ -1038,26 +1074,55 @@ class AvaliacaoController extends Controller
                                ->exists();
             
             $tipoCliente = $hasAssinatura ? 'clube' : 'fora_clube';
+            $formattedId = "user_{$u->id}";
+            $parceiroInfo = $resolveParceiro($formattedId, $u->name . ' ' . ($u->apelido ?? ''));
+
+            if ($parceiroInfo) {
+                $text .= " ✦ Brechó Parceiro: " . $parceiroInfo['nome'];
+            }
 
             $results->push([
-                'id' => "user_{$u->id}",
+                'id' => $formattedId,
                 'text' => $text,
                 'tipo' => 'user',
                 'tipo_cliente' => $tipoCliente,
-                'original_id' => $u->id
+                'original_id' => $u->id,
+                'parceiro' => $parceiroInfo
             ]);
         }
 
         // Adiciona as Pessoas sem vínculo
         foreach ($pessoas as $p) {
+            $formattedId = "pessoa_{$p->id}";
+            $parceiroInfo = $resolveParceiro($formattedId, $p->nome);
             $text = $p->nome . " (Fornecedor)";
+            if ($parceiroInfo) {
+                $text .= " ✦ Brechó Parceiro: " . $parceiroInfo['nome'];
+            }
             
             $results->push([
-                'id' => "pessoa_{$p->id}",
+                'id' => $formattedId,
                 'text' => $text,
                 'tipo' => 'pessoa',
-                'original_id' => $p->id
+                'original_id' => $p->id,
+                'parceiro' => $parceiroInfo
             ]);
+        }
+
+        // Se o termo de busca corresponder ao nome de um brechó parceiro, garantir que ele esteja no topo dos resultados
+        foreach ($parceiros as $pBrecho) {
+            $pNomeMatch = stripos($pBrecho->nome, $term) !== false || stripos($pBrecho->slug ?? '', $term) !== false;
+            if ($pNomeMatch && $pBrecho->fornecedor_id) {
+                // Se já estiver na lista, dar prioridade trazendo para o início
+                $existingIndex = $results->search(function ($item) use ($pBrecho) {
+                    return $item['id'] === $pBrecho->fornecedor_id;
+                });
+
+                if ($existingIndex !== false) {
+                    $item = $results->pull($existingIndex);
+                    $results->prepend($item);
+                }
+            }
         }
 
         return response()->json($results->take(30)->values());

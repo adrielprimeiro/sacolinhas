@@ -32,6 +32,8 @@ class BrechoController extends Controller
             'prefixo_codigo' => 'nullable|string|max:6',
             'taxa_cadastro_peca' => 'nullable|numeric|min:0',
             'comissao_porcentagem' => 'nullable|numeric|min:0|max:100',
+            'fornecedor_id' => 'nullable|string|max:50',
+            'fornecedor_nome' => 'nullable|string|max:255',
             'operador_nome' => 'nullable|string|max:255',
             'operador_email' => 'nullable|email|max:255|unique:users,email',
             'operador_password' => 'nullable|string|min:6',
@@ -50,6 +52,18 @@ class BrechoController extends Controller
         $taxaCadastro = isset($validated['taxa_cadastro_peca']) && $validated['taxa_cadastro_peca'] !== '' ? (float) $validated['taxa_cadastro_peca'] : 1.80;
         $comissao = isset($validated['comissao_porcentagem']) && $validated['comissao_porcentagem'] !== '' ? (float) $validated['comissao_porcentagem'] : 20.00;
 
+        $fornecedorId = !empty($validated['fornecedor_id']) ? $validated['fornecedor_id'] : null;
+        $fornecedorNome = $request->input('fornecedor_nome');
+        if ($fornecedorId && empty($fornecedorNome)) {
+            if (str_starts_with($fornecedorId, 'user_')) {
+                $u = \App\Models\User::find(str_replace('user_', '', $fornecedorId));
+                if ($u) $fornecedorNome = $u->name . ($u->apelido ? " ({$u->apelido})" : '');
+            } elseif (str_starts_with($fornecedorId, 'pessoa_')) {
+                $p = \App\Models\Pessoa::find(str_replace('pessoa_', '', $fornecedorId));
+                if ($p) $fornecedorNome = $p->nome;
+            }
+        }
+
         $brechoData = [
             'nome' => $validated['nome'],
             'documento' => $validated['documento'] ?? null,
@@ -60,6 +74,8 @@ class BrechoController extends Controller
             'prefixo_codigo' => $prefixo,
             'taxa_cadastro_peca' => $taxaCadastro,
             'comissao_porcentagem' => $comissao,
+            'fornecedor_id' => $fornecedorId,
+            'fornecedor_nome' => $fornecedorNome,
             'slug' => $slug,
             'ativo' => true,
         ];
@@ -97,11 +113,29 @@ class BrechoController extends Controller
             'prefixo_codigo' => 'nullable|string|max:6',
             'taxa_cadastro_peca' => 'nullable|numeric|min:0',
             'comissao_porcentagem' => 'nullable|numeric|min:0|max:100',
+            'fornecedor_id' => 'nullable|string|max:50',
+            'fornecedor_nome' => 'nullable|string|max:255',
             'ativo' => 'required|boolean',
         ]);
 
         if (array_key_exists('prefixo_codigo', $validated)) {
             $validated['prefixo_codigo'] = !empty($validated['prefixo_codigo']) ? strtoupper(trim($validated['prefixo_codigo'])) : null;
+        }
+
+        if (array_key_exists('fornecedor_id', $validated)) {
+            $fId = !empty($validated['fornecedor_id']) ? $validated['fornecedor_id'] : null;
+            $validated['fornecedor_id'] = $fId;
+            $fNome = $request->input('fornecedor_nome');
+            if ($fId && empty($fNome)) {
+                if (str_starts_with($fId, 'user_')) {
+                    $u = \App\Models\User::find(str_replace('user_', '', $fId));
+                    if ($u) $fNome = $u->name . ($u->apelido ? " ({$u->apelido})" : '');
+                } elseif (str_starts_with($fId, 'pessoa_')) {
+                    $p = \App\Models\Pessoa::find(str_replace('pessoa_', '', $fId));
+                    if ($p) $fNome = $p->nome;
+                }
+            }
+            $validated['fornecedor_nome'] = $fId ? $fNome : null;
         }
 
         $brecho->update($validated);
