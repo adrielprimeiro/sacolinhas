@@ -41,11 +41,16 @@ class Brecho extends Model
         'certificado_senha',
         'csc',
         'csc_id',
+        'prefixo_codigo',
+        'taxa_cadastro_peca',
+        'comissao_porcentagem',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
         'configuracoes' => 'array',
+        'taxa_cadastro_peca' => 'decimal:2',
+        'comissao_porcentagem' => 'decimal:2',
     ];
 
     /**

@@ -29,6 +29,9 @@ class BrechoController extends Controller
             'whatsapp' => 'nullable|string|max:20',
             'chave_pix' => 'nullable|string|max:255',
             'tipo_chave_pix' => 'nullable|string|in:cpf,cnpj,email,telefone,aleatoria',
+            'prefixo_codigo' => 'nullable|string|max:6',
+            'taxa_cadastro_peca' => 'nullable|numeric|min:0',
+            'comissao_porcentagem' => 'nullable|numeric|min:0|max:100',
             'operador_nome' => 'nullable|string|max:255',
             'operador_email' => 'nullable|email|max:255|unique:users,email',
             'operador_password' => 'nullable|string|min:6',
@@ -43,6 +46,10 @@ class BrechoController extends Controller
             $count++;
         }
 
+        $prefixo = !empty($validated['prefixo_codigo']) ? strtoupper(trim($validated['prefixo_codigo'])) : null;
+        $taxaCadastro = isset($validated['taxa_cadastro_peca']) && $validated['taxa_cadastro_peca'] !== '' ? (float) $validated['taxa_cadastro_peca'] : 1.80;
+        $comissao = isset($validated['comissao_porcentagem']) && $validated['comissao_porcentagem'] !== '' ? (float) $validated['comissao_porcentagem'] : 20.00;
+
         $brechoData = [
             'nome' => $validated['nome'],
             'documento' => $validated['documento'] ?? null,
@@ -50,6 +57,9 @@ class BrechoController extends Controller
             'whatsapp' => $validated['whatsapp'] ?? null,
             'chave_pix' => $validated['chave_pix'] ?? null,
             'tipo_chave_pix' => $validated['tipo_chave_pix'] ?? null,
+            'prefixo_codigo' => $prefixo,
+            'taxa_cadastro_peca' => $taxaCadastro,
+            'comissao_porcentagem' => $comissao,
             'slug' => $slug,
             'ativo' => true,
         ];
@@ -84,8 +94,15 @@ class BrechoController extends Controller
             'whatsapp' => 'nullable|string|max:20',
             'chave_pix' => 'nullable|string|max:255',
             'tipo_chave_pix' => 'nullable|string|in:cpf,cnpj,email,telefone,aleatoria',
+            'prefixo_codigo' => 'nullable|string|max:6',
+            'taxa_cadastro_peca' => 'nullable|numeric|min:0',
+            'comissao_porcentagem' => 'nullable|numeric|min:0|max:100',
             'ativo' => 'required|boolean',
         ]);
+
+        if (array_key_exists('prefixo_codigo', $validated)) {
+            $validated['prefixo_codigo'] = !empty($validated['prefixo_codigo']) ? strtoupper(trim($validated['prefixo_codigo'])) : null;
+        }
 
         $brecho->update($validated);
 

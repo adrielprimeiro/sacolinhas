@@ -627,17 +627,29 @@ function evaluationForm(config) {
         onParceiroChange() {
             if (!this.parceiroId) return;
             const p = this.parceiros.find(x => x.id == this.parceiroId);
-            if (p && p.nome) {
-                const words = p.nome.trim().split(/\s+/);
-                let acronym = '';
-                if (words.length >= 3) {
-                    acronym = (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
-                } else if (words.length === 2) {
-                    acronym = (words[0].substring(0, 2) + words[1][0]).toUpperCase();
-                } else {
-                    acronym = words[0].substring(0, 3).toUpperCase();
+            if (p) {
+                if (p.prefixo_codigo) {
+                    this.prefixoCodigo = p.prefixo_codigo;
+                } else if (p.nome) {
+                    const words = p.nome.trim().split(/\s+/);
+                    let acronym = '';
+                    if (words.length >= 3) {
+                        acronym = (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+                    } else if (words.length === 2) {
+                        acronym = (words[0].substring(0, 2) + words[1][0]).toUpperCase();
+                    } else {
+                        acronym = words[0].substring(0, 3).toUpperCase();
+                    }
+                    this.prefixoCodigo = acronym;
                 }
-                this.prefixoCodigo = acronym;
+
+                if (p.taxa_cadastro_peca !== null && p.taxa_cadastro_peca !== undefined && p.taxa_cadastro_peca !== '') {
+                    this.taxaCadastroPeca = parseFloat(p.taxa_cadastro_peca);
+                    this.taxaCadastroPecaRaw = this.taxaCadastroPeca.toFixed(2).replace('.', ',');
+                }
+                if (p.comissao_porcentagem !== null && p.comissao_porcentagem !== undefined && p.comissao_porcentagem !== '') {
+                    this.comissaoParceiroPorcentagem = parseFloat(p.comissao_porcentagem);
+                }
             }
             this.recalculateAll();
         },
