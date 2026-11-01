@@ -970,7 +970,21 @@ class AvaliacaoController extends Controller
             }
         };
 
-        $rootCats = Categoria::whereNull('parent_id')->with('children')->orderBy('name')->get();
+        $rootCats = Categoria::forBrecho(1)
+            ->whereNull('parent_id')
+            ->with([
+                'children' => function($q) {
+                    $q->forBrecho(1)
+                      ->orderBy('name')
+                      ->with([
+                          'children' => function($sq) {
+                              $sq->forBrecho(1)->orderBy('name');
+                          }
+                      ]);
+                }
+            ])
+            ->orderBy('name')
+            ->get();
         $buildTreeList($rootCats);
 
         return $categorias;
