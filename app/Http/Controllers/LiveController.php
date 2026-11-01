@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Live; 
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -95,6 +96,21 @@ class LiveController extends Controller
                 'updated_at' => now()
             ]);
 
+            // Reativa captura do chat
+            Cache::forget('live_capture_paused');
+            Cache::forget('instagram_capture_stopped');
+            Cache::forget('tiktok_capture_stopped');
+            Cache::put('insta_capture_active', true, 86400);
+            Cache::put('tiktok_capture_active', true, 86400);
+
+            // Tenta iniciar a captura automática nos serviços de background (Node)
+            try {
+                \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3002/connect', ['username' => 'de_minha_mania']);
+            } catch (\Throwable $e) {}
+            try {
+                \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3001/connect', ['username' => '_minhamania']);
+            } catch (\Throwable $e) {}
+
             $live = DB::table('lives')->where('id', $liveId)->first();
 
             return response()->json([
@@ -145,6 +161,7 @@ class LiveController extends Controller
                     'encerrada_em' => now(),
                     'updated_at' => now(),
                 ]);
+                $this->pararCapturasLive();
                 DB::commit();
                 return response()->json([
                     'success' => true,
@@ -164,6 +181,7 @@ class LiveController extends Controller
 						'encerrada_em' => now(),
 						'updated_at' => now(),
 					]);
+					$this->pararCapturasLive();
 
 					Log::info('Live encerrada SEM envio WhatsApp (sem gerar PDF)', [
 						'live_id' => $liveId,
@@ -314,6 +332,7 @@ class LiveController extends Controller
                 'encerrada_em' => now(),
                 'updated_at' => now(),
             ]);
+            $this->pararCapturasLive();
 
             Log::info('Live encerrada com sucesso', [
                 'live_id' => $liveId,
@@ -341,6 +360,25 @@ class LiveController extends Controller
             'jobs_enfileirados' => $jobsEnfileirados,
             'clientes_sem_telefone' => $clientesSemTelefone
         ]);
+    }
+
+    /**
+     * Pausa e desconecta a captura automática de chats ao encerrar a live
+     */
+    private function pararCapturasLive()
+    {
+        Cache::put('live_capture_paused', true, 86400);
+        Cache::put('instagram_capture_stopped', true, 86400);
+        Cache::put('tiktok_capture_stopped', true, 86400);
+        Cache::put('insta_capture_active', false);
+        Cache::put('tiktok_capture_active', false);
+
+        try {
+            \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3002/disconnect');
+        } catch (\Throwable $e) {}
+        try {
+            \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3001/disconnect');
+        } catch (\Throwable $e) {}
     }
 
 

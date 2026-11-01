@@ -71,6 +71,62 @@
         }
     }
 
+    function isLivePage() {
+        try {
+            const host = (window.location.hostname || '').toLowerCase();
+            const path = (window.location.pathname || '').toLowerCase();
+
+            // Bloquear domínios auxiliares/corporativos que não são de live
+            if (host.includes('developers.') || host.includes('business.') || host.includes('ads.') || host.includes('seller.') || host.includes('newsroom.')) {
+                return false;
+            }
+
+            // TikTok: somente URLs de live
+            if (platform === 'tiktok') {
+                return path.includes('/live');
+            }
+
+            // Instagram:
+            if (platform === 'instagram') {
+                if (path.includes('/live') || path.includes('/producer')) {
+                    return true;
+                }
+                // Bloquear feeds comuns, posts, reels, DMs e stories
+                if (path.startsWith('/direct/') || path.startsWith('/reels/') || path.startsWith('/reel/') || 
+                    path.startsWith('/explore/') || path.startsWith('/stories/') || path.startsWith('/p/') ||
+                    path.startsWith('/accounts/')) {
+                    return false;
+                }
+                // Detecção por elementos de transmissão ativa
+                return !!(document.querySelector('[aria-label*="ao vivo" i], [aria-label*="live" i], div[class*="LiveProducer"], div[class*="LiveChat"]'));
+            }
+        } catch(e) {}
+        return false;
+    }
+
+    function isGarbageMessage(username, message) {
+        if (!message || message.length > 300) return true;
+        const u = (username || '').toLowerCase().trim();
+        const m = (message || '').toLowerCase().trim();
+        if (u === m) return true;
+        if (m.includes('<') && m.includes('>')) return true;
+
+        const blacklist = [
+            'turbinar reel', 'patrocinado', 'áudio original', 'audio original', 'carrossel',
+            'ver tradução', 'ver traducao', 'content posting api', 'share kit', 'login kit',
+            'docs: support', 'tiktok minis', 'tiktok developers', 'terms of service', 'privacy policy',
+            'mensagens5mensagens', 'start building today', 'data portability'
+        ];
+        for (let term of blacklist) {
+            if (m.includes(term) || u.includes(term)) return true;
+        }
+
+        const isolated = ['seguir', 'seguindo', 'trocar', 'remover', 'editar', 'ver mais', 'clipe', 'nota...', '•', '...', '…', 'responder', 'reply'];
+        if (isolated.includes(m) || isolated.includes(u)) return true;
+
+        return false;
+    }
+
     function sanitizeServerUrl(url) {
         if (!url) return "";
         try {
@@ -552,6 +608,7 @@
 
     // Função para tratar novas mensagens
     function processNewMessageNode(node, chatContainer) {
+        if (!isLivePage()) return;
         if (node.nodeType !== Node.ELEMENT_NODE) return;
 
         if (!chatContainer) chatContainer = document.querySelector(selectors.container);
@@ -764,6 +821,9 @@
 
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message, avatarUrl) {
+        if (!isLivePage()) return;
+        if (isGarbageMessage(username, message)) return;
+
         const msgKey = `${username}:${message}`;
         if (sentMessages.has(msgKey)) return; // Evitar duplicatas
         sentMessages.add(msgKey);
@@ -803,6 +863,7 @@
     }
 
     function scanAndProcessInstagramComments(targetSection) {
+        if (!isLivePage()) return;
         const scope = document.body;
 
         // 0. Estratégia do Social Stream Ninja (sobreposição explícita / atributos de dados ou classes do Social Stream)
@@ -1007,6 +1068,10 @@
 
     // Iniciar monitoramento
     function startCapture() {
+        if (!isLivePage()) {
+            console.log("[Capturador] Página atual não é uma transmissão de Live (" + window.location.href + "). Monitoramento pausado.");
+            return;
+        }
         console.log("[Capturador] Iniciando captura...");
         
         if (platform === "instagram") {

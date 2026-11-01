@@ -44,7 +44,7 @@
     let hasLoadedLivesOnce = false;
     let isCapturing = false;
     let observer = null;
-    let hasCalibrated = false;
+    let hasCalibrated = safeGetItem("live_capture_has_calibrated", "false") === "true";
     const sentMessages = new Set();
     
     // Seletores padrão
@@ -58,10 +58,74 @@
         instagram: {
             container: '[role="log"], div[class*="CommentList"], div[class*="comment-list"], div[class*="LiveChat"], div[class*="LiveCommentList"]',
             message: '[role="log"] > *, div[class*="CommentRow"], div[class*="comment-row"], div[class*="LiveComment"]',
-            username: 'a[href*="/"], span[class*="username"], .username',
-            text: 'span[class*="comment"], span:last-child, span[class*="text"]'
+            username: 'span[class*="Username"], span[class*="username"], span[class*="Author"]',
+            text: 'span[class*="CommentText"], span[class*="text"], span[dir="auto"]'
         }
     }[platform];
+
+    if (hasCalibrated) {
+        const savedContainer = safeGetItem("live_capture_container", "");
+        if (savedContainer) {
+            selectors.container = savedContainer;
+            selectors.message = `${savedContainer} > *`;
+        }
+    }
+
+    function isLivePage() {
+        try {
+            const host = (window.location.hostname || '').toLowerCase();
+            const path = (window.location.pathname || '').toLowerCase();
+
+            // Bloquear domínios auxiliares/corporativos que não são de live
+            if (host.includes('developers.') || host.includes('business.') || host.includes('ads.') || host.includes('seller.') || host.includes('newsroom.')) {
+                return false;
+            }
+
+            // TikTok: somente URLs de live
+            if (platform === 'tiktok') {
+                return path.includes('/live');
+            }
+
+            // Instagram:
+            if (platform === 'instagram') {
+                if (path.includes('/live') || path.includes('/producer')) {
+                    return true;
+                }
+                // Bloquear feeds comuns, posts, reels, DMs e stories
+                if (path.startsWith('/direct/') || path.startsWith('/reels/') || path.startsWith('/reel/') || 
+                    path.startsWith('/explore/') || path.startsWith('/stories/') || path.startsWith('/p/') ||
+                    path.startsWith('/accounts/')) {
+                    return false;
+                }
+                // Detecção por elementos de transmissão ativa
+                return !!(document.querySelector('[aria-label*="ao vivo" i], [aria-label*="live" i], div[class*="LiveProducer"], div[class*="LiveChat"]'));
+            }
+        } catch(e) {}
+        return false;
+    }
+
+    function isGarbageMessage(username, message) {
+        if (!message || message.length > 300) return true;
+        const u = (username || '').toLowerCase().trim();
+        const m = (message || '').toLowerCase().trim();
+        if (u === m) return true;
+        if (m.includes('<') && m.includes('>')) return true;
+
+        const blacklist = [
+            'turbinar reel', 'patrocinado', 'áudio original', 'audio original', 'carrossel',
+            'ver tradução', 'ver traducao', 'content posting api', 'share kit', 'login kit',
+            'docs: support', 'tiktok minis', 'tiktok developers', 'terms of service', 'privacy policy',
+            'mensagens5mensagens', 'start building today', 'data portability'
+        ];
+        for (let term of blacklist) {
+            if (m.includes(term) || u.includes(term)) return true;
+        }
+
+        const isolated = ['seguir', 'seguindo', 'trocar', 'remover', 'editar', 'ver mais', 'clipe', 'nota...', '•', '...', '…', 'responder', 'reply'];
+        if (isolated.includes(m) || isolated.includes(u)) return true;
+
+        return false;
+    }
 
     function sanitizeServerUrl(url) {
         if (!url) return "";
@@ -544,6 +608,7 @@
 
     // Função para tratar novas mensagens
     function processNewMessageNode(node, chatContainer) {
+        if (!isLivePage()) return;
         if (node.nodeType !== Node.ELEMENT_NODE) return;
 
         if (!chatContainer) chatContainer = document.querySelector(selectors.container);
@@ -735,14 +800,37 @@
         }
     }
 
+    function detectHostAccount() {
+        try {
+            const path = window.location.pathname || '';
+            const host = window.location.hostname || '';
+            if (host.includes("instagram")) {
+                const match = path.match(/^\/([a-zA-Z0-9_\.]+)(?:\/live)?/);
+                if (match && !['stories', 'explore', 'direct', 'reels', 'p', 'tv', 'accounts'].includes(match[1].toLowerCase())) {
+                    return match[1].replace(/^@/, '');
+                }
+            } else if (host.includes("tiktok")) {
+                const match = path.match(/^\/@([a-zA-Z0-9_\.]+)(?:\/live)?/);
+                if (match) {
+                    return match[1].replace(/^@/, '');
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
     // Enviar mensagem para o Laravel
     async function sendChatMessage(username, message, avatarUrl) {
+        if (!isLivePage()) return;
+        if (isGarbageMessage(username, message)) return;
+
         const msgKey = `${username}:${message}`;
         if (sentMessages.has(msgKey)) return; // Evitar duplicatas
         sentMessages.add(msgKey);
 
         const url = "https://minhamania.net";
         const liveId = "auto";
+        const hostAccount = detectHostAccount();
 
         try {
             const res = await bgFetch(`${url}/api/live-chat/message`, {
@@ -754,6 +842,8 @@
                 body: JSON.stringify({
                     live_id: liveId,
                     platform: platform,
+                    host_account: hostAccount,
+                    url: window.location.href,
                     username: username,
                     message: message,
                     avatar_url: avatarUrl || null
@@ -761,7 +851,7 @@
             });
             const data = await res.json();
             if (data.success) {
-                log(`Enviado: @${username} -> "${message}"`);
+                log(`Enviado (${hostAccount ? '@' + hostAccount : 'Direct'}): @${username} -> "${message}"`);
             } else {
                 console.warn("Laravel rejeitou a mensagem:", data.error);
                 log(`Erro Laravel: ${data.error || 'Rejeitado'}`, true);
@@ -773,6 +863,7 @@
     }
 
     function scanAndProcessInstagramComments(targetSection) {
+        if (!isLivePage()) return;
         const scope = document.body;
 
         // 0. Estratégia do Social Stream Ninja (sobreposição explícita / atributos de dados ou classes do Social Stream)
@@ -977,6 +1068,10 @@
 
     // Iniciar monitoramento
     function startCapture() {
+        if (!isLivePage()) {
+            console.log("[Capturador] Página atual não é uma transmissão de Live (" + window.location.href + "). Monitoramento pausado.");
+            return;
+        }
         console.log("[Capturador] Iniciando captura...");
         
         if (platform === "instagram") {
@@ -1037,48 +1132,91 @@
         if (!chatContainer) {
             console.error("[Capturador] Contêiner do chat não pôde ser localizado pelo seletor:", selectors.container);
             log("Contêiner do chat não encontrado! Tente 'Calibrar'.", true);
-            alert("Aba de chat não localizada! Certifique-se de que a live está aberta e o painel de chat visível.");
-            return;
-        }
+            console.warn("[Capturador] Contêiner do chat não encontrado!");
+            log("Contêiner de chat não encontrado na auto-detecção.", true);
+            // Don't return, keep trying if calibration happens
+        } else {
+            console.log("[Capturador] Contêiner encontrado:", chatContainer.tagName, chatContainer.className);
+            console.log("[Capturador] Seletor de mensagens:", selectors.message);
 
-        console.log("[Capturador] Contêiner encontrado:", chatContainer.tagName, chatContainer.className);
-        console.log("[Capturador] Seletor de mensagens:", selectors.message);
+            isCapturing = true;
+            log("Captura iniciada com sucesso!");
 
-        isCapturing = true;
-        log("Captura iniciada com sucesso!");
+            // Processar mensagens que já estão na tela
+            let existingMessages = selectors.message ? Array.from(chatContainer.querySelectorAll(selectors.message)) : [];
+            if (existingMessages.length === 0) {
+                existingMessages = Array.from(chatContainer.children);
+            }
+            console.log(`[Capturador] Encontrados ${existingMessages.length} elementos de mensagem existentes.`);
+            existingMessages.forEach((msg, idx) => {
+                console.log(`[Capturador] Mensagem existente [${idx}]:`, msg.tagName, msg.className, "Texto:", msg.innerText);
+                processNewMessageNode(msg, chatContainer);
+            });
 
-        // Processar mensagens que já estão na tela
-        let existingMessages = selectors.message ? Array.from(chatContainer.querySelectorAll(selectors.message)) : [];
-        if (existingMessages.length === 0) {
-            existingMessages = Array.from(chatContainer.children);
-        }
-        console.log(`[Capturador] Encontrados ${existingMessages.length} elementos de mensagem existentes.`);
-        existingMessages.forEach((msg, idx) => {
-            console.log(`[Capturador] Mensagem existente [${idx}]:`, msg.tagName, msg.className, "Texto:", msg.innerText);
-            processNewMessageNode(msg, chatContainer);
-        });
-
-        // Observar novas mensagens
-        observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
-                    processNewMessageNode(node, chatContainer);
+            // Observar novas mensagens
+            observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        processNewMessageNode(node, chatContainer);
+                    });
                 });
             });
-        });
 
-        observer.observe(chatContainer, { childList: true, subtree: true });
+            observer.observe(chatContainer, { childList: true, subtree: true });
+        }
     }
 
     // Parar monitoramento
     function stopCapture() {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
-        }
         isCapturing = false;
-        log("Captura parada.");
+        if (observer) { observer.disconnect(); observer = null; }
+        if (typeof scanTimeout !== 'undefined') { clearTimeout(scanTimeout); }
     }
+
+    // Botão de Calibração de Emergência
+    const calibBtn = document.createElement("button");
+    calibBtn.innerText = "🎯 Calibrar Chat";
+    calibBtn.style.cssText = "position:fixed;bottom:20px;left:20px;z-index:999999;padding:10px 15px;background:#e91e63;color:white;border:none;border-radius:5px;font-weight:bold;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.3);";
+    document.body.appendChild(calibBtn);
+
+    calibBtn.addEventListener("click", () => {
+        alert("Modo de calibração ativado!\nClique em UM COMENTÁRIO DENTRO DO CHAT para a extensão aprender onde ele fica.");
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.2);z-index:9999999;cursor:crosshair;";
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener("click", (e) => {
+            e.stopPropagation(); e.preventDefault();
+            overlay.style.display = "none";
+            const clickedElement = document.elementFromPoint(e.clientX, e.clientY);
+            overlay.style.display = "block";
+            if (!clickedElement) return;
+
+            let containerElement = clickedElement.parentElement;
+            while (containerElement && containerElement !== document.body) {
+                const style = window.getComputedStyle(containerElement);
+                if (style.overflowY === 'auto' || style.overflowY === 'scroll' || containerElement.scrollHeight > containerElement.clientHeight + 20) {
+                    break;
+                }
+                containerElement = containerElement.parentElement;
+            }
+            if (!containerElement || containerElement === document.body) containerElement = clickedElement.parentElement;
+
+            const containerSel = getContainerSelector(containerElement);
+            selectors.container = containerSel;
+            selectors.message = `${containerSel} > *`;
+            hasCalibrated = true;
+            // Assumindo que safeSetItem existe ou via localStorage
+            localStorage.setItem("live_capture_has_calibrated", "true");
+            localStorage.setItem("live_capture_container", containerSel);
+            
+            alert(`Calibração Concluída!\nA extensão vai reiniciar e capturar as mensagens dessa caixa.`);
+            document.body.removeChild(overlay);
+            
+            stopCapture();
+            setTimeout(startCapture, 1000);
+        }, { once: true });
+    });
 
     // Inicialização direta silenciosa
     setTimeout(() => {

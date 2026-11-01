@@ -208,104 +208,189 @@
 
 <div class="w-full max-w-full px-1 sm:px-2 py-1 live-feed-page-wrapper">
     <!-- Top Bar com Controles de Leitura e Filtros (Card 1) -->
-    <div id="feed-top-header" class="mb-2 bg-gray-900 text-white p-2.5 sm:p-3 rounded-2xl shadow-lg border border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 shrink-0">
-        <!-- Título & Live Ativa -->
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
-                <i class="fas fa-comments"></i>
-            </div>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-sm sm:text-base font-black text-white tracking-tight">Chat da Transmissão</h1>
-                    @if($activeLive && $activeLive->ativo)
-                        <span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
-                            <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO
-                        </span>
-                    @endif
+    <div id="feed-top-header" class="mb-2 bg-gray-900 text-white p-2.5 sm:p-3 rounded-2xl shadow-lg border border-gray-800 flex flex-col gap-2.5 shrink-0">
+        <!-- Linha 1: Título, Controle da Live (Abrir/Fechar), Pessoas Online & Ferramentas -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+            <!-- Título & Status da Live Aberta/Fechada -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+                    <i class="fas fa-comments"></i>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                    <span id="chat-total-msgs-badge" class="font-semibold text-gray-300">0 mensagens capturadas</span>
-                    <span>&bull;</span>
-                    <span id="chat-stream-status" class="text-emerald-400 font-bold flex items-center gap-1">
-                        <i class="fas fa-check-circle text-xs"></i> Sincronizando
-                    </span>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-sm sm:text-base font-black text-white tracking-tight">Chat da Transmissão</h1>
+                        
+                        @if($activeLive && $activeLive->ativo)
+                            <span class="bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO: #{{ $activeLive->id }} - {{ $activeLive->tipo_live_formatado }}
+                            </span>
+                            <button type="button" onclick="openCloseLiveModal()" class="bg-red-600 hover:bg-red-500 text-white font-black text-xs px-3 py-1 rounded-xl shadow transition flex items-center gap-1.5 active:scale-95 cursor-pointer" title="Encerrar esta Live e finalizar sacolinhas/gravações">
+                                <i class="fas fa-stop-circle"></i> Encerrar Live
+                            </button>
+                        @else
+                            <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-700 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Nenhuma Live Aberta
+                            </span>
+                            <button type="button" onclick="openCreateLiveModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-3.5 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95 cursor-pointer animate-pulse" title="Iniciar uma nova transmissão">
+                                <i class="fas fa-play"></i> Abrir Nova Live
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ferramentas & Atalhos -->
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <!-- Botão Pessoas Online (Para lives externas / lives fora) -->
+                <button type="button" onclick="openOnlineUsersModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ver clientes conectadas no chat e bipar peças diretamente">
+                    <i class="fas fa-users text-xs text-indigo-200"></i>
+                    <span>Pessoas Online (<span id="top-bar-online-count">0</span>)</span>
+                </button>
+
+                <!-- Botão Como Capturar (Ajuda / Guia) -->
+                <button type="button" onclick="openHelpCaptureModal()" class="bg-gray-800 hover:bg-gray-700 text-amber-300 hover:text-amber-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Instruções para captura automática de chats">
+                    <i class="fas fa-question-circle"></i>
+                    <span class="hidden sm:inline">Como Gravar</span>
+                </button>
+
+                <!-- Controle de Tamanho da Fonte (A- / Normal / A+ / A++) -->
+                <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 shadow-inner">
+                    <span class="text-xs text-gray-400 font-bold px-2 hidden sm:inline"><i class="fas fa-font"></i></span>
+                    <button type="button" onclick="setFontSize('sm')" id="btn-font-sm" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A-</button>
+                    <button type="button" onclick="setFontSize('md')" id="btn-font-md" class="px-2 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow cursor-pointer">Normal</button>
+                    <button type="button" onclick="setFontSize('lg')" id="btn-font-lg" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A+</button>
+                    <button type="button" onclick="setFontSize('xl')" id="btn-font-xl" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A++</button>
+                </div>
+
+                <!-- Alternador de Tema Escuro / Claro -->
+                <button type="button" onclick="toggleTheme()" id="btn-theme-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <i class="fas fa-moon text-yellow-400" id="theme-icon"></i>
+                    <span id="theme-text" class="hidden sm:inline">Modo Escuro</span>
+                </button>
+
+                <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
+                <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+                    <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
+                    <span id="autoscroll-text">Rolagem: Ativa</span>
+                </button>
+
+                <!-- Alternador de Histórico: 200 Recentes / Todas as Mensagens -->
+                <button type="button" onclick="toggleChatHistoryMode()" id="btn-history-mode-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Alternar entre ver 200 mensagens recentes ou todas as mensagens da live">
+                    <i class="fas fa-history text-indigo-400" id="history-mode-icon"></i>
+                    <span id="history-mode-text" class="hidden sm:inline">200 Recentes</span>
+                </button>
+
+                <!-- Botão Alternador Painel de Bipagem (Expansão do Chat) -->
+                <button type="button" onclick="toggleScanPanel()" id="btn-toggle-scan-panel" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar ou mostrar o painel lateral de bipagem">
+                    <i class="fas fa-barcode text-emerald-400"></i>
+                    <span class="hidden sm:inline" id="scan-panel-btn-text">Ocultar Bipagem</span>
+                </button>
+
+                <!-- Botão Ocultar 2 Primeiros Cards -->
+                <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
+                    <i class="fas fa-chevron-up text-indigo-400"></i>
+                    <span class="hidden sm:inline">Ocultar Topo</span>
+                </button>
+
+                <!-- Botão Tela Cheia -->
+                <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <i class="fas fa-expand"></i>
+                </button>
+
+                <!-- Botão Contador (Telão) -->
+                <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
+                    <i class="fas fa-calculator text-xs text-indigo-200"></i>
+                    <span>Contador</span>
+                </a>
+
+                @if($activeLive)
+                    <!-- Central de Cortes da Live -->
+                    <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-600 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">
+                        <i class="fas fa-film text-xs text-indigo-200"></i>
+                        <span>Cortes & Vídeos</span>
+                    </a>
+                @endif
+
+                <!-- Seletor de Live -->
+                <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
+                    <form action="{{ route('admin.live-chat.feed') }}" method="GET" class="flex gap-2 m-0">
+                        <select name="live_id" id="live-select" onchange="this.form.submit()" class="text-xs rounded-lg border-0 bg-transparent text-gray-200 font-bold focus:ring-0 p-1 cursor-pointer">
+                            <option value="" class="bg-gray-900 text-white">Selecione uma Live...</option>
+                            @foreach($lives as $l)
+                                <option value="{{ $l->id }}" {{ ($activeLive && $activeLive->id === $l->id) ? 'selected' : '' }} class="bg-gray-900 text-white">
+                                    #{{ $l->id }} - {{ $l->tipo_live_formatado }} ({{ $l->data->format('d/m/Y') }}) {{ $l->ativo ? '[ATIVA]' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
                 </div>
             </div>
         </div>
 
-        <!-- Ferramentas: Zoom de Fonte, Tema e Atalhos -->
-        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <!-- Controle de Tamanho da Fonte (A- / Normal / A+ / A++) -->
-            <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 shadow-inner">
-                <span class="text-xs text-gray-400 font-bold px-2 hidden sm:inline"><i class="fas fa-font"></i></span>
-                <button type="button" onclick="setFontSize('sm')" id="btn-font-sm" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A-</button>
-                <button type="button" onclick="setFontSize('md')" id="btn-font-md" class="px-2 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow cursor-pointer">Normal</button>
-                <button type="button" onclick="setFontSize('lg')" id="btn-font-lg" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A+</button>
-                <button type="button" onclick="setFontSize('xl')" id="btn-font-xl" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A++</button>
+        <!-- Linha 2: Monitor de Gravação Automática & Status das Redes (Instagram e TikTok) -->
+        <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2.5 border-t border-gray-800/80 text-xs">
+            <!-- Estatísticas do Stream -->
+            <div class="flex items-center gap-2.5 text-gray-300">
+                <span id="chat-total-msgs-badge" class="font-extrabold text-white bg-gray-800 px-2.5 py-1 rounded-xl border border-gray-700 text-xs shadow-inner">0 mensagens capturadas</span>
+                <span id="chat-stream-status" class="text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
+                    <i class="fas fa-check-circle text-xs"></i> Sincronizando
+                </span>
             </div>
 
-            <!-- Alternador de Tema Escuro / Claro -->
-            <button type="button" onclick="toggleTheme()" id="btn-theme-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                <i class="fas fa-moon text-yellow-400" id="theme-icon"></i>
-                <span id="theme-text" class="hidden sm:inline">Modo Escuro</span>
-            </button>
+            <!-- Crachás e Controles de Gravação de Cada Rede -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Instagram Capture Monitor -->
+                <div class="flex items-center bg-gray-800/90 p-1.5 px-2.5 rounded-xl border border-gray-700 gap-2 shadow-sm">
+                    <span id="header-insta-badge" class="flex items-center gap-1.5 font-bold text-xs text-gray-300">
+                        <i class="fab fa-instagram text-pink-400 text-sm"></i>
+                        <span id="header-insta-text">Instagram: Carregando...</span>
+                    </span>
+                    <button type="button" id="header-insta-toggle-btn" data-active="false" onclick="toggleInstagramCapture()" class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 shadow-sm" title="Ligar ou pausar a gravação do Instagram">
+                        Gravar
+                    </button>
+                    <span id="header-insta-time" class="text-[10px] text-gray-400 hidden xl:inline"></span>
+                </div>
 
-            <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
-            <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
-                <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
-                <span id="autoscroll-text">Rolagem: Ativa</span>
-            </button>
-
-            <!-- Alternador de Histórico: 200 Recentes / Todas as Mensagens -->
-            <button type="button" onclick="toggleChatHistoryMode()" id="btn-history-mode-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Alternar entre ver 200 mensagens recentes (mais leve e rápido) ou todas as mensagens da live">
-                <i class="fas fa-history text-indigo-400" id="history-mode-icon"></i>
-                <span id="history-mode-text" class="hidden sm:inline">200 Recentes</span>
-            </button>
-
-            <!-- Botão Alternador Painel de Bipagem (Expansão do Chat) -->
-            <button type="button" onclick="toggleScanPanel()" id="btn-toggle-scan-panel" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar ou mostrar o painel lateral de bipagem para expandir a área do chat">
-                <i class="fas fa-barcode text-emerald-400"></i>
-                <span class="hidden sm:inline" id="scan-panel-btn-text">Ocultar Bipagem</span>
-            </button>
-
-            <!-- Botão Ocultar 2 Primeiros Cards -->
-            <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
-                <i class="fas fa-chevron-up text-indigo-400"></i>
-                <span class="hidden sm:inline">Ocultar Topo</span>
-            </button>
-
-            <!-- Botão Tela Cheia -->
-            <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                <i class="fas fa-expand"></i>
-            </button>
-
-            <!-- Botão Contador (Telão) -->
-            <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
-                <i class="fas fa-calculator text-xs text-indigo-200"></i>
-                <span>Contador</span>
-            </a>
-
-            @if($activeLive)
-                <!-- Central de Cortes da Live -->
-                <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-600 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">
-                    <i class="fas fa-film text-xs text-indigo-200"></i>
-                    <span>Cortes & Vídeos</span>
-                </a>
-            @endif
-
-            <!-- Seletor de Live -->
-            <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
-                <form action="{{ route('admin.live-chat.feed') }}" method="GET" class="flex gap-2 m-0">
-                    <select name="live_id" id="live-select" onchange="this.form.submit()" class="text-xs rounded-lg border-0 bg-transparent text-gray-200 font-bold focus:ring-0 p-1 cursor-pointer">
-                        <option value="" class="bg-gray-900 text-white">Selecione uma Live...</option>
-                        @foreach($lives as $l)
-                            <option value="{{ $l->id }}" {{ ($activeLive && $activeLive->id === $l->id) ? 'selected' : '' }} class="bg-gray-900 text-white">
-                                #{{ $l->id }} - {{ $l->tipo_live_formatado }} ({{ $l->data->format('d/m/Y') }}) {{ $l->ativo ? '[ATIVA]' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                </form>
+                <!-- TikTok Capture Monitor -->
+                <div class="flex items-center bg-gray-800/90 p-1.5 px-2.5 rounded-xl border border-gray-700 gap-2 shadow-sm">
+                    <span id="header-tiktok-badge" class="flex items-center gap-1.5 font-bold text-xs text-gray-300">
+                        <i class="fab fa-tiktok text-cyan-400 text-sm"></i>
+                        <span id="header-tiktok-text">TikTok: Carregando...</span>
+                    </span>
+                    <button type="button" id="header-tiktok-toggle-btn" data-active="false" onclick="toggleTikTokCapture()" class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 shadow-sm" title="Ligar ou pausar a gravação do TikTok">
+                        Gravar
+                    </button>
+                    <span id="header-tiktok-time" class="text-[10px] text-gray-400 hidden xl:inline"></span>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- TARJA DE ALERTA DE CAPTURA (Aparece se a live estiver aberta e alguma rede não estiver gravando) -->
+    <div id="recording-alert-banner" class="hidden mb-2.5 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border-2 border-amber-500/80 rounded-2xl p-3 sm:p-3.5 text-white flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
+        <div class="flex items-start sm:items-center gap-3">
+            <div class="w-9 h-9 rounded-2xl bg-amber-500 text-gray-950 flex items-center justify-center font-black text-lg shrink-0 shadow">
+                ⚠️
+            </div>
+            <div>
+                <h4 class="text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1.5">
+                    <span>Atenção: Verificação de Gravação da Live</span>
+                </h4>
+                <p id="recording-alert-message" class="text-xs text-amber-100 font-semibold mt-0.5 leading-snug">
+                    A gravação de uma das redes não está ativa ou não recebeu mensagens recentemente.
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <button type="button" onclick="startAllCaptures()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                <i class="fas fa-play text-xs"></i> Iniciar Gravações
+            </button>
+            <button type="button" onclick="openHelpCaptureModal()" class="bg-gray-800 hover:bg-gray-700 text-amber-300 font-bold text-xs px-3 py-2 rounded-xl border border-amber-500/40 flex items-center gap-1.5 cursor-pointer shadow-sm">
+                <i class="fas fa-question-circle"></i> Como Resolver
+            </button>
+            <button type="button" onclick="dismissRecordingAlert()" class="text-amber-400 hover:text-white px-2 py-1 text-sm font-bold cursor-pointer" title="Dispensar aviso por 10 minutos">
+                ✕
+            </button>
         </div>
     </div>
 
@@ -1009,6 +1094,305 @@
                     <i class="fas fa-hand-pointer text-indigo-400"></i> Clique num código de peça para bipar instantaneamente
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: ABRIR NOVA LIVE                                                    -->
+<!-- ========================================================================= -->
+<div id="modal-open-live" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-lg rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-play"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Iniciar Nova Transmissão</h3>
+                    <p class="text-xs text-gray-300">Configuração de Live & Início de Gravação</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCreateLiveModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Formulário -->
+        <form onsubmit="submitCreateLive(event)" class="p-6 space-y-4">
+            <!-- Tipo de Live -->
+            <div>
+                <label for="open-live-type" style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-bottom: 6px;">
+                    Tipo de Live <span style="color: #dc2626;">*</span>
+                </label>
+                <select id="open-live-type" required style="width: 100%; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #0f172a; background-color: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; outline: none;">
+                    <option value="loja-aberta" selected>Live Loja Aberta (Padrão)</option>
+                    <option value="precinho">Live do Precinho (50% OFF)</option>
+                    <option value="leilao">Live Leilão</option>
+                    <option value="colaborativa">Live Colaborativa</option>
+                </select>
+            </div>
+
+            <!-- Plataformas -->
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-bottom: 6px;">
+                    Plataformas Conectadas <span style="color: #dc2626;">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/50 cursor-pointer hover:bg-indigo-50 transition">
+                        <input type="checkbox" value="instagram" class="open-live-platform w-4 h-4 text-indigo-600 rounded border-gray-300" checked>
+                        <div>
+                            <strong class="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <i class="fab fa-instagram text-pink-600"></i> Instagram
+                            </strong>
+                            <small class="text-[10px] text-gray-500 block">@de_minha_mania</small>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-cyan-200 bg-cyan-50/40 cursor-pointer hover:bg-cyan-50 transition">
+                        <input type="checkbox" value="tiktok" class="open-live-platform w-4 h-4 text-indigo-600 rounded border-gray-300" checked>
+                        <div>
+                            <strong class="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <i class="fab fa-tiktok text-slate-900"></i> TikTok
+                            </strong>
+                            <small class="text-[10px] text-gray-500 block">@_minhamania</small>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Aviso de Automação -->
+            <div class="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs">
+                <strong class="font-extrabold flex items-center gap-1.5 text-emerald-950 mb-1">
+                    <i class="fas fa-magic text-emerald-600"></i> Automação Completa:
+                </strong>
+                Ao abrir a live, o sistema ativará automaticamente os canais de captura do Instagram e TikTok e passará a gravar todas as mensagens e sacolinhas em tempo real.
+            </div>
+
+            <!-- Botões -->
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                <button type="button" onclick="closeCreateLiveModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 12px; padding: 10px 18px; border-radius: 12px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-submit-open-live" style="background-color: #059669; color: #ffffff; font-weight: 900; font-size: 13px; padding: 10px 22px; border-radius: 12px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+                    <i class="fas fa-play text-white"></i> Iniciar Live e Gravação
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: ENCERRAR LIVE                                                      -->
+<!-- ========================================================================= -->
+<div id="modal-close-live" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between" style="background-color: #991b1b; border-bottom: 1px solid #7f1d1d;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white text-red-700 flex items-center justify-center font-black text-lg shadow shrink-0">
+                    <i class="fas fa-stop-circle"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Encerrar Transmissão</h3>
+                    <p class="text-xs text-red-200">Parar gravações e finalizar sacolinhas</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCloseLiveModal()" class="w-8 h-8 rounded-full bg-red-800 text-red-200 hover:text-white flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Conteúdo -->
+        <div class="p-6 space-y-4">
+            <!-- Estatísticas da Live -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
+                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Total Mensagens</span>
+                    <strong id="close-live-msgs-count" class="text-xl font-black text-slate-800">0</strong>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
+                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Pessoas Online</span>
+                    <strong id="close-live-online-count" class="text-xl font-black text-slate-800">0</strong>
+                </div>
+            </div>
+
+            <!-- Aviso de Parada Automática -->
+            <div class="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs">
+                <strong class="font-extrabold flex items-center gap-1.5 text-amber-950 mb-0.5">
+                    <i class="fas fa-pause-circle text-amber-600"></i> Parada Automática:
+                </strong>
+                Ao confirmar, a gravação de comentários no Instagram e TikTok será interrompida imediatamente para evitar mensagens fora de hora.
+            </div>
+
+            <!-- Escolha de Finalização -->
+            <div class="space-y-2.5 pt-2">
+                <!-- Opção 1: Enviar WhatsApp -->
+                <button type="button" id="btn-close-live-zap" onclick="submitCloseLive(1)" class="w-full text-left p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-md flex items-center justify-between gap-3 cursor-pointer group">
+                    <div>
+                        <strong class="text-sm font-black flex items-center gap-1.5 text-white">
+                            <i class="fab fa-whatsapp text-lg text-emerald-200"></i> Encerrar e Disparar WhatsApp
+                        </strong>
+                        <p class="text-xs text-emerald-100 mt-0.5">Gera os PDFs das sacolinhas e envia as cobranças para as clientes.</p>
+                    </div>
+                    <i class="fas fa-arrow-right text-emerald-200 text-sm group-hover:translate-x-1 transition-transform"></i>
+                </button>
+
+                <!-- Opção 2: Encerrar Sem Enviar -->
+                <button type="button" id="btn-close-live-nozap" onclick="submitCloseLive(0)" class="w-full text-left p-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition flex items-center justify-between gap-3 cursor-pointer group">
+                    <div>
+                        <strong class="text-xs font-black flex items-center gap-1.5 text-slate-900">
+                            <i class="fas fa-lock text-slate-500"></i> Encerrar SEM Enviar WhatsApp
+                        </strong>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Encerra a live e salva os dados sem disparar cobranças agora.</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-slate-400 text-xs group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button type="button" onclick="closeCloseLiveModal()" style="background-color: #f1f5f9; color: #475569; font-weight: 800; font-size: 11px; padding: 8px 14px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: PESSOAS ONLINE NO CHAT (Para Lives Fora e Venda Direta)            -->
+<!-- ========================================================================= -->
+<div id="modal-online-people" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-2xl max-h-[85vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between shrink-0" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Pessoas Online na Live</h3>
+                    <p class="text-xs text-gray-300">Selecione uma cliente para abrir a câmera e bipar peças (lives fora)</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeOnlineUsersModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Barra de Busca Rápida -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                <input type="text" id="online-modal-search-input" oninput="filterOnlineUsersModal(this.value)" placeholder="Filtrar por @usuário, nome ou apelido da cliente..." class="w-full pl-9 pr-4 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-inner">
+            </div>
+        </div>
+
+        <!-- Lista de Usuários Online -->
+        <div id="online-modal-users-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-100/60">
+            <!-- Preenchido via JavaScript (renderOnlineUsersInModal) -->
+        </div>
+
+        <!-- Rodapé Informativo -->
+        <div class="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs shrink-0">
+            <span class="text-slate-600 font-medium">
+                <i class="fas fa-info-circle text-indigo-500"></i> Clique em <strong>Bipar / Sacola</strong> para abrir o leitor de QR/código de barras desta cliente.
+            </span>
+            <button type="button" onclick="closeOnlineUsersModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 11px; padding: 7px 14px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: GUIA PASSO A PASSO (Como Gravar Automaticamente)                    -->
+<!-- ========================================================================= -->
+<div id="modal-help-capture" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-2xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between shrink-0" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Como Gravar os Chats Automaticamente</h3>
+                    <p class="text-xs text-amber-200">Processo operacional passo a passo para Instagram e TikTok</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeHelpCaptureModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Conteúdo do Guia -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4 text-xs text-slate-700 leading-relaxed">
+            <!-- Passo 1 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">1</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Abra as abas no Google Chrome antes ou durante o início:</strong>
+                    <p class="text-slate-600 mt-1">
+                        No computador de transmissão, abra o <strong>Google Chrome</strong> e acesse a tela da transmissão do <strong>Instagram</strong> (Instagram Live / Producer) e a tela da transmissão do <strong>TikTok</strong>.
+                    </p>
+                    <p class="text-slate-500 mt-1">
+                        * A extensão <em>Minha Mania Capturador</em> instalada no Chrome detecta a live automaticamente e começa a enviar as mensagens para o servidor.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 2 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">2</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Abra a Live no Chat da Transmissão:</strong>
+                    <p class="text-slate-600 mt-1">
+                        Basta clicar no botão verde <strong>"▶️ Abrir Nova Live"</strong> no topo deste painel. O sistema abrirá a live e <strong>iniciará a captura automática</strong> de ambas as redes simultaneamente.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 3 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">3</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Acompanhe os Indicadores e Alertas em Tempo Real:</strong>
+                    <p class="text-slate-600 mt-1">
+                        O crachá no topo indicará <span class="text-emerald-700 font-bold">🟢 Gravando</span> quando estiver tudo certo. Se uma rede parar ou passar mais de 3 minutos sem mensagens, o sistema exibe uma <strong>tarja de alerta amarela</strong> para você nunca perder vendas.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 4 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-purple-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">4</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Para Vendas Externas ("Lives Fora"):</strong>
+                    <p class="text-slate-600 mt-1">
+                        Use o botão <strong>"👥 Pessoas Online"</strong> no topo. Você verá a lista de todas as clientes comentando, com busca rápida. Basta clicar em <strong>"🏷️ Bipar / Sacola"</strong> ao lado do nome da cliente para abrir o leitor de QR/código de barras instantaneamente.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 5 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-red-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">5</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Ao Final da Live:</strong>
+                    <p class="text-slate-600 mt-1">
+                        Clique em <strong>"⛔ Encerrar Live"</strong> no topo. O sistema interrompe todas as gravações imediatamente (evitando que mensagens pós-live entrem por engano) e oferece a opção de disparar os WhatsApps de cobrança com 1 clique.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+            <button type="button" onclick="closeHelpCaptureModal()" style="background-color: #0f172a; color: #ffffff; font-weight: 800; font-size: 12px; padding: 8px 18px; border-radius: 12px; border: none; cursor: pointer;">
+                Entendi, Fechar Guia
+            </button>
         </div>
     </div>
 </div>
@@ -2165,7 +2549,7 @@
      * Procura no chat todos os clientes que comentaram querendo o código da live ou código do item.
      * Ignora terminantemente mensagens que são telefones/WhatsApp ou comentários genéricos de conversa.
      */
-    function findAllSpeakersForCode(liveCode, code, itemTimestamp) {
+    function findAllSpeakersForCode(liveCode, code, itemTimestamp, dismissedUsers = null) {
         if (!allLiveMessages || allLiveMessages.length === 0) return [];
 
         const targets = [];
@@ -2204,25 +2588,32 @@
 
             const cleanUser = (msg.username || 'usuario').trim().toLowerCase();
             if (seenUsers.has(cleanUser)) continue;
+            if (dismissedUsers && (dismissedUsers.has(cleanUser) || dismissedUsers.has('@' + cleanUser))) continue;
 
             const rawMsg = msg.message.trim();
             const msgText = rawMsg.toLowerCase();
 
-            // 1. FILTRAR TELEFONES: Se a mensagem tiver 7 ou mais dígitos totais, é telefone de cadastro, não pedido!
+            // 1. FILTRAR CANCELAMENTOS / DESISTÊNCIAS / NEGAÇÕES:
+            // Ex: "tira 215", "gra tira o 215", "cancela 215", "não é 215", "passo 215", "desisto 215", "tira o"
+            if (/(?:tira|tirar|cancela|cancelar|cancelo|passo|passa|desisto|desiste|devolve|devolver|remove|remover|errei|enganei|nao\s*[eé]|não\s*[eé]|nao\s*quero|não\s*quero|nao\s*era|não\s*era)/i.test(msgText)) {
+                continue;
+            }
+
+            // 2. FILTRAR TELEFONES: Se a mensagem tiver 7 ou mais dígitos totais, é telefone de cadastro, não pedido!
             const digitsOnly = msgText.replace(/\D/g, '');
             if (digitsOnly.length >= 7) continue;
 
-            // 2. FILTRAR PADRÕES TELEFÔNICOS BRASILEIROS (ex: 19 9999-9999, (11) 98888-8888, 9999-8888)
+            // 3. FILTRAR PADRÕES TELEFÔNICOS BRASILEIROS (ex: 19 9999-9999, (11) 98888-8888, 9999-8888)
             if (/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s.]?\d{4}/.test(msgText) || /\b\d{4,5}[-\s.]\d{4}\b/.test(msgText)) {
                 continue;
             }
 
-            // 3. FILTRAR DÚVIDAS / PERGUNTAS: Se tiver '?' e termos interrogativos (ex: "tem 101?", "veste quanto?", "qual valor?", "ainda tem?"), não é arremate
+            // 4. FILTRAR DÚVIDAS / PERGUNTAS: Se tiver '?' e termos interrogativos (ex: "tem 101?", "veste quanto?", "qual valor?", "ainda tem?"), não é arremate
             if (/\?/.test(msgText) && /(?:tem|ainda|veste|calca|calça|qual|quanto|valor|preco|preço|tamanho|ja\s*foi|já\s*foi|vendeu|mostra)/i.test(msgText)) {
                 continue;
             }
 
-            // 4. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
+            // 5. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
             if (itemTimeMs && msg.created_at) {
                 const msgTimeMs = new Date(msg.created_at).getTime();
                 if (msgTimeMs && (itemTimeMs - msgTimeMs) > (25 * 60 * 1000)) {
@@ -2321,7 +2712,23 @@
             }
         }
 
-        const queue = findAllSpeakersForCode(item.liveCode, item.code, item.timestamp);
+        // Deduplica se houver comprador duplicado por userId ou username (ex: Instagram e TikTok da mesma cliente)
+        if (Array.isArray(item.buyers) && item.buyers.length > 1) {
+            const seenUIds = new Set();
+            const seenUNames = new Set();
+            item.buyers = item.buyers.filter(b => {
+                const uId = b.userId ? String(b.userId) : null;
+                const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                if (uId && seenUIds.has(uId)) return false;
+                if (uName && seenUNames.has(uName)) return false;
+                if (uId) seenUIds.add(uId);
+                if (uName) seenUNames.add(uName);
+                return true;
+            });
+        }
+
+        if (!item.dismissedUsers) item.dismissedUsers = new Set();
+        const queue = findAllSpeakersForCode(item.liveCode, item.code, item.timestamp, item.dismissedUsers);
 
         // CASO 1: A peça JÁ TEM 1 OU MAIS COMPRADORES VINCULADOS
         if (item.buyers.length > 0) {
@@ -2863,7 +3270,10 @@
             });
         }
 
-        const existingIdx = item.buyers.findIndex(b => String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower);
+        const existingIdx = item.buyers.findIndex(b => {
+            if (userId && b.userId && Number(b.userId) === Number(userId)) return true;
+            return String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower;
+        });
         const newBuyerObj = {
             sacolinhaId: null,
             userId: userId || null,
@@ -2876,6 +3286,9 @@
         };
 
         if (existingIdx !== -1) {
+            if (item.buyers[existingIdx].sacolinhaId) {
+                newBuyerObj.sacolinhaId = item.buyers[existingIdx].sacolinhaId;
+            }
             item.buyers[existingIdx] = newBuyerObj;
         } else {
             item.buyers.push(newBuyerObj);
@@ -2945,7 +3358,17 @@
                         if (el) el.dataset.itemId = resData.data.item_id;
                     }
                     if (Array.isArray(resData.data.buyers) && resData.data.buyers.length > 0) {
-                        item.buyers = resData.data.buyers;
+                        const seenIds = new Set();
+                        const seenNames = new Set();
+                        item.buyers = resData.data.buyers.filter(b => {
+                            const uId = b.userId ? String(b.userId) : null;
+                            const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                            if (uId && seenIds.has(uId)) return false;
+                            if (uName && seenNames.has(uName)) return false;
+                            if (uId) seenIds.add(uId);
+                            if (uName) seenNames.add(uName);
+                            return true;
+                        });
                     } else {
                         const target = item.buyers.find(b => String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower);
                         if (target) {
@@ -2982,6 +3405,11 @@
 
         if (!item.buyers) item.buyers = [];
         const cleanUserLower = String(username).replace(/^@/, '').toLowerCase();
+
+        // Adiciona à lista de dispensados deste item para que o chat não o sugira de volta automaticamente
+        if (!item.dismissedUsers) item.dismissedUsers = new Set();
+        item.dismissedUsers.add(cleanUserLower);
+        item.dismissedUsers.add('@' + cleanUserLower);
 
         item.buyers = item.buyers.filter(b => {
             if (sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== sacolinhaId;
@@ -3863,12 +4291,26 @@
                             );
                             if (localItem) {
                                 if (serverItem.item_id && !localItem.itemId) localItem.itemId = serverItem.item_id;
+                                if (Array.isArray(serverItem.buyers)) {
+                                    const seenIds = new Set();
+                                    const seenNames = new Set();
+                                    localItem.buyers = serverItem.buyers.filter(b => {
+                                        const uId = b.userId ? String(b.userId) : null;
+                                        const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                                        if (uId && seenIds.has(uId)) return false;
+                                        if (uName && seenNames.has(uName)) return false;
+                                        if (uId) seenIds.add(uId);
+                                        if (uName) seenNames.add(uName);
+                                        return true;
+                                    });
+                                }
                                 localItem.buyerUserId = serverItem.buyer_user_id || null;
-                                if (serverItem.buyer_username) localItem.buyerUsername = serverItem.buyer_username;
-                                if (serverItem.buyer_name) localItem.buyerName = serverItem.buyer_name;
+                                localItem.buyerUsername = serverItem.buyer_username || null;
+                                localItem.buyerName = serverItem.buyer_name || null;
                                 localItem.buyerPhone = serverItem.buyer_phone || null;
                                 localItem.hasPhone = Boolean(serverItem.has_phone);
                                 if (serverItem.codigo_live) localItem.liveCode = serverItem.codigo_live;
+                                updateScanItemBuyerUI(localItem.id);
                                 if (serverItem.productPrice && localItem.productPrice !== serverItem.productPrice) {
                                     localItem.productPrice = serverItem.productPrice;
                                     localItem.preco = serverItem.preco;
@@ -3938,8 +4380,16 @@
                     }
 
                     updateFilterCounts(data.stats);
+                    updateRecordingStatusUI(data);
                     renderChatFeed();
                     refreshAllScanItemsBuyerUI();
+
+                    // Se a lista de pessoas online estiver aberta, atualiza em tempo real
+                    const onlineModal = document.getElementById("modal-online-people");
+                    if (onlineModal && !onlineModal.classList.contains("hidden")) {
+                        const searchVal = document.getElementById("online-modal-search-input") ? document.getElementById("online-modal-search-input").value : "";
+                        renderOnlineUsersInModal(searchVal);
+                    }
 
                     // Se o modal de bipe estiver aberto, atualizar mensagens da cliente
                     if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
@@ -5266,6 +5716,451 @@
                 btn.innerHTML = '<i class="fas fa-check"></i> Salvar Produto';
             }
         }
+    }
+
+    // =========================================================================
+    // CONTROLES DE GRAVAÇÃO, LIVE E PESSOAS ONLINE (CENTRALIZADOS)
+    // =========================================================================
+    let recordingAlertDismissedUntil = 0;
+
+    function dismissRecordingAlert() {
+        recordingAlertDismissedUntil = Date.now() + (10 * 60 * 1000);
+        const banner = document.getElementById("recording-alert-banner");
+        if (banner) banner.classList.add("hidden");
+    }
+
+    function updateRecordingStatusUI(data) {
+        if (!data) return;
+
+        const isLive = !!data.is_live_active;
+        const totalOnline = data.online_users ? data.online_users.length : (data.stats ? data.stats.total_online : 0);
+        
+        // Atualiza contador de online no botão do topo
+        const onlineBtnCount = document.getElementById("top-bar-online-count");
+        if (onlineBtnCount) onlineBtnCount.textContent = totalOnline;
+
+        // Monitor Instagram
+        const instaBadge = document.getElementById("header-insta-badge");
+        const instaText = document.getElementById("header-insta-text");
+        const instaBtn = document.getElementById("header-insta-toggle-btn");
+        const instaTime = document.getElementById("header-insta-time");
+
+        if (instaBadge && instaText && instaBtn) {
+            if (!isLive) {
+                instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-gray-400";
+                instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500"></span> Instagram: Desconectado';
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-400 opacity-60";
+                instaBtn.textContent = "Inativo";
+                instaBtn.setAttribute('data-active', 'false');
+            } else if (data.insta_active) {
+                const hasDelay = data.last_insta_msg_sec_ago !== null && data.last_insta_msg_sec_ago > 180;
+                if (hasDelay) {
+                    instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-amber-300";
+                    instaText.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Instagram: Sem msgs (${Math.floor(data.last_insta_msg_sec_ago / 60)}m)`;
+                } else {
+                    instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-emerald-400";
+                    instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Instagram: Gravando';
+                }
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow";
+                instaBtn.textContent = "Parar";
+                instaBtn.setAttribute('data-active', 'true');
+            } else {
+                instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-red-400";
+                instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Instagram: Parado';
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow";
+                instaBtn.textContent = "Gravar";
+                instaBtn.setAttribute('data-active', 'false');
+            }
+
+            if (instaTime) {
+                if (data.last_insta_msg_at) {
+                    instaTime.textContent = `(última: ${data.last_insta_msg_at})`;
+                } else {
+                    instaTime.textContent = '';
+                }
+            }
+        }
+
+        // Monitor TikTok
+        const tiktokBadge = document.getElementById("header-tiktok-badge");
+        const tiktokText = document.getElementById("header-tiktok-text");
+        const tiktokBtn = document.getElementById("header-tiktok-toggle-btn");
+        const tiktokTime = document.getElementById("header-tiktok-time");
+
+        if (tiktokBadge && tiktokText && tiktokBtn) {
+            if (!isLive) {
+                tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-gray-400";
+                tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500"></span> TikTok: Desconectado';
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-400 opacity-60";
+                tiktokBtn.textContent = "Inativo";
+                tiktokBtn.setAttribute('data-active', 'false');
+            } else if (data.tiktok_active) {
+                const hasDelay = data.last_tiktok_msg_sec_ago !== null && data.last_tiktok_msg_sec_ago > 180;
+                if (hasDelay) {
+                    tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-amber-300";
+                    tiktokText.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> TikTok: Sem msgs (${Math.floor(data.last_tiktok_msg_sec_ago / 60)}m)`;
+                } else {
+                    tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-emerald-400";
+                    tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> TikTok: Gravando';
+                }
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow";
+                tiktokBtn.textContent = "Parar";
+                tiktokBtn.setAttribute('data-active', 'true');
+            } else {
+                tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-red-400";
+                tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> TikTok: Parado';
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow";
+                tiktokBtn.textContent = "Gravar";
+                tiktokBtn.setAttribute('data-active', 'false');
+            }
+
+            if (tiktokTime) {
+                if (data.last_tiktok_msg_at) {
+                    tiktokTime.textContent = `(última: ${data.last_tiktok_msg_at})`;
+                } else {
+                    tiktokTime.textContent = '';
+                }
+            }
+        }
+
+        // Mecanismo de Alerta Automático de Gravação
+        const banner = document.getElementById("recording-alert-banner");
+        const bannerMsg = document.getElementById("recording-alert-message");
+        if (banner) {
+            const isDismissed = Date.now() < recordingAlertDismissedUntil;
+
+            if (isLive && !isDismissed) {
+                const instaIssues = !data.insta_active || (data.last_insta_msg_sec_ago !== null && data.last_insta_msg_sec_ago > 300);
+                const tiktokIssues = !data.tiktok_active || (data.last_tiktok_msg_sec_ago !== null && data.last_tiktok_msg_sec_ago > 300);
+
+                if (instaIssues || tiktokIssues) {
+                    banner.classList.remove("hidden");
+                    let msgs = [];
+                    if (!data.insta_active) {
+                        msgs.push("A gravação do Instagram está parada");
+                    } else if (data.last_insta_msg_sec_ago > 300) {
+                        msgs.push("Instagram sem novas mensagens há " + Math.floor(data.last_insta_msg_sec_ago / 60) + " minutos");
+                    }
+
+                    if (!data.tiktok_active) {
+                        msgs.push("A gravação do TikTok está parada");
+                    } else if (data.last_tiktok_msg_sec_ago > 300) {
+                        msgs.push("TikTok sem novas mensagens há " + Math.floor(data.last_tiktok_msg_sec_ago / 60) + " minutos");
+                    }
+
+                    if (bannerMsg) {
+                        bannerMsg.innerHTML = msgs.join(" • ") + ". Certifique-se de que a aba da live no Google Chrome está aberta com a extensão ativa.";
+                    }
+                } else {
+                    banner.classList.add("hidden");
+                }
+            } else {
+                banner.classList.add("hidden");
+            }
+        }
+    }
+
+    async function toggleInstagramCapture(forceAction) {
+        const btn = document.getElementById("header-insta-toggle-btn");
+        const isCurrentlyActive = btn && btn.getAttribute('data-active') === 'true';
+        const action = forceAction || (isCurrentlyActive ? "stop" : "start");
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i>';
+        }
+
+        try {
+            const res = await fetch("/admin/live-chat/toggle-instagram", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.insta_active ? "Gravação do Instagram Iniciada!" : "Gravação do Instagram Parada!", data.insta_active ? "success" : "info");
+                fetchChatFeed(true);
+            } else {
+                showToast(data.message || "Erro ao alternar gravação do Instagram", "error");
+            }
+        } catch (e) {
+            console.error("Erro toggle Instagram:", e);
+            showToast("Erro ao comunicar com serviço do Instagram", "error");
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function toggleTikTokCapture(forceAction) {
+        const btn = document.getElementById("header-tiktok-toggle-btn");
+        const isCurrentlyActive = btn && btn.getAttribute('data-active') === 'true';
+        const action = forceAction || (isCurrentlyActive ? "stop" : "start");
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i>';
+        }
+
+        try {
+            const res = await fetch("/admin/live-chat/toggle-tiktok", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.tiktok_active ? "Gravação do TikTok Iniciada!" : "Gravação do TikTok Parada!", data.tiktok_active ? "success" : "info");
+                fetchChatFeed(true);
+            } else {
+                showToast(data.message || "Erro ao alternar gravação do TikTok", "error");
+            }
+        } catch (e) {
+            console.error("Erro toggle TikTok:", e);
+            showToast("Erro ao comunicar com serviço do TikTok", "error");
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function startAllCaptures() {
+        showToast("Iniciando gravações de todas as redes...", "info");
+        await Promise.all([
+            toggleInstagramCapture('start'),
+            toggleTikTokCapture('start')
+        ]);
+        const banner = document.getElementById("recording-alert-banner");
+        if (banner) banner.classList.add("hidden");
+    }
+
+    function openCreateLiveModal() {
+        const modal = document.getElementById('modal-open-live');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCreateLiveModal() {
+        const modal = document.getElementById('modal-open-live');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitCreateLive(event) {
+        if (event) event.preventDefault();
+        const btn = document.getElementById('btn-submit-open-live');
+        const tipoLive = document.getElementById('open-live-type') ? document.getElementById('open-live-type').value : 'loja-aberta';
+        const plataformas = Array.from(document.querySelectorAll('.open-live-platform:checked')).map(cb => cb.value);
+
+        if (plataformas.length === 0) {
+            alert('Selecione pelo menos uma plataforma para transmitir!');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1 text-white"></i> Criando Live...';
+        }
+
+        try {
+            const res = await fetch('/lives', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    tipo_live: tipoLive,
+                    plataformas: plataformas
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.live) {
+                showToast('Live #' + data.live.id + ' aberta! Captura automática iniciada.', 'success');
+                window.location.href = '/admin/live-chat/feed?live_id=' + data.live.id;
+            } else {
+                alert(data.message || 'Erro ao abrir live');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-play text-white"></i> Iniciar Live e Gravação';
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao abrir live:', e);
+            alert('Erro ao conectar ao servidor para abrir a live.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play text-white"></i> Iniciar Live e Gravação';
+            }
+        }
+    }
+
+    function openCloseLiveModal() {
+        if (!liveId) {
+            alert('Nenhuma live ativa no momento para encerrar.');
+            return;
+        }
+        const modal = document.getElementById('modal-close-live');
+        const countEl = document.getElementById('close-live-msgs-count');
+        if (countEl) countEl.textContent = allLiveMessages ? allLiveMessages.length : 0;
+        const onlineEl = document.getElementById('close-live-online-count');
+        if (onlineEl) onlineEl.textContent = rawOnlineUsers ? rawOnlineUsers.length : 0;
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCloseLiveModal() {
+        const modal = document.getElementById('modal-close-live');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitCloseLive(enviarWhatsapp) {
+        if (!liveId) return;
+
+        const actionText = enviarWhatsapp 
+            ? "Tem certeza que deseja ENCERRAR a live e DISPARAR as cobranças no WhatsApp?"
+            : "Tem certeza que deseja ENCERRAR a live SEM enviar mensagens no WhatsApp?";
+
+        if (!confirm(actionText)) return;
+
+        const btnWithZap = document.getElementById('btn-close-live-zap');
+        const btnNoZap = document.getElementById('btn-close-live-nozap');
+
+        if (btnWithZap) {
+            btnWithZap.disabled = true;
+            btnWithZap.innerHTML = '<div class="p-2 text-center text-white"><i class="fas fa-spinner fa-spin mr-1"></i> Encerrando e enfileirando cobranças...</div>';
+        }
+        if (btnNoZap) btnNoZap.disabled = true;
+
+        try {
+            const res = await fetch(`/lives/${liveId}?enviar_whatsapp=${enviarWhatsapp ? 1 : 0}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Live encerrada com sucesso! As gravações foram paradas automaticamente.');
+                window.location.reload();
+            } else {
+                alert(data.error || data.message || 'Erro ao encerrar a live');
+                if (btnWithZap) btnWithZap.disabled = false;
+                if (btnNoZap) btnNoZap.disabled = false;
+            }
+        } catch (e) {
+            console.error('Erro ao encerrar live:', e);
+            alert('Erro de comunicação ao encerrar a live.');
+            if (btnWithZap) btnWithZap.disabled = false;
+            if (btnNoZap) btnNoZap.disabled = false;
+        }
+    }
+
+    function openOnlineUsersModal() {
+        const modal = document.getElementById('modal-online-people');
+        if (modal) {
+            modal.classList.remove('hidden');
+            renderOnlineUsersInModal();
+            const searchInput = document.getElementById('online-modal-search-input');
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 150);
+            }
+        }
+    }
+
+    function closeOnlineUsersModal() {
+        const modal = document.getElementById('modal-online-people');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function filterOnlineUsersModal(query) {
+        renderOnlineUsersInModal(query);
+    }
+
+    function renderOnlineUsersInModal(filterText = '') {
+        const container = document.getElementById('online-modal-users-list');
+        if (!container) return;
+
+        const term = (filterText || '').trim().toLowerCase().replace(/^@/, '');
+        const users = (rawOnlineUsers || []).filter(u => {
+            if (!term) return true;
+            const uName = (u.username || '').toLowerCase();
+            const cName = (u.user_name || '').toLowerCase();
+            const aName = (u.user_apelido || '').toLowerCase();
+            return uName.includes(term) || cName.includes(term) || aName.includes(term);
+        });
+
+        if (users.length === 0) {
+            container.innerHTML = `
+                <div class="py-12 text-center text-slate-500">
+                    <i class="fas fa-users-slash text-3xl mb-2 text-slate-400"></i>
+                    <p class="text-sm font-black text-slate-700">Nenhum participante encontrado</p>
+                    <p class="text-xs text-slate-500 mt-1">${term ? 'Nenhum usuário corresponde à busca "' + escapeHtml(filterText) + '"' : 'Nenhuma cliente comentou ainda nesta transmissão.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        users.forEach(u => {
+            const platformBadge = u.plataforma === 'tiktok'
+                ? `<span class="bg-black text-cyan-400 text-[10px] font-black px-2 py-0.5 rounded border border-gray-700 flex items-center gap-1"><i class="fab fa-tiktok"></i> TikTok</span>`
+                : `<span class="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1"><i class="fab fa-instagram"></i> Instagram</span>`;
+
+            const clientNameDisplay = u.user_name || u.user_apelido || '';
+            const isLinked = !!u.user_id;
+            const safeUsername = (u.username || '').replace(/'/g, "\\'");
+            const safeDisplayName = (clientNameDisplay || u.username || '').replace(/'/g, "\\'");
+
+            html += `
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-indigo-50/50 border border-slate-200 transition shadow-sm gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-sm shrink-0 shadow overflow-hidden ${u.plataforma === 'tiktok' ? 'bg-zinc-800' : 'bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600'}">
+                            ${u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : (u.username ? u.username.charAt(0).toUpperCase() : '?')}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <strong class="text-sm font-black text-slate-900 truncate">@${escapeHtml(u.username)}</strong>
+                                ${platformBadge}
+                            </div>
+                            <div class="text-xs text-slate-600 mt-0.5 flex items-center gap-2 truncate">
+                                ${isLinked 
+                                    ? `<span class="text-emerald-700 font-bold flex items-center gap-1"><i class="fas fa-check-circle text-[11px]"></i> ${escapeHtml(clientNameDisplay)}</span>` 
+                                    : `<span class="text-amber-800 font-bold bg-amber-100 px-1.5 py-0.5 rounded text-[10px]">Não vinculado</span>`
+                                }
+                                <span class="text-slate-400">&bull;</span>
+                                <span class="text-slate-500 font-semibold">${u.total_msgs || 0} msgs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="shrink-0 flex items-center gap-2">
+                        <button type="button" onclick="closeOnlineUsersModal(); openOnlineQrModal('${u.user_id || ''}', '${safeUsername}', '${safeDisplayName}')" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                            <i class="fas fa-barcode"></i> Bipar / Sacola
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function openHelpCaptureModal() {
+        const modal = document.getElementById('modal-help-capture');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeHelpCaptureModal() {
+        const modal = document.getElementById('modal-help-capture');
+        if (modal) modal.classList.add('hidden');
     }
 
     // =========================================================================

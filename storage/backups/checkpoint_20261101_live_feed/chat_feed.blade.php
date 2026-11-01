@@ -1,0 +1,6186 @@
+@extends('layouts.app')
+
+@section('title', 'Chat da Transmissão - Ao Vivo')
+
+@section('content')
+<style>
+    /* ==========================================================================
+       ESTILOS EXCLUSIVOS - CHAT DA TRANSMISSÃO (ALTA LEGIBILIDADE & CONTRASTE)
+       ========================================================================== */
+    .theme-dark {
+        --feed-bg: #0b0f19;
+        --card-bg: #161f30;
+        --card-bg-hover: #1e293b;
+        --card-border: #2c3b52;
+        --card-marked-bg: #2d1e08;
+        --card-marked-border: #f59e0b;
+        --text-msg: #ffffff;
+        --text-user-insta: #c084fc;
+        --text-user-tiktok: #f472b6;
+        --text-user-youtube: #f87171;
+        --text-time: #94a3b8;
+        --badge-client-bg: #064e3b;
+        --badge-client-text: #a7f3d0;
+        --badge-client-border: #059669;
+        --topbar-bg: #111827;
+        --topbar-border: #1f2937;
+    }
+
+    .theme-light {
+        --feed-bg: #e2e8f0;
+        --card-bg: #ffffff;
+        --card-bg-hover: #f8fafc;
+        --card-border: #cbd5e1;
+        --card-marked-bg: #fef3c7;
+        --card-marked-border: #d97706;
+        --text-msg: #0f172a;
+        --text-user-insta: #7e22ce;
+        --text-user-tiktok: #db2777;
+        --text-user-youtube: #dc2626;
+        --text-time: #64748b;
+        --badge-client-bg: #d1fae5;
+        --badge-client-text: #065f46;
+        --badge-client-border: #34d399;
+        --topbar-bg: #ffffff;
+        --topbar-border: #e2e8f0;
+    }
+
+    .live-feed-page-wrapper {
+        width: 100%;
+        max-width: 100% !important;
+        margin: 0;
+        padding: 0 8px;
+        height: calc(100vh - 78px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #feed-messages-container {
+        background-color: var(--feed-bg);
+        transition: background-color 0.2s ease;
+    }
+
+    #scan-camera-reader {
+        width: 100% !important;
+        height: 100% !important;
+        position: relative !important;
+        overflow: hidden !important;
+        border-radius: 0.75rem !important;
+        background: #000 !important;
+    }
+    #scan-camera-reader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        border-radius: 0.75rem !important;
+    }
+    #scan-camera-reader__scan_region {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    #scan-camera-reader__scan_region svg,
+    #scan-camera-reader__dashboard {
+        display: none !important;
+    }
+
+    .chat-card {
+        background-color: var(--card-bg) !important;
+        border: 1.5px solid var(--card-border) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease;
+        cursor: pointer;
+    }
+
+    .chat-card:hover {
+        background-color: var(--card-bg-hover) !important;
+        border-color: #6366f1 !important;
+    }
+
+    /* Mensagem com peça vinculada: linha em azul em destaque na lateral */
+    .chat-card.is-linked-msg {
+        border-left: 6px solid #2563eb !important;
+        border-color: #3b82f6 !important;
+        background-color: rgba(37, 99, 235, 0.08) !important;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15) !important;
+    }
+
+
+    .chat-card.marked {
+        background-color: var(--card-marked-bg) !important;
+        border: 2px solid var(--card-marked-border) !important;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.25) !important;
+    }
+
+    .chat-card.marked.is-linked-msg {
+        border-left: 6px solid #2563eb !important;
+    }
+
+    .chat-message-text {
+        color: var(--text-msg) !important;
+        font-weight: 700 !important;
+        word-break: break-word;
+        line-height: 1.45;
+        letter-spacing: -0.01em;
+    }
+
+    .chat-user-tiktok {
+        color: var(--text-user-tiktok) !important;
+        font-weight: 800 !important;
+    }
+
+    .chat-user-insta {
+        color: var(--text-user-insta) !important;
+        font-weight: 800 !important;
+    }
+
+    .chat-user-youtube {
+        color: var(--text-user-youtube) !important;
+        font-weight: 800 !important;
+    }
+
+    .chat-time-label {
+        color: var(--text-time) !important;
+        font-family: monospace;
+        font-weight: 600;
+    }
+
+    .chat-client-badge {
+        background-color: var(--badge-client-bg) !important;
+        color: var(--badge-client-text) !important;
+        border: 1px solid var(--badge-client-border) !important;
+        font-weight: 800 !important;
+        padding: 2px 8px !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+    }
+
+    .chat-product-code {
+        background-color: #4f46e5 !important;
+        color: #ffffff !important;
+        font-weight: 900 !important;
+        padding: 3px 9px !important;
+        border-radius: 8px !important;
+        border: 1.5px solid #818cf8 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        margin: 0 2px !important;
+    }
+
+    /* Custom Scrollbar */
+    #feed-messages-container::-webkit-scrollbar {
+        width: 10px;
+    }
+    #feed-messages-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.15);
+    }
+    #feed-messages-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+    }
+    #feed-messages-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.35);
+    }
+
+    #scan-panel::-webkit-scrollbar,
+    #scan-items-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    #scan-panel::-webkit-scrollbar-track,
+    #scan-items-list::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.04);
+        border-radius: 4px;
+    }
+    #scan-panel::-webkit-scrollbar-thumb,
+    #scan-items-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    #scan-panel::-webkit-scrollbar-thumb:hover,
+    #scan-items-list::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+</style>
+
+<div class="w-full max-w-full px-1 sm:px-2 py-1 live-feed-page-wrapper">
+    <!-- Top Bar com Controles de Leitura e Filtros (Card 1) -->
+    <div id="feed-top-header" class="mb-2 bg-gray-900 text-white p-2.5 sm:p-3 rounded-2xl shadow-lg border border-gray-800 flex flex-col gap-2.5 shrink-0">
+        <!-- Linha 1: Título, Controle da Live (Abrir/Fechar), Pessoas Online & Ferramentas -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+            <!-- Título & Status da Live Aberta/Fechada -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-sm sm:text-base font-black text-white tracking-tight">Chat da Transmissão</h1>
+                        
+                        @if($activeLive && $activeLive->ativo)
+                            <span class="bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow animate-pulse">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> AO VIVO: #{{ $activeLive->id }} - {{ $activeLive->tipo_live_formatado }}
+                            </span>
+                            <button type="button" onclick="openCloseLiveModal()" class="bg-red-600 hover:bg-red-500 text-white font-black text-xs px-3 py-1 rounded-xl shadow transition flex items-center gap-1.5 active:scale-95 cursor-pointer" title="Encerrar esta Live e finalizar sacolinhas/gravações">
+                                <i class="fas fa-stop-circle"></i> Encerrar Live
+                            </button>
+                        @else
+                            <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-700 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Nenhuma Live Aberta
+                            </span>
+                            <button type="button" onclick="openCreateLiveModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-3.5 py-1 rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95 cursor-pointer animate-pulse" title="Iniciar uma nova transmissão">
+                                <i class="fas fa-play"></i> Abrir Nova Live
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ferramentas & Atalhos -->
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <!-- Botão Pessoas Online (Para lives externas / lives fora) -->
+                <button type="button" onclick="openOnlineUsersModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ver clientes conectadas no chat e bipar peças diretamente">
+                    <i class="fas fa-users text-xs text-indigo-200"></i>
+                    <span>Pessoas Online (<span id="top-bar-online-count">0</span>)</span>
+                </button>
+
+                <!-- Botão Como Capturar (Ajuda / Guia) -->
+                <button type="button" onclick="openHelpCaptureModal()" class="bg-gray-800 hover:bg-gray-700 text-amber-300 hover:text-amber-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Instruções para captura automática de chats">
+                    <i class="fas fa-question-circle"></i>
+                    <span class="hidden sm:inline">Como Gravar</span>
+                </button>
+
+                <!-- Controle de Tamanho da Fonte (A- / Normal / A+ / A++) -->
+                <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 shadow-inner">
+                    <span class="text-xs text-gray-400 font-bold px-2 hidden sm:inline"><i class="fas fa-font"></i></span>
+                    <button type="button" onclick="setFontSize('sm')" id="btn-font-sm" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A-</button>
+                    <button type="button" onclick="setFontSize('md')" id="btn-font-md" class="px-2 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow cursor-pointer">Normal</button>
+                    <button type="button" onclick="setFontSize('lg')" id="btn-font-lg" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A+</button>
+                    <button type="button" onclick="setFontSize('xl')" id="btn-font-xl" class="px-2 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition cursor-pointer">A++</button>
+                </div>
+
+                <!-- Alternador de Tema Escuro / Claro -->
+                <button type="button" onclick="toggleTheme()" id="btn-theme-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <i class="fas fa-moon text-yellow-400" id="theme-icon"></i>
+                    <span id="theme-text" class="hidden sm:inline">Modo Escuro</span>
+                </button>
+
+                <!-- Alternador de Rolagem Automática (Auto-Scroll) -->
+                <button type="button" onclick="toggleAutoScroll()" id="btn-autoscroll-toggle" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Ativar ou desativar a rolagem automática para as últimas mensagens">
+                    <i class="fas fa-arrow-down text-xs" id="autoscroll-icon"></i>
+                    <span id="autoscroll-text">Rolagem: Ativa</span>
+                </button>
+
+                <!-- Alternador de Histórico: 200 Recentes / Todas as Mensagens -->
+                <button type="button" onclick="toggleChatHistoryMode()" id="btn-history-mode-toggle" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Alternar entre ver 200 mensagens recentes ou todas as mensagens da live">
+                    <i class="fas fa-history text-indigo-400" id="history-mode-icon"></i>
+                    <span id="history-mode-text" class="hidden sm:inline">200 Recentes</span>
+                </button>
+
+                <!-- Botão Alternador Painel de Bipagem (Expansão do Chat) -->
+                <button type="button" onclick="toggleScanPanel()" id="btn-toggle-scan-panel" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-3 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar ou mostrar o painel lateral de bipagem">
+                    <i class="fas fa-barcode text-emerald-400"></i>
+                    <span class="hidden sm:inline" id="scan-panel-btn-text">Ocultar Bipagem</span>
+                </button>
+
+                <!-- Botão Ocultar 2 Primeiros Cards -->
+                <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
+                    <i class="fas fa-chevron-up text-indigo-400"></i>
+                    <span class="hidden sm:inline">Ocultar Topo</span>
+                </button>
+
+                <!-- Botão Tela Cheia -->
+                <button type="button" onclick="toggleFullScreen()" title="Alternar Tela Cheia" class="bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <i class="fas fa-expand"></i>
+                </button>
+
+                <!-- Botão Contador (Telão) -->
+                <a href="{{ route('admin.live-chat.contador', ['live_id' => $activeLive ? $activeLive->id : '']) }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Contador de Itens Bipados (Telão)">
+                    <i class="fas fa-calculator text-xs text-indigo-200"></i>
+                    <span>Contador</span>
+                </a>
+
+                @if($activeLive)
+                    <!-- Central de Cortes da Live -->
+                    <a href="{{ route('admin.lives.cortes', ['liveId' => $activeLive->id]) }}" target="_blank" class="bg-indigo-700 hover:bg-indigo-600 text-white p-2 px-3 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95" title="Abrir Fatiador de Vídeos e Cortes da Live">
+                        <i class="fas fa-film text-xs text-indigo-200"></i>
+                        <span>Cortes & Vídeos</span>
+                    </a>
+                @endif
+
+                <!-- Seletor de Live -->
+                <div class="flex items-center gap-2 bg-gray-800 p-1 px-2 rounded-xl border border-gray-700">
+                    <form action="{{ route('admin.live-chat.feed') }}" method="GET" class="flex gap-2 m-0">
+                        <select name="live_id" id="live-select" onchange="this.form.submit()" class="text-xs rounded-lg border-0 bg-transparent text-gray-200 font-bold focus:ring-0 p-1 cursor-pointer">
+                            <option value="" class="bg-gray-900 text-white">Selecione uma Live...</option>
+                            @foreach($lives as $l)
+                                <option value="{{ $l->id }}" {{ ($activeLive && $activeLive->id === $l->id) ? 'selected' : '' }} class="bg-gray-900 text-white">
+                                    #{{ $l->id }} - {{ $l->tipo_live_formatado }} ({{ $l->data->format('d/m/Y') }}) {{ $l->ativo ? '[ATIVA]' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Linha 2: Monitor de Gravação Automática & Status das Redes (Instagram e TikTok) -->
+        <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2.5 border-t border-gray-800/80 text-xs">
+            <!-- Estatísticas do Stream -->
+            <div class="flex items-center gap-2.5 text-gray-300">
+                <span id="chat-total-msgs-badge" class="font-extrabold text-white bg-gray-800 px-2.5 py-1 rounded-xl border border-gray-700 text-xs shadow-inner">0 mensagens capturadas</span>
+                <span id="chat-stream-status" class="text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
+                    <i class="fas fa-check-circle text-xs"></i> Sincronizando
+                </span>
+            </div>
+
+            <!-- Crachás e Controles de Gravação de Cada Rede -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Instagram Capture Monitor -->
+                <div class="flex items-center bg-gray-800/90 p-1.5 px-2.5 rounded-xl border border-gray-700 gap-2 shadow-sm">
+                    <span id="header-insta-badge" class="flex items-center gap-1.5 font-bold text-xs text-gray-300">
+                        <i class="fab fa-instagram text-pink-400 text-sm"></i>
+                        <span id="header-insta-text">Instagram: Carregando...</span>
+                    </span>
+                    <button type="button" id="header-insta-toggle-btn" data-active="false" onclick="toggleInstagramCapture()" class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 shadow-sm" title="Ligar ou pausar a gravação do Instagram">
+                        Gravar
+                    </button>
+                    <span id="header-insta-time" class="text-[10px] text-gray-400 hidden xl:inline"></span>
+                </div>
+
+                <!-- TikTok Capture Monitor -->
+                <div class="flex items-center bg-gray-800/90 p-1.5 px-2.5 rounded-xl border border-gray-700 gap-2 shadow-sm">
+                    <span id="header-tiktok-badge" class="flex items-center gap-1.5 font-bold text-xs text-gray-300">
+                        <i class="fab fa-tiktok text-cyan-400 text-sm"></i>
+                        <span id="header-tiktok-text">TikTok: Carregando...</span>
+                    </span>
+                    <button type="button" id="header-tiktok-toggle-btn" data-active="false" onclick="toggleTikTokCapture()" class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 shadow-sm" title="Ligar ou pausar a gravação do TikTok">
+                        Gravar
+                    </button>
+                    <span id="header-tiktok-time" class="text-[10px] text-gray-400 hidden xl:inline"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TARJA DE ALERTA DE CAPTURA (Aparece se a live estiver aberta e alguma rede não estiver gravando) -->
+    <div id="recording-alert-banner" class="hidden mb-2.5 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border-2 border-amber-500/80 rounded-2xl p-3 sm:p-3.5 text-white flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
+        <div class="flex items-start sm:items-center gap-3">
+            <div class="w-9 h-9 rounded-2xl bg-amber-500 text-gray-950 flex items-center justify-center font-black text-lg shrink-0 shadow">
+                ⚠️
+            </div>
+            <div>
+                <h4 class="text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1.5">
+                    <span>Atenção: Verificação de Gravação da Live</span>
+                </h4>
+                <p id="recording-alert-message" class="text-xs text-amber-100 font-semibold mt-0.5 leading-snug">
+                    A gravação de uma das redes não está ativa ou não recebeu mensagens recentemente.
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <button type="button" onclick="startAllCaptures()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                <i class="fas fa-play text-xs"></i> Iniciar Gravações
+            </button>
+            <button type="button" onclick="openHelpCaptureModal()" class="bg-gray-800 hover:bg-gray-700 text-amber-300 font-bold text-xs px-3 py-2 rounded-xl border border-amber-500/40 flex items-center gap-1.5 cursor-pointer shadow-sm">
+                <i class="fas fa-question-circle"></i> Como Resolver
+            </button>
+            <button type="button" onclick="dismissRecordingAlert()" class="text-amber-400 hover:text-white px-2 py-1 text-sm font-bold cursor-pointer" title="Dispensar aviso por 10 minutos">
+                ✕
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros e Busca Rápida (Card 2) -->
+    <div id="feed-filter-bar" class="mb-2.5 bg-white p-2.5 px-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <!-- Filtros Rápidos -->
+        <div class="flex flex-wrap items-center gap-1.5">
+            <button type="button" onclick="setFeedFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow transition cursor-pointer">
+                Todas (<span id="count-filter-all">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('instagram')" id="filter-btn-instagram" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-purple-700 hover:bg-purple-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
+                <i class="fab fa-instagram"></i> Instagram (<span id="count-filter-instagram">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('tiktok')" id="filter-btn-tiktok" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-pink-600 hover:bg-pink-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
+                <i class="fab fa-tiktok"></i> TikTok (<span id="count-filter-tiktok">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('youtube')" id="filter-btn-youtube" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-red-600 hover:bg-red-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
+                <i class="fab fa-youtube text-red-600"></i> YouTube (<span id="count-filter-youtube">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('marked')" id="filter-btn-marked" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-amber-700 hover:bg-amber-50 transition border border-amber-300 flex items-center gap-1 cursor-pointer">
+                <i class="fas fa-star text-amber-500"></i> Marcadas (<span id="count-filter-marked">0</span>)
+            </button>
+            <button type="button" onclick="setFeedFilter('registered')" id="filter-btn-registered" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-emerald-700 hover:bg-emerald-50 transition border border-emerald-300 flex items-center gap-1 cursor-pointer">
+                <i class="fas fa-user-check text-emerald-500"></i> Cadastradas (<span id="count-filter-registered">0</span>)
+            </button>
+
+            <!-- Totais das Sacolinhas da Live -->
+            <div class="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-extrabold text-indigo-800 shadow-sm select-none">
+                <i class="fas fa-shopping-bag text-indigo-500"></i>
+                <span id="sacolinhas-itens-badge">0 itens</span>
+                <span class="text-indigo-300 font-light mx-0.5">|</span>
+                <i class="fas fa-money-bill-wave text-emerald-500"></i>
+                <span id="sacolinhas-valor-badge" class="text-emerald-700">R$ 0,00</span>
+            </div>
+        </div>
+
+        <!-- Busca / Filtro em Tempo Real -->
+        <div class="relative w-full sm:w-72">
+            <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 pr-7 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
+            <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
+            <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer transition" title="Limpar busca">
+                <i class="fas fa-times-circle text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Área principal: Feed (1/3) + Painel de Bipagem e Itens (2/3) -->
+    <div class="flex flex-col lg:flex-row gap-2.5 flex-1" style="min-height:0;">
+
+        <!-- FEED PRINCIPAL DO CHAT (1/3 DO ESPAÇO DA TELA) -->
+        <div id="feed-outer-wrapper" class="theme-dark relative w-full lg:w-1/3 xl:w-1/3 shrink-0 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
+            <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
+            <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
+                <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
+                    <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
+                    <span>Mostrar Topo / Filtros</span>
+                </button>
+            </div>
+
+            <!-- Botão Flutuante para Reabrir Painel de Bipagem (quando oculto) -->
+            <div id="floating-show-scan-panel-btn" class="absolute top-3 right-52 z-40 hidden transition-all">
+                <button type="button" onclick="toggleScanPanel()" class="bg-emerald-600/95 hover:bg-emerald-500 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-emerald-300 cursor-pointer active:scale-95 transition-all hover:scale-105">
+                    <i class="fas fa-barcode"></i>
+                    <span>Abrir Painel de Itens</span>
+                </button>
+            </div>
+
+            <!-- Container com Scroll -->
+            <div id="feed-messages-container" class="flex-1 p-3 sm:p-4 overflow-y-auto space-y-2.5 font-sans" onscroll="handleContainerScroll()">
+                @if(!$activeLive)
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                        <i class="fas fa-video-slash text-4xl mb-3 text-gray-500"></i>
+                        <h3 class="text-base font-bold text-gray-300">Nenhuma Live Selecionada</h3>
+                        <p class="text-xs text-gray-400 mt-1">Selecione uma live no topo para carregar o chat da transmissão.</p>
+                    </div>
+                @else
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-3 text-indigo-500"></i>
+                        <p class="text-xs font-semibold text-gray-300">Aguardando comentários da transmissão...</p>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Botão Flutuante de Novas Mensagens / Ir para o Final -->
+            <div id="new-messages-floating-badge" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 hidden z-30 transition-all">
+                <button type="button" onclick="scrollToBottom(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-4 py-2 rounded-full text-xs shadow-2xl flex items-center gap-2 border border-indigo-400 active:scale-95 cursor-pointer animate-bounce">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Novas mensagens abaixo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             PAINEL PRINCIPAL DE ITENS & BIPAGEM (2/3 DO ESPAÇO DA TELA)
+             ============================================================ -->
+        <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
+
+            <!-- CAMPO DIRETO DO LEITOR DE CÓDIGO DE BARRAS -->
+            <div class="bg-white rounded-2xl shadow-sm border border-emerald-300 p-2 shrink-0 flex items-center gap-2">
+                <div class="relative flex-1 flex items-center">
+                    <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+                        placeholder="Aguardando bip do leitor ou digite o código... (Próxima: #101)"
+                        class="w-full pl-9 pr-20 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                        oninput="handleManualScanInput(event)"
+                        onkeydown="handleManualScan(event)">
+                    <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm pointer-events-none"></i>
+                    <button type="button" 
+                            onclick="addManualCode()" 
+                            class="absolute right-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                            title="Inserir código digitado (ou tecle Enter)">
+                        <i class="fas fa-level-down-alt fa-rotate-90 text-[10px]"></i>
+                        <span>Enter</span>
+                    </button>
+                </div>
+
+                <!-- Próxima Peça (Sequência 101+) -->
+                <div id="next-seq-badge-container" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 font-black text-xs shrink-0 select-none shadow-xs" title="Código que será atribuído à próxima peça apresentada">
+                    <i class="fas fa-hashtag text-indigo-500 text-xs"></i>
+                    <span class="text-indigo-600 font-bold">Próxima:</span>
+                    <span id="next-seq-val" class="font-mono text-sm font-extrabold text-indigo-700">#101</span>
+                </div>
+
+                <!-- Botão + Cliente -->
+                <button type="button" onclick="openQuickClientModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #047857 !important; color: #ffffff !important; border: 1px solid #065f46;" title="Cadastrar Novo Cliente">
+                    <i class="fas fa-user-plus text-xs" style="color: #a7f3d0 !important;"></i>
+                    <span style="color: #ffffff !important; font-weight: 900;">+ Cliente</span>
+                </button>
+
+                <!-- Botão + Produto -->
+                <button type="button" onclick="openQuickProductModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #6d28d9 !important; color: #ffffff !important; border: 1px solid #5b21b6;" title="Cadastrar Novo Produto">
+                    <i class="fas fa-tag text-xs" style="color: #ddd6fe !important;"></i>
+                    <span style="color: #ffffff !important; font-weight: 900;">+ Produto</span>
+                </button>
+
+                <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Card Principal: Lista de Itens Bipados e Fila de Pedidos do Chat -->
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
+
+                <!-- BANNER DE CONFIRMAÇÃO DO ÚLTIMO ITEM BIPADO (FLASH VERDE) -->
+                <div id="scan-last-item-banner" class="hidden mx-2 my-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-xl flex items-center justify-between text-xs font-black shadow-md shrink-0">
+                    <div class="flex items-center gap-1.5 truncate">
+                        <i class="fas fa-check-circle text-xs text-emerald-200 shrink-0"></i>
+                        <span id="scan-last-item-text" class="truncate">Item Bipado!</span>
+                    </div>
+                    <span id="scan-last-item-time" class="text-[10px] font-semibold text-emerald-100 shrink-0 ml-1"></span>
+                </div>
+
+                <!-- BANNER DE ALERTA DE CÓDIGO DA LIVE DUPLICADO (FLASH ÂMBAR/VERMELHO) -->
+                <div id="scan-duplicate-warning-banner" class="hidden mx-2 my-1 px-3 py-2 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white rounded-xl flex items-center justify-between text-xs font-black shadow-lg shrink-0 border border-amber-300">
+                    <div class="flex items-center gap-2 truncate">
+                        <i class="fas fa-exclamation-triangle text-amber-200 text-sm shrink-0 animate-pulse"></i>
+                        <div class="truncate">
+                            <span class="text-amber-200 uppercase tracking-wider text-[9px] block font-bold leading-none">Código Duplicado na Live!</span>
+                            <span id="scan-duplicate-warning-text" class="text-white text-xs font-black truncate block mt-0.5">Código já foi utilizado</span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="dismissDuplicateLiveCodeAlert()" title="Fechar alerta" class="w-6 h-6 flex items-center justify-center rounded-lg bg-black/20 hover:bg-black/40 text-white ml-2 shrink-0 cursor-pointer transition">
+                        <i class="fas fa-times text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Barra de Contador de Itens Bipados -->
+                <div class="px-3 py-2 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
+                            <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
+                            <span>Itens Bipados na Live: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Lista de itens bipados com Fila de Pedidos -->
+                <div id="scan-items-list" class="flex-1 overflow-y-auto p-2.5 space-y-2" style="min-height: 0;">
+                    <div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-12 text-gray-300">
+                        <i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>
+                        <p class="text-xs font-bold text-gray-400">Nenhum item bipado ainda nesta live</p>
+                        <p class="text-[10.5px] text-gray-400 mt-0.5 text-center">Bipe as peças com o leitor físico ou digite o código.<br>Os clientes que pediram cada peça aparecerão na fila automaticamente por ordem de chegada!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- fim flex gap row -->
+
+</div>
+
+
+<!-- MODAL VINCULAR CLIENTE -->
+<div id="link-user-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4" style="z-index: 99999;">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full p-6 mx-auto transform transition-all duration-300">
+        <div class="flex justify-between items-start border-b border-gray-100 pb-3 mb-4">
+            <h3 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-link text-indigo-600"></i>
+                <span>Vincular Usuário da Live</span>
+            </h3>
+            <button onclick="closeLinkModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1 leading-none">&times;</button>
+        </div>
+        
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+            Associe o usuário <strong id="modal-display-username" class="text-indigo-600 font-extrabold">@usuario</strong> (<span id="modal-display-platform" class="text-gray-800 font-bold uppercase"></span>) a um cliente cadastrado no sistema para salvar as peças na sacola dele.
+        </p>
+        
+        <input type="hidden" id="modal-input-username">
+        <input type="hidden" id="modal-input-platform">
+
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente por Nome, Apelido ou Celular:</label>
+            <input type="text" id="modal-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" oninput="searchClients(this.value)" onkeydown="handleLinkUserSearchKeydown(event)" placeholder="Digite o nome da cliente..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs font-semibold bg-gray-50">
+        </div>
+
+        <div id="modal-search-results" class="max-h-48 overflow-y-auto space-y-2 border border-gray-100 rounded-xl p-2 bg-gray-50">
+            <!-- Resultados Ajax -->
+            <p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>
+        </div>
+        
+        <div class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+            <span class="text-[11px] text-gray-400">Dica: <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">↑</kbd> <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">↓</kbd> navega, <kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-[10px] font-mono text-gray-700">Enter</kbd> vincula</span>
+            <button onclick="closeLinkModal()" class="px-4 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition cursor-pointer">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DECISÃO ESTOQUE MÚLTIPLO: INSERIR TAMBÉM OU TRANSFERIR -->
+<div id="modal-multi-stock-action" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-emerald-700 via-teal-800 to-indigo-800 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-boxes-stacked"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black tracking-tight text-white">Item com Múltiplos Compradores</h3>
+                    <p id="multi-stock-item-info" class="text-xs text-emerald-200 font-semibold truncate max-w-xs">Peça selecionada</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeMultiStockActionModal()" class="text-emerald-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-5 space-y-4">
+            <!-- Box informativo dos compradores atuais -->
+            <div class="bg-gray-50 dark:bg-gray-800/60 rounded-2xl p-3 border border-gray-200 dark:border-gray-700">
+                <p class="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fas fa-shopping-bag text-emerald-600"></i> Já está na sacola de:
+                </p>
+                <div id="multi-stock-current-buyers" class="flex flex-wrap gap-1.5">
+                    <!-- Badges dos compradores atuais -->
+                </div>
+            </div>
+
+            <!-- Box da nova cliente selecionada -->
+            <div class="bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl p-3 border border-indigo-200 dark:border-indigo-800">
+                <p class="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <i class="fas fa-user-plus"></i> Nova cliente selecionada:
+                </p>
+                <div class="flex items-center gap-2">
+                    <span id="multi-stock-target-badge" class="font-black text-indigo-950 dark:text-indigo-100 text-sm">@cliente</span>
+                    <span id="multi-stock-target-name" class="text-xs text-indigo-800 dark:text-indigo-200 font-bold"></span>
+                </div>
+            </div>
+
+            <p class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                Como deseja proceder com esta peça para <span id="multi-stock-target-highlight" class="text-indigo-600 font-black">@cliente</span>?
+            </p>
+
+            <!-- Ações Principais -->
+            <div class="space-y-2.5">
+                <!-- Botão 1: Adicionar Também (Estoque múltiplo) -->
+                <button type="button" id="btn-multi-stock-add" class="w-full text-left p-3.5 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-2 border-emerald-500 rounded-2xl transition cursor-pointer shadow-xs group flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm group-hover:scale-105 transition">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-black text-emerald-900 dark:text-emerald-100 flex items-center gap-1.5">
+                            <span>Inserir Também na Sacola</span>
+                            <span class="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Estoque Melissa</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-900 dark:text-emerald-200 font-medium mt-0.5 leading-snug">
+                            Mantém quem já comprou e adiciona mais <strong>1 unidade</strong> na sacola desta nova cliente.
+                        </p>
+                    </div>
+                </button>
+
+                <!-- Botão 2: Transferir Peça -->
+                <div id="multi-stock-transfer-section" class="w-full">
+                    <button type="button" id="btn-multi-stock-transfer" class="w-full text-left p-3.5 bg-indigo-50/70 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-300 dark:border-indigo-700 rounded-2xl transition cursor-pointer shadow-xs group flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-base shadow-sm group-hover:scale-105 transition">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-black text-indigo-950 dark:text-indigo-100">
+                                Transferir a Peça
+                            </div>
+                            <p class="text-[11px] text-indigo-900 dark:text-indigo-200 font-medium mt-0.5 leading-snug">
+                                Retira da sacola atual e passa para esta cliente (caso a anterior tenha desistido ou passado a vez).
+                            </p>
+                        </div>
+                    </button>
+                    <!-- Sub-opções de quem transferir quando há mais de 1 comprador -->
+                    <div id="multi-stock-transfer-pick-user" class="hidden mt-2 p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700">
+                        <p class="text-[11px] font-bold text-gray-800 dark:text-gray-200 mb-1.5">Transferir a vaga de qual cliente?</p>
+                        <div id="multi-stock-transfer-pick-buttons" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
+            <button type="button" onclick="closeMultiStockActionModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-xl text-xs transition cursor-pointer">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE BUSCA DE CLIENTE AVULSO PARA ANEXAR À PEÇA -->
+<div id="manual-buyer-search-modal" class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" style="z-index: 99999;">
+    <div class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-indigo-700 via-indigo-800 to-purple-800 text-white flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white text-lg shadow-inner">
+                    <i class="fas fa-user-tag"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-extrabold tracking-tight text-white">Vincular Cliente à Peça</h3>
+                    <p id="manual-buyer-modal-item-info" class="text-xs text-indigo-200 font-semibold truncate max-w-xs">Peça selecionada</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeManualBuyerSearchModal()" class="text-indigo-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                <i class="fas fa-times text-base"></i>
+            </button>
+        </div>
+
+        <!-- Campo de Busca -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
+                <input type="text" id="manual-buyer-search-input" placeholder="Buscar por Nome, @Instagram, WhatsApp ou CPF..." class="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs" autocomplete="off" oninput="handleManualBuyerSearchInput(this.value)" onkeydown="handleManualBuyerSearchKeydown(event)">
+                <button type="button" id="manual-buyer-search-clear" onclick="clearManualBuyerSearch()" class="hidden absolute right-3.5 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 cursor-pointer">
+                    <i class="fas fa-times-circle text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Resultados -->
+        <div id="manual-buyer-results-container" class="flex-1 overflow-y-auto p-4 space-y-2 min-h-[220px] max-h-[380px]">
+            <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                <i class="fas fa-search text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Digite para buscar uma cliente cadastrada</p>
+                <p class="text-[11px] text-gray-400">ou digite o @arroba para vincular diretamente.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3.5 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500">
+            <span class="text-[11px]">Dica: Use <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">↑</kbd> <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">↓</kbd> para navegar, <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">Enter</kbd> para vincular e <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px] font-mono text-gray-700 dark:text-gray-300">ESC</kbd> para fechar</span>
+            <button type="button" onclick="closeManualBuyerSearchModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold rounded-xl transition cursor-pointer">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE CLIENTE -->
+<div id="modal-quick-client" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Cliente</h3>
+                    <p style="color: #a7f3d0 !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Disponível imediatamente para vincular compras</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickClientModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickClient(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Nome Completo</label>
+                <input type="text" id="quick-client-name" placeholder="Ex: Maria Eduarda Silva" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                <p style="color: #64748b !important; font-size: 10.5px; margin: 4px 0 0 0;">Se vazio, usará o @ do Instagram/TikTok.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-instagram" style="color: #e1306c; margin-right: 2px;"></i> Instagram
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-instagram" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-tiktok" style="color: #000000; margin-right: 2px;"></i> TikTok
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">@</span>
+                        <input type="text" id="quick-client-tiktok" placeholder="usuario" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fab fa-whatsapp" style="color: #10b981; margin-right: 2px;"></i> Telefone / Whats
+                    </label>
+                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        <i class="fas fa-wallet" style="color: #6366f1; margin-right: 2px;"></i> Limite Crédito
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 12px; font-weight: 800;">R$</span>
+                        <input type="number" step="0.01" min="0" id="quick-client-limite" value="300.00" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 800; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickClientModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-client" style="background-color: #047857 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #065f46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #a7f3d0 !important;"></i> Salvar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CADASTRO RÁPIDO DE PRODUTO -->
+<div id="modal-quick-product" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-tag"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Novo Produto</h3>
+                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código de barras e adiciona à live</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitQuickProduct(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Descrição do Produto <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="text" id="quick-prod-descricao" required placeholder="Ex: Vestido Midi Estampado Farm" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Tamanho</label>
+                    <input type="text" id="quick-prod-tamanho" placeholder="Ex: M, 38, G, Único" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Cor</label>
+                    <input type="text" id="quick-prod-cor" placeholder="Ex: Azul, Preto, Estampado" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 12px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 13px; font-weight: 800;">R$</span>
+                    <input type="text" id="quick-prod-preco" required placeholder="45,00" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 900; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            @if($activeLive)
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background-color: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 10px; cursor: pointer;">
+                    <input type="checkbox" id="quick-prod-link-live" checked style="width: 16px; height: 16px; accent-color: #7c3aed; cursor: pointer;">
+                    <span style="font-size: 12px; font-weight: 800; color: #4c1d95 !important;">
+                        Vincular à Live #{{ $activeLive->id }} (Gera Código Sequencial da Live)
+                    </span>
+                </label>
+            @endif
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeQuickProductModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-quick-prod" style="background-color: #6d28d9 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #5b21b6; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-barcode" style="color: #ddd6fe !important;"></i> Cadastrar e Gerar Código
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDITAR PREÇO DA PEÇA BIPADA -->
+<div id="modal-edit-item-price" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="display: none; background-color: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #065f46 0%, #059669 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Editar Preço da Peça</h3>
+                    <p style="color: #a7f3d0 !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Atualiza o valor da peça e recalcula a sacolinha</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeEditItemPriceModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitEditItemPrice(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <input type="hidden" id="edit-item-price-scan-id">
+            <input type="hidden" id="edit-item-price-item-id">
+            <input type="hidden" id="edit-item-price-code">
+
+            <!-- Card Resumo da Peça -->
+            <div style="padding: 12px 14px; background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="edit-item-price-badge-code" style="font-size: 12px; font-weight: 900; font-family: monospace; color: #0f172a; background-color: #e2e8f0; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1;">#0000</span>
+                        <span id="edit-item-price-badge-live" style="font-size: 11px; font-weight: 900; color: #4338ca; background-color: #e0e7ff; padding: 2px 8px; border-radius: 6px; border: 1px solid #c7d2fe;">Live: #1</span>
+                    </div>
+                    <span id="edit-item-price-badge-current" style="font-size: 11px; font-weight: 800; color: #64748b;">Atual: R$ 0,00</span>
+                </div>
+                <div id="edit-item-price-prod-name" style="font-size: 13px; font-weight: 800; color: #1e293b; margin-top: 2px;">Nome do Produto</div>
+                <div id="edit-item-price-prod-details" style="font-size: 11px; font-weight: 500; color: #64748b;">Detalhes do Produto</div>
+            </div>
+
+            <!-- Novo Preço -->
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Novo Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                </label>
+                <div style="display: flex;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 14px; background-color: #e2e8f0; border: 2px solid #059669; border-right: none; border-radius: 12px 0 0 12px; color: #065f46; font-size: 15px; font-weight: 900;">R$</span>
+                    <input type="text" id="edit-item-price-input" required placeholder="0,00" autocomplete="off" style="width: 100%; padding: 10px 14px; font-size: 18px; font-weight: 900; color: #065f46 !important; background-color: #f0fdf4 !important; border: 2px solid #059669 !important; border-radius: 0 12px 12px 0; outline: none; box-sizing: border-box;">
+                </div>
+                <p style="color: #64748b !important; font-size: 11px; margin: 5px 0 0 0;">Digite o novo valor e tecle <kbd style="background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #334155;">Enter</kbd> para salvar.</p>
+            </div>
+
+            <!-- Botões Rápidos de Ajuste -->
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" onclick="setEditPricePreset(10)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 10</button>
+                <button type="button" onclick="setEditPricePreset(15)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 15</button>
+                <button type="button" onclick="setEditPricePreset(20)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 20</button>
+                <button type="button" onclick="setEditPricePreset(25)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 25</button>
+                <button type="button" onclick="setEditPricePreset(30)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 30</button>
+                <button type="button" onclick="setEditPricePreset(50)" style="flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 50</button>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 4px;">
+                <button type="button" onclick="closeEditItemPriceModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-edit-price" style="background-color: #047857 !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #065f46; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #a7f3d0 !important;"></i> Salvar Novo Preço
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
+<div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
+    <!-- Cabeçalho Fullscreen Elegante -->
+    <div class="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 shadow-2xl">
+        <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                <i class="fas fa-qrcode text-indigo-400 text-xl animate-pulse"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="text-base sm:text-lg font-black text-white tracking-tight">
+                        Bipagem de Produtos / QR Code
+                    </h3>
+                    <span class="bg-emerald-950 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider text-[10px]">Ao Vivo</span>
+                </div>
+                <p class="text-xs text-gray-300 mt-0.5 flex items-center gap-1.5">
+                    <span>Adicionando na sacola de:</span>
+                    <strong id="online-qr-client-name" class="text-indigo-300 font-black bg-gray-800 px-2 py-0.5 rounded-md border border-gray-700">@usuario</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <label class="flex items-center gap-2 bg-gray-800 hover:bg-gray-750 border border-gray-700 px-3 py-1.5 rounded-xl cursor-pointer select-none transition shadow-sm" title="Fechar automaticamente o leitor após bipar a peça">
+                <input type="checkbox" id="online-qr-auto-close-toggle" onchange="toggleAutoClosePreference(this.checked)" class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 focus:ring-offset-gray-800 cursor-pointer">
+                <span class="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                    <i class="fas fa-magic text-indigo-400 text-[11px]"></i> Fechar após bipar
+                </span>
+            </label>
+            <button type="button" onclick="closeOnlineQrModal()" class="bg-red-600 hover:bg-red-500 text-white font-black px-5 py-2 rounded-xl text-xs transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/20 active:scale-95 cursor-pointer">
+                <i class="fas fa-times text-sm"></i> Concluir e Voltar
+            </button>
+        </div>
+    </div>
+
+    <!-- Corpo / Área da Câmera em Tela Inteira -->
+    <div class="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 p-3 sm:p-6 overflow-hidden mx-auto w-full" style="max-width: 1600px;">
+        <!-- Container da Câmera -->
+        <div class="flex-1 flex flex-col bg-black rounded-3xl overflow-hidden relative border-2 border-indigo-500/60 shadow-2xl lg:min-h-0" style="min-height: 40vh;">
+            <div id="online-qr-reader" class="w-full h-full flex-1"></div>
+            
+            <div class="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10 px-4">
+                <div class="bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-full border border-gray-700 text-gray-200 text-xs font-bold flex items-center gap-2 shadow-xl text-center">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <i class="fas fa-camera text-indigo-400"></i>
+                    <span>Aponte a câmera para a etiqueta ou bipe com o leitor USB</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Lateral de Controles e Entrada Manual / Feedback -->
+        <div class="w-full flex flex-col gap-3.5 shrink-0 overflow-y-auto" style="width: 100%; max-width: 420px;">
+            <!-- Box de WhatsApp do Cliente -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm"></i>
+                        <span>WhatsApp da Cliente</span>
+                    </h4>
+                    <span id="online-qr-phone-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700">
+                        Carregando...
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="online-qr-phone-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="DDD + Número (ex: 11999999999)" class="flex-1 px-3 py-2 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-500 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <button type="button" onclick="saveClientPhoneFromModal()" id="online-qr-phone-save-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1 shrink-0 cursor-pointer shadow active:scale-95">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                </div>
+                <p id="online-qr-phone-help" class="text-[10.5px] text-gray-400 leading-tight">
+                    O WhatsApp é indispensável para o envio automático da sacola ao encerrar a live.
+                </p>
+            </div>
+
+            <!-- Box de Entrada Manual / Leitor USB -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2.5">
+                <h4 class="text-xs font-extrabold text-white flex items-center gap-2">
+                    <i class="fas fa-barcode text-indigo-400 text-sm"></i>
+                    <span>Leitor de Código de Barras / Digitação (Enter Automático)</span>
+                </h4>
+                <div class="relative">
+                    <input type="text" id="online-qr-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" oninput="handleOnlineQrManualInput(event)" onkeydown="handleOnlineQrKeyDown(event)" placeholder="Aguardando bip ou digite o código..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-700 bg-gray-800 text-white placeholder-gray-400 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none shadow-inner">
+                    <i class="fas fa-barcode absolute left-3 top-3.5 text-indigo-400 text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Feedback Visual em Tempo Real -->
+            <div id="online-qr-feedback" class="p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed"></div>
+
+            <!-- Box de Mensagens / Pedidos da Cliente na Live -->
+            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 shadow-xl flex flex-col gap-2 min-h-[160px] max-h-[240px]">
+                <div class="flex items-center justify-between shrink-0">
+                    <h4 class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <i class="fas fa-comment-dots text-indigo-400 text-sm"></i>
+                        <span>Comentários da Cliente</span>
+                    </h4>
+                    <button type="button" id="modal-client-filter-star-btn" onclick="toggleModalFilterMarkedOnly()" class="text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-star text-yellow-400 text-[9px]"></i> <span id="modal-client-marked-count">0</span> Marcadas
+                    </button>
+                </div>
+                <div id="online-qr-client-messages-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    <p class="text-[11px] text-gray-500 text-center py-4">Nenhum comentário desta cliente ainda.</p>
+                </div>
+                <div class="text-[10px] text-indigo-300 font-medium pt-1 border-t border-gray-800 shrink-0">
+                    <i class="fas fa-hand-pointer text-indigo-400"></i> Clique num código de peça para bipar instantaneamente
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: ABRIR NOVA LIVE                                                    -->
+<!-- ========================================================================= -->
+<div id="modal-open-live" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-lg rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-play"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Iniciar Nova Transmissão</h3>
+                    <p class="text-xs text-gray-300">Configuração de Live & Início de Gravação</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCreateLiveModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Formulário -->
+        <form onsubmit="submitCreateLive(event)" class="p-6 space-y-4">
+            <!-- Tipo de Live -->
+            <div>
+                <label for="open-live-type" style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-bottom: 6px;">
+                    Tipo de Live <span style="color: #dc2626;">*</span>
+                </label>
+                <select id="open-live-type" required style="width: 100%; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #0f172a; background-color: #f8fafc; border: 2px solid #cbd5e1; border-radius: 12px; outline: none;">
+                    <option value="loja-aberta" selected>Live Loja Aberta (Padrão)</option>
+                    <option value="precinho">Live do Precinho (50% OFF)</option>
+                    <option value="leilao">Live Leilão</option>
+                    <option value="colaborativa">Live Colaborativa</option>
+                </select>
+            </div>
+
+            <!-- Plataformas -->
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b; margin-bottom: 6px;">
+                    Plataformas Conectadas <span style="color: #dc2626;">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/50 cursor-pointer hover:bg-indigo-50 transition">
+                        <input type="checkbox" value="instagram" class="open-live-platform w-4 h-4 text-indigo-600 rounded border-gray-300" checked>
+                        <div>
+                            <strong class="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <i class="fab fa-instagram text-pink-600"></i> Instagram
+                            </strong>
+                            <small class="text-[10px] text-gray-500 block">@de_minha_mania</small>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-cyan-200 bg-cyan-50/40 cursor-pointer hover:bg-cyan-50 transition">
+                        <input type="checkbox" value="tiktok" class="open-live-platform w-4 h-4 text-indigo-600 rounded border-gray-300" checked>
+                        <div>
+                            <strong class="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <i class="fab fa-tiktok text-slate-900"></i> TikTok
+                            </strong>
+                            <small class="text-[10px] text-gray-500 block">@_minhamania</small>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Aviso de Automação -->
+            <div class="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs">
+                <strong class="font-extrabold flex items-center gap-1.5 text-emerald-950 mb-1">
+                    <i class="fas fa-magic text-emerald-600"></i> Automação Completa:
+                </strong>
+                Ao abrir a live, o sistema ativará automaticamente os canais de captura do Instagram e TikTok e passará a gravar todas as mensagens e sacolinhas em tempo real.
+            </div>
+
+            <!-- Botões -->
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                <button type="button" onclick="closeCreateLiveModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 12px; padding: 10px 18px; border-radius: 12px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-submit-open-live" style="background-color: #059669; color: #ffffff; font-weight: 900; font-size: 13px; padding: 10px 22px; border-radius: 12px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+                    <i class="fas fa-play text-white"></i> Iniciar Live e Gravação
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: ENCERRAR LIVE                                                      -->
+<!-- ========================================================================= -->
+<div id="modal-close-live" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between" style="background-color: #991b1b; border-bottom: 1px solid #7f1d1d;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-white text-red-700 flex items-center justify-center font-black text-lg shadow shrink-0">
+                    <i class="fas fa-stop-circle"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Encerrar Transmissão</h3>
+                    <p class="text-xs text-red-200">Parar gravações e finalizar sacolinhas</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCloseLiveModal()" class="w-8 h-8 rounded-full bg-red-800 text-red-200 hover:text-white flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Conteúdo -->
+        <div class="p-6 space-y-4">
+            <!-- Estatísticas da Live -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
+                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Total Mensagens</span>
+                    <strong id="close-live-msgs-count" class="text-xl font-black text-slate-800">0</strong>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
+                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Pessoas Online</span>
+                    <strong id="close-live-online-count" class="text-xl font-black text-slate-800">0</strong>
+                </div>
+            </div>
+
+            <!-- Aviso de Parada Automática -->
+            <div class="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs">
+                <strong class="font-extrabold flex items-center gap-1.5 text-amber-950 mb-0.5">
+                    <i class="fas fa-pause-circle text-amber-600"></i> Parada Automática:
+                </strong>
+                Ao confirmar, a gravação de comentários no Instagram e TikTok será interrompida imediatamente para evitar mensagens fora de hora.
+            </div>
+
+            <!-- Escolha de Finalização -->
+            <div class="space-y-2.5 pt-2">
+                <!-- Opção 1: Enviar WhatsApp -->
+                <button type="button" id="btn-close-live-zap" onclick="submitCloseLive(1)" class="w-full text-left p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-md flex items-center justify-between gap-3 cursor-pointer group">
+                    <div>
+                        <strong class="text-sm font-black flex items-center gap-1.5 text-white">
+                            <i class="fab fa-whatsapp text-lg text-emerald-200"></i> Encerrar e Disparar WhatsApp
+                        </strong>
+                        <p class="text-xs text-emerald-100 mt-0.5">Gera os PDFs das sacolinhas e envia as cobranças para as clientes.</p>
+                    </div>
+                    <i class="fas fa-arrow-right text-emerald-200 text-sm group-hover:translate-x-1 transition-transform"></i>
+                </button>
+
+                <!-- Opção 2: Encerrar Sem Enviar -->
+                <button type="button" id="btn-close-live-nozap" onclick="submitCloseLive(0)" class="w-full text-left p-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition flex items-center justify-between gap-3 cursor-pointer group">
+                    <div>
+                        <strong class="text-xs font-black flex items-center gap-1.5 text-slate-900">
+                            <i class="fas fa-lock text-slate-500"></i> Encerrar SEM Enviar WhatsApp
+                        </strong>
+                        <p class="text-[11px] text-slate-600 mt-0.5">Encerra a live e salva os dados sem disparar cobranças agora.</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-slate-400 text-xs group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button type="button" onclick="closeCloseLiveModal()" style="background-color: #f1f5f9; color: #475569; font-weight: 800; font-size: 11px; padding: 8px 14px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: PESSOAS ONLINE NO CHAT (Para Lives Fora e Venda Direta)            -->
+<!-- ========================================================================= -->
+<div id="modal-online-people" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-2xl max-h-[85vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between shrink-0" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Pessoas Online na Live</h3>
+                    <p class="text-xs text-gray-300">Selecione uma cliente para abrir a câmera e bipar peças (lives fora)</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeOnlineUsersModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Barra de Busca Rápida -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                <input type="text" id="online-modal-search-input" oninput="filterOnlineUsersModal(this.value)" placeholder="Filtrar por @usuário, nome ou apelido da cliente..." class="w-full pl-9 pr-4 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-inner">
+            </div>
+        </div>
+
+        <!-- Lista de Usuários Online -->
+        <div id="online-modal-users-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-100/60">
+            <!-- Preenchido via JavaScript (renderOnlineUsersInModal) -->
+        </div>
+
+        <!-- Rodapé Informativo -->
+        <div class="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs shrink-0">
+            <span class="text-slate-600 font-medium">
+                <i class="fas fa-info-circle text-indigo-500"></i> Clique em <strong>Bipar / Sacola</strong> para abrir o leitor de QR/código de barras desta cliente.
+            </span>
+            <button type="button" onclick="closeOnlineUsersModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 11px; padding: 7px 14px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: GUIA PASSO A PASSO (Como Gravar Automaticamente)                    -->
+<!-- ========================================================================= -->
+<div id="modal-help-capture" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-2xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+        <!-- Header -->
+        <div class="px-6 py-4 flex items-center justify-between shrink-0" style="background-color: #0f172a; border-bottom: 1px solid #1e293b;">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-white tracking-tight">Como Gravar os Chats Automaticamente</h3>
+                    <p class="text-xs text-amber-200">Processo operacional passo a passo para Instagram e TikTok</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeHelpCaptureModal()" class="w-8 h-8 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 flex items-center justify-center cursor-pointer transition">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Conteúdo do Guia -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4 text-xs text-slate-700 leading-relaxed">
+            <!-- Passo 1 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">1</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Abra as abas no Google Chrome antes ou durante o início:</strong>
+                    <p class="text-slate-600 mt-1">
+                        No computador de transmissão, abra o <strong>Google Chrome</strong> e acesse a tela da transmissão do <strong>Instagram</strong> (Instagram Live / Producer) e a tela da transmissão do <strong>TikTok</strong>.
+                    </p>
+                    <p class="text-slate-500 mt-1">
+                        * A extensão <em>Minha Mania Capturador</em> instalada no Chrome detecta a live automaticamente e começa a enviar as mensagens para o servidor.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 2 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">2</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Abra a Live no Chat da Transmissão:</strong>
+                    <p class="text-slate-600 mt-1">
+                        Basta clicar no botão verde <strong>"▶️ Abrir Nova Live"</strong> no topo deste painel. O sistema abrirá a live e <strong>iniciará a captura automática</strong> de ambas as redes simultaneamente.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 3 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">3</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Acompanhe os Indicadores e Alertas em Tempo Real:</strong>
+                    <p class="text-slate-600 mt-1">
+                        O crachá no topo indicará <span class="text-emerald-700 font-bold">🟢 Gravando</span> quando estiver tudo certo. Se uma rede parar ou passar mais de 3 minutos sem mensagens, o sistema exibe uma <strong>tarja de alerta amarela</strong> para você nunca perder vendas.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 4 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-purple-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">4</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Para Vendas Externas ("Lives Fora"):</strong>
+                    <p class="text-slate-600 mt-1">
+                        Use o botão <strong>"👥 Pessoas Online"</strong> no topo. Você verá a lista de todas as clientes comentando, com busca rápida. Basta clicar em <strong>"🏷️ Bipar / Sacola"</strong> ao lado do nome da cliente para abrir o leitor de QR/código de barras instantaneamente.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Passo 5 -->
+            <div class="flex items-start gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50">
+                <div class="w-7 h-7 rounded-xl bg-red-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow">5</div>
+                <div>
+                    <strong class="text-slate-900 font-extrabold text-sm block">Ao Final da Live:</strong>
+                    <p class="text-slate-600 mt-1">
+                        Clique em <strong>"⛔ Encerrar Live"</strong> no topo. O sistema interrompe todas as gravações imediatamente (evitando que mensagens pós-live entrem por engano) e oferece a opção de disparar os WhatsApps de cobrança com 1 clique.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+            <button type="button" onclick="closeHelpCaptureModal()" style="background-color: #0f172a; color: #ffffff; font-weight: 800; font-size: 12px; padding: 8px 18px; border-radius: 12px; border: none; cursor: pointer;">
+                Entendi, Fechar Guia
+            </button>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@push('scripts')
+<!-- Biblioteca HTML5-QRCode -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+    // =========================================================================
+    // PARÂMETROS GLOBAIS
+    // =========================================================================
+    const liveId = "{{ $activeLive ? $activeLive->id : '' }}";
+    let allLiveMessages = [];
+    let rawOnlineUsers = [];
+    let onlineUsersMap = {};
+    let currentFilter = 'all'; // 'all' | 'instagram' | 'tiktok' | 'marked' | 'registered'
+    let currentSearchTerm = '';
+    let currentFontSize = localStorage.getItem('live_chat_font_size') || 'md';
+    let currentTheme = localStorage.getItem('live_chat_theme') || 'dark';
+    let autoCloseAfterScan = localStorage.getItem('live_chat_auto_close_scan') !== 'false'; // Padrão: true (fechar após bipar ativado)
+    let autoScrollEnabled = localStorage.getItem('live_chat_autoscroll_enabled') !== 'false'; // Padrão: true (rolagem automática ativada)
+    let lastRenderedHash = "";
+    let pollingInterval = null;
+
+    function toggleAutoClosePreference(checked) {
+        autoCloseAfterScan = checked;
+        localStorage.setItem('live_chat_auto_close_scan', checked ? 'true' : 'false');
+    }
+
+    function updateAutoScrollUI() {
+        // Botão do Cabeçalho Superior
+        const btnTop = document.getElementById("btn-autoscroll-toggle");
+        const iconTop = document.getElementById("autoscroll-icon");
+        const textTop = document.getElementById("autoscroll-text");
+
+        if (autoScrollEnabled) {
+            if (btnTop) {
+                btnTop.className = "bg-emerald-600 hover:bg-emerald-500 text-white p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 border border-emerald-400";
+                if (iconTop) iconTop.className = "fas fa-arrow-down text-xs";
+                if (textTop) textTop.textContent = "Rolagem: Ativa";
+            }
+        } else {
+            if (btnTop) {
+                btnTop.className = "bg-amber-500 hover:bg-amber-600 text-gray-950 p-2 px-3.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 border border-amber-300 animate-pulse";
+                if (iconTop) iconTop.className = "fas fa-pause text-xs";
+                if (textTop) textTop.textContent = "Rolagem: Pausada";
+            }
+        }
+    }
+
+    function toggleAutoScroll() {
+        autoScrollEnabled = !autoScrollEnabled;
+        localStorage.setItem('live_chat_autoscroll_enabled', autoScrollEnabled ? 'true' : 'false');
+        updateAutoScrollUI();
+        if (autoScrollEnabled) {
+            scrollToBottom(true);
+        }
+    }
+
+    // =========================================================================
+    // OCULTAR / EXIBIR CARDS DO TOPO
+    // =========================================================================
+    let topCardsHidden = localStorage.getItem('live_chat_top_cards_hidden') === 'true';
+
+    function updateTopCardsUI() {
+        const headerEl  = document.getElementById('feed-top-header');
+        const filterEl  = document.getElementById('feed-filter-bar');
+        const floatBtn  = document.getElementById('floating-show-top-cards-btn');
+        const toggleBtn = document.getElementById('btn-toggle-top-cards');
+
+        if (topCardsHidden) {
+            if (headerEl)  headerEl.classList.add('hidden');
+            if (filterEl)  filterEl.classList.add('hidden');
+            if (floatBtn)  floatBtn.classList.remove('hidden');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').className = 'fas fa-chevron-down text-indigo-400';
+                const span = toggleBtn.querySelector('span');
+                if (span) span.textContent = 'Mostrar Cards';
+            }
+        } else {
+            if (headerEl)  headerEl.classList.remove('hidden');
+            if (filterEl)  filterEl.classList.remove('hidden');
+            if (floatBtn)  floatBtn.classList.add('hidden');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').className = 'fas fa-chevron-up text-indigo-400';
+                const span = toggleBtn.querySelector('span');
+                if (span) span.textContent = 'Ocultar Cards';
+            }
+        }
+    }
+
+    function toggleTopCards() {
+        topCardsHidden = !topCardsHidden;
+        localStorage.setItem('live_chat_top_cards_hidden', topCardsHidden ? 'true' : 'false');
+        updateTopCardsUI();
+    }
+
+    let scanPanelHidden = localStorage.getItem('live_chat_scan_panel_hidden') === 'true';
+
+    function updateScanPanelUI() {
+        const scanPanel = document.getElementById('scan-panel');
+        const floatBtn  = document.getElementById('floating-show-scan-panel-btn');
+        const toggleBtn = document.getElementById('btn-toggle-scan-panel');
+        const btnText   = document.getElementById('scan-panel-btn-text');
+        const feedOuter = document.getElementById('feed-outer-wrapper');
+
+        if (scanPanelHidden) {
+            if (scanPanel) scanPanel.classList.add('hidden');
+            if (floatBtn)  floatBtn.classList.remove('hidden');
+            if (btnText)   btnText.textContent = 'Mostrar Painel de Itens';
+            if (toggleBtn) {
+                toggleBtn.classList.add('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
+                toggleBtn.classList.remove('bg-gray-800', 'text-gray-200');
+            }
+            if (feedOuter) {
+                feedOuter.classList.remove('lg:w-1/3', 'xl:w-1/3', 'shrink-0');
+                feedOuter.classList.add('w-full', 'flex-1');
+            }
+        } else {
+            if (scanPanel) scanPanel.classList.remove('hidden');
+            if (floatBtn)  floatBtn.classList.add('hidden');
+            if (btnText)   btnText.textContent = 'Ocultar Painel de Itens';
+            if (toggleBtn) {
+                toggleBtn.classList.remove('bg-emerald-900/70', 'border-emerald-500/60', 'text-emerald-300');
+                toggleBtn.classList.add('bg-gray-800', 'text-gray-200');
+            }
+            if (feedOuter) {
+                feedOuter.classList.remove('flex-1');
+                feedOuter.classList.add('w-full', 'lg:w-1/3', 'xl:w-1/3', 'shrink-0');
+            }
+        }
+    }
+
+    function toggleScanPanel() {
+        scanPanelHidden = !scanPanelHidden;
+        localStorage.setItem('live_chat_scan_panel_hidden', scanPanelHidden ? 'true' : 'false');
+        updateScanPanelUI();
+    }
+
+    // =========================================================================
+    // SISTEMA DE BIPAGEM — CÂMERA (Html5Qrcode) + RECONHECIMENTO DE VOZ
+    // =========================================================================
+    const initialLinkedLiveItems = @json($linkedLiveItems ?? []);
+    const bgScanItems = [];           // [{id, itemId, code, liveCode, buyerUsername, buyerName, buyerUserId, liveMessageId, time, source, productName, productDetails, ...}]
+    let bgSpeechRecog = null;
+    let bgSpeechActive = false;
+
+
+    function extractCleanCode(raw) {
+        if (!raw) return '';
+        let code = String(raw).trim();
+        if (code.startsWith('http://') || code.startsWith('https://')) {
+            try {
+                const url = new URL(code);
+                const p = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item') || url.searchParams.get('id');
+                if (p) {
+                    code = p.trim();
+                } else {
+                    const segs = url.pathname.split('/').filter(Boolean);
+                    if (segs.length > 0) {
+                        code = segs[segs.length - 1].trim();
+                    }
+                }
+            } catch(e) {}
+        }
+        return code;
+    }
+
+    // =========================================================================
+    // =========================================================================
+    // GERENCIAMENTO INTELIGENTE DE FOCO DO LEITOR DE CÓDIGO DE BARRAS
+    // =========================================================================
+    function isUserTypingElsewhere() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (isModalOpen()) return true;
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'textarea' || tag === 'select') return true;
+        if (tag === 'input') {
+            const id = el.id || '';
+            if (id === 'scan-manual-input') return false;
+            return true;
+        }
+        return false;
+    }
+
+    function isModalOpen() {
+        const manualBuyerModal = document.getElementById('manual-buyer-search-modal');
+        if (manualBuyerModal && !manualBuyerModal.classList.contains('hidden')) return true;
+
+        const linkModal = document.getElementById('link-user-modal');
+        if (linkModal && !linkModal.classList.contains('hidden')) return true;
+
+        const qrModal = document.getElementById('online-qr-modal');
+        if (qrModal && !qrModal.classList.contains('hidden')) return true;
+
+        const quickClientModal = document.getElementById('modal-quick-client');
+        if (quickClientModal && !quickClientModal.classList.contains('hidden')) return true;
+
+        const quickProductModal = document.getElementById('modal-quick-product');
+        if (quickProductModal && !quickProductModal.classList.contains('hidden')) return true;
+
+        const editPriceModal = document.getElementById('modal-edit-item-price');
+        if (editPriceModal && !editPriceModal.classList.contains('hidden')) return true;
+
+        return false;
+    }
+
+    function applyLiveCodeAndFocusScanner(code) {
+        if (code && String(code).trim()) {
+            applySpokenLiveCode(code);
+        }
+        setTimeout(() => {
+            focusScannerInput(true);
+        }, 50);
+    }
+
+    function focusLiveCodeInput(select = true) {
+        // Agora o foco principal é sempre no leitor de código de barras
+        focusScannerInput(select);
+    }
+
+    function focusScannerInput(select = true) {
+        if (isModalOpen()) return;
+        const scanInput = document.getElementById('scan-manual-input');
+        if (scanInput) {
+            if (document.activeElement !== scanInput) {
+                scanInput.focus();
+            }
+            if (select) {
+                scanInput.select();
+            }
+            updateScannerFocusBadge(true);
+        }
+    }
+
+    function ensureScannerFocus(force = false) {
+        if (isModalOpen()) return;
+        if (!force && isUserTypingElsewhere()) return;
+
+        const scanInput = document.getElementById('scan-manual-input');
+        if (scanInput) {
+            if (document.activeElement !== scanInput) {
+                scanInput.focus();
+            }
+            updateScannerFocusBadge(true);
+        }
+    }
+
+    function updateScannerFocusBadge(isScannerFocused) {
+        const badge = document.getElementById('scanner-focus-badge');
+        const text = document.getElementById('scanner-focus-text');
+        if (!badge || !text) return;
+
+        if (isScannerFocused) {
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
+            text.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1 inline-block"></span>LEITOR PRONTO (FOCO ATIVO)`;
+        } else {
+            badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-black shadow-xs select-none cursor-pointer transition active:scale-95";
+            text.innerHTML = `<i class="fas fa-mouse-pointer text-[9px] mr-1"></i>CLIQUE PARA FOCAR NO LEITOR`;
+        }
+    }
+
+    function initScannerFocusEvents() {
+        const scanInput = document.getElementById('scan-manual-input');
+
+        if (scanInput) {
+            scanInput.addEventListener('focus', () => updateScannerFocusBadge(true));
+            scanInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!isUserTypingElsewhere()) {
+                        updateScannerFocusBadge(false);
+                    }
+                }, 100);
+            });
+        }
+
+        // Clicar em áreas neutras (cards, fundo, mensagens) traz o foco de volta para o leitor
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            if (!target) return;
+            const tag = (target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a' || target.closest('button') || target.closest('a') || target.closest('input')) {
+                return;
+            }
+            ensureScannerFocus(false);
+        });
+
+        // Quando a janela volta a ter foco (ex: trocou de aba ou programa)
+        window.addEventListener('focus', function() {
+            ensureScannerFocus(false);
+        });
+
+        // Foco inicial imediato no leitor de código de barras
+        setTimeout(() => {
+            ensureScannerFocus(true);
+        }, 150);
+    }
+
+    /* ---- Reconhecimento de Voz Inteligente (SpeechRecognition) ------------ */
+    const ptSpeechUnits = {
+        zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
+        seis: 6, meia: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+        treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezasseis: 16,
+        dezessete: 17, dezassete: 17, dezoito: 18, dezenove: 19, dezanove: 19
+    };
+    const ptSpeechTens = {
+        vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60,
+        setenta: 70, oitenta: 80, noventa: 90
+    };
+    const ptSpeechHundreds = {
+        cem: 100, cento: 100, duzentos: 200, duzentas: 200, trezentos: 300, trezentas: 300,
+        quatrocentos: 400, quatrocentas: 400, quinhentos: 500, quinhentas: 500,
+        seiscentos: 600, seiscentas: 600, setecentos: 700, setecentas: 700,
+        oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900
+    };
+
+    function parsePortugueseWordsFromTokens(tokens) {
+        let startIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+            const w = tokens[i];
+            if (ptSpeechUnits[w] !== undefined || ptSpeechTens[w] !== undefined || ptSpeechHundreds[w] !== undefined) {
+                startIndex = i;
+                break;
+            }
+        }
+        if (startIndex === -1) return null;
+
+        let total = 0;
+        let current = 0;
+        let matchedAny = false;
+        let prefixLetter = "";
+
+        // Se antes do número havia uma letra isolada que NÃO seja verbo ou artigo (ex: 'peca B doze' => B12)
+        if (startIndex > 0) {
+            const prevTok = tokens[startIndex - 1];
+            if (prevTok.length === 1 && /^[a-z]$/i.test(prevTok) && !['e', 'o', 'a'].includes(prevTok.toLowerCase())) {
+                prefixLetter = prevTok.toUpperCase();
+            }
+        }
+
+        for (let i = startIndex; i < tokens.length; i++) {
+            const w = tokens[i];
+            if (w === 'e') continue;
+
+            if (ptSpeechUnits[w] !== undefined) {
+                current += ptSpeechUnits[w];
+                matchedAny = true;
+            } else if (ptSpeechTens[w] !== undefined) {
+                current += ptSpeechTens[w];
+                matchedAny = true;
+            } else if (ptSpeechHundreds[w] !== undefined) {
+                current += ptSpeechHundreds[w];
+                matchedAny = true;
+            } else if (w === 'mil') {
+                if (current === 0) current = 1;
+                total += current * 1000;
+                current = 0;
+                matchedAny = true;
+            } else {
+                break;
+            }
+        }
+
+        if (!matchedAny) return null;
+        total += current;
+        return prefixLetter + total;
+    }
+
+    function extractCodeFromSpokenText(transcript) {
+        if (!transcript) return null;
+
+        // 1. Remove acentos e qualquer pontuação
+        let clean = transcript
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[,.:;!?"'()\[\]{}—–_\-\/]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!clean) return null;
+
+        // OBRIGATÓRIO: Códigos são APENAS o que vem após a palavra "código" ou "cod"
+        const triggerMatch = clean.match(/\b(?:codigo|cod)\b/i);
+        if (!triggerMatch) return null;
+
+        const triggerIndex = clean.indexOf(triggerMatch[0]);
+        let after = clean.slice(triggerIndex + triggerMatch[0].length).trim();
+        if (!after) return null;
+
+        const rawTokens = after.split(' ').filter(Boolean);
+        if (rawTokens.length === 0) return null;
+
+        // Remove palavras conectoras iniciais (ex: "é", "eh", "o", "a", "de", "da", "do", etc.)
+        const leadStopWords = ['e', 'eh', 'o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'esse', 'essa', 'este', 'esta', 'deste', 'desta', 'desse', 'dessa', 'aqui', 'vai', 'ser', 'sera', 'fica', 'ficou', 'numero', 'num', 'ta', 'foi', 'para', 'pra'];
+        let startIndex = 0;
+        while (startIndex < rawTokens.length && leadStopWords.includes(rawTokens[startIndex])) {
+            startIndex++;
+        }
+        const tokens = rawTokens.slice(startIndex);
+        if (tokens.length === 0) return null;
+
+        // Se após "código" houver um número em dígitos direto (ex: "código 15", "código 203", "código P12")
+        const firstToken = tokens[0];
+        if (/^[a-z]?\d{1,6}$/i.test(firstToken)) {
+            return firstToken.toUpperCase();
+        }
+
+        // Se após o gatilho "código" for um número por extenso (ex: "código vinte e cinco", "código dez")
+        const isPureNumPhrase = tokens.every(t => t === 'e' || ptSpeechUnits[t] !== undefined || ptSpeechTens[t] !== undefined || ptSpeechHundreds[t] !== undefined || t === 'mil' || /^\d+$/.test(t));
+        if (isPureNumPhrase) {
+            const wordsNum = parsePortugueseWordsFromTokens(tokens);
+            if (wordsNum !== null) {
+                return String(wordsNum);
+            }
+        }
+
+        // Caso contenha número por extenso ou alfanumérico após "código" (ex: "código B doze" => B12)
+        const wordsNum = parsePortugueseWordsFromTokens(tokens);
+        if (wordsNum !== null) {
+            return String(wordsNum);
+        }
+
+        // Pega até 3 palavras significativas após a palavra "código"
+        const trailingStopWords = ['viu', 'gente', 'meninas', 'meninos', 'pessoal', 'por', 'favor', 'ta', 'ok', 'agora', 'vamos', 'para', 'proximo', 'proxima'];
+        const codeWords = [];
+        for (let i = 0; i < tokens.length && codeWords.length < 3; i++) {
+            const tok = tokens[i];
+            if (trailingStopWords.includes(tok)) break;
+            codeWords.push(tok.toUpperCase());
+        }
+
+        if (codeWords.length > 0) {
+            return codeWords.join(' ');
+        }
+
+        return null;
+    }
+
+    let lastSpokenCode = null;
+    let lastSpokenTime = 0;
+    let micTranscriptTimer = null;
+
+    function initScanSpeech() {
+        // Opção de voz desativada conforme solicitação
+        return;
+    }
+
+    function showMicTranscript(text, detectedCode) {
+        // Desativado
+    }
+
+    function stopScanSpeech() {
+        // Desativado
+    }
+
+    function updateMicDot(active, label) {
+        const dot = document.getElementById('mic-status-dot');
+        const lbl = document.getElementById('mic-status-label');
+        const badge = document.getElementById('scan-mic-active-badge');
+        if (dot) {
+            dot.className = `w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-500 animate-pulse shadow-sm' : 'bg-gray-300'}`;
+            dot.title = label || (active ? 'Microfone ativo' : 'Microfone inativo');
+        }
+        if (lbl) {
+            lbl.textContent = active ? 'Ouvindo' : 'Inativo';
+            lbl.className = `text-[10px] font-bold ${active ? 'text-emerald-600' : 'text-gray-400'}`;
+        }
+        if (badge) {
+            badge.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-gray-300'}`;
+        }
+    }
+
+    function flashMicDot() {
+        const dot = document.getElementById('mic-status-dot');
+        if (!dot) return;
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+        setTimeout(() => updateMicDot(bgSpeechActive), 1000);
+    }
+
+    const scanProductCache = {};
+
+    function buildProductDetailsHtml(prod, scanId = null) {
+        if (!prod) return '';
+        const detailParts = [];
+        const safePush = (val) => {
+            if (val !== null && val !== undefined) {
+                const s = String(val).trim();
+                if (s !== '' && s.toLowerCase() !== 'null' && s.toLowerCase() !== '&null' && s.toLowerCase() !== '&bnull' && s.toLowerCase() !== '&bull;') {
+                    detailParts.push(escapeHtml(s));
+                }
+            }
+        };
+
+        if (prod.description && String(prod.description).trim().toLowerCase() !== 'null' && String(prod.description).trim() !== String(prod.name || '').trim()) {
+            safePush(prod.description);
+        }
+        if (prod.tamanho && String(prod.tamanho).toLowerCase() !== 'null') safePush('Tam: ' + prod.tamanho);
+        if (prod.marca && String(prod.marca).toLowerCase() !== 'null') safePush(prod.marca);
+        if (prod.cor && String(prod.cor).toLowerCase() !== 'null') safePush(prod.cor);
+
+        const detailsText = detailParts.join(' • ');
+        const nameHtml = escapeHtml(prod.name || 'Produto');
+
+        let priceDisplay = '';
+        if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') {
+            priceDisplay = prod.formatted_price;
+        } else if (prod.preco !== undefined && prod.preco !== null) {
+            priceDisplay = 'R$ ' + parseFloat(prod.preco).toFixed(2).replace('.', ',');
+        }
+
+        const targetScanId = scanId || prod.scanId || prod.scan_id || prod.code || prod.codigo || prod.sku || (prod.id ? String(prod.id) : '') || '';
+        const priceButtonHtml = `
+            <button type="button" onclick="event.stopPropagation(); openEditItemPriceModal('${escapeHtml(targetScanId)}', this)" title="Clique para editar o preço desta peça" class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300 text-[11px] transition shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0">
+                <i class="fas fa-tag text-[9px] text-emerald-600"></i>
+                <span>${escapeHtml(priceDisplay || 'Definir Preço')}</span>
+                <i class="fas fa-pen text-[8px] text-emerald-600 ml-0.5"></i>
+            </button>
+        `;
+
+        return `
+            <div class="flex items-center justify-between gap-1">
+                <div class="font-bold text-gray-900 leading-tight text-[11px] truncate">${nameHtml}</div>
+                ${priceButtonHtml}
+            </div>
+            ${detailsText ? `<div class="text-[9.5px] text-gray-500 font-medium leading-tight mt-0.5">${detailsText}</div>` : ''}
+        `;
+    }
+
+    function checkLiveCodeDuplicate(code, excludeScanId = null, excludeCode = null, excludeItemId = null) {
+        if (!code) return null;
+        const norm = String(code).trim().toUpperCase();
+        if (!norm) return null;
+        return bgScanItems.find(i => {
+            if (excludeScanId && i.id === excludeScanId) return false;
+            if (excludeCode && i.code === excludeCode) return false;
+            if (excludeItemId && i.itemId && i.itemId === excludeItemId) return false;
+            if (!i.liveCode) return false;
+            return String(i.liveCode).trim().toUpperCase() === norm;
+        }) || null;
+    }
+
+    function triggerDuplicateLiveCodeAlert(code, dupItem) {
+        const dupCode = dupItem.code || dupItem.codigo || 'peça';
+        playErrorBeep();
+
+        const banner = document.getElementById('scan-duplicate-warning-banner');
+        const text = document.getElementById('scan-duplicate-warning-text');
+        if (banner && text) {
+            text.textContent = `Código "${code}" já foi usado na peça #${dupCode}!`;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanDupBannerTimeout);
+            window._scanDupBannerTimeout = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 8000);
+        }
+
+        showToast(`⚠️ Atenção: Código de live "${code}" já foi cadastrado na peça #${dupCode}!`, 'warning');
+    }
+
+    function dismissDuplicateLiveCodeAlert() {
+        const banner = document.getElementById('scan-duplicate-warning-banner');
+        if (banner) banner.classList.add('hidden');
+        clearTimeout(window._scanDupBannerTimeout);
+    }
+
+    function renderLiveCodeHtml(item) {
+        if (item && item.liveCode) {
+            const dup = checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
+            const dupBadge = dup
+                ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] bg-red-100 text-red-700 font-black rounded border border-red-300 ml-1 animate-pulse" title="Código repetido na live! Já usado no item #${escapeHtml(dup.code)}">
+                    <i class="fas fa-exclamation-triangle text-[8px] text-red-600"></i> Repetido (Já em #${escapeHtml(dup.code)})
+                   </span>`
+                : '';
+
+            return `<p class="text-[11px] text-indigo-600 font-extrabold scan-item-live-code flex items-center flex-wrap gap-1">
+                <i class="fas fa-tag text-[9px]"></i> <span>${escapeHtml(item.liveCode)}</span>
+                <button type="button" onclick="editItemLiveCode('${item.id}')" title="Alterar código da live" class="text-gray-400 hover:text-indigo-600 ml-0.5 p-0.5 cursor-pointer"><i class="fas fa-pen text-[8px]"></i></button>
+                ${dupBadge}
+            </p>`;
+        } else {
+            const scanId = item ? item.id : '';
+            return `<p class="text-[10px] text-amber-600 font-bold italic scan-item-live-code flex items-center gap-1">
+                <i class="fas fa-clock text-[9px]"></i> Aguardando código da live
+                <button type="button" onclick="editItemLiveCode('${scanId}')" title="Inserir código da live" class="text-amber-500 hover:text-amber-700 ml-1 p-0.5 cursor-pointer"><i class="fas fa-plus-circle text-[9px]"></i></button>
+            </p>`;
+        }
+    }
+
+    function editItemLiveCode(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+        const currentCode = item.liveCode || '';
+        const novoCod = prompt('Código específico da live para o item ' + item.code + ':', currentCode);
+        if (novoCod === null) return;
+        const cleanCod = novoCod.trim().toUpperCase();
+
+        if (cleanCod !== '') {
+            const dup = checkLiveCodeDuplicate(cleanCod, scanId, item.code, item.itemId);
+            if (dup) {
+                triggerDuplicateLiveCodeAlert(cleanCod, dup);
+                const proceed = confirm(`⚠️ ATENÇÃO: O código da live "${cleanCod}" já está em uso na peça #${dup.code}!\n\nDeseja utilizar este código mesmo assim?`);
+                if (!proceed) {
+                    return;
+                }
+            }
+        }
+
+        item.liveCode = cleanCod;
+        updateItemLiveCodeUI(scanId, cleanCod);
+        refreshAllScanItemsLiveCodeUI();
+        syncLinkItemToLive(item.itemId || null, item.code, cleanCod);
+    }
+
+    function updateItemLiveCodeUI(scanId, liveCode) {
+        let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) {
+            const it = bgScanItems.find(x => x.id === scanId);
+            if (it && it.code) itemEl = document.querySelector(`[data-code="${it.code}"]`);
+        }
+        if (!itemEl) return;
+        const it = bgScanItems.find(x => x.id === scanId);
+        const wrapper = itemEl.querySelector('.scan-item-live-wrapper');
+        if (wrapper) {
+            wrapper.innerHTML = renderLiveCodeHtml(it || { id: scanId, liveCode: liveCode });
+        }
+        updateScanItemBuyerUI(scanId);
+    }
+
+    function refreshAllScanItemsLiveCodeUI() {
+        bgScanItems.forEach(item => {
+            updateItemLiveCodeUI(item.id, item.liveCode);
+        });
+    }
+
+    function openEditItemPriceModal(identifier, buttonEl = null) {
+        let cleanId = identifier ? String(identifier).trim() : '';
+
+        // Fallback: se identifier veio vazio, tenta extrair pelo botão ou card pai mais próximo
+        if (!cleanId && buttonEl) {
+            const parentItemEl = buttonEl.closest('.scan-item') || buttonEl.closest('[data-scan-id]') || buttonEl.closest('[data-code]');
+            if (parentItemEl) {
+                cleanId = parentItemEl.dataset.scanId || parentItemEl.dataset.code || parentItemEl.dataset.itemId || '';
+            }
+        }
+
+        let item = null;
+        if (cleanId) {
+            item = bgScanItems.find(x => x.id === cleanId) 
+                || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId)
+                || bgScanItems.find(x => x.liveCode && String(x.liveCode).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => cleanId.startsWith('scan_db_') && x.id === cleanId);
+        }
+
+        if (!item && buttonEl) {
+            const parentItemEl = buttonEl.closest('.scan-item') || buttonEl.closest('[data-scan-id]') || buttonEl.closest('[data-code]');
+            if (parentItemEl) {
+                const sId = parentItemEl.dataset.scanId;
+                const sCode = parentItemEl.dataset.code;
+                const sItem = parentItemEl.dataset.itemId;
+                item = bgScanItems.find(x => (sId && x.id === sId) || (sCode && x.code === sCode) || (sItem && x.itemId == sItem));
+            }
+        }
+
+        const modal = document.getElementById('modal-edit-item-price');
+        if (!modal) {
+            console.error('[PriceModal] Elemento #modal-edit-item-price não encontrado');
+            return;
+        }
+
+        const scanId = item ? item.id : cleanId;
+        const itemId = item ? (item.itemId || '') : (cleanId && !isNaN(cleanId) ? cleanId : '');
+        const code = item ? (item.code || '') : cleanId;
+        const liveCode = item ? (item.liveCode || '') : '';
+        const prodName = item ? (item.productName || '') : '';
+        const prodDetails = item ? (item.productDetails || '') : '';
+        const prodPrice = item ? (item.productPrice || '') : '';
+
+        const scanIdInput = document.getElementById('edit-item-price-scan-id');
+        if (scanIdInput) scanIdInput.value = scanId;
+        const itemIdInput = document.getElementById('edit-item-price-item-id');
+        if (itemIdInput) itemIdInput.value = itemId;
+        const codeInput = document.getElementById('edit-item-price-code');
+        if (codeInput) codeInput.value = code;
+
+        const badgeCode = document.getElementById('edit-item-price-badge-code');
+        if (badgeCode) badgeCode.textContent = '#' + (code || 'Peça');
+
+        const badgeLive = document.getElementById('edit-item-price-badge-live');
+        if (badgeLive) {
+            badgeLive.textContent = liveCode ? 'Live: #' + liveCode : 'Sem código live';
+            badgeLive.style.display = liveCode ? 'inline-block' : 'none';
+        }
+
+        const badgeCurrent = document.getElementById('edit-item-price-badge-current');
+        if (badgeCurrent) {
+            badgeCurrent.textContent = 'Atual: ' + (prodPrice || 'R$ 0,00');
+        }
+
+        const prodNameEl = document.getElementById('edit-item-price-prod-name');
+        if (prodNameEl) prodNameEl.textContent = prodName || ('Peça #' + (code || ''));
+
+        const prodDetailsEl = document.getElementById('edit-item-price-prod-details');
+        if (prodDetailsEl) {
+            const parts = [];
+            if (prodDetails) parts.push(prodDetails);
+            if (item && item.tamanho) parts.push('Tam: ' + item.tamanho);
+            if (item && item.marca) parts.push(item.marca);
+            if (item && item.cor) parts.push(item.cor);
+            prodDetailsEl.textContent = parts.join(' • ') || 'Sem detalhes cadastrados';
+        }
+
+        const input = document.getElementById('edit-item-price-input');
+        if (input) {
+            let curPriceClean = (prodPrice || '').replace(/[^0-9,\.]/g, '').trim();
+            input.value = curPriceClean || '';
+        }
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 60);
+        }
+    }
+
+    function closeEditItemPriceModal() {
+        const modal = document.getElementById('modal-edit-item-price');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+        ensureScannerFocus(true);
+    }
+
+    function setEditPricePreset(val) {
+        const input = document.getElementById('edit-item-price-input');
+        if (input) {
+            input.value = Number(val).toFixed(2).replace('.', ',');
+            input.focus();
+            input.select();
+        }
+    }
+
+    async function submitEditItemPrice(event) {
+        event.preventDefault();
+        const scanId = document.getElementById('edit-item-price-scan-id')?.value;
+        const itemId = document.getElementById('edit-item-price-item-id')?.value;
+        const code = document.getElementById('edit-item-price-code')?.value;
+        const priceInput = document.getElementById('edit-item-price-input');
+        const priceVal = (priceInput?.value || '').trim();
+
+        if (!priceVal) {
+            showToast('Informe o novo preço!', 'warning');
+            return;
+        }
+
+        const item = bgScanItems.find(x => x.id === scanId) 
+            || bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId == itemId) || (x.liveCode && x.liveCode === code));
+
+        const btn = document.getElementById('btn-save-edit-price');
+        const origBtnHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Salvando...';
+        }
+
+        try {
+            const resp = await fetch('/admin/live-chat/update-item-price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    live_id: liveId ? parseInt(liveId) : null,
+                    item_id: itemId ? parseInt(itemId) : (item && item.itemId ? parseInt(item.itemId) : null),
+                    code: code || (item ? item.code : null),
+                    codigo_live: item ? item.liveCode : null,
+                    price: priceVal
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success && data.data) {
+                const updatedPrice = data.data.formatted_price;
+
+                // 1. Atualiza no array bgScanItems
+                if (item) {
+                    item.productPrice = updatedPrice;
+                    item.preco = data.data.price;
+                }
+
+                // 2. Atualiza no cache scanProductCache
+                const prodCode = code || (item ? item.code : null);
+                if (prodCode) {
+                    const cacheKey = String(prodCode).trim().toUpperCase();
+                    if (scanProductCache[cacheKey]) {
+                        scanProductCache[cacheKey].formatted_price = updatedPrice;
+                        scanProductCache[cacheKey].preco = data.data.price;
+                    }
+                }
+
+                // 3. Atualiza na UI do card de bipagem
+                let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+                if (!itemEl && prodCode) itemEl = document.querySelector(`[data-code="${prodCode}"]`);
+                if (!itemEl && itemId) itemEl = document.querySelector(`[data-item-id="${itemId}"]`);
+                if (!itemEl && item && item.id) itemEl = document.querySelector(`[data-scan-id="${item.id}"]`);
+                if (!itemEl && item && item.code) itemEl = document.querySelector(`[data-code="${item.code}"]`);
+
+                if (itemEl && item) {
+                    const detailsEl = itemEl.querySelector('.scan-item-details');
+                    if (detailsEl) {
+                        const fakeProd = {
+                            id: item.itemId || itemId || null,
+                            code: item.code || prodCode || null,
+                            codigo: item.code || prodCode || null,
+                            scanId: item.id || scanId || null,
+                            name: item.productName,
+                            description: item.productDetails,
+                            tamanho: item.tamanho,
+                            marca: item.marca,
+                            cor: item.cor,
+                            formatted_price: updatedPrice,
+                            preco: data.data.price
+                        };
+                        detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, item.id);
+                    }
+                }
+
+                // 4. Atualiza em mensagens do chat que tenham esta peça vinculada
+                if (window.liveChatMessages && window.liveChatMessages.length) {
+                    let hasLinkedUpdate = false;
+                    window.liveChatMessages.forEach(m => {
+                        const mCode = String(m.linked_code || '').replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim().toUpperCase();
+                        if ((itemId && m.linked_item_id == itemId) || (prodCode && mCode === String(prodCode).trim().toUpperCase())) {
+                            m.linked_product_preco = updatedPrice;
+                            hasLinkedUpdate = true;
+                        }
+                    });
+                    if (hasLinkedUpdate && typeof renderFeedMessages === 'function') {
+                        renderFeedMessages(window.liveChatMessages);
+                    }
+                }
+
+                // 5. Atualiza o badge do total da sacolinha se retornado
+                if (data.data.total_valor_formatado) {
+                    const valorBadge = document.getElementById('sacolinhas-valor-badge');
+                    if (valorBadge) valorBadge.textContent = data.data.total_valor_formatado;
+                }
+
+                showToast(`✅ Preço atualizado para ${updatedPrice}!`, 'success');
+                closeEditItemPriceModal();
+            } else {
+                showToast(data.message || 'Erro ao atualizar preço.', 'error');
+            }
+        } catch(err) {
+            console.error('Erro ao atualizar preço:', err);
+            showToast('Erro de conexão ao salvar preço.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnHtml;
+            }
+        }
+    }
+
+    function syncLinkItemToLive(itemId, code, liveCode) {
+        if (!liveId) {
+            console.warn('[Scan] Não há live ativa/selecionada para vincular o item.');
+            showToast('⚠️ Selecione uma live no topo para vincular itens!', 'warning');
+            return;
+        }
+        fetch('/admin/live-chat/link-item-live', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                live_id: liveId,
+                item_id: itemId || null,
+                code: code || null,
+                codigo_live: liveCode || ''
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.duplicate_warning) {
+                triggerDuplicateLiveCodeAlert(liveCode, data.duplicate_warning);
+            }
+            if (data.success && data.data && data.data.item_id) {
+                const found = bgScanItems.find(x => (code && x.code === code) || (itemId && x.itemId === itemId));
+                if (found) {
+                    found.itemId = data.data.item_id;
+                }
+                localStorage.setItem('last_live_item_biped', Date.now());
+            }
+        })
+        .catch(err => console.warn('[Scan] Erro ao sincronizar item à live:', err));
+    }
+
+    function unlinkItemFromLive(itemId, code) {
+        if (!liveId) return;
+        fetch('/admin/live-chat/unlink-item-live', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                live_id: liveId,
+                item_id: itemId || null,
+                code: code || null
+            })
+        })
+        .then(() => {
+            localStorage.setItem('last_live_item_biped', Date.now());
+        })
+        .catch(err => console.warn('[Scan] Erro ao desvincular item:', err));
+    }
+
+    async function fetchAndRenderItemDetails(code, scanId) {
+        let prod = scanProductCache[code];
+        if (prod === undefined) {
+            try {
+                const res = await fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`);
+                const data = await res.json();
+                if (data.success && data.data && data.data.length > 0) {
+                    const clean = code.replace(/^[#\s]+/, '').trim().toLowerCase();
+                    prod = data.data.find(item => 
+                        (item.sku && item.sku.toLowerCase() === clean) ||
+                        (item.codigo && item.codigo.toLowerCase() === clean) ||
+                        String(item.id) === clean
+                    ) || (data.data.length === 1 ? data.data[0] : null);
+                    scanProductCache[code] = prod;
+                } else {
+                    scanProductCache[code] = null;
+                    prod = null;
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao buscar produto:', e);
+                prod = null;
+            }
+        }
+
+        const itemObj = bgScanItems.find(x => x.id === scanId);
+        const itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) return;
+
+        const detailsEl = itemEl.querySelector('.scan-item-details');
+
+        if (prod && prod.id) {
+            // Verificar se outro item diferente nesta live já possui este mesmo produto
+            const existingInList = bgScanItems.find(x => x.id !== scanId && x.itemId && x.itemId === prod.id);
+            if (existingInList) {
+                // Remove o item duplicado recém-criado
+                const dupIdx = bgScanItems.findIndex(x => x.id === scanId);
+                if (dupIdx !== -1) bgScanItems.splice(dupIdx, 1);
+                if (itemEl) itemEl.remove();
+                updateScanCount();
+                if (bgScanItems.length === 0) showScanEmptyState();
+
+                playErrorBeep();
+                showToast(`⚠️ A peça #${existingInList.code} já está adicionada nesta live! Não foi duplicada.`, 'warning');
+
+                const banner = document.getElementById('scan-duplicate-warning-banner');
+                const bannerText = document.getElementById('scan-duplicate-warning-text');
+                if (banner && bannerText) {
+                    bannerText.textContent = `A peça #${existingInList.code} já foi bipada nesta live!`;
+                    banner.classList.remove('hidden');
+                    clearTimeout(window._scanDupBannerTimeout);
+                    window._scanDupBannerTimeout = setTimeout(() => {
+                        banner.classList.add('hidden');
+                    }, 8000);
+                }
+
+                // Destaca o item original na lista
+                let origEl = document.querySelector(`[data-scan-id="${existingInList.id}"]`);
+                if (!origEl && existingInList.code) {
+                    origEl = document.querySelector(`[data-code="${existingInList.code}"]`);
+                }
+                if (origEl) {
+                    origEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    origEl.classList.remove('bg-gray-50', 'bg-emerald-50');
+                    origEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                    setTimeout(() => {
+                        origEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-4', 'ring-amber-400');
+                        origEl.classList.add('bg-gray-50');
+                    }, 3000);
+                }
+                return;
+            }
+
+            if (itemObj) {
+                itemObj.itemId = prod.id;
+                itemObj.productName = prod.name;
+                itemObj.productDetails = prod.description;
+                itemObj.productPrice = prod.formatted_price;
+                itemObj.tamanho = prod.tamanho;
+                itemObj.marca = prod.marca;
+                itemObj.cor = prod.cor;
+            }
+
+            if (detailsEl) {
+                detailsEl.innerHTML = buildProductDetailsHtml(prod, scanId);
+            }
+
+            const banner = document.getElementById('scan-last-item-banner');
+            const bannerText = document.getElementById('scan-last-item-text');
+            if (banner && bannerText && bgScanItems[0] && bgScanItems[0].id === scanId) {
+                const liveCode = itemObj ? itemObj.liveCode : '';
+                bannerText.textContent = code + (liveCode ? ' • Live: ' + liveCode : '') + ' • ' + prod.name;
+            }
+
+            // Sincroniza vinculação do item à live com o banco de dados
+            syncLinkItemToLive(prod.id, code, itemObj ? itemObj.liveCode : '');
+        } else {
+            if (detailsEl) {
+                detailsEl.innerHTML = `<span class="text-[10px] text-gray-400 font-medium">Item não cadastrado</span>`;
+            }
+        }
+    }
+
+    function applySpokenLiveCode(code) {
+        if (!code) return;
+        code = String(code).trim().toUpperCase();
+
+        flashMicDot();
+
+        // 1. Procura na lista de itens bipados o item mais recente sem código de live
+        const waitingItem = bgScanItems.find(i => !i.liveCode);
+
+        // Checar duplicidade na live atual
+        const dupItem = checkLiveCodeDuplicate(code, waitingItem ? waitingItem.id : null);
+        if (dupItem) {
+            triggerDuplicateLiveCodeAlert(code, dupItem);
+        }
+
+        if (waitingItem) {
+            // Associa o código a esse item pendente
+            waitingItem.liveCode = code;
+
+            // Atualiza o elemento no DOM com layout limpo e menor
+            updateItemLiveCodeUI(waitingItem.id, code);
+            refreshAllScanItemsLiveCodeUI();
+
+            let itemEl = document.querySelector('[data-scan-id="' + waitingItem.id + '"]');
+            if (!itemEl && waitingItem.code) {
+                itemEl = document.querySelector('[data-code="' + waitingItem.code + '"]');
+            }
+            if (itemEl) {
+                if (dupItem) {
+                    itemEl.classList.add('bg-amber-100', 'border-amber-500', 'ring-2', 'ring-amber-400');
+                    setTimeout(() => {
+                        itemEl.classList.remove('bg-amber-100', 'border-amber-500', 'ring-2', 'ring-amber-400');
+                    }, 2500);
+                } else {
+                    // Destaque visual piscando verde para confirmar vinculação normal
+                    itemEl.classList.add('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
+                    setTimeout(() => {
+                        itemEl.classList.remove('bg-emerald-100', 'border-emerald-500', 'ring-2', 'ring-emerald-400');
+                    }, 1500);
+                }
+            }
+
+            // Atualiza banner de confirmação do item se não for duplicado
+            const banner = document.getElementById('scan-last-item-banner');
+            const bannerText = document.getElementById('scan-last-item-text');
+            const bannerTime = document.getElementById('scan-last-item-time');
+            if (banner && bannerText && bgScanItems[0] === waitingItem && !dupItem) {
+                const prodName = waitingItem.productName ? ' • ' + waitingItem.productName : '';
+                bannerText.textContent = waitingItem.code + ' • Live: ' + code + prodName;
+                if (bannerTime) bannerTime.textContent = waitingItem.time || '';
+                banner.classList.remove('hidden');
+                clearTimeout(window._scanBannerTimeout);
+                window._scanBannerTimeout = setTimeout(function() {
+                    banner.classList.add('hidden');
+                }, 3000);
+            }
+
+            // Sincroniza com a tabela live_items
+            syncLinkItemToLive(waitingItem.itemId, waitingItem.code, code);
+
+            if (!dupItem) {
+                playSuccessBeep();
+            }
+
+            // Limpa o campo do áudio imediatamente conforme solicitado!
+            clearLiveCode();
+
+        } else {
+            // Se NÃO houver item sem código, mantém no campo do áudio aguardando a próxima bipagem
+            const liveInput = document.getElementById('scan-live-code');
+            if (liveInput) {
+                liveInput.value = code;
+
+                if (dupItem) {
+                    liveInput.classList.add('ring-2', 'ring-amber-500', 'bg-amber-50', 'text-amber-900');
+                    setTimeout(() => {
+                        liveInput.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-50', 'text-amber-900');
+                    }, 2000);
+                } else {
+                    playSuccessBeep();
+                    // Destaque visual pulsante no input (verde esmeralda)
+                    liveInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+                    setTimeout(() => {
+                        liveInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+                    }, 1200);
+                }
+
+                try {
+                    liveInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    liveInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch(e) {}
+            }
+        }
+    }
+
+    /* ---- Controle Câmera ------------- */
+    function toggleScanDevices() {
+        if (!bgCameraActive) {
+            initScanCamera();
+        } else {
+            stopScanCamera();
+        }
+    }
+
+    function updateScanDevicesBtn() {
+        const btn = document.getElementById('btn-toggle-scan-devices');
+        const text = document.getElementById('scan-devices-btn-text');
+        if (!btn) return;
+
+        if (bgCameraActive) {
+            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition cursor-pointer";
+            if (text) text.textContent = "Desativar Câmera";
+        } else {
+            btn.className = "text-[10px] font-bold px-2 py-0.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition cursor-pointer font-extrabold";
+            if (text) text.textContent = "Ativar Câmera";
+        }
+    }
+
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
+     * Procura no chat todos os clientes que comentaram querendo o código da live ou código do item.
+     * Ignora terminantemente mensagens que são telefones/WhatsApp ou comentários genéricos de conversa.
+     */
+    function findAllSpeakersForCode(liveCode, code, itemTimestamp, dismissedUsers = null) {
+        if (!allLiveMessages || allLiveMessages.length === 0) return [];
+
+        const targets = [];
+        const shortLiveCodes = [];
+
+        if (liveCode && String(liveCode).trim()) {
+            const lc = String(liveCode).trim().toLowerCase();
+            if (lc) {
+                targets.push(lc);
+                if (/^\d+$/.test(lc)) {
+                    shortLiveCodes.push(lc);
+                    const num = parseInt(lc, 10);
+                    const rawNum = String(num);
+                    if (!targets.includes(rawNum)) targets.push(rawNum);
+                    if (!shortLiveCodes.includes(rawNum)) shortLiveCodes.push(rawNum);
+                    const paddedNum = rawNum.length === 1 ? '0' + rawNum : rawNum;
+                    if (!targets.includes(paddedNum)) targets.push(paddedNum);
+                    if (!shortLiveCodes.includes(paddedNum)) shortLiveCodes.push(paddedNum);
+                }
+            }
+        }
+        if (code && String(code).trim()) {
+            const c = String(code).replace(/^[#\s]+/, '').trim().toLowerCase();
+            if (c && !targets.includes(c)) targets.push(c);
+        }
+        if (targets.length === 0) return [];
+
+        const queue = [];
+        const seenUsers = new Set();
+
+        const itemTimeMs = itemTimestamp ? Number(itemTimestamp) : null;
+
+        for (let i = 0; i < allLiveMessages.length; i++) {
+            const msg = allLiveMessages[i];
+            if (!msg || !msg.message) continue;
+
+            const cleanUser = (msg.username || 'usuario').trim().toLowerCase();
+            if (seenUsers.has(cleanUser)) continue;
+            if (dismissedUsers && (dismissedUsers.has(cleanUser) || dismissedUsers.has('@' + cleanUser))) continue;
+
+            const rawMsg = msg.message.trim();
+            const msgText = rawMsg.toLowerCase();
+
+            // 1. FILTRAR CANCELAMENTOS / DESISTÊNCIAS / NEGAÇÕES:
+            // Ex: "tira 215", "gra tira o 215", "cancela 215", "não é 215", "passo 215", "desisto 215", "tira o"
+            if (/(?:tira|tirar|cancela|cancelar|cancelo|passo|passa|desisto|desiste|devolve|devolver|remove|remover|errei|enganei|nao\s*[eé]|não\s*[eé]|nao\s*quero|não\s*quero|nao\s*era|não\s*era)/i.test(msgText)) {
+                continue;
+            }
+
+            // 2. FILTRAR TELEFONES: Se a mensagem tiver 7 ou mais dígitos totais, é telefone de cadastro, não pedido!
+            const digitsOnly = msgText.replace(/\D/g, '');
+            if (digitsOnly.length >= 7) continue;
+
+            // 3. FILTRAR PADRÕES TELEFÔNICOS BRASILEIROS (ex: 19 9999-9999, (11) 98888-8888, 9999-8888)
+            if (/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s.]?\d{4}/.test(msgText) || /\b\d{4,5}[-\s.]\d{4}\b/.test(msgText)) {
+                continue;
+            }
+
+            // 4. FILTRAR DÚVIDAS / PERGUNTAS: Se tiver '?' e termos interrogativos (ex: "tem 101?", "veste quanto?", "qual valor?", "ainda tem?"), não é arremate
+            if (/\?/.test(msgText) && /(?:tem|ainda|veste|calca|calça|qual|quanto|valor|preco|preço|tamanho|ja\s*foi|já\s*foi|vendeu|mostra)/i.test(msgText)) {
+                continue;
+            }
+
+            // 5. FILTRAR MENSAGENS MUITO ANTIGAS (se o item tiver timestamp, ignorar msgs de mais de 25 min antes)
+            if (itemTimeMs && msg.created_at) {
+                const msgTimeMs = new Date(msg.created_at).getTime();
+                if (msgTimeMs && (itemTimeMs - msgTimeMs) > (25 * 60 * 1000)) {
+                    continue;
+                }
+            }
+
+            let matched = false;
+
+            // 5. Testar correspondência precisa com os alvos
+            for (const target of targets) {
+                // Caso A: Mensagem é EXATAMENTE o código, #código, p-código, peça código (ex: "101", "#101", "p101", "p 101", "peca 101", "0101")
+                const cleanMsgOnly = msgText.replace(/^[#\s]+|[#\s]+$/g, '');
+                const cleanWithoutPrefix = cleanMsgOnly.replace(/^(?:p(?:e[çc]a)?|c[oó]d(?:igo)?|item|#)[\s\-_.]*/i, '');
+                if (cleanMsgOnly === target || cleanMsgOnly === ('#' + target) || cleanWithoutPrefix === target) {
+                    matched = true;
+                    break;
+                }
+
+                // Caso B: Se for código de live (ex: "101", "102", "125", "22"), validar intenção de compra ou separação estrita
+                if (shortLiveCodes.includes(target)) {
+                    // Ignora se for parte de preço, horas ou medidas
+                    if (new RegExp('(?:^|\\s)' + escapeRegex(target) + '(?:h|hrs|horas|reais|conto|\\$|cm|kg|m|g|%)(?:\\s|$)', 'i').test(msgText) ||
+                        new RegExp('(?:r\\$|\\$|custa|valor|preço|paguei)\\s*' + escapeRegex(target), 'i').test(msgText) ||
+                        new RegExp('(?:tenho|com)\\s*' + escapeRegex(target) + '\\s*(?:anos|ano)', 'i').test(msgText)) {
+                        continue;
+                    }
+
+                    // Padrões claros de pedido: "quero 101", "101 eu", "eu 101", "101 meu", "meu 101", "p101 eu", "101 pra mim", "101 p", "101 m", "101 g", "101 k", "#101", "p 101", "peça 101"
+                    const buyIntentRegex = new RegExp('(?:^|\\b)(?:p|pe[çc]a|c[oó]d(?:igo)?|item|quero|eu|meu|minha|leva|fica|pego|separa|reserva)?\\s*#?' + escapeRegex(target) + '\\s*(?:eu|quero|meu|minha|pra\\s*mim|por\\s*favor|p|m|g|gg|k|pfv)?(?:$|\\b)', 'i');
+                    
+                    // Regex com prefixo colado ao número (ex: "p101", "p-101", "p.101")
+                    const prefixDirectRegex = new RegExp('(?:^|\\b)p[-_.]?' + escapeRegex(target) + '(?:$|\\b)', 'i');
+
+                    // Regex de palavra isolada (delimitada por pontuação ou espaço)
+                    const isolatedRegex = new RegExp('(?:^|[^a-z0-9])#?' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
+
+                    if (buyIntentRegex.test(msgText) || prefixDirectRegex.test(msgText) || isolatedRegex.test(msgText)) {
+                        // Certificar de que não é apenas um texto longo de conversa
+                        if (msgText.length <= 40) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // Caso C: SKU de produto mais longo (4 a 6 dígitos, ex: 63586)
+                    const skuRegex = new RegExp('(?:^|[^a-z0-9])#?' + escapeRegex(target) + '(?:$|[^a-z0-9])', 'i');
+                    if (skuRegex.test(msgText)) {
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+
+            if (matched) {
+                seenUsers.add(cleanUser);
+                const displayName = msg.user_name || msg.user_apelido || msg.username || 'usuario';
+                let formattedTime = '';
+                try {
+                    if (msg.created_at) {
+                        formattedTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    }
+                } catch(e) {}
+
+                queue.push({
+                    position: queue.length + 1,
+                    id: msg.id,
+                    username: msg.username || 'usuario',
+                    displayName: displayName,
+                    userId: msg.user_id || null,
+                    whatsapp: msg.user_whatsapp || '',
+                    plataforma: msg.plataforma || 'instagram',
+                    text: msg.message,
+                    time: formattedTime
+                });
+            }
+        }
+
+        return queue;
+    }
+
+    function renderScanItemBuyerHtml(item) {
+        if (!item.buyers) {
+            item.buyers = [];
+            if (item.buyerUsername) {
+                item.buyers.push({
+                    sacolinhaId: item.sacolinhaId || null,
+                    userId: item.buyerUserId || null,
+                    username: item.buyerUsername,
+                    displayName: item.buyerName || item.buyerUsername,
+                    phone: item.buyerPhone || null,
+                    hasPhone: Boolean(item.hasPhone || item.buyerPhone),
+                    quantity: 1,
+                    liveMessageId: item.liveMessageId || null
+                });
+            }
+        }
+
+        // Deduplica se houver comprador duplicado por userId ou username (ex: Instagram e TikTok da mesma cliente)
+        if (Array.isArray(item.buyers) && item.buyers.length > 1) {
+            const seenUIds = new Set();
+            const seenUNames = new Set();
+            item.buyers = item.buyers.filter(b => {
+                const uId = b.userId ? String(b.userId) : null;
+                const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                if (uId && seenUIds.has(uId)) return false;
+                if (uName && seenUNames.has(uName)) return false;
+                if (uId) seenUIds.add(uId);
+                if (uName) seenUNames.add(uName);
+                return true;
+            });
+        }
+
+        if (!item.dismissedUsers) item.dismissedUsers = new Set();
+        const queue = findAllSpeakersForCode(item.liveCode, item.code, item.timestamp, item.dismissedUsers);
+
+        // CASO 1: A peça JÁ TEM 1 OU MAIS COMPRADORES VINCULADOS
+        if (item.buyers.length > 0) {
+            const linkedUsers = new Set(item.buyers.map(b => String(b.username).replace(/^@/, '').toLowerCase()));
+            const otherSpeakers = queue.filter(q => !linkedUsers.has(String(q.username).replace(/^@/, '').toLowerCase()));
+
+            return `
+                <div class="flex flex-col gap-1 items-start w-full">
+                    ${item.buyers.length > 1 ? `
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
+                                <i class="fas fa-boxes-stacked mr-1"></i> ${item.buyers.length} Sacolas (${item.buyers.length} un.)
+                            </span>
+                        </div>
+                    ` : ''}
+
+                    ${item.buyers.map(b => {
+                        const cleanUser = String(b.username).replace(/^@/, '');
+                        const hasPhone = Boolean(b.phone || b.hasPhone);
+                        return `
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[230px]" 
+                                 style="${hasPhone ? 'background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;' : 'background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;'}" 
+                                 title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'}">
+                                <div class="flex items-center gap-1.5 min-w-0 truncate">
+                                    <span style="width: 17px; height: 17px; border-radius: 9999px; background-color: ${hasPhone ? '#059669' : '#dc2626'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; flex-shrink: 0;">
+                                        <i class="fas ${hasPhone ? 'fa-check' : 'fa-exclamation-triangle'}"></i>
+                                    </span>
+                                    <span class="font-black truncate max-w-[100px]" style="color: ${hasPhone ? '#064e3b' : '#7f1d1d'};">@${escapeHtml(cleanUser)}</span>
+                                    ${b.displayName ? `<span class="text-[10px] font-semibold truncate max-w-[65px]" style="color: ${hasPhone ? '#047857' : '#991b1b'};">(${escapeHtml(b.displayName)})</span>` : ''}
+                                </div>
+                                <button type="button" onclick="event.stopPropagation(); unlinkSpecificBuyerAction('${item.id}', '${escapeHtml(cleanUser)}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
+                                        title="Desvincular @${escapeHtml(cleanUser)}" 
+                                        class="ml-1 text-[11px] cursor-pointer hover:scale-110 p-0.5 rounded transition" 
+                                        style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+
+                    ${otherSpeakers.length > 0 ? `
+                        <div class="flex flex-col gap-1 items-start w-full mt-1">
+                            ${otherSpeakers.map(q => `
+                                <div class="inline-flex items-center gap-1 w-full max-w-[230px]">
+                                    <button type="button" onclick="event.stopPropagation(); promptMultiStockAction('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" 
+                                            title="Clique para transferir ou inserir também na sacola de @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" 
+                                            class="flex-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-800 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs justify-start text-left truncate">
+                                        <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
+                                        <span class="truncate">@${escapeHtml(q.username)}</span>
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" 
+                                            title="Inserir direto na sacola de @${escapeHtml(q.username)} (+1 un. Melissa)" 
+                                            class="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 rounded-md text-[10px] font-black transition cursor-pointer shrink-0 shadow-2xs active:scale-95 flex items-center gap-0.5">
+                                        <i class="fas fa-plus text-[9px]"></i> Sacola
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar outro cliente para anexar" class="text-[10px] text-gray-500 hover:text-indigo-600 font-bold self-start mt-0.5 px-1.5 py-0.5 hover:bg-gray-100 rounded transition cursor-pointer flex items-center gap-1">
+                        <i class="fas fa-search text-[9px]"></i> <span>Avulso</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // CASO 2: A peça AINDA NÃO FOI VINCULADA e existem pedidos detectados no chat
+        if (queue.length > 0) {
+            return `
+                <div class="flex flex-col gap-1 items-start w-full">
+                    ${queue.map(q => `
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                            <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
+                            <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
+                        </button>
+                    `).join('')}
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2.5 py-1 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-lg text-[11px] font-bold transition cursor-pointer shadow-2xs w-full justify-center">
+                        <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // CASO 3: A peça NÃO tem pedidos no chat ainda
+        if (item.liveCode) {
+            return `
+                <div class="flex flex-col gap-1 items-start">
+                    <div class="flex items-center gap-1.5 text-gray-400 text-xs justify-start">
+                        <i class="fas fa-spinner fa-spin text-indigo-400 text-[10px] shrink-0"></i>
+                        <span class="truncate text-[11px]">Aguardando <strong class="text-indigo-600 font-mono">"${escapeHtml(item.liveCode)}"</strong> no chat...</span>
+                    </div>
+                    <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2 py-0.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-md text-[11px] font-bold transition cursor-pointer shadow-2xs">
+                        <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="flex flex-col gap-1 items-start">
+                <div class="flex items-center gap-1.5 text-amber-700 text-xs justify-start">
+                    <i class="fas fa-microphone text-amber-500 text-[10px] shrink-0"></i>
+                    <span class="truncate text-[11px]">Defina o código</span>
+                </div>
+                <button type="button" onclick="event.stopPropagation(); openManualBuyerSearchModal('${item.id}')" title="Buscar cliente para anexar" class="inline-flex items-center gap-1 px-2 py-0.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80 border border-dashed border-gray-300 hover:border-indigo-400 rounded-md text-[11px] font-bold transition cursor-pointer shadow-2xs">
+                    <i class="fas fa-user-plus text-[10px]"></i> <span>Avulso</span>
+                </button>
+            </div>
+        `;
+    }
+
+    /* ---- Modal de Busca de Cliente Avulso ------------------------------- */
+    let currentManualBuyerScanId = null;
+    let manualBuyerSearchTimeout = null;
+
+    function openManualBuyerSearchModal(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        currentManualBuyerScanId = scanId;
+        const modal = document.getElementById('manual-buyer-search-modal');
+        const input = document.getElementById('manual-buyer-search-input');
+        const itemInfo = document.getElementById('manual-buyer-modal-item-info');
+
+        let label = '#' + item.code;
+        if (item.liveCode) label += ' • ' + item.liveCode;
+        if (item.productName) label += ' (' + item.productName + ')';
+        if (itemInfo) itemInfo.textContent = label;
+
+        if (input) {
+            input.value = '';
+            setTimeout(() => input.focus(), 150);
+        }
+
+        renderManualBuyerEmptyState();
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeManualBuyerSearchModal() {
+        const modal = document.getElementById('manual-buyer-search-modal');
+        if (modal) modal.classList.add('hidden');
+        currentManualBuyerScanId = null;
+    }
+
+    function clearManualBuyerSearch() {
+        const input = document.getElementById('manual-buyer-search-input');
+        const clearBtn = document.getElementById('manual-buyer-search-clear');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        if (clearBtn) clearBtn.classList.add('hidden');
+        renderManualBuyerEmptyState();
+    }
+
+    function renderManualBuyerEmptyState() {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 text-gray-400 text-center">
+                <i class="fas fa-search text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Digite para buscar uma cliente cadastrada</p>
+                <p class="text-[11px] text-gray-400">ou digite o @arroba para vincular diretamente.</p>
+            </div>
+        `;
+    }
+
+    let manualBuyerSelectedIndex = 0;
+
+    function handleManualBuyerSearchKeydown(e) {
+        e.stopPropagation();
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+
+        const items = container.querySelectorAll('.manual-buyer-result-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            manualBuyerSelectedIndex = (manualBuyerSelectedIndex + 1) % items.length;
+            updateManualBuyerSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            manualBuyerSelectedIndex = (manualBuyerSelectedIndex - 1 + items.length) % items.length;
+            updateManualBuyerSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (items.length > 0) {
+                const targetIdx = (manualBuyerSelectedIndex >= 0 && manualBuyerSelectedIndex < items.length) ? manualBuyerSelectedIndex : 0;
+                items[targetIdx].click();
+                return;
+            }
+            const directBtn = container.querySelector('.manual-buyer-fallback-btn');
+            if (directBtn) {
+                directBtn.click();
+                return;
+            }
+        }
+
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            closeManualBuyerSearchModal();
+        }
+    }
+
+    function updateManualBuyerSelectedHighlight() {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+        const items = container.querySelectorAll('.manual-buyer-result-item');
+        items.forEach((item, idx) => {
+            if (idx === manualBuyerSelectedIndex) {
+                item.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/60', 'border-indigo-400');
+                item.classList.remove('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                item.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/60', 'border-indigo-400');
+                item.classList.add('bg-white', 'dark:bg-gray-800', 'border-gray-200', 'dark:border-gray-700');
+            }
+        });
+    }
+
+    function handleManualBuyerSearchInput(val) {
+        const clearBtn = document.getElementById('manual-buyer-search-clear');
+        if (clearBtn) {
+            if (val.trim()) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        clearTimeout(manualBuyerSearchTimeout);
+        const query = val.trim();
+        if (!query) {
+            renderManualBuyerEmptyState();
+            return;
+        }
+
+        manualBuyerSearchTimeout = setTimeout(() => {
+            executeManualBuyerSearch(query);
+        }, 200);
+    }
+
+    async function executeManualBuyerSearch(query) {
+        const container = document.getElementById('manual-buyer-results-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-10 text-indigo-500">
+                <i class="fas fa-spinner fa-spin text-2xl mr-2"></i>
+                <span class="text-xs font-bold text-gray-500">Buscando clientes...</span>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const json = await response.json();
+            const users = (json && json.success && Array.isArray(json.data)) ? json.data : [];
+
+            let html = '';
+            if (users.length > 0) {
+                users.forEach(u => {
+                    const username = u.instagram || u.tiktok || u.name || ('cliente_' + u.id);
+                    const displayName = u.name || u.apelido || username;
+                    const initials = (u.name || username).slice(0, 2).toUpperCase();
+                    const cleanPhone = u.whatsapp || u.phone || u.telefone_principal || '';
+                    const userPayload = encodeURIComponent(JSON.stringify({
+                        id: u.id,
+                        username: username,
+                        displayName: displayName,
+                        phone: cleanPhone
+                    }));
+
+                    html += `
+                        <div onclick="handleSelectManualBuyerClick(this)" data-user="${userPayload}" class="manual-buyer-result-item p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-xs group">
+                            <div class="flex items-center gap-2.5 min-w-0 pointer-events-none">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-sm">
+                                    ${escapeHtml(initials)}
+                                </div>
+                                <div class="truncate">
+                                    <div class="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                        <span class="truncate">${escapeHtml(displayName)}</span>
+                                        ${u.instagram ? `<span class="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">@${escapeHtml(u.instagram)}</span>` : ''}
+                                    </div>
+                                    <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
+                                        ${cleanPhone ? `<span><i class="fab fa-whatsapp text-emerald-500"></i> ${escapeHtml(cleanPhone)}</span>` : '<span class="text-red-500 font-bold"><i class="fas fa-exclamation-triangle"></i> Sem telefone</span>'}
+                                        ${u.cpf ? `<span>CPF: ${escapeHtml(u.cpf)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 group-hover:bg-indigo-600 group-hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold rounded-xl shrink-0 transition pointer-events-none">
+                                Vincular
+                            </button>
+                        </div>
+                    `;
+                });
+            } else {
+                const cleanUserTerm = query.trim().replace(/^@/, '');
+                html = `
+                    <div class="flex flex-col items-center justify-center py-8 text-gray-400 text-center">
+                        <i class="fas fa-user-slash text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                        <p class="text-xs font-bold text-gray-600 dark:text-gray-300">Nenhum cliente cadastrado encontrado com "${escapeHtml(query)}"</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5 mb-3">Deseja vincular diretamente como novo comprador?</p>
+                        <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}', '')" class="manual-buyer-fallback-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fas fa-user-plus"></i> Vincular @${escapeHtml(cleanUserTerm)} à Peça
+                        </button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            manualBuyerSelectedIndex = 0;
+            updateManualBuyerSelectedHighlight();
+        } catch(e) {
+            console.error('[ManualBuyer] Erro na busca:', e);
+            const cleanUserTerm = query.trim().replace(/^@/, '');
+            container.innerHTML = `
+                <div class="text-center py-6 text-red-500 text-xs font-bold">
+                    <p class="mb-2">Erro ao conectar com a busca de clientes.</p>
+                    <button type="button" onclick="selectManualBuyerUser(null, '${escapeHtml(cleanUserTerm)}', '${escapeHtml(query)}', '')" class="manual-buyer-fallback-btn px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow transition">
+                        Vincular @${escapeHtml(cleanUserTerm)} diretamente
+                    </button>
+                </div>
+            `;
+            manualBuyerSelectedIndex = 0;
+        }
+    }
+
+    function handleSelectManualBuyerClick(el) {
+        try {
+            const raw = el.getAttribute('data-user');
+            if (!raw) return;
+            const data = JSON.parse(decodeURIComponent(raw));
+            selectManualBuyerUser(data.id, data.username, data.displayName, data.phone);
+        } catch(err) {
+            console.error('[ManualBuyer] Erro ao selecionar usuário:', err);
+        }
+    }
+
+    let pendingMultiStockData = null;
+
+    function promptMultiStockAction(scanId, username, displayName, userId, msgId, phone) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (!item.buyers) item.buyers = [];
+
+        // Se o item ainda não tem compradores, vincula direto como 'add'
+        if (item.buyers.length === 0) {
+            linkItemToBuyer(scanId, username, displayName, userId, msgId, phone, 'add');
+            return;
+        }
+
+        const cleanUser = String(username).replace(/^@/, '');
+        pendingMultiStockData = {
+            scanId,
+            username: cleanUser,
+            displayName: displayName || cleanUser,
+            userId: userId || null,
+            msgId: msgId || null,
+            phone: phone || ''
+        };
+
+        const modal = document.getElementById('modal-multi-stock-action');
+        if (!modal) return;
+
+        // Info do item
+        const itemInfoEl = document.getElementById('multi-stock-item-info');
+        if (itemInfoEl) {
+            itemInfoEl.textContent = `Peça #${item.liveCode || item.code} - ${item.productName || 'Produto'} (${item.productPrice || ''})`;
+        }
+
+        // Compradores atuais
+        const currentBuyersEl = document.getElementById('multi-stock-current-buyers');
+        if (currentBuyersEl) {
+            currentBuyersEl.innerHTML = item.buyers.map(b => {
+                const u = escapeHtml(String(b.username).replace(/^@/, ''));
+                const n = b.displayName ? ` (${escapeHtml(b.displayName)})` : '';
+                return `
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700">
+                        <i class="fas fa-check-circle text-emerald-600"></i>
+                        <span>@${u}${n}</span>
+                    </span>
+                `;
+            }).join('');
+        }
+
+        // Nova cliente selecionada
+        const targetBadgeEl = document.getElementById('multi-stock-target-badge');
+        const targetNameEl = document.getElementById('multi-stock-target-name');
+        const targetHighlightEl = document.getElementById('multi-stock-target-highlight');
+        if (targetBadgeEl) targetBadgeEl.textContent = '@' + cleanUser;
+        if (targetNameEl) targetNameEl.textContent = displayName ? `(${displayName})` : '';
+        if (targetHighlightEl) targetHighlightEl.textContent = '@' + cleanUser;
+
+        // Configurar Botão 1: Adicionar Também
+        const btnAdd = document.getElementById('btn-multi-stock-add');
+        if (btnAdd) {
+            btnAdd.onclick = function() {
+                closeMultiStockActionModal();
+                linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'add');
+            };
+        }
+
+        // Configurar Botão 2: Transferir
+        const btnTransfer = document.getElementById('btn-multi-stock-transfer');
+        const transferPickBox = document.getElementById('multi-stock-transfer-pick-user');
+        const transferPickBtns = document.getElementById('multi-stock-transfer-pick-buttons');
+
+        if (item.buyers.length === 1) {
+            // Apenas 1 comprador: transfere direto dele
+            if (transferPickBox) transferPickBox.classList.add('hidden');
+            if (btnTransfer) {
+                btnTransfer.onclick = function() {
+                    const transferFrom = item.buyers[0];
+                    closeMultiStockActionModal();
+                    linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'transfer', transferFrom);
+                };
+            }
+        } else {
+            // Mais de 1 comprador: mostra quem vai transferir
+            if (transferPickBox) transferPickBox.classList.remove('hidden');
+            if (transferPickBtns) {
+                transferPickBtns.innerHTML = item.buyers.map(b => {
+                    const u = escapeHtml(String(b.username).replace(/^@/, ''));
+                    return `
+                        <button type="button" onclick="executeTransferFromBuyer('${item.id}', '${u}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
+                                class="px-2.5 py-1 bg-white dark:bg-gray-700 hover:bg-indigo-600 hover:text-white text-gray-800 dark:text-gray-100 text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 transition cursor-pointer flex items-center gap-1">
+                            <i class="fas fa-arrow-right text-[10px]"></i> De @${u}
+                        </button>
+                    `;
+                }).join('');
+            }
+            if (btnTransfer) {
+                btnTransfer.onclick = function() {
+                    if (transferPickBox) transferPickBox.classList.toggle('hidden');
+                };
+            }
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function executeTransferFromBuyer(scanId, fromUsername, fromUserId, fromSacolinhaId) {
+        if (!pendingMultiStockData) return;
+        const transferFrom = {
+            username: fromUsername,
+            userId: fromUserId,
+            sacolinhaId: fromSacolinhaId
+        };
+        closeMultiStockActionModal();
+        linkItemToBuyer(pendingMultiStockData.scanId, pendingMultiStockData.username, pendingMultiStockData.displayName, pendingMultiStockData.userId, pendingMultiStockData.msgId, pendingMultiStockData.phone, 'transfer', transferFrom);
+    }
+
+    function closeMultiStockActionModal() {
+        const modal = document.getElementById('modal-multi-stock-action');
+        if (modal) modal.classList.add('hidden');
+        pendingMultiStockData = null;
+    }
+
+    function selectManualBuyerUser(userId, username, displayName, phone) {
+        if (!currentManualBuyerScanId) return;
+        const scanId = currentManualBuyerScanId;
+        closeManualBuyerSearchModal();
+
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (item && item.buyers && item.buyers.length > 0) {
+            promptMultiStockAction(scanId, username, displayName, userId, null, phone);
+        } else {
+            linkItemToBuyer(scanId, username, displayName, userId, null, phone, 'add');
+        }
+    }
+
+    // Fechar modais ao pressionar tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            closeMultiStockActionModal();
+            closeManualBuyerSearchModal();
+            closeEditItemPriceModal();
+            closeQuickProductModal();
+            closeQuickClientModal();
+        }
+    });
+
+    function updateScanItemBuyerUI(scanId) {
+        const itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+        if (!itemEl) return;
+        const wrapper = itemEl.querySelector('.scan-item-buyer-wrapper');
+        if (!wrapper) return;
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+        wrapper.innerHTML = renderScanItemBuyerHtml(item);
+    }
+
+    function refreshAllScanItemsBuyerUI() {
+        bgScanItems.forEach(item => {
+            updateScanItemBuyerUI(item.id);
+        });
+    }
+
+    function updateSacolinhasStatsUI(stats) {
+        if (!stats) return;
+        const itensEl = document.getElementById("sacolinhas-itens-badge");
+        const valorEl = document.getElementById("sacolinhas-valor-badge");
+        if (itensEl && stats.sacolinhas_itens !== undefined) {
+            const qtd = stats.sacolinhas_itens;
+            itensEl.textContent = `${qtd} ${qtd === 1 ? 'item' : 'itens'}`;
+        }
+        if (valorEl && stats.sacolinhas_valor !== undefined) {
+            const valor = parseFloat(stats.sacolinhas_valor);
+            valorEl.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    }
+
+    async function linkItemToBuyer(scanId, username, displayName, userId, msgId, phone, mode = 'add', transferFrom = null) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (!item.buyers) item.buyers = [];
+        const cleanUser = String(username).replace(/^@/, '');
+        const cleanUserLower = cleanUser.toLowerCase();
+
+        if (mode === 'transfer' && transferFrom) {
+            const fromUserLower = String(transferFrom.username || '').replace(/^@/, '').toLowerCase();
+            item.buyers = item.buyers.filter(b => {
+                if (transferFrom.sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== transferFrom.sacolinhaId;
+                if (transferFrom.userId && b.userId) return b.userId !== transferFrom.userId;
+                return String(b.username).replace(/^@/, '').toLowerCase() !== fromUserLower;
+            });
+        }
+
+        const existingIdx = item.buyers.findIndex(b => {
+            if (userId && b.userId && Number(b.userId) === Number(userId)) return true;
+            return String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower;
+        });
+        const newBuyerObj = {
+            sacolinhaId: null,
+            userId: userId || null,
+            username: cleanUser,
+            displayName: displayName || cleanUser,
+            phone: phone || '',
+            hasPhone: Boolean(phone),
+            quantity: 1,
+            liveMessageId: msgId || null
+        };
+
+        if (existingIdx !== -1) {
+            if (item.buyers[existingIdx].sacolinhaId) {
+                newBuyerObj.sacolinhaId = item.buyers[existingIdx].sacolinhaId;
+            }
+            item.buyers[existingIdx] = newBuyerObj;
+        } else {
+            item.buyers.push(newBuyerObj);
+        }
+
+        item.buyerUsername = item.buyers[0].username;
+        item.buyerName = item.buyers[0].displayName;
+        item.buyerUserId = item.buyers[0].userId;
+        item.buyerPhone = item.buyers[0].phone;
+        item.hasPhone = item.buyers[0].hasPhone;
+        item.liveMessageId = item.buyers[0].liveMessageId;
+
+        updateScanItemBuyerUI(scanId);
+
+        if (msgId) {
+            const msg = allLiveMessages.find(m => m.id === msgId);
+            if (msg) {
+                msg.linked_item_id = item.itemId;
+                msg.linked_code = item.code;
+                msg.linked_live_code = item.liveCode || null;
+                msg.linked_product_name = item.productName || '';
+                msg.linked_product_details = item.productDetails || '';
+                msg.linked_product_tamanho = item.tamanho || '';
+                msg.linked_product_cor = item.cor || '';
+                msg.linked_product_preco = item.productPrice || '';
+                renderChatFeed();
+            }
+        }
+
+        playSuccessBeep();
+
+        const banner = document.getElementById('scan-last-item-banner');
+        const bannerText = document.getElementById('scan-last-item-text');
+        if (banner && bannerText) {
+            bannerText.textContent = `Peça #${item.code} vinculada a @${cleanUser}!`;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanBannerTimeout);
+            window._scanBannerTimeout = setTimeout(() => banner.classList.add('hidden'), 3500);
+        }
+
+        if (liveId && (item.itemId || item.code)) {
+            try {
+                const resp = await fetch('/admin/live-chat/link-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: item.itemId || null,
+                        code: item.code || null,
+                        username: cleanUser,
+                        buyer_name: displayName || '',
+                        user_id: userId || null,
+                        message_id: msgId || null,
+                        action_mode: mode,
+                        transfer_from_user_id: transferFrom ? (transferFrom.userId || null) : null,
+                        transfer_from_sacolinha_id: transferFrom ? (transferFrom.sacolinhaId || null) : null
+                    })
+                });
+                const resData = await resp.json();
+                if (resData && resData.data) {
+                    if (resData.data.item_id) {
+                        item.itemId = resData.data.item_id;
+                        const el = document.querySelector(`[data-scan-id="${scanId}"]`);
+                        if (el) el.dataset.itemId = resData.data.item_id;
+                    }
+                    if (Array.isArray(resData.data.buyers) && resData.data.buyers.length > 0) {
+                        const seenIds = new Set();
+                        const seenNames = new Set();
+                        item.buyers = resData.data.buyers.filter(b => {
+                            const uId = b.userId ? String(b.userId) : null;
+                            const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                            if (uId && seenIds.has(uId)) return false;
+                            if (uName && seenNames.has(uName)) return false;
+                            if (uId) seenIds.add(uId);
+                            if (uName) seenNames.add(uName);
+                            return true;
+                        });
+                    } else {
+                        const target = item.buyers.find(b => String(b.username).replace(/^@/, '').toLowerCase() === cleanUserLower);
+                        if (target) {
+                            if (resData.data.sacolinha_id) target.sacolinhaId = resData.data.sacolinha_id;
+                            if (resData.data.user_id) target.userId = resData.data.user_id;
+                            if (resData.data.buyer_phone !== undefined) {
+                                target.phone = resData.data.buyer_phone;
+                                target.hasPhone = Boolean(resData.data.buyer_phone);
+                            }
+                        }
+                    }
+                    if (item.buyers.length > 0) {
+                        item.buyerUsername = item.buyers[0].username;
+                        item.buyerName = item.buyers[0].displayName;
+                        item.buyerUserId = item.buyers[0].userId;
+                        item.buyerPhone = item.buyers[0].phone;
+                        item.hasPhone = item.buyers[0].hasPhone;
+                    }
+                    updateScanItemBuyerUI(scanId);
+
+                    if (resData.stats) {
+                        updateSacolinhasStatsUI(resData.stats);
+                    }
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
+            }
+        }
+    }
+
+    async function unlinkSpecificBuyerAction(scanId, username, userId, sacolinhaId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        if (!item.buyers) item.buyers = [];
+        const cleanUserLower = String(username).replace(/^@/, '').toLowerCase();
+
+        // Adiciona à lista de dispensados deste item para que o chat não o sugira de volta automaticamente
+        if (!item.dismissedUsers) item.dismissedUsers = new Set();
+        item.dismissedUsers.add(cleanUserLower);
+        item.dismissedUsers.add('@' + cleanUserLower);
+
+        item.buyers = item.buyers.filter(b => {
+            if (sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== sacolinhaId;
+            if (userId && b.userId) return b.userId !== userId;
+            return String(b.username).replace(/^@/, '').toLowerCase() !== cleanUserLower;
+        });
+
+        if (item.buyers.length > 0) {
+            item.buyerUsername = item.buyers[0].username;
+            item.buyerName = item.buyers[0].displayName;
+            item.buyerUserId = item.buyers[0].userId;
+            item.buyerPhone = item.buyers[0].phone;
+            item.hasPhone = item.buyers[0].hasPhone;
+            item.liveMessageId = item.buyers[0].liveMessageId;
+        } else {
+            item.buyerUsername = null;
+            item.buyerName = null;
+            item.buyerUserId = null;
+            item.buyerPhone = null;
+            item.hasPhone = false;
+            item.liveMessageId = null;
+        }
+
+        updateScanItemBuyerUI(scanId);
+
+        if (liveId && (item.itemId || item.code)) {
+            try {
+                const resp = await fetch('/admin/live-chat/unlink-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: item.itemId || null,
+                        code: item.code || null,
+                        user_id: userId || null,
+                        username: username,
+                        sacolinha_id: sacolinhaId || null
+                    })
+                });
+                const resData = await resp.json();
+                if (resData && resData.stats) {
+                    updateSacolinhasStatsUI(resData.stats);
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao desvincular comprador específico:', e);
+            }
+        }
+    }
+
+    async function unlinkItemBuyerAction(scanId) {
+        const item = bgScanItems.find(x => x.id === scanId);
+        if (!item) return;
+
+        const oldMsgId = item.liveMessageId;
+        const itemId = item.itemId;
+        const code = item.code;
+
+        item.buyers = [];
+        item.buyerUsername = null;
+        item.buyerName = null;
+        item.buyerUserId = null;
+        item.buyerPhone = null;
+        item.hasPhone = false;
+        item.liveMessageId = null;
+
+        updateScanItemBuyerUI(scanId);
+
+        if (oldMsgId) {
+            const msg = allLiveMessages.find(m => m.id === oldMsgId);
+            if (msg) {
+                msg.linked_item_id = null;
+                msg.linked_code = null;
+                msg.linked_live_code = null;
+                msg.linked_product_name = null;
+                msg.linked_product_details = null;
+                msg.linked_product_tamanho = null;
+                msg.linked_product_cor = null;
+                msg.linked_product_preco = null;
+                renderChatFeed();
+            }
+        }
+
+        if (liveId && (itemId || code || oldMsgId)) {
+            try {
+                const resp = await fetch('/admin/live-chat/unlink-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        item_id: itemId || null,
+                        code: code || null,
+                        message_id: oldMsgId || null
+                    })
+                });
+                const resData = await resp.json();
+                if (resData && resData.stats) {
+                    updateSacolinhasStatsUI(resData.stats);
+                }
+            } catch(e) {
+                console.warn('[Scan] Erro ao desvincular comprador no servidor:', e);
+            }
+        }
+    }
+
+    async function unlinkItemBuyerByMsgId(msgId) {
+        const item = bgScanItems.find(x => x.liveMessageId === msgId);
+        if (item) {
+            unlinkItemBuyerAction(item.id);
+            return;
+        }
+        const msg = allLiveMessages.find(m => m.id === msgId);
+        if (msg) {
+            msg.linked_item_id = null;
+            msg.linked_code = null;
+            msg.linked_live_code = null;
+            msg.linked_product_name = null;
+            msg.linked_product_details = null;
+            msg.linked_product_tamanho = null;
+            msg.linked_product_cor = null;
+            msg.linked_product_preco = null;
+            renderChatFeed();
+        }
+        if (liveId) {
+            try {
+                await fetch('/admin/live-chat/unlink-item-buyer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        live_id: liveId,
+                        message_id: msgId
+                    })
+                });
+            } catch(e) {}
+        }
+    }
+
+    /* ---- Lista de Itens Bipados ------------------------------------------ */
+    function createScanItemElement(item, isNew) {
+        const el = document.createElement('div');
+        const isDuplicate = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
+        el.className = isNew
+            ? (isDuplicate
+                ? 'p-3 bg-amber-50 border-2 border-amber-400 ring-2 ring-amber-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm'
+                : 'p-3 bg-emerald-50 border-2 border-emerald-400 ring-2 ring-emerald-300 rounded-2xl group transition-all duration-500 scan-item shadow-sm')
+            : (isDuplicate
+                ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
+                : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs');
+        el.dataset.code = item.code;
+        el.dataset.scanId = item.id;
+        if (item.itemId) el.dataset.itemId = item.itemId;
+
+        let detailsInitial = '<span class="text-gray-400 italic text-[10px]"><i class="fas fa-spinner fa-spin text-[9px] mr-1"></i> Carregando produto...</span>';
+        if (item.productName) {
+            const fakeProd = {
+                id: item.itemId || null,
+                code: item.code,
+                codigo: item.code,
+                scanId: item.id,
+                name: item.productName,
+                description: item.productDetails,
+                tamanho: item.tamanho,
+                marca: item.marca,
+                cor: item.cor,
+                formatted_price: item.productPrice
+            };
+            detailsInitial = buildProductDetailsHtml(fakeProd, item.id);
+        }
+
+        el.innerHTML =
+            '<div class="flex items-center justify-between gap-3">' +
+                '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
+                    '<div class="flex items-center gap-2 flex-wrap">' +
+                        '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
+                        '<div class="scan-item-live-wrapper inline-block">' +
+                            renderLiveCodeHtml(item) +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="scan-item-details text-[11px] text-gray-600 leading-snug mt-1">' +
+                        detailsInitial +
+                    '</div>' +
+                '</div>' +
+                '<div class="scan-item-buyer-wrapper flex items-center justify-end gap-1.5 shrink-0">' +
+                    renderScanItemBuyerHtml(item) +
+                '</div>' +
+                '<button type="button" onclick="event.stopPropagation(); removeScanItem(this)" title="Remover item da live" ' +
+                    'class="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0">' +
+                    '<i class="fas fa-trash-alt text-[10px]"></i>' +
+                '</button>' +
+            '</div>';
+
+        if (isNew) {
+            setTimeout(function() {
+                const stillDup = item.liveCode && checkLiveCodeDuplicate(item.liveCode, item.id, item.code, item.itemId);
+                el.className = stillDup
+                    ? 'p-3 bg-red-50/40 border border-red-200 rounded-2xl group hover:border-red-400 hover:bg-red-50/60 transition scan-item shadow-xs'
+                    : 'p-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-300 hover:shadow-md transition scan-item shadow-xs';
+            }, 2500);
+        }
+
+        return el;
+    }
+
+    function findExistingScanItem(code) {
+        if (!code) return null;
+        const clean = String(code).replace(/^[#\s]+/, '').trim().toUpperCase();
+        if (!clean) return null;
+
+        // 1. Procura diretamente na lista por código exato
+        let found = bgScanItems.find(i => 
+            (i.code && String(i.code).trim().toUpperCase() === clean)
+        );
+        if (found) return found;
+
+        // 2. Se temos cache desse produto com id válido, checa se esse itemId já existe na lista
+        const cached = scanProductCache[clean] || scanProductCache[code];
+        if (cached && cached.id) {
+            found = bgScanItems.find(i => 
+                (i.itemId && i.itemId === cached.id)
+            );
+            if (found) return found;
+        }
+
+        return null;
+    }
+
+    // Retorna o próximo número sequencial de 3 dígitos (101+) da live
+    function getNextSequentialLiveCode() {
+        if (!bgScanItems || bgScanItems.length === 0) {
+            return '101';
+        }
+        let maxNum = 100;
+        for (const item of bgScanItems) {
+            const lc = parseInt(item.liveCode, 10);
+            if (!isNaN(lc) && lc > maxNum) {
+                maxNum = lc;
+            }
+        }
+        return String(maxNum + 1);
+    }
+
+    function updateNextSeqBadge() {
+        const badgeVal = document.getElementById('next-seq-val') || document.getElementById('next-seq-badge');
+        const input = document.getElementById('scan-manual-input');
+        const nextSeq = getNextSequentialLiveCode();
+        if (badgeVal) badgeVal.textContent = '#' + nextSeq;
+        if (input) {
+            input.placeholder = `Aguardando bip do leitor... (Próxima peça: #${nextSeq})`;
+        }
+    }
+
+    let lastProcessedScanCode = null;
+    let lastProcessedScanTime = 0;
+
+    function addScanItem(code, source) {
+        source = source || 'manual';
+        const cleanCode = extractCleanCode(code).toUpperCase();
+        if (!cleanCode) return;
+
+        const nowMs = Date.now();
+        // Previne disparo duplo do mesmo código pelo leitor físico USB em rajada rápida
+        if (cleanCode === lastProcessedScanCode && (nowMs - lastProcessedScanTime < 1000)) {
+            return;
+        }
+        lastProcessedScanCode = cleanCode;
+        lastProcessedScanTime = nowMs;
+
+        // Se o item já existe na lista desta live:
+        const existingItem = findExistingScanItem(cleanCode);
+        if (existingItem) {
+            // Destaca visualmente a peça na lista
+            let existingEl = document.querySelector(`[data-scan-id="${existingItem.id}"]`);
+            if (!existingEl && existingItem.code) {
+                existingEl = document.querySelector(`[data-code="${existingItem.code}"]`);
+            }
+            if (existingEl) {
+                existingEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                existingEl.classList.add('ring-4', 'ring-indigo-400');
+                setTimeout(() => {
+                    existingEl.classList.remove('ring-4', 'ring-indigo-400');
+                }, 2000);
+            }
+
+            const manualInput = document.getElementById('scan-manual-input');
+            if (manualInput) manualInput.value = '';
+
+            playSuccessBeep();
+
+            // Se o item já possui comprador(es) vinculado(s), abre a busca para vincular outra cliente/sacolinha (estoque múltiplo)
+            if (existingItem.buyers && existingItem.buyers.length > 0) {
+                openManualBuyerSearchModal(existingItem.id);
+            }
+
+            setTimeout(() => ensureScannerFocus(true), 50);
+            return;
+        }
+
+        const emptyState = document.getElementById('scan-empty-state');
+        if (emptyState) emptyState.remove();
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const autoLiveCode = getNextSequentialLiveCode();
+        const scanUniqueId = 'scan_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+        const item = {
+            id: scanUniqueId,
+            code: cleanCode,
+            liveCode: autoLiveCode,
+            buyerUserId: null,
+            buyerUsername: null,
+            buyerName: null,
+            buyerPhone: null,
+            hasPhone: false,
+            liveMessageId: null,
+            buyers: [],
+            videoCutPath: null,
+            videoCutFilename: null,
+            videoCutDuration: null,
+            videoCutStatus: null,
+            videoCutStartedAt: null,
+            videoCutFinishedAt: null,
+            videoCutTrigger: null,
+            time: timeStr,
+            timestamp: Date.now(),
+            source: source,
+            productName: '',
+            productDetails: '',
+            productPrice: ''
+        };
+        bgScanItems.unshift(item);
+
+        const list = document.getElementById('scan-items-list');
+        const el = createScanItemElement(item, true);
+
+        if (list) {
+            list.prepend(el);
+            list.scrollTop = 0; // Rola a lista automaticamente para o topo
+        }
+
+        refreshAllScanItemsLiveCodeUI();
+
+        // Busca assíncrona dos dados do produto para exibir Descrição e Detalhes
+        fetchAndRenderItemDetails(cleanCode, scanUniqueId);
+
+        // Já sincroniza com a tabela live_items
+        syncLinkItemToLive(null, cleanCode, item.liveCode);
+
+        // Exibe o banner de confirmação com destaque no topo
+        const banner = document.getElementById('scan-last-item-banner');
+        const bannerText = document.getElementById('scan-last-item-text');
+        const bannerTime = document.getElementById('scan-last-item-time');
+        if (banner && bannerText) {
+            bannerText.textContent = `${cleanCode} • Código da Live: #${item.liveCode}`;
+            if (bannerTime) bannerTime.textContent = timeStr;
+            banner.classList.remove('hidden');
+            clearTimeout(window._scanBannerTimeout);
+            window._scanBannerTimeout = setTimeout(function() {
+                banner.classList.add('hidden');
+            }, 3000);
+        }
+        playSuccessBeep();
+
+        updateScanCount();
+
+        // Foco garantido e contínuo no leitor de código de barras
+        setTimeout(() => {
+            ensureScannerFocus(true);
+        }, 50);
+    }
+
+    function removeScanItem(btn) {
+        const el = btn.closest('.scan-item');
+        const scanId = el ? el.dataset.scanId : null;
+        const code = el ? el.dataset.code : null;
+        let itemObj = null;
+
+        if (scanId) {
+            const idx = bgScanItems.findIndex(x => x.id === scanId);
+            if (idx !== -1) {
+                itemObj = bgScanItems[idx];
+                bgScanItems.splice(idx, 1);
+            }
+        } else if (code) {
+            const idx = bgScanItems.findIndex(x => x.code === code);
+            if (idx !== -1) {
+                itemObj = bgScanItems[idx];
+                bgScanItems.splice(idx, 1);
+            }
+        }
+        if (el) el.remove();
+        updateScanCount();
+        if (bgScanItems.length === 0) showScanEmptyState();
+
+        if (itemObj) {
+            refreshAllScanItemsLiveCodeUI();
+            unlinkItemFromLive(itemObj.itemId || null, itemObj.code);
+        }
+    }
+
+    function clearScanList() {
+        bgScanItems.length = 0;
+        const list = document.getElementById('scan-items-list');
+        if (list) list.innerHTML = '';
+        showScanEmptyState();
+        updateScanCount();
+    }
+
+    function loadInitialLinkedLiveItems() {
+        if (window._initialLiveItemsLoaded) return;
+        if (!Array.isArray(initialLinkedLiveItems) || initialLinkedLiveItems.length === 0) return;
+        window._initialLiveItemsLoaded = true;
+        const emptyState = document.getElementById('scan-empty-state');
+        if (emptyState) emptyState.remove();
+        const list = document.getElementById('scan-items-list');
+
+        const seenKeys = new Set();
+        initialLinkedLiveItems.forEach(item => {
+            const key = (item.itemId ? 'id_' + item.itemId : '') || (item.code ? 'code_' + String(item.code).trim().toUpperCase() : '');
+            if (key && seenKeys.has(key)) return;
+            if (key) seenKeys.add(key);
+
+            // Popula cache de produto com os itens já existentes
+            if (item.code && item.itemId) {
+                scanProductCache[String(item.code).trim().toUpperCase()] = {
+                    id: item.itemId,
+                    codigo: item.code,
+                    name: item.productName || '',
+                    description: item.productDetails || '',
+                    formatted_price: item.productPrice || ''
+                };
+            }
+
+            item.buyers = Array.isArray(item.buyers) ? item.buyers : [];
+            if (item.buyers.length === 0 && item.buyerUsername) {
+                item.buyers.push({
+                    sacolinhaId: null,
+                    userId: item.buyerUserId || null,
+                    username: item.buyerUsername,
+                    displayName: item.buyerName || item.buyerUsername,
+                    phone: item.buyerPhone || null,
+                    hasPhone: Boolean(item.hasPhone || item.buyerPhone),
+                    quantity: 1,
+                    liveMessageId: item.liveMessageId || null
+                });
+            }
+
+            bgScanItems.push(item);
+            if (list) {
+                list.appendChild(createScanItemElement(item, false));
+            }
+        });
+        refreshAllScanItemsBuyerUI();
+        refreshAllScanItemsLiveCodeUI();
+        updateScanCount();
+    }
+
+    function showScanEmptyState() {
+        const list = document.getElementById('scan-items-list');
+        if (list && list.querySelector('.scan-item')) return;
+        if (list) {
+            list.innerHTML =
+                '<div id="scan-empty-state" class="flex flex-col items-center justify-center h-full py-8 text-gray-300">' +
+                    '<i class="fas fa-barcode text-4xl mb-2 text-gray-300"></i>' +
+                    '<p class="text-xs font-semibold text-gray-400">Nenhum item bipado ainda</p>' +
+                    '<p class="text-[10px] text-gray-400 mt-1 text-center">Aponte a câmera para o código<br>ou use leitor USB / teclado</p>' +
+                '</div>';
+        }
+    }
+
+    function updateScanCount() {
+        const el = document.getElementById('scan-count');
+        if (el) el.textContent = bgScanItems.length;
+        if (typeof updateNextSeqBadge === 'function') {
+            updateNextSeqBadge();
+        }
+    }
+
+    function clearLiveCode() {
+        const el = document.getElementById('scan-live-code');
+        if (el) el.value = '';
+        lastSpokenCode = null;
+        lastSpokenTime = 0;
+    }
+
+    let manualScanDebounceTimer = null;
+
+    function handleManualScanInput(event) {
+        // Digitação manual aguarda a tecla Enter no handleManualScan
+        if (manualScanDebounceTimer) clearTimeout(manualScanDebounceTimer);
+    }
+
+    function handleManualScan(event) {
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            if (manualScanDebounceTimer) clearTimeout(manualScanDebounceTimer);
+            addManualCode();
+        }
+    }
+
+    function addManualCode() {
+        if (manualScanDebounceTimer) {
+            clearTimeout(manualScanDebounceTimer);
+            manualScanDebounceTimer = null;
+        }
+        if (manualInputScannerTimer) {
+            clearTimeout(manualInputScannerTimer);
+            manualInputScannerTimer = null;
+        }
+        manualInputBurstCount = 0;
+        manualInputLastKeyTime = 0;
+        if (usbScanTimer) {
+            clearTimeout(usbScanTimer);
+            usbScanTimer = null;
+        }
+        usbScanBuffer = "";
+        const input = document.getElementById('scan-manual-input');
+        if (!input) return;
+        const rawVal = input.value;
+        input.value = '';
+        const code = extractCleanCode(rawVal).toUpperCase();
+        if (!code) {
+            focusLiveCodeInput(true);
+            return;
+        }
+        addScanItem(code, 'manual');
+    }
+
+    // =========================================================================
+    // LISTENER GLOBAL PARA LEITORES DE CÓDIGO DE BARRAS USB (HARDWARE SCANNER)
+    // =========================================================================
+    let usbScanBuffer = "";
+    let usbLastKeyTime = 0;
+    let usbScanTimer = null;
+    const USB_MAX_INTERVAL_MS = 75; // Leitores físicos USB disparam teclas em < 50ms
+
+    // Detecção inteligente de leitor de código de barras vs digitação manual no input focado
+    let manualInputLastKeyTime = 0;
+    let manualInputBurstCount = 0;
+    let manualInputScannerTimer = null;
+
+    window.addEventListener('keydown', function(event) {
+        const isOurManualInput = document.activeElement && (
+            document.activeElement.id === 'scan-manual-input' ||
+            document.activeElement.id === 'online-qr-manual-input'
+        );
+
+        if (isOurManualInput) {
+            // Se o operador pressionou Enter ou Tab: submete imediatamente!
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                event.stopPropagation();
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+                manualInputBurstCount = 0;
+                manualInputLastKeyTime = 0;
+                if (usbScanTimer) {
+                    clearTimeout(usbScanTimer);
+                    usbScanTimer = null;
+                }
+                usbScanBuffer = "";
+
+                if (document.activeElement.id === 'online-qr-manual-input') {
+                    const onlineInput = document.getElementById('online-qr-manual-input');
+                    if (onlineInput && onlineInput.value.trim()) {
+                        const code = onlineInput.value.trim();
+                        onlineInput.value = '';
+                        handleOnlineQrScan(code);
+                    }
+                } else {
+                    addManualCode();
+                }
+                return;
+            }
+
+            // Teclas de controle/edição cancelam rajada de scanner
+            if (event.ctrlKey || event.altKey || event.metaKey || event.key === 'Backspace' || event.key === 'Delete' || event.key.startsWith('Arrow') || event.key === 'Escape') {
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+                manualInputBurstCount = 0;
+                manualInputLastKeyTime = 0;
+                return;
+            }
+
+            // Caracteres alfanuméricos digitados ou bipados:
+            if (event.key.length === 1 && !event.repeat) {
+                const now = Date.now();
+                const interval = now - manualInputLastKeyTime;
+                manualInputLastKeyTime = now;
+
+                // Leitores de código de barras USB/sem fio disparam teclas em rajadas ultra-rápidas (<= 60ms entre teclas)
+                if (interval <= 60) {
+                    manualInputBurstCount++;
+                } else {
+                    manualInputBurstCount = 0;
+                }
+
+                if (manualInputScannerTimer) {
+                    clearTimeout(manualInputScannerTimer);
+                    manualInputScannerTimer = null;
+                }
+
+                // Se detectou rajada característica de leitor de código de barras (ao menos 2 teclas sucessivas em <= 60ms ou rajada em <= 35ms):
+                // Agenda auto-inserção rápida sem exigir a tecla Enter
+                if (manualInputBurstCount >= 2 || (manualInputBurstCount >= 1 && interval <= 35)) {
+                    manualInputScannerTimer = setTimeout(() => {
+                        manualInputBurstCount = 0;
+                        manualInputLastKeyTime = 0;
+                        manualInputScannerTimer = null;
+                        const activeInput = document.activeElement;
+                        if (activeInput && (activeInput.id === 'scan-manual-input' || activeInput.id === 'online-qr-manual-input')) {
+                            const raw = activeInput.value.trim();
+                            if (raw.length >= 1) {
+                                activeInput.value = '';
+                                if (activeInput.id === 'online-qr-manual-input') {
+                                    handleOnlineQrScan(raw);
+                                } else {
+                                    const code = extractCleanCode(raw).toUpperCase();
+                                    if (code) {
+                                        addScanItem(code, 'manual');
+                                    }
+                                }
+                            }
+                        }
+                    }, 75);
+                }
+            }
+
+            // Digitação manual humana (interval > 60ms): manualInputBurstCount permanece 0 e NENHUM timer é disparado!
+            // O operador digita livremente qualquer código e insere APENAS ao teclar Enter.
+            return;
+        }
+
+        const activeEl = document.activeElement;
+        const activeTag = activeEl ? (activeEl.tagName || '').toLowerCase() : '';
+        const isEditingOtherText = activeEl && (
+            activeTag === 'input' || 
+            activeTag === 'textarea' || 
+            activeTag === 'select' || 
+            activeEl.isContentEditable ||
+            Boolean(activeEl.closest && (
+                activeEl.closest('#manual-buyer-search-modal') || 
+                activeEl.closest('#link-user-modal') ||
+                activeEl.closest('#modal-quick-client') ||
+                activeEl.closest('#modal-quick-product') ||
+                activeEl.closest('#modal-edit-item-price')
+            ))
+        );
+
+        if (isEditingOtherText) {
+            usbScanBuffer = "";
+            return;
+        }
+
+        // Listener global para leitor físico USB quando o foco NÃO está no campo de entrada
+        const now = Date.now();
+        const diff = now - usbLastKeyTime;
+
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            if (usbScanTimer) {
+                clearTimeout(usbScanTimer);
+                usbScanTimer = null;
+            }
+            if (usbScanBuffer.length >= 1) {
+                event.preventDefault();
+                event.stopPropagation();
+                const cleanCode = extractCleanCode(usbScanBuffer);
+                if (cleanCode) {
+                    const onlineModal = document.getElementById('online-qr-modal');
+                    if (onlineModal && !onlineModal.classList.contains('hidden')) {
+                        handleOnlineQrScan(cleanCode);
+                    } else {
+                        addScanItem(cleanCode, 'usb');
+                    }
+                    const manualInput = document.getElementById('scan-manual-input');
+                    if (manualInput) manualInput.value = '';
+                }
+                usbScanBuffer = "";
+                return;
+            }
+            usbScanBuffer = "";
+            return;
+        }
+
+        if (diff > 120) {
+            usbScanBuffer = "";
+        }
+
+        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            usbScanBuffer += event.key;
+            usbLastKeyTime = now;
+
+            // Debounce automático caso o leitor físico USB em background não envie a tecla Enter ao final
+            if (usbScanTimer) clearTimeout(usbScanTimer);
+            usbScanTimer = setTimeout(() => {
+                if (usbScanBuffer.length >= 1 && (Date.now() - usbLastKeyTime >= 120)) {
+                    const cleanCode = extractCleanCode(usbScanBuffer);
+                    if (cleanCode) {
+                        const onlineModal = document.getElementById('online-qr-modal');
+                        if (onlineModal && !onlineModal.classList.contains('hidden')) {
+                            handleOnlineQrScan(cleanCode);
+                        } else {
+                            addScanItem(cleanCode, 'usb');
+                        }
+                        const manualInput = document.getElementById('scan-manual-input');
+                        if (manualInput) manualInput.value = '';
+                    }
+                    usbScanBuffer = "";
+                }
+            }, 130);
+        }
+    }, true);
+
+
+
+
+    function initScanSystem() {
+        loadInitialLinkedLiveItems();
+        initScannerFocusEvents();
+    }
+
+    // Paleta de cores vibrantes para avatares sem foto
+    const avatarGradientPalette = [
+        'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', // Indigo / Purple
+        'linear-gradient(135deg, #059669 0%, #0d9488 100%)', // Emerald / Teal
+        'linear-gradient(135deg, #e11d48 0%, #db2777 100%)', // Rose / Pink
+        'linear-gradient(135deg, #d97706 0%, #ea580c 100%)', // Amber / Orange
+        'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', // Sky / Blue
+        'linear-gradient(135deg, #9333ea 0%, #c026d3 100%)', // Purple / Fuchsia
+        'linear-gradient(135deg, #0891b2 0%, #059669 100%)'  // Cyan / Emerald
+    ];
+
+    function getGradientForUser(username) {
+        if (!username) return avatarGradientPalette[0];
+        let hash = 0;
+        for (let i = 0; i < username.length; i++) {
+            hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % avatarGradientPalette.length;
+        return avatarGradientPalette[index];
+    }
+
+    // =========================================================================
+    // SINTETIZADOR DE ÁUDIO (FEEDBACK SONORO INSTANTÂNEO VIA WEB AUDIO API)
+    // =========================================================================
+    function playSuccessBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            osc.frequency.setValueAtTime(1760, audioCtx.currentTime + 0.08); // A6
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } catch(e) {}
+    }
+
+    function playErrorBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch(e) {}
+    }
+
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Limpar qualquer preenchimento automático indevido do navegador no campo de busca do chat
+        const searchInput = document.getElementById("feed-search-input");
+        if (searchInput && (searchInput.value.includes('@') || searchInput.value.includes('.com'))) {
+            searchInput.value = '';
+            currentSearchTerm = '';
+        }
+
+        applyFontSize(currentFontSize);
+        applyTheme(currentTheme);
+        updateAutoScrollUI();
+        updateTopCardsUI();
+        updateScanPanelUI();
+        loadInitialLinkedLiveItems();
+
+        if (liveId) {
+            fetchChatFeed();
+            pollingInterval = setInterval(fetchChatFeed, 2000);
+        }
+
+        // Sistema de bipagem inicia após 1s (isolado para não travar a página)
+        setTimeout(function() {
+            try { initScanSystem(); } catch(e) { console.warn('[Scan] Erro ao iniciar:', e); }
+        }, 1000);
+
+        // Sincronização instantânea quando um item é bipado em outra aba (ex: tela do Contador)
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'last_live_item_biped') {
+                fetchChatFeed();
+            }
+        });
+    });
+
+    // =========================================================================
+    // POLLING EM TEMPO REAL & CONTROLE DE HISTÓRICO (200 vs TODAS)
+    // =========================================================================
+    let chatHistoryMode = 'recent'; // 'recent' (200) ou 'all' (todas até 5000)
+    let isFetchingChatFeed = false;
+
+    function toggleChatHistoryMode() {
+        chatHistoryMode = (chatHistoryMode === 'recent') ? 'all' : 'recent';
+        const btn = document.getElementById('btn-history-mode-toggle');
+        const text = document.getElementById('history-mode-text');
+        const icon = document.getElementById('history-mode-icon');
+        if (chatHistoryMode === 'all') {
+            if (btn) btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white p-2 px-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md";
+            if (text) text.textContent = "Todas as Mensagens";
+            if (icon) icon.className = "fas fa-infinity text-yellow-300";
+            showToast("Carregando todas as mensagens da live...", "info");
+        } else {
+            if (btn) btn.className = "bg-gray-800 hover:bg-gray-700 text-gray-200 p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm";
+            if (text) text.textContent = "200 Recentes";
+            if (icon) icon.className = "fas fa-history text-indigo-400";
+            showToast("Modo 200 mensagens recentes ativado (mais rápido)", "info");
+        }
+        fetchChatFeed(true);
+    }
+
+    function fetchChatFeed(force) {
+        if (!liveId || (isFetchingChatFeed && !force)) return;
+        isFetchingChatFeed = true;
+
+        const limitQuery = chatHistoryMode === 'all' ? 'all' : '200';
+        fetch(`/admin/lives/${liveId}/chat-data?limit=${limitQuery}`)
+            .then(res => res.json())
+            .then(data => {
+                isFetchingChatFeed = false;
+                if (data.success) {
+                    allLiveMessages = data.messages || [];
+                    rawOnlineUsers = data.online_users || [];
+                    
+                    onlineUsersMap = {};
+                    rawOnlineUsers.forEach(u => {
+                        if (u.user_id) onlineUsersMap[u.user_id] = u;
+                        if (u.username) onlineUsersMap[u.username.toLowerCase()] = u;
+                    });
+
+                    // Sincronizar itens da live em tempo real (ex: bipados no contador, leitor contínuo, etc.)
+                    if (data.live_items && Array.isArray(data.live_items)) {
+                        const list = document.getElementById('scan-items-list');
+                        let hasNewItems = false;
+
+                        data.live_items.forEach(serverItem => {
+                            const localItem = bgScanItems.find(i => 
+                                (i.itemId && serverItem.item_id && i.itemId === serverItem.item_id) ||
+                                (i.code && serverItem.code && i.code.trim().toUpperCase() === serverItem.code.trim().toUpperCase())
+                            );
+                            if (localItem) {
+                                if (serverItem.item_id && !localItem.itemId) localItem.itemId = serverItem.item_id;
+                                if (Array.isArray(serverItem.buyers)) {
+                                    const seenIds = new Set();
+                                    const seenNames = new Set();
+                                    localItem.buyers = serverItem.buyers.filter(b => {
+                                        const uId = b.userId ? String(b.userId) : null;
+                                        const uName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                                        if (uId && seenIds.has(uId)) return false;
+                                        if (uName && seenNames.has(uName)) return false;
+                                        if (uId) seenIds.add(uId);
+                                        if (uName) seenNames.add(uName);
+                                        return true;
+                                    });
+                                }
+                                localItem.buyerUserId = serverItem.buyer_user_id || null;
+                                localItem.buyerUsername = serverItem.buyer_username || null;
+                                localItem.buyerName = serverItem.buyer_name || null;
+                                localItem.buyerPhone = serverItem.buyer_phone || null;
+                                localItem.hasPhone = Boolean(serverItem.has_phone);
+                                if (serverItem.codigo_live) localItem.liveCode = serverItem.codigo_live;
+                                updateScanItemBuyerUI(localItem.id);
+                                if (serverItem.productPrice && localItem.productPrice !== serverItem.productPrice) {
+                                    localItem.productPrice = serverItem.productPrice;
+                                    localItem.preco = serverItem.preco;
+                                    let itemEl = document.querySelector(`[data-scan-id="${localItem.id}"]`) || document.querySelector(`[data-code="${localItem.code}"]`);
+                                    if (itemEl) {
+                                        const detailsEl = itemEl.querySelector('.scan-item-details');
+                                        if (detailsEl) {
+                                            const fakeProd = {
+                                                name: localItem.productName || serverItem.productName,
+                                                description: localItem.productDetails || serverItem.productDetails,
+                                                tamanho: localItem.tamanho || serverItem.tamanho,
+                                                marca: localItem.marca || serverItem.marca,
+                                                cor: localItem.cor || serverItem.cor,
+                                                formatted_price: serverItem.productPrice,
+                                                preco: serverItem.preco
+                                            };
+                                            detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, localItem.id);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Item novo vindo do banco (bipado em outra tela como Contador ou Bipagem)
+                                const emptyState = document.getElementById('scan-empty-state');
+                                if (emptyState) emptyState.remove();
+
+                                const newItem = {
+                                    id: 'scan_db_' + (serverItem.live_item_id || Date.now()),
+                                    itemId: serverItem.item_id,
+                                    code: serverItem.code,
+                                    liveCode: serverItem.codigo_live || getNextSequentialLiveCode(),
+                                    buyerUserId: serverItem.buyer_user_id || null,
+                                    buyerUsername: serverItem.buyer_username || null,
+                                    buyerName: serverItem.buyer_name || null,
+                                    buyerPhone: serverItem.buyer_phone || null,
+                                    hasPhone: Boolean(serverItem.has_phone),
+                                    liveMessageId: serverItem.live_message_id || null,
+                                    videoCutPath: serverItem.video_cut_path || null,
+                                    videoCutFilename: serverItem.video_cut_filename || null,
+                                    videoCutDuration: serverItem.video_cut_duration || null,
+                                    videoCutStatus: serverItem.video_cut_status || null,
+                                    videoCutStartedAt: serverItem.video_cut_started_at || null,
+                                    videoCutFinishedAt: serverItem.video_cut_finished_at || null,
+                                    videoCutTrigger: serverItem.video_cut_trigger || null,
+                                    time: serverItem.time || new Date().toLocaleTimeString('pt-BR'),
+                                    timestamp: Date.now(),
+                                    source: 'live',
+                                    productName: serverItem.productName || 'Sem Nome',
+                                    productDetails: serverItem.productDetails || '',
+                                    tamanho: serverItem.tamanho || '',
+                                    marca: serverItem.marca || '',
+                                    cor: serverItem.cor || '',
+                                    productPrice: serverItem.productPrice || ''
+                                };
+
+                                bgScanItems.unshift(newItem);
+                                if (list) {
+                                    list.prepend(createScanItemElement(newItem, true));
+                                }
+                                hasNewItems = true;
+                            }
+                        });
+
+                        if (hasNewItems) {
+                            refreshAllScanItemsLiveCodeUI();
+                            updateScanCount();
+                        }
+                    }
+
+                    updateFilterCounts(data.stats);
+                    updateRecordingStatusUI(data);
+                    renderChatFeed();
+                    refreshAllScanItemsBuyerUI();
+
+                    // Se a lista de pessoas online estiver aberta, atualiza em tempo real
+                    const onlineModal = document.getElementById("modal-online-people");
+                    if (onlineModal && !onlineModal.classList.contains("hidden")) {
+                        const searchVal = document.getElementById("online-modal-search-input") ? document.getElementById("online-modal-search-input").value : "";
+                        renderOnlineUsersInModal(searchVal);
+                    }
+
+                    // Se o modal de bipe estiver aberto, atualizar mensagens da cliente
+                    if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
+                        renderModalClientMessages(currentOnlineQrUser.username);
+                    }
+                }
+            })
+            .catch(err => {
+                isFetchingChatFeed = false;
+                console.error("Erro no polling do chat:", err);
+                const statusEl = document.getElementById("chat-stream-status");
+                if (statusEl) {
+                    statusEl.className = "text-amber-400 font-bold flex items-center gap-1";
+                    statusEl.innerHTML = `<i class="fas fa-exclamation-circle text-xs"></i> Reconectando...`;
+                }
+            });
+    }
+
+    function updateFilterCounts(stats) {
+        const total = stats ? stats.total_messages : allLiveMessages.length;
+        const insta = stats ? stats.total_instagram : allLiveMessages.filter(m => m.plataforma === 'instagram').length;
+        const tiktok = stats ? stats.total_tiktok : allLiveMessages.filter(m => m.plataforma === 'tiktok').length;
+        const youtube = stats ? (stats.total_youtube ?? 0) : allLiveMessages.filter(m => m.plataforma === 'youtube').length;
+        const marked = stats ? stats.total_marked : allLiveMessages.filter(m => !!m.is_marked).length;
+        const reg = stats ? stats.total_registered : allLiveMessages.filter(m => !!m.user_id).length;
+
+        const totalBadge = document.getElementById("chat-total-msgs-badge");
+        if (totalBadge) totalBadge.textContent = `${total} mensagens capturadas`;
+        
+        const countAll = document.getElementById("count-filter-all");
+        if (countAll) countAll.textContent = total;
+        
+        const countInsta = document.getElementById("count-filter-instagram");
+        if (countInsta) countInsta.textContent = insta;
+        
+        const countTiktok = document.getElementById("count-filter-tiktok");
+        if (countTiktok) countTiktok.textContent = tiktok;
+
+        const countYoutube = document.getElementById("count-filter-youtube");
+        if (countYoutube) countYoutube.textContent = youtube;
+        
+        const countMarked = document.getElementById("count-filter-marked");
+        if (countMarked) countMarked.textContent = marked;
+        
+        const countReg = document.getElementById("count-filter-registered");
+        if (countReg) countReg.textContent = reg;
+
+        const statusEl = document.getElementById("chat-stream-status");
+        if (statusEl) {
+            statusEl.className = "text-emerald-400 font-bold flex items-center gap-1";
+            statusEl.innerHTML = `<i class="fas fa-check-circle text-xs"></i> Ao Vivo (${total})`;
+        }
+
+        // Atualizar totais das sacolinhas
+        if (stats) {
+            const itensEl = document.getElementById("sacolinhas-itens-badge");
+            const valorEl = document.getElementById("sacolinhas-valor-badge");
+            if (itensEl) {
+                const qtd = stats.sacolinhas_itens ?? 0;
+                itensEl.textContent = `${qtd} ${qtd === 1 ? 'item' : 'itens'}`;
+            }
+            if (valorEl) {
+                const valor = parseFloat(stats.sacolinhas_valor ?? 0);
+                valorEl.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
+        }
+    }
+
+    // =========================================================================
+    // RENDERIZAÇÃO DO FEED COM DESIGN ULTRA LEGÍVEL & FOTOS DE AVATAR
+    // =========================================================================
+    function setFeedFilter(filter) {
+        currentFilter = filter;
+        const buttons = {
+            all: document.getElementById("filter-btn-all"),
+            instagram: document.getElementById("filter-btn-instagram"),
+            tiktok: document.getElementById("filter-btn-tiktok"),
+            youtube: document.getElementById("filter-btn-youtube"),
+            marked: document.getElementById("filter-btn-marked"),
+            registered: document.getElementById("filter-btn-registered")
+        };
+
+        Object.keys(buttons).forEach(key => {
+            const btn = buttons[key];
+            if (!btn) return;
+            if (key === filter) {
+                btn.className = "px-3 py-1.5 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow transition cursor-pointer";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition border border-gray-200 flex items-center gap-1 cursor-pointer";
+            }
+        });
+
+        renderChatFeed();
+    }
+
+    function handleSearchChat(val) {
+        currentSearchTerm = (val || '').trim().toLowerCase();
+        const clearBtn = document.getElementById("feed-search-clear-btn");
+        if (clearBtn) {
+            if (currentSearchTerm) {
+                clearBtn.classList.remove("hidden");
+            } else {
+                clearBtn.classList.add("hidden");
+            }
+        }
+        renderChatFeed();
+    }
+
+    function clearSearchFilter() {
+        const input = document.getElementById("feed-search-input");
+        if (input) input.value = '';
+        currentSearchTerm = '';
+        const clearBtn = document.getElementById("feed-search-clear-btn");
+        if (clearBtn) clearBtn.classList.add("hidden");
+        renderChatFeed();
+    }
+
+    function renderChatFeed() {
+        const container = document.getElementById("feed-messages-container");
+        if (!container) return;
+
+        // Prevenção contra Autofill indevido do navegador com e-mail do admin (ex: adrielprimeiro@gmail.com)
+        if (currentSearchTerm && currentSearchTerm.includes('@') && (currentSearchTerm.includes('.com') || currentSearchTerm.includes('.br'))) {
+            const searchInput = document.getElementById("feed-search-input");
+            if (searchInput) searchInput.value = '';
+            currentSearchTerm = '';
+            const clearBtn = document.getElementById("feed-search-clear-btn");
+            if (clearBtn) clearBtn.classList.add("hidden");
+        }
+
+        let list = allLiveMessages;
+
+        // 1. Filtragem por Aba
+        if (currentFilter === 'instagram') {
+            list = list.filter(m => m.plataforma === 'instagram');
+        } else if (currentFilter === 'tiktok') {
+            list = list.filter(m => m.plataforma === 'tiktok');
+        } else if (currentFilter === 'youtube') {
+            list = list.filter(m => m.plataforma === 'youtube');
+        } else if (currentFilter === 'marked') {
+            list = list.filter(m => !!m.is_marked);
+        } else if (currentFilter === 'registered') {
+            list = list.filter(m => !!m.user_id);
+        }
+
+        // 2. Filtragem por Busca de Texto
+        if (currentSearchTerm) {
+            list = list.filter(m => 
+                (m.username && m.username.toLowerCase().includes(currentSearchTerm)) ||
+                (m.message && m.message.toLowerCase().includes(currentSearchTerm)) ||
+                (m.user_name && m.user_name.toLowerCase().includes(currentSearchTerm)) ||
+                (m.user_apelido && m.user_apelido.toLowerCase().includes(currentSearchTerm))
+            );
+        }
+
+        const avatarHash = list.map(m => (m.avatar_url ? m.avatar_url.length : 0)).join(',');
+        const linkedHash = list.map(m => m.linked_code || '').join(',');
+        const currentHash = `${currentFilter}:${currentSearchTerm}:${list.length}:${list.length > 0 ? list[list.length - 1].id : 0}:${list.filter(m => m.is_marked).length}:${avatarHash}:${currentFontSize}:${currentTheme}:${linkedHash}`;
+        if (currentHash === lastRenderedHash && container.innerHTML.trim().length > 50) {
+            return; // Sem alterações
+        }
+        lastRenderedHash = currentHash;
+
+        if (list.length === 0) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                    <i class="fas ${currentFilter === 'marked' ? 'fa-star text-amber-500' : 'fa-comment-slash'} text-4xl mb-3"></i>
+                    <h3 class="text-sm font-bold text-gray-300">Nenhum comentário encontrado</h3>
+                    <p class="text-xs text-gray-400 mt-1">${currentSearchTerm ? 'Nenhum resultado para "' + escapeHtml(currentSearchTerm) + '"' : 'Aguardando novas mensagens...'}</p>
+                    ${currentSearchTerm ? `
+                        <button type="button" onclick="clearSearchFilter()" class="mt-4 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95">
+                            <i class="fas fa-times-circle"></i> Limpar filtro de pesquisa
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            return;
+        }
+
+        // Tamanhos de fonte e espaçamento dinâmicos
+        let fontSizes = {
+            avatar: "52px",
+            initials: "17px",
+            username: "15px",
+            message: "17px",
+            badge: "11px",
+            time: "12px",
+            padding: "14px 16px"
+        };
+
+        if (currentFontSize === 'sm') {
+            fontSizes = {
+                avatar: "42px",
+                initials: "14px",
+                username: "13px",
+                message: "14px",
+                badge: "10px",
+                time: "11px",
+                padding: "10px 12px"
+            };
+        } else if (currentFontSize === 'lg') {
+            fontSizes = {
+                avatar: "62px",
+                initials: "20px",
+                username: "18px",
+                message: "21px",
+                badge: "12px",
+                time: "13px",
+                padding: "16px 20px"
+            };
+        } else if (currentFontSize === 'xl') {
+            fontSizes = {
+                avatar: "74px",
+                initials: "25px",
+                username: "21px",
+                message: "26px",
+                badge: "14px",
+                time: "14px",
+                padding: "20px 24px"
+            };
+        }
+
+        let html = '';
+        list.forEach(msg => {
+            const isTikTok = msg.plataforma === 'tiktok';
+            const isYouTube = msg.plataforma === 'youtube';
+            let platformIcon = '<i class="fab fa-instagram" style="color: #ffffff;"></i>';
+            let platformBadgeBg = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+            if (isTikTok) {
+                platformIcon = '<i class="fab fa-tiktok" style="color: #ff0050;"></i>';
+                platformBadgeBg = '#000000';
+            } else if (isYouTube) {
+                platformIcon = '<i class="fab fa-youtube" style="color: #ffffff;"></i>';
+                platformBadgeBg = '#ef4444';
+            }
+
+            const cleanUser = msg.username || 'usuario';
+            const displayName = msg.user_name || msg.user_apelido || cleanUser;
+            const initials = cleanUser.slice(0, 2).toUpperCase();
+            const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const isMarked = !!msg.is_marked;
+            const isLinkedMsg = !!(msg.linked_code || msg.linked_item_id);
+            const cardSelectionClass = isLinkedMsg ? 'is-linked-msg' : '';
+
+            // Foto de perfil com avatar grande e nítido (Prioridade: Foto Real -> Persona Ilustrada -> Iniciais em Gradiente)
+            const gradientBg = getGradientForUser(cleanUser);
+            const illustratedAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(cleanUser)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+
+            const avatarHtml = msg.avatar_url
+                ? `<img src="${safeAttr(msg.avatar_url)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.src='${illustratedAvatar}';" style="width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; object-fit: cover; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;" /><div style="display: none; width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; background: ${gradientBg}; align-items: center; justify-content: center; font-weight: 900; font-size: ${fontSizes.initials}; color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;">${initials}</div>`
+                : `<img src="${illustratedAvatar}" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; object-fit: cover; border: 2px solid rgba(255,255,255,0.25); box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;" /><div style="display: none; width: ${fontSizes.avatar}; height: ${fontSizes.avatar}; border-radius: 16px; background: ${gradientBg}; align-items: center; justify-content: center; font-weight: 900; font-size: ${fontSizes.initials}; color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); flex-shrink: 0;">${initials}</div>`;
+
+            // Badge de Cliente Cadastrada e Telefone removidos do card para exibir apenas o IG e mensagem
+            let clientBadge = '';
+            let whatsappBadge = '';
+
+            // Destacar códigos de produtos na mensagem
+            let formattedMessage = escapeHtml(msg.message || '');
+            formattedMessage = formattedMessage.replace(/\b([a-zA-Z0-9]{3,6})\b/g, function(match, code) {
+                if (/\d/.test(code)) {
+                    return `<span class="chat-product-code"><i class="fas fa-tag" style="font-size: 0.85em;"></i> ${code}</span>`;
+                }
+                return code;
+            });
+
+            // Códigos limpos da peça vinculada (sem a palavra 'Live:')
+            let cleanItemCode = '';
+            let cleanLiveCode = '';
+            if (msg.linked_code) {
+                const liveMatch = String(msg.linked_code).match(/\(Live:\s*([^)]+)\)/i);
+                if (liveMatch) {
+                    cleanLiveCode = liveMatch[1].trim();
+                } else if (msg.linked_live_code) {
+                    cleanLiveCode = String(msg.linked_live_code).trim();
+                }
+                cleanItemCode = String(msg.linked_code).replace(/\s*\(Live:.*?\)/gi, '').replace(/^#/, '').trim();
+            } else if (msg.linked_live_code) {
+                cleanLiveCode = String(msg.linked_live_code).trim();
+            }
+
+            // Tag de Peça Vinculada (se houver)
+            let vincularBtn = '';
+            if (isLinkedMsg) {
+                let codeDisplay = cleanItemCode ? ('#' + escapeHtml(cleanItemCode)) : '';
+                if (cleanLiveCode) {
+                    codeDisplay = codeDisplay ? (codeDisplay + ' &bull; ' + escapeHtml(cleanLiveCode)) : escapeHtml(cleanLiveCode);
+                }
+                vincularBtn = `
+                    <span class="inline-flex items-center gap-1.5 text-xs font-black text-blue-200 bg-blue-900/80 border border-blue-500/60 px-2.5 py-1 rounded-xl shadow-sm tracking-wide" title="Peça vinculada a este comentário">
+                        <i class="fas fa-tag text-[10px] text-blue-400"></i>
+                        <span>${codeDisplay || 'Vinculado'}</span>
+                    </span>
+                `;
+            }
+
+            // Em baixo em azul: Descrição e Detalhes do Produto Vinculado
+            let linkedItemBadge = '';
+            if (isLinkedMsg) {
+                let prodName = msg.linked_product_name || '';
+                let prodDetails = msg.linked_product_details || '';
+                let prodTam = msg.linked_product_tamanho || '';
+                let prodCor = msg.linked_product_cor || '';
+                let prodPrice = msg.linked_product_preco || '';
+
+                // Fallback para buscar de bgScanItems se os dados ainda não vieram do polling
+                if (!prodName) {
+                    const scanObj = bgScanItems.find(i => 
+                        (i.itemId && msg.linked_item_id && i.itemId === msg.linked_item_id) ||
+                        (i.code && cleanItemCode && i.code.trim().toUpperCase() === cleanItemCode.toUpperCase())
+                    );
+                    if (scanObj) {
+                        prodName = scanObj.productName || '';
+                        prodDetails = scanObj.productDetails || '';
+                        prodTam = scanObj.tamanho || '';
+                        prodCor = scanObj.cor || '';
+                        prodPrice = scanObj.productPrice || '';
+                    }
+                }
+
+                let detailsText = escapeHtml(prodName || 'Produto vinculado');
+                if (prodDetails) detailsText += ' &bull; ' + escapeHtml(prodDetails);
+                if (prodTam) detailsText += ` (Tam: ${escapeHtml(prodTam)})`;
+                if (prodCor) detailsText += ` (${escapeHtml(prodCor)})`;
+                if (prodPrice) detailsText += ` &bull; <strong>${escapeHtml(prodPrice)}</strong>`;
+
+                linkedItemBadge = `
+                    <div class="mt-2 flex items-center justify-between gap-2 bg-blue-600/90 text-white px-3 py-1.5 rounded-xl text-xs shadow-md border border-blue-400/80">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fas fa-shopping-bag text-blue-200 text-xs shrink-0"></i>
+                            <div class="truncate text-blue-50 font-medium">
+                                ${detailsText}
+                            </div>
+                        </div>
+                        <button type="button" onclick="event.stopPropagation(); unlinkItemBuyerByMsgId(${msg.id})" title="Desvincular produto deste comentário" class="text-blue-200 hover:text-white hover:bg-blue-700 rounded-lg p-1 transition cursor-pointer shrink-0">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            const userClass = isYouTube ? 'chat-user-youtube' : (isTikTok ? 'chat-user-tiktok' : 'chat-user-insta');
+            const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
+
+            html += `
+                <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Peça #' + escapeHtml(msg.linked_code) + ' vinculada a este comentário' : ''}">
+                    <!-- Avatar com Badge de Plataforma -->
+                    <div class="relative flex-shrink-0">
+                        ${avatarHtml}
+                        <span style="position: absolute; bottom: -4px; right: -4px; width: 22px; height: 22px; border-radius: 50%; background: ${platformBadgeBg}; display: flex; align-items: center; justify-content: center; font-size: 11px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1.5px solid #ffffff;">
+                            ${platformIcon}
+                        </span>
+                    </div>
+
+                    <!-- Conteúdo da Mensagem -->
+                    <div class="flex-1" style="min-width: 0;">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <div class="flex flex-wrap items-center gap-2" style="min-width: 0;">
+                                <span class="${userClass}" style="font-size: ${fontSizes.username};">
+                                    @${escapeHtml(cleanUser)}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                ${vincularBtn}
+                                <span class="chat-time-label" style="font-size: ${fontSizes.time};">${time}</span>
+                                <button type="button" onclick="event.stopPropagation(); toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-1 transition cursor-pointer" style="background: none; border: none;">
+                                    <i class="${starClass}"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Texto do Comentário Ultra Legível -->
+                        <div class="chat-message-text" style="font-size: ${fontSizes.message};">
+                            ${formattedMessage}
+                        </div>
+                        ${linkedItemBadge}
+                    </div>
+                </div>
+            `;
+        });
+
+        const isNearBottom = (container.scrollTop + container.clientHeight >= container.scrollHeight - 180);
+        const shouldScroll = autoScrollEnabled && isNearBottom;
+        container.innerHTML = html;
+
+        if (shouldScroll) {
+            scrollToBottom(false);
+        } else if (!isNearBottom) {
+            const badge = document.getElementById("new-messages-floating-badge");
+            if (badge) badge.classList.remove("hidden");
+        }
+    }
+
+    // =========================================================================
+    // AUTO-SCROLL & CONTROLES DE NAVEGAÇÃO
+    // =========================================================================
+    function handleContainerScroll() {
+        const container = document.getElementById("feed-messages-container");
+        const badge = document.getElementById("new-messages-floating-badge");
+        if (!container || !badge) return;
+
+        const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
+        if (isNearBottom) {
+            badge.classList.add("hidden");
+        }
+    }
+
+    function scrollToBottom(smooth) {
+        const container = document.getElementById("feed-messages-container");
+        if (container) {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+            const badge = document.getElementById("new-messages-floating-badge");
+            if (badge) badge.classList.add("hidden");
+        }
+    }
+
+    // =========================================================================
+    // MARCAR MENSAGEM
+    // =========================================================================
+    async function toggleMarkLiveMessageFeed(messageId) {
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const res = await fetch('/admin/live-chat/toggle-mark-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ message_id: messageId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const target = allLiveMessages.find(m => m.id == messageId);
+                if (target) {
+                    target.is_marked = data.is_marked;
+                }
+                updateFilterCounts();
+                renderChatFeed();
+                if (currentOnlineQrUser) {
+                    renderModalClientMessages(currentOnlineQrUser.username);
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao marcar mensagem:", e);
+        }
+    }
+
+    // =========================================================================
+    // MODAL DE BIPAGEM / QR CODE PARA CLIENTE
+    // =========================================================================
+    let onlineQrScannerInstance = null;
+    let currentOnlineQrUser = null;
+    let modalFilterMarkedOnly = false;
+    let isScanProcessing = false;
+    let lastScannedCode = "";
+    let lastScannedTime = 0;
+
+    function openOnlineQrModal(userId, username, clientName) {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            openLinkModal(username, 'instagram');
+            return;
+        }
+
+        currentOnlineQrUser = {
+            userId: userId,
+            username: username,
+            clientName: clientName || username
+        };
+
+        const clientNameEl = document.getElementById("online-qr-client-name");
+        if (clientNameEl) {
+            clientNameEl.textContent = `@${username} (${clientName || 'Cliente'})`;
+        }
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "p-4 rounded-2xl text-xs font-bold hidden transition duration-200 border shadow-xl leading-relaxed";
+            feedback.textContent = "";
+        }
+
+        // Configura campo e badge de WhatsApp
+        const userObj = onlineUsersMap[userId] || {};
+        const clientPhone = userObj.user_whatsapp || '';
+        const phoneInput = document.getElementById("online-qr-phone-input");
+        if (phoneInput) {
+            phoneInput.value = clientPhone;
+        }
+        updatePhoneBadge(!!clientPhone, clientPhone);
+
+        // Renderiza comentários da cliente nesta live
+        modalFilterMarkedOnly = false;
+        const starBtn = document.getElementById("modal-client-filter-star-btn");
+        if (starBtn) {
+            starBtn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+        }
+        renderModalClientMessages(username);
+
+        const autoCloseToggle = document.getElementById("online-qr-auto-close-toggle");
+        if (autoCloseToggle) {
+            autoCloseToggle.checked = autoCloseAfterScan;
+        }
+
+        document.getElementById("online-qr-modal").classList.remove("hidden");
+        if (manualInput) manualInput.focus();
+
+        // Inicializar câmera HTML5-QRCode
+        if (typeof Html5Qrcode === 'undefined') {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js";
+            script.onload = () => startOnlineQrCamera();
+            document.head.appendChild(script);
+        } else {
+            startOnlineQrCamera();
+        }
+    }
+
+    function quickBeepForUser(userId, username, clientName, code) {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            openLinkModal(username, 'instagram');
+            return;
+        }
+        openOnlineQrModal(userId, username, clientName);
+        if (code) {
+            const input = document.getElementById("online-qr-manual-input");
+            if (input) input.value = code;
+            handleOnlineQrScan(code);
+        }
+    }
+
+    let onlineQrManualDebounceTimer = null;
+
+    function handleOnlineQrManualInput(event) {
+        // Digitação manual aguarda a tecla Enter ou rajada ultra-rápida do leitor
+        if (onlineQrManualDebounceTimer) {
+            clearTimeout(onlineQrManualDebounceTimer);
+            onlineQrManualDebounceTimer = null;
+        }
+    }
+
+    function handleOnlineQrKeyDown(event) {
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            if (onlineQrManualDebounceTimer) {
+                clearTimeout(onlineQrManualDebounceTimer);
+                onlineQrManualDebounceTimer = null;
+            }
+            const input = document.getElementById("online-qr-manual-input");
+            if (input && input.value.trim()) {
+                const code = input.value.trim();
+                input.value = '';
+                handleOnlineQrScan(code);
+            }
+        }
+    }
+
+    function clickCodeFromComment(code) {
+        const input = document.getElementById("online-qr-manual-input");
+        if (input) {
+            input.value = code;
+            handleOnlineQrScan(code);
+        }
+    }
+
+    async function closeOnlineQrModal() {
+        if (onlineQrScannerInstance) {
+            try {
+                await onlineQrScannerInstance.stop();
+            } catch (e) {}
+        }
+        document.getElementById("online-qr-modal").classList.add("hidden");
+        
+        // Devolve o foco imediatamente para o campo do leitor de código de barras
+        setTimeout(() => ensureScannerFocus(true), 100);
+
+        fetchChatFeed();
+    }
+
+    async function startOnlineQrCamera() {
+        if (!onlineQrScannerInstance) {
+            let formats = [0, 9, 5, 3]; // QR_CODE, EAN_13, CODE_128, CODE_39
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                formats = [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39
+                ];
+            }
+            onlineQrScannerInstance = new Html5Qrcode("online-qr-reader", {
+                formatsToSupport: formats,
+                verbose: false,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            });
+        }
+
+        try {
+            const config = {
+                fps: 25,
+                disableFlip: true,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                },
+                videoConstraints: {
+                    facingMode: "environment",
+                    focusMode: { ideal: "continuous" },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            await onlineQrScannerInstance.start(
+                { facingMode: "environment" },
+                config,
+                async (decodedText) => {
+                    console.log("QRCode lido:", decodedText);
+                    await handleOnlineQrScan(decodedText);
+                }
+            );
+        } catch (err) {
+            console.warn("Não foi possível iniciar a câmera ou permissão negada:", err);
+            const feedback = document.getElementById("online-qr-feedback");
+            if (feedback) {
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-xs sm:text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                feedback.innerHTML = `<i class="fas fa-exclamation-triangle text-amber-400 mr-1.5"></i> Câmera não acessível (${err.message || 'Sem permissão'}). Digite ou bipe o código com leitor USB no campo acima!`;
+            }
+        }
+    }
+
+    async function handleOnlineQrScan(decodedText) {
+        if (!decodedText || !decodedText.trim() || !currentOnlineQrUser) return;
+        
+        let code = decodedText.trim();
+
+        // Extrair código limpo se for URL
+        if (code.startsWith('http://') || code.startsWith('https://')) {
+            try {
+                const url = new URL(code);
+                const p = url.searchParams.get('codigo') || url.searchParams.get('c') || url.searchParams.get('code') || url.searchParams.get('item');
+                if (p) {
+                    code = p.trim();
+                } else {
+                    const segs = url.pathname.split('/').filter(Boolean);
+                    if (segs.length > 0) {
+                        code = segs[segs.length - 1].trim();
+                    }
+                }
+            } catch(e) {}
+        }
+
+        const now = Date.now();
+        if (isScanProcessing) {
+            console.warn("Scan bloqueado: outro bipe em processamento.");
+            return;
+        }
+        if (lastScannedCode === code && (now - lastScannedTime) < 2000) {
+            console.warn("Scan bloqueado: mesmo código bipado em menos de 2 segundos.");
+            return;
+        }
+
+        isScanProcessing = true;
+        lastScannedCode = code;
+        lastScannedTime = now;
+
+        const manualInput = document.getElementById("online-qr-manual-input");
+        if (manualInput) manualInput.value = "";
+
+        const feedback = document.getElementById("online-qr-feedback");
+        if (feedback) {
+            feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-blue-500/20 text-blue-200 border border-blue-500/40 block animate-pulse shadow-lg";
+            feedback.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-spinner fa-spin text-blue-400 text-xl"></i><div><b>Buscando produto...</b><br><span class="text-xs text-blue-300 font-normal">Etiqueta/SKU: ${escapeHtml(code)}</span></div></div>`;
+        }
+
+        try {
+            const response = await fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`);
+            const data = await response.json();
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                playErrorBeep();
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg animate-shake";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-times-circle text-red-400 text-xl mt-0.5"></i><div><b>Produto não encontrado!</b><br><span class="text-xs text-red-300 font-normal">Nenhum produto cadastrado com o SKU ou código de barras <b>"${escapeHtml(code)}"</b>. Verifique o código e tente novamente.</span></div></div>`;
+                }
+                return;
+            }
+
+            const cleanCode = code.replace(/^[#\s]+/, '').trim();
+            let matchedItem = data.data.find(item => 
+                (item.sku && item.sku.toLowerCase() === cleanCode.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === cleanCode.toLowerCase()) || 
+                String(item.id) === cleanCode ||
+                (item.sku && item.sku.toLowerCase() === code.toLowerCase()) || 
+                (item.codigo && item.codigo.toLowerCase() === code.toLowerCase()) || 
+                String(item.id) === code
+            ) || data.data[0];
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const addResponse = await fetch('/admin/live-chat/add-to-bag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    code_request_id: null,
+                    user_id: currentOnlineQrUser.userId,
+                    item_id: matchedItem.id,
+                    live_id: liveId
+                })
+            });
+
+            const addData = await addResponse.json();
+
+            if (addData.success) {
+                playSuccessBeep();
+                showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal">${autoCloseAfterScan ? '<i class="fas fa-check-double text-emerald-400 mr-1"></i> Fechando leitor em instantes...' : '<i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.'}</div></div></div>`;
+                }
+
+                if (autoCloseAfterScan) {
+                    setTimeout(() => {
+                        closeOnlineQrModal();
+                    }, 750);
+                }
+            } else {
+                playErrorBeep();
+                if (feedback) {
+                    feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40 block shadow-lg";
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mt-0.5"></i><div><b>Atenção:</b><br><span class="text-xs text-amber-300 font-normal">${escapeHtml(addData.message || 'Falha ao incluir na sacola.')}</span></div></div>`;
+                }
+            }
+        } catch (err) {
+            playErrorBeep();
+            console.error("Erro na leitura/adição por QR Code:", err);
+            if (feedback) {
+                feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-red-500/20 text-red-200 border border-red-500/40 block shadow-lg";
+                feedback.innerHTML = `<div class="flex items-start gap-3"><i class="fas fa-exclamation-circle text-red-400 text-xl mt-0.5"></i><div><b>Erro de comunicação:</b><br><span class="text-xs text-red-300 font-normal">Falha ao se comunicar com o servidor ao processar "${escapeHtml(code)}".</span></div></div>`;
+            }
+        } finally {
+            setTimeout(() => {
+                isScanProcessing = false;
+            }, 600);
+        }
+    }
+
+    function updatePhoneBadge(hasPhone, phoneText) {
+        const badge = document.getElementById("online-qr-phone-badge");
+        const help = document.getElementById("online-qr-phone-help");
+        if (!badge) return;
+
+        if (hasPhone && phoneText && phoneText.length >= 8) {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700";
+            badge.innerHTML = `<i class="fas fa-check-circle"></i> Cadastrado`;
+            if (help) {
+                help.className = "text-[10.5px] text-emerald-400/90 leading-tight";
+                help.textContent = "✅ WhatsApp verificado para envio automático ao encerrar a live.";
+            }
+        } else {
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-300 border border-amber-700 animate-pulse";
+            badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Sem Telefone`;
+            if (help) {
+                help.className = "text-[10.5px] text-amber-300 font-bold leading-tight";
+                help.textContent = "⚠️ Digite o WhatsApp acima e clique em 'Salvar' para garantir o envio da sacola!";
+            }
+        }
+    }
+
+    async function saveClientPhoneFromModal() {
+        if (!currentOnlineQrUser || !currentOnlineQrUser.userId) return;
+        const input = document.getElementById("online-qr-phone-input");
+        const phone = input ? input.value.trim() : '';
+
+        if (!phone || phone.length < 8) {
+            alert("Por favor, digite um número de WhatsApp válido com DDD.");
+            return;
+        }
+
+        const btn = document.getElementById("online-qr-phone-save-btn");
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const res = await fetch('/admin/live-chat/update-user-phone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    user_id: currentOnlineQrUser.userId,
+                    phone: phone
+                })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+
+            if (data.success) {
+                showToast("WhatsApp salvo com sucesso!");
+                updatePhoneBadge(true, data.phone);
+                if (onlineUsersMap[currentOnlineQrUser.userId]) {
+                    onlineUsersMap[currentOnlineQrUser.userId].user_whatsapp = data.phone;
+                }
+            } else {
+                alert("Erro ao salvar WhatsApp: " + (data.message || 'Verifique o número'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+            console.error("Erro ao salvar telefone:", e);
+            alert("Erro de comunicação ao salvar o telefone.");
+        }
+    }
+
+    function toggleModalFilterMarkedOnly() {
+        modalFilterMarkedOnly = !modalFilterMarkedOnly;
+        const btn = document.getElementById("modal-client-filter-star-btn");
+        if (btn) {
+            if (modalFilterMarkedOnly) {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-yellow-500 text-gray-900 border border-yellow-400 transition flex items-center gap-1 cursor-pointer shadow-sm";
+            } else {
+                btn.className = "text-[10px] px-2 py-0.5 rounded-lg font-bold bg-gray-800 text-yellow-400 hover:bg-gray-700 border border-gray-700 transition flex items-center gap-1 cursor-pointer";
+            }
+        }
+        if (currentOnlineQrUser) {
+            renderModalClientMessages(currentOnlineQrUser.username);
+        }
+    }
+
+    function renderModalClientMessages(username) {
+        const container = document.getElementById("online-qr-client-messages-list");
+        if (!container) return;
+
+        const uLower = (username || '').toLowerCase().replace(/^@/, '');
+        let msgs = allLiveMessages.filter(m => m.username && m.username.toLowerCase() === uLower);
+
+        const markedCount = msgs.filter(m => m.is_marked).length;
+        const countEl = document.getElementById("modal-client-marked-count");
+        if (countEl) countEl.textContent = markedCount;
+
+        if (modalFilterMarkedOnly) {
+            msgs = msgs.filter(m => m.is_marked);
+        }
+
+        if (msgs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-gray-500">
+                    <i class="fas ${modalFilterMarkedOnly ? 'fa-star text-yellow-500/40' : 'fa-comment-slash'} text-xl mb-1"></i>
+                    <p class="text-[11px]">${modalFilterMarkedOnly ? 'Nenhuma mensagem marcada desta cliente.' : 'Nenhum comentário enviado por @' + escapeHtml(username) + ' nesta live.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        msgs.forEach(msg => {
+            const time = new Date(msg.created_at).toLocaleTimeString();
+            const isMarked = !!msg.is_marked;
+            const starClass = isMarked ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-600 hover:text-yellow-400';
+            const bgCard = isMarked ? 'bg-yellow-950/30 border border-yellow-500/40' : 'bg-gray-800/70 border border-gray-700/60';
+
+            // Detectar sequências numéricas (3 a 6 dígitos) como códigos de produtos clicáveis
+            let textWithCodes = escapeHtml(msg.message);
+            textWithCodes = textWithCodes.replace(/\b(\d{3,6})\b/g, function(match, code) {
+                return `<button type="button" onclick="event.stopPropagation(); clickCodeFromComment('${code}')" class="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-1.5 py-0.5 rounded text-[11px] transition shadow cursor-pointer mx-0.5 active:scale-95"><i class="fas fa-barcode text-[9px]"></i> ${code}</button>`;
+            });
+
+            html += `
+                <div class="${bgCard} p-2 rounded-xl text-xs transition flex flex-col gap-1">
+                    <div class="flex items-center justify-between text-[10px] text-gray-400">
+                        <span class="font-mono text-gray-400">${time}</span>
+                        <button type="button" onclick="toggleMarkLiveMessageFeed(${msg.id})" title="${isMarked ? 'Desmarcar' : 'Marcar'}" class="p-0.5 cursor-pointer">
+                            <i class="${starClass}"></i>
+                        </button>
+                    </div>
+                    <div class="text-gray-100 font-medium leading-relaxed">${textWithCodes}</div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // =========================================================================
+    // MODAL DE VINCULAR CLIENTE
+    // =========================================================================
+    function openLinkModal(username, platform) {
+        document.getElementById("modal-display-username").textContent = `@${username}`;
+        document.getElementById("modal-display-platform").textContent = (platform || 'instagram').toUpperCase();
+        document.getElementById("modal-input-username").value = username;
+        document.getElementById("modal-input-platform").value = platform || 'instagram';
+        document.getElementById("modal-search-input").value = "";
+        document.getElementById("modal-search-results").innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>`;
+        
+        document.getElementById("link-user-modal").classList.remove("hidden");
+        document.getElementById("modal-search-input").focus();
+    }
+
+    function closeLinkModal() {
+        document.getElementById("link-user-modal").classList.add("hidden");
+    }
+
+    let linkUserSelectedIndex = 0;
+
+    function handleLinkUserSearchKeydown(e) {
+        e.stopPropagation();
+        const container = document.getElementById("modal-search-results");
+        if (!container) return;
+
+        const items = container.querySelectorAll('.link-user-result-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            linkUserSelectedIndex = (linkUserSelectedIndex + 1) % items.length;
+            updateLinkUserSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (items.length === 0) return;
+            linkUserSelectedIndex = (linkUserSelectedIndex - 1 + items.length) % items.length;
+            updateLinkUserSelectedHighlight();
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (items.length > 0) {
+                const targetIdx = (linkUserSelectedIndex >= 0 && linkUserSelectedIndex < items.length) ? linkUserSelectedIndex : 0;
+                items[targetIdx].click();
+            }
+            return;
+        }
+
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            e.preventDefault();
+            closeLinkModal();
+        }
+    }
+
+    function updateLinkUserSelectedHighlight() {
+        const container = document.getElementById("modal-search-results");
+        if (!container) return;
+        const items = container.querySelectorAll('.link-user-result-item');
+        items.forEach((item, idx) => {
+            if (idx === linkUserSelectedIndex) {
+                item.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'border-indigo-400');
+                item.classList.remove('bg-white', 'border-gray-200');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                item.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'border-indigo-400');
+                item.classList.add('bg-white', 'border-gray-200');
+            }
+        });
+    }
+
+    function searchClients(query) {
+        const resultsContainer = document.getElementById("modal-search-results");
+        if (query.trim().length < 2) {
+            resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Digite pelo menos 2 caracteres.</p>`;
+            return;
+        }
+
+        fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(user => {
+                        html += `
+                            <div onclick="linkUserToProfile('${user.id}')" class="link-user-result-item p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition duration-150 cursor-pointer flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-800">${escapeHtml(user.name)}</h4>
+                                    <span class="text-[10px] text-gray-500">${user.whatsapp ? 'WhatsApp: ' + escapeHtml(user.whatsapp) : 'Sem número'}</span>
+                                    ${user.apelido ? `<span class="text-[10px] text-indigo-600 block">Apelido: ${escapeHtml(user.apelido)}</span>` : ''}
+                                </div>
+                                <i class="fas fa-plus text-indigo-500 text-xs"></i>
+                            </div>
+                        `;
+                    });
+                    resultsContainer.innerHTML = html;
+                    linkUserSelectedIndex = 0;
+                    updateLinkUserSelectedHighlight();
+                } else {
+                    resultsContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Nenhum cliente cadastrado encontrado.</p>`;
+                    linkUserSelectedIndex = 0;
+                }
+            })
+            .catch(err => console.error("Erro na busca de usuários:", err));
+    }
+
+    function linkUserToProfile(userId) {
+        const username = document.getElementById("modal-input-username").value;
+        const platform = document.getElementById("modal-input-platform").value;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        fetch('/admin/live-chat/link-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                username: username,
+                platform: platform,
+                user_id: userId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast("Vinculação realizada com sucesso!");
+                closeLinkModal();
+                fetchChatFeed();
+                // Abre o leitor de QR Code para esse usuário que acabou de ser vinculado
+                openOnlineQrModal(userId, username, '');
+            } else {
+                alert("Erro ao vincular: " + data.message);
+            }
+        })
+        .catch(err => console.error("Erro ao vincular usuário:", err));
+    }
+
+    // =========================================================================
+    // TAMANHO DA FONTE & TEMA
+    // =========================================================================
+    function setFontSize(size) {
+        currentFontSize = size;
+        localStorage.setItem('live_chat_font_size', size);
+        applyFontSize(size);
+        lastRenderedHash = ""; // Força re-renderização
+        renderChatFeed();
+    }
+
+    function applyFontSize(size) {
+        const buttons = {
+            sm: document.getElementById("btn-font-sm"),
+            md: document.getElementById("btn-font-md"),
+            lg: document.getElementById("btn-font-lg"),
+            xl: document.getElementById("btn-font-xl")
+        };
+
+        Object.keys(buttons).forEach(key => {
+            const btn = buttons[key];
+            if (!btn) return;
+            if (key === size) {
+                btn.className = "px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white transition shadow";
+            } else {
+                btn.className = "px-2.5 py-1 text-xs font-bold rounded-lg text-gray-300 hover:text-white transition";
+            }
+        });
+    }
+
+    function toggleTheme() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('live_chat_theme', currentTheme);
+        applyTheme(currentTheme);
+        lastRenderedHash = "";
+        renderChatFeed();
+    }
+
+    function applyTheme(theme) {
+        const wrapper = document.getElementById("feed-outer-wrapper");
+        const icon = document.getElementById("theme-icon");
+        const text = document.getElementById("theme-text");
+
+        if (theme === 'dark') {
+            if (wrapper) wrapper.className = "theme-dark relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700";
+            if (icon) icon.className = "fas fa-moon text-yellow-400";
+            if (text) text.textContent = "Modo Escuro";
+        } else {
+            if (wrapper) wrapper.className = "theme-light relative flex-1 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-300";
+            if (icon) icon.className = "fas fa-sun text-amber-500";
+            if (text) text.textContent = "Modo Claro";
+        }
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log(err));
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    // =========================================================================
+    // NOTIFICAÇÃO TOAST (ALTO CONTRASTE E LEGIBILIDADE MÁXIMA)
+    // =========================================================================
+    function showToast(message, type = 'success') {
+        const toast = document.createElement("div");
+        
+        let bgColor = '#065f46'; // emerald 800
+        let borderColor = '#34d399'; // emerald 400
+        let textColor = '#ffffff';
+        let iconHtml = '<i class="fas fa-check-circle" style="color:#6ee7b7; font-size:16px; flex-shrink:0;"></i>';
+
+        if (type === 'warning') {
+            bgColor = '#78350f'; // amber 900
+            borderColor = '#fbbf24'; // amber 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-exclamation-triangle" style="color:#fde047; font-size:16px; flex-shrink:0;"></i>';
+        } else if (type === 'error') {
+            bgColor = '#7f1d1d'; // red 900
+            borderColor = '#f87171'; // red 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-times-circle" style="color:#fca5a5; font-size:16px; flex-shrink:0;"></i>';
+        } else if (type === 'info') {
+            bgColor = '#1e1b4b'; // indigo 950
+            borderColor = '#818cf8'; // indigo 400
+            textColor = '#ffffff';
+            iconHtml = '<i class="fas fa-info-circle" style="color:#a5b4fc; font-size:16px; flex-shrink:0;"></i>';
+        }
+
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.backgroundColor = bgColor;
+        toast.style.color = textColor;
+        toast.style.border = `2px solid ${borderColor}`;
+        toast.style.borderRadius = '16px';
+        toast.style.padding = '12px 20px';
+        toast.style.fontSize = '13px';
+        toast.style.fontWeight = '800';
+        toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)';
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'center';
+        toast.style.gap = '10px';
+        toast.style.zIndex = '9999999';
+        toast.style.maxWidth = '460px';
+        toast.style.lineHeight = '1.4';
+        toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.opacity = '0';
+
+        toast.innerHTML = `${iconHtml} <span style="color:#ffffff !important; font-weight:800 !important; text-shadow:0 1px 2px rgba(0,0,0,0.4);">${escapeHtml(message)}</span>`;
+        document.body.appendChild(toast);
+        
+        requestAnimationFrame(() => {
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+        });
+
+        const duration = (type === 'warning' || type === 'error') ? 6000 : 3500;
+        setTimeout(() => {
+            toast.style.transform = 'translateY(10px)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    // =========================================================================
+    // MODAIS DE CADASTRO RÁPIDO (CLIENTE & PRODUTO)
+    // =========================================================================
+    function openQuickClientModal() {
+        const nameEl = document.getElementById('quick-client-name');
+        const instaEl = document.getElementById('quick-client-instagram');
+        const tiktokEl = document.getElementById('quick-client-tiktok');
+        const phoneEl = document.getElementById('quick-client-phone');
+        const limiteEl = document.getElementById('quick-client-limite');
+
+        if (nameEl) nameEl.value = '';
+        if (instaEl) instaEl.value = '';
+        if (tiktokEl) tiktokEl.value = '';
+        if (phoneEl) phoneEl.value = '';
+        if (limiteEl) limiteEl.value = '300.00';
+
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (nameEl) nameEl.focus();
+        }, 100);
+    }
+
+    function closeQuickClientModal() {
+        const modal = document.getElementById('modal-quick-client');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickClient(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-client');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const name = (document.getElementById('quick-client-name')?.value || '').trim();
+        const instagram = (document.getElementById('quick-client-instagram')?.value || '').trim().replace(/^@/, '');
+        const tiktok = (document.getElementById('quick-client-tiktok')?.value || '').trim().replace(/^@/, '');
+        const phone = (document.getElementById('quick-client-phone')?.value || '').trim();
+        const limite = (document.getElementById('quick-client-limite')?.value || '').trim();
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-client') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    instagram: instagram,
+                    tiktok: tiktok,
+                    phone: phone,
+                    limite_credito: limite
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                showToast(data.message || 'Cliente cadastrado com sucesso!', 'success');
+                closeQuickClientModal();
+                // Se a busca avulsa de cliente estiver aberta, refresca a busca
+                const searchInput = document.getElementById('manual-buyer-search-input');
+                if (searchInput && searchInput.value) {
+                    handleManualBuyerSearchInput(searchInput.value);
+                }
+            } else {
+                showToast(data.message || 'Erro ao cadastrar cliente.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao cadastrar cliente:', err);
+            showToast('Erro de conexão ao cadastrar cliente.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Salvar Cliente';
+            }
+        }
+    }
+
+    function openQuickProductModal() {
+        const descEl = document.getElementById('quick-prod-descricao');
+        const tamEl = document.getElementById('quick-prod-tamanho');
+        const corEl = document.getElementById('quick-prod-cor');
+        const precoEl = document.getElementById('quick-prod-preco');
+        const linkCheck = document.getElementById('quick-prod-link-live');
+
+        if (descEl) descEl.value = '';
+        if (tamEl) tamEl.value = '';
+        if (corEl) corEl.value = '';
+        if (precoEl) precoEl.value = '';
+        if (linkCheck) linkCheck.checked = true;
+
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (descEl) descEl.focus();
+        }, 100);
+    }
+
+    function closeQuickProductModal() {
+        const modal = document.getElementById('modal-quick-product');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickProduct(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-quick-product') || event.target.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const descricao = (document.getElementById('quick-prod-descricao')?.value || '').trim();
+        const tamanho = (document.getElementById('quick-prod-tamanho')?.value || '').trim();
+        const cor = (document.getElementById('quick-prod-cor')?.value || '').trim();
+        const preco = (document.getElementById('quick-prod-preco')?.value || '').trim();
+        const linkLive = document.getElementById('quick-prod-link-live') ? document.getElementById('quick-prod-link-live').checked : false;
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-store-product') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    descricao: descricao,
+                    tamanho: tamanho,
+                    cor: cor,
+                    preco: preco,
+                    live_id: {{ $activeLive ? $activeLive->id : 'null' }},
+                    link_to_live: linkLive
+                })
+            });
+
+            const data = await resp.json();
+            if (data.success) {
+                const code = data.item ? data.item.codigo : '';
+                showToast(`Produto ${code} cadastrado com sucesso!`, 'success');
+                closeQuickProductModal();
+                if (code) {
+                    addScanItem(code, 'manual');
+                }
+            } else {
+                showToast(data.message || 'Erro ao cadastrar produto.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao cadastrar produto:', err);
+            showToast('Erro de conexão ao cadastrar produto.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Salvar Produto';
+            }
+        }
+    }
+
+    // =========================================================================
+    // CONTROLES DE GRAVAÇÃO, LIVE E PESSOAS ONLINE (CENTRALIZADOS)
+    // =========================================================================
+    let recordingAlertDismissedUntil = 0;
+
+    function dismissRecordingAlert() {
+        recordingAlertDismissedUntil = Date.now() + (10 * 60 * 1000);
+        const banner = document.getElementById("recording-alert-banner");
+        if (banner) banner.classList.add("hidden");
+    }
+
+    function updateRecordingStatusUI(data) {
+        if (!data) return;
+
+        const isLive = !!data.is_live_active;
+        const totalOnline = data.online_users ? data.online_users.length : (data.stats ? data.stats.total_online : 0);
+        
+        // Atualiza contador de online no botão do topo
+        const onlineBtnCount = document.getElementById("top-bar-online-count");
+        if (onlineBtnCount) onlineBtnCount.textContent = totalOnline;
+
+        // Monitor Instagram
+        const instaBadge = document.getElementById("header-insta-badge");
+        const instaText = document.getElementById("header-insta-text");
+        const instaBtn = document.getElementById("header-insta-toggle-btn");
+        const instaTime = document.getElementById("header-insta-time");
+
+        if (instaBadge && instaText && instaBtn) {
+            if (!isLive) {
+                instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-gray-400";
+                instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500"></span> Instagram: Desconectado';
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-400 opacity-60";
+                instaBtn.textContent = "Inativo";
+                instaBtn.setAttribute('data-active', 'false');
+            } else if (data.insta_active) {
+                const hasDelay = data.last_insta_msg_sec_ago !== null && data.last_insta_msg_sec_ago > 180;
+                if (hasDelay) {
+                    instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-amber-300";
+                    instaText.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Instagram: Sem msgs (${Math.floor(data.last_insta_msg_sec_ago / 60)}m)`;
+                } else {
+                    instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-emerald-400";
+                    instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Instagram: Gravando';
+                }
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow";
+                instaBtn.textContent = "Parar";
+                instaBtn.setAttribute('data-active', 'true');
+            } else {
+                instaBadge.className = "flex items-center gap-1.5 font-bold text-xs text-red-400";
+                instaText.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Instagram: Parado';
+                instaBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow";
+                instaBtn.textContent = "Gravar";
+                instaBtn.setAttribute('data-active', 'false');
+            }
+
+            if (instaTime) {
+                if (data.last_insta_msg_at) {
+                    instaTime.textContent = `(última: ${data.last_insta_msg_at})`;
+                } else {
+                    instaTime.textContent = '';
+                }
+            }
+        }
+
+        // Monitor TikTok
+        const tiktokBadge = document.getElementById("header-tiktok-badge");
+        const tiktokText = document.getElementById("header-tiktok-text");
+        const tiktokBtn = document.getElementById("header-tiktok-toggle-btn");
+        const tiktokTime = document.getElementById("header-tiktok-time");
+
+        if (tiktokBadge && tiktokText && tiktokBtn) {
+            if (!isLive) {
+                tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-gray-400";
+                tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500"></span> TikTok: Desconectado';
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-gray-700 text-gray-400 opacity-60";
+                tiktokBtn.textContent = "Inativo";
+                tiktokBtn.setAttribute('data-active', 'false');
+            } else if (data.tiktok_active) {
+                const hasDelay = data.last_tiktok_msg_sec_ago !== null && data.last_tiktok_msg_sec_ago > 180;
+                if (hasDelay) {
+                    tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-amber-300";
+                    tiktokText.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> TikTok: Sem msgs (${Math.floor(data.last_tiktok_msg_sec_ago / 60)}m)`;
+                } else {
+                    tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-emerald-400";
+                    tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> TikTok: Gravando';
+                }
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow";
+                tiktokBtn.textContent = "Parar";
+                tiktokBtn.setAttribute('data-active', 'true');
+            } else {
+                tiktokBadge.className = "flex items-center gap-1.5 font-bold text-xs text-red-400";
+                tiktokText.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> TikTok: Parado';
+                tiktokBtn.className = "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow";
+                tiktokBtn.textContent = "Gravar";
+                tiktokBtn.setAttribute('data-active', 'false');
+            }
+
+            if (tiktokTime) {
+                if (data.last_tiktok_msg_at) {
+                    tiktokTime.textContent = `(última: ${data.last_tiktok_msg_at})`;
+                } else {
+                    tiktokTime.textContent = '';
+                }
+            }
+        }
+
+        // Mecanismo de Alerta Automático de Gravação
+        const banner = document.getElementById("recording-alert-banner");
+        const bannerMsg = document.getElementById("recording-alert-message");
+        if (banner) {
+            const isDismissed = Date.now() < recordingAlertDismissedUntil;
+
+            if (isLive && !isDismissed) {
+                const instaIssues = !data.insta_active || (data.last_insta_msg_sec_ago !== null && data.last_insta_msg_sec_ago > 300);
+                const tiktokIssues = !data.tiktok_active || (data.last_tiktok_msg_sec_ago !== null && data.last_tiktok_msg_sec_ago > 300);
+
+                if (instaIssues || tiktokIssues) {
+                    banner.classList.remove("hidden");
+                    let msgs = [];
+                    if (!data.insta_active) {
+                        msgs.push("A gravação do Instagram está parada");
+                    } else if (data.last_insta_msg_sec_ago > 300) {
+                        msgs.push("Instagram sem novas mensagens há " + Math.floor(data.last_insta_msg_sec_ago / 60) + " minutos");
+                    }
+
+                    if (!data.tiktok_active) {
+                        msgs.push("A gravação do TikTok está parada");
+                    } else if (data.last_tiktok_msg_sec_ago > 300) {
+                        msgs.push("TikTok sem novas mensagens há " + Math.floor(data.last_tiktok_msg_sec_ago / 60) + " minutos");
+                    }
+
+                    if (bannerMsg) {
+                        bannerMsg.innerHTML = msgs.join(" • ") + ". Certifique-se de que a aba da live no Google Chrome está aberta com a extensão ativa.";
+                    }
+                } else {
+                    banner.classList.add("hidden");
+                }
+            } else {
+                banner.classList.add("hidden");
+            }
+        }
+    }
+
+    async function toggleInstagramCapture(forceAction) {
+        const btn = document.getElementById("header-insta-toggle-btn");
+        const isCurrentlyActive = btn && btn.getAttribute('data-active') === 'true';
+        const action = forceAction || (isCurrentlyActive ? "stop" : "start");
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i>';
+        }
+
+        try {
+            const res = await fetch("/admin/live-chat/toggle-instagram", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.insta_active ? "Gravação do Instagram Iniciada!" : "Gravação do Instagram Parada!", data.insta_active ? "success" : "info");
+                fetchChatFeed(true);
+            } else {
+                showToast(data.message || "Erro ao alternar gravação do Instagram", "error");
+            }
+        } catch (e) {
+            console.error("Erro toggle Instagram:", e);
+            showToast("Erro ao comunicar com serviço do Instagram", "error");
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function toggleTikTokCapture(forceAction) {
+        const btn = document.getElementById("header-tiktok-toggle-btn");
+        const isCurrentlyActive = btn && btn.getAttribute('data-active') === 'true';
+        const action = forceAction || (isCurrentlyActive ? "stop" : "start");
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i>';
+        }
+
+        try {
+            const res = await fetch("/admin/live-chat/toggle-tiktok", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.tiktok_active ? "Gravação do TikTok Iniciada!" : "Gravação do TikTok Parada!", data.tiktok_active ? "success" : "info");
+                fetchChatFeed(true);
+            } else {
+                showToast(data.message || "Erro ao alternar gravação do TikTok", "error");
+            }
+        } catch (e) {
+            console.error("Erro toggle TikTok:", e);
+            showToast("Erro ao comunicar com serviço do TikTok", "error");
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function startAllCaptures() {
+        showToast("Iniciando gravações de todas as redes...", "info");
+        await Promise.all([
+            toggleInstagramCapture('start'),
+            toggleTikTokCapture('start')
+        ]);
+        const banner = document.getElementById("recording-alert-banner");
+        if (banner) banner.classList.add("hidden");
+    }
+
+    function openCreateLiveModal() {
+        const modal = document.getElementById('modal-open-live');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCreateLiveModal() {
+        const modal = document.getElementById('modal-open-live');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitCreateLive(event) {
+        if (event) event.preventDefault();
+        const btn = document.getElementById('btn-submit-open-live');
+        const tipoLive = document.getElementById('open-live-type') ? document.getElementById('open-live-type').value : 'loja-aberta';
+        const plataformas = Array.from(document.querySelectorAll('.open-live-platform:checked')).map(cb => cb.value);
+
+        if (plataformas.length === 0) {
+            alert('Selecione pelo menos uma plataforma para transmitir!');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1 text-white"></i> Criando Live...';
+        }
+
+        try {
+            const res = await fetch('/lives', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    tipo_live: tipoLive,
+                    plataformas: plataformas
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.live) {
+                showToast('Live #' + data.live.id + ' aberta! Captura automática iniciada.', 'success');
+                window.location.href = '/admin/live-chat/feed?live_id=' + data.live.id;
+            } else {
+                alert(data.message || 'Erro ao abrir live');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-play text-white"></i> Iniciar Live e Gravação';
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao abrir live:', e);
+            alert('Erro ao conectar ao servidor para abrir a live.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play text-white"></i> Iniciar Live e Gravação';
+            }
+        }
+    }
+
+    function openCloseLiveModal() {
+        if (!liveId) {
+            alert('Nenhuma live ativa no momento para encerrar.');
+            return;
+        }
+        const modal = document.getElementById('modal-close-live');
+        const countEl = document.getElementById('close-live-msgs-count');
+        if (countEl) countEl.textContent = allLiveMessages ? allLiveMessages.length : 0;
+        const onlineEl = document.getElementById('close-live-online-count');
+        if (onlineEl) onlineEl.textContent = rawOnlineUsers ? rawOnlineUsers.length : 0;
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCloseLiveModal() {
+        const modal = document.getElementById('modal-close-live');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitCloseLive(enviarWhatsapp) {
+        if (!liveId) return;
+
+        const actionText = enviarWhatsapp 
+            ? "Tem certeza que deseja ENCERRAR a live e DISPARAR as cobranças no WhatsApp?"
+            : "Tem certeza que deseja ENCERRAR a live SEM enviar mensagens no WhatsApp?";
+
+        if (!confirm(actionText)) return;
+
+        const btnWithZap = document.getElementById('btn-close-live-zap');
+        const btnNoZap = document.getElementById('btn-close-live-nozap');
+
+        if (btnWithZap) {
+            btnWithZap.disabled = true;
+            btnWithZap.innerHTML = '<div class="p-2 text-center text-white"><i class="fas fa-spinner fa-spin mr-1"></i> Encerrando e enfileirando cobranças...</div>';
+        }
+        if (btnNoZap) btnNoZap.disabled = true;
+
+        try {
+            const res = await fetch(`/lives/${liveId}?enviar_whatsapp=${enviarWhatsapp ? 1 : 0}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Live encerrada com sucesso! As gravações foram paradas automaticamente.');
+                window.location.reload();
+            } else {
+                alert(data.error || data.message || 'Erro ao encerrar a live');
+                if (btnWithZap) btnWithZap.disabled = false;
+                if (btnNoZap) btnNoZap.disabled = false;
+            }
+        } catch (e) {
+            console.error('Erro ao encerrar live:', e);
+            alert('Erro de comunicação ao encerrar a live.');
+            if (btnWithZap) btnWithZap.disabled = false;
+            if (btnNoZap) btnNoZap.disabled = false;
+        }
+    }
+
+    function openOnlineUsersModal() {
+        const modal = document.getElementById('modal-online-people');
+        if (modal) {
+            modal.classList.remove('hidden');
+            renderOnlineUsersInModal();
+            const searchInput = document.getElementById('online-modal-search-input');
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 150);
+            }
+        }
+    }
+
+    function closeOnlineUsersModal() {
+        const modal = document.getElementById('modal-online-people');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function filterOnlineUsersModal(query) {
+        renderOnlineUsersInModal(query);
+    }
+
+    function renderOnlineUsersInModal(filterText = '') {
+        const container = document.getElementById('online-modal-users-list');
+        if (!container) return;
+
+        const term = (filterText || '').trim().toLowerCase().replace(/^@/, '');
+        const users = (rawOnlineUsers || []).filter(u => {
+            if (!term) return true;
+            const uName = (u.username || '').toLowerCase();
+            const cName = (u.user_name || '').toLowerCase();
+            const aName = (u.user_apelido || '').toLowerCase();
+            return uName.includes(term) || cName.includes(term) || aName.includes(term);
+        });
+
+        if (users.length === 0) {
+            container.innerHTML = `
+                <div class="py-12 text-center text-slate-500">
+                    <i class="fas fa-users-slash text-3xl mb-2 text-slate-400"></i>
+                    <p class="text-sm font-black text-slate-700">Nenhum participante encontrado</p>
+                    <p class="text-xs text-slate-500 mt-1">${term ? 'Nenhum usuário corresponde à busca "' + escapeHtml(filterText) + '"' : 'Nenhuma cliente comentou ainda nesta transmissão.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        users.forEach(u => {
+            const platformBadge = u.plataforma === 'tiktok'
+                ? `<span class="bg-black text-cyan-400 text-[10px] font-black px-2 py-0.5 rounded border border-gray-700 flex items-center gap-1"><i class="fab fa-tiktok"></i> TikTok</span>`
+                : `<span class="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1"><i class="fab fa-instagram"></i> Instagram</span>`;
+
+            const clientNameDisplay = u.user_name || u.user_apelido || '';
+            const isLinked = !!u.user_id;
+            const safeUsername = (u.username || '').replace(/'/g, "\\'");
+            const safeDisplayName = (clientNameDisplay || u.username || '').replace(/'/g, "\\'");
+
+            html += `
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-indigo-50/50 border border-slate-200 transition shadow-sm gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-sm shrink-0 shadow overflow-hidden ${u.plataforma === 'tiktok' ? 'bg-zinc-800' : 'bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600'}">
+                            ${u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : (u.username ? u.username.charAt(0).toUpperCase() : '?')}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <strong class="text-sm font-black text-slate-900 truncate">@${escapeHtml(u.username)}</strong>
+                                ${platformBadge}
+                            </div>
+                            <div class="text-xs text-slate-600 mt-0.5 flex items-center gap-2 truncate">
+                                ${isLinked 
+                                    ? `<span class="text-emerald-700 font-bold flex items-center gap-1"><i class="fas fa-check-circle text-[11px]"></i> ${escapeHtml(clientNameDisplay)}</span>` 
+                                    : `<span class="text-amber-800 font-bold bg-amber-100 px-1.5 py-0.5 rounded text-[10px]">Não vinculado</span>`
+                                }
+                                <span class="text-slate-400">&bull;</span>
+                                <span class="text-slate-500 font-semibold">${u.total_msgs || 0} msgs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="shrink-0 flex items-center gap-2">
+                        <button type="button" onclick="closeOnlineUsersModal(); openOnlineQrModal('${u.user_id || ''}', '${safeUsername}', '${safeDisplayName}')" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                            <i class="fas fa-barcode"></i> Bipar / Sacola
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function openHelpCaptureModal() {
+        const modal = document.getElementById('modal-help-capture');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeHelpCaptureModal() {
+        const modal = document.getElementById('modal-help-capture');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // =========================================================================
+    // UTILITÁRIOS
+    // =========================================================================
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function safeAttr(str) {
+        if (!str) return '';
+        return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+</script>
+@endpush

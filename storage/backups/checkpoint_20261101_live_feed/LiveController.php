@@ -1,0 +1,1009 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Live; 
+use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Jobs\SendWhatsAppMessage;
+use Carbon\Carbon;
+
+
+class LiveController extends Controller
+{
+    /**
+     * Buscar live ativa
+     */
+    public function index()
+    {
+        try {
+            $query = DB::table('lives')->where('ativo', 1);
+
+            if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+                $query->where('brecho_id', auth()->user()->brecho_id);
+            }
+
+            $live = $query->orderBy('created_at', 'desc')->first();
+            
+            if (!$live) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Nenhuma live ativa no momento',
+                    'live' => null,
+                    'live_id' => null,
+                    'has_active_live' => false
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'live_id' => $live->id,
+                'live' => $live,
+                'has_active_live' => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao buscar live ativa: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao buscar live ativa: ' . $e->getMessage(),
+                'has_active_live' => false
+            ], 500);
+        }
+    }
+
+    /**
+     * Criar nova live
+     */
+    public function store(Request $request)
+    {
+        try {
+            $request->validate([
+                'plataformas.*' => 'string|in:instagram,tiktok,youtube,facebook'
+            ]);
+
+            $brechoId = (auth()->check() && !empty(auth()->user()->brecho_id))
+                ? auth()->user()->brecho_id
+                : ($request->input('brecho_id') ?: 1);
+
+            // Verificar se já existe uma live ativa para este brechó
+            $liveAtiva = DB::table('lives')
+                ->where('ativo', 1)
+                ->where('brecho_id', $brechoId)
+                ->first();
+            
+            if ($liveAtiva) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Já existe uma live ativa para este brechó. Encerre-a antes de criar uma nova.'
+                ], 400);
+            }
+
+            // Criar nova live
+            $liveId = DB::table('lives')->insertGetId([
+                'brecho_id' => $brechoId,
+                'data' => now()->format('Y-m-d'),
+                'tipo_live' => $request->tipo_live,
+                'plataformas' => implode(',', $request->plataformas),
+                'ativo' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Reativa captura do chat
+            Cache::forget('live_capture_paused');
+            Cache::forget('instagram_capture_stopped');
+            Cache::forget('tiktok_capture_stopped');
+            Cache::put('insta_capture_active', true, 86400);
+            Cache::put('tiktok_capture_active', true, 86400);
+
+            // Tenta iniciar a captura automática nos serviços de background (Node)
+            try {
+                \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3002/connect', ['username' => 'de_minha_mania']);
+            } catch (\Throwable $e) {}
+            try {
+                \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3001/connect', ['username' => '_minhamania']);
+            } catch (\Throwable $e) {}
+
+            $live = DB::table('lives')->where('id', $liveId)->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Live criada com sucesso!',
+                'live' => $live
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar live: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar live: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+	/**
+	 * Encerrar live com validação de telefones e logs aprimorados
+	 */
+    public function destroy($id)
+    {
+        $liveId = (int) $id;
+		$enviarWhatsapp = (int) request()->query('enviar_whatsapp', 1) === 1;
+
+        // 1) Valida live e pega clientes
+        DB::beginTransaction();
+
+        try {
+            $live = DB::table('lives')
+                ->where('id', $liveId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$live || (int)$live->ativo !== 1) {
+                DB::rollBack();
+                return response()->json(['error' => 'Live não encontrada ou já encerrada'], 404);
+            }
+
+            $clientesIds = DB::table('sacolinhas')
+                ->where('live_id', $liveId)
+                ->distinct()
+                ->pluck('user_id');
+
+            if ($clientesIds->isEmpty()) {
+                DB::table('lives')->where('id', $liveId)->update([
+                    'ativo' => 0,
+                    'encerrada_em' => now(),
+                    'updated_at' => now(),
+                ]);
+                $this->pararCapturasLive();
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Live encerrada com sucesso (nenhuma sacolinha para processar).',
+                    'pdfs_ok' => 0,
+                    'jobs_enfileirados' => 0
+                ]);
+            }
+
+            DB::commit();
+			
+			// ✅ Se escolheu encerrar SEM envio: não gera PDF e não enfileira jobs
+			if (!$enviarWhatsapp) {
+				try {
+					DB::table('lives')->where('id', $liveId)->update([
+						'ativo' => 0,
+						'encerrada_em' => now(),
+						'updated_at' => now(),
+					]);
+					$this->pararCapturasLive();
+
+					Log::info('Live encerrada SEM envio WhatsApp (sem gerar PDF)', [
+						'live_id' => $liveId,
+						'clientes' => $clientesIds->count(),
+					]);
+
+					return response()->json([
+						'success' => true,
+						'message' => 'Live encerrada sem envio de mensagens.',
+						'pdfs_ok' => 0,
+						'jobs_enfileirados' => 0,
+					]);
+				} catch (\Throwable $e) {
+					Log::error('Erro ao encerrar live (sem envio): ' . $e->getMessage(), ['live_id' => $liveId]);
+					return response()->json(['error' => $e->getMessage()], 500);
+				}
+			}			
+			
+			
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Erro Destroy (pré): ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+
+        // 2) Fora da transação: gera PDFs e grava/atualiza live_pdfs
+        $clientesComPdf = [];
+        foreach ($clientesIds as $clienteId) {
+            $clienteId = (int) $clienteId;
+
+            try {
+                $pdfInfo = $this->gerarPdfSacolinhaLiveSalvar($clienteId, $liveId); // retorna ['path','url']
+
+                // updateOrInsert na sua tabela real
+                DB::table('live_pdfs')->updateOrInsert(
+                    ['live_id' => $liveId, 'user_id' => $clienteId],
+                    [
+                        'pdf_path' => $pdfInfo['path'],
+                        'pdf_url'  => $pdfInfo['url'],
+                        'status'   => 'ready',
+                        'sent_at'  => null,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+
+                $clientesComPdf[] = $clienteId;
+            } catch (\Throwable $e) {
+                Log::error('Erro PDF', [
+                    'live_id' => $liveId,
+                    'user_id' => $clienteId,
+                    'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // 3) Enfileira WhatsApp para todos os clientes da live
+        $jobsEnfileirados = 0;
+        $delay = 0;
+        $clientesSemTelefone = [];
+
+        foreach ($clientesIds as $clienteId) {
+            $user = DB::table('users')->where('id', $clienteId)->first();
+            if (!$user) {
+                Log::warning('Usuário não encontrado para envio WhatsApp', [
+                    'live_id' => $liveId,
+                    'user_id' => $clienteId,
+                ]);
+                continue;
+            }
+
+            $rawTelefone = $user->whatsapp ?: ($user->phone ?: ($user->telefone_principal ?: $user->telefone_2));
+            $cleanPhone = preg_replace('/\D/', '', (string) $rawTelefone);
+
+            if (empty($cleanPhone) || strlen($cleanPhone) < 8) {
+                $clientesSemTelefone[] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'username' => $user->instagram ?: ($user->tiktok ?: $user->apelido)
+                ];
+                Log::warning('Sem telefone para envio WhatsApp', [
+                    'live_id' => $liveId,
+                    'user_id' => $clienteId,
+                    'user_name' => $user->name,
+                ]);
+                DB::table('whatsapp_messages')->insert([
+                    'user_id' => $clienteId,
+                    'live_id' => $liveId,
+                    'direction' => 'outbound',
+                    'status' => 'failed',
+                    'message_type' => 'first',
+                    'failed_reason' => 'Sem telefone cadastrado',
+                    'retry_count' => 0,
+                    'status_updated_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                continue;
+            }
+
+            // Enfileira mensagem WhatsApp
+            SendWhatsAppMessage::dispatch($cleanPhone, $liveId, $clienteId, 'first')
+                ->onQueue('whatsapp')
+                ->delay(now()->addSeconds($delay));
+
+            Log::info('Job WhatsApp enfileirado', [
+                'live_id' => $liveId,
+                'user_id' => $clienteId,
+                'telefone' => $cleanPhone,
+                'delay' => $delay,
+            ]);
+
+            $jobsEnfileirados++;
+            $delay++;
+        }
+
+        // Se for brechó parceiro, atribui automaticamente as conversas ao operador deste brechó
+        $brechoId = $live->brecho_id ?? 1;
+        if ($brechoId > 1) {
+            $brechoAdmin = DB::table('users')
+                ->where('brecho_id', $brechoId)
+                ->where(function ($q) {
+                    $q->where('role', 'brecho_admin')
+                      ->orWhere('is_admin', 1);
+                })
+                ->first();
+
+            if ($brechoAdmin) {
+                foreach ($clientesIds as $cId) {
+                    DB::table('chat_assignments')->updateOrInsert(
+                        ['user_id' => (int) $cId],
+                        [
+                            'assigned_admin_id' => $brechoAdmin->id,
+                            'assigned_by_admin_id' => auth()->id() ?: $brechoAdmin->id,
+                            'assigned_at' => now(),
+                            'expires_at' => now()->addHours(24),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
+            }
+        }
+
+        // 4) Encerra a live (agora de fato)
+        try {
+            DB::table('lives')->where('id', $liveId)->update([
+                'ativo' => 0,
+                'encerrada_em' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->pararCapturasLive();
+
+            Log::info('Live encerrada com sucesso', [
+                'live_id' => $liveId,
+                'pdfs_ok' => count($clientesComPdf),
+                'jobs_enfileirados' => $jobsEnfileirados,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Erro ao encerrar live (update): ' . $e->getMessage(), ['live_id' => $liveId]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+
+        $mensagemRetorno = 'Live encerrada com sucesso!';
+        if ($jobsEnfileirados > 0) {
+            $mensagemRetorno .= " {$jobsEnfileirados} WhatsApp(s) enfileirado(s).";
+        }
+        if (count($clientesSemTelefone) > 0) {
+            $nomes = implode(', ', array_map(fn($c) => $c['name'], $clientesSemTelefone));
+            $mensagemRetorno .= " Atenção: Clientes sem WhatsApp cadastrado ({$nomes}).";
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $mensagemRetorno,
+            'pdfs_ok' => count($clientesComPdf),
+            'jobs_enfileirados' => $jobsEnfileirados,
+            'clientes_sem_telefone' => $clientesSemTelefone
+        ]);
+    }
+
+    /**
+     * Pausa e desconecta a captura automática de chats ao encerrar a live
+     */
+    private function pararCapturasLive()
+    {
+        Cache::put('live_capture_paused', true, 86400);
+        Cache::put('instagram_capture_stopped', true, 86400);
+        Cache::put('tiktok_capture_stopped', true, 86400);
+        Cache::put('insta_capture_active', false);
+        Cache::put('tiktok_capture_active', false);
+
+        try {
+            \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3002/disconnect');
+        } catch (\Throwable $e) {}
+        try {
+            \Illuminate\Support\Facades\Http::timeout(2)->post('http://172.17.0.1:3001/disconnect');
+        } catch (\Throwable $e) {}
+    }
+
+
+    // ✅ NOVO MÉTODO PARA ENVIAR MENSAGENS VIA JOBS
+   /* private function enviarMensagensWhatsApp($clientesIds, $liveId)
+    {
+        $jobsEnfileirados = 0;
+        $delaySegundos = 0;
+        
+        foreach ($clientesIds as $userId) {
+            // Buscar telefone do usuário
+            $user = DB::table('users')->where('id', $userId)->first();
+            
+            if (!$user) {
+                continue;
+            }
+            
+            // Priorizar: whatsapp > telefone_principal > phone
+            $telefone = $user->whatsapp ?: $user->telefone_principal ?: $user->phone;
+            
+            if (empty($telefone)) {
+                Log::warning('Telefone vazio para usuário', [
+                    'user_id' => $userId,
+                    'live_id' => $liveId
+                ]);
+                continue;
+            }
+            
+            // Formatar telefone
+            $telefoneFormatado = $this->formatarTelefoneE164($telefone);
+            
+            if (!$telefoneFormatado) {
+                Log::warning('Telefone inválido para usuário', [
+                    'user_id' => $userId,
+                    'live_id' => $liveId,
+                    'telefone' => $telefone
+                ]);
+                continue;
+            }
+            
+            // Enfileirar job
+            SendWhatsAppMessage::dispatch(
+                $telefoneFormatado,
+                $liveId,
+                $userId
+            )->onQueue('whatsapp')->delay(now()->addSeconds($delaySegundos));
+            
+            $jobsEnfileirados++;
+            $delaySegundos++; // Rate limit: 1 envio por segundo
+        }
+        
+        Log::info('Jobs de WhatsApp enfileirados', [
+            'live_id' => $liveId,
+            'jobs_enfileirados' => $jobsEnfileirados
+        ]);
+    }
+
+    private function formatarTelefoneE164($telefone)
+    {
+        // Remover todos os caracteres não numéricos
+        $telefone = preg_replace('/\D/', '', $telefone);
+        
+        // Verificar se é um telefone brasileiro válido
+        if (strlen($telefone) === 11 && substr($telefone, 0, 2) === '55') {
+            return '+' . $telefone;
+        }
+        
+        if (strlen($telefone) === 11) {
+            return '+55' . $telefone;
+        }
+        
+        if (strlen($telefone) === 10) {
+            $telefone = substr($telefone, 0, 2) . '9' . substr($telefone, 2);
+            return '+55' . $telefone;
+        }
+        
+        return false;
+    }
+*/
+
+	public function gerarPdfSacolinhaLiveSalvar(int $clienteId, int $liveId): array
+	{
+		$cliente = User::findOrFail($clienteId);
+
+		// ✅ APENAS sacolinhas da live (igual ao imprimirSacolinha, mas com filtro da live)
+		$itensSacolinha = DB::table('sacolinhas')
+			->join('items', 'sacolinhas.item_id', '=', 'items.id')
+			->where('sacolinhas.user_id', $clienteId)
+			->where('sacolinhas.live_id', $liveId)
+			->select(
+				'items.codigo',
+				'items.nome_do_produto',
+				'sacolinhas.price',
+				'items.marca',
+				'items.estado',
+				'items.cor',
+				'items.tamanho',
+				'sacolinhas.add_at',
+				'sacolinhas.obs'
+			)
+			->get();
+
+		if ($itensSacolinha->count() === 0) {
+			throw new \RuntimeException('Nenhum item encontrado na sacolinha desta live');
+		}
+
+		$valorTotal = (float) $itensSacolinha->sum('price');
+		$totalItens = (int) $itensSacolinha->count();
+
+		$liveRow = DB::table('lives')->where('id', $liveId)->first();
+		$brechoNome = 'Sacolinha Mania';
+		$isPartnerBrecho = false;
+		if ($liveRow && !empty($liveRow->brecho_id) && $liveRow->brecho_id > 1) {
+			$brechoNome = DB::table('brechos')->where('id', $liveRow->brecho_id)->value('nome') ?? $brechoNome;
+			$isPartnerBrecho = true;
+		}
+
+		// Logo (não exibe o logo da Minha Mania se o brechó for parceiro)
+		$logoPath = public_path('images/LogoColorida sem fundo.png');
+		$logoDataUri = null;
+
+		if (!$isPartnerBrecho && file_exists($logoPath)) {
+			$logoMime = mime_content_type($logoPath) ?: 'image/png';
+			$logoBase64 = base64_encode(file_get_contents($logoPath));
+			$logoDataUri = "data:{$logoMime};base64,{$logoBase64}";
+		}
+
+		// ✅ HTML IGUAL ao imprimirSacolinha (com live_id no título opcional)
+		$html = '
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="UTF-8">
+			<title>Sacolinha - ' . htmlspecialchars($cliente->name) . '</title>
+			<style>
+			  body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+			  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+			  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+			  th { background: #f0f0f0; font-weight: bold; }
+			  .header { margin-bottom: 20px; }
+			  .header-grid { width: 100%; border-collapse: collapse; }
+			  .header-grid, .header-grid td, .header-grid th { border: none !important; }
+			  .header-grid td { padding: 0 !important; }
+			  .header-grid { width: 100%; }
+			  .logo-cell { width: 120px; vertical-align: top; }
+			  .logo { height: 60px; }
+			  .title-cell { text-align: center; vertical-align: top; }
+			  .title-cell h1 { margin: 0 0 6px 0; }
+			  .title-cell p { margin: 3px 0; }
+			  .total { background: #e8f4fd; font-weight: bold; }
+			  .preco { text-align: right; }
+			</style>
+		</head>
+		<body>
+			<div class="header">
+			  <table class="header-grid">
+				<tr>
+				  <td class="logo-cell">
+					' . ($logoDataUri ? '<img class="logo" src="' . $logoDataUri . '" />' : '') . '
+				  </td>
+				  <td class="title-cell">
+					<h1>' . htmlspecialchars($brechoNome) . '</h1>
+					<p><strong>Cliente:</strong> ' . htmlspecialchars($cliente->name) . '</p>
+					<p><strong>Live:</strong> #' . (int)$liveId . '</p>
+					<p><strong>Data:</strong> ' . date('d/m/Y H:i:s') . '</p>
+					<p><strong>Total de Itens:</strong> ' . $totalItens . '</p>
+					<p><strong>Valor Total:</strong> R$ ' . number_format($valorTotal, 2, ',', '.') . '</p>
+				  </td>
+				  <td style="width:120px;"></td>
+				</tr>
+			  </table>
+			</div>
+
+			<table>
+				<thead>
+					<tr>
+						<th>Código</th>
+						<th>Produto</th>
+						<th>Detalhes</th>
+						<th class="preco">Preço</th>
+						<th>Dia da Live</th>
+					</tr>
+				</thead>
+				<tbody>';
+
+		foreach ($itensSacolinha as $item) {
+			$detalhes = [];
+			if (!empty($item->marca))  $detalhes[] = $item->marca;
+			if (!empty($item->estado)) $detalhes[] = $item->estado;
+			if (!empty($item->cor))    $detalhes[] = $item->cor;
+			if (!empty($item->tamanho)) $detalhes[] = 'Tam: ' . $item->tamanho;
+
+			// ✅ inclui OBS (se existir)
+			if (!empty($item->obs)) {
+				$detalhes[] = 'Obs: ' . $item->obs;
+			}
+
+			$html .= '<tr>
+				<td>' . htmlspecialchars($item->codigo ?? 'N/A') . '</td>
+				<td><strong>' . htmlspecialchars($item->nome_do_produto ?? '') . '</strong></td>
+				<td>' . htmlspecialchars(implode(' • ', $detalhes)) . '</td>
+				<td class="preco">R$ ' . number_format((float)$item->price, 2, ',', '.') . '</td>
+				<td>' . \Carbon\Carbon::parse($item->add_at)->format('d/m/Y') . '</td>
+			</tr>';
+		}
+
+		$html .= '
+				</tbody>
+				<tfoot>
+					<tr class="total">
+						<td colspan="3"><strong>TOTAL GERAL:</strong></td>
+						<td class="preco"><strong>R$ ' . number_format($valorTotal, 2, ',', '.') . '</strong></td>
+						<td></td>
+					</tr>
+				</tfoot>
+			</table>
+		</body>
+		</html>';
+
+		$pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+
+		$relativePath = "pedidos/live_{$liveId}/pedido_cliente_{$clienteId}.pdf";
+		Storage::disk('public')->put($relativePath, $pdf->output());
+
+		$url = asset("storage/{$relativePath}");
+
+		return [
+			'path' => $relativePath,
+			'url' => $url,
+		];
+	}	
+	
+	
+
+    /**
+     * Obter todas as lives
+     */
+    public function getAllLives()
+    {
+        $query = Live::query();
+
+        if (auth()->check() && !empty(auth()->user()->brecho_id) && !in_array(auth()->user()->role ?? '', ['admin_master'])) {
+            $query->where('brecho_id', auth()->user()->brecho_id);
+        }
+
+        $lives = $query->orderBy('created_at', 'desc')->get();
+
+        $formattedLives = $lives->map(function ($live) {
+            $live->status = $live->ativo ? 'ativa' : 'encerrada';
+            return $live;
+        });
+
+        return response()->json(['success' => true, 'data' => $formattedLives])
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With, Authorization, X-CSRF-Token');
+    }
+
+    /**
+     * Exibir visão de sacolas da live
+     */
+    public function showLiveBagsOverview()
+    {
+        return view('admin.sacolinhas.live');
+    }
+
+    /**
+     * Buscar usuários
+     */
+	public function search(Request $request)
+	{
+		try {
+			$query = $request->get('q', '');
+			$role = $request->get('role', 'client');
+			
+			if (empty($query)) {
+				return response()->json(['success' => true, 'data' => []]);
+			}
+			
+			$usersQuery = User::where('role', $role);
+
+			$isParceiro = auth()->check() && auth()->user()->isBrechoParceiro();
+			$brechoId = $isParceiro ? auth()->user()->brecho_id : 1;
+
+			$liveType = $request->get('live_type');
+			if (empty($liveType) && $isParceiro) {
+				$activeLive = DB::table('lives')
+					->where('ativo', 1)
+					->where('brecho_id', $brechoId)
+					->first();
+				if ($activeLive) {
+					$liveType = $activeLive->tipo_live;
+				}
+			}
+
+			$isColaborativa = in_array($liveType, ['colaborativa', 'live-colaborativa']);
+
+			// Se for parceiro e NÃO for live colaborativa, restringe aos clientes do brechó
+			if ($isParceiro && !$isColaborativa) {
+				$usersQuery->whereExists(function ($sub) use ($brechoId) {
+					$sub->select(DB::raw(1))
+						->from('brecho_clientes')
+						->whereColumn('brecho_clientes.user_id', 'users.id')
+						->where('brecho_clientes.brecho_id', $brechoId);
+				});
+			}
+
+			$rawQuery = trim($query);
+			$cleanWithoutAt = ltrim($rawQuery, '@');
+			$onlyDigits = preg_replace('/\D/', '', $rawQuery);
+			$words = array_filter(explode(' ', $cleanWithoutAt), fn($w) => mb_strlen(trim($w)) >= 2);
+
+			$users = $usersQuery
+				->where(function($q) use ($rawQuery, $cleanWithoutAt, $onlyDigits, $words) {
+					$searchTerm = "%{$rawQuery}%";
+					
+					// Dados pessoais
+					$q->where('name', 'LIKE', $searchTerm)
+					  ->orWhere('nome_cliente', 'LIKE', $searchTerm)
+					  ->orWhere('email', 'LIKE', $searchTerm)
+					  ->orWhere('apelido', 'LIKE', $searchTerm)
+					  ->orWhere('instagram', 'LIKE', $searchTerm)
+					  ->orWhere('tiktok', 'LIKE', $searchTerm);
+					  
+					if ($cleanWithoutAt !== $rawQuery) {
+						$cleanTerm = "%{$cleanWithoutAt}%";
+						$q->orWhere('name', 'LIKE', $cleanTerm)
+						  ->orWhere('nome_cliente', 'LIKE', $cleanTerm)
+						  ->orWhere('apelido', 'LIKE', $cleanTerm)
+						  ->orWhere('instagram', 'LIKE', $cleanTerm)
+						  ->orWhere('tiktok', 'LIKE', $cleanTerm);
+					}
+					
+					if (!empty($onlyDigits)) {
+						$q->orWhere('whatsapp', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('phone', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('telefone_principal', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('cpf', 'LIKE', "%{$onlyDigits}%")
+						  ->orWhere('codigo_cliente', 'LIKE', "%{$onlyDigits}%");
+					}
+
+					if (count($words) > 1) {
+						$q->orWhere(function($subQ) use ($words) {
+							foreach ($words as $w) {
+								$subQ->where(function($wQ) use ($w) {
+									$wQ->where('name', 'LIKE', "%{$w}%")
+									   ->orWhere('nome_cliente', 'LIKE', "%{$w}%")
+									   ->orWhere('apelido', 'LIKE', "%{$w}%");
+								});
+							}
+						});
+					}
+					
+					// Buscar por ID se for número
+					if (is_numeric($rawQuery)) {
+						$q->orWhere('id', (int) $rawQuery);
+					}
+				})
+				->limit(10)
+				->get();
+
+			// ✅ CONSTRUIR ARRAY COM TODOS OS CAMPOS
+			$usersArray = [];
+			foreach ($users as $user) {
+				$origemBadge = null;
+				if ($isParceiro && $isColaborativa) {
+					$vinculado = DB::table('brecho_clientes')
+						->where('user_id', $user->id)
+						->where('brecho_id', $brechoId)
+						->exists();
+					$origemBadge = $vinculado ? 'Taco Balaio' : 'Minha Mania';
+				}
+
+				$usersArray[] = [
+					'id' => $user->id,
+					'name' => $user->name,
+					'email' => $user->email,
+					'apelido' => $user->apelido,
+					'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
+					'origem_badge' => $origemBadge,
+					
+					// ✅ CAMPOS NOVOS
+					'instagram' => $user->instagram,
+					'tiktok' => $user->tiktok,
+					'whatsapp' => $user->whatsapp,
+					
+					// ✅ CAMPOS ANTIGOS (para compatibilidade)
+					'remember_token' => $user->remember_token,
+					'nome_cliente' => $user->nome_cliente,
+					'phone' => $user->phone
+				];
+			}
+
+			return response()->json([
+				'success' => true,
+				'data' => $usersArray,
+				'search_term' => $query
+			]);
+
+		} catch (\Exception $e) {
+			Log::error("Erro na busca: " . $e->getMessage());
+			
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro na busca'
+			], 500);
+		}
+	}
+
+
+    /**
+     * Criar novo cliente com dados básicos
+     */
+    public function quickCreate(Request $request)
+    {
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'phone' => 'nullable|string',
+                'whatsapp' => 'nullable|string',
+                'instagram' => 'nullable|string',
+                'tiktok' => 'nullable|string',
+                'apelido' => 'nullable|string',
+            ]);
+
+            $name = trim($request->input('name'));
+            $rawPhone = $request->input('whatsapp') ?: $request->input('phone');
+            $cleanPhone = $rawPhone ? preg_replace('/\D/', '', $rawPhone) : null;
+            
+            // Gerar email temporário único
+            $emailBase = strtolower(str_replace(' ', '.', $name));
+            $emailBase = preg_replace('/[^a-z0-9.]/', '', $emailBase);
+            $timestamp = time();
+            $email = "{$emailBase}.{$timestamp}@temp.cliente.com";
+            
+            // Criar novo cliente com dados padronizados
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'phone' => $cleanPhone,
+                'whatsapp' => $cleanPhone,
+                'instagram' => $request->input('instagram') ? trim($request->input('instagram')) : null,
+                'tiktok' => $request->input('tiktok') ? trim($request->input('tiktok')) : null,
+                'apelido' => $request->input('apelido') ? trim($request->input('apelido')) : null,
+                'role' => 'client',
+                'password' => bcrypt('temp123'),
+                'email_verified_at' => null,
+            ]);
+
+            // Se for parceiro, vincula à loja
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                DB::table('brecho_clientes')->insertOrIgnore([
+                    'brecho_id' => auth()->user()->brecho_id,
+                    'user_id' => $user->id,
+                    'origem' => 'live_quick_create',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            Log::info("Novo cliente criado via busca rápida: {$user->name} (ID: {$user->id})");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente criado com sucesso!',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'whatsapp' => $user->whatsapp,
+                    'email' => $user->email,
+                    'avatar_url' => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&size=40",
+                    'created_now' => true
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar cliente rápido: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+			
+			
+	public function sendFirstToClient($liveId, $userId)
+	{
+		$liveId = (int) $liveId;
+		$userId = (int) $userId;
+
+		// 1) valida live (SEM exigir ativo=1; pode ser encerrada)
+		$live = DB::table('lives')->where('id', $liveId)->first();
+		if (!$live) {
+			return response()->json(['success' => false, 'message' => 'Live não encontrada'], 404);
+		}
+
+		// 2) valida se esse cliente tem sacolinha nessa live (recomendado)
+		$temSacola = DB::table('sacolinhas')
+			->where('live_id', $liveId)
+			->where('user_id', $userId)
+			->exists();
+
+		if (!$temSacola) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Esse cliente não possui sacolinha nesta live.'
+			], 404);
+		}
+
+		// 3) garante PDF ready (igual Encerrar Live)
+		try {
+			$pdfRow = DB::table('live_pdfs')
+				->where('live_id', $liveId)
+				->where('user_id', $userId)
+				->first();
+
+			if (!$pdfRow || $pdfRow->status !== 'ready') {
+				$pdfInfo = $this->gerarPdfSacolinhaLiveSalvar($userId, $liveId); // ['path','url']
+
+				DB::table('live_pdfs')->updateOrInsert(
+					['live_id' => $liveId, 'user_id' => $userId],
+					[
+						'pdf_path' => $pdfInfo['path'],
+						'pdf_url'  => $pdfInfo['url'],
+						'status'   => 'ready',
+						'sent_at'  => null,
+						'updated_at' => now(),
+						'created_at' => now(),
+					]
+				);
+			}
+		} catch (\Throwable $e) {
+			Log::error('Erro ao gerar/registrar PDF (envio individual)', [
+				'live_id' => $liveId,
+				'user_id' => $userId,
+				'erro' => $e->getMessage(),
+			]);
+
+			return response()->json([
+				'success' => false,
+				'message' => 'Erro ao gerar PDF deste cliente.'
+			], 500);
+		}
+
+		// 4) pega usuário + telefone (mesma regra do Encerrar Live)
+		$user = DB::table('users')->where('id', $userId)->first();
+		if (!$user) {
+			return response()->json(['success' => false, 'message' => 'Usuário não encontrado'], 404);
+		}
+
+		$telefone = $user->whatsapp ?? $user->telefone_principal ?? $user->telefone_2;
+		if (!$telefone) {
+			Log::warning('Sem telefone para envio individual', [
+				'live_id' => $liveId,
+				'user_id' => $userId,
+			]);
+
+			DB::table('whatsapp_messages')->insert([
+				'user_id' => $userId,
+				'live_id' => $liveId,
+				'direction' => 'outbound',
+				'status' => 'failed',
+				'message_type' => 'first',
+				'failed_reason' => 'Sem telefone cadastrado',
+				'retry_count' => 0,
+				'status_updated_at' => now(),
+				'created_at' => now(),
+				'updated_at' => now(),
+			]);
+
+			return response()->json([
+				'success' => false,
+				'message' => 'Cliente sem telefone cadastrado.'
+			], 422);
+		}
+
+		// Checagem de duplicidade (Msg1)
+		$jaEnviouMsg1 = DB::table('whatsapp_messages')
+			->where('live_id', $liveId)
+			->where('user_id', $userId)
+			->where('direction', 'outbound')
+			->where('message_type', 'first')
+			->whereIn('status', ['queued', 'sent', 'delivered']) // ajuste para os seus status reais
+			->exists();
+
+		if ($jaEnviouMsg1) {
+			return response()->json([
+				'success' => false,
+				'already_sent' => true,
+				'message' => 'A Msg1 já foi enviada para este cliente. Não vou reenviar.'
+			], 200);
+		}
+
+		// 5) dispara o mesmo job do Encerrar Live
+		SendWhatsAppMessage::dispatch($telefone, $liveId, $userId, 'first')
+			->onQueue('whatsapp');
+
+		// Se for brechó parceiro, atribui conversa no chat ao operador deste brechó
+		$liveBrechoId = $live->brecho_id ?? 1;
+		if ($liveBrechoId > 1) {
+			$brechoAdmin = DB::table('users')
+				->where('brecho_id', $liveBrechoId)
+				->where(function ($q) {
+					$q->where('role', 'brecho_admin')
+					  ->orWhere('is_admin', 1);
+				})
+				->first();
+
+			if ($brechoAdmin) {
+				DB::table('chat_assignments')->updateOrInsert(
+					['user_id' => $userId],
+					[
+						'assigned_admin_id' => $brechoAdmin->id,
+						'assigned_by_admin_id' => auth()->id() ?: $brechoAdmin->id,
+						'assigned_at' => now(),
+						'expires_at' => now()->addHours(24),
+						'updated_at' => now(),
+					]
+				);
+			}
+		}
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Msg1 enfileirada para este cliente.'
+		]);
+	}
+}

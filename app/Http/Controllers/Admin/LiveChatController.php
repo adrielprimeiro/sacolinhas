@@ -2478,12 +2478,34 @@ class LiveChatController extends Controller
                 });
         }
 
+        $lastInstaMsg = LiveMessage::where('live_id', $liveId)->where('plataforma', 'instagram')->orderBy('id', 'desc')->first(['created_at']);
+        $lastTiktokMsg = LiveMessage::where('live_id', $liveId)->where('plataforma', 'tiktok')->orderBy('id', 'desc')->first(['created_at']);
+
+        $instaStopped = Cache::get('instagram_capture_stopped', false);
+        $tiktokStopped = Cache::get('tiktok_capture_stopped', false);
+        $isPaused = Cache::get('live_capture_paused', false);
+        $isLiveActive = (bool)($liveObj && (int)$liveObj->ativo === 1 && is_null($liveObj->encerrada_em));
+
+        $instaActive = $isLiveActive && !$isPaused && !$instaStopped && (Cache::get('insta_capture_active', true) || ($lastInstaMsg && now()->diffInSeconds($lastInstaMsg->created_at) < 300));
+        $tiktokActive = $isLiveActive && !$isPaused && !$tiktokStopped && (Cache::get('tiktok_capture_active', true) || ($lastTiktokMsg && now()->diffInSeconds($lastTiktokMsg->created_at) < 300));
+
         return response()->json([
             'success' => true,
-            'is_live_active' => (bool)($liveObj && (int)$liveObj->ativo === 1 && is_null($liveObj->encerrada_em)),
-            'is_paused' => Cache::get('live_capture_paused', false),
-            'insta_active' => !Cache::get('instagram_capture_stopped', false),
-            'tiktok_active' => !Cache::get('tiktok_capture_stopped', false),
+            'is_live_active' => $isLiveActive,
+            'is_paused' => $isPaused,
+            'insta_active' => $instaActive,
+            'tiktok_active' => $tiktokActive,
+            'last_insta_msg_at' => $lastInstaMsg ? $lastInstaMsg->created_at->format('H:i:s') : null,
+            'last_tiktok_msg_at' => $lastTiktokMsg ? $lastTiktokMsg->created_at->format('H:i:s') : null,
+            'last_insta_msg_sec_ago' => $lastInstaMsg ? now()->diffInSeconds($lastInstaMsg->created_at) : null,
+            'last_tiktok_msg_sec_ago' => $lastTiktokMsg ? now()->diffInSeconds($lastTiktokMsg->created_at) : null,
+            'live' => $liveObj ? [
+                'id' => $liveObj->id,
+                'ativo' => (bool)$liveObj->ativo,
+                'tipo_live' => $liveObj->tipo_live,
+                'tipo_live_formatado' => $liveObj->tipo_live_formatado,
+                'encerrada_em' => $liveObj->encerrada_em ? $liveObj->encerrada_em->format('d/m/Y H:i') : null,
+            ] : null,
             'messages' => $messages,
             'marked_messages' => $markedMessages,
             'online_users' => $onlineUsers,
@@ -3187,8 +3209,10 @@ class LiveChatController extends Controller
             ])->header('Access-Control-Allow-Origin', '*');
         }
 
-        $activeLive = Live::where('ativo', true)->orderBy('id', 'desc')->first() 
-                   ?? Live::orderBy('id', 'desc')->first();
+        $activeLive = Live::where('ativo', true)
+            ->whereNull('encerrada_em')
+            ->orderBy('id', 'desc')
+            ->first();
 
         if (!$activeLive) {
             return response()->json([
