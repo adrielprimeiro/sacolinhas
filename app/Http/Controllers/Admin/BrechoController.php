@@ -300,7 +300,7 @@ class BrechoController extends Controller
 
         // Lotes de avaliação deste parceiro
         $avaliacoes = \App\Models\Avaliacao::where('parceiro_id', $brecho->id)
-            ->orWhere('fornecedor_id', $brecho->fornecedor_id)
+            ->when($userId, fn($q) => $q->orWhere('user_id', $userId))
             ->orderBy('id', 'desc')
             ->take(10)
             ->get();
