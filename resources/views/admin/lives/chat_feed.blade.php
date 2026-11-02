@@ -1163,9 +1163,9 @@
             </div>
 
             <!-- Aviso de Automação -->
-            <div class="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs">
-                <strong class="font-extrabold flex items-center gap-1.5 text-emerald-950 mb-1">
-                    <i class="fas fa-magic text-emerald-600"></i> Automação Completa:
+            <div style="background-color: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 14px; border-radius: 14px; color: #064e3b; font-size: 12px; line-height: 1.4;">
+                <strong style="font-weight: 900; display: flex; align-items: center; gap: 6px; color: #064e3b; margin-bottom: 2px;">
+                    <i class="fas fa-magic" style="color: #059669;"></i> Automação Completa:
                 </strong>
                 Ao abrir a live, o sistema ativará automaticamente os canais de captura do Instagram e TikTok e passará a gravar todas as mensagens e sacolinhas em tempo real.
             </div>
@@ -1175,7 +1175,7 @@
                 <button type="button" onclick="closeCreateLiveModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 12px; padding: 10px 18px; border-radius: 12px; border: 1px solid #cbd5e1; cursor: pointer;">
                     Cancelar
                 </button>
-                <button type="submit" id="btn-submit-open-live" style="background-color: #059669; color: #ffffff; font-weight: 900; font-size: 13px; padding: 10px 22px; border-radius: 12px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+                <button type="submit" id="btn-submit-open-live" style="background-color: #059669 !important; color: #ffffff !important; font-weight: 900; font-size: 13px; padding: 10px 22px; border-radius: 12px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
                     <i class="fas fa-play text-white"></i> Iniciar Live e Gravação
                 </button>
             </div>
@@ -1187,72 +1187,74 @@
 <!-- MODAL: ENCERRAR LIVE                                                      -->
 <!-- ========================================================================= -->
 <div id="modal-close-live" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
-    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #cbd5e1;">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col shadow-2xl" style="background-color: #ffffff; border: 2px solid #ef4444;">
         <!-- Header -->
-        <div class="px-6 py-4 flex items-center justify-between" style="background-color: #991b1b; border-bottom: 1px solid #7f1d1d;">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-white text-red-700 flex items-center justify-center font-black text-lg shadow shrink-0">
+        <div style="background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%) !important; color: #ffffff !important; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 14px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 20px;">
                     <i class="fas fa-stop-circle"></i>
                 </div>
                 <div>
-                    <h3 class="text-base font-black text-white tracking-tight">Encerrar Transmissão</h3>
-                    <p class="text-xs text-red-200">Parar gravações e finalizar sacolinhas</p>
+                    <h3 style="color: #ffffff !important; font-size: 16px; font-weight: 900; margin: 0; line-height: 1.2;">Encerrar Transmissão</h3>
+                    <p style="color: #fecaca !important; font-size: 11.5px; font-weight: 600; margin: 2px 0 0 0;">Parar gravações e finalizar sacolinhas</p>
                 </div>
             </div>
-            <button type="button" onclick="closeCloseLiveModal()" class="w-8 h-8 rounded-full bg-red-800 text-red-200 hover:text-white flex items-center justify-center cursor-pointer transition">
+            <button type="button" onclick="closeCloseLiveModal()" style="color: #ffffff; background: rgba(255,255,255,0.2); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                 <i class="fas fa-times text-sm"></i>
             </button>
         </div>
 
         <!-- Conteúdo -->
-        <div class="p-6 space-y-4">
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff;">
             <!-- Estatísticas da Live -->
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
-                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Total Mensagens</span>
-                    <strong id="close-live-msgs-count" class="text-xl font-black text-slate-800">0</strong>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+                <div style="background-color: #f8fafc; border: 1.5px solid #e2e8f0; padding: 10px; border-radius: 14px; text-align: center;">
+                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; display: block;">Total Mensagens</span>
+                    <strong id="close-live-msgs-count" style="font-size: 22px; font-weight: 900; color: #0f172a; line-height: 1.2;">0</strong>
                 </div>
-                <div class="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-center">
-                    <span class="text-[10px] font-extrabold uppercase text-slate-500 block">Pessoas Online</span>
-                    <strong id="close-live-online-count" class="text-xl font-black text-slate-800">0</strong>
+                <div style="background-color: #f8fafc; border: 1.5px solid #e2e8f0; padding: 10px; border-radius: 14px; text-align: center;">
+                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; display: block;">Pessoas Online</span>
+                    <strong id="close-live-online-count" style="font-size: 22px; font-weight: 900; color: #0f172a; line-height: 1.2;">0</strong>
                 </div>
             </div>
 
             <!-- Aviso de Parada Automática -->
-            <div class="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs">
-                <strong class="font-extrabold flex items-center gap-1.5 text-amber-950 mb-0.5">
-                    <i class="fas fa-pause-circle text-amber-600"></i> Parada Automática:
+            <div style="background-color: #fffbeb; border: 1.5px solid #fde68a; padding: 12px 14px; border-radius: 14px; color: #78350f; font-size: 11.5px; line-height: 1.4;">
+                <strong style="font-weight: 900; display: flex; align-items: center; gap: 6px; color: #78350f; margin-bottom: 2px;">
+                    <i class="fas fa-pause-circle" style="color: #d97706; font-size: 14px;"></i> Parada Automática:
                 </strong>
                 Ao confirmar, a gravação de comentários no Instagram e TikTok será interrompida imediatamente para evitar mensagens fora de hora.
             </div>
 
             <!-- Escolha de Finalização -->
-            <div class="space-y-2.5 pt-2">
+            <div style="display: flex; flex-direction: column; gap: 10px; padding-top: 4px;">
                 <!-- Opção 1: Enviar WhatsApp -->
-                <button type="button" id="btn-close-live-zap" onclick="submitCloseLive(1)" class="w-full text-left p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-md flex items-center justify-between gap-3 cursor-pointer group">
+                <button type="button" id="btn-close-live-zap" onclick="submitCloseLive(1)" 
+                    style="background: linear-gradient(135deg, #059669 0%, #047857 100%) !important; color: #ffffff !important; border: 2px solid #065f46; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; text-align: left; box-shadow: 0 4px 12px rgba(5,150,105,0.3); width: 100%;">
                     <div>
-                        <strong class="text-sm font-black flex items-center gap-1.5 text-white">
-                            <i class="fab fa-whatsapp text-lg text-emerald-200"></i> Encerrar e Disparar WhatsApp
+                        <strong style="font-size: 14px; font-weight: 900; display: flex; align-items: center; gap: 8px; color: #ffffff !important; line-height: 1.2;">
+                            <i class="fab fa-whatsapp" style="font-size: 20px; color: #a7f3d0 !important;"></i> Encerrar e Disparar WhatsApp
                         </strong>
-                        <p class="text-xs text-emerald-100 mt-0.5">Gera os PDFs das sacolinhas e envia as cobranças para as clientes.</p>
+                        <p style="font-size: 11.5px; color: #d1fae5 !important; margin: 4px 0 0 0; line-height: 1.3; font-weight: 600;">Gera os PDFs das sacolinhas e envia as cobranças para as clientes.</p>
                     </div>
-                    <i class="fas fa-arrow-right text-emerald-200 text-sm group-hover:translate-x-1 transition-transform"></i>
+                    <i class="fas fa-arrow-right" style="color: #a7f3d0 !important; font-size: 15px; margin-left: 8px; flex-shrink: 0;"></i>
                 </button>
 
                 <!-- Opção 2: Encerrar Sem Enviar -->
-                <button type="button" id="btn-close-live-nozap" onclick="submitCloseLive(0)" class="w-full text-left p-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition flex items-center justify-between gap-3 cursor-pointer group">
+                <button type="button" id="btn-close-live-nozap" onclick="submitCloseLive(0)" 
+                    style="background-color: #f8fafc !important; color: #0f172a !important; border: 1.5px solid #cbd5e1; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; text-align: left; width: 100%;">
                     <div>
-                        <strong class="text-xs font-black flex items-center gap-1.5 text-slate-900">
-                            <i class="fas fa-lock text-slate-500"></i> Encerrar SEM Enviar WhatsApp
+                        <strong style="font-size: 13px; font-weight: 900; display: flex; align-items: center; gap: 8px; color: #0f172a !important; line-height: 1.2;">
+                            <i class="fas fa-lock" style="color: #64748b !important; font-size: 14px;"></i> Encerrar SEM Enviar WhatsApp
                         </strong>
-                        <p class="text-[11px] text-slate-600 mt-0.5">Encerra a live e salva os dados sem disparar cobranças agora.</p>
+                        <p style="font-size: 11px; color: #475569 !important; margin: 4px 0 0 0; line-height: 1.3; font-weight: 500;">Encerra a live e salva os dados sem disparar cobranças agora.</p>
                     </div>
-                    <i class="fas fa-chevron-right text-slate-400 text-xs group-hover:translate-x-1 transition-transform"></i>
+                    <i class="fas fa-chevron-right" style="color: #94a3b8 !important; font-size: 13px; margin-left: 8px; flex-shrink: 0;"></i>
                 </button>
             </div>
 
-            <div class="pt-2 text-right">
-                <button type="button" onclick="closeCloseLiveModal()" style="background-color: #f1f5f9; color: #475569; font-weight: 800; font-size: 11px; padding: 8px 14px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+            <div style="padding-top: 6px; text-align: right;">
+                <button type="button" onclick="closeCloseLiveModal()" style="background-color: #f1f5f9; color: #334155; font-weight: 800; font-size: 12px; padding: 9px 18px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
                     Cancelar
                 </button>
             </div>
@@ -6051,11 +6053,19 @@
         const btnWithZap = document.getElementById('btn-close-live-zap');
         const btnNoZap = document.getElementById('btn-close-live-nozap');
 
-        if (btnWithZap) {
-            btnWithZap.disabled = true;
-            btnWithZap.innerHTML = '<div class="p-2 text-center text-white"><i class="fas fa-spinner fa-spin mr-1"></i> Encerrando e enfileirando cobranças...</div>';
+        if (enviarWhatsapp) {
+            if (btnWithZap) {
+                btnWithZap.disabled = true;
+                btnWithZap.innerHTML = '<div style="padding: 8px; text-align: center; color: #ffffff !important; font-weight: 800; width: 100%;"><i class="fas fa-spinner fa-spin mr-2"></i> Encerrando e enfileirando cobranças...</div>';
+            }
+            if (btnNoZap) btnNoZap.disabled = true;
+        } else {
+            if (btnNoZap) {
+                btnNoZap.disabled = true;
+                btnNoZap.innerHTML = '<div style="padding: 8px; text-align: center; color: #0f172a !important; font-weight: 800; width: 100%;"><i class="fas fa-spinner fa-spin mr-2"></i> Encerrando live...</div>';
+            }
+            if (btnWithZap) btnWithZap.disabled = true;
         }
-        if (btnNoZap) btnNoZap.disabled = true;
 
         try {
             const res = await fetch(`/lives/${liveId}?enviar_whatsapp=${enviarWhatsapp ? 1 : 0}`, {
