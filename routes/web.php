@@ -304,6 +304,7 @@ Route::middleware('auth')->group(function () {
         Route::get('live-dashboard', [\App\Http\Controllers\Admin\LiveDashboardController::class, 'index'])->name('admin.lives.dashboard');
         Route::get('live-chat', [\App\Http\Controllers\Admin\LiveChatController::class, 'dashboard'])->name('admin.live-chat.dashboard');
         Route::get('live-feed', [\App\Http\Controllers\Admin\LiveChatController::class, 'feed'])->name('admin.live-chat.feed');
+        Route::get('live-chat/feed', [\App\Http\Controllers\Admin\LiveChatController::class, 'feed']); // Alias para compatibilidade
         Route::get('live-bipagem', [\App\Http\Controllers\Admin\LiveChatController::class, 'bipagem'])->name('admin.live-chat.bipagem');
         Route::get('live-contador', [\App\Http\Controllers\Admin\LiveChatController::class, 'contador'])->name('admin.live-chat.contador');
         Route::get('live-contador/data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getContadorData'])->name('admin.live-chat.contador-data');

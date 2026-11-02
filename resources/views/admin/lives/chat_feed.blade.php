@@ -5980,7 +5980,7 @@
             const data = await res.json();
             if (data.success && data.live) {
                 showToast('Live #' + data.live.id + ' aberta! Captura automática iniciada.', 'success');
-                window.location.href = '/admin/live-chat/feed?live_id=' + data.live.id;
+                window.location.href = '{{ route("admin.live-chat.feed") }}?live_id=' + data.live.id;
             } else {
                 alert(data.message || 'Erro ao abrir live');
                 if (btn) {
