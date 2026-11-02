@@ -309,7 +309,7 @@ class LiveChatController extends Controller
                 ->get()
                 ->groupBy('item_id');
 
-            $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols, $liveSacolinhas) {
+            $linkedLiveItems = $rows->values()->map(function($row, $index) use ($totalCount, $hasCodigoLiveCol, $hasBuyerCols, $hasVideoCutCols, $liveSacolinhas, $activeLive) {
                 // Como está ordenado desc (mais recente primeiro), o número sequencial padrão 101+ é 100 + (totalCount - index)
                 $seqNumber = (string)(100 + ($totalCount - $index));
                 $liveCode = ($hasCodigoLiveCol && !empty($row->codigo_live)) ? $row->codigo_live : $seqNumber;
@@ -425,7 +425,10 @@ class LiveChatController extends Controller
                     'tamanho' => $row->tamanho ?? '',
                     'marca' => $row->marca ?? '',
                     'cor' => $row->cor ?? '',
-                    'productPrice' => 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.'),
+                    'productPrice' => 'R$ ' . number_format(($activeLive && $activeLive->tipo_live === 'precinho') ? round(($row->preco ?? 0) * 0.5, 2) : ($row->preco ?? 0), 2, ',', '.'),
+                    'preco' => ($activeLive && $activeLive->tipo_live === 'precinho') ? round(($row->preco ?? 0) * 0.5, 2) : ($row->preco ?? 0),
+                    'originalPrice' => $row->preco,
+                    'isPrecinho' => ($activeLive && $activeLive->tipo_live === 'precinho'),
                     'time' => $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '',
                     'source' => 'live'
                 ];
@@ -582,6 +585,10 @@ class LiveChatController extends Controller
                 ? "Atenção: O código de live '{$codigoLive}' já está em uso na peça #{$duplicateWarning['code']}!" 
                 : 'Item vinculado à live com sucesso!');
 
+        $liveObjLink = Live::find($liveId);
+        $isPrecinhoLink = ($liveObjLink && $liveObjLink->tipo_live === 'precinho');
+        $effectivePriceLink = $isPrecinhoLink ? round(($item->preco ?? 0) * 0.5, 2) : ($item->preco ?? 0);
+
         return response()->json([
             'success' => true,
             'is_already_in_live' => $isAlreadyInLive,
@@ -593,7 +600,10 @@ class LiveChatController extends Controller
                 'codigo_live' => $codigoLive,
                 'code' => $item->codigo,
                 'name' => $item->nome_do_produto ?: 'Produto',
-                'price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
+                'price' => 'R$ ' . number_format($effectivePriceLink, 2, ',', '.'),
+                'raw_price' => $effectivePriceLink,
+                'original_price' => $item->preco,
+                'is_precinho' => $isPrecinhoLink,
                 'total_count' => $codigoLive ?: $item->codigo,
                 'piece_code' => $codigoLive ?: $item->codigo,
                 'total_sacolinhas_itens' => $totalLiveItems,
@@ -800,14 +810,19 @@ class LiveChatController extends Controller
             $totalLiveValueFormatted = 'R$ ' . number_format($totalLiveValue, 2, ',', '.');
         }
 
+        $isPrecinhoUpdate = ($live && $live->tipo_live === 'precinho');
+        $displayPriceUpdate = $isPrecinhoUpdate ? $sacolinhaPrice : $newPrice;
+
         return response()->json([
             'success' => true,
-            'message' => 'Preço atualizado com sucesso para R$ ' . number_format($newPrice, 2, ',', '.') . '!',
+            'message' => 'Preço atualizado com sucesso para R$ ' . number_format($displayPriceUpdate, 2, ',', '.') . ($isPrecinhoUpdate ? ' (50% OFF aplicado: R$ ' . number_format($displayPriceUpdate, 2, ',', '.') . ')' : '') . '!',
             'data' => [
                 'item_id' => $item->id,
                 'code' => $item->codigo,
-                'price' => $newPrice,
-                'formatted_price' => 'R$ ' . number_format($newPrice, 2, ',', '.'),
+                'price' => $displayPriceUpdate,
+                'original_price' => $newPrice,
+                'is_precinho' => $isPrecinhoUpdate,
+                'formatted_price' => 'R$ ' . number_format($displayPriceUpdate, 2, ',', '.'),
                 'total_sacolinhas_itens' => $totalLiveItems,
                 'total_valor' => $totalLiveValue,
                 'total_valor_formatado' => $totalLiveValueFormatted
@@ -2146,7 +2161,7 @@ class LiveChatController extends Controller
         }
 
         // Enriquecer mensagens com avatar, cadastro e peça vinculada
-        $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection, $linkedByMessage) {
+        $messages = $rawMessages->map(function($msg) use ($avatarMap, $matchedUsersCollection, $linkedByMessage, $liveObj) {
             $cleanUser = trim($msg->username);
             $uLower = strtolower($cleanUser);
 
@@ -2189,7 +2204,9 @@ class LiveChatController extends Controller
                 $msg->linked_product_details = $li->descricao ?? '';
                 $msg->linked_product_tamanho = $li->tamanho ?? '';
                 $msg->linked_product_cor = $li->cor ?? '';
-                $msg->linked_product_preco = $li->preco ? ('R$ ' . number_format($li->preco, 2, ',', '.')) : '';
+                $isPrecinhoMsg = ($liveObj && $liveObj->tipo_live === 'precinho');
+                $linkedPrice = $isPrecinhoMsg ? round(($li->preco ?? 0) * 0.5, 2) : ($li->preco ?? 0);
+                $msg->linked_product_preco = $linkedPrice ? ('R$ ' . number_format($linkedPrice, 2, ',', '.')) : '';
             } else if (!isset($msg->linked_code) || empty($msg->linked_code)) {
                 $msg->linked_item_id = null;
                 $msg->linked_code = null;
@@ -2269,7 +2286,7 @@ class LiveChatController extends Controller
                     'codigo' => $req->codigo,
                     'item_id' => $req->item_id,
                     'item_nome' => $req->item->nome_do_produto,
-                    'item_preco' => $req->item->preco,
+                    'item_preco' => ($liveObj && $liveObj->tipo_live === 'precinho') ? round(($req->item->preco ?? 0) * 0.5, 2) : $req->item->preco,
                     'item_status' => $req->item->status,
                     'queue' => []
                 ];
@@ -2382,8 +2399,13 @@ class LiveChatController extends Controller
                 ->orderBy('live_items.id', 'asc')
                 ->select($selects)
                 ->get()
-                ->map(function($row) use ($liveSacolinhas, $hasBuyerCols) {
-                    $row->productPrice = 'R$ ' . number_format($row->preco ?? 0, 2, ',', '.');
+                ->map(function($row) use ($liveSacolinhas, $hasBuyerCols, $liveObj) {
+                    $isPrecinhoLiveItem = ($liveObj && $liveObj->tipo_live === 'precinho');
+                    $displayPrice = $isPrecinhoLiveItem ? round(($row->preco ?? 0) * 0.5, 2) : ($row->preco ?? 0);
+                    $row->productPrice = 'R$ ' . number_format($displayPrice, 2, ',', '.');
+                    $row->preco = $displayPrice;
+                    $row->originalPrice = $row->preco;
+                    $row->isPrecinho = $isPrecinhoLiveItem;
                     $row->time = $row->linked_at ? date('H:i:s', strtotime($row->linked_at)) : '';
                     
                     $itemSacolinhas = $liveSacolinhas->get($row->item_id, collect());

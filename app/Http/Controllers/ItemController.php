@@ -587,15 +587,31 @@ class ItemController extends Controller
         // Permite buscar itens tanto em estoque quanto disponíveis
         $items = $itemBuilder->limit(15)->get();
         
+        $isPrecinho = false;
+        $liveId = $request->input('live_id');
+        if ($liveId) {
+            $liveType = DB::table('lives')->where('id', $liveId)->value('tipo_live');
+            $isPrecinho = ($liveType === 'precinho');
+        } elseif ($request->header('referer') && (str_contains($request->header('referer'), 'live-feed') || str_contains($request->header('referer'), 'live-chat'))) {
+            $activeLiveType = DB::table('lives')->where('status', 'aberta')->orderByDesc('id')->value('tipo_live');
+            $isPrecinho = ($activeLiveType === 'precinho');
+        }
+
         // Formatar dados para o component
-        $formattedItems = $items->map(function($item) {
+        $formattedItems = $items->map(function($item) use ($isPrecinho) {
+            $origPrice = (float) ($item->preco ?? 0);
+            $effectivePrice = $isPrecinho ? round($origPrice * 0.5, 2) : $origPrice;
+
             return [
                 'id' => $item->id,
                 'name' => $item->nome_do_produto ?: 'Sem Nome',
                 'sku' => $item->codigo,
                 'codigo' => $item->codigo,
-                'price' => $item->preco,
-                'formatted_price' => 'R$ ' . number_format($item->preco ?? 0, 2, ',', '.'),
+                'price' => $effectivePrice,
+                'original_price' => $origPrice,
+                'is_precinho' => $isPrecinho,
+                'formatted_price' => 'R$ ' . number_format($effectivePrice, 2, ',', '.'),
+                'formatted_original_price' => 'R$ ' . number_format($origPrice, 2, ',', '.'),
                 'image_url' => $item->image ? asset('storage/' . $item->image) : asset('images/no-image.png'),
                 'stock' => ucfirst($item->status ?? 'Estoque'),
                 'localizacao' => $item->localizacao ?? '-',

@@ -1408,6 +1408,8 @@
     // PARÂMETROS GLOBAIS
     // =========================================================================
     const liveId = "{{ $activeLive ? $activeLive->id : '' }}";
+    const liveType = "{{ $activeLive ? $activeLive->tipo_live : '' }}";
+    const isPrecinhoLive = liveType === 'precinho';
     let allLiveMessages = [];
     let rawOnlineUsers = [];
     let onlineUsersMap = {};
@@ -1900,18 +1902,28 @@
         const detailsText = detailParts.join(' • ');
         const nameHtml = escapeHtml(prod.name || 'Produto');
 
+        const isPrecinho = Boolean(isPrecinhoLive || prod.is_precinho || prod.isPrecinho);
         let priceDisplay = '';
         if (prod.formatted_price && String(prod.formatted_price).toLowerCase() !== 'null') {
             priceDisplay = prod.formatted_price;
         } else if (prod.preco !== undefined && prod.preco !== null) {
-            priceDisplay = 'R$ ' + parseFloat(prod.preco).toFixed(2).replace('.', ',');
+            let pVal = parseFloat(prod.preco);
+            if (isPrecinho && !prod.is_precinho && !prod.isPrecinho) {
+                pVal = pVal * 0.5;
+            }
+            priceDisplay = 'R$ ' + pVal.toFixed(2).replace('.', ',');
         }
+
+        const precinhoBadge = isPrecinho 
+            ? `<span class="bg-pink-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow-2xs ml-1" title="Live do Precinho (50% de Desconto)">50% OFF</span>` 
+            : '';
 
         const targetScanId = scanId || prod.scanId || prod.scan_id || prod.code || prod.codigo || prod.sku || (prod.id ? String(prod.id) : '') || '';
         const priceButtonHtml = `
             <button type="button" onclick="event.stopPropagation(); openEditItemPriceModal('${escapeHtml(targetScanId)}', this)" title="Clique para editar o preço desta peça" class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300 text-[11px] transition shadow-2xs cursor-pointer ml-1 active:scale-95 shrink-0">
                 <i class="fas fa-tag text-[9px] text-emerald-600"></i>
                 <span>${escapeHtml(priceDisplay || 'Definir Preço')}</span>
+                ${precinhoBadge}
                 <i class="fas fa-pen text-[8px] text-emerald-600 ml-0.5"></i>
             </button>
         `;
@@ -2093,7 +2105,7 @@
 
         const badgeCurrent = document.getElementById('edit-item-price-badge-current');
         if (badgeCurrent) {
-            badgeCurrent.textContent = 'Atual: ' + (prodPrice || 'R$ 0,00');
+            badgeCurrent.innerHTML = 'Atual: ' + (prodPrice || 'R$ 0,00') + (isPrecinhoLive ? ' <span style="background-color: #fce7f3; color: #be185d; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 4px; border: 1px solid #fbcfe8;">50% OFF</span>' : '');
         }
 
         const prodNameEl = document.getElementById('edit-item-price-prod-name');
@@ -2223,7 +2235,8 @@
                             marca: item.marca,
                             cor: item.cor,
                             formatted_price: updatedPrice,
-                            preco: data.data.price
+                            preco: data.data.price,
+                            is_precinho: data.data.is_precinho || isPrecinhoLive
                         };
                         detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, item.id);
                     }
@@ -5114,8 +5127,17 @@
                 playSuccessBeep();
                 showToast(`🎉 ${matchedItem.name} adicionado à sacola de @${currentOnlineQrUser.username}!`);
                 if (feedback) {
+                    const qrIsPrecinho = Boolean(isPrecinhoLive || matchedItem.is_precinho);
+                    let qrPriceDisplay = matchedItem.formatted_price;
+                    if (!qrPriceDisplay && matchedItem.price) {
+                        let p = parseFloat(matchedItem.price);
+                        if (qrIsPrecinho) p = p * 0.5;
+                        qrPriceDisplay = 'R$ ' + p.toFixed(2).replace('.', ',');
+                    }
+                    const qrPrecinhoBadge = qrIsPrecinho ? '<span class="bg-pink-600 text-white font-black text-[10px] px-1.5 py-0.5 rounded shadow-2xs ml-1">50% OFF</span>' : '';
+
                     feedback.className = "p-4 sm:p-5 rounded-3xl text-sm font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 block shadow-xl";
-                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${matchedItem.formatted_price || 'R$ ' + matchedItem.price} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal">${autoCloseAfterScan ? '<i class="fas fa-check-double text-emerald-400 mr-1"></i> Fechando leitor em instantes...' : '<i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.'}</div></div></div>`;
+                    feedback.innerHTML = `<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0"><i class="fas fa-check text-emerald-400 text-xl"></i></div><div><div class="text-emerald-300 text-xs uppercase tracking-wider font-extrabold">Adicionado à sacola!</div><div class="text-white text-base font-extrabold mt-0.5">${escapeHtml(matchedItem.name)}</div><div class="text-emerald-400 font-bold text-sm mt-0.5">${qrPriceDisplay || 'R$ 0,00'}${qrPrecinhoBadge} &bull; <span class="text-gray-300 font-normal">Para @${escapeHtml(currentOnlineQrUser.username)}</span></div><div class="text-xs text-emerald-300/80 mt-2 font-normal">${autoCloseAfterScan ? '<i class="fas fa-check-double text-emerald-400 mr-1"></i> Fechando leitor em instantes...' : '<i class="fas fa-camera text-emerald-400 mr-1"></i> Pronto para o próximo item! Aponte a câmera ou bipe agora.'}</div></div></div>`;
                 }
 
                 if (autoCloseAfterScan) {
