@@ -181,79 +181,106 @@
                     <input type="hidden" name="frete" :value="frete">
                 </div>
 
-                {{-- Configurações exclusivas de Parceria / Consignação --}}
-                <div x-show="tipoCompra === 'parceria'" x-cloak class="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-4 transition-all">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-indigo-200">
-                        <div class="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-                            <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
-                        </div>
-                        <template x-if="isParceiroPreConfigured">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 shadow-sm">
-                                <i class="fas fa-lock mr-1.5 text-indigo-600"></i> Condições Fixas do Parceiro (Somente Leitura)
+                {{-- Configurações de Parceria / Consignação --}}
+                @if (isset($avaliacao))
+                    {{-- Em Editar Lote: Informações da Parceria em texto simples sem ocupar o espaço do card --}}
+                    <div x-show="tipoCompra === 'parceria'" x-cloak class="md:col-span-2 bg-indigo-50/70 border border-indigo-200/80 rounded-lg px-4 py-2.5 text-xs text-gray-700 flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span class="inline-flex items-center gap-1.5 font-bold text-indigo-900">
+                                <i class="fas fa-handshake text-indigo-600"></i> Parceria / Consignação:
+                                <strong class="text-indigo-950 font-black" x-text="parceiroPreConfiguredNome || (parceiros.find(p => p.id == parceiroId)?.nome) || '{{ $avaliacao->parceiro->nome ?? 'Parceiro' }}'"></strong>
                             </span>
+                            <span class="text-gray-300">|</span>
+                            <span><strong>Prefixo SKU:</strong> <span class="font-mono font-bold text-indigo-800" x-text="prefixoCodigo || '{{ $avaliacao->prefixo_codigo ?? 'PAR' }}'"></span></span>
+                            <span class="text-gray-300">|</span>
+                            <span><strong>Taxa Cadastro:</strong> R$ <span x-text="taxaCadastroPecaRaw || '{{ number_format((float)($avaliacao->taxa_cadastro_peca ?: 0), 2, ',', '.') }}'"></span>/peça</span>
+                            <span class="text-gray-300">|</span>
+                            <span><strong>Comissão Mania:</strong> <span class="font-bold text-gray-900" x-text="comissaoParceiroPorcentagem || '{{ number_format((float)($avaliacao->comissao_parceiro_porcentagem ?: 20), 1, ',', '.') }}'"></span>% sobre a venda</span>
+                        </div>
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700">
+                            <i class="fas fa-lock text-[10px]"></i> Condições do Parceiro
+                        </span>
+
+                        {{-- Hidden inputs para manter a submissão dos dados intacta --}}
+                        <input type="hidden" name="parceiro_id" :value="parceiroId">
+                        <input type="hidden" name="prefixo_codigo" :value="prefixoCodigo">
+                        <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
+                        <input type="hidden" name="comissao_parceiro_porcentagem" :value="comissaoParceiroPorcentagem">
+                    </div>
+                @else
+                    {{-- Em Nova Avaliação: Card de Configuração quando criar novo lote --}}
+                    <div x-show="tipoCompra === 'parceria'" x-cloak class="md:col-span-2 transition-all">
+                        {{-- Se o parceiro já foi pré-vinculado pelo fornecedor selecionado, exibe em texto simples compacto --}}
+                        <template x-if="isParceiroPreConfigured">
+                            <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-lg px-4 py-2.5 text-xs text-gray-700 flex flex-wrap items-center justify-between gap-y-2 gap-x-4">
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <span class="inline-flex items-center gap-1.5 font-bold text-indigo-900">
+                                        <i class="fas fa-handshake text-indigo-600"></i> Parceria / Consignação:
+                                        <strong class="text-indigo-950 font-black" x-text="parceiroPreConfiguredNome"></strong>
+                                    </span>
+                                    <span class="text-gray-300">|</span>
+                                    <span><strong>Prefixo SKU:</strong> <span class="font-mono font-bold text-indigo-800" x-text="prefixoCodigo || 'PAR'"></span></span>
+                                    <span class="text-gray-300">|</span>
+                                    <span><strong>Taxa Cadastro:</strong> R$ <span x-text="taxaCadastroPecaRaw || '0,00'"></span>/peça</span>
+                                    <span class="text-gray-300">|</span>
+                                    <span><strong>Comissão Mania:</strong> <span class="font-bold text-gray-900" x-text="comissaoParceiroPorcentagem || 20"></span>% sobre a venda</span>
+                                </div>
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700">
+                                    <i class="fas fa-lock text-[10px]"></i> Condições do Parceiro
+                                </span>
+                                <input type="hidden" name="parceiro_id" :value="parceiroId">
+                                <input type="hidden" name="prefixo_codigo" :value="prefixoCodigo">
+                                <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
+                                <input type="hidden" name="comissao_parceiro_porcentagem" :value="comissaoParceiroPorcentagem">
+                            </div>
+                        </template>
+
+                        {{-- Se não for pré-vinculado, exibe os campos para seleção do parceiro --}}
+                        <template x-if="!isParceiroPreConfigured">
+                            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                                <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-indigo-200">
+                                    <div class="flex items-center gap-2 text-indigo-900 font-bold text-sm">
+                                        <i class="fas fa-handshake text-indigo-600"></i> Configuração da Parceria & Consignação
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                        <label class="block font-medium text-gray-700 mb-1">Brechó Parceiro <span class="text-red-500">*</span></label>
+                                        <select name="parceiro_id" x-model="parceiroId" @change="onParceiroChange()"
+                                                class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium bg-white text-gray-900">
+                                            <option value="">Selecione o Parceiro...</option>
+                                            <template x-for="p in parceiros" :key="p.id">
+                                                <option :value="p.id" x-text="p.nome" :selected="p.id == parceiroId"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block font-medium text-gray-700 mb-1">Prefixo do Código (SKU)</label>
+                                        <input type="text" name="prefixo_codigo" x-model="prefixoCodigo" maxlength="6"
+                                               placeholder="Ex: TCB, BDM"
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 uppercase text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 font-bold">
+                                        <span class="text-[10px] text-gray-500" x-text="'Ex: ' + (prefixoCodigo || 'PAR') + '-00089-001'"></span>
+                                    </div>
+                                    <div>
+                                        <label class="block font-medium text-gray-700 mb-1">Taxa Cadastro / Peça (R$)</label>
+                                        <input type="text" x-model="taxaCadastroPecaRaw" @input="updateTaxaCadastro()" @blur="formatTaxaCadastro()"
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 font-medium">
+                                        <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
+                                        <span class="text-[10px] text-gray-500">Custo de catalogação acordado</span>
+                                    </div>
+                                    <div>
+                                        <label class="block font-medium text-gray-700 mb-1">Comissão da Mania (%)</label>
+                                        <input type="number" step="0.5" min="0" max="100" name="comissao_parceiro_porcentagem" 
+                                               x-model="comissaoParceiroPorcentagem" @input="recalculateAll()"
+                                               class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 font-medium">
+                                        <span class="text-[10px] text-gray-500">% sobre venda (Mania)</span>
+                                    </div>
+                                </div>
+                            </div>
                         </template>
                     </div>
-
-                    <template x-if="isParceiroPreConfigured">
-                        <div class="mb-3 text-xs text-indigo-900 bg-white/90 border border-indigo-200 rounded-lg p-2.5 flex items-start gap-2 shadow-sm">
-                            <i class="fas fa-info-circle text-indigo-600 mt-0.5 text-sm flex-shrink-0"></i>
-                            <div>
-                                Fornecedor vinculado ao brechó parceiro <strong class="text-indigo-950 font-bold" x-text="parceiroPreConfiguredNome"></strong>. As regras comerciais (prefixo SKU, taxa de cadastro e comissão da Mania) são definidas no cadastro do parceiro e não podem ser alteradas neste lote.
-                            </div>
-                        </div>
-                    </template>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                        <div>
-                            <label class="block font-medium text-gray-700 mb-1">Brechó Parceiro <span class="text-red-500">*</span></label>
-                            <select name="parceiro_id" x-model="parceiroId" @change="onParceiroChange()"
-                                    :disabled="isParceiroPreConfigured"
-                                    :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900'"
-                                    class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
-                                <option value="">Selecione o Parceiro...</option>
-                                <template x-for="p in parceiros" :key="p.id">
-                                    <option :value="p.id" x-text="p.nome" :selected="p.id == parceiroId"></option>
-                                </template>
-                            </select>
-                            <template x-if="isParceiroPreConfigured">
-                                <input type="hidden" name="parceiro_id" :value="parceiroId">
-                            </template>
-                        </div>
-                        <div>
-                            <label class="block font-medium text-gray-700 mb-1">Prefixo do Código (SKU)</label>
-                            <input type="text" name="prefixo_codigo" x-model="prefixoCodigo" maxlength="6"
-                                   :readonly="isParceiroPreConfigured"
-                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-bold' : 'bg-white text-gray-900 font-bold'"
-                                   placeholder="Ex: TCB, BDM"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 uppercase text-xs focus:ring-indigo-500 focus:border-indigo-500">
-                            <template x-if="isParceiroPreConfigured">
-                                <input type="hidden" name="prefixo_codigo" :value="prefixoCodigo">
-                            </template>
-                            <span class="text-[10px] text-gray-500" x-text="'Ex: ' + (prefixoCodigo || 'PAR') + '-00089-001'"></span>
-                        </div>
-                        <div>
-                            <label class="block font-medium text-gray-700 mb-1">Taxa Cadastro / Peça (R$)</label>
-                            <input type="text" x-model="taxaCadastroPecaRaw" @input="updateTaxaCadastro()" @blur="formatTaxaCadastro()"
-                                   :readonly="isParceiroPreConfigured"
-                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900 font-medium'"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500">
-                            <input type="hidden" name="taxa_cadastro_peca" :value="taxaCadastroPeca">
-                            <span class="text-[10px] text-gray-500">Custo de catalogação acordado</span>
-                        </div>
-                        <div>
-                            <label class="block font-medium text-gray-700 mb-1">Comissão da Mania (%)</label>
-                            <input type="number" step="0.5" min="0" max="100" name="comissao_parceiro_porcentagem" 
-                                   x-model="comissaoParceiroPorcentagem" @input="recalculateAll()"
-                                   :readonly="isParceiroPreConfigured"
-                                   :class="isParceiroPreConfigured ? 'bg-gray-100 text-gray-800 cursor-not-allowed font-semibold' : 'bg-white text-gray-900 font-medium'"
-                                   class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-2.5 text-xs focus:ring-indigo-500 focus:border-indigo-500">
-                            <template x-if="isParceiroPreConfigured">
-                                <input type="hidden" name="comissao_parceiro_porcentagem" :value="comissaoParceiroPorcentagem">
-                            </template>
-                            <span class="text-[10px] text-gray-500">% sobre venda (Mania)</span>
-                        </div>
-                    </div>
-                </div>
+                @endif
             </div>
 
             {{-- Observações --}}
