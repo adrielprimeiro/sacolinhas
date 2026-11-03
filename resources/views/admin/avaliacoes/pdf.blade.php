@@ -146,7 +146,7 @@
                 @else
                     <h1>Mania</h1>
                 @endif
-                <p>Clube de Moda Circular</p>
+                <p>Brechó & Curadoria de Moda Circular</p>
             </td>
             <td style="text-align: right; width: 50%;">
                 <div class="lote">
