@@ -558,12 +558,78 @@
                 </div>
 
                 <!-- Barra de Contador de Itens Bipados -->
-                <div class="px-3 py-2 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
+                <div class="px-3 py-2 bg-gray-50 border-b border-gray-100 shrink-0 flex items-center justify-between gap-2 flex-wrap min-h-[46px]">
+                    <div class="flex items-center gap-2 shrink-0">
                         <span class="text-xs text-gray-700 font-extrabold flex items-center gap-1.5">
                             <i class="fas fa-tags text-indigo-500 text-[11px]"></i>
                             <span>Itens Bipados na Live: <strong id="scan-count" class="text-emerald-700 font-black">0</strong></span>
                         </span>
+                    </div>
+
+                    <!-- ÁREA DESTACADA À DIREITA: CADASTRO PRÉVIO DO IG (AGUARDANDO TELEFONE) -->
+                    <div id="pre-reg-ig-container" style="display: none;" class="flex items-center gap-2 ml-auto">
+                        <div class="flex items-center gap-2 px-2.5 py-1 rounded-xl shadow-xs transition-all flex-wrap" 
+                             id="pre-reg-ig-box"
+                             style="background-color: #fffbeb; border: 1.5px solid #f59e0b; color: #78350f;">
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="w-5 h-5 rounded-md flex items-center justify-center text-white text-[11px] font-black shadow-2xs shrink-0" 
+                                      id="pre-reg-platform-badge"
+                                      style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">
+                                    <i class="fab fa-instagram" id="pre-reg-platform-icon"></i>
+                                </span>
+                                <div class="leading-none">
+                                    <span class="text-[9px] uppercase font-black tracking-wider block" style="color: #b45309;">Cadastro Prévio</span>
+                                    <span id="pre-reg-username-display" class="text-xs font-black truncate max-w-[120px] block" style="color: #451a03;">@usuario</span>
+                                </div>
+                            </div>
+
+                            <!-- Status / Aguardando Telefone -->
+                            <div id="pre-reg-status-badge" class="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-bold shrink-0" 
+                                 style="background-color: #fef3c7; border: 1px solid #fde68a; color: #92400e;">
+                                <span class="relative flex h-2 w-2" id="pre-reg-ping-dot">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                </span>
+                                <span id="pre-reg-status-text">Aguardando tel...</span>
+                            </div>
+
+                            <!-- Input Telefone -->
+                            <div class="flex items-center bg-white border rounded-lg px-2 py-0.5 shadow-2xs shrink-0" 
+                                 id="pre-reg-phone-wrapper"
+                                 style="border-color: #f59e0b;">
+                                <i class="fab fa-whatsapp text-emerald-600 text-xs mr-1 shrink-0"></i>
+                                <input type="text" 
+                                       id="pre-reg-phone-input" 
+                                       placeholder="(00) 00000-0000" 
+                                       maxlength="16"
+                                       autocomplete="off"
+                                       oninput="maskPreRegPhoneInput(this)"
+                                       onkeydown="if(event.key === 'Enter') savePreRegClient();"
+                                       class="w-28 text-xs font-black outline-none border-none p-0 bg-transparent text-gray-900" 
+                                       style="color: #111827;" />
+                            </div>
+
+                            <!-- Botão Salvar -->
+                            <button type="button" 
+                                    id="pre-reg-save-btn" 
+                                    onclick="savePreRegClient()" 
+                                    class="px-2 py-1 rounded-lg text-xs font-black cursor-pointer shadow-xs transition hover:brightness-110 flex items-center gap-1 shrink-0" 
+                                    style="background-color: #059669; color: #ffffff; border: 1px solid #047857;"
+                                    title="Salvar cadastro prévio do cliente com este telefone">
+                                <i class="fas fa-check text-xs"></i> <span>Salvar</span>
+                            </button>
+
+                            <!-- Botão X Fechar -->
+                            <button type="button" 
+                                    onclick="closePreRegIg()" 
+                                    class="w-5 h-5 rounded-lg flex items-center justify-center font-black transition cursor-pointer shrink-0" 
+                                    style="background-color: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db;" 
+                                    onmouseover="this.style.backgroundColor='#fee2e2'; this.style.color='#dc2626'; this.style.borderColor='#f87171';"
+                                    onmouseout="this.style.backgroundColor='#f3f4f6'; this.style.color='#4b5563'; this.style.borderColor='#d1d5db';"
+                                    title="Fechar cadastro prévio">
+                                <i class="fas fa-times text-[10px]"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2771,15 +2837,36 @@
                                     <span style="width: 17px; height: 17px; border-radius: 9999px; background-color: ${hasPhone ? '#059669' : '#dc2626'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; flex-shrink: 0;">
                                         <i class="fas ${hasPhone ? 'fa-check' : 'fa-exclamation-triangle'}"></i>
                                     </span>
-                                    <span class="font-black truncate max-w-[100px]" style="color: ${hasPhone ? '#064e3b' : '#7f1d1d'};">@${escapeHtml(cleanUser)}</span>
-                                    ${b.displayName ? `<span class="text-[10px] font-semibold truncate max-w-[65px]" style="color: ${hasPhone ? '#047857' : '#991b1b'};">(${escapeHtml(b.displayName)})</span>` : ''}
+                                    ${hasPhone ? `
+                                        <span class="font-black truncate max-w-[100px]" style="color: #064e3b;">@${escapeHtml(cleanUser)}</span>
+                                    ` : `
+                                        <button type="button" 
+                                                onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
+                                                title="IG sem cadastro! Clique para vincular este Instagram a um cliente existente" 
+                                                class="font-black truncate max-w-[85px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
+                                                style="color: #991b1b;">
+                                            @${escapeHtml(cleanUser)}
+                                        </button>
+                                    `}
+                                    ${b.displayName ? `<span class="text-[10px] font-semibold truncate max-w-[60px]" style="color: ${hasPhone ? '#047857' : '#991b1b'};">(${escapeHtml(b.displayName)})</span>` : ''}
                                 </div>
-                                <button type="button" onclick="event.stopPropagation(); unlinkSpecificBuyerAction('${item.id}', '${escapeHtml(cleanUser)}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
-                                        title="Desvincular @${escapeHtml(cleanUser)}" 
-                                        class="ml-1 text-[11px] cursor-pointer hover:scale-110 p-0.5 rounded transition" 
-                                        style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    ${!hasPhone ? `
+                                        <button type="button" 
+                                                onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
+                                                title="Procurar cliente existente e associar este Instagram (@${escapeHtml(cleanUser)})" 
+                                                class="px-1.5 py-0.5 rounded text-[9.5px] font-black cursor-pointer shadow-2xs transition hover:brightness-95 flex items-center gap-0.5 shrink-0" 
+                                                style="background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171;">
+                                            <i class="fas fa-link text-[8.5px]"></i> Vincular
+                                        </button>
+                                    ` : ''}
+                                    <button type="button" onclick="event.stopPropagation(); unlinkSpecificBuyerAction('${item.id}', '${escapeHtml(cleanUser)}', ${b.userId || 'null'}, ${b.sacolinhaId || 'null'})" 
+                                            title="Desvincular @${escapeHtml(cleanUser)}" 
+                                            class="ml-0.5 text-[11px] cursor-pointer hover:scale-110 p-0.5 rounded transition" 
+                                            style="color: #6b7280;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#6b7280'">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
                             </div>
                         `;
                     }).join('')}
@@ -4399,6 +4486,11 @@
                     renderChatFeed();
                     refreshAllScanItemsBuyerUI();
 
+                    // Se houver cadastro prévio ativo aguardando telefone, verifica se chegou no chat
+                    if (window.activePreReg && !window.activePreReg.isSaved) {
+                        checkPreRegPhoneAutoDetection();
+                    }
+
                     // Se a lista de pessoas online estiver aberta, atualiza em tempo real
                     const onlineModal = document.getElementById("modal-online-people");
                     if (onlineModal && !onlineModal.classList.contains("hidden")) {
@@ -4762,9 +4854,14 @@
                     <div class="flex-1" style="min-width: 0;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
                             <div class="flex flex-wrap items-center gap-2" style="min-width: 0;">
-                                <span class="${userClass}" style="font-size: ${fontSizes.username};">
-                                    @${escapeHtml(cleanUser)}
-                                </span>
+                                <button type="button" 
+                                        onclick="event.stopPropagation(); startPreRegIg('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" 
+                                        title="Clique para cadastro prévio de @${escapeHtml(cleanUser)} e aguardar telefone" 
+                                        class="${userClass} hover:opacity-80 underline-offset-2 transition cursor-pointer inline-flex items-center gap-1 group text-left border-0 bg-transparent p-0" 
+                                        style="font-size: ${fontSizes.username}; font-weight: 800;">
+                                    <span>@${escapeHtml(cleanUser)}</span>
+                                    <i class="fas fa-user-plus text-[10px] opacity-0 group-hover:opacity-100 text-indigo-400 transition ml-0.5" title="Cadastro prévio do IG"></i>
+                                </button>
                             </div>
 
                             <div class="flex items-center gap-2 flex-shrink-0">
@@ -5311,10 +5408,14 @@
     // =========================================================================
     // MODAL DE VINCULAR CLIENTE
     // =========================================================================
-    function openLinkModal(username, platform) {
-        document.getElementById("modal-display-username").textContent = `@${username}`;
+    let _pendingLinkScanItemId = null;
+
+    function openLinkModal(username, platform, scanItemId) {
+        _pendingLinkScanItemId = scanItemId || null;
+        const cleanUser = String(username || '').replace(/^@/, '').trim();
+        document.getElementById("modal-display-username").textContent = `@${cleanUser}`;
         document.getElementById("modal-display-platform").textContent = (platform || 'instagram').toUpperCase();
-        document.getElementById("modal-input-username").value = username;
+        document.getElementById("modal-input-username").value = cleanUser;
         document.getElementById("modal-input-platform").value = platform || 'instagram';
         document.getElementById("modal-search-input").value = "";
         document.getElementById("modal-search-results").innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>`;
@@ -5325,6 +5426,7 @@
 
     function closeLinkModal() {
         document.getElementById("link-user-modal").classList.add("hidden");
+        _pendingLinkScanItemId = null;
     }
 
     let linkUserSelectedIndex = 0;
@@ -5422,6 +5524,7 @@
         const username = document.getElementById("modal-input-username").value;
         const platform = document.getElementById("modal-input-platform").value;
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const scanItemId = _pendingLinkScanItemId;
 
         fetch('/admin/live-chat/link-user', {
             method: 'POST',
@@ -5432,22 +5535,323 @@
             body: JSON.stringify({
                 username: username,
                 platform: platform,
-                user_id: userId
+                user_id: userId,
+                live_id: liveId,
+                scan_item_id: scanItemId
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showToast("Vinculação realizada com sucesso!");
+                showToast("Instagram @" + username + " vinculado com sucesso a " + (data.user?.name || 'cliente') + "!");
                 closeLinkModal();
-                fetchChatFeed();
-                // Abre o leitor de QR Code para esse usuário que acabou de ser vinculado
-                openOnlineQrModal(userId, username, '');
+
+                // Atualiza os itens em memória imediatamente para virar verde
+                const cleanUser = String(username).replace(/^@/, '').toLowerCase();
+                let updatedAny = false;
+                if (Array.isArray(bgScanItems)) {
+                    bgScanItems.forEach(item => {
+                        const bUser = String(item.buyerUsername || '').replace(/^@/, '').toLowerCase();
+                        if (bUser === cleanUser || (scanItemId && String(item.id) === String(scanItemId))) {
+                            item.hasPhone = true;
+                            if (data.user?.phone) item.buyerPhone = data.user.phone;
+                            if (data.user?.name) item.buyerName = data.user.name;
+                            if (data.user?.id) item.buyerUserId = data.user.id;
+                            updatedAny = true;
+                        }
+                        if (Array.isArray(item.buyers)) {
+                            item.buyers.forEach(b => {
+                                const bName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                                if (bName === cleanUser) {
+                                    b.hasPhone = true;
+                                    if (data.user?.phone) b.phone = data.user.phone;
+                                    if (data.user?.name) b.displayName = data.user.name;
+                                    if (data.user?.id) b.userId = data.user.id;
+                                    updatedAny = true;
+                                }
+                            });
+                        }
+                    });
+                }
+                if (updatedAny) {
+                    renderScanItemsList();
+                }
+
+                fetchChatFeed(true);
             } else {
                 alert("Erro ao vincular: " + data.message);
             }
         })
-        .catch(err => console.error("Erro ao vincular usuário:", err));
+        .catch(err => {
+            console.error("Erro ao vincular usuário:", err);
+            alert("Erro na requisição ao vincular usuário.");
+        });
+    }
+
+    // =========================================================================
+    // CADASTRO PRÉVIO DO IG (AGUARDANDO TELEFONE)
+    // =========================================================================
+    window.activePreReg = null;
+
+    function extractPhoneFromText(text) {
+        if (!text) return null;
+        let cleanText = String(text).trim();
+
+        // 1. Tentar padrão explícito com DDD entre parênteses ou traço
+        const regexExplicit = /(?:\(?([1-9][0-9])\)?\s*)?(?:9\s*)?([0-9]{4})\s*-?\s*([0-9]{4})/;
+        const matchExplicit = cleanText.match(regexExplicit);
+        if (matchExplicit) {
+            const rawDigits = cleanText.replace(/\D/g, '');
+            let digits = rawDigits;
+            if (digits.length >= 12 && digits.startsWith('55')) digits = digits.substring(2);
+            if (digits.length === 10 || digits.length === 11) {
+                const ddd = parseInt(digits.substring(0, 2), 10);
+                if (ddd >= 11 && ddd <= 99) return digits;
+            }
+        }
+
+        // 2. Extrai sequência contínua de dígitos
+        const allDigits = cleanText.replace(/\D/g, '');
+        let d = allDigits;
+        if (d.length >= 12 && d.startsWith('55')) d = d.substring(2);
+        if (d.length === 10 || d.length === 11) {
+            const ddd = parseInt(d.substring(0, 2), 10);
+            if (ddd >= 11 && ddd <= 99) return d;
+        }
+
+        return null;
+    }
+
+    function formatPhoneMask(v) {
+        if (!v) return '';
+        let digits = String(v).replace(/\D/g, '');
+        if (digits.length >= 12 && digits.startsWith('55')) digits = digits.substring(2);
+        if (digits.length > 11) digits = digits.substring(0, 11);
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    }
+
+    function maskPreRegPhoneInput(input) {
+        input.value = formatPhoneMask(input.value);
+    }
+
+    function scanPhoneFromUserMessages(cleanUser) {
+        if (!Array.isArray(allLiveMessages) || allLiveMessages.length === 0) return null;
+        const target = cleanUser.toLowerCase();
+        for (let i = allLiveMessages.length - 1; i >= 0; i--) {
+            const m = allLiveMessages[i];
+            const u = String(m.username || '').replace(/^@/, '').toLowerCase().trim();
+            if (u === target) {
+                const text = m.message || m.comentario || '';
+                const p = extractPhoneFromText(text);
+                if (p) return p;
+            }
+        }
+        return null;
+    }
+
+    function setPreRegStatus(type, text) {
+        const badge = document.getElementById('pre-reg-status-badge');
+        const textEl = document.getElementById('pre-reg-status-text');
+        const pingDot = document.getElementById('pre-reg-ping-dot');
+        const box = document.getElementById('pre-reg-ig-box');
+        if (!badge || !textEl) return;
+
+        textEl.textContent = text;
+
+        if (type === 'waiting') {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.borderColor = '#fde68a';
+            badge.style.color = '#92400e';
+            if (pingDot) pingDot.style.display = 'inline-flex';
+            if (box) {
+                box.style.backgroundColor = '#fffbeb';
+                box.style.borderColor = '#f59e0b';
+            }
+        } else if (type === 'detected') {
+            badge.style.backgroundColor = '#ecfdf5';
+            badge.style.borderColor = '#10b981';
+            badge.style.color = '#065f46';
+            if (pingDot) pingDot.style.display = 'none';
+            if (box) {
+                box.style.backgroundColor = '#f0fdf4';
+                box.style.borderColor = '#10b981';
+            }
+        } else if (type === 'saved') {
+            badge.style.backgroundColor = '#d1fae5';
+            badge.style.borderColor = '#059669';
+            badge.style.color = '#064e3b';
+            if (pingDot) pingDot.style.display = 'none';
+            if (box) {
+                box.style.backgroundColor = '#ecfdf5';
+                box.style.borderColor = '#059669';
+            }
+        }
+    }
+
+    function startPreRegIg(username, platform) {
+        const cleanUser = String(username || '').replace(/^@/, '').trim();
+        if (!cleanUser) return;
+        
+        platform = platform || 'instagram';
+        window.activePreReg = {
+            username: cleanUser,
+            platform: platform,
+            phone: null,
+            isSaved: false
+        };
+
+        const container = document.getElementById('pre-reg-ig-container');
+        if (!container) return;
+
+        document.getElementById('pre-reg-username-display').textContent = '@' + cleanUser;
+        
+        const iconEl = document.getElementById('pre-reg-platform-icon');
+        const badgeEl = document.getElementById('pre-reg-platform-badge');
+        if (platform === 'tiktok') {
+            iconEl.className = 'fab fa-tiktok text-white';
+            badgeEl.style.background = '#000000';
+        } else {
+            iconEl.className = 'fab fa-instagram text-white';
+            badgeEl.style.background = 'linear-gradient(135deg, #ec4899, #8b5cf6)';
+        }
+
+        const phoneInput = document.getElementById('pre-reg-phone-input');
+        phoneInput.value = '';
+        
+        setPreRegStatus('waiting', 'Aguardando tel...');
+        container.style.display = 'flex';
+
+        // Tenta achar telefone em comentários anteriores desse usuário
+        const detectedPhone = scanPhoneFromUserMessages(cleanUser);
+        if (detectedPhone) {
+            phoneInput.value = formatPhoneMask(detectedPhone);
+            setPreRegStatus('detected', 'Telefone detectado!');
+            showToast(`Telefone detectado no chat para @${cleanUser}: ${formatPhoneMask(detectedPhone)}`);
+            const saveBtn = document.getElementById('pre-reg-save-btn');
+            if (saveBtn) saveBtn.focus();
+        } else {
+            setTimeout(() => phoneInput.focus(), 60);
+        }
+    }
+
+    function closePreRegIg() {
+        window.activePreReg = null;
+        const container = document.getElementById('pre-reg-ig-container');
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
+    function checkPreRegPhoneAutoDetection() {
+        if (!window.activePreReg || window.activePreReg.isSaved) return;
+        const detectedPhone = scanPhoneFromUserMessages(window.activePreReg.username);
+        if (detectedPhone) {
+            const phoneInput = document.getElementById('pre-reg-phone-input');
+            if (phoneInput && (!phoneInput.value || phoneInput.value.replace(/\D/g, '').length < 8)) {
+                phoneInput.value = formatPhoneMask(detectedPhone);
+                setPreRegStatus('detected', 'Telefone detectado!');
+                showToast(`Telefone detectado para @${window.activePreReg.username}: ${formatPhoneMask(detectedPhone)}`);
+            }
+        }
+    }
+
+    function savePreRegClient() {
+        if (!window.activePreReg) return;
+        const phoneInput = document.getElementById('pre-reg-phone-input');
+        const rawVal = phoneInput ? phoneInput.value : '';
+        const phoneDigits = rawVal.replace(/\D/g, '');
+
+        if (phoneDigits.length < 8) {
+            alert('Por favor, informe um número de telefone com DDD para cadastrar o cliente.');
+            if (phoneInput) phoneInput.focus();
+            return;
+        }
+
+        const saveBtn = document.getElementById('pre-reg-save-btn');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-xs"></i>`;
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const targetUsername = window.activePreReg.username;
+        const targetPlatform = window.activePreReg.platform || 'instagram';
+
+        fetch('/admin/live-chat/pre-register-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                username: targetUsername,
+                phone: phoneDigits,
+                platform: targetPlatform,
+                live_id: liveId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fas fa-check text-xs"></i> <span>Salvar</span>`;
+            }
+
+            if (data.success) {
+                if (window.activePreReg) {
+                    window.activePreReg.isSaved = true;
+                    window.activePreReg.phone = phoneDigits;
+                }
+                setPreRegStatus('saved', `✓ Salvo: ${formatPhoneMask(phoneDigits)}`);
+                showToast(`Cliente @${targetUsername} vinculado com sucesso!`);
+
+                // Atualizar em memória os itens bipados para virar verde
+                const cleanUser = targetUsername.toLowerCase();
+                let updatedAny = false;
+                if (Array.isArray(bgScanItems)) {
+                    bgScanItems.forEach(item => {
+                        const bUser = String(item.buyerUsername || '').replace(/^@/, '').toLowerCase();
+                        if (bUser === cleanUser) {
+                            item.hasPhone = true;
+                            item.buyerPhone = phoneDigits;
+                            if (data.user?.name) item.buyerName = data.user.name;
+                            if (data.user?.id) item.buyerUserId = data.user.id;
+                            updatedAny = true;
+                        }
+                        if (Array.isArray(item.buyers)) {
+                            item.buyers.forEach(b => {
+                                const bName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                                if (bName === cleanUser) {
+                                    b.hasPhone = true;
+                                    b.phone = phoneDigits;
+                                    if (data.user?.name) b.displayName = data.user.name;
+                                    if (data.user?.id) b.userId = data.user.id;
+                                    updatedAny = true;
+                                }
+                            });
+                        }
+                    });
+                }
+                if (updatedAny) {
+                    renderScanItemsList();
+                }
+
+                fetchChatFeed(true);
+            } else {
+                alert('Erro ao cadastrar: ' + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(err => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fas fa-check text-xs"></i> <span>Salvar</span>`;
+            }
+            console.error('Erro ao salvar pré-cadastro:', err);
+            alert('Erro de conexão ao salvar pré-cadastro.');
+        });
     }
 
     // =========================================================================

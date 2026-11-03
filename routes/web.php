@@ -312,6 +312,7 @@ Route::middleware('auth')->group(function () {
         Route::post('live-chat/add-to-bag', [\App\Http\Controllers\Admin\LiveChatController::class, 'addToBag'])->name('admin.live-chat.add-to-bag');
         Route::post('live-chat/ignore', [\App\Http\Controllers\Admin\LiveChatController::class, 'ignoreRequest'])->name('admin.live-chat.ignore');
         Route::post('live-chat/link-user', [\App\Http\Controllers\Admin\LiveChatController::class, 'linkUser'])->name('admin.live-chat.link-user');
+        Route::post('live-chat/pre-register-user', [\App\Http\Controllers\Admin\LiveChatController::class, 'preRegisterUser'])->name('admin.live-chat.pre-register-user');
         Route::post('live-chat/toggle-pause', [\App\Http\Controllers\Admin\LiveChatController::class, 'togglePause'])->name('admin.live-chat.toggle-pause');
         Route::post('live-chat/toggle-instagram', [\App\Http\Controllers\Admin\LiveChatController::class, 'toggleInstagram'])->name('admin.live-chat.toggle-instagram');
         Route::post('live-chat/toggle-tiktok', [\App\Http\Controllers\Admin\LiveChatController::class, 'toggleTiktok'])->name('admin.live-chat.toggle-tiktok');
