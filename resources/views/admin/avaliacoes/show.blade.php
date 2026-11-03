@@ -612,7 +612,7 @@
                     ${etiquetas.map(etiqueta => `
                         <div class="label">
                             <div class="left">
-                                ${etiqueta.parceiro ? `<div><span class="parceiro-tag">[PARCEIRO: ${etiqueta.parceiro.replace(/'/g, "\\'")}]</span></div>` : ''}
+                                ${etiqueta.parceiro ? `<div><span class="parceiro-tag">${etiqueta.parceiro.replace(/'/g, "\\'")}</span></div>` : ''}
                                 <div>
                                     <span class="produto">- ${etiqueta.produto.replace(/'/g, "\\'")}</span>
                                 </div>
@@ -693,7 +693,7 @@
                     return `
                     <div class="label-cc180">
                         <div class="left-cc180">
-                            ${safeParceiro ? `<div class="parceiro-tag-cc180">[${safeParceiro}]</div>` : ''}
+                            ${safeParceiro ? `<div class="parceiro-tag-cc180">${safeParceiro}</div>` : ''}
                             <span class="produto-cc180">${safeProduto}</span>
                             <div class="tamanho-cc180">${safeTamanho}</div>
                             <div class="preco-wrap-cc180">
