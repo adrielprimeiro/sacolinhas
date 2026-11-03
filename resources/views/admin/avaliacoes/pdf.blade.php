@@ -149,7 +149,13 @@
                 <p>Clube de Moda Circular</p>
             </td>
             <td style="text-align: right; width: 50%;">
-                <div class="lote">Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</div>
+                <div class="lote">
+                    @if ($avaliacao->tipo_compra === 'parceria')
+                        Relatório para Parceiro - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
+                    @else
+                        Recibo de Entrada - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
+                    @endif
+                </div>
                 <p>Data da Avaliação: {{ $avaliacao->formatted_data_avaliacao }}</p>
             </td>
         </tr>
@@ -223,7 +229,7 @@
             <tr>
                 <th style="width: 35%;">Peça / Descrição</th>
                 <th style="width: 25%;">Detalhes</th>
-                <th class="text-right" style="width: 20%;">Preço Venda</th>
+                <th class="text-right" style="width: 20%;">Preço</th>
                 <th class="text-right" style="width: 20%;">Repasse</th>
             </tr>
         </thead>
@@ -296,18 +302,16 @@
                     <td style="color: #111827;">R$ {{ number_format($totalVendaLote, 2, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <th>(-) Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</th>
-                    <td style="color: #dc2626;">- R$ {{ number_format($comissaoValor, 2, ',', '.') }}</td>
+                    <th>Taxa Cadastro:</th>
+                    <td style="color: #dc2626;">R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
                 </tr>
-                @if ($taxaCadTotal > 0)
                 <tr>
-                    <th>(-) Taxa de Cadastro:</th>
-                    <td style="color: #dc2626;">- R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
+                    <th>Comissão Mania:</th>
+                    <td style="color: #dc2626;">R$ {{ number_format($comissaoValor, 2, ',', '.') }}</td>
                 </tr>
-                @endif
                 <tr class="grand-total">
-                    <th>Total a Repassar:</th>
-                    <td style="color: #047857;">R$ {{ number_format($totalRepasseLote, 2, ',', '.') }}</td>
+                    <th>Valor do Repasse:</th>
+                    <td style="color: #047857; font-size: 14px;">R$ {{ number_format($totalRepasseLote, 2, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <td colspan="2" style="font-size: 9px; color: #6b7280; text-align: right; padding-top: 4px;">
