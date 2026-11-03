@@ -177,4 +177,15 @@ class User extends Authenticatable
 		return $this->role === 'brecho_admin' 
 			|| (!empty($this->brecho_id) && $this->brecho_id > 1 && in_array($this->role, ['brecho_admin', 'operador']));
 	}
+
+	/**
+	 * Verifica se o cliente tem assinatura ativa do Clube Mania.
+	 */
+	public function isClubeAtivo(): bool
+	{
+		return DB::table('clube_assinaturas')
+			->where('user_id', $this->id)
+			->where('status', 'ativa')
+			->exists();
+	}
 }

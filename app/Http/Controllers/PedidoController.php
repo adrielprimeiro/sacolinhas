@@ -29,9 +29,16 @@ class PedidoController extends Controller
             $isParceiro = $user && $user->isBrechoParceiro();
             $brechoId = $isParceiro ? $user->brecho_id : 1;
 
-            $query = User::where(function ($query) use ($termo) {
+            $cleanTermo = ltrim(trim($termo), '@');
+            $query = User::where(function ($query) use ($termo, $cleanTermo) {
                     $query->where('name', 'LIKE', "%{$termo}%")
-                          ->orWhere('email', 'LIKE', "%{$termo}%");
+                          ->orWhere('nome_cliente', 'LIKE', "%{$termo}%")
+                          ->orWhere('apelido', 'LIKE', "%{$termo}%")
+                          ->orWhere('instagram', 'LIKE', "%{$cleanTermo}%")
+                          ->orWhere('tiktok', 'LIKE', "%{$cleanTermo}%")
+                          ->orWhere('email', 'LIKE', "%{$termo}%")
+                          ->orWhere('whatsapp', 'LIKE', "%{$termo}%")
+                          ->orWhere('phone', 'LIKE', "%{$termo}%");
                 });
 
             if ($isParceiro) {
@@ -533,9 +540,10 @@ class PedidoController extends Controller
 			$isParceiro = $user && $user->isBrechoParceiro();
 			$brechoId = $isParceiro ? $user->brecho_id : 1;
 
-			// ✅ APENAS sacolinhas - sem items_pedido!
+			// ✅ APENAS sacolinhas - com dados de parceiro
 			$query = DB::table('sacolinhas')
 				->join('items', 'sacolinhas.item_id', '=', 'items.id')
+				->leftJoin('brechos as bp', 'bp.id', '=', 'items.parceiro_id')
 				->where('sacolinhas.user_id', $clienteId);
 
 			if ($isParceiro) {
@@ -555,6 +563,11 @@ class PedidoController extends Controller
 					'items.estado',
 					'items.cor',
 					'items.tamanho',
+					'items.parceiro_id',
+					'items.origem_parceiro',
+					'bp.nome as parceiro_nome',
+					'sacolinhas.pago_a_vista',
+					'sacolinhas.pago_a_vista_at',
 					'sacolinhas.add_at'
 				)
 				->get();
@@ -563,8 +576,31 @@ class PedidoController extends Controller
 				return response()->json(['error' => 'Nenhum item encontrado na sacolinha'], 404);
 			}
 
-			$valorTotal = $itensSacolinha->sum('price');
-			$totalItens = $itensSacolinha->count();
+			$valorTotal = (float) $itensSacolinha->sum('price');
+			$totalItens = (int) $itensSacolinha->count();
+
+			$subtotalMania = 0.0;
+			$subtotalParceiros = 0.0;
+			$subtotalParceirosPendente = 0.0;
+			$subtotalParceirosPago = 0.0;
+			$hasParceiro = false;
+
+			foreach ($itensSacolinha as $it) {
+				$ehParceiro = (!empty($it->parceiro_id) && $it->parceiro_id > 1) || !empty($it->origem_parceiro);
+				if ($ehParceiro) {
+					$hasParceiro = true;
+					$subtotalParceiros += (float) $it->price;
+					if (!empty($it->pago_a_vista)) {
+						$subtotalParceirosPago += (float) $it->price;
+					} else {
+						$subtotalParceirosPendente += (float) $it->price;
+					}
+				} else {
+					$subtotalMania += (float) $it->price;
+				}
+			}
+
+			$isClube = $cliente->isClubeAtivo();
 			
 			$logoPath = public_path('images/LogoColorida sem fundo.png');
 			$logoDataUri = null;
@@ -640,10 +676,21 @@ class PedidoController extends Controller
 				if ($item->estado) $detalhes[] = $item->estado;
 				if ($item->cor) $detalhes[] = $item->cor;
 				if ($item->tamanho) $detalhes[] = 'Tam: ' . $item->tamanho;
+
+				$ehParceiro = (!empty($item->parceiro_id) && $item->parceiro_id > 1) || !empty($item->origem_parceiro);
+				$nomeDoParceiro = $item->parceiro_nome ?: ($item->origem_parceiro ?: 'Brechó Parceiro');
+
+				$badgeParceiro = '';
+				if ($ehParceiro) {
+					$statusAVista = !empty($item->pago_a_vista)
+						? '<span style="display:inline-block; padding:1px 5px; font-size:9px; font-weight:bold; background:#d1fae5; color:#065f46; border:1px solid #10b981; border-radius:3px;">PAGO À VISTA (PIX)</span>'
+						: '<span style="display:inline-block; padding:1px 5px; font-size:9px; font-weight:bold; background:#fee2e2; color:#991b1b; border:1px solid #ef4444; border-radius:3px;">EXIGE PAGAMENTO À VISTA</span>';
+					$badgeParceiro = '<div style="margin-top:3px;"><span style="display:inline-block; padding:1px 5px; font-size:9px; font-weight:bold; background:#fef3c7; color:#92400e; border:1px solid #f59e0b; border-radius:3px;">PARCEIRO: ' . htmlspecialchars($nomeDoParceiro) . '</span> ' . $statusAVista . '</div>';
+				}
 				
 				$html .= '<tr>
 					<td>' . htmlspecialchars($item->codigo ?? 'N/A') . '</td>
-					<td><strong>' . htmlspecialchars($item->nome_do_produto) . '</strong></td>
+					<td><strong>' . htmlspecialchars($item->nome_do_produto) . '</strong>' . $badgeParceiro . '</td>
 					<td>' . htmlspecialchars(implode(' • ', $detalhes)) . '</td>
 					<td class="preco">R$ ' . number_format($item->price, 2, ',', '.') . '</td>
 					<td>' . \Carbon\Carbon::parse($item->add_at)->format('d/m/Y') . '</td>
@@ -652,14 +699,69 @@ class PedidoController extends Controller
 
 			$html .= '
 					</tbody>
-					<tfoot>
+					<tfoot>';
+
+			if ($hasParceiro) {
+				if ($subtotalMania > 0) {
+					$html .= '
+						<tr style="background: #f8fafc; font-size: 11px;">
+							<td colspan="3" style="text-align: right;"><strong>Subtotal Minha Mania (Sacolinha):</strong></td>
+							<td class="preco"><strong>R$ ' . number_format($subtotalMania, 2, ',', '.') . '</strong></td>
+							<td></td>
+						</tr>';
+				}
+				$html .= '
+						<tr style="background: #fffbeb; font-size: 11px; color: #92400e;">
+							<td colspan="3" style="text-align: right;"><strong>Subtotal Peças de Parceiro (Exigido À Vista):</strong></td>
+							<td class="preco"><strong>R$ ' . number_format($subtotalParceiros, 2, ',', '.') . '</strong></td>
+							<td></td>
+						</tr>';
+			}
+
+			$html .= '
 						<tr class="total">
 							<td colspan="3"><strong>TOTAL GERAL:</strong></td>
 							<td class="preco"><strong>R$ ' . number_format($valorTotal, 2, ',', '.') . '</strong></td>
 							<td></td>
 						</tr>
 					</tfoot>
-				</table>
+				</table>';
+
+			if ($hasParceiro) {
+				$msgClube = $isClube
+					? 'Você é membro do <strong>Clube Mania</strong>! Suas compras Minha Mania (R$ ' . number_format($subtotalMania, 2, ',', '.') . ') permanecem na sua sacolinha aberta para pagamento no fechamento.<br><strong>No entanto, peças de brechós parceiros (consignação) pertencem a lojas parceiras e NÃO podem acumular na sacolinha: DEVEM SER PAGAS À VISTA IMEDIATAMENTE VIA PIX.</strong>'
+					: 'Itens de brechós parceiros (consignação) totalizam <strong>R$ ' . number_format($subtotalParceiros, 2, ',', '.') . '</strong> e <strong>devem ser pagos à vista imediatamente via Pix</strong>.';
+
+				$valorPendenteTexto = $subtotalParceirosPendente > 0
+					? '<span style="color:#b91c1c; font-size:13px; font-weight:bold;">R$ ' . number_format($subtotalParceirosPendente, 2, ',', '.') . ' (Pendente)</span>'
+					: '<span style="color:#047857; font-size:13px; font-weight:bold;">R$ ' . number_format($subtotalParceiros, 2, ',', '.') . ' (Quitado via Pix ✓)</span>';
+
+				$html .= '
+				<div style="margin-top: 15px; border: 2px solid #d97706; background-color: #fffbeb; border-radius: 8px; padding: 12px; color: #78350f;">
+					<div style="font-weight: bold; font-size: 12px; margin-bottom: 6px; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">
+						⚠️ Informações de Pagamento — Peças de Brechós Parceiros
+					</div>
+					<p style="margin: 4px 0 8px 0; font-size: 11px; line-height: 1.4; color: #451a03;">
+						' . $msgClube . '
+					</p>
+					<table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #fde68a; border-radius: 6px; margin: 0;">
+						<tr style="border-bottom: 1px solid #fef3c7;">
+							<td style="padding: 6px 10px; font-size: 11px; color: #374151; width: 45%;"><strong>Total Peças de Parceiro À Vista:</strong></td>
+							<td style="padding: 6px 10px; text-align: right; font-size: 12px;">' . $valorPendenteTexto . '</td>
+						</tr>
+						<tr style="border-bottom: 1px solid #fef3c7;">
+							<td style="padding: 6px 10px; font-size: 11px; color: #374151;"><strong>Chave Pix Minha Mania:</strong></td>
+							<td style="padding: 6px 10px; text-align: right; font-size: 12px; font-weight: bold; font-family: monospace; color: #1e3a8a;">mania@maniademelissa.com</td>
+						</tr>
+						<tr>
+							<td style="padding: 6px 10px; font-size: 10px; color: #6b7280;"><strong>Favorecido:</strong> Minha Mania Brechó</td>
+							<td style="padding: 6px 10px; text-align: right; font-size: 10px; color: #6b7280;">Envie o comprovante para nosso WhatsApp para validação imediata</td>
+						</tr>
+					</table>
+				</div>';
+			}
+
+			$html .= '
 			</body>
 			</html>';
 

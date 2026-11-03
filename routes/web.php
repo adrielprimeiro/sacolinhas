@@ -989,6 +989,8 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin/sacolinhas-admin')->gr
     Route::post('/update-item-price', [AdminSacolinhaController::class, 'updateItemPrice'])->name('admin.sacolinha.updatePrice');
     Route::post('/ver/{user}/autorizar', [AdminSacolinhaController::class, 'autorizarFechamento'])->name('admin.sacolinha.autorizar');
     Route::post('/ver/{user}/revogar', [AdminSacolinhaController::class, 'revogarAutorizacao'])->name('admin.sacolinha.revogar');
+    Route::post('/toggle-pagamento-a-vista', [AdminSacolinhaController::class, 'togglePagamentoAVista'])->name('admin.sacolinha.togglePagamentoAVista');
+    Route::post('/ver/{user}/quitar-parceiros', [AdminSacolinhaController::class, 'quitarTodosParceiros'])->name('admin.sacolinha.quitarParceiros');
 });
 
 //Item->Sacolinha
