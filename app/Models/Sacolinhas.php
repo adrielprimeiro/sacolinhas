@@ -23,18 +23,13 @@ class Sacolinhas extends Model
         'add_at',
         'tray',
         'status',
-        'obs',
-        'pago_a_vista',
-        'pago_a_vista_at',
-        'pago_a_vista_por'
+        'obs'
     ];
 
     protected $casts = [
         'add_at' => 'datetime',
         'price' => 'decimal:2',
-        'quantity' => 'integer',
-        'pago_a_vista' => 'boolean',
-        'pago_a_vista_at' => 'datetime'
+        'quantity' => 'integer'
     ];
 
     protected static function booted()

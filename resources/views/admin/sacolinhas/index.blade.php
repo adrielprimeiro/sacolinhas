@@ -162,25 +162,6 @@
 				</button>
 			</div>
 		</form>
-
-		@if(empty($isParceiro))
-		<div class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
-			<span class="text-xs font-bold text-gray-500 uppercase">Filtro Rápido:</span>
-			<a href="{{ route('admin.sacolinha.gestao', array_merge(request()->except('filtro_parceiro'), request('filtro_parceiro') === 'pendente' ? [] : ['filtro_parceiro' => 'pendente'])) }}"
-			   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black border transition {{ request('filtro_parceiro') === 'pendente' ? 'bg-amber-100 text-amber-950 border-2 border-amber-600 shadow-sm' : 'bg-white text-gray-700 border border-gray-300 hover:bg-amber-50 hover:text-amber-900' }}">
-				<i class="fas fa-bolt text-amber-600"></i>
-				<span>Com Peça de Parceiro Pendente (À Vista)</span>
-				@if(!empty($totalComParceiroPendente) && $totalComParceiroPendente > 0)
-					<span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-600 text-white">{{ $totalComParceiroPendente }}</span>
-				@endif
-			</a>
-			@if(request('filtro_parceiro') === 'pendente')
-				<a href="{{ route('admin.sacolinha.gestao', request()->except('filtro_parceiro')) }}" class="text-xs text-red-600 hover:underline font-bold ml-2">
-					<i class="fas fa-times mr-1"></i> Remover filtro
-				</a>
-			@endif
-		</div>
-		@endif
 	</div>
 
     <div class="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -203,20 +184,7 @@
                     @forelse ($sacolinhas as $sacola)
                         <tr class="border-b border-gray-200 hover:bg-gray-100">
                             <td class="py-3 px-6 text-left font-medium">
-                                <span class="font-bold text-gray-900">{{ $sacola->name ?? 'N/A' }}</span>
-                                @if(!empty($sacola->parceiro_pendente_valor) && (float)$sacola->parceiro_pendente_valor > 0)
-                                    <div class="mt-1">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black bg-amber-100 text-amber-950 border border-amber-300" title="Peças de parceiro(s) exigem pagamento à vista via Pix">
-                                            ⚡ R$ {{ number_format((float)$sacola->parceiro_pendente_valor, 2, ',', '.') }} à vista pendente
-                                        </span>
-                                    </div>
-                                @elseif(!empty($sacola->parceiro_total_qtd) && $sacola->parceiro_total_qtd > 0)
-                                    <div class="mt-1">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300" title="Todas as peças de parceiro já estão quitadas">
-                                            ✓ Parceiro Quitado
-                                        </span>
-                                    </div>
-                                @endif
+                                {{ $sacola->name ?? 'N/A' }}
                             </td>
 
                             @if(empty($isParceiro))

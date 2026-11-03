@@ -21,7 +21,6 @@ class AdminSacolinhaController extends Controller
         $query = DB::table('sacolinhas as s')
             ->join('users as u', 'u.id', '=', 's.user_id')
             ->leftJoin('brechos as b', 'b.id', '=', 's.brecho_id')
-            ->leftJoin('items as i', 'i.id', '=', 's.item_id')
             ->where('s.status', '!=', 'pedido')
             ->select([
                 'u.id as user_id',
@@ -30,10 +29,7 @@ class AdminSacolinhaController extends Controller
                 DB::raw('COALESCE(b.nome, "Minha Mania") as brecho_nome'),
                 DB::raw('MIN(s.add_at) as aberto_em'),
                 DB::raw('SUM(s.price) as total_valor'),
-                DB::raw('COUNT(s.item_id) as total_itens'),
-                DB::raw('SUM(CASE WHEN (i.parceiro_id > 1 OR (i.origem_parceiro IS NOT NULL AND i.origem_parceiro != "")) AND (s.pago_a_vista = 0 OR s.pago_a_vista IS NULL) THEN s.price ELSE 0 END) as parceiro_pendente_valor'),
-                DB::raw('COUNT(CASE WHEN (i.parceiro_id > 1 OR (i.origem_parceiro IS NOT NULL AND i.origem_parceiro != "")) AND (s.pago_a_vista = 0 OR s.pago_a_vista IS NULL) THEN 1 END) as parceiro_pendente_qtd'),
-                DB::raw('COUNT(CASE WHEN (i.parceiro_id > 1 OR (i.origem_parceiro IS NOT NULL AND i.origem_parceiro != "")) THEN 1 END) as parceiro_total_qtd')
+                DB::raw('COUNT(s.item_id) as total_itens')
             ]);
 
         // Isolamento de dados por brechó parceiro
@@ -65,10 +61,6 @@ class AdminSacolinhaController extends Controller
             $query->where('u.name', 'like', '%' . $request->cliente . '%');
         }
 
-        if ($request->input('filtro_parceiro') === 'pendente') {
-            $query->having('parceiro_pendente_valor', '>', 0);
-        }
-
         $sacolinhas = $query->groupBy('u.id', 'u.name', DB::raw('COALESCE(s.brecho_id, 1)'), 'b.nome')
             ->orderBy('aberto_em', 'asc')
             ->paginate(15)
@@ -76,25 +68,7 @@ class AdminSacolinhaController extends Controller
 
         $brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
 
-        $totalComParceiroPendente = DB::table('sacolinhas as s')
-            ->join('items as i', 'i.id', '=', 's.item_id')
-            ->where('s.status', '!=', 'pedido')
-            ->where(function($q) {
-                $q->where('s.brecho_id', 1)->orWhereNull('s.brecho_id');
-            })
-            ->where(function($q) {
-                $q->where('s.pago_a_vista', 0)->orWhereNull('s.pago_a_vista');
-            })
-            ->where(function($q) {
-                $q->where('i.parceiro_id', '>', 1)
-                  ->orWhere(function($sub) {
-                      $sub->whereNotNull('i.origem_parceiro')->where('i.origem_parceiro', '!=', '');
-                  });
-            })
-            ->distinct('s.user_id')
-            ->count('s.user_id');
-
-        return view('admin.sacolinhas.index', compact('sacolinhas', 'isParceiro', 'brechos', 'totalComParceiroPendente'));
+        return view('admin.sacolinhas.index', compact('sacolinhas', 'isParceiro', 'brechos'));
     }
 
     public function show(Request $request, User $user)
@@ -174,7 +148,6 @@ class AdminSacolinhaController extends Controller
         // Buscar itens da sacolinha para o brechó atual
         $itensQuery = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
-            ->leftJoin('brechos as bp', 'bp.id', '=', 'i.parceiro_id')
             ->where('s.user_id', $user->id)
             ->where('s.status', '!=', 'pedido');
 
@@ -196,9 +169,6 @@ class AdminSacolinhaController extends Controller
                 's.status as sacolinha_status',
                 's.obs',
                 's.brecho_id',
-                's.pago_a_vista',
-                's.pago_a_vista_at',
-                's.pago_a_vista_por',
                 'i.codigo',
                 'i.nome_do_produto',
                 'i.estado',
@@ -206,38 +176,10 @@ class AdminSacolinhaController extends Controller
                 'i.tamanho',
                 'i.image',
                 'i.marca',
-                'i.parceiro_id',
-                'i.origem_parceiro',
-                'bp.nome as parceiro_nome',
             ])
             ->get();
 
         $total = (float) $itens->sum('price');
-
-        $subtotalMania = 0.0;
-        $totalParceiros = 0.0;
-        $totalParceirosPendente = 0.0;
-        $totalParceirosPago = 0.0;
-        $qtdParceirosPendente = 0;
-        $hasParceiro = false;
-
-        foreach ($itens as $it) {
-            $ehParceiro = (!empty($it->parceiro_id) && $it->parceiro_id > 1) || !empty($it->origem_parceiro);
-            if ($ehParceiro) {
-                $hasParceiro = true;
-                $totalParceiros += (float) $it->price;
-                if (!empty($it->pago_a_vista)) {
-                    $totalParceirosPago += (float) $it->price;
-                } else {
-                    $totalParceirosPendente += (float) $it->price;
-                    $qtdParceirosPendente++;
-                }
-            } else {
-                $subtotalMania += (float) $it->price;
-            }
-        }
-
-        $isClube = $user->isClubeAtivo();
         $brechos = \App\Models\Brecho::where('ativo', 1)->orderBy('id')->get();
         $brechoAtual = DB::table('brechos')->where('id', $brechoId)->first();
 
@@ -255,14 +197,7 @@ class AdminSacolinhaController extends Controller
             'isParceiro',
             'brechoId',
             'brechoAtual',
-            'brechos',
-            'subtotalMania',
-            'totalParceiros',
-            'totalParceirosPendente',
-            'totalParceirosPago',
-            'qtdParceirosPendente',
-            'hasParceiro',
-            'isClube'
+            'brechos'
         ));
     }
 
@@ -560,7 +495,6 @@ class AdminSacolinhaController extends Controller
                 $pedidoAtualizado = Pedido::find($pedido->id);
                 if ($pedidoAtualizado) {
                     $pedidoAtualizado->touch();
-                    (new \App\Observers\PedidoObserver)->saved($pedidoAtualizado);
                 }
 
                 // 9. Consumir/limpar a autorização do usuário
@@ -637,7 +571,6 @@ class AdminSacolinhaController extends Controller
 
         $itensQuery = DB::table('sacolinhas as s')
             ->join('items as i', 'i.id', '=', 's.item_id')
-            ->leftJoin('brechos as bp', 'bp.id', '=', 'i.parceiro_id')
             ->where('s.user_id', $user->id)
             ->where('s.status', '!=', 'pedido');
 
@@ -651,45 +584,17 @@ class AdminSacolinhaController extends Controller
 
         $itens = $itensQuery->orderBy('s.add_at', 'asc')
             ->select([
-                's.id as sacolinha_id',
                 's.price',
                 's.add_at',
                 's.status as sacolinha_status',
-                's.pago_a_vista',
-                's.pago_a_vista_at',
                 'i.codigo',
                 'i.nome_do_produto',
                 'i.tamanho',
                 'i.marca',
-                'i.parceiro_id',
-                'i.origem_parceiro',
-                'bp.nome as parceiro_nome',
             ])
             ->get();
 
         $total = (float) $itens->sum('price');
-        $subtotalMania = 0.0;
-        $subtotalParceiros = 0.0;
-        $subtotalParceirosPendente = 0.0;
-        $subtotalParceirosPago = 0.0;
-        $hasParceiro = false;
-
-        foreach ($itens as $it) {
-            $ehParceiro = (!empty($it->parceiro_id) && $it->parceiro_id > 1) || !empty($it->origem_parceiro);
-            if ($ehParceiro) {
-                $hasParceiro = true;
-                $subtotalParceiros += (float) $it->price;
-                if (!empty($it->pago_a_vista)) {
-                    $subtotalParceirosPago += (float) $it->price;
-                } else {
-                    $subtotalParceirosPendente += (float) $it->price;
-                }
-            } else {
-                $subtotalMania += (float) $it->price;
-            }
-        }
-
-        $isClube = $user->isClubeAtivo();
 
         if ($brechoId > 1) {
             $valorPago = 0.0;
@@ -705,20 +610,7 @@ class AdminSacolinhaController extends Controller
 
         $brechoAtual = DB::table('brechos')->where('id', $brechoId)->first();
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact(
-            'user', 
-            'itens', 
-            'total', 
-            'valorPago', 
-            'isParceiro', 
-            'brechoAtual',
-            'subtotalMania',
-            'subtotalParceiros',
-            'subtotalParceirosPendente',
-            'subtotalParceirosPago',
-            'hasParceiro',
-            'isClube'
-        ));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sacolinhas.pdf', compact('user', 'itens', 'total', 'valorPago', 'isParceiro', 'brechoAtual'));
         return $pdf->stream("sacolinha-{$user->name}.pdf");
     }
 
@@ -733,62 +625,5 @@ class AdminSacolinhaController extends Controller
         $sacolinha->update(['price' => $validated['price']]);
 
         return response()->json(['success' => true, 'message' => 'Preço atualizado com sucesso!']);
-    }
-
-    public function togglePagamentoAVista(Request $request)
-    {
-        $validated = $request->validate([
-            'sacolinha_id' => 'required|exists:sacolinhas,id',
-        ]);
-
-        $sacolinha = Sacolinhas::withoutGlobalScope('active')->findOrFail($validated['sacolinha_id']);
-        
-        $novoStatus = !$sacolinha->pago_a_vista;
-        $sacolinha->update([
-            'pago_a_vista' => $novoStatus,
-            'pago_a_vista_at' => $novoStatus ? now() : null,
-            'pago_a_vista_por' => $novoStatus ? (auth()->user()->name ?? 'Operador') : null,
-        ]);
-
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'pago_a_vista' => $novoStatus,
-                'message' => $novoStatus ? 'Pagamento à vista (Pix) confirmado!' : 'Status revertido para pendente.',
-            ]);
-        }
-
-        return back()->with('success', $novoStatus ? 'Pagamento à vista (Pix) da peça confirmado com sucesso!' : 'Status revertido para pendente.');
-    }
-
-    public function quitarTodosParceiros(Request $request, User $user)
-    {
-        $sacolinhasQuery = Sacolinhas::where('user_id', $user->id)
-            ->where('status', '!=', 'pedido')
-            ->where(function($q) {
-                $q->where('pago_a_vista', 0)->orWhereNull('pago_a_vista');
-            })
-            ->whereHas('item', function($q) {
-                $q->where(function($sub) {
-                    $sub->where('parceiro_id', '>', 1)
-                        ->orWhere(function($orig) {
-                            $orig->whereNotNull('origem_parceiro')->where('origem_parceiro', '!=', '');
-                        });
-                });
-            });
-
-        $count = $sacolinhasQuery->count();
-
-        if ($count === 0) {
-            return back()->with('info', 'Não há peças de parceiros pendentes de pagamento à vista para este cliente.');
-        }
-
-        $sacolinhasQuery->update([
-            'pago_a_vista' => 1,
-            'pago_a_vista_at' => now(),
-            'pago_a_vista_por' => auth()->user()->name ?? 'Operador',
-        ]);
-
-        return back()->with('success', "Pagamento à vista via Pix confirmado com sucesso para {$count} peça(s) de parceiros!");
     }
 }

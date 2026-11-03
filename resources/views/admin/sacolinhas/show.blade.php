@@ -125,70 +125,6 @@
         </div>
     </div>
 
-    {{-- Card de Peças de Parceiro / Pagamento À Vista --}}
-    @if(!empty($hasParceiro) && $hasParceiro)
-        <div class="bg-amber-50 border-2 border-amber-500 rounded-xl p-4 shadow-xs">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-amber-500 text-amber-950 flex items-center justify-center flex-shrink-0 font-bold text-lg">
-                        <i class="fas fa-hand-holding-usd"></i>
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-extrabold text-amber-950 uppercase tracking-wide">
-                                Peças de Parceiros (Exigido Pagamento À Vista via Pix)
-                            </h3>
-                            @if(!empty($isClube) && $isClube)
-                                <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-300">
-                                    <i class="fas fa-crown text-amber-600 mr-1"></i> Cliente Clube Mania
-                                </span>
-                            @endif
-                        </div>
-                        <p class="text-xs text-amber-900 mt-1 leading-relaxed">
-                            @if(!empty($isClube) && $isClube)
-                                Este cliente é do Clube e pode manter itens da Minha Mania na sacolinha, <strong>mas peças de parceiros NÃO acumulam</strong> e devem ser quitadas imediatamente via Pix.
-                            @else
-                                Peças de brechós parceiros (consignação) exigem pagamento à vista imediato via Pix.
-                            @endif
-                        </p>
-                        <div class="flex flex-wrap items-center gap-4 mt-2 text-xs">
-                            <div>
-                                <span class="text-gray-600 font-medium">Total Parceiros:</span>
-                                <span class="font-bold text-gray-900">R$ {{ number_format($totalParceiros, 2, ',', '.') }}</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-600 font-medium">Já Quitado:</span>
-                                <span class="font-bold text-emerald-700">R$ {{ number_format($totalParceirosPago, 2, ',', '.') }}</span>
-                            </div>
-                            <div>
-                                <span class="text-amber-900 font-extrabold">Pendente À Vista:</span>
-                                <span class="font-black text-sm {{ $totalParceirosPendente > 0 ? 'text-red-700' : 'text-emerald-700' }}">
-                                    R$ {{ number_format($totalParceirosPendente, 2, ',', '.') }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                @if($totalParceirosPendente > 0)
-                    <form method="POST" action="{{ route('admin.sacolinha.quitarParceiros', $user->id) }}" onsubmit="return confirm('Confirma o recebimento do PIX para todas as peças de parceiro pendentes deste cliente?')">
-                        @csrf
-                        <input type="hidden" name="brecho_id" value="{{ $brechoId }}">
-                        <button type="submit" class="w-full md:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black shadow-sm transition uppercase tracking-wider">
-                            <i class="fas fa-check-double"></i>
-                            <span>Confirmar Pix de Todos os Parceiros</span>
-                        </button>
-                    </form>
-                @else
-                    <div class="inline-flex items-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-black">
-                        <i class="fas fa-check-circle text-emerald-600 text-base"></i>
-                        <span>Todos os Parceiros Quitados via Pix</span>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
-
     <!-- Lista -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -250,11 +186,9 @@
                                 $detalhesFormatados = implode(' • ', $detalhes);
                                 
                                 $emAnalise = strtolower($item->sacolinha_status ?? '') === 'em analise';
-                                $ehParceiro = (!empty($item->parceiro_id) && $item->parceiro_id > 1) || !empty($item->origem_parceiro);
-                                $nomeParceiro = $item->parceiro_nome ?: ($item->origem_parceiro ?: 'Brechó Parceiro');
                             @endphp
 
-                            <tr class="{{ $emAnalise ? 'bg-yellow-50 hover:bg-yellow-100' : ($ehParceiro && empty($item->pago_a_vista) ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50') }}">
+                            <tr class="{{ $emAnalise ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50' }}">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         <div class="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex items-center justify-center flex-shrink-0 border border-gray-100">
@@ -272,36 +206,6 @@
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 mt-1 uppercase tracking-wider">
                                                     Em Análise
                                                 </span>
-                                            @endif
-                                            @if($ehParceiro)
-                                                <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
-                                                        <i class="fas fa-handshake mr-1 text-amber-600"></i> Parceiro: {{ $nomeParceiro }}
-                                                    </span>
-                                                    @if(!empty($item->pago_a_vista))
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                                            <i class="fas fa-check mr-1 text-emerald-600"></i> Quitado À Vista (Pix)
-                                                        </span>
-                                                        <form method="POST" action="{{ route('admin.sacolinha.togglePagamentoAVista') }}" class="inline">
-                                                            @csrf
-                                                            <input type="hidden" name="sacolinha_id" value="{{ $item->sacolinha_id }}">
-                                                            <button type="submit" class="text-[10px] text-gray-400 hover:text-red-600 underline ml-1" title="Reverter para pendente">
-                                                                Estornar
-                                                            </button>
-                                                        </form>
-                                                    @else
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-red-100 text-red-950 border border-red-300">
-                                                            <i class="fas fa-bolt mr-1 text-red-600"></i> Exige Pix À Vista
-                                                        </span>
-                                                        <form method="POST" action="{{ route('admin.sacolinha.togglePagamentoAVista') }}" class="inline">
-                                                            @csrf
-                                                            <input type="hidden" name="sacolinha_id" value="{{ $item->sacolinha_id }}">
-                                                            <button type="submit" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs ml-1 transition" title="Confirmar pagamento via Pix">
-                                                                <i class="fas fa-check mr-1"></i> Baixar Pix
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                </div>
                                             @endif
                                         </div>
                                     </div>
