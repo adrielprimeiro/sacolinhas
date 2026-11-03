@@ -471,12 +471,21 @@
                                         <div class="text-[10px] text-gray-500 mt-0.5" x-show="tipoCompra === 'avaliados'">
                                             Taxa Curad: <span x-text="formatCurrency(item.taxa_curadoria)"></span>
                                         </div>
-                                        <div class="text-[10px] text-blue-600 font-semibold mt-0.5">
-                                            Crédito: <span x-text="formatCurrency(item.payout_credito)"></span>
-                                        </div>
-                                        <div class="text-[10px] text-green-600 font-semibold">
-                                            Dinheiro: <span x-text="formatCurrency(item.payout_dinheiro)"></span>
-                                        </div>
+                                        <template x-if="tipoCompra === 'parceria'">
+                                            <div class="text-[11px] text-indigo-700 font-bold mt-0.5">
+                                                Repasse: <span x-text="formatCurrency(item.payout_dinheiro)"></span>
+                                            </div>
+                                        </template>
+                                        <template x-if="tipoCompra !== 'parceria'">
+                                            <div>
+                                                <div class="text-[10px] text-blue-600 font-semibold mt-0.5">
+                                                    Crédito: <span x-text="formatCurrency(item.payout_credito)"></span>
+                                                </div>
+                                                <div class="text-[10px] text-green-600 font-semibold">
+                                                    Dinheiro: <span x-text="formatCurrency(item.payout_dinheiro)"></span>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </td>
 
                                     {{-- Ações --}}
@@ -530,15 +539,31 @@
                 </div>
 
                 <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
-                    <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Repasse Fornecedor</span>
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-500">Repasse Crédito:</span>
-                        <span class="font-black text-lg text-blue-600" x-text="formatCurrency(totalPayoutCredito)"></span>
-                    </div>
-                    <div class="flex justify-between items-center border-t border-gray-100 pt-1">
-                        <span class="text-xs text-gray-500">Repasse Dinheiro:</span>
-                        <span class="font-black text-lg text-green-600" x-text="formatCurrency(totalPayoutDinheiro)"></span>
-                    </div>
+                    <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest" x-text="tipoCompra === 'parceria' ? 'Repasse Estimado ao Parceiro' : 'Total Repasse Fornecedor'"></span>
+                    <template x-if="tipoCompra === 'parceria'">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-500">Repasse das Peças:</span>
+                                <span class="font-black text-lg text-indigo-700" x-text="formatCurrency(totalPayoutDinheiro)"></span>
+                            </div>
+                            <div class="text-[11px] text-gray-400 pt-1 border-t border-gray-100 flex items-center justify-between">
+                                <span>Comissão Mania (<span x-text="comissaoParceiroPorcentagem || 20"></span>%):</span>
+                                <span class="font-semibold text-gray-600" x-text="formatCurrency(totalVenda * ((comissaoParceiroPorcentagem || 20) / 100))"></span>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="tipoCompra !== 'parceria'">
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-500">Repasse Crédito:</span>
+                                <span class="font-black text-lg text-blue-600" x-text="formatCurrency(totalPayoutCredito)"></span>
+                            </div>
+                            <div class="flex justify-between items-center border-t border-gray-100 pt-1">
+                                <span class="text-xs text-gray-500">Repasse Dinheiro:</span>
+                                <span class="font-black text-lg text-green-600" x-text="formatCurrency(totalPayoutDinheiro)"></span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 

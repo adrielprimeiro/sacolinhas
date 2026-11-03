@@ -191,7 +191,9 @@
                             elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
                             
                             $payoutVal = 0.00;
-                            if ($avaliacao->status === 'finalizada') {
+                            if ($avaliacao->tipo_compra === 'parceria') {
+                                $payoutVal = $item->payout_dinheiro;
+                            } elseif ($avaliacao->status === 'finalizada') {
                                 $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
                             } else {
                                 $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
@@ -362,29 +364,58 @@
             @php
                 $sumPayoutCredito = $avaliacao->items->sum('payout_credito');
                 $sumPayoutDinheiro = $avaliacao->items->sum('payout_dinheiro');
+                $totalVendaLote = $avaliacao->items->sum('preco_venda');
+                $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+                $comissaoValor = $totalVendaLote * ($comissaoPct / 100.00);
             @endphp
             <div class="space-y-4">
                 {{-- Total Repasse Fornecedor (Padrão de Criação/Edição) --}}
                 <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
-                    <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Repasse Fornecedor</span>
+                    <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {{ $avaliacao->tipo_compra === 'parceria' ? 'Repasse Estimado ao Parceiro' : 'Total Repasse Fornecedor' }}
+                    </span>
                     
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-500">Repasse Crédito:</span>
-                        <span class="font-black text-lg text-blue-600">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</span>
-                    </div>
-                    
-                    <div class="flex justify-between items-center border-t border-gray-150 pt-2">
-                        <span class="text-xs text-gray-500">Repasse Dinheiro:</span>
-                        <span class="font-black text-lg text-green-600">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</span>
-                    </div>
-                    
-                    <div class="text-[10px] text-gray-400 text-right pt-2 border-t border-gray-100">
-                        @if ($avaliacao->status === 'finalizada')
-                            Pago via <strong class="capitalize">{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
-                        @else
-                            Aguardando finalização do lote (Rascunho)
+                    @if ($avaliacao->tipo_compra === 'parceria')
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Total Venda do Lote:</span>
+                            <span class="font-bold text-sm text-gray-800">R$ {{ number_format($totalVendaLote, 2, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-gray-150 pt-1.5 text-xs">
+                            <span class="text-gray-500">(-) Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</span>
+                            <span class="font-bold text-red-600">- R$ {{ number_format($comissaoValor, 2, ',', '.') }}</span>
+                        </div>
+                        @if ((float)$avaliacao->taxa_cadastro_peca > 0)
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-500">(-) Taxa Cadastro ({{ $avaliacao->items->count() }}x R$ {{ number_format((float)$avaliacao->taxa_cadastro_peca, 2, ',', '.') }}):</span>
+                                <span class="font-bold text-red-600">- R$ {{ number_format((float)$avaliacao->taxa_cadastro_peca * $avaliacao->items->count(), 2, ',', '.') }}</span>
+                            </div>
                         @endif
-                    </div>
+                        <div class="flex justify-between items-center border-t border-gray-200 pt-2">
+                            <span class="text-xs font-bold text-gray-700">Total a Repassar:</span>
+                            <span class="font-black text-xl text-emerald-700">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 text-right pt-2 border-t border-gray-100">
+                            Regime de <strong>Consignação</strong> (Repasse lançado na Carteira conforme as peças forem vendidas e pagas)
+                        </div>
+                    @else
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Repasse Crédito:</span>
+                            <span class="font-black text-lg text-blue-600">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center border-t border-gray-150 pt-2">
+                            <span class="text-xs text-gray-500">Repasse Dinheiro:</span>
+                            <span class="font-black text-lg text-green-600">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</span>
+                        </div>
+                        
+                        <div class="text-[10px] text-gray-400 text-right pt-2 border-t border-gray-100">
+                            @if ($avaliacao->status === 'finalizada')
+                                Pago via <strong class="capitalize">{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
+                            @else
+                                Aguardando finalização do lote (Rascunho)
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

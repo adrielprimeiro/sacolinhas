@@ -610,6 +610,18 @@ class AvaliacaoController extends Controller
                     $item->taxa_curadoria = 0.00;
                     $item->payout_credito = $item->preco_base;
                     $item->payout_dinheiro = $item->preco_base;
+                } elseif ($avaliacao->tipo_compra === 'parceria') {
+                    $precoVendaItem = (!is_null($item->preco_venda) && $item->preco_venda > 0) ? $item->preco_venda : $item->preco_base;
+                    $item->preco_venda = $precoVendaItem;
+                    $item->taxa_curadoria = 0.00;
+
+                    $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+                    $repassePct = max(0, (100.00 - $comissaoPct) / 100.00);
+                    $taxaCad = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00);
+
+                    $payoutEstimado = max(0, ($precoVendaItem * $repassePct) - $taxaCad);
+                    $item->payout_credito = $payoutEstimado;
+                    $item->payout_dinheiro = $payoutEstimado;
                 } else {
                     $item->recalculate($fretePorItem, $avaliacao->tipo_cliente);
                 }
@@ -939,7 +951,7 @@ class AvaliacaoController extends Controller
      */
     public function pdf(Avaliacao $avaliacao)
     {
-        $avaliacao->load(['user', 'items.categoria']);
+        $avaliacao->load(['user', 'pessoa', 'parceiro', 'items.categoria', 'items.item', 'items.marcaRel']);
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao'));
         return $pdf->stream("avaliacao-" . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . ".pdf");
     }

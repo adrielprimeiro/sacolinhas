@@ -80,6 +80,40 @@ class AvaliacaoItem extends Model
      */
     public function recalculate(float $fretePorItem = 0.00, string $tipoCliente = 'fora_clube')
     {
+        $avaliacao = $this->avaliacao;
+
+        // Se for Parceria / Consignação:
+        // O repasse estimado é a % restante após a comissão da Mania (ex: 70% da venda) menos a taxa de cadastro
+        if ($avaliacao && $avaliacao->tipo_compra === 'parceria') {
+            $precoVendaItem = (!empty($this->preco_venda) && (float)$this->preco_venda > 0) ? (float) $this->preco_venda : (float) $this->preco_base;
+            $this->preco_venda = $precoVendaItem;
+            $this->taxa_curadoria = 0.00;
+
+            $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+            $repassePct = max(0, (100.00 - $comissaoPct) / 100.00);
+            $taxaCad = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00);
+
+            $payoutEstimado = max(0, ($precoVendaItem * $repassePct) - $taxaCad);
+            $this->payout_credito = $payoutEstimado;
+            $this->payout_dinheiro = $payoutEstimado;
+            return;
+        }
+
+        // Se for Compra Direta:
+        if ($avaliacao && $avaliacao->tipo_compra === 'direta') {
+            if (empty($this->preco_venda) || (float)$this->preco_venda <= 0) {
+                if ($this->is_fixed_price) {
+                    $this->preco_venda = (float) $this->preco_base;
+                } else {
+                    $this->preco_venda = (float) $this->preco_base * 2.023121387;
+                }
+            }
+            $this->taxa_curadoria = 0.00;
+            $this->payout_credito = (float) $this->preco_base;
+            $this->payout_dinheiro = (float) $this->preco_base;
+            return;
+        }
+
         // 1. Ajuste de marca dinâmico
         $porcentagem = 100.00;
         if ($this->marca_id) {

@@ -176,17 +176,43 @@
             <td style="padding-left: 5px;">
                 <div class="box">
                     <h3>Informações da Operação</h3>
-                    <strong>Operação:</strong> {{ $avaliacao->tipo_compra === 'avaliados' ? 'Regime de Avaliação e Desapego' : 'Compra Direta' }}<br>
-                    <strong>Frete da Remessa:</strong> {{ $avaliacao->formatted_frete }}<br>
-                    <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }}<br>
-                    <strong>Forma de Repasse:</strong> 
-                    @if ($avaliacao->status === 'finalizada')
-                        {{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos na Loja' : 'Dinheiro/PIX' }}
+                    @if ($avaliacao->tipo_compra === 'parceria')
+                        <strong>Operação:</strong> Parceria / Consignação<br>
+                        @if ($avaliacao->parceiro)
+                            <strong>Brechó Parceiro:</strong> {{ $avaliacao->parceiro->nome }}<br>
+                        @endif
+                        @if ($avaliacao->prefixo_codigo)
+                            <strong>Prefixo SKU:</strong> {{ $avaliacao->prefixo_codigo }}<br>
+                        @endif
+                        <strong>Taxa Cadastro/Peça:</strong> R$ {{ number_format((float) $avaliacao->taxa_cadastro_peca, 2, ',', '.') }}<br>
+                        <strong>Comissão Mania:</strong> {{ number_format((float) $avaliacao->comissao_parceiro_porcentagem, 1, ',', '.') }}%<br>
+                        <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }}<br>
+                        <strong>Forma de Repasse:</strong> Consignação (Acerto Pós-Venda)<br>
+                        <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
+                    @elseif ($avaliacao->tipo_compra === 'avaliados')
+                        <strong>Operação:</strong> Regime de Avaliação e Desapego<br>
+                        <strong>Frete da Remessa:</strong> {{ $avaliacao->formatted_frete }}<br>
+                        <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }}<br>
+                        <strong>Forma de Repasse:</strong> 
+                        @if ($avaliacao->status === 'finalizada')
+                            {{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos na Loja' : 'Dinheiro/PIX' }}
+                        @else
+                            Pendente (Lote em Rascunho)
+                        @endif
+                        <br>
+                        <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                     @else
-                        Pendente (Lote em Rascunho)
+                        <strong>Operação:</strong> Compra Direta<br>
+                        <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }}<br>
+                        <strong>Forma de Repasse:</strong> 
+                        @if ($avaliacao->status === 'finalizada')
+                            {{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos na Loja' : 'Dinheiro/PIX' }}
+                        @else
+                            Pendente (Lote em Rascunho)
+                        @endif
+                        <br>
+                        <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                     @endif
-                    <br>
-                    <strong>Status:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                 </div>
             </td>
         </tr>
@@ -195,30 +221,52 @@
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 50%;">Peça / Descrição</th>
-                <th class="text-center" style="width: 25%;">Marca</th>
-                <th class="text-center" style="width: 25%;">Cor/Tamanho</th>
+                <th style="width: 35%;">Peça / Descrição</th>
+                <th style="width: 25%;">Detalhes</th>
+                <th class="text-right" style="width: 20%;">Preço Venda</th>
+                <th class="text-right" style="width: 20%;">Repasse</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($avaliacao->items as $item)
+            @php
+                $marcaLabel = $item->marca;
+                if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
+                elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
+                elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
+
+                $itemSku = $item->item ? ($item->item->codigo ?: $item->item->sku) : 'AV' . $item->id;
+                
+                $payoutVal = 0.00;
+                if ($avaliacao->tipo_compra === 'parceria') {
+                    $payoutVal = $item->payout_dinheiro;
+                } elseif ($avaliacao->status === 'finalizada') {
+                    $payoutVal = $avaliacao->pagamento_escolhido === 'credito' ? $item->payout_credito : $item->payout_dinheiro;
+                } else {
+                    $payoutVal = $avaliacao->tipo_cliente === 'clube' ? $item->payout_credito : $item->payout_credito;
+                }
+
+                $detalhesList = [];
+                if (!empty($marcaLabel)) $detalhesList[] = $marcaLabel;
+                if (!empty($item->estado)) $detalhesList[] = $item->estado;
+                if (!empty($item->cor)) $detalhesList[] = $item->cor;
+                if (!empty($item->tamanho)) $detalhesList[] = 'Tam: ' . $item->tamanho;
+                $detalhesTxt = implode(' • ', $detalhesList);
+            @endphp
             <tr>
                 <td>
                     <strong>{{ $item->nome }}</strong>
+                    <br><span style="font-size: 9px; color: #4f46e5; font-family: monospace;">{{ $itemSku }}</span>
                 </td>
-                <td class="text-center">
-                    @php
-                        $marcaLabel = $item->marca;
-                        if ($marcaLabel === 'sem_marca' || empty($marcaLabel)) $marcaLabel = 'Sem Marca';
-                        elseif ($marcaLabel === 'de_marca') $marcaLabel = 'De Marca';
-                        elseif (strtolower($marcaLabel) === 'farm') $marcaLabel = 'Farm';
-                    @endphp
-                    {{ $marcaLabel }}
+                <td>
+                    {{ $detalhesTxt }}
                 </td>
-                <td class="text-center">
-                    {{ $item->cor ?: '-' }} / {{ $item->tamanho ?: '-' }}
+                <td class="text-right">
+                    R$ {{ number_format($item->preco_venda, 2, ',', '.') }}
                 </td>
-
+                <td class="text-right" style="font-weight: bold; color: #4338ca;">
+                    R$ {{ number_format($payoutVal, 2, ',', '.') }}
+                </td>
             </tr>
             @endforeach
         </tbody>
@@ -229,32 +277,72 @@
             Assinatura do Fornecedor / Responsável
         </div>
 
-        @php
-            $sumPayoutCredito = $avaliacao->items->sum('payout_credito');
-            $sumPayoutDinheiro = $avaliacao->items->sum('payout_dinheiro');
-        @endphp
-        <table class="totals">
-            <tr>
-                <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #6b7280;">Total Repasse Fornecedor</th>
-            </tr>
-            <tr>
-                <th>Repasse Crédito:</th>
-                <td style="color: #2563eb;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
-            </tr>
-            <tr>
-                <th>Repasse Dinheiro:</th>
-                <td style="color: #059669;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
-            </tr>
-            <tr>
-                <td colspan="2" style="font-size: 9px; color: #9ca3af; text-align: right;">
-                    @if ($avaliacao->status === 'finalizada')
-                        Pago via <strong>{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
-                    @else
-                        Aguardando finalização do lote (Rascunho)
-                    @endif
-                </td>
-            </tr>
-        </table>
+        @if ($avaliacao->tipo_compra === 'parceria')
+            @php
+                $totalVendaLote = $avaliacao->items->sum('preco_venda');
+                $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
+                $comissaoValor = $totalVendaLote * ($comissaoPct / 100.00);
+                $taxaCadTotal = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00) * $avaliacao->items->count();
+                $totalRepasseLote = $avaliacao->items->sum('payout_dinheiro');
+            @endphp
+            <table class="totals">
+                <tr>
+                    <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #4338ca; font-weight: bold;">
+                        Repasse Estimado ao Parceiro
+                    </th>
+                </tr>
+                <tr>
+                    <th>Total Venda:</th>
+                    <td style="color: #111827;">R$ {{ number_format($totalVendaLote, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <th>(-) Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</th>
+                    <td style="color: #dc2626;">- R$ {{ number_format($comissaoValor, 2, ',', '.') }}</td>
+                </tr>
+                @if ($taxaCadTotal > 0)
+                <tr>
+                    <th>(-) Taxa de Cadastro:</th>
+                    <td style="color: #dc2626;">- R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
+                </tr>
+                @endif
+                <tr class="grand-total">
+                    <th>Total a Repassar:</th>
+                    <td style="color: #047857;">R$ {{ number_format($totalRepasseLote, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="font-size: 9px; color: #6b7280; text-align: right; padding-top: 4px;">
+                        Regime de <strong>Consignação</strong> (Acerto pós-venda via Carteira)
+                    </td>
+                </tr>
+            </table>
+        @else
+            @php
+                $sumPayoutCredito = $avaliacao->items->sum('payout_credito');
+                $sumPayoutDinheiro = $avaliacao->items->sum('payout_dinheiro');
+            @endphp
+            <table class="totals">
+                <tr>
+                    <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #6b7280;">Total Repasse Fornecedor</th>
+                </tr>
+                <tr>
+                    <th>Repasse Crédito:</th>
+                    <td style="color: #2563eb;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <th>Repasse Dinheiro:</th>
+                    <td style="color: #059669;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="font-size: 9px; color: #9ca3af; text-align: right;">
+                        @if ($avaliacao->status === 'finalizada')
+                            Pago via <strong>{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
+                        @else
+                            Aguardando finalização do lote (Rascunho)
+                        @endif
+                    </td>
+                </tr>
+            </table>
+        @endif
     </div>
 
     @if ($avaliacao->observacoes)
