@@ -70,10 +70,13 @@
                 <i class="fas fa-money-bill-wave mr-2 text-emerald-700"></i> Registrar Repasse (Pix)
             </button>
 
-            {{-- Imprimir --}}
-            <button type="button" onclick="window.print()" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-xs font-bold transition">
-                <i class="fas fa-print mr-1.5"></i> Imprimir
-            </button>
+            {{-- Imprimir / Gerar PDF --}}
+            <a href="{{ route('admin.brechos.prestacao_contas_pdf', ['brecho' => $brecho->id, 'status' => request('status', 'todos'), 'q' => request('q')]) }}" 
+               target="_blank"
+               class="inline-flex items-center px-3.5 py-2 bg-white text-gray-800 hover:text-gray-950 hover:bg-gray-50 border border-gray-300 rounded-lg text-xs font-black shadow-xs transition"
+               title="Gerar PDF da prestação de contas com o mesmo cabeçalho de avaliação">
+                <i class="fas fa-file-pdf text-red-600 mr-2"></i> Imprimir Relatório (PDF)
+            </a>
         </div>
     </div>
 

@@ -1024,6 +1024,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
     Route::post('brechos/{brecho}/operador', [\App\Http\Controllers\Admin\BrechoController::class, 'createOperator'])->name('brechos.createOperator');
     Route::get('brechos/{brecho}/prestacao-contas', [\App\Http\Controllers\Admin\BrechoController::class, 'prestacaoContas'])->name('brechos.prestacao_contas');
+    Route::get('brechos/{brecho}/prestacao-contas/pdf', [\App\Http\Controllers\Admin\BrechoController::class, 'prestacaoContasPdf'])->name('brechos.prestacao_contas_pdf');
     Route::post('brechos/{brecho}/repasse', [\App\Http\Controllers\Admin\BrechoController::class, 'registrarRepasse'])->name('brechos.registrar_repasse');
     Route::post('brechos/{brecho}/sincronizar-vendas', [\App\Http\Controllers\Admin\BrechoController::class, 'sincronizarVendasCarteira'])->name('brechos.sincronizar_vendas');
 

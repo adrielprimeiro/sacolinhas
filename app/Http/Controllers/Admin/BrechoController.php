@@ -327,6 +327,155 @@ class BrechoController extends Controller
     }
 
     /**
+     * Gera o relatório em PDF da Prestação de Contas & Consignação do Brechó Parceiro.
+     */
+    public function prestacaoContasPdf(Request $request, Brecho $brecho)
+    {
+        abort_if(!auth()->user() || auth()->user()->role !== 'admin_master', 403, 'Acesso restrito ao Master.');
+
+        if ($brecho->id === 1) {
+            return redirect()->route('admin.brechos.index')->with('error', 'A Minha Mania (Matriz) não opera por regime de consignação.');
+        }
+
+        // 1. Resolver usuário vinculado na carteira (Conta Corrente)
+        $user = null;
+        $userId = null;
+        if ($brecho->fornecedor_id) {
+            if (str_starts_with($brecho->fornecedor_id, 'user_')) {
+                $userId = (int) str_replace('user_', '', $brecho->fornecedor_id);
+                $user = \App\Models\User::find($userId);
+            } elseif (str_starts_with($brecho->fornecedor_id, 'pessoa_')) {
+                $pessoa = \App\Models\Pessoa::find(str_replace('pessoa_', '', $brecho->fornecedor_id));
+                if ($pessoa && $pessoa->user_id) {
+                    $userId = $pessoa->user_id;
+                    $user = \App\Models\User::find($userId);
+                }
+            }
+        }
+
+        // 2. Itens consignados do parceiro
+        $queryItems = \App\Models\Item::where(function ($q) use ($brecho) {
+            $q->where('parceiro_id', $brecho->id);
+            if ($brecho->prefixo_codigo) {
+                $q->orWhere('codigo', 'like', $brecho->prefixo_codigo . '-%');
+            }
+        });
+
+        $statusFiltro = $request->input('status', 'todos');
+        if ($statusFiltro === 'disponivel') {
+            $queryItems->where('status', 'disponivel');
+        } elseif ($statusFiltro === 'vendido') {
+            $queryItems->where('status', 'vendido');
+        } elseif ($statusFiltro === 'em_sacolinha') {
+            $queryItems->where('status', 'em_sacolinha');
+        }
+
+        if ($request->filled('q')) {
+            $term = $request->input('q');
+            $queryItems->where(function ($q) use ($term) {
+                $q->where('nome_do_produto', 'like', "%{$term}%")
+                  ->orWhere('codigo', 'like', "%{$term}%")
+                  ->orWhere('marca', 'like', "%{$term}%");
+            });
+        }
+
+        $items = $queryItems->orderBy('id', 'desc')->get();
+
+        // Enriquecer dados de venda/sacolinha para os itens
+        $itemIds = $items->pluck('id')->toArray();
+        $pedidosInfo = DB::table('items_pedido')
+            ->join('pedidos', 'pedidos.id', '=', 'items_pedido.pedido_id')
+            ->whereIn('items_pedido.item_id', $itemIds)
+            ->select('items_pedido.item_id', 'pedidos.id as pedido_id', 'pedidos.data_pedido', 'pedidos.status_pedido', 'pedidos.status_pagamento')
+            ->get()
+            ->keyBy('item_id');
+
+        $sacolinhasInfo = DB::table('sacolinhas')
+            ->leftJoin('users', 'users.id', '=', 'sacolinhas.user_id')
+            ->leftJoin('lives', 'lives.id', '=', 'sacolinhas.live_id')
+            ->whereIn('sacolinhas.item_id', $itemIds)
+            ->where('sacolinhas.status', '!=', 'pedido')
+            ->select('sacolinhas.item_id', 'users.name as cliente_nome', 'lives.data as live_data', 'lives.tipo_live', 'sacolinhas.created_at as sacolinha_data')
+            ->get()
+            ->keyBy('item_id');
+
+        foreach ($items as $item) {
+            $item->pedido_info = $pedidosInfo->get($item->id);
+            $item->sacolinha_info = $sacolinhasInfo->get($item->id);
+        }
+
+        // 3. Cálculos de totais gerais
+        $allItems = \App\Models\Item::where(function ($q) use ($brecho) {
+            $q->where('parceiro_id', $brecho->id);
+            if ($brecho->prefixo_codigo) {
+                $q->orWhere('codigo', 'like', $brecho->prefixo_codigo . '-%');
+            }
+        })->get(['id', 'codigo', 'preco', 'custo', 'status', 'created_at']);
+
+        $totalPecas = $allItems->count();
+        $pecasEstoque = $allItems->where('status', 'disponivel')->count();
+        $pecasSacolinha = $allItems->where('status', 'em_sacolinha')->count();
+        $pecasVendidas = $allItems->where('status', 'vendido')->count();
+
+        $valorBrutoTotal = (float) $allItems->sum('preco');
+        $itensVendidos = $allItems->where('status', 'vendido');
+        $valorBrutoVendido = (float) $itensVendidos->sum('preco');
+        $valorRepasseVendido = (float) $itensVendidos->sum('custo');
+        $comissaoManiaVendido = max(0, $valorBrutoVendido - $valorRepasseVendido);
+
+        $taxaPecaUnit = (float) ($brecho->taxa_cadastro_peca ?: 1.80);
+        $taxaCadastroTotal = $totalPecas * $taxaPecaUnit;
+
+        // 4. Extrato da Carteira do Parceiro
+        $carteiraMovimentacoes = collect();
+        $saldoCarteira = 0.00;
+        $totalRepassadoPago = 0.00;
+
+        if ($user) {
+            $saldoCarteira = (float) (\App\Models\ContaCorrente::where('user_id', $user->id)
+                ->orderBy('data_movimentacao', 'desc')
+                ->orderBy('id', 'desc')
+                ->value('saldo_atual') ?? 0);
+
+            $carteiraMovimentacoes = \App\Models\ContaCorrente::where('user_id', $user->id)
+                ->orderBy('data_movimentacao', 'desc')
+                ->orderBy('id', 'desc')
+                ->take(15)
+                ->get();
+
+            $totalRepassadoPago = (float) \App\Models\ContaCorrente::where('user_id', $user->id)
+                ->where('tipo_movimentacao', 'debito')
+                ->where(function ($q) {
+                    $q->where('referencia_tipo', 'like', '%repasse%')
+                      ->orWhere('descricao', 'like', '%repasse%')
+                      ->orWhere('descricao', 'like', '%pix%');
+                })->sum('valor');
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.brechos.prestacao_contas_pdf', compact(
+            'brecho',
+            'user',
+            'items',
+            'totalPecas',
+            'pecasEstoque',
+            'pecasSacolinha',
+            'pecasVendidas',
+            'valorBrutoTotal',
+            'valorBrutoVendido',
+            'valorRepasseVendido',
+            'comissaoManiaVendido',
+            'taxaCadastroTotal',
+            'saldoCarteira',
+            'totalRepassadoPago',
+            'carteiraMovimentacoes',
+            'statusFiltro'
+        ))->setPaper('a4', 'portrait');
+
+        $fileName = 'prestacao-contas-' . \Illuminate\Support\Str::slug($brecho->nome) . '-' . now()->format('Y-m-d') . '.pdf';
+        return $pdf->stream($fileName);
+    }
+
+    /**
      * Sincroniza peças vendidas creditando na Carteira (Conta Corrente) do parceiro.
      */
     public function sincronizarVendasCarteira(Brecho $brecho)
