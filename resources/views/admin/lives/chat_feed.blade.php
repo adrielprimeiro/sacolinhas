@@ -5543,48 +5543,54 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showToast("Instagram @" + username + " vinculado com sucesso a " + (data.user?.name || 'cliente') + "!");
                 closeLinkModal();
+                showToast("Instagram @" + username + " vinculado com sucesso a " + (data.user?.name || 'cliente') + "!", 'success');
 
                 // Atualiza os itens em memória imediatamente para virar verde
-                const cleanUser = String(username).replace(/^@/, '').toLowerCase();
-                let updatedAny = false;
-                if (Array.isArray(bgScanItems)) {
-                    bgScanItems.forEach(item => {
-                        const bUser = String(item.buyerUsername || '').replace(/^@/, '').toLowerCase();
-                        if (bUser === cleanUser || (scanItemId && String(item.id) === String(scanItemId))) {
-                            item.hasPhone = true;
-                            if (data.user?.phone) item.buyerPhone = data.user.phone;
-                            if (data.user?.name) item.buyerName = data.user.name;
-                            if (data.user?.id) item.buyerUserId = data.user.id;
-                            updatedAny = true;
-                        }
-                        if (Array.isArray(item.buyers)) {
-                            item.buyers.forEach(b => {
-                                const bName = String(b.username || '').replace(/^@/, '').toLowerCase();
-                                if (bName === cleanUser) {
-                                    b.hasPhone = true;
-                                    if (data.user?.phone) b.phone = data.user.phone;
-                                    if (data.user?.name) b.displayName = data.user.name;
-                                    if (data.user?.id) b.userId = data.user.id;
-                                    updatedAny = true;
-                                }
-                            });
-                        }
-                    });
-                }
-                if (updatedAny) {
-                    renderScanItemsList();
+                try {
+                    const cleanUser = String(username).replace(/^@/, '').toLowerCase();
+                    let updatedAny = false;
+                    if (Array.isArray(bgScanItems)) {
+                        bgScanItems.forEach(item => {
+                            const bUser = String(item.buyerUsername || '').replace(/^@/, '').toLowerCase();
+                            if (bUser === cleanUser || (scanItemId && String(item.id) === String(scanItemId))) {
+                                item.hasPhone = true;
+                                if (data.user?.phone) item.buyerPhone = data.user.phone;
+                                if (data.user?.name) item.buyerName = data.user.name;
+                                if (data.user?.id) item.buyerUserId = data.user.id;
+                                updatedAny = true;
+                            }
+                            if (Array.isArray(item.buyers)) {
+                                item.buyers.forEach(b => {
+                                    const bName = String(b.username || '').replace(/^@/, '').toLowerCase();
+                                    if (bName === cleanUser) {
+                                        b.hasPhone = true;
+                                        if (data.user?.phone) b.phone = data.user.phone;
+                                        if (data.user?.name) b.displayName = data.user.name;
+                                        if (data.user?.id) b.userId = data.user.id;
+                                        updatedAny = true;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    if (updatedAny && typeof refreshAllScanItemsBuyerUI === 'function') {
+                        refreshAllScanItemsBuyerUI();
+                    }
+                } catch (uiErr) {
+                    console.warn("Aviso ao atualizar UI dos itens:", uiErr);
                 }
 
-                fetchChatFeed(true);
+                if (typeof fetchChatFeed === 'function') {
+                    fetchChatFeed(true);
+                }
             } else {
-                alert("Erro ao vincular: " + data.message);
+                showToast("Erro ao vincular: " + (data.message || 'Falha ao vincular usuário'), 'error');
             }
         })
         .catch(err => {
             console.error("Erro ao vincular usuário:", err);
-            alert("Erro na requisição ao vincular usuário.");
+            showToast("Erro na comunicação ao vincular usuário.", 'error');
         });
     }
 
@@ -5835,13 +5841,15 @@
                         }
                     });
                 }
-                if (updatedAny) {
-                    renderScanItemsList();
+                if (updatedAny && typeof refreshAllScanItemsBuyerUI === 'function') {
+                    refreshAllScanItemsBuyerUI();
                 }
 
-                fetchChatFeed(true);
+                if (typeof fetchChatFeed === 'function') {
+                    fetchChatFeed(true);
+                }
             } else {
-                alert('Erro ao cadastrar: ' + (data.message || 'Erro desconhecido'));
+                showToast('Erro ao cadastrar: ' + (data.message || 'Erro desconhecido'), 'error');
             }
         })
         .catch(err => {
@@ -5850,7 +5858,7 @@
                 saveBtn.innerHTML = `<i class="fas fa-check text-xs"></i> <span>Salvar</span>`;
             }
             console.error('Erro ao salvar pré-cadastro:', err);
-            alert('Erro de conexão ao salvar pré-cadastro.');
+            showToast('Erro de conexão ao salvar pré-cadastro.', 'error');
         });
     }
 
