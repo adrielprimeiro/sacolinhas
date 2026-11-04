@@ -279,7 +279,7 @@
                 if ($item->status === 'vendido') {
                     $statusLabel = 'Vendido';
                     $statusColor = '#047857';
-                } elseif ($item->status === 'em_sacolinha') {
+                } elseif (in_array($item->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || !empty($item->sacolinha_info)) {
                     $statusLabel = 'Sacolinha';
                     $statusColor = '#d97706';
                 }

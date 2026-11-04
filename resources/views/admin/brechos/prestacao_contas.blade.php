@@ -245,7 +245,7 @@
                         Em Estoque ({{ $pecasEstoque }})
                     </a>
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'em_sacolinha']) }}" 
-                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'em_sacolinha' ? 'bg-amber-100 text-amber-950 border-2 border-amber-600 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ in_array($statusFiltro, ['em_sacolinha', 'sacolinha']) ? 'bg-amber-100 text-amber-950 border-2 border-amber-600 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Sacolinhas ({{ $pecasSacolinha }})
                     </a>
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'vendido']) }}" 
@@ -308,17 +308,17 @@
                                 R$ {{ number_format($repasseLiquido, 2, ',', '.') }}
                             </td>
                             <td class="px-3 py-3 whitespace-nowrap text-center">
-                                @if($item->status === 'disponivel')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                                        <i class="fas fa-check-circle mr-1"></i> Em Estoque
+                                @if($item->status === 'vendido')
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                        <i class="fas fa-check-double mr-1"></i> Vendido
                                     </span>
-                                @elseif($item->status === 'em_sacolinha')
+                                @elseif(in_array($item->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || !empty($item->sacolinha_info))
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
                                         <i class="fas fa-shopping-bag mr-1"></i> Na Sacolinha
                                     </span>
-                                @elseif($item->status === 'vendido')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                        <i class="fas fa-check-double mr-1"></i> Vendido
+                                @elseif($item->status === 'disponivel' || $item->status === 'estoque')
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                        <i class="fas fa-check-circle mr-1"></i> Em Estoque
                                     </span>
                                 @else
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">

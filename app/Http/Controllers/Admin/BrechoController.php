@@ -207,11 +207,25 @@ class BrechoController extends Controller
         // Filtro de status se enviado
         $statusFiltro = $request->input('status', 'todos');
         if ($statusFiltro === 'disponivel') {
-            $queryItems->where('status', 'disponivel');
+            $queryItems->whereIn('status', ['disponivel', 'estoque'])
+                ->whereNotExists(function($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('sacolinhas')
+                        ->whereColumn('sacolinhas.item_id', 'items.id')
+                        ->where('sacolinhas.status', '!=', 'pedido');
+                });
         } elseif ($statusFiltro === 'vendido') {
             $queryItems->where('status', 'vendido');
-        } elseif ($statusFiltro === 'em_sacolinha') {
-            $queryItems->where('status', 'em_sacolinha');
+        } elseif ($statusFiltro === 'em_sacolinha' || $statusFiltro === 'sacolinha') {
+            $queryItems->where(function($q) {
+                $q->whereIn('status', ['sacolinha', 'em_sacolinha', 'solicitado na live'])
+                  ->orWhereExists(function($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('sacolinhas')
+                          ->whereColumn('sacolinhas.item_id', 'items.id')
+                          ->where('sacolinhas.status', '!=', 'pedido');
+                  });
+            });
         }
 
         // Termo de busca de item
@@ -257,10 +271,20 @@ class BrechoController extends Controller
             }
         })->get(['id', 'codigo', 'preco', 'custo', 'status', 'created_at']);
 
+        $itemIdsEmSacolinha = DB::table('sacolinhas')
+            ->whereIn('item_id', $allItems->pluck('id'))
+            ->where('status', '!=', 'pedido')
+            ->pluck('item_id')
+            ->toArray();
+
         $totalPecas = $allItems->count();
-        $pecasEstoque = $allItems->where('status', 'disponivel')->count();
-        $pecasSacolinha = $allItems->where('status', 'em_sacolinha')->count();
+        $pecasSacolinha = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
+            return in_array($i->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || in_array($i->id, $itemIdsEmSacolinha);
+        })->count();
         $pecasVendidas = $allItems->where('status', 'vendido')->count();
+        $pecasEstoque = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
+            return in_array($i->status, ['disponivel', 'estoque']) && !in_array($i->id, $itemIdsEmSacolinha);
+        })->count();
 
         $valorBrutoTotal = (float) $allItems->sum('preco');
         $itensVendidos = $allItems->where('status', 'vendido');
@@ -363,11 +387,25 @@ class BrechoController extends Controller
 
         $statusFiltro = $request->input('status', 'todos');
         if ($statusFiltro === 'disponivel') {
-            $queryItems->where('status', 'disponivel');
+            $queryItems->whereIn('status', ['disponivel', 'estoque'])
+                ->whereNotExists(function($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('sacolinhas')
+                        ->whereColumn('sacolinhas.item_id', 'items.id')
+                        ->where('sacolinhas.status', '!=', 'pedido');
+                });
         } elseif ($statusFiltro === 'vendido') {
             $queryItems->where('status', 'vendido');
-        } elseif ($statusFiltro === 'em_sacolinha') {
-            $queryItems->where('status', 'em_sacolinha');
+        } elseif ($statusFiltro === 'em_sacolinha' || $statusFiltro === 'sacolinha') {
+            $queryItems->where(function($q) {
+                $q->whereIn('status', ['sacolinha', 'em_sacolinha', 'solicitado na live'])
+                  ->orWhereExists(function($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('sacolinhas')
+                          ->whereColumn('sacolinhas.item_id', 'items.id')
+                          ->where('sacolinhas.status', '!=', 'pedido');
+                  });
+            });
         }
 
         if ($request->filled('q')) {
@@ -412,10 +450,20 @@ class BrechoController extends Controller
             }
         })->get(['id', 'codigo', 'preco', 'custo', 'status', 'created_at']);
 
+        $itemIdsEmSacolinha = DB::table('sacolinhas')
+            ->whereIn('item_id', $allItems->pluck('id'))
+            ->where('status', '!=', 'pedido')
+            ->pluck('item_id')
+            ->toArray();
+
         $totalPecas = $allItems->count();
-        $pecasEstoque = $allItems->where('status', 'disponivel')->count();
-        $pecasSacolinha = $allItems->where('status', 'em_sacolinha')->count();
+        $pecasSacolinha = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
+            return in_array($i->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || in_array($i->id, $itemIdsEmSacolinha);
+        })->count();
         $pecasVendidas = $allItems->where('status', 'vendido')->count();
+        $pecasEstoque = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
+            return in_array($i->status, ['disponivel', 'estoque']) && !in_array($i->id, $itemIdsEmSacolinha);
+        })->count();
 
         $valorBrutoTotal = (float) $allItems->sum('preco');
         $itensVendidos = $allItems->where('status', 'vendido');
