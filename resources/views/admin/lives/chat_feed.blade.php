@@ -3508,10 +3508,11 @@
         if (!item.buyers) item.buyers = [];
         const cleanUserLower = String(username).replace(/^@/, '').toLowerCase();
 
-        // Adiciona à lista de dispensados deste item para que o chat não o sugira de volta automaticamente
-        if (!item.dismissedUsers) item.dismissedUsers = new Set();
-        item.dismissedUsers.add(cleanUserLower);
-        item.dismissedUsers.add('@' + cleanUserLower);
+        // Garante que o comprador desvinculado NÃO seja ocultado da fila de espera e volte para a lista
+        if (item.dismissedUsers) {
+            item.dismissedUsers.delete(cleanUserLower);
+            item.dismissedUsers.delete('@' + cleanUserLower);
+        }
 
         item.buyers = item.buyers.filter(b => {
             if (sacolinhaId && b.sacolinhaId) return b.sacolinhaId !== sacolinhaId;
@@ -3533,6 +3534,26 @@
             item.buyerPhone = null;
             item.hasPhone = false;
             item.liveMessageId = null;
+        }
+
+        // Libera o comentário dessa cliente no chat para que possa ser vinculado novamente se desejado
+        let feedNeedsUpdate = false;
+        if (Array.isArray(allLiveMessages)) {
+            allLiveMessages.forEach(m => {
+                if (String(m.username || '').replace(/^@/, '').toLowerCase() === cleanUserLower) {
+                    if (m.linked_code == item.code || m.linked_item_id == item.itemId) {
+                        m.linked_item_id = null;
+                        m.linked_code = null;
+                        m.linked_live_code = null;
+                        m.linked_product_name = null;
+                        m.linked_product_details = null;
+                        feedNeedsUpdate = true;
+                    }
+                }
+            });
+        }
+        if (feedNeedsUpdate) {
+            renderChatFeed();
         }
 
         updateScanItemBuyerUI(scanId);
@@ -3579,6 +3600,10 @@
         item.buyerPhone = null;
         item.hasPhone = false;
         item.liveMessageId = null;
+
+        if (item.dismissedUsers) {
+            item.dismissedUsers.clear();
+        }
 
         updateScanItemBuyerUI(scanId);
 
