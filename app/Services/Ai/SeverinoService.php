@@ -198,6 +198,19 @@ class SeverinoService
             "     Quando o usuário perguntar 'quanto do que vendemos na live vira pedido', 'comparativo de lives e pedidos do mês', 'conversão de live', ou qualquer variação disso, USE SEMPRE E IMEDIATAMENTE A FERRAMENTA `relatorio_conversao_lives_pedidos`!\n" .
             "     Apresente o resumo consolidado do mês (total vendido nas lives em peças e R$, quanto já virou pedido em peças e R$ com a taxa de conversão %, e quanto ainda está em aberto nas sacolinhas) e em seguida a tabela detalhada por live!\n" .
             "     NUNCA diga que vai salvar ou registrar ferramentas dinâmicas antes de responder. ENTREGUE SEMPRE A RESPOSTA FINAL AO USUÁRIO PRIMEIRO!\n" .
+            "- BRECHÓS E PARCEIROS (TABELA `brechos` E `items.brecho_id`):\n" .
+            "  1. A Minha Mania opera em modelo multiloja/parceiros através da tabela `brechos`.\n" .
+            "  2. Brechós cadastrados:\n" .
+            "     * ID 1: Minha Mania (Matriz) - padrão do sistema.\n" .
+            "     * ID 2: Taco Balaio (prefixo TCB, fornecedor user_5085).\n" .
+            "     * ID 3: Brechó da Val (prefixo VAL, fornecedor user_5277).\n" .
+            "     * ID 4: Biguá Brechó (prefixo BIG, fornecedor user_5278).\n" .
+            "     * ID 5: Continente (prefixo CTN, fornecedor pessoa_68).\n" .
+            "  3. Na tabela `items`, a coluna `brecho_id` identifica a quem pertence a peça. Ao perguntarem por 'itens do Brechó da Val' em uma live ou sacolinha, filtre por `items.brecho_id = 3` (ou cruze com `brechos b ON items.brecho_id = b.id WHERE b.nome LIKE '%Val%')`.\n" .
+            "- CONSULTAS DE LIVES E PEDIDOS (REGRAS MYSQL 8.0):\n" .
+            "  1. Na tabela `lives`, a coluna de data é `data` (NUNCA 'date').\n" .
+            "  2. No MySQL, NUNCA use `WHERE live_id IN (SELECT id FROM lives ORDER BY data DESC LIMIT N)` pois subqueries com LIMIT dentro de IN causam erro fatal! Em vez disso, use `JOIN (SELECT id FROM lives ORDER BY data DESC LIMIT N) ult ON s.live_id = ult.id` ou busque os IDs das lives antes.\n" .
+            "  3. Ao buscar se houve 'pedido com valor X em live' ou compras de um determinado valor em lives, apure o valor agrupado por cliente naquela live (`SUM(s.price * s.quantity) as total_cliente ... HAVING total_cliente = X`) E verifique se virou pedido (`s.status = 'pedido'` ou `pedidos.valor_total = X`).\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -447,11 +460,11 @@ class SeverinoService
                     ],
                     [
                         "name" => "executar_query_select",
-                        "description" => "Executa uma query SQL SELECT no banco de dados da empresa. IMPORTANTE: Antes de tentar inventar tabelas, use a ferramenta mapear_modulo_sistema para aprender a arquitetura do setor.",
+                        "description" => "Executa uma query SQL SELECT no banco de dados da empresa. REGRAS CRÍTICAS MYSQL 8: NUNCA use 'LIMIT' dentro de cláusula 'IN (...)'. Em vez disso, faça JOIN com subquery derivada: `JOIN (SELECT id FROM lives ORDER BY data DESC LIMIT N) ult ON s.live_id = ult.id` ou busque os IDs primeiro. Data de live é a coluna `data`.",
                         "parameters" => [
                             "type" => "OBJECT",
                             "properties" => [
-                                "query" => ["type" => "STRING", "description" => "A query SQL (ex: SELECT * FROM lives ORDER BY data DESC LIMIT 1)"]
+                                "query" => ["type" => "STRING", "description" => "A query SQL (ex: SELECT s.id, u.name, SUM(s.price*s.quantity) FROM sacolinhas s JOIN users u ON s.user_id = u.id JOIN (SELECT id FROM lives ORDER BY data DESC LIMIT 3) ult ON s.live_id = ult.id GROUP BY s.user_id, u.name)"]
                             ],
                             "required" => ["query"]
                         ]
@@ -628,7 +641,7 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-2.5-flash",
                     "name" => "Google Gemini 2.5 Flash",
-                    "default_score" => 30,
+                    "default_score" => 45,
                     "timeout" => 12
                 ];
             }
@@ -638,7 +651,7 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-flash-latest",
                     "name" => "Google Gemini Flash Latest",
-                    "default_score" => 29,
+                    "default_score" => 44,
                     "timeout" => 12
                 ];
             }
@@ -648,7 +661,7 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-3.1-flash-lite",
                     "name" => "Google Gemini 3.1 Flash Lite",
-                    "default_score" => 28,
+                    "default_score" => 43,
                     "timeout" => 10
                 ];
             }
@@ -658,13 +671,13 @@ class SeverinoService
                     "key" => $geminiKey,
                     "model" => "gemini-3.5-flash",
                     "name" => "Google Gemini 3.5 Flash",
-                    "default_score" => 26,
+                    "default_score" => 42,
                     "timeout" => 10
                 ];
             }
         }
 
-        // 1. Groq (Prioridade 1: Ultrarrápido ~250ms a 700ms via LPU com 14.400 requisições/dia gratuitas)
+        // 2. Groq (Prioridade 2: Fallback Ultrarrápido ~250ms a 700ms via LPU)
         if (!empty($groqKey)) {
             $providersToTry[] = [
                 "url" => "https://api.groq.com/openai/v1/chat/completions",
@@ -1032,7 +1045,7 @@ class SeverinoService
                         \Illuminate\Support\Facades\Log::warning("Severino tentou repetir a resposta anterior ({$similarity}% similar). Interceptando na iteração {$i}.");
                         $payload["messages"][] = [
                             "role" => "user",
-                            "content" => "[SISTEMA - ANTI-REPETIÇÃO]: Você está repetindo a mesma resposta da mensagem anterior ('{$lastAssistantMsg}'). O usuário já indicou que isso não atende! Não repita essa frase. Investigue o banco de dados via 'executar_query_select' ou responda explicando claramente as distinções ou perguntando ao usuário o que ele deseja que você procure."
+                            "content" => "[SISTEMA - ANTI-REPETIÇÃO]: Você está repetindo a mesma resposta da mensagem anterior ('{$lastAssistantMsg}'). Se o usuário pediu atualização, busque os dados mais recentes no banco via 'executar_query_select'. NUNCA repita a frase anterior e NUNCA mencione este aviso interno de sistema ao usuário!"
                         ];
                         continue;
                     }
@@ -1110,6 +1123,21 @@ class SeverinoService
                         "content" => "[SISTEMA - EXECUÇÃO OBRIGATÓRIA]: NUNCA responda ao usuário dizendo que vai registrar ou criar ferramentas dinâmicas! O usuário está esperando os DADOS e o RELATÓRIO final AGORA.\n" .
                                      "1. Se você já tem a query ou os dados, formule e entregue imediatamente o relatório completo em Markdown com a tabela de dados.\n" .
                                      "2. Em segundo plano, dispare a tool call oficial 'criar_ferramenta_dinamica' para salvar o template no catálogo do banco, mas NUNCA interrompa o relatório do usuário!"
+                    ];
+                    continue;
+                }
+
+                // 9. BLOQUEIO DE EXPOSIÇÃO DE ERROS DE SQL / NARRATIVAS DE RETENTATIVA AO USUÁRIO:
+                // Impede o modelo de desistir e expor erros técnicos (como LIMIT dentro de IN, colunas inválidas) ou narrar 'vou tentar de outra forma'
+                $exposErroOuNarrouAcao = preg_match('/(houve um erro|erro na consulta|não consigo usar|nao consigo usar|vou tentar de outra forma|primeiro[, ]+(vou|vamos) (buscar|consultar|verificar|identificar)|vou verificar a estrutura|parece que a coluna|não existe na tabela|nao existe na tabela|erro ao buscar as lives|ocorreu um erro ao executar)/iu', $finalText);
+                if ($exposErroOuNarrouAcao && $i < 7) {
+                    \Illuminate\Support\Facades\Log::warning("Severino tentou expor erro técnico ou narrar intenção em vez de executar ('{$finalText}'). Interceptando na iteração {$i}.");
+                    $payload["messages"][] = [
+                        "role" => "user",
+                        "content" => "[SISTEMA - PROIBIÇÃO DE EXPOR ERROS AO USUÁRIO]: É TERMINANTEMENTE PROIBIDO expor erros de SQL ou falar ao usuário que 'vai tentar de outra forma' ou 'primeiro vou buscar'! O usuário só quer a resposta com os DADOS FINAIS.\n" .
+                                     "1. Se a query falhou (ex: LIMIT dentro de IN no MySQL, coluna errada), corrija a query AGORA disparando a tool call 'executar_query_select'.\n" .
+                                     "2. Dica MySQL: NUNCA use 'LIMIT' dentro de subqueries 'IN (...)'. Use JOIN com subquery derivada (ex: `JOIN (SELECT id FROM lives ORDER BY data DESC LIMIT 3) ult ON s.live_id = ult.id`) ou consulte os IDs das lives primeiro.\n" .
+                                     "3. Execute a ferramenta e responda com os dados reais encontrados."
                     ];
                     continue;
                 }
@@ -2259,6 +2287,19 @@ class SeverinoService
   3. Peças disponíveis para venda: `WHERE status = 'disponivel'` (peças com status 'em_sacolinha' ou 'vendido' NÃO estão disponíveis!).
   4. Auditorias físicas de araras/caixas: tabela `conferencias_inventario` (colunas: `localizacao`, `total_esperado`, `total_lido`, `total_faltantes`, `acuracia_percentual`).
   5. Marcas: coluna `marca` em `items` ou tabela `marcas` (id, nome, porcentagem_valor)."];
+                        case "brecho":
+                        case "brechos":
+                        case "parceiro":
+                        case "parceiros":
+                            return ["mapa" => "MÓDULO BRECHÓS E PARCEIROS:
+- Tabela `brechos`: id, nome, razao_social, slug, prefixo_codigo, fornecedor_id, fornecedor_nome.
+- Brechós cadastrados:
+  * ID 1: Minha Mania (Matriz) - padrão
+  * ID 2: Taco Balaio (prefixo TCB)
+  * ID 3: Brechó da Val (prefixo VAL, fornecedor user_5277)
+  * ID 4: Biguá Brechó (prefixo BIG, fornecedor user_5278)
+  * ID 5: Continente (prefixo CTN, fornecedor pessoa_68)
+- Relacionamento: Em `items`, a coluna `brecho_id` aponta para `brechos.id`. Para saber os itens do Brechó da Val em uma live ou sacolinha: `WHERE items.brecho_id = 3`."];
                         case "clientes":
                         case "cliente":
                         case "enderecos":
