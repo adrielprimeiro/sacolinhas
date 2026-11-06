@@ -520,7 +520,7 @@
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
 
             <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-200">
-                <form action="{{ route('brechos.relatorio_pecas_pdf') }}" method="GET" target="_blank" @submit="setTimeout(() => { relatorioModalOpen = false; }, 500)">
+                <form action="{{ route('admin.brechos.relatorio_pecas_pdf') }}" method="GET" target="_blank" @submit="setTimeout(() => { relatorioModalOpen = false; }, 500)">
                     <div class="bg-indigo-700 px-6 py-4 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <i class="fas fa-file-invoice-dollar text-white text-lg"></i>
