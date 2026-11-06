@@ -351,6 +351,12 @@ Route::middleware('auth')->group(function () {
 
         // ===== SEVERINO CLIPER (GESTOR AUTÔNOMO DE REDES SOCIAIS) =====
         Route::get('severino/cliper', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'index'])->name('admin.severino.cliper');
+        Route::post('severino/cliper/campaign/start', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'startSequence'])->name('admin.severino.cliper.campaign.start');
+        Route::post('severino/cliper/campaign/pause', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'pauseCampaign'])->name('admin.severino.cliper.campaign.pause');
+        Route::post('severino/cliper/campaign/resume', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'resumeCampaign'])->name('admin.severino.cliper.campaign.resume');
+        Route::post('severino/cliper/campaign/stop', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'stopCampaign'])->name('admin.severino.cliper.campaign.stop');
+        Route::post('severino/cliper/campaign/finish', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'finishCampaign'])->name('admin.severino.cliper.campaign.finish');
+        Route::post('severino/cliper/sync-metrics', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'syncMetrics'])->name('admin.severino.cliper.sync-metrics');
         Route::post('severino/cliper/toggle-autopilot', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'toggleAutopilot'])->name('admin.severino.cliper.toggle-autopilot');
         Route::post('severino/cliper/settings', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'updateSettings'])->name('admin.severino.cliper.settings');
         Route::post('severino/cliper/generate-queue', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'generateQueue'])->name('admin.severino.cliper.generate-queue');
@@ -1021,6 +1027,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
 
     // Gestão de Brechós Parceiros & Consignação
     Route::get('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'index'])->name('brechos.index');
+    Route::get('brechos/relatorio-pecas/pdf', [\App\Http\Controllers\Admin\BrechoController::class, 'relatorioPecasCadastradasPdf'])->name('brechos.relatorio_pecas_pdf');
     Route::post('brechos', [\App\Http\Controllers\Admin\BrechoController::class, 'store'])->name('brechos.store');
     Route::put('brechos/{brecho}', [\App\Http\Controllers\Admin\BrechoController::class, 'update'])->name('brechos.update');
     Route::post('brechos/{brecho}/operador', [\App\Http\Controllers\Admin\BrechoController::class, 'createOperator'])->name('brechos.createOperator');

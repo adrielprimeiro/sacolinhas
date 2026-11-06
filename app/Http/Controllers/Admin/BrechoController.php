@@ -658,4 +658,70 @@ class BrechoController extends Controller
 
         return redirect()->back()->with('success', "Repasse de R$ " . number_format($validated['valor'], 2, ',', '.') . " baixado com sucesso na carteira do parceiro!");
     }
+
+    /**
+     * Relatório em PDF da quantidade de peças cadastradas por Brechós Parceiros no período.
+     * Valor a ser pago = Quantidade total x R$ 1,00.
+     */
+    public function relatorioPecasCadastradasPdf(Request $request)
+    {
+        abort_if(!auth()->user() || !in_array(auth()->user()->role, ['admin_master', 'admin']), 403, 'Acesso restrito.');
+
+        $dataInicioStr = $request->input('data_inicio', now()->startOfMonth()->toDateString());
+        $dataFimStr = $request->input('data_fim', now()->toDateString());
+
+        $dataInicio = \Carbon\Carbon::parse($dataInicioStr)->startOfDay();
+        $dataFim = \Carbon\Carbon::parse($dataFimStr)->endOfDay();
+
+        $brechoIds = $request->input('brechos', []);
+        if (is_string($brechoIds)) {
+            $brechoIds = array_filter(explode(',', $brechoIds));
+        }
+
+        $queryBrechos = Brecho::where('id', '>', 1)->orderBy('nome');
+        if (!empty($brechoIds)) {
+            $queryBrechos->whereIn('id', $brechoIds);
+        }
+        $brechos = $queryBrechos->get();
+
+        $custoUnitario = 1.00;
+        $relatorioItens = collect();
+        $totalGeralPecas = 0;
+
+        foreach ($brechos as $b) {
+            $qtdPecas = \App\Models\Item::where(function ($q) use ($b) {
+                $q->where('parceiro_id', $b->id);
+                if ($b->prefixo_codigo) {
+                    $q->orWhere('codigo', 'like', $b->prefixo_codigo . '-%');
+                }
+            })
+            ->whereBetween('created_at', [$dataInicio, $dataFim])
+            ->count();
+
+            $subtotalPagar = $qtdPecas * $custoUnitario;
+            $totalGeralPecas += $qtdPecas;
+
+            $relatorioItens->push([
+                'brecho' => $b,
+                'qtd_pecas' => $qtdPecas,
+                'custo_unitario' => $custoUnitario,
+                'subtotal' => $subtotalPagar,
+            ]);
+        }
+
+        $totalGeralPagar = $totalGeralPecas * $custoUnitario;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.brechos.relatorio_pecas_pdf', [
+            'dataInicio' => $dataInicio,
+            'dataFim' => $dataFim,
+            'relatorioItens' => $relatorioItens,
+            'totalGeralPecas' => $totalGeralPecas,
+            'custoUnitario' => $custoUnitario,
+            'totalGeralPagar' => $totalGeralPagar,
+            'totalBrechos' => $brechos->count(),
+        ])->setPaper('a4', 'portrait');
+
+        $fileName = 'relatorio-pecas-cadastradas-' . $dataInicio->format('Ymd') . '-a-' . $dataFim->format('Ymd') . '.pdf';
+        return $pdf->stream($fileName);
+    }
 }
