@@ -286,8 +286,8 @@
                     <span class="hidden sm:inline" id="scan-panel-btn-text">Ocultar Bipagem</span>
                 </button>
 
-                <!-- Botão Ocultar 2 Primeiros Cards -->
-                <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar os 2 primeiros cards para expandir o chat">
+                <!-- Botão Ocultar Primeiro Card (Topo) -->
+                <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-cards" class="bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white p-2 px-2.5 rounded-xl border border-gray-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Ocultar o primeiro card para expandir o chat">
                     <i class="fas fa-chevron-up text-indigo-400"></i>
                     <span class="hidden sm:inline">Ocultar Topo</span>
                 </button>
@@ -427,12 +427,18 @@
             </div>
         </div>
 
-        <!-- Busca / Filtro em Tempo Real -->
-        <div class="relative w-full sm:w-72">
-            <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 pr-7 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
-            <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
-            <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer transition" title="Limpar busca">
-                <i class="fas fa-times-circle text-xs"></i>
+        <!-- Busca / Filtro em Tempo Real & Botão Alternar Primeiro Card -->
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+            <div class="relative w-full sm:w-72">
+                <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 pr-7 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
+                <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
+                <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer transition" title="Limpar busca">
+                    <i class="fas fa-times-circle text-xs"></i>
+                </button>
+            </div>
+            <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-card-from-filters" class="hidden p-2 px-2.5 rounded-xl border border-gray-300 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition items-center gap-1.5 cursor-pointer shadow-xs shrink-0" title="Ocultar ou mostrar o primeiro card (topo)">
+                <i id="btn-toggle-top-card-from-filters-icon" class="fas fa-chevron-down text-indigo-600"></i>
+                <span id="btn-toggle-top-card-from-filters-text" class="hidden md:inline">Mostrar Topo</span>
             </button>
         </div>
     </div>
@@ -443,11 +449,11 @@
 
         <!-- FEED PRINCIPAL DO CHAT (1/3 DO ESPAÇO DA TELA) -->
         <div id="feed-outer-wrapper" class="theme-dark relative w-full lg:w-1/3 xl:w-1/3 shrink-0 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
-            <!-- Botão Flutuante para Reexibir os 2 Primeiros Cards (Aparece quando ocultados) -->
+            <!-- Botão Flutuante para Reexibir o Primeiro Card (Aparece quando ocultado) -->
             <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
                 <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
                     <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
-                    <span>Mostrar Topo / Filtros</span>
+                    <span>Mostrar Topo</span>
                 </button>
             </div>
 
@@ -1526,34 +1532,60 @@
     }
 
     // =========================================================================
-    // OCULTAR / EXIBIR CARDS DO TOPO
+    // OCULTAR / EXIBIR APENAS O PRIMEIRO CARD (TOPO)
     // =========================================================================
     let topCardsHidden = localStorage.getItem('live_chat_top_cards_hidden') === 'true';
 
     function updateTopCardsUI() {
-        const headerEl  = document.getElementById('feed-top-header');
-        const filterEl  = document.getElementById('feed-filter-bar');
-        const floatBtn  = document.getElementById('floating-show-top-cards-btn');
-        const toggleBtn = document.getElementById('btn-toggle-top-cards');
+        const headerEl        = document.getElementById('feed-top-header');
+        const filterEl        = document.getElementById('feed-filter-bar');
+        const floatBtn        = document.getElementById('floating-show-top-cards-btn');
+        const toggleBtn       = document.getElementById('btn-toggle-top-cards');
+        const filterToggleBtn = document.getElementById('btn-toggle-top-card-from-filters');
+        const filterToggleIco = document.getElementById('btn-toggle-top-card-from-filters-icon');
+        const filterToggleTxt = document.getElementById('btn-toggle-top-card-from-filters-text');
+
+        // O segundo card (feed-filter-bar) SEMPRE permanece visível!
+        if (filterEl) {
+            filterEl.classList.remove('hidden');
+        }
 
         if (topCardsHidden) {
-            if (headerEl)  headerEl.classList.add('hidden');
-            if (filterEl)  filterEl.classList.add('hidden');
-            if (floatBtn)  floatBtn.classList.remove('hidden');
+            // Oculta apenas o primeiro card
+            if (headerEl) headerEl.classList.add('hidden');
+            if (floatBtn) floatBtn.classList.remove('hidden');
+
             if (toggleBtn) {
-                toggleBtn.querySelector('i').className = 'fas fa-chevron-down text-indigo-400';
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-chevron-down text-indigo-400';
                 const span = toggleBtn.querySelector('span');
-                if (span) span.textContent = 'Mostrar Cards';
+                if (span) span.textContent = 'Mostrar Topo';
             }
+
+            if (filterToggleBtn) {
+                filterToggleBtn.classList.remove('hidden');
+                filterToggleBtn.classList.add('flex');
+            }
+            if (filterToggleIco) filterToggleIco.className = 'fas fa-chevron-down text-indigo-600';
+            if (filterToggleTxt) filterToggleTxt.textContent = 'Mostrar Topo';
         } else {
-            if (headerEl)  headerEl.classList.remove('hidden');
-            if (filterEl)  filterEl.classList.remove('hidden');
-            if (floatBtn)  floatBtn.classList.add('hidden');
+            // Exibe o primeiro card
+            if (headerEl) headerEl.classList.remove('hidden');
+            if (floatBtn) floatBtn.classList.add('hidden');
+
             if (toggleBtn) {
-                toggleBtn.querySelector('i').className = 'fas fa-chevron-up text-indigo-400';
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-chevron-up text-indigo-400';
                 const span = toggleBtn.querySelector('span');
-                if (span) span.textContent = 'Ocultar Cards';
+                if (span) span.textContent = 'Ocultar Topo';
             }
+
+            if (filterToggleBtn) {
+                filterToggleBtn.classList.add('hidden');
+                filterToggleBtn.classList.remove('flex');
+            }
+            if (filterToggleIco) filterToggleIco.className = 'fas fa-chevron-up text-indigo-600';
+            if (filterToggleTxt) filterToggleTxt.textContent = 'Ocultar Topo';
         }
     }
 
