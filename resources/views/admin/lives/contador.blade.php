@@ -78,19 +78,6 @@
         .theme-light #liveTotalValueBadge i {
             color: #059669 !important;
         }
-        .theme-light #liveBipadosBadge {
-            background-color: rgba(15, 23, 42, 0.07);
-            border-color: rgba(15, 23, 42, 0.18);
-        }
-        .theme-light #liveBipadosBadge #totalBipadosCount {
-            color: #0f172a !important;
-        }
-        .theme-light #liveBipadosBadge span {
-            color: #334155 !important;
-        }
-        .theme-light #liveBipadosBadge i {
-            color: #6366f1 !important;
-        }
 
         .theme-neon {
             --bg-main: #020617;
@@ -386,15 +373,6 @@
                     <div class="flex items-baseline gap-2 sm:gap-3">
                         <span class="text-emerald-200/90 text-sm sm:text-lg md:text-xl font-black uppercase tracking-wider">Total:</span>
                         <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black tracking-tight leading-none" style="font-size: clamp(2.2rem, 4.8vw, 4.5rem);">{{ $initialTotalValueFormatted }}</strong>
-                    </div>
-                </div>
-
-                <!-- Mostrador de Bipados -->
-                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2.5 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-white/10 border-2 border-white/20 backdrop-blur shadow-xl">
-                    <i class="fas fa-barcode text-purple-300 text-lg sm:text-2xl shrink-0"></i>
-                    <div class="flex items-baseline gap-2">
-                        <strong id="totalBipadosCount" class="text-white font-mono font-black leading-none" style="font-size: clamp(1.5rem, 2.8vw, 2.5rem);">{{ $initialBipadosCount }}</strong>
-                        <span class="text-white/70 text-xs sm:text-sm font-bold uppercase">bipados</span>
                     </div>
                 </div>
             </div>
