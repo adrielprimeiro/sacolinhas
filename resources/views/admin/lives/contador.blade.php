@@ -52,6 +52,45 @@
             color: #0f172a;
             text-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
+        .theme-light #liveBadge {
+            background-color: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+        }
+        .theme-light #liveBadge #totalItemsCount {
+            color: #581c87 !important;
+        }
+        .theme-light #liveBadge span {
+            color: #6b21a8 !important;
+        }
+        .theme-light #liveBadge i {
+            color: #7e22ce !important;
+        }
+        .theme-light #liveTotalValueBadge {
+            background-color: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+        .theme-light #liveTotalValueBadge #totalLiveValueText {
+            color: #047857 !important;
+        }
+        .theme-light #liveTotalValueBadge span {
+            color: #065f46 !important;
+        }
+        .theme-light #liveTotalValueBadge i {
+            color: #059669 !important;
+        }
+        .theme-light #liveBipadosBadge {
+            background-color: rgba(15, 23, 42, 0.07);
+            border-color: rgba(15, 23, 42, 0.18);
+        }
+        .theme-light #liveBipadosBadge #totalBipadosCount {
+            color: #0f172a !important;
+        }
+        .theme-light #liveBipadosBadge span {
+            color: #334155 !important;
+        }
+        .theme-light #liveBipadosBadge i {
+            color: #6366f1 !important;
+        }
 
         .theme-neon {
             --bg-main: #020617;
@@ -331,21 +370,32 @@
         <section id="col-counter-panel" class="flex flex-col justify-between items-center h-full min-h-0 relative p-4 sm:p-6 rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl transition-all duration-300" style="background-color: var(--panel-bg);">
             
             <!-- Live Stats Badges (Itens, Total R$, Bipados) -->
-            <div class="w-full flex flex-wrap items-center justify-center gap-2.5 shrink-0 pt-1">
-                <div id="liveBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-purple-500/20 border border-purple-500/40 backdrop-blur text-xs sm:text-sm font-black tracking-wider text-purple-200 shadow-md">
-                    <i class="fas fa-shopping-bag text-purple-400 text-sm"></i>
-                    <span><strong id="totalItemsCount" class="text-white font-mono text-base sm:text-lg">{{ $sacolinhasItensCount }}</strong> <span class="text-white/80">itens</span></span>
+            <div class="w-full flex flex-wrap items-center justify-center gap-3 sm:gap-4 shrink-0 pt-1 pb-1">
+                <!-- Mostrador de Itens -->
+                <div id="liveBadge" class="inline-flex items-center gap-3 px-5 py-2 sm:px-6 sm:py-2.5 rounded-2xl bg-purple-500/20 border border-purple-500/40 backdrop-blur shadow-lg transition-all">
+                    <i class="fas fa-shopping-bag text-purple-400 text-xl sm:text-2xl shrink-0"></i>
+                    <div class="flex items-baseline gap-2">
+                        <strong id="totalItemsCount" class="text-white font-mono font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-none">{{ $sacolinhasItensCount }}</strong>
+                        <span class="text-purple-200/90 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wider">itens</span>
+                    </div>
                 </div>
 
-                <div id="liveTotalValueBadge" class="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 backdrop-blur text-xs sm:text-sm font-black tracking-wide text-emerald-200 shadow-md transition-all duration-300">
-                    <i class="fas fa-coins text-emerald-400 text-sm"></i>
-                    <span class="text-white/80">Total:</span>
-                    <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-base sm:text-lg">{{ $initialTotalValueFormatted }}</strong>
+                <!-- Mostrador do Total R$ -->
+                <div id="liveTotalValueBadge" class="inline-flex items-center gap-3 px-5 py-2 sm:px-6 sm:py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 backdrop-blur shadow-lg transition-all duration-300">
+                    <i class="fas fa-coins text-emerald-400 text-xl sm:text-2xl shrink-0"></i>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-emerald-200/90 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wider">Total:</span>
+                        <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-none">{{ $initialTotalValueFormatted }}</strong>
+                    </div>
                 </div>
 
-                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white/10 border border-white/20 backdrop-blur text-xs font-bold text-white/80 shadow-xs">
-                    <i class="fas fa-barcode text-purple-300 text-xs"></i>
-                    <span><strong id="totalBipadosCount" class="text-white font-mono text-sm">{{ $initialBipadosCount }}</strong> bipados</span>
+                <!-- Mostrador de Bipados -->
+                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-md">
+                    <i class="fas fa-barcode text-purple-300 text-base shrink-0"></i>
+                    <div class="flex items-baseline gap-1.5">
+                        <strong id="totalBipadosCount" class="text-white font-mono font-black text-lg sm:text-xl leading-none">{{ $initialBipadosCount }}</strong>
+                        <span class="text-white/70 text-xs sm:text-sm font-bold">bipados</span>
+                    </div>
                 </div>
             </div>
 
