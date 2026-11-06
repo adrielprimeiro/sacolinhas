@@ -372,28 +372,28 @@
             <!-- Live Stats Badges (Itens, Total R$, Bipados) -->
             <div class="w-full flex flex-wrap items-center justify-center gap-3 sm:gap-4 shrink-0 pt-1 pb-1">
                 <!-- Mostrador de Itens -->
-                <div id="liveBadge" class="inline-flex items-center gap-3 px-5 py-2 sm:px-6 sm:py-2.5 rounded-2xl bg-purple-500/20 border border-purple-500/40 backdrop-blur shadow-lg transition-all">
-                    <i class="fas fa-shopping-bag text-purple-400 text-xl sm:text-2xl shrink-0"></i>
+                <div id="liveBadge" class="inline-flex items-center gap-3.5 px-6 py-2.5 sm:px-7 sm:py-3 rounded-2xl bg-purple-500/20 border-2 border-purple-500/50 backdrop-blur shadow-xl transition-all">
+                    <i class="fas fa-shopping-bag text-purple-400 text-2xl sm:text-3xl shrink-0"></i>
                     <div class="flex items-baseline gap-2">
-                        <strong id="totalItemsCount" class="text-white font-mono font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-none">{{ $sacolinhasItensCount }}</strong>
-                        <span class="text-purple-200/90 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wider">itens</span>
+                        <strong id="totalItemsCount" class="text-white font-mono font-black text-3xl sm:text-4xl md:text-5xl tracking-tight leading-none">{{ $sacolinhasItensCount }}</strong>
+                        <span class="text-purple-200/90 text-sm sm:text-base md:text-lg font-black uppercase tracking-wider">itens</span>
                     </div>
                 </div>
 
                 <!-- Mostrador do Total R$ -->
-                <div id="liveTotalValueBadge" class="inline-flex items-center gap-3 px-5 py-2 sm:px-6 sm:py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 backdrop-blur shadow-lg transition-all duration-300">
-                    <i class="fas fa-coins text-emerald-400 text-xl sm:text-2xl shrink-0"></i>
+                <div id="liveTotalValueBadge" class="inline-flex items-center gap-3.5 px-6 py-2.5 sm:px-7 sm:py-3 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/50 backdrop-blur shadow-xl transition-all duration-300">
+                    <i class="fas fa-coins text-emerald-400 text-2xl sm:text-3xl shrink-0"></i>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-emerald-200/90 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-wider">Total:</span>
-                        <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-2xl sm:text-3xl md:text-4xl tracking-tight leading-none">{{ $initialTotalValueFormatted }}</strong>
+                        <span class="text-emerald-200/90 text-sm sm:text-base md:text-lg font-black uppercase tracking-wider">Total:</span>
+                        <strong id="totalLiveValueText" class="text-emerald-300 font-mono font-black text-3xl sm:text-4xl md:text-5xl tracking-tight leading-none">{{ $initialTotalValueFormatted }}</strong>
                     </div>
                 </div>
 
                 <!-- Mostrador de Bipados -->
-                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-md">
-                    <i class="fas fa-barcode text-purple-300 text-base shrink-0"></i>
-                    <div class="flex items-baseline gap-1.5">
-                        <strong id="totalBipadosCount" class="text-white font-mono font-black text-lg sm:text-xl leading-none">{{ $initialBipadosCount }}</strong>
+                <div id="liveBipadosBadge" class="hidden sm:inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/10 border-2 border-white/20 backdrop-blur shadow-md">
+                    <i class="fas fa-barcode text-purple-300 text-lg sm:text-xl shrink-0"></i>
+                    <div class="flex items-baseline gap-2">
+                        <strong id="totalBipadosCount" class="text-white font-mono font-black text-xl sm:text-2xl md:text-3xl leading-none">{{ $initialBipadosCount }}</strong>
                         <span class="text-white/70 text-xs sm:text-sm font-bold">bipados</span>
                     </div>
                 </div>
