@@ -1,0 +1,94 @@
+{
+  "id": "/?source=pwa",
+  "name": "Minha Mania - Portal do Cliente",
+  "short_name": "Minha Mania",
+  "description": "Seus pedidos, sacolinhas, carteira e novidades no Portal do Cliente Minha Mania.",
+  "start_url": "/portal/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFFF",
+  "theme_color": "#F5148C",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Painel",
+      "short_name": "Painel",
+      "description": "Acessar início do portal",
+      "url": "/portal/dashboard",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Minha Sacolinha",
+      "short_name": "Sacolinha",
+      "description": "Ver peças na sacolinha",
+      "url": "/portal/sacolinha",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Meus Pedidos",
+      "short_name": "Pedidos",
+      "description": "Histórico de compras e pedidos",
+      "url": "/portal/pedidos",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Minha Carteira",
+      "short_name": "Carteira",
+      "description": "Saldo e extrato da carteira",
+      "url": "/portal/movimentacao",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mani IA",
+      "short_name": "Mani",
+      "description": "Sua assistente de moda inteligente",
+      "url": "/portal/mani",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

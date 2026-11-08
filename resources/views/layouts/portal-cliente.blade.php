@@ -2,12 +2,26 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" translate="no">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Portal do Cliente')</title>
+
+    <!-- PWA Settings & Web App Manifest -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#F5148C">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Minha Mania">
+
+    <!-- iOS / Apple PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Minha Mania">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
 	<link rel="icon" href="{{ asset('favicon.ico') }}">
 	<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-	<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+	<link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
 	
     <!-- Tailwind CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -21,10 +35,28 @@
     <style>
         body {
             font-family: 'Outfit', 'Inter', sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
         }
         .fade-out {
             opacity: 0;
             transition: opacity 0.5s ease-out;
+        }
+        /* PWA Native Feel Utilities */
+        .pwa-bottom-bar {
+            padding-bottom: max(env(safe-area-inset-bottom), 8px);
+        }
+        .active-tap:active {
+            transform: scale(0.95);
+            transition: transform 0.08s ease-in-out;
+        }
+        /* Standalone PWA adjustments */
+        @media all and (display-mode: standalone) {
+            body {
+                user-select: none;
+            }
+            input, textarea, select {
+                user-select: auto;
+            }
         }
     </style>
 </head>
@@ -151,13 +183,14 @@
                     <span>Mani <span class="text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full ml-1 font-bold">IA</span></span>
                 </a>
 
-                {{-- 
-                <a href="{{ route('portal.curadoria') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-green-50 text-green-700 font-medium {{ request()->routeIs('portal.curadoria') ? 'bg-green-100 font-semibold' : '' }}">
-                    <i class="fas fa-gem text-green-600 w-5"></i>
-                    <span>Curadoria</span>
-                </a>
-                --}}
+                {{-- Botão de Instalar PWA no Drawer --}}
+                <button type="button"
+                        id="pwaDrawerInstallBtn"
+                        class="mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-md bg-pink-50 hover:bg-pink-100 text-pink-700 font-semibold transition text-left hidden">
+                    <i class="fas fa-download text-pink-600 w-5"></i>
+                    <span>Instalar Aplicativo</span>
+                </button>
+
                 <div class="my-4 border-t border-gray-200"></div>
 
                 @auth
@@ -174,7 +207,7 @@
         </aside>
     </nav>
 
-    <main class="container mx-auto mt-8 p-4">
+    <main class="container mx-auto mt-8 p-4 pb-28 md:pb-8">
         <!-- Flash Messages -->
         @if (session('success'))
             <div id="success-alert" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
@@ -195,6 +228,111 @@
                 </span>
             </div>
         @endif
+
+        @yield('content')
+    </main>
+
+    <!-- Native PWA Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pwa-bottom-bar" aria-label="Navegação inferior">
+        <div class="grid grid-cols-5 h-14 items-center">
+            <!-- Início -->
+            <a href="{{ route('portal.dashboard') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.dashboard') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <i class="fas fa-home text-lg"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight">Início</span>
+            </a>
+
+            <!-- Sacolinha -->
+            <a href="{{ route('portal.sacolinha') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.sacolinha') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <i class="fas fa-shopping-bag text-lg"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight">Sacolinha</span>
+            </a>
+
+            <!-- Pedidos -->
+            <a href="{{ route('portal.pedidos') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.pedidos') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <i class="fas fa-receipt text-lg"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight">Pedidos</span>
+            </a>
+
+            <!-- Carteira -->
+            <a href="{{ route('portal.movimentacao') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.movimentacao') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <i class="fas fa-wallet text-lg"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight">Carteira</span>
+            </a>
+
+            <!-- Mani IA -->
+            <a href="{{ route('portal.mani') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.mani') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <div class="relative">
+                    <i class="fas fa-magic text-lg"></i>
+                    <span class="absolute -top-1 -right-2 text-[9px] bg-pink-600 text-white font-black px-1 py-0.2 rounded-full leading-none">IA</span>
+                </div>
+                <span class="text-[11px] mt-0.5 tracking-tight">Mani</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- PWA Install Banner -->
+    <div id="pwaInstallBanner"
+         class="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-md z-50 bg-white border border-pink-200 rounded-2xl p-4 shadow-2xl transition-all duration-300 transform translate-y-32 opacity-0 pointer-events-none">
+        <div class="flex items-start gap-3">
+            <img src="{{ asset('android-chrome-192x192.png') }}" alt="Ícone App Minha Mania" class="w-12 h-12 rounded-xl shadow-sm object-cover flex-shrink-0">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-sm font-bold text-gray-900 leading-tight">Instalar App Minha Mania</h4>
+                    <button type="button" id="pwaCloseBannerBtn" class="text-gray-400 hover:text-gray-700 p-1 -mr-1" aria-label="Fechar">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-600 mt-1 leading-snug">
+                    Instale em 1 clique para acessar suas sacolinhas e novidades direto da sua tela inicial!
+                </p>
+                <div class="mt-3 flex items-center gap-2">
+                    <button type="button" id="pwaInstallBtn" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow-sm transition active-tap">
+                        <i class="fas fa-download mr-1"></i> Instalar Agora
+                    </button>
+                    <button type="button" id="pwaLaterBtn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-2 px-3 rounded-lg transition">
+                        Agora não
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- iOS Instructions Modal -->
+    <div id="pwaIosModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-gray-100 transform transition-all">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div class="flex items-center gap-2">
+                    <img src="{{ asset('android-chrome-192x192.png') }}" alt="App Minha Mania" class="w-8 h-8 rounded-lg object-cover">
+                    <h3 class="text-base font-bold text-gray-900">Como Instalar no iPhone</h3>
+                </div>
+                <button type="button" id="pwaIosCloseBtn" class="text-gray-400 hover:text-gray-700 p-1" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="py-4 space-y-3 text-sm text-gray-700">
+                <div class="flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 font-bold flex items-center justify-center flex-shrink-0 text-xs">1</div>
+                    <p class="leading-relaxed">Toque no ícone de <strong>Compartilhar</strong> <i class="fas fa-share-square text-blue-500 mx-1"></i> na barra inferior do Safari.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 font-bold flex items-center justify-center flex-shrink-0 text-xs">2</div>
+                    <p class="leading-relaxed">Role para baixo e selecione <strong>"Adicionar à Tela de Início"</strong> <i class="fas fa-plus-square text-gray-700 mx-1"></i>.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-pink-100 text-pink-700 font-bold flex items-center justify-center flex-shrink-0 text-xs">3</div>
+                    <p class="leading-relaxed">Toque em <strong>Adicionar</strong> no canto superior direito para finalizar!</p>
+                </div>
+            </div>
+            <button type="button" id="pwaIosUnderstoodBtn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2.5 rounded-xl text-sm transition">
+                Entendi
+            </button>
+        </div>
+    </div>
 
         @yield('content')
     </main>
@@ -256,6 +394,117 @@
             } catch (e) {}
             @endauth
         });
+
+        // ============================================
+        // PWA & Service Worker Registration & Prompts
+        // ============================================
+        (function() {
+            // 1. Registro do Service Worker
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(function(reg) {
+                            console.log('[PWA Minha Mania] Service Worker ativo:', reg.scope);
+                        })
+                        .catch(function(err) {
+                            console.warn('[PWA Minha Mania] Erro ao registrar SW:', err);
+                        });
+                });
+            }
+
+            // 2. Verificar se já está rodando em modo standalone / app instalado
+            var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                               window.navigator.standalone === true;
+
+            if (isStandalone) {
+                return; // Já está no app instalado, não precisa exibir banners de instalação
+            }
+
+            var deferredPrompt = null;
+            var banner = document.getElementById('pwaInstallBanner');
+            var installBtn = document.getElementById('pwaInstallBtn');
+            var closeBannerBtn = document.getElementById('pwaCloseBannerBtn');
+            var laterBtn = document.getElementById('pwaLaterBtn');
+            var drawerInstallBtn = document.getElementById('pwaDrawerInstallBtn');
+            var iosModal = document.getElementById('pwaIosModal');
+            var iosCloseBtn = document.getElementById('pwaIosCloseBtn');
+            var iosUnderstoodBtn = document.getElementById('pwaIosUnderstoodBtn');
+
+            // Detecção de iOS Safari
+            var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            var isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
+
+            function showBanner() {
+                if (!banner) return;
+                var dismissedAt = localStorage.getItem('minhamania_pwa_dismissed');
+                if (dismissedAt) {
+                    var daysPassed = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24);
+                    if (daysPassed < 5) return; // Dispensado recentemente (aguarda 5 dias)
+                }
+                banner.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
+            }
+
+            function hideBanner(dismissPermanently) {
+                if (!banner) return;
+                banner.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+                if (dismissPermanently) {
+                    localStorage.setItem('minhamania_pwa_dismissed', Date.now().toString());
+                }
+            }
+
+            function handleInstallFlow() {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(function(choiceResult) {
+                        if (choiceResult.outcome === 'accepted') {
+                            hideBanner(true);
+                            if (drawerInstallBtn) drawerInstallBtn.classList.add('hidden');
+                        }
+                        deferredPrompt = null;
+                    });
+                } else if (isIos) {
+                    hideBanner();
+                    if (iosModal) iosModal.classList.remove('hidden');
+                } else {
+                    alert('Para instalar o app, clique no menu do navegador (três pontinhos no canto superior) e selecione "Instalar aplicativo" ou "Adicionar à tela inicial".');
+                }
+            }
+
+            // Escuta o evento beforeinstallprompt (Android / Chrome / Edge)
+            window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (drawerInstallBtn) drawerInstallBtn.classList.remove('hidden');
+                setTimeout(showBanner, 2500);
+            });
+
+            // No iOS Safari, disponibiliza o botão no Drawer e exibe o banner convidativo
+            if (isIos && isSafari) {
+                if (drawerInstallBtn) drawerInstallBtn.classList.remove('hidden');
+                setTimeout(showBanner, 3000);
+            }
+
+            if (installBtn) installBtn.addEventListener('click', handleInstallFlow);
+            if (drawerInstallBtn) {
+                drawerInstallBtn.addEventListener('click', function() {
+                    handleInstallFlow();
+                    var closeDrawer = document.getElementById('portalMenuCloseBtn');
+                    if (closeDrawer) closeDrawer.click();
+                });
+            }
+
+            if (closeBannerBtn) closeBannerBtn.addEventListener('click', function() { hideBanner(true); });
+            if (laterBtn) laterBtn.addEventListener('click', function() { hideBanner(true); });
+
+            if (iosCloseBtn) iosCloseBtn.addEventListener('click', function() { if (iosModal) iosModal.classList.add('hidden'); });
+            if (iosUnderstoodBtn) iosUnderstoodBtn.addEventListener('click', function() { if (iosModal) iosModal.classList.add('hidden'); });
+
+            window.addEventListener('appinstalled', function() {
+                hideBanner(true);
+                if (drawerInstallBtn) drawerInstallBtn.classList.add('hidden');
+                deferredPrompt = null;
+            });
+        })();
     </script>
 
     <!-- Scripts and Alpine -->

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sem Conexão - Minha Mania</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .offline-card {
+            background-color: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            padding: 36px 28px;
+        }
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .brand-badge img {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+        }
+        .brand-badge span {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .icon-circle {
+            width: 72px;
+            height: 72px;
+            background-color: #FDF2F8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .icon-circle svg {
+            width: 36px;
+            height: 36px;
+            stroke: #F5148C;
+        }
+        h1 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 0.95rem;
+            color: #4B5563;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        .btn-retry {
+            display: inline-block;
+            width: 100%;
+            background-color: #F5148C;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            padding: 13px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn-retry:hover {
+            background-color: #DB0E7C;
+        }
+        .btn-retry:active {
+            transform: scale(0.98);
+        }
+        .hint {
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: #6B7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div class="brand-badge">
+            <img src="/favicon-32x32.png" alt="Minha Mania">
+            <span>Minha Mania</span>
+        </div>
+        <div class="icon-circle">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-2.829-2.829m0 0l-2.828 2.829M3 3l18 18" />
+            </svg>
+        </div>
+        <h1>Você está sem internet</h1>
+        <p>Não foi possível conectar aos servidores do Portal Minha Mania. Verifique sua conexão Wi-Fi ou dados móveis e tente novamente.</p>
+        <button class="btn-retry" onclick="window.location.reload()">
+            Tentar reconectar
+        </button>
+        <div class="hint">
+            Suas sacolinhas e pedidos salvos estarão esperando por você assim que a conexão voltar!
+        </div>
+    </div>
+</body>
+</html>
