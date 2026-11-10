@@ -952,9 +952,29 @@ class AvaliacaoController extends Controller
     public function pdf(Request $request, Avaliacao $avaliacao)
     {
         $avaliacao->load(['user', 'pessoa', 'parceiro', 'items.categoria', 'items.item', 'items.marcaRel']);
-        $tipo = $request->input('tipo', 'recibo'); // 'recibo' (padrão sem colunas financeiras) ou 'financeiro'
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao', 'tipo'));
-        $prefix = $tipo === 'financeiro' ? 'relatorio-financeiro-' : 'recibo-avaliacao-';
+
+        // Se for parceria, buscar valores reais das sacolinhas para cada item
+        $itemIds = $avaliacao->items->pluck('item_id')->filter()->toArray();
+        $sacolinhas = collect();
+        if (!empty($itemIds)) {
+            $sacolinhas = DB::table('sacolinhas')
+                ->whereIn('item_id', $itemIds)
+                ->where('status', '!=', 'cancelada')
+                ->select('item_id', 'price', 'status', 'user_id', 'created_at')
+                ->orderBy('id', 'desc')
+                ->get()
+                ->keyBy('item_id');
+        }
+
+        foreach ($avaliacao->items as $item) {
+            $item->sacolinha_info = ($item->item_id && isset($sacolinhas[$item->item_id]))
+                ? $sacolinhas[$item->item_id]
+                : null;
+        }
+
+        $isParceiro = ($avaliacao->tipo_compra === 'parceria');
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao', 'isParceiro'));
+        $prefix = $isParceiro ? 'relatorio-parceiro-' : 'recibo-avaliacao-';
         return $pdf->stream($prefix . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . ".pdf");
     }
 

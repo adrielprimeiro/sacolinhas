@@ -24,32 +24,23 @@
         </nav>
         
         <div class="flex items-center gap-2">
-            <a 
-                href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'recibo']) }}"
-                target="_blank"
-                class="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
-                title="Imprimir Recibo de Avaliação em PDF (sem valores financeiros)"
-            >
-                <i class="fas fa-file-pdf text-red-400"></i> Imprimir Recibo
-            </a>
-
             @if ($avaliacao->tipo_compra === 'parceria')
                 <a 
-                    href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'financeiro']) }}"
+                    href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"
                     target="_blank"
-                    class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-indigo-700 font-semibold text-sm py-2 px-4 rounded-lg border border-indigo-200 transition-colors shadow-sm"
-                    title="Relatório Parceiro com Preços, Comissão e Repasse"
+                    class="inline-flex items-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
+                    title="Imprimir Relatório para Parceiro em PDF com vendas e comissões"
                 >
-                    <i class="fas fa-file-invoice-dollar text-indigo-600"></i> Relatório Parceiro (Valores)
+                    <i class="fas fa-file-pdf text-white"></i> Relatório para Parceiro (PDF)
                 </a>
             @else
                 <a 
-                    href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'financeiro']) }}"
+                    href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"
                     target="_blank"
-                    class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm py-2 px-4 rounded-lg border border-gray-300 transition-colors shadow-sm"
-                    title="Relatório Financeiro Completo com Preços e Repasse"
+                    class="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
+                    title="Imprimir Recibo de Avaliação do Cliente em PDF"
                 >
-                    <i class="fas fa-file-invoice-dollar text-emerald-600"></i> Relatório Financeiro (Valores)
+                    <i class="fas fa-file-pdf text-red-400"></i> Imprimir Recibo (PDF)
                 </a>
             @endif
             
