@@ -325,59 +325,67 @@
             $taxaCadTotal = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00) * $qtdTotal;
             $repasseFinalVendas = max(0, $totalVendaSacolinhas - $comissaoManiaVendas);
         @endphp
-        <div class="clearfix" style="margin-top: 15px; margin-bottom: 20px;">
-            {{-- Painel Esquerdo: Contagem de Peças --}}
-            <div style="width: 44%; float: left; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 10px 12px; font-size: 11px;">
-                <div style="display: table; width: 100%; margin-bottom: 5px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Total de Peças no Lote:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 800; font-size: 12px; color: #1e1b4b;">{{ $qtdTotal }} peças</span>
-                </div>
-                <div style="display: table; width: 100%; margin-bottom: 5px;">
-                    <span style="display: table-cell; text-align: left; color: #047857; font-weight: 600;">Peças Vendidas (Sacolinha):</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 800; font-size: 12px; color: #047857;">{{ $qtdVendidas }} peças</span>
-                </div>
-                <div style="display: table; width: 100%; margin-bottom: 5px;">
-                    <span style="display: table-cell; text-align: left; color: #64748b; font-weight: 600;">Peças em Estoque:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #334155;">{{ $qtdEstoque }} peças</span>
-                </div>
-                <div style="display: table; width: 100%; border-top: 1px solid #e2e8f0; padding-top: 4px; margin-top: 4px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Status do Lote:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #312e81;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</span>
-                </div>
-            </div>
+        <table style="width: 100%; margin-top: 15px; margin-bottom: 20px; border-collapse: collapse;">
+            <tr>
+                {{-- Painel Esquerdo: Contagem de Peças --}}
+                <td style="width: 48%; vertical-align: top; padding-right: 6px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 8px 10px; font-size: 11px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="color: #374151; font-weight: 600; padding: 2px 0;">Total de Peças no Lote:</td>
+                                <td style="text-align: right; font-weight: 800; font-size: 12px; color: #1e1b4b; padding: 2px 0;">{{ $qtdTotal }} peças</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #047857; font-weight: 600; padding: 2px 0;">Peças Vendidas (Sacolinha):</td>
+                                <td style="text-align: right; font-weight: 800; font-size: 12px; color: #047857; padding: 2px 0;">{{ $qtdVendidas }} peças</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #64748b; font-weight: 600; padding: 2px 0;">Peças em Estoque:</td>
+                                <td style="text-align: right; font-weight: 700; color: #334155; padding: 2px 0;">{{ $qtdEstoque }} peças</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #374151; font-weight: 600; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">Status do Lote:</td>
+                                <td style="text-align: right; font-weight: 700; color: #312e81; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
 
-            {{-- Painel Direito: Valores Totais das Vendas e Repasse --}}
-            <div style="width: 52%; float: right; border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 8px 12px;">
-                <table class="totals">
-                    <tr>
-                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
-                            Fechamento das Vendas do Parceiro
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>Total Vendido (Sacolinhas):</th>
-                        <td style="color: #111827; font-size: 12px;">R$ {{ number_format($totalVendaSacolinhas, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <th>Taxa Cadastro ({{ $qtdTotal }} peças):</th>
-                        <td style="color: #dc2626;">R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <th>Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</th>
-                        <td style="color: #dc2626;">- R$ {{ number_format($comissaoManiaVendas, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr class="grand-total">
-                        <th style="font-size: 12px; font-weight: bold; color: #1e1b4b;">Valor do Repasse (Vendas):</th>
-                        <td style="color: #047857; font-size: 14px; font-weight: 800;">R$ {{ number_format($repasseFinalVendas, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
-                            * Valores apurados com base no valor real de cada produto na sacolinha.
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+                {{-- Painel Direito: Valores Totais das Vendas e Repasse --}}
+                <td style="width: 52%; vertical-align: top; padding-left: 6px;">
+                    <div style="border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 6px 10px;">
+                        <table class="totals" style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                                    Fechamento das Vendas do Parceiro
+                                </th>
+                            </tr>
+                            <tr>
+                                <th style="padding: 2px 4px;">Total Vendido (Sacolinhas):</th>
+                                <td style="color: #111827; font-size: 12px; padding: 2px 4px;">R$ {{ number_format($totalVendaSacolinhas, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <th style="padding: 2px 4px;">Taxa Cadastro ({{ $qtdTotal }} peças):</th>
+                                <td style="color: #dc2626; padding: 2px 4px;">R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <th style="padding: 2px 4px;">Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</th>
+                                <td style="color: #dc2626; padding: 2px 4px;">- R$ {{ number_format($comissaoManiaVendas, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr class="grand-total">
+                                <th style="font-size: 12px; font-weight: bold; color: #1e1b4b; padding-top: 5px;">Valor do Repasse (Vendas):</th>
+                                <td style="color: #047857; font-size: 14px; font-weight: 800; padding-top: 5px;">R$ {{ number_format($repasseFinalVendas, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
+                                    * Valores apurados com base no valor real de cada produto na sacolinha.
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
     @else
         {{-- RECIBO DE AVALIAÇÃO (CLIENTES): SEM Categoria, SEM valores individuais por peça --}}
@@ -430,64 +438,78 @@
             $sumPayoutCredito = $avaliacao->items->sum('payout_credito');
             $sumPayoutDinheiro = $avaliacao->items->sum('payout_dinheiro');
         @endphp
-        <div class="clearfix" style="margin-top: 15px; margin-bottom: 20px;">
-            {{-- Painel Esquerdo: Contagem de Peças --}}
-            <div style="width: 44%; float: left; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 10px 12px; font-size: 11px;">
-                <div style="display: table; width: 100%; margin-bottom: 5px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Total de Peças Entregues:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 800; font-size: 13px; color: #1e1b4b;">{{ $avaliacao->items->count() }} peças</span>
-                </div>
-                <div style="display: table; width: 100%; margin-bottom: 5px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Data do Recebimento:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #111827;">{{ $avaliacao->formatted_data_avaliacao }}</span>
-                </div>
-                <div style="display: table; width: 100%;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Status do Lote:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #047857;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</span>
-                </div>
-            </div>
+        <table style="width: 100%; margin-top: 15px; margin-bottom: 20px; border-collapse: collapse;">
+            <tr>
+                {{-- Painel Esquerdo: Contagem de Peças --}}
+                <td style="width: 48%; vertical-align: top; padding-right: 6px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 8px 10px; font-size: 11px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="color: #374151; font-weight: 600; padding: 2px 0;">Total de Peças Entregues:</td>
+                                <td style="text-align: right; font-weight: 800; font-size: 12px; color: #1e1b4b; padding: 2px 0;">{{ $avaliacao->items->count() }} peças</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #374151; font-weight: 600; padding: 2px 0;">Data do Recebimento:</td>
+                                <td style="text-align: right; font-weight: 700; color: #111827; padding: 2px 0;">{{ $avaliacao->formatted_data_avaliacao }}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #374151; font-weight: 600; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">Status do Lote:</td>
+                                <td style="text-align: right; font-weight: 700; color: #047857; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
 
-            {{-- Painel Direito: Valores do Repasse ao Cliente --}}
-            <div style="width: 52%; float: right; border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 8px 12px;">
-                <table class="totals">
-                    <tr>
-                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
-                            Valores a Receber pelo Lote
-                        </th>
-                    </tr>
-                    <tr>
-                        <th style="font-size: 11px;">Repasse em Créditos na Loja:</th>
-                        <td style="color: #2563eb; font-size: 13px; font-weight: 800;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <th style="font-size: 11px;">Repasse em Dinheiro / PIX:</th>
-                        <td style="color: #059669; font-size: 13px; font-weight: 800;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
-                            @if ($avaliacao->status === 'finalizada')
-                                Pagamento selecionado: <strong>{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
-                            @else
-                                Forma de recebimento a ser confirmada na finalização do lote.
-                            @endif
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+                {{-- Painel Direito: Valores do Repasse ao Cliente --}}
+                <td style="width: 52%; vertical-align: top; padding-left: 6px;">
+                    <div style="border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 6px 10px;">
+                        <table class="totals" style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                                    Valores a Receber pelo Lote
+                                </th>
+                            </tr>
+                            <tr>
+                                <th style="font-size: 11px; padding: 2px 4px;">Repasse em Créditos na Loja:</th>
+                                <td style="color: #2563eb; font-size: 13px; font-weight: 800; padding: 2px 4px;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <th style="font-size: 11px; padding: 2px 4px;">Repasse em Dinheiro / PIX:</th>
+                                <td style="color: #059669; font-size: 13px; font-weight: 800; padding: 2px 4px;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
+                                    @if ($avaliacao->status === 'finalizada')
+                                        Pagamento selecionado: <strong>{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
+                                    @else
+                                        Forma de recebimento a ser confirmada na finalização do lote.
+                                    @endif
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
     @endif
 
     {{-- Assinaturas do Documento --}}
-    <div class="clearfix signature-section">
-        <div class="signature-line" style="margin-right: 40px;">
-            Assinatura do {{ $isParceiro ? 'Brechó Parceiro' : 'Fornecedor / Cliente' }}<br>
-            <strong>{{ $avaliacao->user->name ?? ($avaliacao->parceiro->nome ?? 'Fornecedor(a)') }}</strong>
-        </div>
-        <div class="signature-line" style="float: right;">
-            Responsável pelo Recebimento<br>
-            <strong>Minha Mania - Moda Circular</strong>
-        </div>
-    </div>
+    <table style="width: 100%; margin-top: 25px; border-collapse: collapse;">
+        <tr>
+            <td style="width: 50%; vertical-align: top; text-align: center; padding-right: 20px;">
+                <div style="width: 220px; margin: 0 auto; border-top: 1px solid #475569; padding-top: 4px; font-size: 10px; color: #334155;">
+                    Assinatura do {{ $isParceiro ? 'Brechó Parceiro' : 'Fornecedor / Cliente' }}<br>
+                    <strong>{{ $avaliacao->user->name ?? ($avaliacao->parceiro->nome ?? 'Fornecedor(a)') }}</strong>
+                </div>
+            </td>
+            <td style="width: 50%; vertical-align: top; text-align: center; padding-left: 20px;">
+                <div style="width: 220px; margin: 0 auto; border-top: 1px solid #475569; padding-top: 4px; font-size: 10px; color: #334155;">
+                    Responsável pelo Recebimento<br>
+                    <strong>Minha Mania - Moda Circular</strong>
+                </div>
+            </td>
+        </tr>
+    </table>
 
     {{-- Observações --}}
     @if ($avaliacao->observacoes)
