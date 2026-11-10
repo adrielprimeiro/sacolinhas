@@ -949,11 +949,13 @@ class AvaliacaoController extends Controller
     /**
      * Generate PDF for the evaluation.
      */
-    public function pdf(Avaliacao $avaliacao)
+    public function pdf(Request $request, Avaliacao $avaliacao)
     {
         $avaliacao->load(['user', 'pessoa', 'parceiro', 'items.categoria', 'items.item', 'items.marcaRel']);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao'));
-        return $pdf->stream("avaliacao-" . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . ".pdf");
+        $tipo = $request->input('tipo', 'recibo'); // 'recibo' (padrão sem colunas financeiras) ou 'financeiro'
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.avaliacoes.pdf', compact('avaliacao', 'tipo'));
+        $prefix = $tipo === 'financeiro' ? 'relatorio-financeiro-' : 'recibo-avaliacao-';
+        return $pdf->stream($prefix . str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) . ".pdf");
     }
 
     /**

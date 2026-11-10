@@ -24,21 +24,34 @@
         </nav>
         
         <div class="flex items-center gap-2">
-            <button 
-                type="button"
-                onclick="printRecibo()"
-                class="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm print:hidden"
-            >
-                <i class="fas fa-print"></i> Imprimir Recibo
-            </button>
-
             <a 
-                href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"
+                href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'recibo']) }}"
                 target="_blank"
-                class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm py-2 px-4 rounded-lg border border-gray-300 transition-colors shadow-sm"
+                class="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors shadow-sm"
+                title="Imprimir Recibo de Avaliação em PDF (sem valores financeiros)"
             >
-                <i class="fas fa-file-pdf text-red-500"></i> Gerar PDF
+                <i class="fas fa-file-pdf text-red-400"></i> Imprimir Recibo
             </a>
+
+            @if ($avaliacao->tipo_compra === 'parceria')
+                <a 
+                    href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'financeiro']) }}"
+                    target="_blank"
+                    class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-indigo-700 font-semibold text-sm py-2 px-4 rounded-lg border border-indigo-200 transition-colors shadow-sm"
+                    title="Relatório Parceiro com Preços, Comissão e Repasse"
+                >
+                    <i class="fas fa-file-invoice-dollar text-indigo-600"></i> Relatório Parceiro (Valores)
+                </a>
+            @else
+                <a 
+                    href="{{ route('admin.avaliacoes.pdf', ['avaliacao' => $avaliacao->id, 'tipo' => 'financeiro']) }}"
+                    target="_blank"
+                    class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm py-2 px-4 rounded-lg border border-gray-300 transition-colors shadow-sm"
+                    title="Relatório Financeiro Completo com Preços e Repasse"
+                >
+                    <i class="fas fa-file-invoice-dollar text-emerald-600"></i> Relatório Financeiro (Valores)
+                </a>
+            @endif
             
             @if ($avaliacao->status === 'rascunho')
                 <a 
@@ -176,9 +189,9 @@
                         </th>
                         <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Peça</th>
                         <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Detalhes</th>
-                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Preço Venda</th>
-                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Taxa Curad.</th>
-                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Repasse</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider print:hidden">Preço Venda</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider print:hidden">Taxa Curad.</th>
+                        <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider print:hidden">Repasse</th>
                         <th class="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider print:hidden">Ações</th>
                     </tr>
                 </thead>
@@ -247,13 +260,13 @@
                             <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
                                 {{ $detalhesFormatados }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900">
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-gray-900 print:hidden">
                                 R$ {{ number_format($item->preco_venda, 2, ',', '.') }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs text-red-500 font-medium">
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs text-red-500 font-medium print:hidden">
                                 {{ $item->taxa_curadoria > 0 ? '- R$ ' . number_format($item->taxa_curadoria, 2, ',', '.') : '-' }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-black text-indigo-600">
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-black text-indigo-600 print:hidden">
                                 R$ {{ number_format($payoutVal, 2, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-center print:hidden">
@@ -368,7 +381,7 @@
                 $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
                 $comissaoValor = $totalVendaLote * ($comissaoPct / 100.00);
             @endphp
-            <div class="space-y-4">
+            <div class="space-y-4 print:hidden">
                 {{-- Total Repasse Fornecedor (Padrão de Criação/Edição) --}}
                 <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
                     <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
