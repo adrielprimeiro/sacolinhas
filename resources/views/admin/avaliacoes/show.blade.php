@@ -381,7 +381,7 @@
                 $comissaoPct = (float) ($avaliacao->comissao_parceiro_porcentagem ?: 20.00);
                 $comissaoValor = $totalVendaLote * ($comissaoPct / 100.00);
             @endphp
-            <div class="space-y-4 print:hidden">
+            <div class="space-y-4">
                 {{-- Total Repasse Fornecedor (Padrão de Criação/Edição) --}}
                 <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
                     <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">

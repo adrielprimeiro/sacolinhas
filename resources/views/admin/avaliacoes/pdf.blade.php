@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>{{ ($tipo ?? 'recibo') === 'financeiro' ? 'Relatório Financeiro' : 'Recibo de Avaliação' }} #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</title>
+    <title>Recibo de Avaliação #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -106,8 +106,7 @@
             font-weight: bold;
         }
         .totals {
-            width: 50%;
-            float: right;
+            width: 100%;
             border-collapse: collapse;
             font-size: 11px;
         }
@@ -175,12 +174,8 @@
             </td>
             <td style="text-align: right; width: 50%;">
                 <div class="lote">
-                    @if ($isFinanceiro)
-                        @if ($avaliacao->tipo_compra === 'parceria')
-                            Relatório para Parceiro - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
-                        @else
-                            Relatório Financeiro - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
-                        @endif
+                    @if ($avaliacao->tipo_compra === 'parceria')
+                        Relatório para Parceiro - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
                     @else
                         Recibo de Avaliação - Lote #{{ str_pad($avaliacao->id, 5, '0', STR_PAD_LEFT) }}
                     @endif
@@ -221,38 +216,19 @@
                         @if ($avaliacao->prefixo_codigo)
                             <strong>Prefixo SKU:</strong> {{ $avaliacao->prefixo_codigo }}<br>
                         @endif
-                        @if ($isFinanceiro)
-                            <strong>Taxa Cadastro/Peça:</strong> R$ {{ number_format((float) $avaliacao->taxa_cadastro_peca, 2, ',', '.') }}<br>
-                            <strong>Comissão Mania:</strong> {{ number_format((float) $avaliacao->comissao_parceiro_porcentagem, 1, ',', '.') }}%<br>
-                            <strong>Forma de Repasse:</strong> Consignação (Acerto Pós-Venda)<br>
-                        @endif
+                        <strong>Taxa Cadastro/Peça:</strong> R$ {{ number_format((float) $avaliacao->taxa_cadastro_peca, 2, ',', '.') }}<br>
+                        <strong>Comissão Mania:</strong> {{ number_format((float) $avaliacao->comissao_parceiro_porcentagem, 1, ',', '.') }}%<br>
                         <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }} peças<br>
                         <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                     @elseif ($avaliacao->tipo_compra === 'avaliados')
                         <strong>Operação:</strong> Regime de Avaliação e Desapego<br>
-                        @if ($isFinanceiro)
+                        @if ($avaliacao->frete_cobrado)
                             <strong>Frete da Remessa:</strong> {{ $avaliacao->formatted_frete }}<br>
-                            <strong>Forma de Repasse:</strong> 
-                            @if ($avaliacao->status === 'finalizada')
-                                {{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos na Loja' : 'Dinheiro/PIX' }}
-                            @else
-                                Pendente (Lote em Rascunho)
-                            @endif
-                            <br>
                         @endif
                         <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }} peças<br>
                         <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                     @else
                         <strong>Operação:</strong> Compra Direta<br>
-                        @if ($isFinanceiro)
-                            <strong>Forma de Repasse:</strong> 
-                            @if ($avaliacao->status === 'finalizada')
-                                {{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos na Loja' : 'Dinheiro/PIX' }}
-                            @else
-                                Pendente (Lote em Rascunho)
-                            @endif
-                            <br>
-                        @endif
                         <strong>Quantidade de Peças:</strong> {{ $avaliacao->items->count() }} peças<br>
                         <strong>Status Lote:</strong> {{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}
                     @endif
@@ -261,18 +237,18 @@
         </tr>
     </table>
 
-    {{-- Tabela de Peças --}}
+    {{-- Tabela de Peças: SEM valores individuais das peças (sem PREÇO VENDA, TAXA CURAD., REPASSE) --}}
     <table class="items-table">
         <thead>
             <tr>
                 @if ($isFinanceiro)
-                    {{-- Modo Financeiro / Relatório com Preço e Repasse --}}
+                    {{-- Caso solicitado explicitamente como relatório financeiro detalhado por peça --}}
                     <th style="width: 35%;">Peça / Descrição</th>
                     <th style="width: 25%;">Detalhes</th>
                     <th class="text-right" style="width: 20%;">Preço</th>
                     <th class="text-right" style="width: 20%;">Repasse</th>
                 @else
-                    {{-- Modo Recibo de Avaliação: SEM colunas PREÇO VENDA, TAXA CURAD., REPASSE --}}
+                    {{-- Padrão do Recibo de Avaliação: sem colunas de valores individuais --}}
                     <th class="text-center" style="width: 4%;">#</th>
                     <th class="text-center" style="width: 16%;">Código / SKU</th>
                     <th style="width: 36%;">Peça / Descrição</th>
@@ -347,14 +323,27 @@
         </tbody>
     </table>
 
-    {{-- Resumo e Totais --}}
-    @if ($isFinanceiro)
-        {{-- Totais Financeiros --}}
-        <div class="clearfix">
-            <div class="signature-line">
-                Assinatura do Fornecedor / Responsável
+    {{-- Quadrado Final de Resumo e Valores Totais --}}
+    <div class="clearfix" style="margin-top: 15px; margin-bottom: 20px;">
+        
+        {{-- Total de Peças e Dados do Lote (lado esquerdo) --}}
+        <div style="width: 44%; float: left; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 10px 12px; font-size: 11px;">
+            <div style="display: table; width: 100%; margin-bottom: 5px;">
+                <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Total de Peças Entregues:</span>
+                <span style="display: table-cell; text-align: right; font-weight: 800; font-size: 13px; color: #1e1b4b;">{{ $avaliacao->items->count() }} peças</span>
             </div>
+            <div style="display: table; width: 100%; margin-bottom: 5px;">
+                <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Data do Recebimento:</span>
+                <span style="display: table-cell; text-align: right; font-weight: 700; color: #111827;">{{ $avaliacao->formatted_data_avaliacao }}</span>
+            </div>
+            <div style="display: table; width: 100%;">
+                <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Status do Lote:</span>
+                <span style="display: table-cell; text-align: right; font-weight: 700; color: #047857;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</span>
+            </div>
+        </div>
 
+        {{-- Quadrado Final com Valores Totais do Lote (lado direito) --}}
+        <div style="width: 52%; float: right; border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 8px 12px;">
             @if ($avaliacao->tipo_compra === 'parceria')
                 @php
                     $totalVendaLote = $avaliacao->items->sum('preco_venda');
@@ -365,7 +354,7 @@
                 @endphp
                 <table class="totals">
                     <tr>
-                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold;">
+                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
                             Repasse Estimado ao Parceiro
                         </th>
                     </tr>
@@ -378,15 +367,15 @@
                         <td style="color: #dc2626;">R$ {{ number_format($taxaCadTotal, 2, ',', '.') }}</td>
                     </tr>
                     <tr>
-                        <th>Comissão Mania:</th>
+                        <th>Comissão Mania ({{ number_format($comissaoPct, 1, ',', '.') }}%):</th>
                         <td style="color: #dc2626;">R$ {{ number_format($comissaoValor, 2, ',', '.') }}</td>
                     </tr>
                     <tr class="grand-total">
-                        <th>Valor do Repasse:</th>
-                        <td style="color: #047857; font-size: 14px;">R$ {{ number_format($totalRepasseLote, 2, ',', '.') }}</td>
+                        <th style="font-size: 12px; font-weight: bold; color: #1e1b4b;">Valor do Repasse:</th>
+                        <td style="color: #047857; font-size: 14px; font-weight: 800;">R$ {{ number_format($totalRepasseLote, 2, ',', '.') }}</td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="font-size: 9px; color: #6b7280; text-align: right; padding-top: 4px;">
+                        <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
                             Regime de <strong>Consignação</strong> (Acerto pós-venda via Carteira)
                         </td>
                     </tr>
@@ -398,18 +387,20 @@
                 @endphp
                 <table class="totals">
                     <tr>
-                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #6b7280;">Total Repasse Fornecedor</th>
+                        <th colspan="2" style="text-align: right; text-transform: uppercase; font-size: 10px; color: #312e81; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                            Total Repasse Fornecedor
+                        </th>
                     </tr>
                     <tr>
-                        <th>Repasse Crédito:</th>
-                        <td style="color: #2563eb;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
+                        <th style="font-size: 11px;">Repasse Crédito:</th>
+                        <td style="color: #2563eb; font-size: 13px; font-weight: 800;">R$ {{ number_format($sumPayoutCredito, 2, ',', '.') }}</td>
                     </tr>
                     <tr>
-                        <th>Repasse Dinheiro:</th>
-                        <td style="color: #059669;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
+                        <th style="font-size: 11px;">Repasse Dinheiro:</th>
+                        <td style="color: #059669; font-size: 13px; font-weight: 800;">R$ {{ number_format($sumPayoutDinheiro, 2, ',', '.') }}</td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="font-size: 9px; color: #9ca3af; text-align: right;">
+                        <td colspan="2" style="font-size: 8px; color: #6b7280; text-align: right; padding-top: 3px;">
                             @if ($avaliacao->status === 'finalizada')
                                 Pago via <strong>{{ $avaliacao->pagamento_escolhido === 'credito' ? 'Créditos em Carteira' : 'Dinheiro/PIX' }}</strong>
                             @else
@@ -420,37 +411,19 @@
                 </table>
             @endif
         </div>
-    @else
-        {{-- Resumo do Recibo de Avaliação (SEM valores financeiros) --}}
-        <div class="clearfix" style="margin-top: 8px; margin-bottom: 20px;">
-            <div style="width: 48%; float: right; border: 1.5px solid #312e81; border-radius: 6px; background-color: #f8fafc; padding: 8px 12px; font-size: 11px;">
-                <div style="display: table; width: 100%; margin-bottom: 4px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Total de Peças Entregues:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 800; font-size: 13px; color: #1e1b4b;">{{ $avaliacao->items->count() }} peças</span>
-                </div>
-                <div style="display: table; width: 100%; margin-bottom: 4px;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Data do Recebimento:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #111827;">{{ $avaliacao->formatted_data_avaliacao }}</span>
-                </div>
-                <div style="display: table; width: 100%;">
-                    <span style="display: table-cell; text-align: left; color: #374151; font-weight: 600;">Status do Lote:</span>
-                    <span style="display: table-cell; text-align: right; font-weight: 700; color: #047857;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</span>
-                </div>
-            </div>
-        </div>
+    </div>
 
-        {{-- Assinaturas do Recibo --}}
-        <div class="clearfix signature-section">
-            <div class="signature-line" style="margin-right: 40px;">
-                Assinatura do Fornecedor / Cliente<br>
-                <strong>{{ $avaliacao->user->name ?? 'Fornecedor(a)' }}</strong>
-            </div>
-            <div class="signature-line" style="float: right;">
-                Responsável pelo Recebimento<br>
-                <strong>Minha Mania - Moda Circular</strong>
-            </div>
+    {{-- Assinaturas do Recibo --}}
+    <div class="clearfix signature-section">
+        <div class="signature-line" style="margin-right: 40px;">
+            Assinatura do Fornecedor / Cliente<br>
+            <strong>{{ $avaliacao->user->name ?? 'Fornecedor(a)' }}</strong>
         </div>
-    @endif
+        <div class="signature-line" style="float: right;">
+            Responsável pelo Recebimento<br>
+            <strong>Minha Mania - Moda Circular</strong>
+        </div>
+    </div>
 
     {{-- Observações --}}
     @if ($avaliacao->observacoes)
