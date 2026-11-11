@@ -394,47 +394,78 @@
         </div>
     </div>
 
-    <!-- Barra de Estatísticas da Live e Próxima Peça (Card 2) -->
-    <div id="feed-filter-bar" class="mb-2.5 bg-white p-2.5 px-3.5 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <!-- Lado Esquerdo: Próxima Peça em Destaque Grande -->
-        <div class="flex items-center gap-2.5 sm:gap-3.5 bg-indigo-50/90 border-2 border-indigo-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+    <!-- Segundo Card: Próxima Peça + LEITOR DE CÓDIGO DE BARRAS + Totais da Live (Telão) -->
+    <div id="feed-filter-bar" class="mb-2 bg-white p-2 sm:p-2.5 px-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+        <!-- Esquerda: Próxima Peça -->
+        <div class="flex items-center gap-2 bg-indigo-50/90 border-2 border-indigo-200 px-3 py-1.5 rounded-xl shadow-xs shrink-0 select-none">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm shadow-xs shrink-0">
                 <i class="fas fa-hashtag"></i>
             </div>
-            <div class="flex flex-col">
-                <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-indigo-700 leading-tight">Próxima Peça</span>
-                <span id="next-seq-val" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-indigo-950 leading-none">#{{ $nextSeqCode ?? '101' }}</span>
+            <div class="flex flex-col leading-none">
+                <span class="text-[9px] font-black uppercase tracking-wider text-indigo-700">Próxima</span>
+                <span id="next-seq-val" class="text-xl sm:text-2xl font-black font-mono tracking-tight text-indigo-950">#{{ $nextSeqCode ?? '101' }}</span>
             </div>
         </div>
 
-        <!-- Lado Direito: Itens e Total Vendido (Estilo Telão) + Controle de Topo -->
-        <div class="flex flex-wrap items-center gap-2.5 sm:gap-3.5">
-            <!-- Mostrador de Itens Vendidos (Telão) -->
-            <div class="flex items-center gap-2.5 sm:gap-3.5 bg-purple-50/90 border-2 border-purple-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
-                <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+        <!-- Centro: LEITOR DE CÓDIGO DE BARRAS + BOTÕES RÁPIDOS (+ Cliente e + Produto) -->
+        <div class="flex-1 min-w-[280px] max-w-3xl flex items-center gap-2">
+            <div class="relative flex-1 flex items-center">
+                <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+                    placeholder="Aguardando bip do leitor ou digite o código..."
+                    class="w-full pl-9 pr-16 py-2 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
+                    oninput="handleManualScanInput(event)"
+                    onkeydown="handleManualScan(event)">
+                <i class="fas fa-barcode absolute left-3 top-3 text-emerald-600 text-sm pointer-events-none"></i>
+                <button type="button" 
+                        onclick="addManualCode()" 
+                        class="absolute right-1.5 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                        title="Inserir código digitado (Enter)">
+                    <i class="fas fa-level-down-alt fa-rotate-90 text-[10px]"></i>
+                    <span>Enter</span>
+                </button>
+            </div>
+
+            <!-- Botão + Cliente -->
+            <button type="button" onclick="openQuickClientModal()" class="px-2.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0" style="background-color: #047857 !important; color: #ffffff !important; border: 1px solid #065f46;" title="Cadastrar Novo Cliente">
+                <i class="fas fa-user-plus text-xs" style="color: #a7f3d0 !important;"></i>
+                <span class="hidden md:inline" style="color: #ffffff !important; font-weight: 900;">+ Cliente</span>
+            </button>
+
+            <!-- Botão + Produto -->
+            <button type="button" onclick="openQuickProductModal()" class="px-2.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0" style="background-color: #6d28d9 !important; color: #ffffff !important; border: 1px solid #5b21b6;" title="Cadastrar Novo Produto">
+                <i class="fas fa-tag text-xs" style="color: #ddd6fe !important;"></i>
+                <span class="hidden md:inline" style="color: #ffffff !important; font-weight: 900;">+ Produto</span>
+            </button>
+        </div>
+
+        <!-- Direita: Totais Estilo Telão (Itens e Valor Total) + Alternar Topo -->
+        <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <!-- Itens Vendidos -->
+            <div class="flex items-center gap-2 bg-purple-50/90 border-2 border-purple-200 px-3 py-1.5 rounded-xl shadow-xs select-none">
+                <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center text-sm shadow-xs shrink-0">
                     <i class="fas fa-shopping-bag"></i>
                 </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-purple-700 leading-tight">Itens Vendidos</span>
-                    <span id="sacolinhas-itens-badge" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-purple-950 leading-none">{{ $sacolinhasItensCount ?? 0 }} itens</span>
+                <div class="flex flex-col leading-none">
+                    <span class="text-[9px] font-black uppercase tracking-wider text-purple-700">Itens</span>
+                    <span id="sacolinhas-itens-badge" class="text-xl sm:text-2xl font-black font-mono tracking-tight text-purple-950">{{ $sacolinhasItensCount ?? 0 }} itens</span>
                 </div>
             </div>
 
-            <!-- Mostrador de Total Vendido (Telão) -->
-            <div class="flex items-center gap-2.5 sm:gap-3.5 bg-emerald-50/90 border-2 border-emerald-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
-                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+            <!-- Total Vendido -->
+            <div class="flex items-center gap-2 bg-emerald-50/90 border-2 border-emerald-200 px-3 py-1.5 rounded-xl shadow-xs select-none">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-sm shadow-xs shrink-0">
                     <i class="fas fa-coins"></i>
                 </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-700 leading-tight">Total Vendido</span>
-                    <span id="sacolinhas-valor-badge" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-800 leading-none">{{ $initialTotalValueFormatted ?? 'R$ 0,00' }}</span>
+                <div class="flex flex-col leading-none">
+                    <span class="text-[9px] font-black uppercase tracking-wider text-emerald-700">Total</span>
+                    <span id="sacolinhas-valor-badge" class="text-xl sm:text-2xl font-black font-mono tracking-tight text-emerald-800">{{ $initialTotalValueFormatted ?? 'R$ 0,00' }}</span>
                 </div>
             </div>
 
             <!-- Botão Ocultar/Mostrar Topo (quando topo ocultado) -->
             <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-card-from-filters" class="hidden p-2 px-2.5 rounded-xl border border-gray-300 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition items-center gap-1.5 cursor-pointer shadow-xs shrink-0" title="Ocultar ou mostrar o primeiro card (topo)">
                 <i id="btn-toggle-top-card-from-filters-icon" class="fas fa-chevron-down text-indigo-600"></i>
-                <span id="btn-toggle-top-card-from-filters-text" class="hidden md:inline">Mostrar Topo</span>
+                <span id="btn-toggle-top-card-from-filters-text" class="hidden xl:inline">Topo</span>
             </button>
         </div>
     </div>
@@ -508,44 +539,6 @@
              PAINEL PRINCIPAL DE ITENS & BIPAGEM
              ============================================================ -->
         <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden" style="min-height:0;">
-
-            <!-- CAMPO DIRETO DO LEITOR DE CÓDIGO DE BARRAS -->
-            <div class="bg-white rounded-2xl shadow-sm border border-emerald-300 p-2 shrink-0 flex items-center gap-2">
-                <div class="relative flex-1 flex items-center">
-                    <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                        placeholder="Aguardando bip do leitor ou digite o código..."
-                        class="w-full pl-9 pr-20 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
-                        oninput="handleManualScanInput(event)"
-                        onkeydown="handleManualScan(event)">
-                    <i class="fas fa-barcode absolute left-3 top-3.5 text-emerald-600 text-sm pointer-events-none"></i>
-                    <button type="button" 
-                            onclick="addManualCode()" 
-                            class="absolute right-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
-                            title="Inserir código digitado (ou tecle Enter)">
-                        <i class="fas fa-level-down-alt fa-rotate-90 text-[10px]"></i>
-                        <span>Enter</span>
-                    </button>
-                </div>
-
-                <!-- Botão + Cliente -->
-                <button type="button" onclick="openQuickClientModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #047857 !important; color: #ffffff !important; border: 1px solid #065f46;" title="Cadastrar Novo Cliente">
-                    <i class="fas fa-user-plus text-xs" style="color: #a7f3d0 !important;"></i>
-                    <span style="color: #ffffff !important; font-weight: 900;">+ Cliente</span>
-                </button>
-
-                <!-- Botão + Produto -->
-                <button type="button" onclick="openQuickProductModal()" class="px-3 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 shrink-0" style="background-color: #6d28d9 !important; color: #ffffff !important; border: 1px solid #5b21b6;" title="Cadastrar Novo Produto">
-                    <i class="fas fa-tag text-xs" style="color: #ddd6fe !important;"></i>
-                    <span style="color: #ffffff !important; font-weight: 900;">+ Produto</span>
-                </button>
-
-                <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
 
             <!-- Card Principal: Lista de Itens Bipados e Fila de Pedidos do Chat -->
             <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden" style="min-height: 0;">
