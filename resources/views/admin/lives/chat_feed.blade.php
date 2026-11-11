@@ -394,48 +394,44 @@
         </div>
     </div>
 
-    <!-- Barra de Filtros e Busca Rápida (Card 2) -->
-    <div id="feed-filter-bar" class="mb-2.5 bg-white p-2.5 px-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <!-- Filtros Rápidos -->
-        <div class="flex flex-wrap items-center gap-1.5">
-            <button type="button" onclick="setFeedFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow transition cursor-pointer">
-                Todas (<span id="count-filter-all">0</span>)
-            </button>
-            <button type="button" onclick="setFeedFilter('instagram')" id="filter-btn-instagram" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-purple-700 hover:bg-purple-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
-                <i class="fab fa-instagram"></i> Instagram (<span id="count-filter-instagram">0</span>)
-            </button>
-            <button type="button" onclick="setFeedFilter('tiktok')" id="filter-btn-tiktok" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-pink-600 hover:bg-pink-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
-                <i class="fab fa-tiktok"></i> TikTok (<span id="count-filter-tiktok">0</span>)
-            </button>
-            <button type="button" onclick="setFeedFilter('youtube')" id="filter-btn-youtube" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-red-600 hover:bg-red-50 transition border border-gray-200 flex items-center gap-1 cursor-pointer">
-                <i class="fab fa-youtube text-red-600"></i> YouTube (<span id="count-filter-youtube">0</span>)
-            </button>
-            <button type="button" onclick="setFeedFilter('marked')" id="filter-btn-marked" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-amber-700 hover:bg-amber-50 transition border border-amber-300 flex items-center gap-1 cursor-pointer">
-                <i class="fas fa-star text-amber-500"></i> Marcadas (<span id="count-filter-marked">0</span>)
-            </button>
-            <button type="button" onclick="setFeedFilter('registered')" id="filter-btn-registered" class="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-100 text-emerald-700 hover:bg-emerald-50 transition border border-emerald-300 flex items-center gap-1 cursor-pointer">
-                <i class="fas fa-user-check text-emerald-500"></i> Cadastradas (<span id="count-filter-registered">0</span>)
-            </button>
-
-            <!-- Totais das Sacolinhas da Live -->
-            <div class="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-extrabold text-indigo-800 shadow-sm select-none">
-                <i class="fas fa-shopping-bag text-indigo-500"></i>
-                <span id="sacolinhas-itens-badge">0 itens</span>
-                <span class="text-indigo-300 font-light mx-0.5">|</span>
-                <i class="fas fa-money-bill-wave text-emerald-500"></i>
-                <span id="sacolinhas-valor-badge" class="text-emerald-700">R$ 0,00</span>
+    <!-- Barra de Estatísticas da Live e Próxima Peça (Card 2) -->
+    <div id="feed-filter-bar" class="mb-2.5 bg-white p-2.5 px-3.5 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <!-- Lado Esquerdo: Próxima Peça em Destaque Grande -->
+        <div class="flex items-center gap-2.5 sm:gap-3.5 bg-indigo-50/90 border-2 border-indigo-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                <i class="fas fa-hashtag"></i>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-indigo-700 leading-tight">Próxima Peça</span>
+                <span id="next-seq-val" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-indigo-950 leading-none">#{{ $nextSeqCode ?? '101' }}</span>
             </div>
         </div>
 
-        <!-- Busca / Filtro em Tempo Real & Botão Alternar Primeiro Card -->
-        <div class="flex items-center gap-2 w-full sm:w-auto">
-            <div class="relative w-full sm:w-72">
-                <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full p-2 pl-8 pr-7 rounded-xl border border-gray-300 text-xs font-semibold text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50">
-                <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
-                <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-2 text-gray-400 hover:text-gray-700 p-0.5 cursor-pointer transition" title="Limpar busca">
-                    <i class="fas fa-times-circle text-xs"></i>
-                </button>
+        <!-- Lado Direito: Itens e Total Vendido (Estilo Telão) + Controle de Topo -->
+        <div class="flex flex-wrap items-center gap-2.5 sm:gap-3.5">
+            <!-- Mostrador de Itens Vendidos (Telão) -->
+            <div class="flex items-center gap-2.5 sm:gap-3.5 bg-purple-50/90 border-2 border-purple-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
+                <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                    <i class="fas fa-shopping-bag"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-purple-700 leading-tight">Itens Vendidos</span>
+                    <span id="sacolinhas-itens-badge" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-purple-950 leading-none">{{ $sacolinhasItensCount ?? 0 }} itens</span>
+                </div>
             </div>
+
+            <!-- Mostrador de Total Vendido (Telão) -->
+            <div class="flex items-center gap-2.5 sm:gap-3.5 bg-emerald-50/90 border-2 border-emerald-200 px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xs">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-700 leading-tight">Total Vendido</span>
+                    <span id="sacolinhas-valor-badge" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-emerald-800 leading-none">{{ $initialTotalValueFormatted ?? 'R$ 0,00' }}</span>
+                </div>
+            </div>
+
+            <!-- Botão Ocultar/Mostrar Topo (quando topo ocultado) -->
             <button type="button" onclick="toggleTopCards()" id="btn-toggle-top-card-from-filters" class="hidden p-2 px-2.5 rounded-xl border border-gray-300 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition items-center gap-1.5 cursor-pointer shadow-xs shrink-0" title="Ocultar ou mostrar o primeiro card (topo)">
                 <i id="btn-toggle-top-card-from-filters-icon" class="fas fa-chevron-down text-indigo-600"></i>
                 <span id="btn-toggle-top-card-from-filters-text" class="hidden md:inline">Mostrar Topo</span>
@@ -444,13 +440,24 @@
     </div>
 
 
-    <!-- Área principal: Feed (1/3) + Painel de Bipagem e Itens (2/3) -->
-    <div class="flex flex-col lg:flex-row gap-2.5 flex-1" style="min-height:0;">
+    <!-- Área principal: Feed (Chat) + Régua Móvel + Painel de Bipagem e Itens -->
+    <div id="main-split-container" class="flex flex-col lg:flex-row gap-0 flex-1 relative" style="min-height:0;">
 
-        <!-- FEED PRINCIPAL DO CHAT (1/3 DO ESPAÇO DA TELA) -->
+        <!-- FEED PRINCIPAL DO CHAT -->
         <div id="feed-outer-wrapper" class="theme-dark relative w-full lg:w-1/3 xl:w-1/3 shrink-0 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-700 min-w-0" style="min-height: 0;">
+            <!-- Campo de Busca Rápida no Chat -->
+            <div class="p-2 sm:p-2.5 bg-gray-900/95 border-b border-gray-800 flex items-center gap-2 shrink-0">
+                <div class="relative flex-1">
+                    <input type="text" id="feed-search-input" name="live_filter_comments_field" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" oninput="handleSearchChat(this.value)" placeholder="🔍 Filtrar mensagem ou @usuario..." class="w-full py-1.5 pl-8 pr-7 rounded-xl border border-gray-700 text-xs font-semibold text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-800">
+                    <i class="fas fa-search absolute left-2.5 top-2 text-gray-400 text-xs"></i>
+                    <button type="button" id="feed-search-clear-btn" onclick="clearSearchFilter()" class="hidden absolute right-2.5 top-1.5 text-gray-400 hover:text-white p-0.5 cursor-pointer transition" title="Limpar busca">
+                        <i class="fas fa-times-circle text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Botão Flutuante para Reexibir o Primeiro Card (Aparece quando ocultado) -->
-            <div id="floating-show-top-cards-btn" class="absolute top-3 right-4 z-40 hidden transition-all">
+            <div id="floating-show-top-cards-btn" class="absolute top-12 right-4 z-40 hidden transition-all">
                 <button type="button" onclick="toggleTopCards()" class="bg-gray-900/95 hover:bg-gray-900 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-indigo-500/80 cursor-pointer active:scale-95 transition-all hover:scale-105">
                     <i class="fas fa-chevron-down text-indigo-400 animate-bounce"></i>
                     <span>Mostrar Topo</span>
@@ -458,7 +465,7 @@
             </div>
 
             <!-- Botão Flutuante para Reabrir Painel de Bipagem (quando oculto) -->
-            <div id="floating-show-scan-panel-btn" class="absolute top-3 right-52 z-40 hidden transition-all">
+            <div id="floating-show-scan-panel-btn" class="absolute top-12 right-52 z-40 hidden transition-all">
                 <button type="button" onclick="toggleScanPanel()" class="bg-emerald-600/95 hover:bg-emerald-500 text-white font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-1.5 border border-emerald-300 cursor-pointer active:scale-95 transition-all hover:scale-105">
                     <i class="fas fa-barcode"></i>
                     <span>Abrir Painel de Itens</span>
@@ -490,16 +497,23 @@
             </div>
         </div>
 
+        <!-- RÉGUA MÓVEL / RESIZER ENTRE O CHAT E O PAINEL DE ITENS -->
+        <div id="chat-scan-resizer"
+             class="hidden lg:flex w-2.5 hover:w-3.5 cursor-col-resize items-center justify-center bg-gray-200 hover:bg-indigo-600 active:bg-indigo-700 transition-all select-none z-30 group rounded-full my-1 mx-1 shrink-0 cursor-ew-resize"
+             title="Arraste para a esquerda ou direita para redimensionar o Chat e o Painel de Itens">
+            <div class="w-1 h-12 rounded-full bg-gray-400 group-hover:bg-white group-active:bg-white transition-colors"></div>
+        </div>
+
         <!-- ============================================================
-             PAINEL PRINCIPAL DE ITENS & BIPAGEM (2/3 DO ESPAÇO DA TELA)
+             PAINEL PRINCIPAL DE ITENS & BIPAGEM
              ============================================================ -->
-        <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden transition-all duration-300" style="min-height:0;">
+        <div id="scan-panel" class="flex-1 min-w-0 flex flex-col gap-2 h-full pb-0 overflow-hidden" style="min-height:0;">
 
             <!-- CAMPO DIRETO DO LEITOR DE CÓDIGO DE BARRAS -->
             <div class="bg-white rounded-2xl shadow-sm border border-emerald-300 p-2 shrink-0 flex items-center gap-2">
                 <div class="relative flex-1 flex items-center">
                     <input type="text" id="scan-manual-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                        placeholder="Aguardando bip do leitor ou digite o código... (Próxima: #101)"
+                        placeholder="Aguardando bip do leitor ou digite o código..."
                         class="w-full pl-9 pr-20 py-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 text-sm font-black text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-600 uppercase tracking-wider transition-all shadow-inner"
                         oninput="handleManualScanInput(event)"
                         onkeydown="handleManualScan(event)">
@@ -511,13 +525,6 @@
                         <i class="fas fa-level-down-alt fa-rotate-90 text-[10px]"></i>
                         <span>Enter</span>
                     </button>
-                </div>
-
-                <!-- Próxima Peça (Sequência 101+) -->
-                <div id="next-seq-badge-container" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 font-black text-xs shrink-0 select-none shadow-xs" title="Código que será atribuído à próxima peça apresentada">
-                    <i class="fas fa-hashtag text-indigo-500 text-xs"></i>
-                    <span class="text-indigo-600 font-bold">Próxima:</span>
-                    <span id="next-seq-val" class="font-mono text-sm font-extrabold text-indigo-700">#101</span>
                 </div>
 
                 <!-- Botão + Cliente -->
@@ -533,6 +540,9 @@
                 </button>
 
                 <button type="button" onclick="toggleScanPanel()" title="Recolher painel de itens para expandir o chat" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition cursor-pointer text-xs shrink-0">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
@@ -1726,9 +1736,11 @@
         const toggleBtn = document.getElementById('btn-toggle-scan-panel');
         const btnText   = document.getElementById('scan-panel-btn-text');
         const feedOuter = document.getElementById('feed-outer-wrapper');
+        const resizer   = document.getElementById('chat-scan-resizer');
 
         if (scanPanelHidden) {
             if (scanPanel) scanPanel.classList.add('hidden');
+            if (resizer)   resizer.classList.add('hidden');
             if (floatBtn)  floatBtn.classList.remove('hidden');
             if (btnText)   btnText.textContent = 'Mostrar Painel de Itens';
             if (toggleBtn) {
@@ -1737,10 +1749,12 @@
             }
             if (feedOuter) {
                 feedOuter.classList.remove('lg:w-1/3', 'xl:w-1/3', 'shrink-0');
-                feedOuter.classList.add('w-full', 'flex-1');
+                feedOuter.style.width = '100%';
+                feedOuter.style.flex = '1 1 100%';
             }
         } else {
             if (scanPanel) scanPanel.classList.remove('hidden');
+            if (resizer)   resizer.classList.remove('hidden');
             if (floatBtn)  floatBtn.classList.add('hidden');
             if (btnText)   btnText.textContent = 'Ocultar Painel de Itens';
             if (toggleBtn) {
@@ -1748,8 +1762,16 @@
                 toggleBtn.classList.add('bg-gray-800', 'text-gray-200');
             }
             if (feedOuter) {
-                feedOuter.classList.remove('flex-1');
-                feedOuter.classList.add('w-full', 'lg:w-1/3', 'xl:w-1/3', 'shrink-0');
+                const savedWidth = localStorage.getItem('live_chat_panel_width');
+                if (savedWidth && window.innerWidth >= 1024) {
+                    const parsed = parseInt(savedWidth, 10);
+                    feedOuter.style.width = parsed + 'px';
+                    feedOuter.style.flex = '0 0 ' + parsed + 'px';
+                } else {
+                    feedOuter.style.width = '';
+                    feedOuter.style.flex = '';
+                    feedOuter.classList.add('w-full', 'lg:w-1/3', 'xl:w-1/3', 'shrink-0');
+                }
             }
         }
     }
@@ -1758,6 +1780,82 @@
         scanPanelHidden = !scanPanelHidden;
         localStorage.setItem('live_chat_scan_panel_hidden', scanPanelHidden ? 'true' : 'false');
         updateScanPanelUI();
+    }
+
+    // =========================================================================
+    // RÉGUA MÓVEL (SPLIT RESIZER) ENTRE O CHAT E O PAINEL DE ITENS
+    // =========================================================================
+    function initChatScanResizer() {
+        const resizer = document.getElementById('chat-scan-resizer');
+        const feedOuter = document.getElementById('feed-outer-wrapper');
+        const splitContainer = document.getElementById('main-split-container');
+        const scanPanel = document.getElementById('scan-panel');
+        if (!resizer || !feedOuter || !splitContainer) return;
+
+        // Restaurar largura salva no localStorage no desktop
+        const savedWidth = localStorage.getItem('live_chat_panel_width');
+        if (savedWidth && window.innerWidth >= 1024 && !scanPanelHidden) {
+            const parsed = parseInt(savedWidth, 10);
+            const containerWidth = splitContainer.getBoundingClientRect().width || window.innerWidth;
+            if (parsed >= 280 && parsed <= (containerWidth - 350)) {
+                feedOuter.style.width = parsed + 'px';
+                feedOuter.style.flex = '0 0 ' + parsed + 'px';
+            }
+        }
+
+        let isDragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        resizer.addEventListener('pointerdown', function(e) {
+            if (window.innerWidth < 1024) return;
+            if (scanPanel && scanPanel.classList.contains('hidden')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startWidth = feedOuter.getBoundingClientRect().width;
+            resizer.setPointerCapture(e.pointerId);
+
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            resizer.classList.add('bg-indigo-600', 'w-3.5');
+        });
+
+        resizer.addEventListener('pointermove', function(e) {
+            if (!isDragging) return;
+            const deltaX = e.clientX - startX;
+            let newWidth = startWidth + deltaX;
+
+            const minWidth = 280;
+            const containerWidth = splitContainer.getBoundingClientRect().width;
+            const maxWidth = Math.max(minWidth, containerWidth - 350);
+
+            if (newWidth < minWidth) newWidth = minWidth;
+            if (newWidth > maxWidth) newWidth = maxWidth;
+
+            feedOuter.style.width = newWidth + 'px';
+            feedOuter.style.flex = '0 0 ' + newWidth + 'px';
+        });
+
+        function stopDragging(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            try {
+                resizer.releasePointerCapture(e.pointerId);
+            } catch(err) {}
+
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            resizer.classList.remove('bg-indigo-600', 'w-3.5');
+
+            const finalWidth = Math.round(feedOuter.getBoundingClientRect().width);
+            if (finalWidth >= 280) {
+                localStorage.setItem('live_chat_panel_width', finalWidth);
+            }
+        }
+
+        resizer.addEventListener('pointerup', stopDragging);
+        resizer.addEventListener('pointercancel', stopDragging);
     }
 
     // =========================================================================
@@ -4823,6 +4921,7 @@
         updateAutoScrollUI();
         updateTopCardsUI();
         updateScanPanelUI();
+        initChatScanResizer();
         loadInitialLinkedLiveItems();
 
         if (liveId) {

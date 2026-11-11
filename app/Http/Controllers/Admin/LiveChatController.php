@@ -435,7 +435,31 @@ class LiveChatController extends Controller
             });
         }
 
-        return view('admin.lives.chat_feed', compact('lives', 'activeLive', 'linkedLiveItems'));
+        $sacolinhasItensCount = 0;
+        $initialTotalValueFormatted = 'R$ 0,00';
+        $nextSeqCode = '101';
+
+        if ($activeLive) {
+            $sacolinhasTotals = Sacolinhas::withoutGlobalScopes()
+                ->where('live_id', $activeLive->id)
+                ->where('status', '!=', 'pedido')
+                ->selectRaw('COUNT(*) as total_itens, COALESCE(SUM(price * quantity), 0) as total_valor')
+                ->first();
+
+            $sacolinhasItensCount = (int) ($sacolinhasTotals->total_itens ?? 0);
+            $initialTotalValue = (float) ($sacolinhasTotals->total_valor ?? 0);
+            $initialTotalValueFormatted = 'R$ ' . number_format($initialTotalValue, 2, ',', '.');
+            $nextSeqCode = $this->getNextCodigoLive($activeLive->id);
+        }
+
+        return view('admin.lives.chat_feed', compact(
+            'lives', 
+            'activeLive', 
+            'linkedLiveItems',
+            'sacolinhasItensCount',
+            'initialTotalValueFormatted',
+            'nextSeqCode'
+        ));
     }
 
     /**
