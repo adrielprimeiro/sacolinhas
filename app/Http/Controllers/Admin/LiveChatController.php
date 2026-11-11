@@ -846,7 +846,8 @@ class LiveChatController extends Controller
             'message_id' => 'nullable|integer',
             'action_mode' => 'nullable|in:add,transfer',
             'transfer_from_user_id' => 'nullable|integer',
-            'transfer_from_sacolinha_id' => 'nullable|integer'
+            'transfer_from_sacolinha_id' => 'nullable|integer',
+            'transfer_from_username' => 'nullable|string'
         ]);
 
         $liveId = $request->input('live_id');
@@ -858,6 +859,13 @@ class LiveChatController extends Controller
         $actionMode = $request->input('action_mode', 'add');
         $transferFromUserId = $request->input('transfer_from_user_id');
         $transferFromSacolinhaId = $request->input('transfer_from_sacolinha_id');
+        $transferFromUsername = trim(ltrim((string)$request->input('transfer_from_username'), '@'));
+        if (!$transferFromUserId && $transferFromUsername) {
+            $fromUser = $this->findUserByUsername($transferFromUsername);
+            if ($fromUser) {
+                $transferFromUserId = $fromUser->id;
+            }
+        }
         $liveBrechoId = DB::table('lives')->where('id', $liveId)->value('brecho_id') ?? 1;
 
         if (!$itemId && $request->filled('code')) {
@@ -3748,6 +3756,198 @@ class LiveChatController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao cadastrar produto: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Atualização Rápida de Informações Básicas do Produto direto do Chat da Transmissão
+     */
+    public function quickUpdateProduct(Request $request)
+    {
+        $request->validate([
+            'nome' => 'required|string|max:255',
+            'preco' => 'required',
+            'item_id' => 'nullable',
+            'code' => 'nullable|string',
+            'novo_codigo' => 'nullable|string|max:50',
+            'tamanho' => 'nullable|string|max:50',
+            'cor' => 'nullable|string|max:50',
+            'marca' => 'nullable|string|max:100',
+            'estado' => 'nullable|string|max:50',
+            'live_id' => 'nullable|integer',
+            'codigo_live' => 'nullable|string|max:50',
+        ], [
+            'nome.required' => 'Informe a descrição/nome do produto.',
+            'preco.required' => 'Informe o preço de venda.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $liveId = $request->filled('live_id') ? (int)$request->input('live_id') : null;
+            $itemId = $request->filled('item_id') ? (int)$request->input('item_id') : null;
+            $code = $request->filled('code') ? trim((string)$request->input('code')) : null;
+
+            $liveBrechoId = 1;
+            $live = null;
+            if ($liveId) {
+                $live = Live::find($liveId);
+                $liveBrechoId = $live ? ($live->brecho_id ?: 1) : 1;
+            }
+
+            $item = null;
+            if ($itemId) {
+                $item = Item::find($itemId);
+            }
+
+            // 1. Tenta buscar por código ou SKU
+            if (!$item && $code) {
+                $cleanCode = ltrim($code, '#');
+                $cleanCode = trim($cleanCode);
+
+                $item = Item::where(function ($q) use ($liveBrechoId) {
+                        $q->where('brecho_id', $liveBrechoId)
+                          ->orWhereNull('brecho_id');
+                    })
+                    ->where(function ($q) use ($code, $cleanCode) {
+                        $q->where('codigo', $code)
+                          ->orWhere('codigo', $cleanCode)
+                          ->orWhere('codigo', mb_strtoupper($code, 'UTF-8'))
+                          ->orWhere('codigo', mb_strtoupper($cleanCode, 'UTF-8'))
+                          ->orWhere('codigo', mb_strtolower($code, 'UTF-8'))
+                          ->orWhere('codigo', mb_strtolower($cleanCode, 'UTF-8'))
+                          ->orWhere('id', is_numeric($code) ? (int)$code : (is_numeric($cleanCode) ? (int)$cleanCode : -1));
+                    })
+                    ->first();
+            }
+
+            // 2. Tenta buscar por codigo_live na tabela live_items
+            if (!$item && $liveId && Schema::hasTable('live_items')) {
+                $codigoLive = $request->filled('codigo_live') ? trim((string)$request->input('codigo_live')) : null;
+                $searchTerms = array_unique(array_filter([$codigoLive, $code, $itemId]));
+                foreach ($searchTerms as $term) {
+                    $cleanTerm = ltrim(trim((string)$term), '#');
+                    $liveItemRow = DB::table('live_items')
+                        ->where('live_id', $liveId)
+                        ->where(function($q) use ($term, $cleanTerm) {
+                            $q->where('codigo_live', $term)
+                              ->orWhere('codigo_live', $cleanTerm);
+                        })
+                        ->first();
+
+                    if ($liveItemRow && $liveItemRow->item_id) {
+                        $item = Item::find($liveItemRow->item_id);
+                        if ($item) break;
+                    }
+                }
+            }
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item não encontrado para atualização.'
+                ], 404);
+            }
+
+            // Atualiza campos básicos
+            $nome = trim($request->input('nome'));
+            $item->nome_do_produto = $nome;
+            $item->descricao = $nome;
+            $item->tamanho = trim($request->input('tamanho') ?: '') ?: null;
+            $item->cor = trim($request->input('cor') ?: '') ?: null;
+            $item->marca = trim($request->input('marca') ?: '') ?: null;
+            if ($request->filled('estado')) {
+                $item->estado = trim($request->input('estado'));
+            }
+
+            // Preço
+            $precoRaw = $request->input('preco');
+            $cleanPrice = preg_replace('/[^0-9,\.]/', '', (string)$precoRaw);
+            $cleanPrice = str_replace(',', '.', $cleanPrice);
+            $newPrice = (float) $cleanPrice;
+            if ($newPrice >= 0) {
+                $item->preco = $newPrice;
+            }
+
+            // Código / SKU (se alterado)
+            if ($request->filled('novo_codigo')) {
+                $novoCod = trim((string)$request->input('novo_codigo'));
+                $novoCod = ltrim($novoCod, '#');
+                if (!empty($novoCod) && $novoCod !== $item->codigo) {
+                    $existeOutro = Item::where('codigo', $novoCod)
+                        ->where('id', '!=', $item->id)
+                        ->where('brecho_id', $item->brecho_id)
+                        ->exists();
+                    if ($existeOutro) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Já existe outro produto cadastrado com o código/SKU '{$novoCod}'."
+                        ], 422);
+                    }
+                    $item->codigo = $novoCod;
+                }
+            }
+
+            $item->save();
+
+            // Atualiza preço em sacolinhas ativas da peça
+            if ($newPrice >= 0) {
+                $sacolinhaPrice = $newPrice;
+                if ($live && $live->tipo_live === 'precinho') {
+                    $sacolinhaPrice = $newPrice * 0.5;
+                }
+
+                Sacolinhas::withoutGlobalScopes()
+                    ->where('item_id', $item->id)
+                    ->update([
+                        'price' => $sacolinhaPrice,
+                        'updated_at' => now()
+                    ]);
+            }
+
+            // Atualiza ou vincula o codigo_live se fornecido
+            $codigoLiveResult = null;
+            if ($liveId && $request->has('codigo_live') && Schema::hasTable('live_items')) {
+                $cleanLiveCode = ltrim(trim($request->input('codigo_live') ?: ''), '#');
+                if ($cleanLiveCode !== '') {
+                    DB::table('live_items')->updateOrInsert(
+                        ['live_id' => $liveId, 'item_id' => $item->id],
+                        ['codigo_live' => $cleanLiveCode, 'updated_at' => now()]
+                    );
+                    $codigoLiveResult = $cleanLiveCode;
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Informações da peça #{$item->codigo} atualizadas com sucesso!",
+                'item' => [
+                    'id' => $item->id,
+                    'codigo' => $item->codigo,
+                    'sku' => $item->codigo,
+                    'nome' => $item->nome_do_produto,
+                    'name' => $item->nome_do_produto,
+                    'descricao' => $item->descricao,
+                    'description' => $item->descricao,
+                    'tamanho' => $item->tamanho ?? '',
+                    'cor' => $item->cor ?? '',
+                    'marca' => $item->marca ?? '',
+                    'estado' => $item->estado ?? '',
+                    'preco' => (float)$item->preco,
+                    'formatted_price' => 'R$ ' . number_format((float)$item->preco, 2, ',', '.'),
+                    'codigo_live' => $codigoLiveResult
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("[LiveChat] Erro ao atualizar informações do produto: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar produto: ' . $e->getMessage()
             ], 500);
         }
     }

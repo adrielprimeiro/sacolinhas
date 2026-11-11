@@ -329,6 +329,7 @@ Route::middleware('auth')->group(function () {
         Route::get('live-chat/video-cuts', [\App\Http\Controllers\Admin\LiveChatController::class, 'getVideoCuts'])->name('admin.live-chat.video-cuts');
         Route::post('live-chat/quick-store-client', [\App\Http\Controllers\Admin\LiveChatController::class, 'quickStoreClient'])->name('admin.live-chat.quick-store-client');
         Route::post('live-chat/quick-store-product', [\App\Http\Controllers\Admin\LiveChatController::class, 'quickStoreProduct'])->name('admin.live-chat.quick-store-product');
+        Route::post('live-chat/quick-update-product', [\App\Http\Controllers\Admin\LiveChatController::class, 'quickUpdateProduct'])->name('admin.live-chat.quick-update-product');
         Route::post('live-chat/update-item-price', [\App\Http\Controllers\Admin\LiveChatController::class, 'updateItemPrice'])->name('admin.live-chat.update-item-price');
         Route::get('lives/{liveId}/relatorio-pdf', [\App\Http\Controllers\Admin\LiveChatController::class, 'generateLivePdfReport'])->name('admin.lives.relatorio-pdf');
 
@@ -361,6 +362,8 @@ Route::middleware('auth')->group(function () {
         Route::post('severino/cliper/settings', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'updateSettings'])->name('admin.severino.cliper.settings');
         Route::post('severino/cliper/generate-queue', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'generateQueue'])->name('admin.severino.cliper.generate-queue');
         Route::post('severino/cliper/publish/{id}', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'publishNow'])->name('admin.severino.cliper.publish');
+        Route::post('severino/cliper/post/{id}/retry', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'retryPost'])->name('admin.severino.cliper.post.retry');
+        Route::post('severino/cliper/campaign/retry-all-failed', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'retryAllFailed'])->name('admin.severino.cliper.campaign.retry-all-failed');
         Route::post('severino/cliper/post/{id}/update', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'updatePost'])->name('admin.severino.cliper.update-post');
         Route::delete('severino/cliper/post/{id}', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'deletePost'])->name('admin.severino.cliper.delete-post');
         Route::post('severino/cliper/post/{id}/regenerate-copy', [\App\Http\Controllers\Admin\SeverinoCliperController::class, 'regenerateCopy'])->name('admin.severino.cliper.regenerate-copy');
@@ -400,6 +403,8 @@ Route::middleware('auth')->group(function () {
         Route::post('tiktok/upload-cut/{liveItemId}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'uploadCut'])->name('admin.tiktok.upload-cut');
         Route::post('lives/{liveId}/tiktok/batch-upload', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'batchUploadUnsold'])->name('admin.tiktok.batch-upload');
         Route::get('tiktok/status/{liveId?}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'status'])->name('admin.tiktok.status');
+        Route::get('tiktok/prepare-web-upload/{liveItemId}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'prepareWebUpload'])->name('admin.tiktok.prepare-web-upload');
+        Route::post('tiktok/mark-published/{liveItemId}', [\App\Http\Controllers\Admin\TikTokIntegrationController::class, 'markPublished'])->name('admin.tiktok.mark-published');
 
         // ===== INTEGRAÇÃO INSTAGRAM REELS PUBLICAÇÃO AUTOMÁTICA =====
         Route::get('instagram/connect', [\App\Http\Controllers\Admin\InstagramIntegrationController::class, 'connect'])->name('admin.instagram.connect');
@@ -1042,6 +1047,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::post('knowledge-base/import-whatsapp', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseImportWhatsApp'])->name('knowledge-base.import-whatsapp');
     Route::delete('knowledge-base/{id}', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseDestroy'])->name('knowledge-base.destroy');
 });
+
 
 // ===== ROTAS DO ASSISTENTE VIRTUAL DE IA (RAG) =====
 Route::post('/api/chat-ia/send', [\App\Http\Controllers\AiAssistantController::class, 'sendMessage'])

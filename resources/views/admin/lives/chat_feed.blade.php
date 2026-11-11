@@ -1059,6 +1059,129 @@
     </div>
 </div>
 
+<!-- MODAL EDITAR INFORMAÇÕES BÁSICAS DA PEÇA (DUPLO CLIQUE NO CÓDIGO) -->
+<div id="modal-edit-basic-item" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="display: none; background-color: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 99999;">
+    <div class="relative w-full max-w-lg rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <div>
+                    <h3 style="color: #ffffff !important; font-size: 16px; font-weight: 900; margin: 0; line-height: 1.2;">Editar Informações da Peça</h3>
+                    <p id="edit-basic-modal-subtitle" style="color: #c7d2fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Altere descrição, tamanho, cor, marca, preço e códigos</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeEditBasicItemModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s;">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form onsubmit="submitEditBasicItem(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+            <input type="hidden" id="edit-basic-scan-id">
+            <input type="hidden" id="edit-basic-item-id">
+            <input type="hidden" id="edit-basic-current-code">
+
+            <!-- Linha 1: Código / SKU e Código da Live -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        Código / SKU <span style="font-weight: 600; text-transform: none; color: #64748b;">(Etiqueta Física)</span>
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-right: none; border-radius: 10px 0 0 10px; color: #475569; font-size: 13px; font-weight: 900; font-family: monospace;">#</span>
+                        <input type="text" id="edit-basic-code" required placeholder="Ex: VAL-101-001" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 800; font-family: monospace; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box; text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        Código na Live <span style="font-weight: 600; text-transform: none; color: #64748b;">(Falado na Live)</span>
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #ede9fe; border: 1.5px solid #c4b5fd; border-right: none; border-radius: 10px 0 0 10px; color: #6d28d9; font-size: 13px; font-weight: 900; font-family: monospace;">#</span>
+                        <input type="text" id="edit-basic-live-code" placeholder="Ex: 101" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 800; font-family: monospace; color: #4338ca !important; background-color: #f5f3ff !important; border: 1.5px solid #c4b5fd !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box; text-transform: uppercase;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha 2: Descrição / Nome da Peça -->
+            <div>
+                <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                    Descrição / Nome do Produto <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="text" id="edit-basic-nome" required placeholder="Ex: Vestido Midi Estampado Farm" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Linha 3: Tamanho, Cor, Marca (3 colunas) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Tamanho</label>
+                    <input type="text" id="edit-basic-tamanho" placeholder="Ex: M, 38, G" style="width: 100%; padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Cor</label>
+                    <input type="text" id="edit-basic-cor" placeholder="Ex: Preto, Azul" style="width: 100%; padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Marca</label>
+                    <input type="text" id="edit-basic-marca" placeholder="Ex: Farm, Zara" style="width: 100%; padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <!-- Linha 4: Estado da Peça e Preço de Venda -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">Estado da Peça</label>
+                    <select id="edit-basic-estado" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box; cursor: pointer;">
+                        <option value="Seminovo">Seminovo</option>
+                        <option value="Novo">Novo (com etiqueta)</option>
+                        <option value="Usado">Usado</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
+                        Preço de Venda (R$) <span style="color: #dc2626;">*</span>
+                    </label>
+                    <div style="display: flex;">
+                        <span style="display: inline-flex; align-items: center; padding: 0 12px; background-color: #e2e8f0; border: 1.5px solid #059669; border-right: none; border-radius: 10px 0 0 10px; color: #065f46; font-size: 13px; font-weight: 900;">R$</span>
+                        <input type="text" id="edit-basic-preco" required placeholder="45,00" autocomplete="off" style="width: 100%; padding: 8px 12px; font-size: 15px; font-weight: 900; color: #065f46 !important; background-color: #f0fdf4 !important; border: 1.5px solid #059669 !important; border-radius: 0 10px 10px 0; outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botões Rápidos de Preço -->
+            <div>
+                <span style="display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b !important; margin-bottom: 4px;">Ajuste Rápido de Preço:</span>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" onclick="setEditBasicPricePreset(10)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 10</button>
+                    <button type="button" onclick="setEditBasicPricePreset(15)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 15</button>
+                    <button type="button" onclick="setEditBasicPricePreset(20)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 20</button>
+                    <button type="button" onclick="setEditBasicPricePreset(25)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 25</button>
+                    <button type="button" onclick="setEditBasicPricePreset(30)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 30</button>
+                    <button type="button" onclick="setEditBasicPricePreset(40)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 40</button>
+                    <button type="button" onclick="setEditBasicPricePreset(50)" style="flex: 1; padding: 5px 6px; font-size: 11px; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer;">R$ 50</button>
+                </div>
+            </div>
+
+            <!-- Footer / Ações -->
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 14px; border-top: 1px solid #e2e8f0; margin-top: 2px;">
+                <button type="button" onclick="closeEditBasicItemModal()" style="background-color: #e2e8f0 !important; color: #334155 !important; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-save-edit-basic-item" style="background-color: #4338ca !important; color: #ffffff !important; font-weight: 900; font-size: 12px; padding: 9px 20px; border-radius: 10px; border: 1px solid #3730a3; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <i class="fas fa-check" style="color: #c7d2fe !important;"></i> Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL LEITOR QR CODE PARA PESSOA ONLINE (TELA INTEIRA / FULLSCREEN) -->
 <div id="online-qr-modal" class="fixed inset-0 bg-gray-900 z-50 flex flex-col hidden overflow-hidden" style="z-index: 99999;">
     <!-- Cabeçalho Fullscreen Elegante -->
@@ -1702,6 +1825,9 @@
 
         const editPriceModal = document.getElementById('modal-edit-item-price');
         if (editPriceModal && !editPriceModal.classList.contains('hidden')) return true;
+
+        const editBasicItemModal = document.getElementById('modal-edit-basic-item');
+        if (editBasicItemModal && !editBasicItemModal.classList.contains('hidden') && editBasicItemModal.style.display !== 'none') return true;
 
         return false;
     }
@@ -2371,6 +2497,327 @@
         } catch(err) {
             console.error('Erro ao atualizar preço:', err);
             showToast('Erro de conexão ao salvar preço.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnHtml;
+            }
+        }
+    }
+
+    /* ---- Modal de Edição Básica de Informações do Item (2 Cliques no Código) ---- */
+    function openEditBasicItemModal(identifier, element = null) {
+        let cleanId = identifier ? String(identifier).trim() : '';
+
+        if (!cleanId && element) {
+            const parentItemEl = element.closest('.scan-item') || element.closest('[data-scan-id]') || element.closest('[data-code]');
+            if (parentItemEl) {
+                cleanId = parentItemEl.dataset.scanId || parentItemEl.dataset.code || parentItemEl.dataset.itemId || '';
+            }
+        }
+
+        let item = null;
+        if (cleanId) {
+            item = bgScanItems.find(x => x.id === cleanId) 
+                || bgScanItems.find(x => x.code && String(x.code).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => x.itemId && String(x.itemId) === cleanId)
+                || bgScanItems.find(x => x.liveCode && String(x.liveCode).toUpperCase() === cleanId.toUpperCase())
+                || bgScanItems.find(x => cleanId.startsWith('scan_db_') && x.id === cleanId);
+        }
+
+        if (!item && element) {
+            const parentItemEl = element.closest('.scan-item') || element.closest('[data-scan-id]') || element.closest('[data-code]');
+            if (parentItemEl) {
+                const sId = parentItemEl.dataset.scanId;
+                const sCode = parentItemEl.dataset.code;
+                const sItem = parentItemEl.dataset.itemId;
+                item = bgScanItems.find(x => (sId && x.id === sId) || (sCode && x.code === sCode) || (sItem && x.itemId == sItem));
+            }
+        }
+
+        const modal = document.getElementById('modal-edit-basic-item');
+        if (!modal) {
+            console.error('[EditBasicItemModal] Elemento #modal-edit-basic-item não encontrado');
+            return;
+        }
+
+        const scanId = item ? item.id : cleanId;
+        const itemId = item ? (item.itemId || '') : (cleanId && !isNaN(cleanId) ? cleanId : '');
+        const code = item ? (item.code || '') : cleanId;
+        const liveCode = item ? (item.liveCode || '') : '';
+
+        // Tenta obter dados do cache local de produtos
+        let prod = scanProductCache[code] || scanProductCache[String(code).toUpperCase()] || null;
+
+        let nome = (prod && (prod.name || prod.nome_do_produto)) || (item ? item.productName : '') || '';
+        let tamanho = (prod && prod.tamanho) || (item ? item.tamanho : '') || '';
+        let cor = (prod && prod.cor) || (item ? item.cor : '') || '';
+        let marca = (prod && prod.marca) || (item ? item.marca : '') || '';
+        let estado = (prod && prod.estado) || (item ? item.estado : '') || 'Seminovo';
+
+        let rawPrice = '';
+        if (prod && prod.preco !== undefined && prod.preco !== null) {
+            rawPrice = parseFloat(prod.preco).toFixed(2).replace('.', ',');
+        } else if (item && item.productPrice) {
+            rawPrice = String(item.productPrice).replace(/[^0-9,\.]/g, '').trim();
+        }
+
+        const scanIdInput = document.getElementById('edit-basic-scan-id');
+        if (scanIdInput) scanIdInput.value = scanId;
+        const itemIdInput = document.getElementById('edit-basic-item-id');
+        if (itemIdInput) itemIdInput.value = itemId;
+        const curCodeInput = document.getElementById('edit-basic-current-code');
+        if (curCodeInput) curCodeInput.value = code;
+        const codeInput = document.getElementById('edit-basic-code');
+        if (codeInput) codeInput.value = code;
+        const liveCodeInput = document.getElementById('edit-basic-live-code');
+        if (liveCodeInput) liveCodeInput.value = liveCode;
+
+        const nomeInput = document.getElementById('edit-basic-nome');
+        if (nomeInput) nomeInput.value = nome;
+        const tamInput = document.getElementById('edit-basic-tamanho');
+        if (tamInput) tamInput.value = tamanho;
+        const corInput = document.getElementById('edit-basic-cor');
+        if (corInput) corInput.value = cor;
+        const marcaInput = document.getElementById('edit-basic-marca');
+        if (marcaInput) marcaInput.value = marca;
+        const estadoInput = document.getElementById('edit-basic-estado');
+        if (estadoInput) estadoInput.value = estado || 'Seminovo';
+        const precoInput = document.getElementById('edit-basic-preco');
+        if (precoInput) precoInput.value = rawPrice;
+
+        const subTitleEl = document.getElementById('edit-basic-modal-subtitle');
+        if (subTitleEl) {
+            subTitleEl.textContent = `Código #${code} ${liveCode ? '(Live: #' + liveCode + ')' : ''}`;
+        }
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+
+        setTimeout(() => {
+            if (nomeInput) {
+                nomeInput.focus();
+                nomeInput.select();
+            }
+        }, 80);
+
+        // Se faltar informação (ex: produto sem nome ou sem detalhes completos), busca dados atualizados no backend
+        if (code) {
+            fetch(`/api/items/search?q=${encodeURIComponent(code)}${liveId ? '&live_id=' + encodeURIComponent(liveId) : ''}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.data && data.data.length > 0) {
+                        const clean = String(code).replace(/^[#\s]+/, '').trim().toLowerCase();
+                        const foundProd = data.data.find(it => 
+                            (it.sku && it.sku.toLowerCase() === clean) ||
+                            (it.codigo && it.codigo.toLowerCase() === clean) ||
+                            String(it.id) === clean
+                        ) || data.data[0];
+
+                        if (foundProd) {
+                            scanProductCache[String(code).toUpperCase()] = foundProd;
+                            if (foundProd.id && itemIdInput && !itemIdInput.value) {
+                                itemIdInput.value = foundProd.id;
+                            }
+                            if (nomeInput && (!nomeInput.value || nomeInput.value === 'Sem Nome')) {
+                                nomeInput.value = foundProd.name || '';
+                            }
+                            if (tamInput && !tamInput.value && foundProd.tamanho) {
+                                tamInput.value = foundProd.tamanho;
+                            }
+                            if (corInput && !corInput.value && foundProd.cor) {
+                                corInput.value = foundProd.cor;
+                            }
+                            if (marcaInput && !marcaInput.value && foundProd.marca) {
+                                marcaInput.value = foundProd.marca;
+                            }
+                            if (estadoInput && foundProd.estado) {
+                                estadoInput.value = foundProd.estado;
+                            }
+                            if (precoInput && !precoInput.value && foundProd.price) {
+                                precoInput.value = parseFloat(foundProd.price).toFixed(2).replace('.', ',');
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.warn('[Scan] Erro ao sincronizar dados da peça no modal:', err));
+        }
+    }
+
+    function closeEditBasicItemModal() {
+        const modal = document.getElementById('modal-edit-basic-item');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+        ensureScannerFocus(true);
+    }
+
+    function setEditBasicPricePreset(val) {
+        const input = document.getElementById('edit-basic-preco');
+        if (input) {
+            input.value = Number(val).toFixed(2).replace('.', ',');
+            input.focus();
+            input.select();
+        }
+    }
+
+    async function submitEditBasicItem(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-save-edit-basic-item');
+        const origBtnHtml = btn ? btn.innerHTML : '<i class="fas fa-check"></i> Salvar Alterações';
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+        }
+
+        const scanId = document.getElementById('edit-basic-scan-id')?.value;
+        const itemId = document.getElementById('edit-basic-item-id')?.value;
+        const currentCode = document.getElementById('edit-basic-current-code')?.value;
+        const novoCodigo = (document.getElementById('edit-basic-code')?.value || '').trim();
+        const nome = (document.getElementById('edit-basic-nome')?.value || '').trim();
+        const tamanho = (document.getElementById('edit-basic-tamanho')?.value || '').trim();
+        const cor = (document.getElementById('edit-basic-cor')?.value || '').trim();
+        const marca = (document.getElementById('edit-basic-marca')?.value || '').trim();
+        const estado = (document.getElementById('edit-basic-estado')?.value || '').trim();
+        const preco = (document.getElementById('edit-basic-preco')?.value || '').trim();
+        const codigoLive = (document.getElementById('edit-basic-live-code')?.value || '').trim();
+
+        try {
+            const resp = await fetch('{{ route('admin.live-chat.quick-update-product') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    scan_id: scanId,
+                    item_id: itemId || null,
+                    code: currentCode,
+                    novo_codigo: novoCodigo,
+                    nome: nome,
+                    tamanho: tamanho,
+                    cor: cor,
+                    marca: marca,
+                    estado: estado,
+                    preco: preco,
+                    codigo_live: codigoLive,
+                    live_id: liveId || null
+                })
+            });
+
+            const data = await resp.json();
+
+            if (data.success && data.item) {
+                const updated = data.item;
+
+                // 1. Atualiza o objeto no array bgScanItems
+                const itemObj = bgScanItems.find(x => x.id === scanId)
+                    || bgScanItems.find(x => x.code === currentCode)
+                    || bgScanItems.find(x => x.itemId && x.itemId == itemId);
+
+                if (itemObj) {
+                    if (updated.codigo) itemObj.code = updated.codigo;
+                    if (updated.id) itemObj.itemId = updated.id;
+                    itemObj.productName = updated.nome;
+                    itemObj.productDetails = [updated.tamanho ? 'Tam: ' + updated.tamanho : '', updated.marca, updated.cor].filter(Boolean).join(' • ');
+                    itemObj.productPrice = updated.formatted_price;
+                    itemObj.tamanho = updated.tamanho;
+                    itemObj.marca = updated.marca;
+                    itemObj.cor = updated.cor;
+                    itemObj.estado = updated.estado;
+                    if (updated.codigo_live !== undefined && updated.codigo_live !== null) {
+                        itemObj.liveCode = updated.codigo_live;
+                    }
+                }
+
+                // 2. Atualiza no cache scanProductCache
+                const cacheKey = String(updated.codigo).trim().toUpperCase();
+                scanProductCache[cacheKey] = {
+                    id: updated.id,
+                    codigo: updated.codigo,
+                    sku: updated.codigo,
+                    name: updated.nome,
+                    nome_do_produto: updated.nome,
+                    description: updated.descricao,
+                    tamanho: updated.tamanho,
+                    marca: updated.marca,
+                    cor: updated.cor,
+                    estado: updated.estado,
+                    preco: updated.preco,
+                    formatted_price: updated.formatted_price
+                };
+                if (currentCode && String(currentCode).toUpperCase() !== cacheKey) {
+                    scanProductCache[String(currentCode).toUpperCase()] = scanProductCache[cacheKey];
+                }
+
+                // 3. Atualiza os elementos visuais no DOM do card
+                let itemEl = document.querySelector(`[data-scan-id="${scanId}"]`);
+                if (!itemEl && itemObj && itemObj.code) {
+                    itemEl = document.querySelector(`[data-code="${itemObj.code}"]`);
+                }
+                if (!itemEl && currentCode) {
+                    itemEl = document.querySelector(`[data-code="${currentCode}"]`);
+                }
+
+                if (itemEl) {
+                    // Atualiza dataset
+                    if (updated.codigo) itemEl.dataset.code = updated.codigo;
+                    if (updated.id) itemEl.dataset.itemId = updated.id;
+
+                    // Atualiza Badge do Código / SKU
+                    const codeBadge = itemEl.querySelector('.scan-item-code-badge');
+                    if (codeBadge) {
+                        codeBadge.textContent = '#' + updated.codigo;
+                    }
+
+                    // Atualiza Detalhes e Preço
+                    const detailsEl = itemEl.querySelector('.scan-item-details');
+                    if (detailsEl) {
+                        const fakeProd = {
+                            id: updated.id,
+                            code: updated.codigo,
+                            codigo: updated.codigo,
+                            scanId: scanId,
+                            name: updated.nome,
+                            description: updated.descricao,
+                            tamanho: updated.tamanho,
+                            marca: updated.marca,
+                            cor: updated.cor,
+                            formatted_price: updated.formatted_price,
+                            preco: updated.preco
+                        };
+                        detailsEl.innerHTML = buildProductDetailsHtml(fakeProd, scanId);
+                    }
+
+                    // Atualiza Código da Live
+                    if (itemObj) {
+                        updateItemLiveCodeUI(scanId, itemObj.liveCode || '');
+                        refreshAllScanItemsLiveCodeUI();
+                    }
+
+                    // Feedback visual de sucesso no card (flash verde rápido)
+                    itemEl.classList.add('ring-4', 'ring-emerald-400');
+                    setTimeout(() => itemEl.classList.remove('ring-4', 'ring-emerald-400'), 1500);
+                }
+
+                // 4. Se o código da live mudou, sincroniza
+                if (codigoLive && itemObj) {
+                    syncLinkItemToLive(updated.id, updated.codigo, codigoLive);
+                }
+
+                showToast(data.message || 'Peça atualizada com sucesso!', 'success');
+                closeEditBasicItemModal();
+
+            } else {
+                showToast(data.message || 'Erro ao atualizar informações da peça.', 'error');
+            }
+
+        } catch (err) {
+            console.error('Erro ao atualizar produto:', err);
+            showToast('Erro de conexão ao salvar informações da peça.', 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -3352,6 +3799,7 @@
             closeMultiStockActionModal();
             closeManualBuyerSearchModal();
             closeEditItemPriceModal();
+            closeEditBasicItemModal();
             closeQuickProductModal();
             closeQuickClientModal();
         }
@@ -3748,9 +4196,9 @@
 
         el.innerHTML =
             '<div class="flex items-center justify-between gap-3">' +
-                '<div class="flex-1 min-w-0 scan-item-info cursor-pointer">' +
+                '<div class="flex-1 min-w-0 scan-item-info cursor-pointer" ondblclick="event.stopPropagation(); openEditBasicItemModal(\'' + escapeHtml(item.id) + '\')">' +
                     '<div class="flex items-center gap-2 flex-wrap">' +
-                        '<span class="text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs">#' + escapeHtml(item.code) + '</span>' +
+                        '<span class="scan-item-code-badge text-xs font-black text-gray-900 font-mono tracking-wider bg-gray-100 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-300 px-2.5 py-0.5 rounded-lg border border-gray-200 shadow-2xs select-none cursor-pointer transition active:scale-95" title="Dois cliques para editar informações da peça" ondblclick="event.stopPropagation(); openEditBasicItemModal(\'' + escapeHtml(item.id) + '\')">#' + escapeHtml(item.code) + '</span>' +
                         '<div class="scan-item-live-wrapper inline-block">' +
                             renderLiveCodeHtml(item) +
                         '</div>' +
@@ -4226,7 +4674,8 @@
                 activeEl.closest('#link-user-modal') ||
                 activeEl.closest('#modal-quick-client') ||
                 activeEl.closest('#modal-quick-product') ||
-                activeEl.closest('#modal-edit-item-price')
+                activeEl.closest('#modal-edit-item-price') ||
+                activeEl.closest('#modal-edit-basic-item')
             ))
         );
 
