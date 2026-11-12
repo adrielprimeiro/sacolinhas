@@ -204,6 +204,34 @@
     #scan-items-list::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
     }
+
+    /* Animação de Destaque Pulsante ao clicar duas vezes no comprador */
+    @keyframes chatMsgPulseGlow {
+        0% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.9);
+            transform: scale(1.02);
+            border-color: #6366f1 !important;
+        }
+        50% {
+            box-shadow: 0 0 30px 10px rgba(168, 85, 247, 0.95);
+            transform: scale(1.035);
+            border-color: #a855f7 !important;
+            background-color: rgba(99, 102, 241, 0.3) !important;
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+            transform: scale(1);
+            border-color: #6366f1 !important;
+        }
+    }
+
+    .chat-card-highlight-pulse {
+        animation: chatMsgPulseGlow 0.9s ease-in-out 3 alternate !important;
+        border: 2.5px solid #818cf8 !important;
+        background-color: rgba(99, 102, 241, 0.25) !important;
+        z-index: 30 !important;
+        position: relative !important;
+    }
 </style>
 
 <div class="w-full max-w-full px-1 sm:px-2 py-1 live-feed-page-wrapper">
@@ -3366,6 +3394,107 @@
         return queue;
     }
 
+    function scrollToChatMessageById(msgId) {
+        if (!msgId) return;
+        locateAndHighlightChatMessage(null, null, msgId);
+    }
+
+    function locateAndHighlightChatMessage(scanId, username, liveMessageId) {
+        const cleanUser = String(username || '').replace(/^@/, '').toLowerCase();
+        const item = scanId ? bgScanItems.find(x => x.id === scanId) : null;
+        let targetMsg = null;
+
+        // 1. Tentar diretamente pelo ID da mensagem vinculado
+        if (liveMessageId) {
+            targetMsg = allLiveMessages.find(m => m.id == liveMessageId);
+        }
+
+        // 2. Se não achou e temos o item, tentar pelos dados do item
+        if (!targetMsg && item) {
+            if (item.liveMessageId) {
+                targetMsg = allLiveMessages.find(m => m.id == item.liveMessageId);
+            }
+            if (!targetMsg && item.itemId) {
+                targetMsg = allLiveMessages.find(m => 
+                    m.linked_item_id && m.linked_item_id == item.itemId && 
+                    (!cleanUser || String(m.username || '').replace(/^@/, '').toLowerCase() === cleanUser)
+                );
+            }
+            if (!targetMsg && item.code) {
+                targetMsg = allLiveMessages.find(m => 
+                    m.linked_code && m.linked_code.toUpperCase() === item.code.toUpperCase() &&
+                    (!cleanUser || String(m.username || '').replace(/^@/, '').toLowerCase() === cleanUser)
+                );
+            }
+        }
+
+        // 3. Tentar achar pelo texto do comentário contendo o código da live ou código da peça para esse usuário
+        if (!targetMsg && item && cleanUser) {
+            const targetCode = String(item.liveCode || item.code || '').toUpperCase();
+            if (targetCode) {
+                targetMsg = allLiveMessages.slice().reverse().find(m => {
+                    const u = String(m.username || '').replace(/^@/, '').toLowerCase();
+                    if (u !== cleanUser) return false;
+                    const text = String(m.message || '').toUpperCase();
+                    return text.includes(targetCode);
+                });
+            }
+        }
+
+        // 4. Fallback: última mensagem desse usuário no chat
+        if (!targetMsg && cleanUser) {
+            targetMsg = allLiveMessages.slice().reverse().find(m => {
+                return String(m.username || '').replace(/^@/, '').toLowerCase() === cleanUser;
+            });
+        }
+
+        if (!targetMsg) {
+            showToast(username ? `Nenhuma mensagem encontrada no chat para @${username}.` : 'Mensagem não encontrada no chat.', 'info');
+            return;
+        }
+
+        // Se houver busca ou filtro ativo que esconda a mensagem no feed, resetar para 'all'
+        let reRenderNeeded = false;
+        if (currentSearchTerm) {
+            currentSearchTerm = '';
+            const searchInput = document.getElementById("feed-search-input");
+            if (searchInput) searchInput.value = '';
+            const clearBtn = document.getElementById("feed-search-clear-btn");
+            if (clearBtn) clearBtn.classList.add("hidden");
+            reRenderNeeded = true;
+        }
+        if (currentFilter !== 'all') {
+            currentFilter = 'all';
+            if (typeof setFeedFilter === 'function') {
+                setFeedFilter('all');
+            }
+            reRenderNeeded = true;
+        }
+
+        if (reRenderNeeded) {
+            lastRenderedHash = '';
+            renderChatFeed();
+        }
+
+        // Pausar auto-scroll temporariamente para não puxar pro rodapé da live
+        autoScrollEnabled = false;
+        updateAutoScrollUI();
+
+        setTimeout(() => {
+            const msgEl = document.getElementById('chat-msg-' + targetMsg.id);
+            if (msgEl) {
+                msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.querySelectorAll('.chat-card-highlight-pulse').forEach(el => el.classList.remove('chat-card-highlight-pulse'));
+                msgEl.classList.add('chat-card-highlight-pulse');
+                setTimeout(() => {
+                    msgEl.classList.remove('chat-card-highlight-pulse');
+                }, 3500);
+            } else {
+                showToast(`Mensagem encontrada (ID #${targetMsg.id}), mas ainda não renderizada na tela.`, 'info');
+            }
+        }, reRenderNeeded ? 120 : 30);
+    }
+
     function renderScanItemBuyerHtml(item) {
         if (!item.buyers) {
             item.buyers = [];
@@ -3422,21 +3551,23 @@
                         const compactName = b.displayName ? formatCompactName(b.displayName) : '';
                         const showCompactName = compactName && compactName.toLowerCase() !== cleanUser.toLowerCase();
                         return `
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[270px]" 
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[270px] cursor-pointer transition select-none hover:brightness-95 active:scale-[0.99]" 
                                  style="${hasPhone ? 'background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;' : 'background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;'}" 
-                                 title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'}">
-                                <div class="flex items-center gap-1.5 min-w-0">
+                                 ondblclick="event.stopPropagation(); locateAndHighlightChatMessage('${item.id}', '${escapeHtml(cleanUser)}', ${b.liveMessageId || 'null'})" 
+                                 title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'} (Dê 2 cliques para ver a mensagem no Chat)">
+                                <div class="flex items-center gap-1.5 min-w-0" ondblclick="event.stopPropagation(); locateAndHighlightChatMessage('${item.id}', '${escapeHtml(cleanUser)}', ${b.liveMessageId || 'null'})">
                                     <span style="width: 17px; height: 17px; border-radius: 9999px; background-color: ${hasPhone ? '#059669' : '#dc2626'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; flex-shrink: 0;">
                                         <i class="fas ${hasPhone ? 'fa-check' : 'fa-exclamation-triangle'}"></i>
                                     </span>
                                     <div class="flex flex-col leading-tight min-w-0">
                                         <div class="flex items-center gap-1 min-w-0">
                                             ${hasPhone ? `
-                                                <span class="font-black truncate max-w-[140px]" style="color: #064e3b;" title="@${escapeHtml(cleanUser)}">@${escapeHtml(cleanUser)}</span>
+                                                <span class="font-black truncate max-w-[140px]" style="color: #064e3b;" title="@${escapeHtml(cleanUser)} (Dê 2 cliques para ver no chat)">@${escapeHtml(cleanUser)}</span>
                                             ` : `
                                                 <button type="button" 
                                                         onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
-                                                        title="IG sem cadastro! Clique para vincular este Instagram a um cliente existente" 
+                                                        ondblclick="event.stopPropagation(); locateAndHighlightChatMessage('${item.id}', '${escapeHtml(cleanUser)}', ${b.liveMessageId || 'null'})" 
+                                                        title="IG sem cadastro! Clique para vincular (ou 2 cliques para ver no chat)" 
                                                         class="font-black truncate max-w-[120px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
                                                         style="color: #991b1b;">
                                                     @${escapeHtml(cleanUser)}
@@ -3444,7 +3575,7 @@
                                             `}
                                         </div>
                                         ${showCompactName ? `
-                                            <span class="text-[10px] font-bold truncate max-w-[180px] opacity-80" style="color: ${hasPhone ? '#047857' : '#991b1b'};" title="Cliente: ${escapeHtml(b.displayName)}">
+                                            <span class="text-[10px] font-bold truncate max-w-[180px] opacity-80" style="color: ${hasPhone ? '#047857' : '#991b1b'};" title="Cliente: ${escapeHtml(b.displayName)} (Dê 2 cliques para ver no chat)">
                                                 ${escapeHtml(compactName)}
                                             </span>
                                         ` : ''}
@@ -3476,7 +3607,8 @@
                             ${otherSpeakers.map(q => `
                                 <div class="inline-flex items-center gap-1 w-full max-w-[230px]">
                                     <button type="button" onclick="event.stopPropagation(); promptMultiStockAction('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}')" 
-                                            title="Clique para transferir ou inserir também na sacola de @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" 
+                                            ondblclick="event.stopPropagation(); scrollToChatMessageById(${q.id})" 
+                                            title="Clique para transferir ou inserir na sacola (2 cliques para ver no chat): &quot;${escapeHtml(q.text)}&quot; (${q.time})" 
                                             class="flex-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white hover:bg-amber-50 text-gray-800 hover:text-amber-900 border border-gray-200 hover:border-amber-300 rounded-md text-xs font-semibold transition cursor-pointer shadow-2xs justify-start text-left truncate">
                                         <span class="text-indigo-600 font-bold shrink-0">${q.position}º</span>
                                         <span class="truncate">@${escapeHtml(q.username)}</span>
@@ -3503,7 +3635,10 @@
             return `
                 <div class="flex flex-col gap-1 items-start w-full">
                     ${queue.map(q => `
-                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" title="Vincular a ${q.position}º @${escapeHtml(q.username)}: &quot;${escapeHtml(q.text)}&quot; (${q.time})" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
+                        <button type="button" onclick="event.stopPropagation(); linkItemToBuyer('${item.id}', '${escapeHtml(q.username)}', '${escapeHtml(q.displayName)}', '${q.userId || ''}', ${q.id}, '${q.whatsapp || ''}', 'add')" 
+                                ondblclick="event.stopPropagation(); scrollToChatMessageById(${q.id})" 
+                                title="Vincular a ${q.position}º @${escapeHtml(q.username)} (2 cliques para ver no chat): &quot;${escapeHtml(q.text)}&quot; (${q.time})" 
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-indigo-50 text-gray-800 hover:text-indigo-900 border border-gray-200 hover:border-indigo-400 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs active:scale-95 w-full justify-start text-left">
                             <span class="text-indigo-600 font-extrabold shrink-0">${q.position}º</span>
                             <span class="font-bold truncate max-w-[130px]">@${escapeHtml(q.username)}</span>
                         </button>
@@ -5462,7 +5597,7 @@
             const showCompactClient = compactClientName && compactClientName.toLowerCase() !== cleanUser.toLowerCase();
 
             html += `
-                <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Produto: ' + escapeHtml(msg.linked_product_name || 'Peça vinculada') : ''}">
+                <div id="chat-msg-${msg.id}" data-msg-id="${msg.id}" class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Produto: ' + escapeHtml(msg.linked_product_name || 'Peça vinculada') : ''}">
                     <!-- Avatar com Badge de Plataforma -->
                     <div class="relative flex-shrink-0">
                         ${avatarHtml}
