@@ -1859,6 +1859,31 @@
     let bgSpeechRecog = null;
     let bgSpeechActive = false;
 
+    /**
+     * Formata o nome completo para exibição compacta e legível (Primeiro Nome + Inicial do Sobrenome)
+     * Ex: "Maria Eduarda da Silva Santos" -> "Maria S."
+     */
+    function formatCompactName(fullName) {
+        if (!fullName) return '';
+        const clean = String(fullName).trim();
+        if (!clean) return '';
+        const parts = clean.split(/\s+/).filter(Boolean);
+        if (parts.length === 1) return parts[0];
+
+        const first = parts[0];
+        const preposicoes = ['de', 'da', 'do', 'dos', 'das', 'e'];
+        let last = '';
+        for (let i = parts.length - 1; i >= 1; i--) {
+            if (!preposicoes.includes(parts[i].toLowerCase())) {
+                last = parts[i];
+                break;
+            }
+        }
+        if (!last) last = parts[1];
+
+        return `${first} ${last.charAt(0).toUpperCase()}.`;
+    }
+
 
     function extractCleanCode(raw) {
         if (!raw) return '';
@@ -3399,26 +3424,36 @@
                     ${item.buyers.map(b => {
                         const cleanUser = String(b.username).replace(/^@/, '');
                         const hasPhone = Boolean(b.phone || b.hasPhone);
+                        const compactName = b.displayName ? formatCompactName(b.displayName) : '';
+                        const showCompactName = compactName && compactName.toLowerCase() !== cleanUser.toLowerCase();
                         return `
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[230px]" 
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[240px]" 
                                  style="${hasPhone ? 'background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;' : 'background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;'}" 
                                  title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'}">
-                                <div class="flex items-center gap-1.5 min-w-0 truncate">
+                                <div class="flex items-center gap-1.5 min-w-0">
                                     <span style="width: 17px; height: 17px; border-radius: 9999px; background-color: ${hasPhone ? '#059669' : '#dc2626'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; flex-shrink: 0;">
                                         <i class="fas ${hasPhone ? 'fa-check' : 'fa-exclamation-triangle'}"></i>
                                     </span>
-                                    ${hasPhone ? `
-                                        <span class="font-black truncate max-w-[100px]" style="color: #064e3b;">@${escapeHtml(cleanUser)}</span>
-                                    ` : `
-                                        <button type="button" 
-                                                onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
-                                                title="IG sem cadastro! Clique para vincular este Instagram a um cliente existente" 
-                                                class="font-black truncate max-w-[85px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
-                                                style="color: #991b1b;">
-                                            @${escapeHtml(cleanUser)}
-                                        </button>
-                                    `}
-                                    ${b.displayName ? `<span class="text-[10px] font-semibold truncate max-w-[60px]" style="color: ${hasPhone ? '#047857' : '#991b1b'};">(${escapeHtml(b.displayName)})</span>` : ''}
+                                    <div class="flex flex-col leading-tight min-w-0">
+                                        <div class="flex items-center gap-1 min-w-0">
+                                            ${hasPhone ? `
+                                                <span class="font-black truncate max-w-[130px]" style="color: #064e3b;" title="@${escapeHtml(cleanUser)}">@${escapeHtml(cleanUser)}</span>
+                                            ` : `
+                                                <button type="button" 
+                                                        onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
+                                                        title="IG sem cadastro! Clique para vincular este Instagram a um cliente existente" 
+                                                        class="font-black truncate max-w-[110px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
+                                                        style="color: #991b1b;">
+                                                    @${escapeHtml(cleanUser)}
+                                                </button>
+                                            `}
+                                        </div>
+                                        ${showCompactName ? `
+                                            <span class="text-[10px] font-bold truncate max-w-[130px] opacity-80" style="color: ${hasPhone ? '#047857' : '#991b1b'};" title="Cliente: ${escapeHtml(b.displayName)}">
+                                                ${escapeHtml(compactName)}
+                                            </span>
+                                        ` : ''}
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
                                     ${!hasPhone ? `
@@ -3788,7 +3823,9 @@
         if (currentBuyersEl) {
             currentBuyersEl.innerHTML = item.buyers.map(b => {
                 const u = escapeHtml(String(b.username).replace(/^@/, ''));
-                const n = b.displayName ? ` (${escapeHtml(b.displayName)})` : '';
+                const n = (b.displayName && b.displayName.toLowerCase() !== u.toLowerCase()) 
+                    ? ` • ${escapeHtml(formatCompactName(b.displayName))}` 
+                    : '';
                 return `
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700">
                         <i class="fas fa-check-circle text-emerald-600"></i>
@@ -3803,7 +3840,7 @@
         const targetNameEl = document.getElementById('multi-stock-target-name');
         const targetHighlightEl = document.getElementById('multi-stock-target-highlight');
         if (targetBadgeEl) targetBadgeEl.textContent = '@' + cleanUser;
-        if (targetNameEl) targetNameEl.textContent = displayName ? `(${displayName})` : '';
+        if (targetNameEl) targetNameEl.textContent = (displayName && displayName.toLowerCase() !== cleanUser.toLowerCase()) ? `• ${formatCompactName(displayName)}` : '';
         if (targetHighlightEl) targetHighlightEl.textContent = '@' + cleanUser;
 
         // Configurar Botão 1: Adicionar Também
@@ -5425,6 +5462,9 @@
 
             const userClass = isYouTube ? 'chat-user-youtube' : (isTikTok ? 'chat-user-tiktok' : 'chat-user-insta');
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
+            const rawClientName = msg.user_name || msg.user_apelido || '';
+            const compactClientName = rawClientName ? formatCompactName(rawClientName) : '';
+            const showCompactClient = compactClientName && compactClientName.toLowerCase() !== cleanUser.toLowerCase();
 
             html += `
                 <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Produto: ' + escapeHtml(msg.linked_product_name || 'Peça vinculada') : ''}">
@@ -5439,7 +5479,7 @@
                     <!-- Conteúdo da Mensagem -->
                     <div class="flex-1" style="min-width: 0;">
                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                            <div class="flex flex-wrap items-center gap-2" style="min-width: 0;">
+                            <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                                 <button type="button" 
                                         onclick="event.stopPropagation(); startPreRegIg('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" 
                                         title="Clique para cadastro prévio de @${escapeHtml(cleanUser)} e aguardar telefone" 
@@ -5448,6 +5488,11 @@
                                     <span>@${escapeHtml(cleanUser)}</span>
                                     <i class="fas fa-user-plus text-[10px] opacity-0 group-hover:opacity-100 text-indigo-400 transition ml-0.5" title="Cadastro prévio do IG"></i>
                                 </button>
+                                ${showCompactClient ? `
+                                    <span class="text-[11px] font-bold text-gray-400 opacity-90 truncate max-w-[120px]" title="Cliente cadastrada: ${escapeHtml(rawClientName)}">
+                                        • ${escapeHtml(compactClientName)}
+                                    </span>
+                                ` : ''}
                             </div>
 
                             <div class="flex items-center gap-2 flex-shrink-0">
@@ -5562,7 +5607,9 @@
 
         const clientNameEl = document.getElementById("online-qr-client-name");
         if (clientNameEl) {
-            clientNameEl.textContent = `@${username} (${clientName || 'Cliente'})`;
+            clientNameEl.textContent = (clientName && clientName.toLowerCase() !== username.toLowerCase()) 
+                ? `@${username} • ${formatCompactName(clientName)}` 
+                : `@${username}`;
         }
 
         const manualInput = document.getElementById("online-qr-manual-input");

@@ -916,6 +916,27 @@
             return gradients[Math.abs(hash) % gradients.length];
         }
 
+        function formatCompactName(fullName) {
+            if (!fullName) return '';
+            const clean = String(fullName).trim();
+            if (!clean) return '';
+            const parts = clean.split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0];
+
+            const first = parts[0];
+            const preposicoes = ['de', 'da', 'do', 'dos', 'das', 'e'];
+            let last = '';
+            for (let i = parts.length - 1; i >= 1; i--) {
+                if (!preposicoes.includes(parts[i].toLowerCase())) {
+                    last = parts[i];
+                    break;
+                }
+            }
+            if (!last) last = parts[1];
+
+            return `${first} ${last.charAt(0).toUpperCase()}.`;
+        }
+
         // =========================================================================
         // RENDERIZAÇÃO DO CHAT COM MÁXIMA LEGIBILIDADE PARA APRESENTADORA
         // =========================================================================
@@ -1108,10 +1129,15 @@
                         <div class="min-w-0 flex-1">
                             <!-- Linha 1: Identificação de Quem Fala -->
                             <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                                <div class="flex flex-wrap items-center gap-1.5 min-w-0">
                                     <span class="${fontStyles.username} ${handleColorClass} tracking-tight truncate max-w-[220px] sm:max-w-[320px]">
                                         @${escapeHtml(cleanUser)}
                                     </span>
+                                    ${realClientName && formatCompactName(realClientName).toLowerCase() !== cleanUser.toLowerCase() ? `
+                                        <span class="text-xs sm:text-sm font-bold text-white/70 tracking-tight" title="Cliente: ${escapeHtml(realClientName)}">
+                                            • ${escapeHtml(formatCompactName(realClientName))}
+                                        </span>
+                                    ` : ''}
                                     ${clientBadge}
                                     ${hostBadge}
                                 </div>
