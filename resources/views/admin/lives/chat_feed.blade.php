@@ -5607,8 +5607,6 @@
             const userClass = isYouTube ? 'chat-user-youtube' : (isTikTok ? 'chat-user-tiktok' : 'chat-user-insta');
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
             const rawClientName = msg.user_name || msg.user_apelido || '';
-            const compactClientName = rawClientName ? formatCompactName(rawClientName) : '';
-            const showCompactClient = compactClientName && compactClientName.toLowerCase() !== cleanUser.toLowerCase();
 
             html += `
                 <div id="chat-msg-${msg.id}" data-msg-id="${msg.id}" class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Produto: ' + escapeHtml(msg.linked_product_name || 'Peça vinculada') : ''}">
@@ -5626,17 +5624,12 @@
                             <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                                 <button type="button" 
                                         onclick="event.stopPropagation(); startPreRegIg('${escapeHtml(cleanUser)}', '${msg.plataforma || 'instagram'}')" 
-                                        title="Clique para cadastro prévio de @${escapeHtml(cleanUser)} e aguardar telefone" 
+                                        title="${rawClientName ? 'Cliente cadastrada: ' + escapeHtml(rawClientName) : 'Clique para cadastro prévio de @' + escapeHtml(cleanUser) + ' e aguardar telefone'}" 
                                         class="${userClass} hover:opacity-80 underline-offset-2 transition cursor-pointer inline-flex items-center gap-1 group text-left border-0 bg-transparent p-0" 
                                         style="font-size: ${fontSizes.username}; font-weight: 800;">
                                     <span>@${escapeHtml(cleanUser)}</span>
                                     <i class="fas fa-user-plus text-[10px] opacity-0 group-hover:opacity-100 text-indigo-400 transition ml-0.5" title="Cadastro prévio do IG"></i>
                                 </button>
-                                ${showCompactClient ? `
-                                    <span class="text-[11px] font-bold text-gray-400 opacity-90 truncate max-w-[200px]" title="Cliente cadastrada: ${escapeHtml(rawClientName)}">
-                                        • ${escapeHtml(compactClientName)}
-                                    </span>
-                                ` : ''}
                             </div>
 
                             <div class="flex items-center gap-2 flex-shrink-0">
