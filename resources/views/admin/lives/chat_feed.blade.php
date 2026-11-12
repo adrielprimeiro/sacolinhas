@@ -5094,9 +5094,9 @@
         initChatScanResizer();
         loadInitialLinkedLiveItems();
 
-        // Suavização da rodinha do mouse no Chat e no Painel de Itens (ultra-suave, sem pulos e com controle total da barra)
-        enableSmoothWheelScroll(document.getElementById("feed-messages-container"), { multiplier: 0.28, ease: 0.09 });
-        enableSmoothWheelScroll(document.getElementById("scan-items-list"), { multiplier: 0.28, ease: 0.09 });
+        // Suavização da rodinha do mouse no Chat e no Painel de Itens (sem pulos, ágil e com aceleração dinâmica)
+        enableSmoothWheelScroll(document.getElementById("feed-messages-container"), { multiplier: 0.85, ease: 0.20 });
+        enableSmoothWheelScroll(document.getElementById("scan-items-list"), { multiplier: 0.85, ease: 0.20 });
 
         if (liveId) {
             fetchChatFeed();
@@ -5679,19 +5679,20 @@
     }
 
     // =========================================================================
-    // SUAVIZAÇÃO DA ROLAGEM COM A RODINHA DO MOUSE (ULTRA-SUAVE, SEM PULOS E LIVRE PARA ARRASTAR A BARRA)
+    // SUAVIZAÇÃO DA ROLAGEM COM A RODINHA DO MOUSE (SEM PULOS, ÁGIL E RESPONSIVA)
     // =========================================================================
     function enableSmoothWheelScroll(container, options = {}) {
         if (!container) return;
 
-        const baseMultiplier = options.multiplier !== undefined ? options.multiplier : 0.28; // Velocidade moderada e precisa da rodinha
-        const ease = options.ease !== undefined ? options.ease : 0.09; // Inércia ultra-suave
+        const baseMultiplier = options.multiplier !== undefined ? options.multiplier : 0.85; // Avanço ágil e natural por clique (~85-100px)
+        const ease = options.ease !== undefined ? options.ease : 0.20; // Transição suave sem atraso ou sensação pesada
 
         let targetScrollTop = container.scrollTop;
         let isAnimating = false;
         let isProgrammaticScroll = false;
         let rafId = null;
         let lastReportedScroll = container.scrollTop;
+        let lastWheelTime = 0;
 
         function cancelWheelAnimation() {
             if (isAnimating) {
@@ -5711,8 +5712,8 @@
             const current = container.scrollTop;
             const remaining = targetScrollTop - current;
 
-            // Finaliza se a distância for minúscula ou se o scroll bateu no topo/fundo e não se moveu
-            if (Math.abs(remaining) < 0.8 || (Math.abs(current - lastReportedScroll) < 0.2 && Math.abs(remaining) < 3.0)) {
+            // Finaliza se a distância for imperceptível (< 1px) ou se bateu no limite do container
+            if (Math.abs(remaining) < 1.0 || (Math.abs(current - lastReportedScroll) < 0.2 && Math.abs(remaining) < 4.0)) {
                 isProgrammaticScroll = true;
                 container.scrollTop = targetScrollTop;
                 isProgrammaticScroll = false;
@@ -5740,16 +5741,27 @@
 
             let delta = e.deltaY;
             if (e.deltaMode === 1) { // Linhas
-                delta *= 24;
+                delta *= 32;
             } else if (e.deltaMode === 2) { // Páginas
-                delta *= (container.clientHeight * 0.75);
+                delta *= (container.clientHeight * 0.85);
             }
 
-            // Detecta rodinha física de passos (ticks) vs trackpad de precisão
-            const isNotchedWheel = Math.abs(delta) >= 25 || e.deltaMode !== 0;
-            const factor = isNotchedWheel ? baseMultiplier : 0.65;
+            // Aceleração dinâmica inteligente: girar rápido multiplica o deslocamento para não cansar o dedo
+            const now = performance.now();
+            const timeDiff = now - lastWheelTime;
+            lastWheelTime = now;
 
-            // Evita o salto brusco nativo do navegador
+            let speedBoost = 1.0;
+            if (timeDiff < 70) {
+                speedBoost = 1.7; // Giro rápido consecutivo
+            } else if (timeDiff < 130) {
+                speedBoost = 1.35; // Giro moderado
+            }
+
+            const isNotchedWheel = Math.abs(delta) >= 25 || e.deltaMode !== 0;
+            const factor = (isNotchedWheel ? baseMultiplier : 0.85) * speedBoost;
+
+            // Intercepta apenas o salto rígido sem frames
             e.preventDefault();
 
             if (!isAnimating) {
@@ -5766,10 +5778,9 @@
             }
         }, { passive: false });
 
-        // Quando o usuário interage diretamente com a barra de rolagem (clique, arrasto do thumb, teclado)
+        // Quando o usuário interage diretamente com a barra de rolagem (arrasto do thumb, clique no trilho, teclado)
         container.addEventListener('scroll', function() {
             if (!isProgrammaticScroll) {
-                // Rolagem manual do usuário: cancela animação imediatamente e obedece a posição exata
                 cancelWheelAnimation();
             }
         }, { passive: true });
