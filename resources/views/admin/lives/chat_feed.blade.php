@@ -1860,28 +1860,23 @@
     let bgSpeechActive = false;
 
     /**
-     * Formata o nome completo para exibição compacta e legível (Primeiro Nome + Inicial do Sobrenome)
-     * Ex: "Maria Eduarda da Silva Santos" -> "Maria S."
+     * Formata o nome completo para exibição compacta (2 primeiros nomes)
+     * Ex: "Maria Eduarda da Silva Santos" -> "Maria Eduarda"
+     *     "Maria da Silva Santos" -> "Maria da Silva"
      */
     function formatCompactName(fullName) {
         if (!fullName) return '';
         const clean = String(fullName).trim();
         if (!clean) return '';
         const parts = clean.split(/\s+/).filter(Boolean);
-        if (parts.length === 1) return parts[0];
+        if (parts.length <= 1) return parts[0] || '';
 
-        const first = parts[0];
         const preposicoes = ['de', 'da', 'do', 'dos', 'das', 'e'];
-        let last = '';
-        for (let i = parts.length - 1; i >= 1; i--) {
-            if (!preposicoes.includes(parts[i].toLowerCase())) {
-                last = parts[i];
-                break;
-            }
+        if (preposicoes.includes(parts[1].toLowerCase()) && parts.length >= 3) {
+            return `${parts[0]} ${parts[1]} ${parts[2]}`;
         }
-        if (!last) last = parts[1];
 
-        return `${first} ${last.charAt(0).toUpperCase()}.`;
+        return `${parts[0]} ${parts[1]}`;
     }
 
 
@@ -3427,7 +3422,7 @@
                         const compactName = b.displayName ? formatCompactName(b.displayName) : '';
                         const showCompactName = compactName && compactName.toLowerCase() !== cleanUser.toLowerCase();
                         return `
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[240px]" 
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shadow-2xs text-xs justify-between w-full max-w-[270px]" 
                                  style="${hasPhone ? 'background-color: #ecfdf5; border: 1.5px solid #10b981; color: #065f46;' : 'background-color: #fef2f2; border: 1.5px solid #ef4444; color: #7f1d1d;'}" 
                                  title="${hasPhone ? 'Cliente com telefone/WhatsApp cadastrado' : 'Cliente SEM Telefone / WhatsApp!'}">
                                 <div class="flex items-center gap-1.5 min-w-0">
@@ -3437,19 +3432,19 @@
                                     <div class="flex flex-col leading-tight min-w-0">
                                         <div class="flex items-center gap-1 min-w-0">
                                             ${hasPhone ? `
-                                                <span class="font-black truncate max-w-[130px]" style="color: #064e3b;" title="@${escapeHtml(cleanUser)}">@${escapeHtml(cleanUser)}</span>
+                                                <span class="font-black truncate max-w-[140px]" style="color: #064e3b;" title="@${escapeHtml(cleanUser)}">@${escapeHtml(cleanUser)}</span>
                                             ` : `
                                                 <button type="button" 
                                                         onclick="event.stopPropagation(); openLinkModal('${escapeHtml(cleanUser)}', 'instagram', '${item.id}')" 
                                                         title="IG sem cadastro! Clique para vincular este Instagram a um cliente existente" 
-                                                        class="font-black truncate max-w-[110px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
+                                                        class="font-black truncate max-w-[120px] cursor-pointer hover:underline text-left border-none bg-transparent p-0 transition" 
                                                         style="color: #991b1b;">
                                                     @${escapeHtml(cleanUser)}
                                                 </button>
                                             `}
                                         </div>
                                         ${showCompactName ? `
-                                            <span class="text-[10px] font-bold truncate max-w-[130px] opacity-80" style="color: ${hasPhone ? '#047857' : '#991b1b'};" title="Cliente: ${escapeHtml(b.displayName)}">
+                                            <span class="text-[10px] font-bold truncate max-w-[180px] opacity-80" style="color: ${hasPhone ? '#047857' : '#991b1b'};" title="Cliente: ${escapeHtml(b.displayName)}">
                                                 ${escapeHtml(compactName)}
                                             </span>
                                         ` : ''}
@@ -5489,7 +5484,7 @@
                                     <i class="fas fa-user-plus text-[10px] opacity-0 group-hover:opacity-100 text-indigo-400 transition ml-0.5" title="Cadastro prévio do IG"></i>
                                 </button>
                                 ${showCompactClient ? `
-                                    <span class="text-[11px] font-bold text-gray-400 opacity-90 truncate max-w-[120px]" title="Cliente cadastrada: ${escapeHtml(rawClientName)}">
+                                    <span class="text-[11px] font-bold text-gray-400 opacity-90 truncate max-w-[200px]" title="Cliente cadastrada: ${escapeHtml(rawClientName)}">
                                         • ${escapeHtml(compactClientName)}
                                     </span>
                                 ` : ''}

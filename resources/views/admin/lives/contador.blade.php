@@ -921,20 +921,14 @@
             const clean = String(fullName).trim();
             if (!clean) return '';
             const parts = clean.split(/\s+/).filter(Boolean);
-            if (parts.length === 1) return parts[0];
+            if (parts.length <= 1) return parts[0] || '';
 
-            const first = parts[0];
             const preposicoes = ['de', 'da', 'do', 'dos', 'das', 'e'];
-            let last = '';
-            for (let i = parts.length - 1; i >= 1; i--) {
-                if (!preposicoes.includes(parts[i].toLowerCase())) {
-                    last = parts[i];
-                    break;
-                }
+            if (preposicoes.includes(parts[1].toLowerCase()) && parts.length >= 3) {
+                return `${parts[0]} ${parts[1]} ${parts[2]}`;
             }
-            if (!last) last = parts[1];
 
-            return `${first} ${last.charAt(0).toUpperCase()}.`;
+            return `${parts[0]} ${parts[1]}`;
         }
 
         // =========================================================================
