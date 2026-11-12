@@ -5375,22 +5375,10 @@
                 cleanLiveCode = String(msg.linked_live_code).trim();
             }
 
-            // Tag de Peça Vinculada (se houver)
+            // Tag de Peça Vinculada: no chat fica apenas o nome e detalhes da peça no card inferior, sem exibir o código
             let vincularBtn = '';
-            if (isLinkedMsg) {
-                let codeDisplay = cleanItemCode ? ('#' + escapeHtml(cleanItemCode)) : '';
-                if (cleanLiveCode) {
-                    codeDisplay = codeDisplay ? (codeDisplay + ' &bull; ' + escapeHtml(cleanLiveCode)) : escapeHtml(cleanLiveCode);
-                }
-                vincularBtn = `
-                    <span class="inline-flex items-center gap-1.5 text-xs font-black text-blue-200 bg-blue-900/80 border border-blue-500/60 px-2.5 py-1 rounded-xl shadow-sm tracking-wide" title="Peça vinculada a este comentário">
-                        <i class="fas fa-tag text-[10px] text-blue-400"></i>
-                        <span>${codeDisplay || 'Vinculado'}</span>
-                    </span>
-                `;
-            }
 
-            // Em baixo em azul: Descrição e Detalhes do Produto Vinculado
+            // Em baixo em azul: Descrição e Detalhes do Produto Vinculado (apenas nome e detalhes, sem código)
             let linkedItemBadge = '';
             if (isLinkedMsg) {
                 let prodName = msg.linked_product_name || '';
@@ -5415,7 +5403,7 @@
                 }
 
                 let detailsText = escapeHtml(prodName || 'Produto vinculado');
-                if (prodDetails) detailsText += ' &bull; ' + escapeHtml(prodDetails);
+                if (prodDetails && prodDetails !== prodName) detailsText += ' &bull; ' + escapeHtml(prodDetails);
                 if (prodTam) detailsText += ` (Tam: ${escapeHtml(prodTam)})`;
                 if (prodCor) detailsText += ` (${escapeHtml(prodCor)})`;
                 if (prodPrice) detailsText += ` &bull; <strong>${escapeHtml(prodPrice)}</strong>`;
@@ -5439,7 +5427,7 @@
             const starClass = isMarked ? 'fas fa-star text-amber-400 text-lg' : 'far fa-star text-gray-500 hover:text-amber-400 text-lg';
 
             html += `
-                <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Peça #' + escapeHtml(msg.linked_code) + ' vinculada a este comentário' : ''}">
+                <div class="chat-card ${isMarked ? 'marked' : ''} ${cardSelectionClass} rounded-2xl flex items-start gap-3 sm:gap-4 relative group transition-all duration-100 hover:shadow-lg" style="padding: ${fontSizes.padding};" title="${isLinkedMsg ? 'Produto: ' + escapeHtml(msg.linked_product_name || 'Peça vinculada') : ''}">
                     <!-- Avatar com Badge de Plataforma -->
                     <div class="relative flex-shrink-0">
                         ${avatarHtml}

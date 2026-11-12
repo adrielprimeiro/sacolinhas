@@ -1045,9 +1045,6 @@
                     let prodPrice = msg.linked_product_preco || '';
 
                     let parts = [];
-                    if (cleanCode) {
-                        parts.push(`<span class="font-mono font-black text-white bg-blue-700 px-2 py-0.5 rounded-lg border border-blue-400">${escapeHtml(cleanCode)}</span>`);
-                    }
                     if (prodName && prodName !== 'Peça da Live' && prodName !== 'Peça Vinculada à Sacolinha') {
                         parts.push(`<span class="font-black text-white">${escapeHtml(prodName)}</span>`);
                     } else if (prodDetails) {
