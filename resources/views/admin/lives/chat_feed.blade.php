@@ -5094,9 +5094,9 @@
         initChatScanResizer();
         loadInitialLinkedLiveItems();
 
-        // Suavização da rodinha do mouse no Chat e no Painel de Itens (sem pulos e moderado)
-        enableSmoothWheelScroll(document.getElementById("feed-messages-container"), { multiplier: 0.38, ease: 0.14 });
-        enableSmoothWheelScroll(document.getElementById("scan-items-list"), { multiplier: 0.38, ease: 0.14 });
+        // Suavização da rodinha do mouse no Chat e no Painel de Itens (ultra-suave, sem pulos e com controle total da barra)
+        enableSmoothWheelScroll(document.getElementById("feed-messages-container"), { multiplier: 0.28, ease: 0.09 });
+        enableSmoothWheelScroll(document.getElementById("scan-items-list"), { multiplier: 0.28, ease: 0.09 });
 
         if (liveId) {
             fetchChatFeed();
@@ -5658,59 +5658,81 @@
             `;
         });
 
+        const prevScrollTop = container.scrollTop;
         const isNearBottom = (container.scrollTop + container.clientHeight >= container.scrollHeight - 180);
         const shouldScroll = autoScrollEnabled && isNearBottom;
+
+        if (shouldScroll && typeof container._cancelSmoothWheel === 'function') {
+            container._cancelSmoothWheel();
+        }
+
         container.innerHTML = html;
 
         if (shouldScroll) {
             scrollToBottom(false);
-        } else if (!isNearBottom) {
+        } else {
+            // Preserva a posição exata onde o usuário rolou, evitando que novos comentários puxem a tela
+            container.scrollTop = prevScrollTop;
             const badge = document.getElementById("new-messages-floating-badge");
             if (badge) badge.classList.remove("hidden");
         }
     }
 
     // =========================================================================
-    // SUAVIZAÇÃO DA ROLAGEM COM A RODINHA DO MOUSE (SEM PULOS E MAIS MODERADA)
+    // SUAVIZAÇÃO DA ROLAGEM COM A RODINHA DO MOUSE (ULTRA-SUAVE, SEM PULOS E LIVRE PARA ARRASTAR A BARRA)
     // =========================================================================
     function enableSmoothWheelScroll(container, options = {}) {
         if (!container) return;
 
-        const baseMultiplier = options.multiplier !== undefined ? options.multiplier : 0.38; // Reduz a velocidade da rodinha para controle preciso
-        const ease = options.ease !== undefined ? options.ease : 0.14; // Fator de desaceleração suave (lerp)
+        const baseMultiplier = options.multiplier !== undefined ? options.multiplier : 0.28; // Velocidade moderada e precisa da rodinha
+        const ease = options.ease !== undefined ? options.ease : 0.09; // Inércia ultra-suave
 
         let targetScrollTop = container.scrollTop;
         let isAnimating = false;
+        let isProgrammaticScroll = false;
         let rafId = null;
+        let lastReportedScroll = container.scrollTop;
+
+        function cancelWheelAnimation() {
+            if (isAnimating) {
+                if (rafId) cancelAnimationFrame(rafId);
+                isAnimating = false;
+                rafId = null;
+            }
+            targetScrollTop = container.scrollTop;
+            lastReportedScroll = container.scrollTop;
+        }
+
+        container._cancelSmoothWheel = cancelWheelAnimation;
 
         function updateScroll() {
+            if (!isAnimating) return;
+
             const current = container.scrollTop;
             const remaining = targetScrollTop - current;
 
-            if (Math.abs(remaining) < 0.5) {
+            // Finaliza se a distância for minúscula ou se o scroll bateu no topo/fundo e não se moveu
+            if (Math.abs(remaining) < 0.8 || (Math.abs(current - lastReportedScroll) < 0.2 && Math.abs(remaining) < 3.0)) {
+                isProgrammaticScroll = true;
                 container.scrollTop = targetScrollTop;
+                isProgrammaticScroll = false;
                 isAnimating = false;
                 rafId = null;
                 return;
             }
 
-            container.scrollTop = current + (remaining * ease);
+            lastReportedScroll = current;
+            const next = current + (remaining * ease);
+
+            isProgrammaticScroll = true;
+            container.scrollTop = next;
+            isProgrammaticScroll = false;
+
             rafId = requestAnimationFrame(updateScroll);
         }
 
-        function cancelWheelAnimation() {
-            if (isAnimating && rafId) {
-                cancelAnimationFrame(rafId);
-                isAnimating = false;
-                rafId = null;
-            }
-            targetScrollTop = container.scrollTop;
-        }
-
-        container._cancelSmoothWheel = cancelWheelAnimation;
-
         container.addEventListener('wheel', function(e) {
-            // Se estiver usando Ctrl (zoom) ou Shift (scroll horizontal), não intercepta
+            // Se estiver usando Ctrl (zoom) ou Shift (scroll horizontal), respeita comportamento padrão
             if (e.ctrlKey || e.shiftKey) return;
 
             const maxScroll = container.scrollHeight - container.clientHeight;
@@ -5718,20 +5740,21 @@
 
             let delta = e.deltaY;
             if (e.deltaMode === 1) { // Linhas
-                delta *= 28;
+                delta *= 24;
             } else if (e.deltaMode === 2) { // Páginas
-                delta *= (container.clientHeight * 0.8);
+                delta *= (container.clientHeight * 0.75);
             }
 
             // Detecta rodinha física de passos (ticks) vs trackpad de precisão
-            const isNotchedWheel = Math.abs(delta) >= 30 || e.deltaMode !== 0;
-            const factor = isNotchedWheel ? baseMultiplier : 0.70;
+            const isNotchedWheel = Math.abs(delta) >= 25 || e.deltaMode !== 0;
+            const factor = isNotchedWheel ? baseMultiplier : 0.65;
 
             // Evita o salto brusco nativo do navegador
             e.preventDefault();
 
             if (!isAnimating) {
                 targetScrollTop = container.scrollTop;
+                lastReportedScroll = container.scrollTop;
             }
 
             const step = delta * factor;
@@ -5743,12 +5766,18 @@
             }
         }, { passive: false });
 
-        // Sincroniza se o usuário arrastar a barra de rolagem diretamente
+        // Quando o usuário interage diretamente com a barra de rolagem (clique, arrasto do thumb, teclado)
         container.addEventListener('scroll', function() {
-            if (!isAnimating) {
-                targetScrollTop = container.scrollTop;
+            if (!isProgrammaticScroll) {
+                // Rolagem manual do usuário: cancela animação imediatamente e obedece a posição exata
+                cancelWheelAnimation();
             }
         }, { passive: true });
+
+        // Qualquer clique, toque ou mousedown no container/barra cancela imediatamente a animação da rodinha
+        container.addEventListener('pointerdown', cancelWheelAnimation, { passive: true });
+        container.addEventListener('mousedown', cancelWheelAnimation, { passive: true });
+        container.addEventListener('touchstart', cancelWheelAnimation, { passive: true });
     }
 
     // =========================================================================
