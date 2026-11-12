@@ -171,7 +171,13 @@
         margin: 0 2px !important;
     }
 
-    /* Custom Scrollbar */
+    /* Custom Scrollbar & Suavização */
+    #feed-messages-container,
+    #scan-panel,
+    #scan-items-list {
+        scroll-behavior: auto !important;
+    }
+
     #feed-messages-container::-webkit-scrollbar {
         width: 10px;
     }
@@ -3483,6 +3489,10 @@
         setTimeout(() => {
             const msgEl = document.getElementById('chat-msg-' + targetMsg.id);
             if (msgEl) {
+                const container = document.getElementById("feed-messages-container");
+                if (container && typeof container._cancelSmoothWheel === 'function') {
+                    container._cancelSmoothWheel();
+                }
                 msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 document.querySelectorAll('.chat-card-highlight-pulse').forEach(el => el.classList.remove('chat-card-highlight-pulse'));
                 msgEl.classList.add('chat-card-highlight-pulse');
@@ -5084,6 +5094,10 @@
         initChatScanResizer();
         loadInitialLinkedLiveItems();
 
+        // Suavização da rodinha do mouse no Chat e no Painel de Itens (sem pulos e moderado)
+        enableSmoothWheelScroll(document.getElementById("feed-messages-container"), { multiplier: 0.38, ease: 0.14 });
+        enableSmoothWheelScroll(document.getElementById("scan-items-list"), { multiplier: 0.38, ease: 0.14 });
+
         if (liveId) {
             fetchChatFeed();
             pollingInterval = setInterval(fetchChatFeed, 2000);
@@ -5657,6 +5671,87 @@
     }
 
     // =========================================================================
+    // SUAVIZAÇÃO DA ROLAGEM COM A RODINHA DO MOUSE (SEM PULOS E MAIS MODERADA)
+    // =========================================================================
+    function enableSmoothWheelScroll(container, options = {}) {
+        if (!container) return;
+
+        const baseMultiplier = options.multiplier !== undefined ? options.multiplier : 0.38; // Reduz a velocidade da rodinha para controle preciso
+        const ease = options.ease !== undefined ? options.ease : 0.14; // Fator de desaceleração suave (lerp)
+
+        let targetScrollTop = container.scrollTop;
+        let isAnimating = false;
+        let rafId = null;
+
+        function updateScroll() {
+            const current = container.scrollTop;
+            const remaining = targetScrollTop - current;
+
+            if (Math.abs(remaining) < 0.5) {
+                container.scrollTop = targetScrollTop;
+                isAnimating = false;
+                rafId = null;
+                return;
+            }
+
+            container.scrollTop = current + (remaining * ease);
+            rafId = requestAnimationFrame(updateScroll);
+        }
+
+        function cancelWheelAnimation() {
+            if (isAnimating && rafId) {
+                cancelAnimationFrame(rafId);
+                isAnimating = false;
+                rafId = null;
+            }
+            targetScrollTop = container.scrollTop;
+        }
+
+        container._cancelSmoothWheel = cancelWheelAnimation;
+
+        container.addEventListener('wheel', function(e) {
+            // Se estiver usando Ctrl (zoom) ou Shift (scroll horizontal), não intercepta
+            if (e.ctrlKey || e.shiftKey) return;
+
+            const maxScroll = container.scrollHeight - container.clientHeight;
+            if (maxScroll <= 0) return;
+
+            let delta = e.deltaY;
+            if (e.deltaMode === 1) { // Linhas
+                delta *= 28;
+            } else if (e.deltaMode === 2) { // Páginas
+                delta *= (container.clientHeight * 0.8);
+            }
+
+            // Detecta rodinha física de passos (ticks) vs trackpad de precisão
+            const isNotchedWheel = Math.abs(delta) >= 30 || e.deltaMode !== 0;
+            const factor = isNotchedWheel ? baseMultiplier : 0.70;
+
+            // Evita o salto brusco nativo do navegador
+            e.preventDefault();
+
+            if (!isAnimating) {
+                targetScrollTop = container.scrollTop;
+            }
+
+            const step = delta * factor;
+            targetScrollTop = Math.max(0, Math.min(maxScroll, targetScrollTop + step));
+
+            if (!isAnimating) {
+                isAnimating = true;
+                rafId = requestAnimationFrame(updateScroll);
+            }
+        }, { passive: false });
+
+        // Sincroniza se o usuário arrastar a barra de rolagem diretamente
+        container.addEventListener('scroll', function() {
+            if (!isAnimating) {
+                targetScrollTop = container.scrollTop;
+            }
+        }, { passive: true });
+    }
+
+    // =========================================================================
     // AUTO-SCROLL & CONTROLES DE NAVEGAÇÃO
     // =========================================================================
     function handleContainerScroll() {
@@ -5673,6 +5768,9 @@
     function scrollToBottom(smooth) {
         const container = document.getElementById("feed-messages-container");
         if (container) {
+            if (typeof container._cancelSmoothWheel === 'function') {
+                container._cancelSmoothWheel();
+            }
             container.scrollTo({
                 top: container.scrollHeight,
                 behavior: smooth ? 'smooth' : 'auto'
