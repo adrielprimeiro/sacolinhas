@@ -3370,6 +3370,154 @@ class LiveChatController extends Controller
         }
     }
 
+    /**
+     * Cria rapidamente um cliente novo apenas com o username da rede social (aguardando telefone)
+     */
+    public function createQuickClient(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'required|string|max:100',
+            'platform' => 'nullable|string|in:instagram,tiktok',
+            'live_id' => 'nullable|integer'
+        ]);
+
+        try {
+            $username = trim($validated['username']);
+            $cleanUser = trim(ltrim($username, '@'));
+            $platform = strtolower($validated['platform'] ?? 'instagram');
+            $liveId = $validated['live_id'] ?? null;
+
+            if (empty($cleanUser)) {
+                return response()->json(['success' => false, 'message' => 'Username inválido.'], 422);
+            }
+
+            DB::beginTransaction();
+
+            // 1. Verificar se já existe por username na plataforma
+            if ($platform === 'tiktok') {
+                $user = User::whereRaw('LOWER(TRIM(LEADING "@" FROM tiktok)) = ?', [strtolower($cleanUser)])->first();
+            } else {
+                $user = User::whereRaw('LOWER(TRIM(LEADING "@" FROM instagram)) = ?', [strtolower($cleanUser)])->first();
+            }
+
+            // Fallback cruzado
+            if (!$user) {
+                $user = User::whereRaw('LOWER(TRIM(LEADING "@" FROM instagram)) = ?', [strtolower($cleanUser)])
+                    ->orWhereRaw('LOWER(TRIM(LEADING "@" FROM tiktok)) = ?', [strtolower($cleanUser)])
+                    ->first();
+            }
+
+            $isNew = false;
+            if (!$user) {
+                $isNew = true;
+                $nomeFormatado = '@' . $cleanUser;
+                $nomeParaEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $cleanUser));
+                $emailAutomatico = ($nomeParaEmail ?: 'cliente' . time()) . '_' . time() . '@mania.com';
+
+                $user = Cliente::create([
+                    'name' => $nomeFormatado,
+                    'nome_cliente' => $cleanUser,
+                    'apelido' => $cleanUser,
+                    'email' => $emailAutomatico,
+                    'password' => Hash::make(\Illuminate\Support\Str::random(16)),
+                    'role' => 'client',
+                    'instagram' => $platform === 'instagram' ? $cleanUser : null,
+                    'tiktok' => $platform === 'tiktok' ? $cleanUser : null,
+                    'whatsapp' => null,
+                    'phone' => null,
+                    'telefone_principal' => null,
+                ]);
+
+                \App\Models\ClienteLimite::create([
+                    'user_id' => $user->id,
+                    'limite_credito' => 300.00,
+                    'limite_utilizado' => 0.00,
+                    'limite_disponivel' => 300.00,
+                    'ativo' => true,
+                ]);
+            } else {
+                // Se já existe, atualiza campos de rede social caso vazios
+                $updates = [];
+                if ($platform === 'tiktok' && empty($user->tiktok)) {
+                    $updates['tiktok'] = $cleanUser;
+                } elseif ($platform !== 'tiktok' && empty($user->instagram)) {
+                    $updates['instagram'] = $cleanUser;
+                }
+                if (!empty($updates)) {
+                    $user->update($updates);
+                }
+            }
+
+            // 2. Associar live_code_requests
+            LiveCodeRequest::where(function($q) use ($cleanUser, $username) {
+                    $q->where('username', $username)
+                      ->orWhere('username', '@' . $cleanUser)
+                      ->orWhere('username', $cleanUser);
+                })
+                ->whereNull('user_id')
+                ->update(['user_id' => $user->id]);
+
+            // 3. Se temos liveId, sincroniza itens pendentes deste usuário
+            if (!$liveId) {
+                $liveId = DB::table('live_items')
+                    ->where(function($q) use ($username, $cleanUser) {
+                        $q->where('buyer_username', $username)
+                          ->orWhere('buyer_username', '@' . $cleanUser)
+                          ->orWhere('buyer_username', $cleanUser);
+                    })
+                    ->orderByDesc('id')
+                    ->value('live_id');
+            }
+
+            if ($liveId) {
+                $this->syncPendingItemsForUser($liveId, $user, $cleanUser);
+            }
+
+            if (auth()->check() && auth()->user()->isBrechoParceiro()) {
+                DB::table('brecho_clientes')->insertOrIgnore([
+                    'brecho_id' => auth()->user()->brecho_id,
+                    'user_id' => $user->id,
+                    'origem' => 'live_chat',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            Cache::forget("find_user_instagram_" . strtolower($cleanUser));
+            Cache::forget("find_user_tiktok_" . strtolower($cleanUser));
+
+            $phone = $user->whatsapp ?: ($user->phone ?: $user->telefone_principal);
+            $hasPhone = !empty($phone) && strlen(preg_replace('/\D/', '', $phone)) >= 8;
+
+            return response()->json([
+                'success' => true,
+                'message' => $isNew ? "Cliente @{$cleanUser} cadastrado com sucesso!" : "Cliente @{$cleanUser} vinculado!",
+                'is_new' => $isNew,
+                'has_phone' => $hasPhone,
+                'phone' => $hasPhone ? preg_replace('/\D/', '', $phone) : null,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'username' => $cleanUser,
+                    'platform' => $platform,
+                    'phone' => $user->phone,
+                    'whatsapp' => $user->whatsapp,
+                    'instagram' => $user->instagram,
+                    'tiktok' => $user->tiktok,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("[LiveChat] Erro no createQuickClient: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao cadastrar cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function togglePause(Request $request)
     {
         $current = Cache::get('live_capture_paused', false);
@@ -3514,9 +3662,21 @@ class LiveChatController extends Controller
         $user = User::findOrFail($request->input('user_id'));
         $cleanPhone = preg_replace('/\D/', '', $request->input('phone'));
 
+        if (strlen($cleanPhone) >= 12 && substr($cleanPhone, 0, 2) === '55') {
+            $cleanPhone = substr($cleanPhone, 2);
+        }
+
         $user->whatsapp = $cleanPhone;
         $user->phone = $cleanPhone;
+        $user->telefone_principal = $cleanPhone;
         $user->save();
+
+        if (!empty($user->instagram)) {
+            Cache::forget("find_user_instagram_" . strtolower(ltrim($user->instagram, '@')));
+        }
+        if (!empty($user->tiktok)) {
+            Cache::forget("find_user_tiktok_" . strtolower(ltrim($user->tiktok, '@')));
+        }
 
         return response()->json([
             'success' => true,

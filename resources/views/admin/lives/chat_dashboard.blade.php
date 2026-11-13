@@ -146,6 +146,11 @@
                 </div>
             </div>
             
+            <!-- Cards de Clientes Novos Aguardando Telefone (Empilháveis) -->
+            <div id="pending-phone-cards-container" class="shrink-0 max-h-56 overflow-y-auto p-2 bg-gray-950 border-b border-gray-800 space-y-2 hidden">
+                <!-- Cards renderizados dinamicamente via JS -->
+            </div>
+
             <div id="chat-messages-container" class="flex-1 p-3 overflow-y-auto space-y-2.5 bg-gray-900 text-gray-100 font-sans">
                 @if(!$activeLive)
                     <div class="flex flex-col items-center justify-center h-full text-gray-500">
@@ -315,8 +320,26 @@
         <input type="hidden" id="modal-input-username">
         <input type="hidden" id="modal-input-platform">
 
+        <!-- BOTÃO CLIENTE NOVO -->
+        <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+            <div class="text-xs text-emerald-950">
+                <strong class="font-bold block text-emerald-900 text-xs">Cliente Novo na Live?</strong>
+                <span class="text-emerald-700 text-[11px]">Cria o cadastro com o @ e aguarda o telefone no chat.</span>
+            </div>
+            <button type="button" id="btn-quick-new-client" onclick="createQuickClientFromModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
+                <i class="fas fa-user-plus text-xs"></i>
+                <span>+ Cliente Novo</span>
+            </button>
+        </div>
+
+        <div class="relative flex py-1 items-center mb-3">
+            <div class="flex-grow border-t border-gray-200"></div>
+            <span class="flex-shrink mx-2 text-[10px] uppercase font-bold text-gray-400 tracking-wider">ou vincular existente</span>
+            <div class="flex-grow border-t border-gray-200"></div>
+        </div>
+
         <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente por Nome, Apelido ou Celular:</label>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Buscar Cliente Cadastrado (Nome, Apelido ou Celular):</label>
             <input type="text" id="modal-search-input" onkeyup="searchClients(this.value)" placeholder="Digite para buscar..." class="w-full p-2.5 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
         </div>
 
@@ -691,6 +714,9 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         if (liveId) {
+            if (typeof loadPendingPhoneClients === 'function') {
+                loadPendingPhoneClients();
+            }
             // Iniciar Polling de dados (a cada 3 segundos)
             fetchChatData();
             pollingInterval = setInterval(fetchChatData, 3000);
@@ -911,6 +937,7 @@
                     renderChatMessages();
                     renderOnlineUsers(data.online_users);
                     renderCodeRequests(data.code_requests);
+                    checkPendingPhoneClientsAutoDetection();
 
                     // Se o modal de bipe estiver aberto para um cliente, atualiza as mensagens dele
                     if (currentOnlineQrUser && !document.getElementById("online-qr-modal").classList.contains("hidden")) {
@@ -1372,12 +1399,352 @@
         document.getElementById("modal-search-input").value = "";
         document.getElementById("modal-search-results").innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Comece a digitar para pesquisar clientes.</p>`;
         
+        const btnQuick = document.getElementById("btn-quick-new-client");
+        if (btnQuick) {
+            btnQuick.disabled = false;
+            btnQuick.innerHTML = `<i class="fas fa-user-plus text-xs"></i> <span>+ Cliente Novo</span>`;
+        }
+
         document.getElementById("link-user-modal").classList.remove("hidden");
         document.getElementById("modal-search-input").focus();
     }
 
     function closeLinkModal() {
         document.getElementById("link-user-modal").classList.add("hidden");
+    }
+
+    // ==========================================
+    // CLIENTES NOVOS NA LIVE & AGUARDANDO TELEFONE
+    // ==========================================
+    let pendingPhoneClients = [];
+
+    function getPendingStorageKey() {
+        return `pending_phone_clients_live_${liveId || 'default'}`;
+    }
+
+    function loadPendingPhoneClients() {
+        try {
+            const stored = localStorage.getItem(getPendingStorageKey());
+            if (stored) {
+                pendingPhoneClients = JSON.parse(stored);
+                if (!Array.isArray(pendingPhoneClients)) pendingPhoneClients = [];
+            }
+        } catch(e) {
+            pendingPhoneClients = [];
+        }
+        renderPendingPhoneCards();
+    }
+
+    function savePendingPhoneClientsToStorage() {
+        try {
+            localStorage.setItem(getPendingStorageKey(), JSON.stringify(pendingPhoneClients));
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    function addPendingPhoneClient(client) {
+        const exists = pendingPhoneClients.some(c => String(c.userId) === String(client.userId) || c.username.toLowerCase() === client.username.toLowerCase());
+        if (!exists) {
+            pendingPhoneClients.unshift(client);
+            savePendingPhoneClientsToStorage();
+            renderPendingPhoneCards();
+        }
+    }
+
+    function dismissPendingPhoneClient(userId) {
+        pendingPhoneClients = pendingPhoneClients.filter(c => String(c.userId) !== String(userId));
+        savePendingPhoneClientsToStorage();
+        renderPendingPhoneCards();
+    }
+
+    function createQuickClientFromModal() {
+        const username = document.getElementById("modal-input-username").value;
+        const platform = document.getElementById("modal-input-platform").value;
+        const btn = document.getElementById("btn-quick-new-client");
+
+        if (!username) {
+            alert("Username não informado.");
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Cadastrando...`;
+        }
+
+        fetch('/admin/live-chat/create-quick-client', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                username: username,
+                platform: platform,
+                live_id: liveId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-user-plus text-xs"></i> <span>+ Cliente Novo</span>`;
+            }
+
+            if (data.success && data.user) {
+                closeLinkModal();
+                showToast(`Cliente @${data.user.username || username} pronto!`);
+
+                // Seleciona automaticamente para bipagem/atendimento com leitor
+                if (typeof selectOnlineParticipant === 'function') {
+                    selectOnlineParticipant(data.user.id, data.user.username || username, data.user.name, platform, '');
+                }
+
+                // Atualiza dados da live/chat
+                fetchChatData();
+
+                // Se já possui telefone cadastrado, não precisa aguardar telefone
+                if (data.has_phone) {
+                    showToast(`Cliente já possui telefone cadastrado: ${formatPhoneMask(data.phone)}`);
+                    return;
+                }
+
+                // Verifica se já comentou telefone anteriormente no chat
+                const detected = scanPhoneFromUserMessages(data.user.username || username);
+                if (detected) {
+                    showToast(`Telefone detectado no chat para @${data.user.username || username}: ${formatPhoneMask(detected)}`);
+                    savePendingClientPhone(data.user.id, data.user.username || username, detected, true);
+                } else {
+                    // Adiciona na pilha de cards aguardando telefone acima do chat
+                    addPendingPhoneClient({
+                        userId: data.user.id,
+                        username: data.user.username || username,
+                        platform: platform,
+                        createdAt: Date.now()
+                    });
+                }
+            } else {
+                alert("Erro ao cadastrar cliente: " + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(err => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-user-plus text-xs"></i> <span>+ Cliente Novo</span>`;
+            }
+            console.error("Erro ao criar cliente rápido:", err);
+            alert("Erro de conexão ao criar cliente.");
+        });
+    }
+
+    function renderPendingPhoneCards() {
+        const container = document.getElementById("pending-phone-cards-container");
+        if (!container) return;
+
+        if (pendingPhoneClients.length === 0) {
+            container.classList.add("hidden");
+            container.innerHTML = "";
+            return;
+        }
+
+        container.classList.remove("hidden");
+        let html = `
+            <div class="flex items-center justify-between px-1 text-[11px] text-amber-400 font-bold mb-0.5">
+                <span class="flex items-center gap-1.5">
+                    <i class="fas fa-user-clock text-amber-400"></i>
+                    <span>Clientes Novos Aguardando WhatsApp (${pendingPhoneClients.length})</span>
+                </span>
+                <span class="text-[10px] text-gray-400 font-normal">Detecta automático no chat ou digite abaixo</span>
+            </div>
+        `;
+
+        pendingPhoneClients.forEach(client => {
+            const isTikTok = client.platform === 'tiktok';
+            const icon = isTikTok ? '<i class="fab fa-tiktok text-cyan-400"></i>' : '<i class="fab fa-instagram text-pink-400"></i>';
+            const cleanUser = escapeHtml(client.username);
+            const safeUser = cleanUser.replace(/'/g, "\\'");
+
+            html += `
+                <div id="pending-card-${client.userId}" class="bg-gray-900 border border-amber-500/60 rounded-xl p-2 shadow-md flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 transition duration-200 hover:border-amber-400">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 border border-gray-700 text-xs">
+                            ${icon}
+                        </div>
+                        <div class="min-w-0 flex items-center gap-2 flex-wrap">
+                            <span class="font-extrabold text-xs text-amber-300 truncate" title="@${cleanUser}">@${cleanUser}</span>
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/80 text-amber-200 border border-amber-700/60">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Aguardando Tel...
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-end">
+                        <input type="text" 
+                            id="pending-phone-input-${client.userId}" 
+                            placeholder="(99) 99999-9999" 
+                            maxlength="15" 
+                            oninput="maskPendingPhoneInput(this)" 
+                            onkeydown="if(event.key==='Enter') savePendingClientPhone('${client.userId}', '${safeUser}', this.value)" 
+                            class="w-32 sm:w-36 bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg px-2.5 py-1 text-xs focus:ring-1 focus:ring-amber-400 focus:border-amber-400 outline-none"
+                        >
+                        <button type="button" 
+                            onclick="savePendingClientPhone('${client.userId}', '${safeUser}', document.getElementById('pending-phone-input-${client.userId}').value)" 
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 transition shadow cursor-pointer active:scale-95" 
+                            title="Gravar telefone no cadastro"
+                        >
+                            <i class="fas fa-check text-[10px]"></i> Salvar
+                        </button>
+                        <button type="button" 
+                            onclick="dismissPendingPhoneClient('${client.userId}')" 
+                            title="Dispensar card" 
+                            class="text-gray-400 hover:text-red-400 p-1 transition cursor-pointer"
+                        >
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function maskPendingPhoneInput(input) {
+        if (!input) return;
+        input.value = formatPhoneMask(input.value);
+    }
+
+    function savePendingClientPhone(userId, username, phoneValue, isAuto = false) {
+        const rawDigits = String(phoneValue || '').replace(/\D/g, '');
+        let digits = rawDigits;
+        if (digits.length >= 12 && digits.startsWith('55')) digits = digits.substring(2);
+
+        if (digits.length < 8) {
+            if (!isAuto) {
+                alert("Informe um número de telefone válido com DDD.");
+                const input = document.getElementById(`pending-phone-input-${userId}`);
+                if (input) input.focus();
+            }
+            return;
+        }
+
+        const card = document.getElementById(`pending-card-${userId}`);
+        if (card) {
+            card.style.opacity = '0.5';
+            card.style.pointerEvents = 'none';
+        }
+
+        fetch('/admin/live-chat/update-user-phone', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                phone: digits
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast(isAuto 
+                    ? `🎉 Telefone detectado no chat para @${username}: ${formatPhoneMask(digits)} (Salvo!)` 
+                    : `Telefone gravado com sucesso para @${username}: ${formatPhoneMask(digits)}`
+                );
+                // Fecha o card do cliente após gravação
+                dismissPendingPhoneClient(userId);
+                // Atualiza dados da live/chat
+                fetchChatData();
+            } else {
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
+                alert("Erro ao salvar telefone: " + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(err => {
+            if (card) {
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            }
+            console.error("Erro ao salvar telefone:", err);
+            if (!isAuto) alert("Erro de conexão ao salvar telefone.");
+        });
+    }
+
+    function extractPhoneFromText(text) {
+        if (!text) return null;
+        let cleanText = String(text).trim();
+
+        // 1. Tentar padrão explícito com DDD entre parênteses ou traço
+        const regexExplicit = /(?:\(?([1-9][0-9])\)?\s*)?(?:9\s*)?([0-9]{4})\s*-?\s*([0-9]{4})/;
+        const matchExplicit = cleanText.match(regexExplicit);
+        if (matchExplicit) {
+            const rawDigits = cleanText.replace(/\D/g, '');
+            let digits = rawDigits;
+            if (digits.length >= 12 && digits.startsWith('55')) digits = digits.substring(2);
+            if (digits.length === 10 || digits.length === 11) {
+                const ddd = parseInt(digits.substring(0, 2), 10);
+                if (ddd >= 11 && ddd <= 99) return digits;
+            }
+        }
+
+        // 2. Extrai sequência contínua de dígitos
+        const allDigits = cleanText.replace(/\D/g, '');
+        let d = allDigits;
+        if (d.length >= 12 && d.startsWith('55')) d = d.substring(2);
+        if (d.length === 10 || d.length === 11) {
+            const ddd = parseInt(d.substring(0, 2), 10);
+            if (ddd >= 11 && ddd <= 99) return d;
+        }
+
+        return null;
+    }
+
+    function formatPhoneMask(v) {
+        if (!v) return '';
+        let digits = String(v).replace(/\D/g, '');
+        if (digits.length >= 12 && digits.startsWith('55')) digits = digits.substring(2);
+        if (digits.length > 11) digits = digits.substring(0, 11);
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    }
+
+    function scanPhoneFromUserMessages(cleanUser) {
+        if (!Array.isArray(allLiveMessages) || allLiveMessages.length === 0) return null;
+        const target = cleanUser.toLowerCase().replace(/^@/, '').trim();
+        for (let i = allLiveMessages.length - 1; i >= 0; i--) {
+            const m = allLiveMessages[i];
+            const u = String(m.username || '').replace(/^@/, '').toLowerCase().trim();
+            if (u === target) {
+                const text = m.message || m.comentario || '';
+                const p = extractPhoneFromText(text);
+                if (p) return p;
+            }
+        }
+        return null;
+    }
+
+    function checkPendingPhoneClientsAutoDetection() {
+        if (!pendingPhoneClients || pendingPhoneClients.length === 0) return;
+        if (!Array.isArray(allLiveMessages) || allLiveMessages.length === 0) return;
+
+        pendingPhoneClients.forEach(client => {
+            if (client.isSaving) return;
+            const detectedPhone = scanPhoneFromUserMessages(client.username);
+            if (detectedPhone) {
+                client.isSaving = true;
+                const input = document.getElementById(`pending-phone-input-${client.userId}`);
+                if (input) input.value = formatPhoneMask(detectedPhone);
+
+                savePendingClientPhone(client.userId, client.username, detectedPhone, true);
+            }
+        });
     }
 
     // Buscar clientes via AJAX para vinculação
