@@ -573,7 +573,7 @@
                     <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
                         <i class="fab fa-whatsapp" style="color: #10b981; margin-right: 2px;"></i> Telefone / Whats
                     </label>
-                    <input type="text" id="quick-client-phone" placeholder="(11) 99999-9999" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
+                    <input type="text" id="quick-client-phone" oninput="maskPendingPhoneInput(this)" maxlength="15" placeholder="(11) 99999-9999" style="width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 700; color: #0f172a !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; outline: none; box-sizing: border-box;">
                 </div>
 
                 <div>
@@ -2964,7 +2964,8 @@
                     instagram: instagram,
                     tiktok: tiktok,
                     phone: phone,
-                    limite_credito: limite
+                    limite_credito: limite,
+                    live_id: liveId
                 })
             });
 
@@ -2975,9 +2976,34 @@
                 closeQuickClientModal();
 
                 const newClient = data.client;
-                const primaryUsername = newClient.instagram || newClient.tiktok || newClient.name;
-                const platform = newClient.instagram ? 'instagram' : (newClient.tiktok ? 'tiktok' : 'instagram');
+                const socialUser = (newClient.instagram || newClient.tiktok || '').replace(/^@/, '').trim();
+                const primaryUsername = socialUser || newClient.name || 'cliente';
+                const platform = newClient.tiktok ? 'tiktok' : 'instagram';
                 selectOnlineParticipant(newClient.id, primaryUsername, newClient.name, platform, '');
+
+                // Atualiza dados da live/chat
+                fetchChatData();
+
+                // Se o cliente foi cadastrado sem telefone, adiciona na lista acima do chat
+                const cleanPhone = String(newClient.whatsapp || newClient.phone || phone || '').replace(/\D/g, '');
+                if (cleanPhone.length < 8) {
+                    const cleanUser = socialUser || primaryUsername;
+                    // Verifica se já comentou telefone anteriormente no chat
+                    const detected = scanPhoneFromUserMessages(cleanUser);
+                    if (detected) {
+                        showToast(`Telefone detectado no chat para @${cleanUser}: ${formatPhoneMask(detected)}`);
+                        savePendingClientPhone(newClient.id, cleanUser, detected, true);
+                    } else {
+                        // Adiciona na pilha de cards aguardando telefone acima do chat
+                        addPendingPhoneClient({
+                            userId: newClient.id,
+                            username: cleanUser,
+                            platform: platform,
+                            createdAt: Date.now()
+                        });
+                        showToast(`@${cleanUser} aguardando telefone na lista acima do chat.`);
+                    }
+                }
             } else {
                 playErrorBeep();
                 showToast(data.message || 'Erro ao cadastrar cliente.');

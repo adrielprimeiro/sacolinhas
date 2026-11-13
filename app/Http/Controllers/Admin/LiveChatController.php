@@ -3828,7 +3828,9 @@ class LiveChatController extends Controller
             'tiktok' => 'nullable|string|max:255',
             'telefone' => 'nullable|string|max:50',
             'whatsapp' => 'nullable|string|max:50',
+            'phone' => 'nullable|string|max:50',
             'limite_credito' => 'nullable|numeric|min:0',
+            'live_id' => 'nullable|integer',
         ]);
 
         try {
@@ -3840,9 +3842,9 @@ class LiveChatController extends Controller
 
             if (empty($nomeCliente)) {
                 if (!empty($instagram)) {
-                    $nomeCliente = $instagram;
+                    $nomeCliente = '@' . ltrim($instagram, '@');
                 } elseif (!empty($tiktok)) {
-                    $nomeCliente = $tiktok;
+                    $nomeCliente = '@' . ltrim($tiktok, '@');
                 } else {
                     return response()->json([
                         'success' => false,
@@ -3859,14 +3861,22 @@ class LiveChatController extends Controller
 
             $rawPhone = $request->input('telefone') ?: ($request->input('whatsapp') ?: $request->input('phone'));
             $phoneDigits = $rawPhone ? preg_replace('/\D/', '', $rawPhone) : null;
+            if ($phoneDigits && strlen($phoneDigits) >= 12 && substr($phoneDigits, 0, 2) === '55') {
+                $phoneDigits = substr($phoneDigits, 2);
+            }
+
+            $cleanInsta = $instagram ? ltrim($instagram, '@') : null;
+            $cleanTiktok = $tiktok ? ltrim($tiktok, '@') : null;
 
             $cliente = Cliente::create([
                 'name' => $nomeCliente,
+                'nome_cliente' => $nomeCliente,
+                'apelido' => $cleanInsta ?: ($cleanTiktok ?: $nomeCliente),
                 'email' => $emailAutomatico,
                 'password' => Hash::make('123456'),
                 'role' => 'client',
-                'instagram' => $instagram ?: null,
-                'tiktok' => $tiktok ?: null,
+                'instagram' => $cleanInsta,
+                'tiktok' => $cleanTiktok,
                 'whatsapp' => $phoneDigits,
                 'phone' => $phoneDigits,
                 'telefone_principal' => $phoneDigits,
@@ -3880,6 +3890,35 @@ class LiveChatController extends Controller
                 'limite_disponivel' => $limiteCredito,
                 'ativo' => true,
             ]);
+
+            $liveId = $request->input('live_id');
+            $cleanUser = trim(ltrim($cleanInsta ?: ($cleanTiktok ?: $nomeCliente), '@'));
+
+            if (!empty($cleanUser)) {
+                LiveCodeRequest::where(function($q) use ($cleanUser) {
+                        $q->where('username', $cleanUser)
+                          ->orWhere('username', '@' . $cleanUser);
+                    })
+                    ->whereNull('user_id')
+                    ->update(['user_id' => $cliente->id]);
+
+                if (!$liveId) {
+                    $liveId = DB::table('live_items')
+                        ->where(function($q) use ($cleanUser) {
+                            $q->where('buyer_username', $cleanUser)
+                              ->orWhere('buyer_username', '@' . $cleanUser);
+                        })
+                        ->orderByDesc('id')
+                        ->value('live_id');
+                }
+
+                if ($liveId) {
+                    $this->syncPendingItemsForUser($liveId, $cliente, $cleanUser);
+                }
+
+                Cache::forget("find_user_instagram_" . strtolower($cleanUser));
+                Cache::forget("find_user_tiktok_" . strtolower($cleanUser));
+            }
 
             if (auth()->check() && auth()->user()->isBrechoParceiro()) {
                 DB::table('brecho_clientes')->insertOrIgnore([
