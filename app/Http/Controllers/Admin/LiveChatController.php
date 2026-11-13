@@ -2203,14 +2203,16 @@ class LiveChatController extends Controller
                     strtolower($u->tiktok ?? '') === $uLower ||
                     strtolower($u->apelido ?? '') === $uLower ||
                     strtolower($u->nome_cliente ?? '') === $uLower ||
-                    strtolower($u->name ?? '') === $uLower
+                    strtolower($u->name ?? '') === $uLower ||
+                    strtolower($u->instagram ?? '') === $uLower
                 );
             } else {
                 $matchedUser = $matchedUsersCollection->first(fn($u) => 
                     strtolower($u->instagram ?? '') === $uLower ||
                     strtolower($u->apelido ?? '') === $uLower ||
                     strtolower($u->nome_cliente ?? '') === $uLower ||
-                    strtolower($u->name ?? '') === $uLower
+                    strtolower($u->name ?? '') === $uLower ||
+                    strtolower($u->tiktok ?? '') === $uLower
                 );
             }
 
@@ -2266,14 +2268,16 @@ class LiveChatController extends Controller
                     strtolower($u->tiktok ?? '') === $uLower ||
                     strtolower($u->apelido ?? '') === $uLower ||
                     strtolower($u->nome_cliente ?? '') === $uLower ||
-                    strtolower($u->name ?? '') === $uLower
+                    strtolower($u->name ?? '') === $uLower ||
+                    strtolower($u->instagram ?? '') === $uLower
                 );
             } else {
                 $matchedUser = $matchedUsersCollection->first(fn($u) => 
                     strtolower($u->instagram ?? '') === $uLower ||
                     strtolower($u->apelido ?? '') === $uLower ||
                     strtolower($u->nome_cliente ?? '') === $uLower ||
-                    strtolower($u->name ?? '') === $uLower
+                    strtolower($u->name ?? '') === $uLower ||
+                    strtolower($u->tiktok ?? '') === $uLower
                 );
             }
 

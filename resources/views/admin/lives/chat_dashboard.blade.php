@@ -1035,12 +1035,12 @@
 
     let lastRenderedChatHash = "";
 
-    // Helper para exibir badge visual da rede/canal de transmissão (Minha Mania vs Loja Parceira)
+    // Helper para exibir badge visual da rede/canal de transmissão (apenas quando for Loja Parceira)
     function getHostBadge(hostAccount) {
         if (!hostAccount) return '';
         const clean = hostAccount.toLowerCase().replace(/^@/, '');
         if (clean === 'minhamania' || clean === '_minhamania' || clean === 'de_minha_mania') {
-            return `<span class="bg-purple-950/80 text-purple-300 border border-purple-600/70 text-[8.5px] font-black px-1.5 py-0.5 rounded shadow-xs shrink-0" title="Comentário via Rede Minha Mania">🟣 Minha Mania</span>`;
+            return ''; // Oculta badge na própria live da Minha Mania para evitar redundância e confusão
         }
         return `<span class="bg-amber-950/90 text-amber-200 border border-amber-500 text-[8.5px] font-black px-1.5 py-0.5 rounded shadow-xs shrink-0 flex items-center gap-1" title="Comentário via Rede da Loja Parceira (@${escapeHtml(clean)})"><i class="fas fa-store text-[7.5px] text-amber-400"></i> @${escapeHtml(clean)}</span>`;
     }
@@ -1181,7 +1181,7 @@
             const isPartnerAccount = u.host_account && !['minhamania', '_minhamania', 'de_minha_mania'].includes(u.host_account.toLowerCase().replace(/^@/, ''));
             const partnerBadge = isPartnerAccount
                 ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5" title="Audiência da Loja Parceira (@${escapeHtml(u.host_account)})"><i class="fas fa-store text-[7px] text-amber-700"></i> @${escapeHtml(u.host_account)}</span>`
-                : (u.host_account ? `<span class="bg-purple-100 text-purple-900 border border-purple-200 text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0" title="Audiência Minha Mania">Minha Mania</span>` : '');
+                : '';
 
             html += `
                 <div ${u.user_id ? `onclick="selectOnlineParticipant('${u.user_id}', '${escapeHtml(u.username)}', '${clientName}', '${escapeHtml(u.plataforma)}', '${safeAttr(u.avatar_url || '')}')"` : `onclick="openLinkModal('${escapeHtml(u.username)}', '${escapeHtml(u.plataforma)}')"`} 
