@@ -40,7 +40,80 @@ class LiveChatController extends Controller
                 ?? Live::orderBy('id', 'desc')->first();
         }
 
-        return view('admin.lives.chat_dashboard', compact('lives', 'activeLive'));
+        // Buscar os últimos 5 itens registrados na live ou no brechó para clonagem rápida
+        $recentQuickItems = [];
+        if ($activeLive && Schema::hasTable('live_items')) {
+            $recentQuickItems = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $activeLive->id)
+                ->orderByDesc('live_items.id')
+                ->limit(5)
+                ->select([
+                    'items.id',
+                    'items.codigo',
+                    'live_items.codigo_live',
+                    'items.nome_do_produto',
+                    'items.descricao',
+                    'items.tamanho',
+                    'items.cor',
+                    'items.preco',
+                    'items.custo',
+                ])
+                ->get()
+                ->toArray();
+        }
+
+        if (count($recentQuickItems) < 5) {
+            $existingIds = array_filter(array_column($recentQuickItems, 'id'));
+            $needed = 5 - count($recentQuickItems);
+            $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1;
+            $fallback = Item::where('brecho_id', $brechoId)
+                ->when(!empty($existingIds), function($q) use ($existingIds) {
+                    $q->whereNotIn('id', $existingIds);
+                })
+                ->orderByDesc('id')
+                ->limit($needed)
+                ->get(['id', 'codigo', 'nome_do_produto', 'descricao', 'tamanho', 'cor', 'preco', 'custo']);
+
+            foreach ($fallback as $it) {
+                $recentQuickItems[] = (object) [
+                    'id' => $it->id,
+                    'codigo' => $it->codigo,
+                    'codigo_live' => null,
+                    'nome_do_produto' => $it->nome_do_produto,
+                    'descricao' => $it->descricao,
+                    'tamanho' => $it->tamanho,
+                    'cor' => $it->cor,
+                    'preco' => $it->preco,
+                    'custo' => $it->custo,
+                ];
+            }
+        }
+
+        $recentQuickItems = array_values(array_map(function($it) {
+            $desc = $it->descricao ?: $it->nome_do_produto;
+            $precoFloat = (float) ($it->preco ?? 0);
+            $custoFloat = (float) ($it->custo ?? 0);
+            $comissaoPerc = 10;
+            if ($precoFloat > 0 && $custoFloat > 0 && $custoFloat < $precoFloat) {
+                $comissaoPerc = round((($precoFloat - $custoFloat) / $precoFloat) * 100, 1);
+            }
+            return [
+                'id' => $it->id,
+                'codigo' => $it->codigo,
+                'codigo_live' => $it->codigo_live ?? null,
+                'descricao' => $desc,
+                'tamanho' => $it->tamanho ?? '',
+                'cor' => $it->cor ?? '',
+                'preco' => $precoFloat,
+                'preco_fmt' => number_format($precoFloat, 2, ',', '.'),
+                'custo' => $custoFloat,
+                'custo_fmt' => number_format($custoFloat, 2, ',', '.'),
+                'comissao_perc' => $comissaoPerc,
+            ];
+        }, $recentQuickItems));
+
+        return view('admin.lives.chat_dashboard', compact('lives', 'activeLive', 'recentQuickItems'));
     }
 
     /**
@@ -3946,6 +4019,93 @@ class LiveChatController extends Controller
                 'message' => 'Erro ao cadastrar produto: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Retorna os últimos 5 itens registrados na live (ou no sistema) para clonagem rápida
+     */
+    public function getRecentItems(Request $request, $liveId)
+    {
+        $brechoId = auth()->check() && !empty(auth()->user()->brecho_id) ? auth()->user()->brecho_id : 1;
+
+        $liveItems = [];
+        if (Schema::hasTable('live_items')) {
+            $liveItems = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $liveId)
+                ->orderByDesc('live_items.id')
+                ->limit(5)
+                ->select([
+                    'items.id',
+                    'items.codigo',
+                    'live_items.codigo_live',
+                    'items.nome_do_produto',
+                    'items.descricao',
+                    'items.tamanho',
+                    'items.cor',
+                    'items.preco',
+                    'items.custo',
+                    'live_items.created_at'
+                ])
+                ->get()
+                ->toArray();
+        }
+
+        $items = $liveItems;
+        if (count($items) < 5) {
+            $existingIds = array_filter(array_column($items, 'id'));
+            $needed = 5 - count($items);
+            $fallback = Item::where('brecho_id', $brechoId)
+                ->when(!empty($existingIds), function($q) use ($existingIds) {
+                    $q->whereNotIn('id', $existingIds);
+                })
+                ->orderByDesc('id')
+                ->limit($needed)
+                ->get(['id', 'codigo', 'nome_do_produto', 'descricao', 'tamanho', 'cor', 'preco', 'custo', 'created_at']);
+
+            foreach ($fallback as $it) {
+                $items[] = (object) [
+                    'id' => $it->id,
+                    'codigo' => $it->codigo,
+                    'codigo_live' => null,
+                    'nome_do_produto' => $it->nome_do_produto,
+                    'descricao' => $it->descricao,
+                    'tamanho' => $it->tamanho,
+                    'cor' => $it->cor,
+                    'preco' => $it->preco,
+                    'custo' => $it->custo,
+                    'created_at' => $it->created_at,
+                ];
+            }
+        }
+
+        $formatted = array_values(array_map(function($it) {
+            $desc = $it->descricao ?: $it->nome_do_produto;
+            $precoFloat = (float) ($it->preco ?? 0);
+            $custoFloat = (float) ($it->custo ?? 0);
+            $comissaoPerc = 10;
+            if ($precoFloat > 0 && $custoFloat > 0 && $custoFloat < $precoFloat) {
+                $comissaoPerc = round((($precoFloat - $custoFloat) / $precoFloat) * 100, 1);
+            }
+            return [
+                'id' => $it->id,
+                'codigo' => $it->codigo,
+                'codigo_live' => $it->codigo_live ?? null,
+                'descricao' => $desc,
+                'tamanho' => $it->tamanho ?? '',
+                'cor' => $it->cor ?? '',
+                'preco' => $precoFloat,
+                'preco_fmt' => number_format($precoFloat, 2, ',', '.'),
+                'custo' => $custoFloat,
+                'custo_fmt' => number_format($custoFloat, 2, ',', '.'),
+                'comissao_perc' => $comissaoPerc,
+            ];
+        }, $items));
+
+        return response()->json([
+            'success' => true,
+            'items' => $formatted
+        ]);
     }
 
     /**

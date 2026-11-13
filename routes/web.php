@@ -309,6 +309,7 @@ Route::middleware('auth')->group(function () {
         Route::get('live-contador', [\App\Http\Controllers\Admin\LiveChatController::class, 'contador'])->name('admin.live-chat.contador');
         Route::get('live-contador/data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getContadorData'])->name('admin.live-chat.contador-data');
         Route::get('lives/{liveId}/chat-data', [\App\Http\Controllers\Admin\LiveChatController::class, 'getChatData'])->name('admin.live-chat.data');
+        Route::get('lives/{liveId}/recent-items', [\App\Http\Controllers\Admin\LiveChatController::class, 'getRecentItems'])->name('admin.live-chat.recent-items');
         Route::post('live-chat/add-to-bag', [\App\Http\Controllers\Admin\LiveChatController::class, 'addToBag'])->name('admin.live-chat.add-to-bag');
         Route::post('live-chat/ignore', [\App\Http\Controllers\Admin\LiveChatController::class, 'ignoreRequest'])->name('admin.live-chat.ignore');
         Route::post('live-chat/link-user', [\App\Http\Controllers\Admin\LiveChatController::class, 'linkUser'])->name('admin.live-chat.link-user');

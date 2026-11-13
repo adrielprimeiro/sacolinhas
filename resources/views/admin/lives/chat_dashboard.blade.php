@@ -601,7 +601,7 @@
 
 <!-- MODAL CADASTRO RÁPIDO DE PRODUTO -->
 <div id="modal-quick-product" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
-    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);">
+    <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); max-height: 92vh; overflow-y: auto;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -619,7 +619,23 @@
         </div>
 
         <!-- Form -->
-        <form onsubmit="submitQuickProduct(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: #ffffff; margin: 0;">
+        <form onsubmit="submitQuickProduct(event)" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; background-color: #ffffff; margin: 0;">
+
+            <!-- Bloco Discreto dos 5 Últimos Itens Registrados para Clonagem Rápida -->
+            <div id="quick-prod-recent-box" style="display: none; background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 8px 10px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #475569; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-history" style="color: #7c3aed;"></i> Clonar Últimas Peças (1 Clique)
+                    </span>
+                    <span style="font-size: 10px; font-weight: 700; color: #6d28d9; background: #ede9fe; padding: 1px 7px; border-radius: 8px;">
+                        5 recentes
+                    </span>
+                </div>
+                <div id="quick-prod-recent-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">
+                    <!-- Itens renderizados dinamicamente -->
+                </div>
+            </div>
+
             <div>
                 <label style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e293b !important; margin-bottom: 4px;">
                     Descrição da Peça <span style="color: #dc2626;">*</span>
@@ -3008,9 +3024,122 @@
         }
     }
 
+    // ==========================================
+    // ÚLTIMOS ITENS REGISTRADOS (CLONAGEM RÁPIDA)
+    // ==========================================
+    let recentQuickItems = @json($recentQuickItems ?? []);
+
+    function renderQuickRecentItems() {
+        const box = document.getElementById('quick-prod-recent-box');
+        const list = document.getElementById('quick-prod-recent-list');
+        if (!box || !list) return;
+
+        if (!Array.isArray(recentQuickItems) || recentQuickItems.length === 0) {
+            box.style.display = 'none';
+            return;
+        }
+
+        box.style.display = 'block';
+        let html = '';
+
+        recentQuickItems.slice(0, 5).forEach((item, index) => {
+            const desc = escapeHtml(item.descricao || item.nome || 'Produto');
+            const tam = escapeHtml(item.tamanho || '');
+            const cor = escapeHtml(item.cor || '');
+            const precoFmt = item.preco_fmt || Number(item.preco || 0).toFixed(2).replace('.', ',');
+            const codeLive = item.codigo_live ? `#${escapeHtml(item.codigo_live)}` : (item.codigo ? `#${escapeHtml(item.codigo)}` : '');
+
+            html += `
+                <div onclick="cloneQuickRecentItem(${index})" 
+                     title="Clique para clonar esta peça no formulário" 
+                     style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+                     onmouseover="this.style.borderColor='#7c3aed'; this.style.backgroundColor='#f5f3ff';" 
+                     onmouseout="this.style.borderColor='#cbd5e1'; this.style.backgroundColor='#ffffff';">
+                    
+                    <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                        ${codeLive ? `<span style="font-size: 10px; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; shrink: 0;">${codeLive}</span>` : ''}
+                        <span style="font-size: 11.5px; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${desc}">
+                            ${desc}
+                        </span>
+                        ${tam ? `<span style="font-size: 10px; font-weight: 700; background: #e2e8f0; color: #334155; padding: 1px 5px; border-radius: 4px; shrink: 0;">${tam}</span>` : ''}
+                        ${cor ? `<span style="font-size: 10px; font-weight: 700; background: #e2e8f0; color: #334155; padding: 1px 5px; border-radius: 4px; shrink: 0;">${cor}</span>` : ''}
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 6px; shrink: 0;">
+                        <span style="font-size: 11.5px; font-weight: 900; color: #047857;">R$ ${precoFmt}</span>
+                        <button type="button" 
+                                style="font-size: 10px; font-weight: 800; color: #6d28d9; background: #ede9fe; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; transition: all 0.15s ease;"
+                                onmouseover="this.style.backgroundColor='#7c3aed'; this.style.color='#ffffff';"
+                                onmouseout="this.style.backgroundColor='#ede9fe'; this.style.color='#6d28d9';">
+                            <i class="fas fa-clone text-[9px]"></i> Clonar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        list.innerHTML = html;
+    }
+
+    function cloneQuickRecentItem(index) {
+        const item = recentQuickItems[index];
+        if (!item) return;
+
+        const descEl = document.getElementById('quick-prod-descricao');
+        const tamEl = document.getElementById('quick-prod-tamanho');
+        const corEl = document.getElementById('quick-prod-cor');
+        const precoEl = document.getElementById('quick-prod-preco');
+        const custoEl = document.getElementById('quick-prod-custo');
+        const comissaoEl = document.getElementById('quick-prod-comissao-perc');
+
+        if (descEl) descEl.value = item.descricao || item.nome_do_produto || item.nome || '';
+        if (tamEl) tamEl.value = item.tamanho || '';
+        if (corEl) corEl.value = item.cor || '';
+        if (precoEl) precoEl.value = item.preco_fmt || (item.preco ? Number(item.preco).toFixed(2).replace('.', ',') : '');
+        if (custoEl) custoEl.value = item.custo_fmt || (item.custo ? Number(item.custo).toFixed(2).replace('.', ',') : '');
+        if (comissaoEl) comissaoEl.value = item.comissao_perc || '10';
+
+        updateQuickProductCostCalc();
+
+        // Efeito visual sutil de highlight nos campos preenchidos
+        [descEl, tamEl, corEl, precoEl].forEach(el => {
+            if (el) {
+                el.style.transition = 'all 0.3s ease';
+                el.style.borderColor = '#7c3aed';
+                el.style.backgroundColor = '#faf5ff';
+                setTimeout(() => {
+                    el.style.borderColor = '#cbd5e1';
+                    el.style.backgroundColor = '#f8fafc';
+                }, 600);
+            }
+        });
+
+        showToast(`Peça "${item.descricao || item.nome}" clonada! Pronto para salvar.`);
+
+        // Foca no botão de salvar para permitir salvar com Enter imediatamente
+        const saveBtn = document.getElementById('btn-save-quick-prod');
+        if (saveBtn) saveBtn.focus();
+    }
+
+    function fetchQuickRecentItems() {
+        renderQuickRecentItems();
+        if (!liveId) return;
+        fetch(`/admin/lives/${liveId}/recent-items`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.items)) {
+                    recentQuickItems = data.items;
+                    renderQuickRecentItems();
+                }
+            })
+            .catch(err => console.error("Erro ao buscar itens recentes:", err));
+    }
+
     function openQuickProductModal(initialVal = '') {
         globalBarcodeBuffer = "";
         if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
+
+        fetchQuickRecentItems();
 
         const barcodeInput = document.getElementById('dashboard-barcode-input');
         if (barcodeInput) {
@@ -3112,6 +3241,24 @@
                 const code = item ? item.codigo : '';
                 showToast(`Peça #${code} cadastrada com sucesso!`);
                 closeQuickProductModal();
+
+                // Adiciona a peça no topo dos últimos itens registrados para clonagem
+                if (item) {
+                    const newItem = {
+                        id: item.id,
+                        codigo: item.codigo,
+                        codigo_live: item.codigo_live || null,
+                        descricao: item.descricao || item.nome || descricao,
+                        tamanho: item.tamanho || tamanho || '',
+                        cor: item.cor || cor || '',
+                        preco: item.preco || preco,
+                        preco_fmt: item.preco_formatado ? item.preco_formatado.replace('R$ ', '') : preco,
+                        custo: item.custo || custo,
+                        custo_fmt: item.custo_formatado ? item.custo_formatado.replace('R$ ', '') : custo,
+                        comissao_perc: comissaoPerc || 10
+                    };
+                    recentQuickItems = [newItem, ...recentQuickItems.filter(it => it.id !== newItem.id)].slice(0, 5);
+                }
 
                 if (selectedParticipant && item) {
                     const statusEl = document.getElementById("dashboard-barcode-status");
