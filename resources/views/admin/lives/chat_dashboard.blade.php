@@ -606,19 +606,37 @@
 <div id="modal-quick-product" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 99999;">
     <div class="relative w-full max-w-md rounded-3xl overflow-hidden flex flex-col" style="background-color: #ffffff; border: 2px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); max-height: 92vh; overflow-y: auto;">
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 18px;">
-                    <i class="fas fa-tag"></i>
+        <div style="background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%); padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 16px;">
+                        <i class="fas fa-tag"></i>
+                    </div>
+                    <div>
+                        <h3 style="color: #ffffff !important; font-size: 14px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Nova Peça Vendida</h3>
+                        <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código sequencial e vincula à sacola</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 style="color: #ffffff !important; font-size: 15px; font-weight: 900; margin: 0; line-height: 1.2;">Cadastrar Nova Peça Vendida</h3>
-                    <p style="color: #ddd6fe !important; font-size: 11px; font-weight: 600; margin: 2px 0 0 0;">Gera código sequencial, calcula comissão e vincula à sacola</p>
+                <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Dados da Cliente Alvo em Destaque -->
+            <div id="quick-prod-modal-client-target-badge" style="background: rgba(15, 23, 42, 0.45); border: 1.5px solid rgba(254, 240, 138, 0.4); border-radius: 10px; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 9px; min-width: 0; overflow: hidden;">
+                    <div style="width: 26px; height: 26px; border-radius: 9999px; background: #fef08a; color: #78350f; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; flex-shrink: 0;">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span style="font-size: 10px; font-weight: 800; color: #cbd5e1 !important; text-transform: uppercase; letter-spacing: 0.5px; display: block; line-height: 1;">Vincular item para a cliente:</span>
+                        <span id="quick-prod-modal-client-name" style="font-size: 15px; font-weight: 900; color: #fef08a !important; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;">Nenhuma cliente selecionada</span>
+                    </div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <span id="quick-prod-modal-client-user" style="font-size: 11px; font-weight: 800; color: #ffffff !important; background: rgba(255,255,255,0.18); padding: 3px 8px; border-radius: 9999px; display: inline-block;">@avulso</span>
                 </div>
             </div>
-            <button type="button" onclick="closeQuickProductModal()" style="color: #ffffff; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                <i class="fas fa-times text-sm"></i>
-            </button>
         </div>
 
         <!-- Form -->
@@ -1947,7 +1965,13 @@
         // Garante que a aba de pessoas online esteja visível
         switchTab('online');
 
-        // Foca automaticamente no campo de bipe / cadastro
+        // Se o 'Modo Live Externa' estiver ativado, abre diretamente o modal de cadastrar peça vendida
+        if (liveOperationMode === 'external') {
+            openQuickProductModal();
+            return;
+        }
+
+        // Foca automaticamente no campo de bipe / cadastro (Modo Estoque)
         setTimeout(() => {
             const input = document.getElementById("dashboard-barcode-input");
             if (input) {
@@ -3162,6 +3186,29 @@
         if (barcodeDebounceTimer) clearTimeout(barcodeDebounceTimer);
 
         fetchQuickRecentItems();
+
+        // Atualiza cabeçalho com os dados da cliente alvo em destaque
+        const clientNameEl = document.getElementById('quick-prod-modal-client-name');
+        const clientUserEl = document.getElementById('quick-prod-modal-client-user');
+        const clientBadgeEl = document.getElementById('quick-prod-modal-client-target-badge');
+
+        if (selectedParticipant) {
+            const displayName = selectedParticipant.clientName || selectedParticipant.username || 'Cliente';
+            const displayUser = selectedParticipant.username ? `@${selectedParticipant.username.replace(/^@/, '')}` : (selectedParticipant.platform || '');
+            if (clientNameEl) clientNameEl.textContent = displayName;
+            if (clientUserEl) clientUserEl.textContent = displayUser;
+            if (clientBadgeEl) {
+                clientBadgeEl.style.backgroundColor = 'rgba(15, 23, 42, 0.45)';
+                clientBadgeEl.style.borderColor = 'rgba(254, 240, 138, 0.6)';
+            }
+        } else {
+            if (clientNameEl) clientNameEl.textContent = 'Nenhuma cliente selecionada (Apenas cadastrar)';
+            if (clientUserEl) clientUserEl.textContent = 'Sem vínculo';
+            if (clientBadgeEl) {
+                clientBadgeEl.style.backgroundColor = 'rgba(15, 23, 42, 0.25)';
+                clientBadgeEl.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            }
+        }
 
         const barcodeInput = document.getElementById('dashboard-barcode-input');
         if (barcodeInput) {
