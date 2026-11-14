@@ -211,6 +211,14 @@ class SeverinoService
             "  1. Na tabela `lives`, a coluna de data é `data` (NUNCA 'date').\n" .
             "  2. No MySQL, NUNCA use `WHERE live_id IN (SELECT id FROM lives ORDER BY data DESC LIMIT N)` pois subqueries com LIMIT dentro de IN causam erro fatal! Em vez disso, use `JOIN (SELECT id FROM lives ORDER BY data DESC LIMIT N) ult ON s.live_id = ult.id` ou busque os IDs das lives antes.\n" .
             "  3. Ao buscar se houve 'pedido com valor X em live' ou compras de um determinado valor em lives, apure o valor agrupado por cliente naquela live (`SUM(s.price * s.quantity) as total_cliente ... HAVING total_cliente = X`) E verifique se virou pedido (`s.status = 'pedido'` ou `pedidos.valor_total = X`).\n" .
+            "- INVESTIGAÇÃO DEDUTIVA DE PAGAMENTOS, PIX E DIFERENÇAS (MÉTODO INVESTIGATIVO OBRIGATÓRIO):\n" .
+            "  1. Quando o usuário perguntar sobre uma entrada, PIX, depósito ou diferença de valor (ex: 'Tenho uma entrada de 171,82 de Juliane. Verifique compra em live ou sacolinha...'):\n" .
+            "  2. NUNCA se limite a procurar `pedidos WHERE valor_total = X` e parar dizendo que não achou!\n" .
+            "  3. PASSO 1 - EXTRATO: Chame `consultar_extrato_bancario` com o valor (ex: 171.82) ou com o nome/termo para ver a transação bruta do Banco Inter / Mercado Pago (descrição, banco pagador, pagador real no payload).\n" .
+            "  4. PASSO 2 - CLIENTE E SACOLINHA: Chame `buscar_cliente` com o nome para achar o ID e use `itens_sacolinha` para ver o que a cliente tem em aberto ou comprou na live.\n" .
+            "  5. PASSO 3 - FRETE: Se o valor recebido for maior que o valor das peças da sacolinha, chame `simular_frete_sacolinha(user_id)`! A diferença quase sempre é o FRETE (PAC, Sedex ou transportadora).\n" .
+            "  6. PASSO 4 - CARTEIRA: Se ainda houver sobra ou falta, consulte o saldo da cliente em `resumo_financeiro_cliente` para ver se ela usou créditos.\n" .
+            "  7. CONCLUSÃO MATEMÁTICA: Formule uma resposta dedutiva completa provando a correlação: ex: 'O PIX de R$ 171,82 recebido no Inter refere-se à sacolinha da Juliane (R$ 150,00 da peça X) + frete PAC cotado no Melhor Envio (R$ 21,82) = R$ 171,82.'\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -250,6 +258,33 @@ class SeverinoService
                             "type" => "OBJECT",
                             "properties" => [
                                 "user_id" => ["type" => "INTEGER", "description" => "ID numérico do cliente (deve ser o ID, não o nome)"]
+                            ],
+                            "required" => ["user_id"]
+                        ]
+                    ],
+                    [
+                        "name" => "consultar_extrato_bancario",
+                        "description" => "Consulta as movimentações brutas importadas do extrato bancário (Banco Inter / Mercado Pago) na tabela `transacoes_extrato`. Permite buscar por valor exato ou aproximado (ex: 171.82), por termo de texto na descrição (ex: 'Juliane', 'PIX', 'TED', nome do pagador, ISPB do banco) ou por data. Use SEMPRE que o usuário perguntar sobre depósitos, PIX recebidos, entradas, extrato ou conciliação bancária.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "valor" => ["type" => "NUMBER", "description" => "Opcional. Valor numérico da transação (ex: 171.82). Busca valores exatos ou com centavos próximos."],
+                                "termo" => ["type" => "STRING", "description" => "Opcional. Nome do pagador, descrição da transação, ISPB, documento ou parte do texto"],
+                                "data" => ["type" => "STRING", "description" => "Opcional. Data no formato YYYY-MM-DD ou mês YYYY-MM"],
+                                "tipo" => ["type" => "STRING", "description" => "Opcional. 'entrada' (recebimentos/PIX) ou 'saida' (pagamentos). Padrão é 'entrada' para buscas de recebimento."],
+                                "status" => ["type" => "STRING", "description" => "Opcional. 'pendente', 'conciliado', 'ignorado' ou 'todos'. Padrão é 'todos'."],
+                                "limite" => ["type" => "INTEGER", "description" => "Quantidade máxima de registros (padrão: 10, máximo: 30)"]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "simular_frete_sacolinha",
+                        "description" => "Calcula a cotação de frete real via Melhor Envio para a sacolinha de um cliente (peças da sacolinha aberta ou compras recentes). Retorna as opções de frete (PAC, Sedex, etc.), o valor das peças e o valor total consolidado (Peças + Frete). Use SEMPRE que investigar se um valor recebido de cliente (PIX/depósito) corresponde ao fechamento de uma sacolinha com frete.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "user_id" => ["type" => "INTEGER", "description" => "ID numérico do cliente."],
+                                "cep" => ["type" => "STRING", "description" => "Opcional. CEP de destino (8 dígitos). Se omitido, busca automaticamente o CEP do cadastro do cliente."]
                             ],
                             "required" => ["user_id"]
                         ]
@@ -747,9 +782,9 @@ class SeverinoService
                 $payload["tool_choice"] = "none";
             }
 
-            // Controle anti-timeout do Nginx (60s). Se já passaram 40 segundos, forçamos a pausa amigável!
-            if (microtime(true) - $startTime > 40) {
-                Log::warning("Tempo de execução limite atingido (40s). Forçando pausa técnica para evitar Nginx 504.");
+            // Controle anti-timeout do Nginx (300s) e PHP (120s). Se já passaram 85 segundos, forçamos a pausa amigável!
+            if (microtime(true) - $startTime > 85) {
+                Log::warning("Tempo de execução limite atingido (85s). Forçando pausa técnica para evitar Nginx 504.");
                 break;
             }
 
@@ -775,8 +810,8 @@ class SeverinoService
                 foreach ($providersToTry as &$provider) {
                     
                     // Checa anti-timeout dentro do loop de provedores também!
-                    if (microtime(true) - $startTime > 40) {
-                        \Illuminate\Support\Facades\Log::warning("Tempo limite 40s atingido dentro do loop de provedores. Forçando pausa amigável.");
+                    if (microtime(true) - $startTime > 85) {
+                        \Illuminate\Support\Facades\Log::warning("Tempo limite 85s atingido dentro do loop de provedores. Forçando pausa amigável.");
                         if ($sessionId && \Illuminate\Support\Facades\Cache::has('severino_scratchpad_' . $sessionId)) {
                             $pauseCount = (int) \Illuminate\Support\Facades\Cache::get('severino_pause_count_' . $sessionId, 0) + 1;
                             if ($pauseCount >= 2 || $isContinue) {
@@ -1301,6 +1336,208 @@ class SeverinoService
                         "limite_disponivel" => $disponivel,
                         "aviso_para_a_ia" => "Atenção IA: Leia e informe exatamente os números acima. O limite utilizado é o valor real (em R$) que o cliente já gastou na sacolinha. Se o limite disponível estiver negativo, significa que a pessoa gastou MAIS do que o limite concedido."
                     ];
+
+                case "consultar_extrato_bancario":
+                    $valor = isset($args["valor"]) && is_numeric($args["valor"]) ? (float)$args["valor"] : null;
+                    $termo = trim((string)($args["termo"] ?? ""));
+                    $data = trim((string)($args["data"] ?? ""));
+                    $tipo = trim((string)($args["tipo"] ?? ""));
+                    $status = trim((string)($args["status"] ?? ""));
+                    $limite = min(max((int)($args["limite"] ?? 10), 1), 30);
+
+                    $q = DB::table('transacoes_extrato');
+
+                    if ($valor !== null) {
+                        $q->whereBetween('valor', [$valor - 0.05, $valor + 0.05]);
+                    }
+
+                    if ($termo !== "") {
+                        $q->where(function($sub) use ($termo) {
+                            $sub->where('descricao', 'LIKE', "%{$termo}%")
+                                ->orWhere('fitid', 'LIKE', "%{$termo}%")
+                                ->orWhere('payload_original', 'LIKE', "%{$termo}%");
+                        });
+                    }
+
+                    if ($data !== "") {
+                        if (strlen($data) === 7) {
+                            $q->where('data', 'LIKE', "{$data}%");
+                        } else {
+                            $q->whereDate('data', $data);
+                        }
+                    }
+
+                    if ($tipo !== "" && in_array($tipo, ['entrada', 'saida'])) {
+                        $q->where('tipo', $tipo);
+                    }
+
+                    if ($status !== "" && in_array($status, ['pendente', 'conciliado', 'ignorado'])) {
+                        $q->where('status', $status);
+                    }
+
+                    $results = $q->orderByDesc('data')->orderByDesc('id')->limit($limite)->get();
+
+                    if ($results->isEmpty()) {
+                        return [
+                            "mensagem" => "Nenhuma transação de extrato encontrada com os filtros informados.",
+                            "filtros_aplicados" => array_filter(["valor" => $valor, "termo" => $termo, "data" => $data, "tipo" => $tipo, "status" => $status])
+                        ];
+                    }
+
+                    $transacoes = [];
+                    foreach ($results as $r) {
+                        $nomePagador = null;
+                        $ispb = null;
+                        if (!empty($r->payload_original)) {
+                            $p = json_decode($r->payload_original, true);
+                            if (is_array($p)) {
+                                $nomePagador = $p['nomePagador'] ?? $p['pagador']['nome'] ?? $p['nome'] ?? null;
+                                $ispb = $p['ispb'] ?? $p['pagador']['ispb'] ?? null;
+                            }
+                        }
+                        if (!$nomePagador && preg_match('/Cp\s*:\s*([0-9]+)\s*-\s*(.+)$/i', $r->descricao, $m)) {
+                            $ispb = $m[1];
+                            $nomePagador = trim($m[2]);
+                        }
+
+                        $transacoes[] = [
+                            "id" => $r->id,
+                            "data" => date('d/m/Y', strtotime($r->data)),
+                            "valor" => (float)$r->valor,
+                            "tipo" => $r->tipo,
+                            "status" => $r->status,
+                            "origem" => $r->origem,
+                            "descricao" => $r->descricao,
+                            "nome_pagador" => $nomePagador,
+                            "ispb_banco" => $ispb,
+                            "fitid" => $r->fitid
+                        ];
+                    }
+
+                    return [
+                        "total_encontradas" => count($transacoes),
+                        "transacoes" => $transacoes
+                    ];
+
+                case "simular_frete_sacolinha":
+                    $userId = (int)($args["user_id"] ?? 0);
+                    $cep = preg_replace('/[^0-9]/', '', (string)($args["cep"] ?? ""));
+
+                    if ($userId <= 0) {
+                        return ["erro" => "ID de cliente inválido para simulação de frete."];
+                    }
+
+                    $cliente = DB::table('users')->where('id', $userId)->first();
+                    if (!$cliente) {
+                        return ["erro" => "Cliente ID {$userId} não encontrado."];
+                    }
+
+                    if (empty($cep)) {
+                        $cep = preg_replace('/[^0-9]/', '', (string)($cliente->cep ?? ""));
+                        if (empty($cep)) {
+                            $pessoaCep = DB::table('pessoas')->where('user_id', $userId)->value('cep');
+                            $cep = preg_replace('/[^0-9]/', '', (string)$pessoaCep);
+                        }
+                    }
+
+                    if (empty($cep) || strlen($cep) !== 8) {
+                        return [
+                            "erro" => "Cliente não possui CEP válido cadastrado (necessário 8 dígitos). Forneça o parâmetro 'cep' para cotar.",
+                            "cliente_nome" => $cliente->name
+                        ];
+                    }
+
+                    // Busca itens da sacolinha aberta ou itens recentemente adicionados
+                    $sacolas = DB::table('sacolinhas as s')
+                        ->join('items as i', 's.item_id', '=', 'i.id')
+                        ->where('s.user_id', $userId)
+                        ->where(function($q) {
+                            $q->where('s.status', '!=', 'pedido')
+                              ->where(function($sub) {
+                                  $sub->whereNull('s.obs')->orWhereRaw("LOWER(s.obs) NOT LIKE '%ped-%'");
+                              });
+                        })
+                        ->select('s.id as sacolinha_id', 's.item_id', 's.price', 's.quantity', 'i.nome_do_produto', 's.status')
+                        ->get();
+
+                    $foiDeSacolaAberta = true;
+                    if ($sacolas->isEmpty()) {
+                        $foiDeSacolaAberta = false;
+                        $sacolas = DB::table('sacolinhas as s')
+                            ->join('items as i', 's.item_id', '=', 'i.id')
+                            ->where('s.user_id', $userId)
+                            ->orderByDesc('s.id')
+                            ->limit(10)
+                            ->select('s.id as sacolinha_id', 's.item_id', 's.price', 's.quantity', 'i.nome_do_produto', 's.status')
+                            ->get();
+                    }
+
+                    if ($sacolas->isEmpty()) {
+                        return [
+                            "mensagem" => "Cliente não possui itens em sacolinha para cotação de frete.",
+                            "cliente_nome" => $cliente->name
+                        ];
+                    }
+
+                    $totalPecasValor = 0;
+                    $totalPecasQtd = 0;
+                    $itemIds = [];
+                    foreach ($sacolas as $item) {
+                        $totalPecasValor += ((float)$item->price * (int)$item->quantity);
+                        $totalPecasQtd += (int)$item->quantity;
+                        $itemIds[] = $item->item_id;
+                    }
+
+                    try {
+                        $calculator = app(\App\Services\ShippingCalculatorService::class);
+                        $melhorEnvio = app(\App\Services\MelhorEnvioService::class);
+
+                        $packageData = $calculator->calculateForItems($itemIds);
+                        $quote = $melhorEnvio->calculateShipping($cep, $packageData);
+
+                        if (!$quote['success'] || empty($quote['options'])) {
+                            return [
+                                "sucesso" => false,
+                                "mensagem" => "Não foi possível obter tarifas do Melhor Envio: " . ($quote['message'] ?? 'Sem opções para o CEP.'),
+                                "cliente_nome" => $cliente->name,
+                                "cep" => $cep,
+                                "total_pecas_valor" => round($totalPecasValor, 2)
+                            ];
+                        }
+
+                        $opcoes = [];
+                        $totaisComFrete = [];
+                        foreach ($quote['options'] as $opt) {
+                            $precoFrete = (float)($opt['price'] ?? 0);
+                            $nomeServico = $opt['name'] ?? ($opt['company']['name'] ?? 'Transportadora');
+                            $opcoes[] = [
+                                "servico" => $nomeServico,
+                                "valor_frete" => round($precoFrete, 2),
+                                "prazo_dias" => $opt['delivery_time'] ?? null
+                            ];
+                            $totaisComFrete[$nomeServico] = round($totalPecasValor + $precoFrete, 2);
+                        }
+
+                        return [
+                            "sucesso" => true,
+                            "tipo_itens" => $foiDeSacolaAberta ? "sacolinha_aberta" : "itens_recentes",
+                            "cliente_nome" => $cliente->name,
+                            "cep_destino" => $cep,
+                            "cidade_estado" => "{$cliente->cidade}/{$cliente->estado}",
+                            "total_itens" => $totalPecasQtd,
+                            "valor_total_pecas" => round($totalPecasValor, 2),
+                            "opcoes_frete" => $opcoes,
+                            "combinacoes_pecas_mais_frete" => $totaisComFrete,
+                            "instrucao_deducao" => "Compare o valor que o cliente pagou com 'combinacoes_pecas_mais_frete'. Se coincidir com um dos valores, você comprovou matematicamente que o pagamento foi exatamente: Peças (R$ {$totalPecasValor}) + Frete!"
+                        ];
+                    } catch (\Exception $e) {
+                        return [
+                            "sucesso" => false,
+                            "erro" => "Erro ao calcular frete: " . $e->getMessage(),
+                            "cliente_nome" => $cliente->name,
+                            "total_pecas_valor" => round($totalPecasValor, 2)
+                        ];
+                    }
 
                 case "resumo_carteira_clientes":
                     $subQueryMaxDate = DB::table('conta_corrente')
