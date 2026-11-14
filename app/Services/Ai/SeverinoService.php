@@ -290,6 +290,19 @@ class SeverinoService
                         ]
                     ],
                     [
+                        "name" => "consultar_pedidos",
+                        "description" => "Consulta pedidos fechados no sistema (tabela `pedidos`) com o detalhamento das peças que compõem o pedido e o valor do frete. Permite buscar por cliente (user_id), por valor total exato (ex: 171.82) ou pelo número do pedido (ex: 'PED-001069' ou '1069'). Use SEMPRE que precisar investigar compras finalizadas, pedidos de um cliente ou conferir de onde veio um valor pago.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "user_id" => ["type" => "INTEGER", "description" => "Opcional. ID numérico do cliente para listar seus últimos pedidos."],
+                                "valor" => ["type" => "NUMBER", "description" => "Opcional. Valor total exato ou aproximado do pedido (ex: 171.82)."],
+                                "numero_pedido" => ["type" => "STRING", "description" => "Opcional. Número do pedido (ex: 'PED-001069' ou '1069')."],
+                                "limite" => ["type" => "INTEGER", "description" => "Quantidade máxima de pedidos para retornar (padrão: 5, máximo: 15)."]
+                            ]
+                        ]
+                    ],
+                    [
                         "name" => "contagem_estoque",
                         "description" => "Retorna a quantidade de peças em um status específico.",
                         "parameters" => [
@@ -1550,6 +1563,91 @@ class SeverinoService
                             "total_pecas_valor" => round($totalPecasValor, 2)
                         ];
                     }
+
+                case "consultar_pedidos":
+                    $userId = !empty($args["user_id"]) ? (int)$args["user_id"] : null;
+                    $valor = isset($args["valor"]) && is_numeric($args["valor"]) ? (float)$args["valor"] : null;
+                    $numPedido = trim((string)($args["numero_pedido"] ?? ""));
+                    $limite = min(max((int)($args["limite"] ?? 5), 1), 15);
+
+                    $q = DB::table('pedidos as p')
+                        ->join('users as u', 'p.user_id', '=', 'u.id')
+                        ->select(
+                            'p.id', 'p.numero_pedido', 'p.user_id', 'u.name as cliente_nome',
+                            'p.valor_total', 'p.valor_frete', 'p.status_pedido', 'p.status_pagamento',
+                            'p.forma_pagamento', 'p.created_at', 'p.data_pedido'
+                        );
+
+                    if ($userId) {
+                        $q->where('p.user_id', $userId);
+                    }
+
+                    if ($valor !== null) {
+                        $q->whereBetween('p.valor_total', [$valor - 0.05, $valor + 0.05]);
+                    }
+
+                    if ($numPedido !== "") {
+                        $cleanNum = preg_replace('/[^0-9]/', '', $numPedido);
+                        $q->where(function($sub) use ($numPedido, $cleanNum) {
+                            $sub->where('p.numero_pedido', 'LIKE', "%{$numPedido}%");
+                            if (!empty($cleanNum)) {
+                                $sub->orWhere('p.id', (int)$cleanNum);
+                            }
+                        });
+                    }
+
+                    $pedidos = $q->orderByDesc('p.id')->limit($limite)->get();
+
+                    if ($pedidos->isEmpty()) {
+                        return [
+                            "mensagem" => "Nenhum pedido encontrado com os filtros informados.",
+                            "filtros_aplicados" => array_filter(["user_id" => $userId, "valor" => $valor, "numero_pedido" => $numPedido])
+                        ];
+                    }
+
+                    $detalhes = [];
+                    foreach ($pedidos as $p) {
+                        $itens = DB::table('sacolinhas as s')
+                            ->join('items as i', 's.item_id', '=', 'i.id')
+                            ->where('s.user_id', $p->user_id)
+                            ->where(function($sub) use ($p) {
+                                $sub->where('s.obs', 'LIKE', "%ped-{$p->id}%")
+                                    ->orWhere('s.obs', 'LIKE', "%PED-" . str_pad($p->id, 6, '0', STR_PAD_LEFT) . "%");
+                            })
+                            ->select('i.nome_do_produto', 's.price', 's.quantity', 's.live_id')
+                            ->get();
+
+                        $itensFormatados = [];
+                        foreach ($itens as $it) {
+                            $itensFormatados[] = [
+                                "produto" => $it->nome_do_produto,
+                                "preco_unitario" => (float)$it->price,
+                                "quantidade" => (int)$it->quantity,
+                                "total_item" => round((float)$it->price * (int)$it->quantity, 2),
+                                "live_id" => $it->live_id
+                            ];
+                        }
+
+                        $detalhes[] = [
+                            "id" => $p->id,
+                            "numero_pedido" => $p->numero_pedido,
+                            "cliente_nome" => $p->cliente_nome,
+                            "user_id" => $p->user_id,
+                            "data" => date('d/m/Y H:i', strtotime($p->created_at ?: $p->data_pedido)),
+                            "valor_total" => (float)$p->valor_total,
+                            "valor_frete" => (float)$p->valor_frete,
+                            "valor_pecas" => round((float)$p->valor_total - (float)$p->valor_frete, 2),
+                            "status_pedido" => $p->status_pedido,
+                            "status_pagamento" => $p->status_pagamento,
+                            "forma_pagamento" => $p->forma_pagamento,
+                            "itens" => $itensFormatados
+                        ];
+                    }
+
+                    return [
+                        "total_pedidos" => count($detalhes),
+                        "pedidos" => $detalhes
+                    ];
 
                 case "resumo_carteira_clientes":
                     $subQueryMaxDate = DB::table('conta_corrente')
