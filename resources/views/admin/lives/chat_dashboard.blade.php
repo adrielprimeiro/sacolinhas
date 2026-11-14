@@ -624,13 +624,13 @@
         <!-- Form -->
         <form onsubmit="submitQuickProduct(event)" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; background-color: #ffffff; margin: 0;">
 
-            <!-- Linha Minimalista: Clonar Últimos Itens Registrados -->
-            <div id="quick-prod-recent-box" style="display: none; align-items: center; gap: 8px; overflow-x: auto; padding: 2px 0 4px 0; white-space: nowrap; scrollbar-width: none;">
-                <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #64748b !important; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; letter-spacing: 0.3px;">
-                    <i class="fas fa-history" style="color: #7c3aed !important; font-size: 10px;"></i> Clonar:
-                </span>
-                <div id="quick-prod-recent-list" style="display: inline-flex; align-items: center; gap: 6px;">
-                    <!-- Chips minimalistas em linha -->
+            <!-- Lista Simples: Últimos Itens Registrados (Sem scroll, uma linha após a outra) -->
+            <div id="quick-prod-recent-box" style="display: none; flex-direction: column; gap: 2px; padding: 6px 8px; background-color: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 10px;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b !important; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fas fa-history" style="color: #7c3aed !important;"></i> Últimos registrados (clique na linha para clonar):</span>
+                </div>
+                <div id="quick-prod-recent-list" style="display: flex; flex-direction: column; gap: 1px;">
+                    <!-- Linhas simples geradas dinamicamente -->
                 </div>
             </div>
 
@@ -3075,25 +3075,28 @@
         let html = '';
 
         recentQuickItems.slice(0, 5).forEach((item, index) => {
-            const rawDesc = item.descricao || item.nome || 'Produto';
-            const shortDesc = escapeHtml(rawDesc.length > 20 ? rawDesc.substring(0, 18) + '…' : rawDesc);
-            const fullDesc = escapeHtml(rawDesc);
+            const desc = escapeHtml(item.descricao || item.nome || 'Produto');
             const tam = escapeHtml(item.tamanho || '');
+            const cor = escapeHtml(item.cor || '');
             const precoFmt = item.preco_fmt || Number(item.preco || 0).toFixed(2).replace('.', ',');
             const codeLive = item.codigo_live ? `#${escapeHtml(item.codigo_live)}` : (item.codigo ? `#${escapeHtml(item.codigo)}` : '');
 
             html += `
-                <button type="button" 
-                        onclick="cloneQuickRecentItem(${index})" 
-                        title="Clonar: ${fullDesc} (R$ ${precoFmt})" 
-                        style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 9999px; background-color: #f1f5f9 !important; border: 1px solid #cbd5e1 !important; cursor: pointer; font-size: 11px; font-weight: 700; color: #1e293b !important; white-space: nowrap; transition: all 0.15s ease; flex-shrink: 0;"
-                        onmouseover="this.style.backgroundColor='#ede9fe'; this.style.borderColor='#7c3aed'; this.style.color='#5b21b6';" 
-                        onmouseout="this.style.backgroundColor='#f1f5f9'; this.style.borderColor='#cbd5e1'; this.style.color='#1e293b';">
-                    ${codeLive ? `<span style="color: #64748b; font-size: 10px; font-weight: 800;">${codeLive}</span>` : ''}
-                    <span>${shortDesc}</span>
-                    ${tam ? `<span style="color: #64748b; font-size: 10px; font-weight: 800;">(${tam})</span>` : ''}
-                    <strong style="color: #047857; font-weight: 900; margin-left: 2px;">R$ ${precoFmt}</strong>
-                </button>
+                <div onclick="cloneQuickRecentItem(${index})" 
+                     title="Clique para clonar esta peça" 
+                     style="display: flex; align-items: center; justify-content: space-between; padding: 2.5px 6px; border-radius: 6px; font-size: 11px; cursor: pointer; transition: background 0.12s ease; line-height: 1.3;"
+                     onmouseover="this.style.backgroundColor='#ede9fe';" 
+                     onmouseout="this.style.backgroundColor='transparent';">
+                    
+                    <div style="display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${codeLive ? `<strong style="color: #6d28d9 !important; font-size: 11px;">${codeLive}</strong>` : ''}
+                        <span style="font-weight: 700; color: #1e293b !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${desc}</span>
+                        ${tam ? `<span style="color: #64748b !important; font-size: 10.5px;">• ${tam}</span>` : ''}
+                        ${cor ? `<span style="color: #64748b !important; font-size: 10.5px;">• ${cor}</span>` : ''}
+                    </div>
+
+                    <strong style="color: #047857 !important; font-size: 11px; margin-left: 8px; flex-shrink: 0;">R$ ${precoFmt}</strong>
+                </div>
             `;
         });
 
