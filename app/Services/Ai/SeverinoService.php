@@ -1345,37 +1345,43 @@ class SeverinoService
                     $status = trim((string)($args["status"] ?? ""));
                     $limite = min(max((int)($args["limite"] ?? 10), 1), 30);
 
-                    $q = DB::table('transacoes_extrato');
-
-                    if ($valor !== null) {
-                        $q->whereBetween('valor', [$valor - 0.05, $valor + 0.05]);
-                    }
-
-                    if ($termo !== "") {
-                        $q->where(function($sub) use ($termo) {
-                            $sub->where('descricao', 'LIKE', "%{$termo}%")
-                                ->orWhere('fitid', 'LIKE', "%{$termo}%")
-                                ->orWhere('payload_original', 'LIKE', "%{$termo}%");
-                        });
-                    }
-
-                    if ($data !== "") {
-                        if (strlen($data) === 7) {
-                            $q->where('data', 'LIKE', "{$data}%");
-                        } else {
-                            $q->whereDate('data', $data);
+                    $buildQuery = function($includeTermo = true) use ($valor, $termo, $data, $tipo, $status, $limite) {
+                        $q = DB::table('transacoes_extrato');
+                        if ($valor !== null) {
+                            $q->whereBetween('valor', [$valor - 0.05, $valor + 0.05]);
                         }
-                    }
+                        if ($includeTermo && $termo !== "") {
+                            $q->where(function($sub) use ($termo) {
+                                $sub->where('descricao', 'LIKE', "%{$termo}%")
+                                    ->orWhere('fitid', 'LIKE', "%{$termo}%")
+                                    ->orWhere('payload_original', 'LIKE', "%{$termo}%");
+                            });
+                        }
+                        if ($data !== "") {
+                            if (strlen($data) === 7) {
+                                $q->where('data', 'LIKE', "{$data}%");
+                            } else {
+                                $q->whereDate('data', $data);
+                            }
+                        }
+                        if ($tipo !== "" && in_array($tipo, ['entrada', 'saida'])) {
+                            $q->where('tipo', $tipo);
+                        }
+                        if ($status !== "" && in_array($status, ['pendente', 'conciliado', 'ignorado'])) {
+                            $q->where('status', $status);
+                        }
+                        return $q->orderByDesc('data')->orderByDesc('id')->limit($limite)->get();
+                    };
 
-                    if ($tipo !== "" && in_array($tipo, ['entrada', 'saida'])) {
-                        $q->where('tipo', $tipo);
-                    }
+                    $results = $buildQuery(true);
+                    $fallbackValor = false;
 
-                    if ($status !== "" && in_array($status, ['pendente', 'conciliado', 'ignorado'])) {
-                        $q->where('status', $status);
+                    // Se filtrou por valor E termo e não achou, mas tem valor informado, busca pelo valor sozinho!
+                    // Muitas vezes o cliente paga via conta PJ, cônjuge ou parente (ex: ELOALEF COMERCIO LTDA em vez de Juliane)
+                    if ($results->isEmpty() && $valor !== null && $termo !== "") {
+                        $results = $buildQuery(false);
+                        $fallbackValor = true;
                     }
-
-                    $results = $q->orderByDesc('data')->orderByDesc('id')->limit($limite)->get();
 
                     if ($results->isEmpty()) {
                         return [
@@ -1414,10 +1420,16 @@ class SeverinoService
                         ];
                     }
 
-                    return [
+                    $response = [
                         "total_encontradas" => count($transacoes),
                         "transacoes" => $transacoes
                     ];
+
+                    if ($fallbackValor) {
+                        $response["aviso_deducao_pagador_diferente"] = "ATENÇÃO INVESTIGATIVA: A busca pela descrição '{$termo}' não encontrou nada com esse valor, MAS encontramos transações no valor exato de R$ {$valor}! Clientes frequentemente pagam via conta jurídica (PJ), cônjuge ou terceiros (ex: pagador diferente do cadastro). Verifique se o valor bate com a sacolinha do cliente informado!";
+                    }
+
+                    return $response;
 
                 case "simular_frete_sacolinha":
                     $userId = (int)($args["user_id"] ?? 0);
