@@ -676,7 +676,7 @@ class SeverinoService
             "tools" => $groqTools,
             "tool_choice" => "auto",
             "temperature" => 0.2,
-            "max_tokens" => 800
+            "max_tokens" => 3500
         ];
 
         $providersToTry = [];
@@ -886,6 +886,13 @@ class SeverinoService
                             }
                             $payloadToSend["messages"] = $sanitizedGeminiMessages;
                         }
+                    }
+
+                    // Ajuste de max_tokens específico por provedor (Groq tem limite severo de OTPM de 1000 tokens no plano gratuito, Gemini suporta milhares)
+                    if (str_contains($provider["url"], "api.groq.com")) {
+                        $payloadToSend["max_tokens"] = 900;
+                    } else {
+                        $payloadToSend["max_tokens"] = 3500;
                     }
 
                     // Se for Groq e o payload for muito extenso (limite de 8.500 tokens do plano gratuito do Groq),
