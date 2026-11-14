@@ -858,11 +858,11 @@ class SeverinoService
                         }
                     }
 
-                    // Se for Groq e o payload for muito extenso (limite de 7.000 tokens do plano gratuito do Groq),
+                    // Se for Groq e o payload for muito extenso (limite de 8.500 tokens do plano gratuito do Groq),
                     // pula o Groq para não disparar 413/429
                     if (str_contains($provider["url"], "api.groq.com")) {
                         $approxTokens = mb_strlen(json_encode($payloadToSend)) / 3.8;
-                        if ($approxTokens > 6000) {
+                        if ($approxTokens > 8500) {
                             continue;
                         }
                     }
@@ -968,10 +968,9 @@ class SeverinoService
                         }
                         
                         if ($response->status() == 503) {
-                            \Illuminate\Support\Facades\Cache::put('gemini_model_exhausted_' . md5($provider['model']), true, now()->addMinutes(10));
-                            $provider['score'] = -50;
-                            \Illuminate\Support\Facades\Cache::put($cacheKey, -50, now()->addMinutes(10));
-                            Log::warning("Provedor {$provider['name']} com alta demanda no Google (503). Desativando temporariamente por 10 minutos.");
+                            $provider['score'] = max($provider['score'] - 2, 10);
+                            \Illuminate\Support\Facades\Cache::put($cacheKey, $provider['score'], now()->addMinutes(5));
+                            Log::warning("Provedor {$provider['name']} com alta demanda no Google (503). Reduzindo score temporariamente.");
                             continue;
                         }
 
