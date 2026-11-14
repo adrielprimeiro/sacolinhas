@@ -843,18 +843,14 @@ class SeverinoService
                     $payloadToSend["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
 
-                    // Se for modelo Gemini 3.x e o histórico contém tool_calls sem thought_signature,
-                    // pula o modelo para evitar o erro 400 "Function call is missing a thought_signature"
-                    if (str_contains($provider["model"], "gemini-3")) {
+                    // Se for Gemini e houver tool_calls no histórico cujo message NÃO possui thought_signature,
+                    // pula o Gemini para evitar erro 400 "Function call is missing a thought_signature"
+                    if (str_contains($provider["url"], "generativelanguage.googleapis.com")) {
                         $hasUnsigned = false;
                         foreach ($payloadToSend["messages"] as $m) {
-                            if (!empty($m["tool_calls"])) {
-                                foreach ($m["tool_calls"] as $tc) {
-                                    if (empty($tc["extra_content"]["google"]["thought_signature"])) {
-                                        $hasUnsigned = true;
-                                        break 2;
-                                    }
-                                }
+                            if (!empty($m["tool_calls"]) && empty($m["extra_content"]["google"]["thought_signature"])) {
+                                $hasUnsigned = true;
+                                break;
                             }
                         }
                         if ($hasUnsigned) {
@@ -871,9 +867,10 @@ class SeverinoService
                         }
                     }
 
-                    // Se não for Gemini, remove o campo proprietário 'extra_content' dos tool_calls para evitar erro de schema no Groq/OpenRouter
+                    // Se não for Gemini, remove o campo proprietário 'extra_content' das mensagens e tool_calls para evitar erro de schema no Groq/OpenRouter
                     if (!str_contains($provider["url"], "generativelanguage.googleapis.com")) {
                         foreach ($payloadToSend["messages"] as &$m) {
+                            unset($m["extra_content"]);
                             if (!empty($m["tool_calls"])) {
                                 foreach ($m["tool_calls"] as &$tc) {
                                     unset($tc["extra_content"]);
@@ -1009,6 +1006,9 @@ class SeverinoService
             ];
             if (!empty($message["tool_calls"])) {
                 $sanitizedMessage["tool_calls"] = $message["tool_calls"];
+            }
+            if (!empty($message["extra_content"])) {
+                $sanitizedMessage["extra_content"] = $message["extra_content"];
             }
 
             // Adiciona a resposta da IA no histórico para o próximo round
