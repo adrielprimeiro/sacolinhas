@@ -683,6 +683,16 @@ class SeverinoService
 
         // 1. Google Gemini (Prioridade 1: Modelos modernos com 1M+ contexto, alta capacidade de raciocínio e alta taxa de requisições com chave paga)
         if (!empty($geminiKey)) {
+            if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-3.5-flash-lite'))) {
+                $providersToTry[] = [
+                    "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                    "key" => $geminiKey,
+                    "model" => "gemini-3.5-flash-lite",
+                    "name" => "Google Gemini 3.5 Flash Lite",
+                    "default_score" => 46,
+                    "timeout" => 10
+                ];
+            }
             if (!\Illuminate\Support\Facades\Cache::has('gemini_model_exhausted_' . md5('gemini-2.5-flash'))) {
                 $providersToTry[] = [
                     "url" => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -843,18 +853,38 @@ class SeverinoService
                     $payloadToSend["model"] = $provider["model"];
                     $cacheKey = "ai_score_" . md5($provider['name']);
 
-                    // Se for Gemini e houver tool_calls no histórico cujo message NÃO possui thought_signature,
-                    // pula o Gemini para evitar erro 400 "Function call is missing a thought_signature"
+                    // Se for Gemini e houver tool_calls ou resultados de ferramentas no histórico,
+                    // sanitiza convertendo para mensagens de texto limpas (user/assistant) para o Gemini.
+                    // Isso evita o erro 400 "Function call is missing a thought_signature" do Gemini v1beta,
+                    // preservando 100% dos dados apurados e mantendo as ferramentas ativas para novas consultas!
                     if (str_contains($provider["url"], "generativelanguage.googleapis.com")) {
-                        $hasUnsigned = false;
+                        $hasToolHistory = false;
                         foreach ($payloadToSend["messages"] as $m) {
-                            if (!empty($m["tool_calls"]) && empty($m["extra_content"]["google"]["thought_signature"])) {
-                                $hasUnsigned = true;
+                            if (($m["role"] ?? "") === "tool" || !empty($m["tool_calls"])) {
+                                $hasToolHistory = true;
                                 break;
                             }
                         }
-                        if ($hasUnsigned) {
-                            continue;
+                        if ($hasToolHistory) {
+                            $sanitizedGeminiMessages = [];
+                            foreach ($payloadToSend["messages"] as $m) {
+                                if (($m["role"] ?? "") === "tool") {
+                                    $toolName = $m["name"] ?? "ferramenta";
+                                    $sanitizedGeminiMessages[] = [
+                                        "role" => "user",
+                                        "content" => "[DADOS DA CONSULTA '{$toolName}']:\n{$m['content']}\n\nAnalise esses dados apurados e formule a resposta final completa e formatada em Markdown, ou chame novas ferramentas se ainda faltar alguma informação."
+                                    ];
+                                } elseif (!empty($m["tool_calls"])) {
+                                    $toolNames = array_map(fn($tc) => $tc["function"]["name"] ?? "", $m["tool_calls"]);
+                                    $sanitizedGeminiMessages[] = [
+                                        "role" => "assistant",
+                                        "content" => "Vou consultar as ferramentas no sistema: " . implode(", ", array_filter($toolNames))
+                                    ];
+                                } else {
+                                    $sanitizedGeminiMessages[] = $m;
+                                }
+                            }
+                            $payloadToSend["messages"] = $sanitizedGeminiMessages;
                         }
                     }
 
@@ -1017,7 +1047,7 @@ class SeverinoService
                 foreach ($message["tool_calls"] as $toolCall) {
                     $name = $toolCall["function"]["name"];
                     $args = json_decode($toolCall["function"]["arguments"], true) ?? [];
-                    Log::info("Severino chamando ferramenta Groq: {$name}", $args);
+                    Log::info("Severino chamando ferramenta: {$name}", $args);
                     
                     $resultado = $this->executeTool($name, $args);
                     $resumoDoResultado = $this->prepareToolContent($name, $resultado, $userPrompt);
