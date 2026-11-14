@@ -147,7 +147,7 @@
             </div>
             
             <!-- Cards de Clientes Novos Aguardando Telefone (Empilháveis) -->
-            <div id="pending-phone-cards-container" class="shrink-0 max-h-56 overflow-y-auto p-2 bg-gray-950 border-b border-gray-800 space-y-2 hidden">
+            <div id="pending-phone-cards-container" class="shrink-0 max-h-56 overflow-y-auto hidden" style="background-color: #0b0f19 !important; border-bottom: 2px solid #1e293b !important; padding: 10px !important;">
                 <!-- Cards renderizados dinamicamente via JS -->
             </div>
 
@@ -321,14 +321,17 @@
         <input type="hidden" id="modal-input-platform">
 
         <!-- BOTÃO CLIENTE NOVO -->
-        <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-sm">
-            <div class="text-xs text-emerald-950">
-                <strong class="font-bold block text-emerald-900 text-xs">Cliente Novo na Live?</strong>
-                <span class="text-emerald-700 text-[11px]">Cria o cadastro com o @ e aguarda o telefone no chat.</span>
+        <div style="margin-bottom: 16px; padding: 12px 14px; background-color: #ecfdf5 !important; border: 1.5px solid #a7f3d0 !important; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div>
+                <strong style="display: block; font-size: 13px; font-weight: 800; color: #064e3b !important; line-height: 1.2;">Cliente Novo na Live?</strong>
+                <span style="font-size: 11px; font-weight: 600; color: #047857 !important;">Cria o cadastro com o @ e aguarda o telefone no chat.</span>
             </div>
-            <button type="button" id="btn-quick-new-client" onclick="createQuickClientFromModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
-                <i class="fas fa-user-plus text-xs"></i>
-                <span>+ Cliente Novo</span>
+            <button type="button" id="btn-quick-new-client" onclick="createQuickClientFromModal()" 
+                    style="background-color: #059669 !important; color: #ffffff !important; font-size: 12px; font-weight: 800; padding: 8px 14px; border-radius: 10px; border: 1px solid #047857 !important; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); flex-shrink: 0;"
+                    onmouseover="this.style.backgroundColor='#047857';"
+                    onmouseout="this.style.backgroundColor='#059669';">
+                <i class="fas fa-user-plus text-xs" style="color: #ffffff !important;"></i>
+                <span style="color: #ffffff !important;">+ Cliente Novo</span>
             </button>
         </div>
 
@@ -1566,57 +1569,65 @@
 
         container.classList.remove("hidden");
         let html = `
-            <div class="flex items-center justify-between px-1 text-[11px] text-amber-400 font-bold mb-0.5">
-                <span class="flex items-center gap-1.5">
-                    <i class="fas fa-user-clock text-amber-400"></i>
-                    <span>Clientes Novos Aguardando WhatsApp (${pendingPhoneClients.length})</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; margin-bottom: 6px;">
+                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #fbbf24 !important;">
+                    <i class="fas fa-user-clock" style="color: #f59e0b !important;"></i>
+                    <span style="color: #fbbf24 !important;">Clientes Novos Aguardando WhatsApp (${pendingPhoneClients.length})</span>
                 </span>
-                <span class="text-[10px] text-gray-400 font-normal">Detecta automático no chat ou digite abaixo</span>
+                <span style="font-size: 11px; font-weight: 600; color: #cbd5e1 !important;">Detecta automático no chat ou digite abaixo</span>
             </div>
         `;
 
         pendingPhoneClients.forEach(client => {
             const isTikTok = client.platform === 'tiktok';
-            const icon = isTikTok ? '<i class="fab fa-tiktok text-cyan-400"></i>' : '<i class="fab fa-instagram text-pink-400"></i>';
+            const icon = isTikTok ? '<i class="fab fa-tiktok" style="color: #22d3ee !important;"></i>' : '<i class="fab fa-instagram" style="color: #f472b6 !important;"></i>';
             const cleanUser = escapeHtml(client.username);
             const safeUser = cleanUser.replace(/'/g, "\\'");
 
             html += `
-                <div id="pending-card-${client.userId}" class="bg-gray-900 border border-amber-500/60 rounded-xl p-2 shadow-md flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 transition duration-200 hover:border-amber-400">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-6 h-6 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 border border-gray-700 text-xs">
+                <div id="pending-card-${client.userId}" 
+                     style="background-color: #1e293b !important; border: 1.5px solid #f59e0b !important; border-radius: 12px; padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); margin-bottom: 6px;">
+                    
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                        <div style="width: 28px; height: 28px; border-radius: 8px; background-color: #0f172a !important; border: 1px solid #334155 !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px;">
                             ${icon}
                         </div>
-                        <div class="min-w-0 flex items-center gap-2 flex-wrap">
-                            <span class="font-extrabold text-xs text-amber-300 truncate" title="@${cleanUser}">@${cleanUser}</span>
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/80 text-amber-200 border border-amber-700/60">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Aguardando Tel...
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 13px; font-weight: 900; color: #fef08a !important; letter-spacing: 0.3px;">@${cleanUser}</span>
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 800; background-color: #78350f !important; color: #fef3c7 !important; border: 1px solid #f59e0b !important;">
+                                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: #fbbf24 !important;" class="animate-pulse"></span>
+                                <span style="color: #fef3c7 !important;">Aguardando Tel...</span>
                             </span>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-end">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto;">
                         <input type="text" 
                             id="pending-phone-input-${client.userId}" 
                             placeholder="(99) 99999-9999" 
                             maxlength="15" 
                             oninput="maskPendingPhoneInput(this)" 
                             onkeydown="if(event.key==='Enter') savePendingClientPhone('${client.userId}', '${safeUser}', this.value)" 
-                            class="w-32 sm:w-36 bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg px-2.5 py-1 text-xs focus:ring-1 focus:ring-amber-400 focus:border-amber-400 outline-none"
+                            style="width: 135px; background-color: #0f172a !important; color: #ffffff !important; border: 1.5px solid #475569 !important; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 800; outline: none; box-sizing: border-box;"
                         >
                         <button type="button" 
                             onclick="savePendingClientPhone('${client.userId}', '${safeUser}', document.getElementById('pending-phone-input-${client.userId}').value)" 
-                            class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 transition shadow cursor-pointer active:scale-95" 
+                            style="background-color: #059669 !important; color: #ffffff !important; border: 1px solid #047857 !important; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+                            onmouseover="this.style.backgroundColor='#047857';"
+                            onmouseout="this.style.backgroundColor='#059669';"
                             title="Gravar telefone no cadastro"
                         >
-                            <i class="fas fa-check text-[10px]"></i> Salvar
+                            <i class="fas fa-check text-[10px]" style="color: #ffffff !important;"></i> 
+                            <span style="color: #ffffff !important;">Salvar</span>
                         </button>
                         <button type="button" 
                             onclick="dismissPendingPhoneClient('${client.userId}')" 
                             title="Dispensar card" 
-                            class="text-gray-400 hover:text-red-400 p-1 transition cursor-pointer"
+                            style="background: transparent; border: none; color: #94a3b8 !important; padding: 4px 6px; cursor: pointer; font-size: 14px;"
+                            onmouseover="this.style.color='#f87171';"
+                            onmouseout="this.style.color='#94a3b8';"
                         >
-                            <i class="fas fa-times text-xs"></i>
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
