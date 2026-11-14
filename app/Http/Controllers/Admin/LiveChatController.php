@@ -3983,7 +3983,7 @@ class LiveChatController extends Controller
             $precoFloat = (float) str_replace(',', '.', $precoClean);
 
             $custoRaw = $request->input('custo');
-            $comissaoPercent = (float) $request->input('comissao_percent', 10);
+            $comissaoPercent = (float) $request->input('comissao_percent', 20);
             if ($custoRaw !== null && $custoRaw !== '') {
                 $custoClean = str_replace(['R$', ' ', '.'], '', $custoRaw);
                 $custoFloat = (float) str_replace(',', '.', $custoClean);

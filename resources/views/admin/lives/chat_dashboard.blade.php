@@ -705,7 +705,7 @@
                             Comissão (%)
                         </label>
                         <div style="display: flex;">
-                            <input type="number" step="0.5" id="quick-prod-comissao-perc" value="10" oninput="updateQuickProductCostCalc()" placeholder="10" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 900; color: #0f172a !important; background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-right: none; border-radius: 10px 0 0 10px; outline: none; box-sizing: border-box;">
+                            <input type="number" step="0.5" id="quick-prod-comissao-perc" value="20" oninput="updateQuickProductCostCalc()" placeholder="20" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 900; color: #0f172a !important; background-color: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-right: none; border-radius: 10px 0 0 10px; outline: none; box-sizing: border-box;">
                             <span style="display: inline-flex; align-items: center; padding: 0 10px; background-color: #e2e8f0; border: 1.5px solid #cbd5e1; border-left: none; border-radius: 0 10px 10px 0; color: #475569; font-size: 12px; font-weight: 800;">%</span>
                         </div>
                     </div>
@@ -724,7 +724,7 @@
                 <!-- Resumo Dinâmico do Repasse -->
                 <div id="quick-prod-calc-summary" style="margin-top: 8px; padding: 6px 10px; background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; font-size: 11px; font-weight: 800; color: #5b21b6; display: flex; justify-content: space-between;">
                     <span>Repasse Loja: <strong id="quick-prod-calc-repasse" style="color: #b45309;">R$ 0,00</strong></span>
-                    <span>Comissão: <strong id="quick-prod-calc-comissao" style="color: #047857;">R$ 0,00 (10%)</strong></span>
+                    <span>Comissão: <strong id="quick-prod-calc-comissao" style="color: #047857;">R$ 0,00 (20%)</strong></span>
                 </div>
             </div>
 
@@ -3133,7 +3133,7 @@
         const precoClean = precoRaw.replace(/[^0-9,\.]/g, '').replace(',', '.');
         const precoVal = parseFloat(precoClean) || 0;
 
-        const comissaoPerc = parseFloat(comissaoInput?.value || 10) || 0;
+        const comissaoPerc = parseFloat(comissaoInput?.value || 20) || 0;
 
         const repasseVal = Math.round(precoVal * (1 - (comissaoPerc / 100)) * 100) / 100;
         const comissaoVal = Math.round((precoVal - repasseVal) * 100) / 100;
@@ -3213,7 +3213,7 @@
         if (corEl) corEl.value = item.cor || '';
         if (precoEl) precoEl.value = item.preco_fmt || (item.preco ? Number(item.preco).toFixed(2).replace('.', ',') : '');
         if (custoEl) custoEl.value = item.custo_fmt || (item.custo ? Number(item.custo).toFixed(2).replace('.', ',') : '');
-        if (comissaoEl) comissaoEl.value = item.comissao_perc || '10';
+        if (comissaoEl) comissaoEl.value = item.comissao_perc || '20';
 
         updateQuickProductCostCalc();
 
@@ -3297,7 +3297,7 @@
         if (tamEl) tamEl.value = '';
         if (corEl) corEl.value = '';
         if (linkCheck) linkCheck.checked = true;
-        if (comissaoEl && !comissaoEl.value) comissaoEl.value = '10';
+        if (comissaoEl) comissaoEl.value = '20';
 
         let focusTarget = descEl;
 
@@ -3394,7 +3394,7 @@
                         preco_fmt: item.preco_formatado ? item.preco_formatado.replace('R$ ', '') : preco,
                         custo: item.custo || custo,
                         custo_fmt: item.custo_formatado ? item.custo_formatado.replace('R$ ', '') : custo,
-                        comissao_perc: comissaoPerc || 10
+                        comissao_perc: comissaoPerc || 20
                     };
                     recentQuickItems = [newItem, ...recentQuickItems.filter(it => it.id !== newItem.id)].slice(0, 5);
                 }
