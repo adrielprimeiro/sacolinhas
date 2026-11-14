@@ -286,9 +286,25 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between mb-3 shrink-0">
-                        <h3 class="font-bold text-gray-700 text-sm">Participantes na Transmissão</h3>
-                        <span id="online-users-count" class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    <!-- Filtro Ágil de Participantes na Transmissão -->
+                    <div class="flex items-center gap-2 mb-2.5 shrink-0">
+                        <div class="relative flex-1">
+                            <input type="text" 
+                                   id="online-users-filter-input" 
+                                   oninput="filterOnlineParticipants(this.value)" 
+                                   placeholder="Filtrar participantes (@user, nome)..." 
+                                   class="w-full py-1.5 pl-8 pr-7 rounded-xl text-xs font-bold text-gray-800 placeholder-gray-400 transition-all outline-none"
+                                   style="color: #1e293b !important; background-color: #f8fafc !important; border: 1.5px solid #cbd5e1 !important;">
+                            <i class="fas fa-filter absolute left-2.5 top-2.5 text-indigo-500 text-xs"></i>
+                            <button type="button" 
+                                    id="online-users-filter-clear" 
+                                    onclick="clearOnlineParticipantsFilter()" 
+                                    class="hidden absolute right-2 top-2 text-gray-400 hover:text-gray-600 text-xs p-0.5 cursor-pointer" 
+                                    title="Limpar filtro">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
+                        <span id="online-users-count" title="Total de participantes na transmissão" class="text-xs px-2.5 py-1.5 rounded-xl font-black shrink-0 border" style="color: #4338ca !important; background-color: #e0e7ff !important; border-color: #c7d2fe !important;">0</span>
                     </div>
                     
                     <div id="online-users-list" class="space-y-2.5 flex-1 overflow-y-auto relative z-10 pb-2">
@@ -1191,23 +1207,77 @@
     }
 
     let lastFetchedOnlineUsers = [];
+    let onlineUsersFilterText = '';
+
+    function filterOnlineParticipants(val) {
+        onlineUsersFilterText = (val || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('online-users-filter-clear');
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', !onlineUsersFilterText);
+        }
+        renderOnlineUsers(lastFetchedOnlineUsers);
+    }
+
+    function clearOnlineParticipantsFilter() {
+        const input = document.getElementById('online-users-filter-input');
+        if (input) input.value = '';
+        filterOnlineParticipants('');
+        if (input) input.focus();
+    }
 
     // Renderizar usuários online
     function renderOnlineUsers(users) {
         lastFetchedOnlineUsers = users || [];
         const list = document.getElementById("online-users-list");
         const count = document.getElementById("online-users-count");
-        if (count) count.textContent = (users || []).length;
 
         if (!list) return;
 
         if (!users || users.length === 0) {
+            if (count) count.textContent = '0';
             list.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">Nenhum participante detectado ainda.</p>`;
             return;
         }
 
+        // Aplica filtro se houver busca digitada
+        let displayUsers = users;
+        if (onlineUsersFilterText) {
+            displayUsers = users.filter(u => {
+                const user = (u.username || '').toLowerCase();
+                const name = (u.user_name || '').toLowerCase();
+                const apelido = (u.user_apelido || '').toLowerCase();
+                const host = (u.host_account || '').toLowerCase();
+                const isVinculado = !!u.user_id;
+
+                if (onlineUsersFilterText === 'vinculado' || onlineUsersFilterText === 'vinculados') return isVinculado;
+                if (onlineUsersFilterText === 'pendente' || onlineUsersFilterText === 'vincular') return !isVinculado;
+
+                return user.includes(onlineUsersFilterText) || 
+                       name.includes(onlineUsersFilterText) || 
+                       apelido.includes(onlineUsersFilterText) ||
+                       host.includes(onlineUsersFilterText);
+            });
+            if (count) count.textContent = `${displayUsers.length} / ${users.length}`;
+        } else {
+            if (count) count.textContent = users.length;
+        }
+
+        if (displayUsers.length === 0) {
+            list.innerHTML = `
+                <div class="text-center py-8 px-4">
+                    <i class="fas fa-search text-gray-300 text-2xl mb-2 block"></i>
+                    <p class="text-xs text-gray-600 font-bold mb-1">Nenhum participante encontrado</p>
+                    <p class="text-[11px] text-gray-400">Nenhum resultado para "<strong>${escapeHtml(onlineUsersFilterText)}</strong>"</p>
+                    <button type="button" onclick="clearOnlineParticipantsFilter()" class="mt-2.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition cursor-pointer">
+                        Limpar filtro
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
         let html = '';
-        users.forEach(u => {
+        displayUsers.forEach(u => {
             const isTikTok = u.plataforma === 'tiktok';
             const icon = isTikTok ? '<i class="fab fa-tiktok text-pink-500 text-xs"></i>' : '<i class="fab fa-instagram text-purple-500 text-xs"></i>';
             const initials = u.username.slice(0,2).toUpperCase();
