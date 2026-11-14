@@ -98,17 +98,34 @@
 
 			<nav class="p-3 space-y-1 text-sm">
 				@php
-					$isBrecho = auth()->check() && auth()->user()->isBrechoParceiro();
+					$navUser  = auth()->user();
+					$isBrecho = $navUser && $navUser->isBrechoParceiro();
+					$canDashboard  = $navUser && $navUser->canAccessModule('dashboard');
+					$canLives      = $navUser && $navUser->canAccessModule('lives');
+					$canSacolinhas = $navUser && $navUser->canAccessModule('sacolinhas');
+					$canPedidos    = $navUser && $navUser->canAccessModule('pedidos');
+					$canAvaliacoes = $navUser && $navUser->canAccessModule('avaliacoes');
+					$canProdutos   = $navUser && $navUser->canAccessModule('produtos');
+					$canClientes   = $navUser && $navUser->canAccessModule('clientes');
+					$canAtend      = $navUser && $navUser->canAccessModule('atendimento');
+					$canFinanceiro = $navUser && $navUser->canAccessModule('financeiro');
+					$canClube      = $navUser && $navUser->canAccessModule('clube');
+					$canRelatorios = $navUser && $navUser->canAccessModule('relatorios');
+					$currentModule = \App\Models\User::resolveModuleForPath(request()->path());
+					$isReadOnlyCurrentModule = $navUser && $currentModule && $navUser->isReadOnlyInModule($currentModule);
 				@endphp
 
 				{{-- 1. Dashboard --}}
+				@if($canDashboard)
 				<a href="{{ route('dashboard') }}"
 				   class="flex items-center gap-3 px-3 py-2 rounded-lg transition duration-150 hover:bg-indigo-50 hover:text-indigo-600 {{ request()->routeIs('dashboard') ? 'bg-indigo-50 font-bold text-indigo-600' : 'text-gray-700' }}">
 					<i class="fas fa-home w-5 text-center text-indigo-500"></i>
 					<span>Dashboard</span>
 				</a>
+				@endif
 
                 {{-- 2. Lives & Transmissão (Específico para Live) --}}
+                @if($canLives)
                 <div x-data="{ open: {{ request()->routeIs('bags.*', 'admin.live-chat.*', 'admin.lives.cortes*', 'admin.severino.cliper*', 'admin.lives.dashboard*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('bags.*', 'admin.live-chat.*', 'admin.lives.cortes*', 'admin.severino.cliper*', 'admin.lives.dashboard*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -154,8 +171,10 @@
 						@endif
                     </div>
                 </div>
+                @endif
 
                 {{-- 3. Comercial & Sacolas --}}
+                @if($canSacolinhas || $canPedidos || $canAvaliacoes)
                 <div x-data="{ open: {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.vencimentos*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.fiscal.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.sacolinhas.*', 'sacolinhas.*', 'admin.sacolinha.*', 'admin.vencimentos*', 'admin.pedido.*', 'admin.avaliacoes.*', 'admin.fiscal.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -166,6 +185,7 @@
                         <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        @if($canSacolinhas)
                         <a href="{{ route('admin.sacolinhas.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-shopping-bag mr-1.5 text-indigo-400"></i> Sacolas da Live
                         </a>
@@ -178,21 +198,28 @@
                         <a href="{{ route('admin.sacolinhas.qrcode.scanner') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.sacolinhas.qrcode.scanner') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-qrcode mr-1.5 text-indigo-400"></i> Bipar Sacolinha
                         </a>
+                        @endif
+                        @if($canPedidos)
                         <a href="{{ route('admin.pedido.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.pedido.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-receipt mr-1.5 text-indigo-400"></i> Pedidos
                         </a>
-						@if(!$isBrecho)
+                        @endif
+						@if(!$isBrecho && $canAvaliacoes)
                         <a href="{{ route('admin.avaliacoes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-emerald-600 hover:bg-white {{ request()->routeIs('admin.avaliacoes.*') ? 'font-bold text-emerald-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-hand-holding-usd mr-1.5 text-emerald-500"></i> Avaliação Desapegos
                         </a>
+						@endif
+						@if(!$isBrecho && $canPedidos)
                         <a href="{{ route('admin.fiscal.configuracoes') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-purple-600 hover:bg-white {{ request()->routeIs('admin.fiscal.*') ? 'font-bold text-purple-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-file-invoice-dollar mr-1.5 text-purple-500"></i> Configurações NF-e
                         </a>
 						@endif
                     </div>
                 </div>
+                @endif
 
                 {{-- 4. Produtos & Estoque --}}
+                @if($canProdutos)
                 <div x-data="{ open: {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('items.*', 'admin.categorias.*', 'admin.marcas.*', 'inventario*', 'upload.batch.form', 'image-groups.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -228,8 +255,10 @@
 						@endif
                     </div>
                 </div>
+                @endif
 
                 {{-- 5. Clientes & Atendimento --}}
+                @if($canClientes || $canAtend)
                 <div x-data="{ open: {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('clientes.*', 'admin.clientes.*', 'admin.chat.*', 'admin.whatsapp.dashboard', 'admin.conta_corrente.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -240,25 +269,33 @@
                         <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        @if($canClientes)
                         <a href="{{ route('clientes.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('clientes.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-address-book mr-1.5 text-indigo-400"></i> Lista de Clientes
                         </a>
+                        @endif
+                        @if($canAtend)
                         <a href="{{ route('admin.chat.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.chat.index') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-comments mr-1.5 text-indigo-400"></i> Chat ao Vivo
                         </a>
-						@if(!$isBrecho)
+                        @endif
+						@if(!$isBrecho && $canAtend)
                         <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fab fa-whatsapp mr-1.5 text-emerald-500"></i> WhatsApp Dashboard
                         </a>
+						@endif
+						@if(!$isBrecho && ($canClientes || $canFinanceiro))
                         <a href="{{ route('admin.conta_corrente.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.conta_corrente.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-wallet mr-1.5 text-indigo-400"></i> Carteira do Cliente
                         </a>
 						@endif
                     </div>
                 </div>
+                @endif
 
 				@if(!$isBrecho)
                 {{-- 6. Financeiro --}}
+                @if($canFinanceiro)
                 <div x-data="{ 
                     open: {{ (request()->routeIs('financeiro.*') || request()->routeIs('classificacao_financeira.*')) ? 'true' : 'false' }},
                     openAnalises: {{ (request()->routeIs('financeiro.dashboard') || request()->routeIs('financeiro.fluxodecaixa') || request()->routeIs('financeiro.relatoriogerencial') || request()->routeIs('financeiro.dre') || request()->routeIs('financeiro.orcamento.*')) ? 'true' : 'false' }},
@@ -317,8 +354,10 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 {{-- 7. Clube & Engajamento --}}
+                @if($canClube)
                 <div x-data="{ open: {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clube.*', 'admin.grupos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
@@ -340,26 +379,38 @@
                         </a>
                     </div>
                 </div>
+                @endif
 
                 {{-- 8. Relatórios --}}
-                <div x-data="{ open: {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'true' : 'false' }} }">
+                @if($canRelatorios)
+                <div x-data="{ open: {{ request()->routeIs('admin.relatorios.ods*', 'admin.clientes.relatorios', 'admin.portal-acessos.*', 'severino.*', 'admin.knowledge-base.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.clientes.relatorios', 'admin.portal-acessos.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.relatorios.ods*', 'admin.clientes.relatorios', 'admin.portal-acessos.*', 'severino.*', 'admin.knowledge-base.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-chart-pie w-5 text-center text-indigo-500"></i>
-                            <span>Relatórios</span>
+                            <span>Relatórios & IA</span>
                         </div>
                         <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        <a href="{{ route('admin.relatorios.ods') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.relatorios.ods*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-bullseye mr-1.5 text-indigo-500"></i> ODS
+                        </a>
                         <a href="{{ route('admin.clientes.relatorios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.clientes.relatorios') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-chart-line mr-1.5 text-indigo-400"></i> Relatório de Clientes
                         </a>
                         <a href="{{ route('admin.portal-acessos.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.portal-acessos.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-history mr-1.5 text-indigo-400"></i> Acessos ao Portal
                         </a>
+                        <a href="{{ route('severino.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('severino.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-robot mr-1.5 text-indigo-400"></i> Severino AI
+                        </a>
+                        <a href="{{ route('admin.knowledge-base.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.knowledge-base.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fas fa-brain mr-1.5 text-indigo-400"></i> Memória da IA (RAG)
+                        </a>
                     </div>
                 </div>
+                @endif
 				@endif
 
 				<div class="my-2 border-t border-gray-200"></div>
@@ -410,6 +461,20 @@
 	</nav>
 
     <main class="container mx-auto mt-8 p-4">
+        @if(!empty($isReadOnlyCurrentModule))
+            <div class="bg-yellow-100 border-l-4 border-yellow-600 text-yellow-900 px-4 py-3 rounded shadow-sm mb-4 flex items-center justify-between" role="status">
+                <div class="flex items-center gap-2 text-sm">
+                    <i class="fas fa-eye text-yellow-700 text-base"></i>
+                    <span>
+                        <strong>Modo Somente Leitura:</strong> Você possui permissão apenas de visualização neste módulo. Criação, edição e exclusão de registros estão desabilitadas.
+                    </span>
+                </div>
+                <span class="px-2.5 py-0.5 text-xs font-bold uppercase rounded-full bg-yellow-200 text-yellow-900 border border-yellow-400">
+                    Somente Leitura
+                </span>
+            </div>
+        @endif
+
         <!-- Flash Messages -->
         @if (session('success'))
             <div id="success-alert" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
@@ -489,6 +554,62 @@
 				sessionStorage.removeItem('sacolinhas_redirect_to');
 			} catch (e) {}
 			@endauth
+
+			@if(!empty($isReadOnlyCurrentModule))
+			// Proteção visual automática para Modo Somente Leitura no módulo atual
+			(function() {
+				var mainEl = document.querySelector('main');
+				if (!mainEl) return;
+
+				var allowedPostPatterns = [
+					'/pedidos/itens-sacolinha',
+					'/pedidos/itens-pedido',
+					'/pedidos/imprimir-sacolinha',
+					'/pedidos/imprimir-pedido',
+					'/frete-opcoes',
+					'/api/frete/simular',
+					'/admin/clientes/check-email',
+					'/image-groups/buscar-codigo',
+					'/severino/ask'
+				];
+
+				function isAllowedPost(action) {
+					if (!action) return false;
+					return allowedPostPatterns.some(function(pat) { return action.indexOf(pat) !== -1; });
+				}
+
+				mainEl.addEventListener('submit', function(e) {
+					var form = e.target;
+					if (!form || !form.tagName || form.tagName.toLowerCase() !== 'form') return;
+					var method = (form.getAttribute('method') || 'GET').toUpperCase();
+					if (method !== 'GET' && !isAllowedPost(form.getAttribute('action') || '')) {
+						e.preventDefault();
+						e.stopPropagation();
+						alert('Modo Somente Leitura: seu perfil tem permissão apenas para visualizar dados neste módulo.');
+					}
+				}, true);
+
+				// Oculta links de criação pura (/create) dentro do main
+				mainEl.querySelectorAll('a[href$="/create"]').forEach(function(a) {
+					a.style.opacity = '0.45';
+					a.style.pointerEvents = 'none';
+					a.setAttribute('title', 'Desabilitado (Modo Somente Leitura)');
+				});
+
+				// Desabilita botões de submit de formulários de escrita dentro do main
+				mainEl.querySelectorAll('form').forEach(function(form) {
+					var method = (form.getAttribute('method') || 'GET').toUpperCase();
+					if (method !== 'GET' && !isAllowedPost(form.getAttribute('action') || '')) {
+						form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(btn) {
+							btn.disabled = true;
+							btn.style.opacity = '0.5';
+							btn.style.cursor = 'not-allowed';
+							btn.setAttribute('title', 'Modo Somente Leitura');
+						});
+					}
+				});
+			})();
+			@endif
 		});
 	</script>
 	

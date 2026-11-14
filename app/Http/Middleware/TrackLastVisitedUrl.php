@@ -265,6 +265,7 @@ class TrackLastVisitedUrl
                 if (Str::is([
                     'admin/financeiro*',
                     'financeiro*',
+                    'admin/relatorios*',
                     'admin/users*',
                     'admin/equipe*',
                     'admin/brechos*',
@@ -274,6 +275,13 @@ class TrackLastVisitedUrl
                     'loja*',
                     'loja',
                 ], $cleanPath)) {
+                    return false;
+                }
+            }
+
+            if (method_exists($user, 'hasCustomPermissions') && $user->hasCustomPermissions()) {
+                $module = \App\Models\User::resolveModuleForPath($cleanPath);
+                if ($module && !$user->canAccessModule($module)) {
                     return false;
                 }
             }
@@ -307,6 +315,9 @@ class TrackLastVisitedUrl
         }
 
         if (in_array($user->role, ['admin', 'admin_master', 'brecho_admin'], true) || !empty($user->is_admin)) {
+            if (method_exists($user, 'firstAccessibleAdminUrl')) {
+                return $user->firstAccessibleAdminUrl();
+            }
             return '/dashboard';
         }
 

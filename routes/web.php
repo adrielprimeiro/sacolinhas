@@ -1026,10 +1026,15 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     
     // Rastreamento de Acessos do Portal do Cliente
     Route::get('portal-acessos', [\App\Http\Controllers\Admin\PortalAcessosController::class, 'index'])->name('portal-acessos.index');
+
+    // Relatório ODS (Novos Clientes & Faturamento de Novos Clientes)
+    Route::get('relatorios/ods', [\App\Http\Controllers\Admin\OdsReportController::class, 'index'])->name('relatorios.ods');
     
-    // Gerenciamento de Equipe (Admins)
+    // Gerenciamento de Equipe (Admins e Permissões Granulares)
     Route::get('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'index'])->name('equipe.index');
+    Route::post('equipe', [\App\Http\Controllers\Admin\AdminUserController::class, 'store'])->name('equipe.store');
     Route::post('equipe/{id}/role', [\App\Http\Controllers\Admin\AdminUserController::class, 'updateRole'])->name('equipe.updateRole');
+    Route::post('equipe/{id}/permissions', [\App\Http\Controllers\Admin\AdminUserController::class, 'updatePermissions'])->name('equipe.updatePermissions');
     Route::put('equipe/{id}', [\App\Http\Controllers\Admin\AdminUserController::class, 'update'])->name('equipe.update');
 
     // Gestão de Brechós Parceiros & Consignação
