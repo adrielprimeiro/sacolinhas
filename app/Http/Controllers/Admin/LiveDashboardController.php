@@ -152,6 +152,7 @@ class LiveDashboardController extends Controller
 
             // Duração da Live com saneamento de fim de transmissão
             $duracao = 'N/A';
+            $duracaoMinutos = 0;
             if ($l->created_at) {
                 $fim = $l->encerrada_em;
                 if (!$fim) {
@@ -167,14 +168,18 @@ class LiveDashboardController extends Controller
                         }
                     }
                 }
-                $minutos = (int) round($l->created_at->diffInMinutes($fim));
-                $horas = floor($minutos / 60);
-                $resto = $minutos % 60;
-                $duracao = $horas > 0 ? sprintf('%dh %02dm', $horas, $resto) : "{$minutos}m";
+                $duracaoMinutos = (int) round($l->created_at->diffInMinutes($fim));
+                $horas = floor($duracaoMinutos / 60);
+                $resto = $duracaoMinutos % 60;
+                $duracao = $horas > 0 ? sprintf('%dh %02dm', $horas, $resto) : "{$duracaoMinutos}m";
                 if ($l->ativo) {
                     $duracao .= ' (ao vivo)';
                 }
             }
+
+            // Preço da Hora da Live (Faturamento / Horas de Live)
+            $horasFracao = $duracaoMinutos > 0 ? ($duracaoMinutos / 60) : 0;
+            $precoHoraLive = $horasFracao > 0 ? ($totalVal / $horasFracao) : 0;
 
             return (object) [
                 'id' => $l->id,
@@ -183,6 +188,8 @@ class LiveDashboardController extends Controller
                 'tipo_formatado' => $l->tipo_live_formatado,
                 'ativo' => (bool) $l->ativo,
                 'duracao' => $duracao,
+                'duracao_minutos' => $duracaoMinutos,
+                'preco_hora' => $precoHoraLive,
                 'faturamento' => $totalVal,
                 'pecas_vendidas' => $pecas,
                 'compradoras' => $buyers,
@@ -223,6 +230,14 @@ class LiveDashboardController extends Controller
         $totalInstaMsgsMes = (int) $livesMonthlyList->sum('mensagens_insta');
         $totalTiktokMsgsMes = (int) $livesMonthlyList->sum('mensagens_tiktok');
 
+        // Total de Tempo e Preço Médio da Hora do Mês
+        $totalMinutosMes = (int) $livesMonthlyList->sum('duracao_minutos');
+        $totalHorasMesFracao = $totalMinutosMes > 0 ? ($totalMinutosMes / 60) : 0;
+        $precoHoraMes = $totalHorasMesFracao > 0 ? ($totalFaturamentoMes / $totalHorasMesFracao) : 0;
+        $horasMesInteiras = floor($totalMinutosMes / 60);
+        $restoMinutosMes = $totalMinutosMes % 60;
+        $horasTotaisFormatada = $horasMesInteiras > 0 ? sprintf('%dh %02dm', $horasMesInteiras, $restoMinutosMes) : "{$totalMinutosMes}m";
+
         $monthKpis = [
             'faturamento' => $totalFaturamentoMes,
             'total_pecas' => $totalPecasMes,
@@ -235,6 +250,9 @@ class LiveDashboardController extends Controller
             'total_itens_bipados' => $totalItensBipadosMes,
             'total_pecas_bipadas_vendidas' => $totalPecasVendidasBipadasMes,
             'taxa_conversao_bipadas' => $taxaConversaoMesBipadas,
+            'total_minutos' => $totalMinutosMes,
+            'total_horas_formatada' => $horasTotaisFormatada,
+            'preco_hora_mes' => $precoHoraMes,
             'total_mensagens' => $totalMsgsMes,
             'mensagens_instagram' => $totalInstaMsgsMes,
             'mensagens_tiktok' => $totalTiktokMsgsMes,
@@ -256,6 +274,7 @@ class LiveDashboardController extends Controller
             'ticket_medio' => 0.0,
             'pecas_por_cliente' => 0.0,
             'preco_medio_peca' => 0.0,
+            'preco_hora' => 0.0,
             'has_bipagem' => false,
             'total_itens_apresentados' => 0,
             'taxa_conversao_itens' => null,
@@ -278,6 +297,7 @@ class LiveDashboardController extends Controller
 
         if ($selectedLive) {
             // Duração da Live com saneamento de fim de transmissão
+            $duracaoMinutosSelected = 0;
             if ($selectedLive->created_at) {
                 $fim = $selectedLive->encerrada_em;
                 if (!$fim) {
@@ -293,10 +313,10 @@ class LiveDashboardController extends Controller
                         }
                     }
                 }
-                $minutos = (int) round($selectedLive->created_at->diffInMinutes($fim));
-                $horas = floor($minutos / 60);
-                $restoMin = $minutos % 60;
-                $kpis['duracao_formatada'] = $horas > 0 ? sprintf('%dh %02dm', $horas, $restoMin) : "{$minutos}m";
+                $duracaoMinutosSelected = (int) round($selectedLive->created_at->diffInMinutes($fim));
+                $horas = floor($duracaoMinutosSelected / 60);
+                $restoMin = $duracaoMinutosSelected % 60;
+                $kpis['duracao_formatada'] = $horas > 0 ? sprintf('%dh %02dm', $horas, $restoMin) : "{$duracaoMinutosSelected}m";
                 if ($selectedLive->ativo) {
                     $kpis['duracao_formatada'] .= ' (ao vivo)';
                 }
@@ -319,6 +339,8 @@ class LiveDashboardController extends Controller
             $kpis['ticket_medio'] = $totalCompradoras > 0 ? ($faturamento / $totalCompradoras) : 0.0;
             $kpis['pecas_por_cliente'] = $totalCompradoras > 0 ? round($totalPecas / $totalCompradoras, 1) : 0.0;
             $kpis['preco_medio_peca'] = $totalPecas > 0 ? ($faturamento / $totalPecas) : 0.0;
+            $horasFracSelected = $duracaoMinutosSelected > 0 ? ($duracaoMinutosSelected / 60) : 0;
+            $kpis['preco_hora'] = $horasFracSelected > 0 ? ($faturamento / $horasFracSelected) : 0.0;
 
             // Total de itens apresentados (bipados) na live via live_items
             $totalApresentados = 0;
