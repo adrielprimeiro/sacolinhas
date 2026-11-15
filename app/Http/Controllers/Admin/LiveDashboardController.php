@@ -135,10 +135,14 @@ class LiveDashboardController extends Controller
             $pecas = (int) $liveSacs->sum('quantity');
             $buyers = $liveSacs->pluck('user_id')->unique()->filter()->count();
             $bipados = (int) ($itemsBipadosByLive->get($l->id) ?? 0);
-            $hasBipagem = ($bipados > 0);
+            $rawConversao = $bipados > 0 ? round(($pecas / $bipados) * 100, 1) : null;
 
-            // REGRA FUNDAMENTAL: Conversão calculada estritamente se houver itens bipados!
-            $conversao = $hasBipagem ? round(($pecas / $bipados) * 100, 1) : null;
+            // REGRA DE NEGÓCIO: Se a conversão for superior a 95% (ou se foram bipados apenas itens vendidos),
+            // a live não é considerada "com bipagem" de apresentação para não distorcer as métricas analíticas.
+            $hasBipagem = ($bipados > 0 && ($rawConversao === null || $rawConversao <= 95.0));
+
+            // Conversão válida somente se for uma live genuinamente com bipagem de arara/apresentação
+            $conversao = $hasBipagem ? $rawConversao : null;
 
             $msgRow = $messagesByLive->get($l->id);
             $msgs = (int) ($msgRow->total_msgs ?? 0);
@@ -146,14 +150,27 @@ class LiveDashboardController extends Controller
             $tiktokMsgs = (int) ($msgRow->total_tiktok ?? 0);
             $participantes = (int) ($msgRow->total_participantes ?? 0);
 
-            // Duração
+            // Duração da Live com saneamento de fim de transmissão
             $duracao = 'N/A';
             if ($l->created_at) {
-                $fim = $l->encerrada_em ?: ($l->ativo ? now() : $l->updated_at);
-                $minutos = $l->created_at->diffInMinutes($fim);
+                $fim = $l->encerrada_em;
+                if (!$fim) {
+                    if ($l->ativo) {
+                        $fim = now();
+                    } else {
+                        $diffH = $l->created_at->diffInHours($l->updated_at);
+                        if ($diffH > 14) {
+                            $lastSac = DB::table('sacolinhas')->where('live_id', $l->id)->max('created_at');
+                            $fim = $lastSac ? Carbon::parse($lastSac) : $l->created_at->copy()->addHours(2);
+                        } else {
+                            $fim = $l->updated_at;
+                        }
+                    }
+                }
+                $minutos = (int) round($l->created_at->diffInMinutes($fim));
                 $horas = floor($minutos / 60);
                 $resto = $minutos % 60;
-                $duracao = $horas > 0 ? "{$horas}h {$resto}m" : "{$minutos}m";
+                $duracao = $horas > 0 ? sprintf('%dh %02dm', $horas, $resto) : "{$minutos}m";
                 if ($l->ativo) {
                     $duracao .= ' (ao vivo)';
                 }
@@ -172,6 +189,7 @@ class LiveDashboardController extends Controller
                 'ticket_medio' => $buyers > 0 ? ($totalVal / $buyers) : 0,
                 'has_bipagem' => $hasBipagem,
                 'itens_bipados' => $bipados,
+                'raw_conversao' => $rawConversao,
                 'conversao' => $conversao,
                 'mensagens' => $msgs,
                 'mensagens_insta' => $instaMsgs,
@@ -259,13 +277,26 @@ class LiveDashboardController extends Controller
         ];
 
         if ($selectedLive) {
-            // Duração da Live
+            // Duração da Live com saneamento de fim de transmissão
             if ($selectedLive->created_at) {
-                $fim = $selectedLive->encerrada_em ?: ($selectedLive->ativo ? now() : $selectedLive->updated_at);
-                $minutos = $selectedLive->created_at->diffInMinutes($fim);
+                $fim = $selectedLive->encerrada_em;
+                if (!$fim) {
+                    if ($selectedLive->ativo) {
+                        $fim = now();
+                    } else {
+                        $diffH = $selectedLive->created_at->diffInHours($selectedLive->updated_at);
+                        if ($diffH > 14) {
+                            $lastSac = DB::table('sacolinhas')->where('live_id', $selectedLive->id)->max('created_at');
+                            $fim = $lastSac ? Carbon::parse($lastSac) : $selectedLive->created_at->copy()->addHours(2);
+                        } else {
+                            $fim = $selectedLive->updated_at;
+                        }
+                    }
+                }
+                $minutos = (int) round($selectedLive->created_at->diffInMinutes($fim));
                 $horas = floor($minutos / 60);
                 $restoMin = $minutos % 60;
-                $kpis['duracao_formatada'] = $horas > 0 ? "{$horas}h {$restoMin}m" : "{$minutos}m";
+                $kpis['duracao_formatada'] = $horas > 0 ? sprintf('%dh %02dm', $horas, $restoMin) : "{$minutos}m";
                 if ($selectedLive->ativo) {
                     $kpis['duracao_formatada'] .= ' (ao vivo)';
                 }
@@ -295,9 +326,14 @@ class LiveDashboardController extends Controller
                 $totalApresentados = (int) DB::table('live_items')->where('live_id', $liveId)->count();
             }
             $kpis['total_itens_apresentados'] = $totalApresentados;
-            $kpis['has_bipagem'] = ($totalApresentados > 0);
-            // Se NÃO tem bipagem, conversão é NULL (não contaminar nem mostrar 0%)
-            $kpis['taxa_conversao_itens'] = ($totalApresentados > 0) ? round(($totalPecas / $totalApresentados) * 100, 1) : null;
+
+            $rawConvSelected = ($totalApresentados > 0) ? round(($totalPecas / $totalApresentados) * 100, 1) : null;
+            $hasBipagemSelected = ($totalApresentados > 0 && ($rawConvSelected === null || $rawConvSelected <= 95.0));
+
+            $kpis['has_bipagem'] = $hasBipagemSelected;
+            $kpis['raw_conversao_itens'] = $rawConvSelected;
+            // Se NÃO tem bipagem ou taxa > 95% (apenas vendidos), conversão é NULL (não distorcer as métricas)
+            $kpis['taxa_conversao_itens'] = $hasBipagemSelected ? $rawConvSelected : null;
 
             // Mensagens e Participantes no Chat
             if (Schema::hasTable('live_messages')) {

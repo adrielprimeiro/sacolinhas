@@ -224,7 +224,7 @@
                         <i class="fas fa-list-ol text-indigo-600"></i> Transmissões do Mês &bull; {{ $selectedMonthLabel }}
                     </h3>
                     <p style="color: #64748b;" class="text-xs mt-0.5">
-                        Identificação clara de lives com leitor contínuo (conversão ativa) e sem bipagem (conversão desconsiderada).
+                        Identificação da duração da live e segregação de bipagem (taxas &gt; 95% desconsideradas por representarem apenas peças vendidas).
                     </p>
                 </div>
 
@@ -255,7 +255,7 @@
                             <th class="p-3 pl-4">Live</th>
                             <th class="p-3">Data</th>
                             <th class="p-3">Tipo</th>
-                            <th class="p-3">Modo Bipagem</th>
+                            <th class="p-3">Duração</th>
                             <th class="p-3 text-right">Faturamento</th>
                             <th class="p-3 text-center">Peças</th>
                             <th class="p-3 text-center">Clientes</th>
@@ -273,7 +273,7 @@
                                     <span class="flex items-center gap-1.5">
                                         #{{ $rl->id }}
                                         @if($rl->ativo)
-                                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Ao Vivo"></span>
+                                             <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Ao Vivo"></span>
                                         @endif
                                     </span>
                                 </td>
@@ -284,15 +284,25 @@
                                     </span>
                                 </td>
                                 <td class="p-3 whitespace-nowrap">
-                                    @if($rl->has_bipagem)
-                                        <span style="background-color: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;" class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold inline-flex items-center gap-1 shadow-2xs">
-                                            <i class="fas fa-barcode text-emerald-600 text-[9px]"></i> Com Bipagem
-                                        </span>
-                                    @else
-                                        <span style="background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;" class="px-2 py-0.5 rounded-lg text-[10px] font-bold inline-flex items-center gap-1" title="Esta live não utilizou leitor de código de barras contínuo">
-                                            <i class="fas fa-slash text-[8px] text-gray-400"></i> Sem Bipagem
-                                        </span>
-                                    @endif
+                                    <div class="font-black text-slate-800 flex items-center gap-1.5 text-xs">
+                                        <i class="far fa-clock text-indigo-500"></i>
+                                        <span>{{ $rl->duracao }}</span>
+                                    </div>
+                                    <div class="mt-0.5">
+                                        @if($rl->has_bipagem)
+                                            <span style="background-color: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;" class="px-1.5 py-0.5 rounded-md text-[9px] font-black inline-flex items-center gap-1 shadow-2xs">
+                                                <i class="fas fa-barcode text-emerald-600 text-[8px]"></i> Com Bipagem
+                                            </span>
+                                        @elseif($rl->itens_bipados > 0 && ($rl->raw_conversao ?? 0) > 95.0)
+                                            <span style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a;" class="px-1.5 py-0.5 rounded-md text-[9px] font-bold inline-flex items-center gap-1" title="Apenas itens vendidos foram bipados (taxa de {{ $rl->raw_conversao }}% > 95%). Desconsiderada para bipagem de arara.">
+                                                <i class="fas fa-exclamation-circle text-amber-600 text-[8px]"></i> Só Vendidos
+                                            </span>
+                                        @else
+                                            <span style="background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;" class="px-1.5 py-0.5 rounded-md text-[9px] font-semibold inline-flex items-center gap-1" title="Esta live não utilizou leitor contínuo na arara">
+                                                <i class="fas fa-slash text-[7px] text-gray-400"></i> Sem Bipagem
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="p-3 text-right font-black whitespace-nowrap" style="color: #047857 !important;">
                                     R$ {{ number_format($rl->faturamento, 2, ',', '.') }}
@@ -305,6 +315,10 @@
                                 <td class="p-3 text-center">
                                     @if($rl->has_bipagem)
                                         <strong style="color: #065f46;">{{ $rl->itens_bipados }}</strong>
+                                    @elseif($rl->itens_bipados > 0)
+                                        <span style="color: #b45309; font-weight: 700;" title="{{ $rl->itens_bipados }} itens registrados, mas apenas de peças vendidas (taxa de {{ $rl->raw_conversao }}% > 95%)">
+                                            {{ $rl->itens_bipados }} <i class="fas fa-info-circle text-[9px] text-amber-500"></i>
+                                        </span>
                                     @else
                                         <span style="color: #94a3b8;" title="Sem contaminação: Itens não foram bipados via sistema">—</span>
                                     @endif
@@ -313,6 +327,10 @@
                                     @if($rl->has_bipagem && $rl->conversao !== null)
                                         <span style="background-color: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4;" class="font-extrabold px-2 py-0.5 rounded-lg text-[10px] shadow-2xs">
                                             {{ $rl->conversao }}%
+                                        </span>
+                                    @elseif($rl->itens_bipados > 0 && ($rl->raw_conversao ?? 0) > 95.0)
+                                        <span style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a;" class="font-bold px-1.5 py-0.5 rounded-lg text-[10px]" title="Taxa desconsiderada ({{ $rl->raw_conversao }}%): acima de 95% indica que não foram bipados todos os itens da arara, apenas os vendidos">
+                                            — <small class="text-[9px] text-amber-700 font-extrabold">&gt;95%</small>
                                         </span>
                                     @else
                                         <span style="color: #94a3b8; font-weight: 700; font-size: 11px;" title="Conversão desconsiderada para não contaminar as estatísticas">
@@ -352,7 +370,11 @@
                             </span>
                             @if($kpis['has_bipagem'])
                                 <span style="background-color: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;" class="text-xs font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1">
-                                    <i class="fas fa-barcode"></i> Modo Bipagem Ativo ({{ $kpis['total_itens_apresentados'] }} peças)
+                                    <i class="fas fa-barcode"></i> Modo Bipagem Ativo ({{ $kpis['total_itens_apresentados'] }} peças na arara)
+                                </span>
+                            @elseif(($kpis['raw_conversao_itens'] ?? 0) > 95.0)
+                                <span style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a;" class="text-xs font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1" title="A taxa de conversão acima de 95% indica que foram bipadas apenas as peças vendidas, e não toda a arara apresentada na live">
+                                    <i class="fas fa-exclamation-triangle text-amber-600"></i> Bipagem Apenas de Vendidos (&gt;95%)
                                 </span>
                             @else
                                 <span style="background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;" class="text-xs font-bold px-2.5 py-0.5 rounded-lg flex items-center gap-1">
@@ -463,6 +485,13 @@
                                 </strong>
                                 <span style="color: #0d9488 !important;" class="text-[11px] font-bold mt-0.5 block">
                                     {{ $kpis['total_pecas_sacoladas'] }} de {{ $kpis['total_itens_apresentados'] }} bipadas
+                                </span>
+                            @elseif(($kpis['raw_conversao_itens'] ?? 0) > 95.0)
+                                <strong style="color: #b45309 !important;" class="text-base font-black block tracking-tight" title="Conversão desconsiderada: taxa > 95% indica que foram bipadas apenas as peças vendidas, e não todas as apresentadas na live">
+                                    Sem Arara (&gt;95%)
+                                </strong>
+                                <span style="color: #92400e !important;" class="text-[10px] font-bold mt-0.5 block">
+                                    Apenas vendidos bipados
                                 </span>
                             @else
                                 <strong style="color: #64748b !important;" class="text-base font-black block tracking-tight" title="Live realizada sem uso de código de barras contínuo">
