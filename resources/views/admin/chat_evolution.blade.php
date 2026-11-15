@@ -318,10 +318,14 @@
 		async function sendMessage() {
 			const input = document.getElementById('messageInput');
 			const fileInput = document.getElementById('fileInput');
+			const btnSend = document.getElementById('btnSendMessage');
 			const body = input.value.trim();
 
 			if (!body && !fileInput.files.length) return;
 			if (!activeConv.remoteJid && !activeConv.userId) return;
+
+			btnSend.disabled = true;
+			btnSend.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
 
 			const formData = new FormData();
 			if (activeConv.userId) formData.append('user_id', activeConv.userId);
@@ -331,9 +335,6 @@
 				formData.append('file', fileInput.files[0]);
 			}
 
-			input.value = '';
-			fileInput.value = '';
-
 			try {
 				const res = await fetch('/admin/chat-evolution/api/send', {
 					method: 'POST',
@@ -342,6 +343,8 @@
 				});
 				const data = await res.json();
 				if (data.success) {
+					input.value = '';
+					fileInput.value = '';
 					loadMessages();
 					loadConversations();
 				} else {
@@ -349,6 +352,10 @@
 				}
 			} catch (e) {
 				console.error(e);
+				alert('Falha na comunicação com o servidor.');
+			} finally {
+				btnSend.disabled = false;
+				btnSend.innerHTML = '<i class="bi bi-send-fill fs-5"></i>';
 			}
 		}
 

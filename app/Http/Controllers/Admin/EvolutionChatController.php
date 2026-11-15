@@ -203,8 +203,20 @@ class EvolutionChatController extends Controller
             return response()->json(['success' => false, 'error' => 'Destinatário sem identificador ou telefone.'], 404);
         }
 
+        // Se for LID, tenta resolver para @s.whatsapp.net
+        $targetJid = $destination;
+        if (str_contains($destination, '@lid')) {
+            $resolved = $this->evolution->resolveLidToPhoneNumber($destination);
+            if ($resolved) {
+                // Atualiza mensagens antigas do @lid para o @s.whatsapp.net para unificar a conversa
+                EvolutionMessage::where('remote_jid', $destination)->update(['remote_jid' => $resolved]);
+                $destination = $resolved;
+                $targetJid = $resolved;
+            }
+        }
+
         $pushName = $user?->name 
-            ?: EvolutionMessage::where('remote_jid', $destination)->whereNotNull('push_name')->value('push_name');
+            ?: EvolutionMessage::where('remote_jid', $targetJid)->whereNotNull('push_name')->value('push_name');
 
         $adminId = auth()->id();
         $mediaUrl = null;
@@ -239,7 +251,7 @@ class EvolutionChatController extends Controller
             'user_id' => $user?->id,
             'admin_id' => $adminId,
             'instance_name' => 'sacolinhas',
-            'remote_jid' => $destination,
+            'remote_jid' => $targetJid,
             'push_name' => $pushName,
             'direction' => 'outbound',
             'status' => $status,

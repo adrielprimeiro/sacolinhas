@@ -74,11 +74,21 @@ class EvolutionWebhookController extends Controller
             return;
         }
 
+        $originalJid = $remoteJid;
+        if (str_contains($remoteJid, '@lid')) {
+            $resolved = app(\App\Services\Whatsapp\EvolutionApiService::class)->resolveLidToPhoneNumber($remoteJid);
+            if ($resolved) {
+                $remoteJid = $resolved;
+                // Unifica mensagens antigas que vieram com o @lid cru
+                EvolutionMessage::where('remote_jid', $originalJid)->update(['remote_jid' => $remoteJid]);
+            }
+        }
+
         $digits = preg_replace('/\D+/', '', explode('@', $remoteJid)[0] ?? '');
 
-        // Tenta achar usuário cadastrado pelo WhatsApp (apenas se for @s.whatsapp.net com número real)
+        // Tenta achar usuário cadastrado pelo WhatsApp
         $user = null;
-        if (!str_contains($remoteJid, '@lid') && strlen($digits) >= 8) {
+        if (strlen($digits) >= 8) {
             $user = $this->findUserByDigits($digits);
         }
 

@@ -114,6 +114,65 @@ class EvolutionApiService
     }
 
     /**
+     * Mapeia um LID do WhatsApp (@lid) para o número real (@s.whatsapp.net)
+     */
+    public function resolveLidToPhoneNumber(string $remoteJid): ?string
+    {
+        if (!str_contains($remoteJid, '@lid')) {
+            return $remoteJid;
+        }
+
+        return \Illuminate\Support\Facades\Cache::remember('evolution_lid_map_' . $remoteJid, now()->addHours(24), function () use ($remoteJid) {
+            try {
+                $resp = $this->client()->post("{$this->baseUrl}/chat/findContacts/{$this->instanceName}", []);
+                if (!$resp->successful()) {
+                    return null;
+                }
+
+                $contacts = $resp->json() ?: [];
+                $target = null;
+                foreach ($contacts as $c) {
+                    if (($c['remoteJid'] ?? '') === $remoteJid) {
+                        $target = $c;
+                        break;
+                    }
+                }
+                if (!$target) {
+                    return null;
+                }
+
+                $targetPic = $target['profilePicUrl'] ?? null;
+                $targetName = $target['pushName'] ?? null;
+
+                // 1) Match por profilePicUrl (foto idêntica no WhatsApp)
+                if ($targetPic) {
+                    foreach ($contacts as $c) {
+                        $jid = $c['remoteJid'] ?? '';
+                        if (str_ends_with($jid, '@s.whatsapp.net') && ($c['profilePicUrl'] ?? '') === $targetPic) {
+                            return $jid;
+                        }
+                    }
+                }
+
+                // 2) Match por pushName (nome do perfil no WhatsApp)
+                if ($targetName) {
+                    foreach ($contacts as $c) {
+                        $jid = $c['remoteJid'] ?? '';
+                        if (str_ends_with($jid, '@s.whatsapp.net') && strcasecmp($c['pushName'] ?? '', $targetName) === 0) {
+                            return $jid;
+                        }
+                    }
+                }
+
+                return null;
+            } catch (\Throwable $e) {
+                Log::warning('Error resolving LID to phone', ['lid' => $remoteJid, 'error' => $e->getMessage()]);
+                return null;
+            }
+        });
+    }
+
+    /**
      * Configura Webhook da instância para apontar para o Laravel
      */
     public function setWebhook(string $webhookUrl): array
@@ -149,14 +208,20 @@ class EvolutionApiService
      */
     public function sendText(string $to, string $text): array
     {
-        if (str_contains($to, '@')) {
-            $number = $to;
-        } else {
-            $number = preg_replace('/\D+/', '', $to);
-            if (!str_starts_with($number, '55')) {
-                $number = '55' . $number;
+        $target = $to;
+        if (str_contains($target, '@lid')) {
+            $resolved = $this->resolveLidToPhoneNumber($target);
+            if ($resolved) {
+                $target = $resolved;
             }
         }
+
+        $digits = preg_replace('/\D+/', '', explode('@', $target)[0] ?? '');
+        if ($digits && !str_starts_with($digits, '55')) {
+            $digits = '55' . $digits;
+        }
+
+        $number = $digits ?: $target;
 
         try {
             $payload = [
@@ -169,10 +234,21 @@ class EvolutionApiService
             $resp = $this->client()->post("{$this->baseUrl}/message/sendText/{$this->instanceName}", $payload);
             $json = $resp->json();
 
+            $errorMessage = null;
+            if (!$resp->successful()) {
+                $errorObj = $json['response']['message'] ?? $json['message'] ?? $json['error'] ?? null;
+                if (is_array($errorObj)) {
+                    $errorMessage = json_encode($errorObj, JSON_UNESCAPED_UNICODE);
+                } else {
+                    $errorMessage = (string) ($errorObj ?: $resp->body());
+                }
+            }
+
             return [
                 'success' => $resp->successful(),
                 'message_id' => $json['key']['id'] ?? null,
                 'status' => $resp->successful() ? 'sent' : 'failed',
+                'error' => $errorMessage,
                 'raw' => $json ?? $resp->body(),
             ];
         } catch (\Throwable $e) {
@@ -190,14 +266,20 @@ class EvolutionApiService
      */
     public function sendMedia(string $to, string $mediaUrl, string $caption = '', string $mediaType = 'document', string $fileName = 'arquivo.pdf'): array
     {
-        if (str_contains($to, '@')) {
-            $number = $to;
-        } else {
-            $number = preg_replace('/\D+/', '', $to);
-            if (!str_starts_with($number, '55')) {
-                $number = '55' . $number;
+        $target = $to;
+        if (str_contains($target, '@lid')) {
+            $resolved = $this->resolveLidToPhoneNumber($target);
+            if ($resolved) {
+                $target = $resolved;
             }
         }
+
+        $digits = preg_replace('/\D+/', '', explode('@', $target)[0] ?? '');
+        if ($digits && !str_starts_with($digits, '55')) {
+            $digits = '55' . $digits;
+        }
+
+        $number = $digits ?: $target;
 
         try {
             $payload = [
@@ -212,10 +294,21 @@ class EvolutionApiService
             $resp = $this->client()->post("{$this->baseUrl}/message/sendMedia/{$this->instanceName}", $payload);
             $json = $resp->json();
 
+            $errorMessage = null;
+            if (!$resp->successful()) {
+                $errorObj = $json['response']['message'] ?? $json['message'] ?? $json['error'] ?? null;
+                if (is_array($errorObj)) {
+                    $errorMessage = json_encode($errorObj, JSON_UNESCAPED_UNICODE);
+                } else {
+                    $errorMessage = (string) ($errorObj ?: $resp->body());
+                }
+            }
+
             return [
                 'success' => $resp->successful(),
                 'message_id' => $json['key']['id'] ?? null,
                 'status' => $resp->successful() ? 'sent' : 'failed',
+                'error' => $errorMessage,
                 'raw' => $json ?? $resp->body(),
             ];
         } catch (\Throwable $e) {
