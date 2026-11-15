@@ -49,6 +49,10 @@ Route::post('/api/webhooks/melhorenvio', [\App\Http\Controllers\Api\MelhorEnvioW
 Route::post('/api/webhooks/inter', [\App\Http\Controllers\Api\InterWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
+// Webhook Evolution API
+Route::post('/api/webhooks/evolution', [\App\Http\Controllers\Api\EvolutionWebhookController::class, 'handle'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 // Live Chat Webhook (recebe mensagens do browser)
 Route::match(['POST', 'OPTIONS'], '/api/live-chat/message', [\App\Http\Controllers\Admin\LiveChatController::class, 'receiveMessage'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
@@ -779,6 +783,17 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     // NOVA ROTA: Download de mídia (anexos)
     Route::get('/chat/download/{id}', [ChatController::class, 'downloadMedia'])->name('admin.chat.download');
     Route::get('/chat/api/twilio-balance', [ChatController::class, 'getTwilioBalance'])->name('admin.chat.api.twilio-balance');
+
+    // ============================================
+    // CHAT EVOLUTION API (PARALELO E ISOLADO)
+    // ============================================
+    Route::get('/chat-evolution', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'index'])->name('admin.chat.evolution.index');
+    Route::get('/chat-evolution/api/status', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getStatusAndQr']);
+    Route::get('/chat-evolution/api/refresh-qr', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'refreshQr']);
+    Route::post('/chat-evolution/api/logout', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'logout']);
+    Route::get('/chat-evolution/api/conversations', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getConversations']);
+    Route::get('/chat-evolution/api/messages/{userId}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getMessages']);
+    Route::post('/chat-evolution/api/send', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendMessage']);
 })->withoutMiddleware([VerifyCsrfToken::class]);
 
 
