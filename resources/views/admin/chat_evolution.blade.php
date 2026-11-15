@@ -147,7 +147,11 @@
 						</button>
 					</div>
 					<div id="qrContainer" style="display:none;">
-						<p class="mb-2">Abra o WhatsApp no celular $\rightarrow$ <b>Aparelhos Conectados</b> $\rightarrow$ <b>Conectar um aparelho</b>:</p>
+						<p class="mb-2">Abra o WhatsApp no celular &rarr; <b>Aparelhos Conectados</b> &rarr; <b>Conectar um aparelho</b>:</p>
+						<div id="qrLoadingInner" style="display:none;" class="my-3">
+							<div class="spinner-border text-success" role="status"></div>
+							<div class="text-muted small mt-1">Gerando novo QR Code...</div>
+						</div>
 						<img id="qrImage" src="" alt="QR Code WhatsApp" class="img-fluid border p-2 rounded mb-3" style="max-width: 250px;">
 						<div>
 							<button class="btn btn-sm btn-outline-secondary" id="btnRefreshQr"><i class="bi bi-arrow-clockwise"></i> Atualizar QR Code</button>
@@ -188,8 +192,14 @@
 					qrConnected.style.display = 'none';
 					qrContainer.style.display = 'block';
 
+					const qrLoadingInner = document.getElementById('qrLoadingInner');
 					if (data.qr && data.qr.base64) {
 						qrImg.src = data.qr.base64;
+						qrImg.style.display = 'inline-block';
+						if (qrLoadingInner) qrLoadingInner.style.display = 'none';
+					} else {
+						qrImg.style.display = 'none';
+						if (qrLoadingInner) qrLoadingInner.style.display = 'block';
 					}
 				}
 			} catch (e) {
