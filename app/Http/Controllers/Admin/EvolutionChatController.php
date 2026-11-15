@@ -68,16 +68,24 @@ class EvolutionChatController extends Controller
      */
     public function getConversations()
     {
+        // Identificador único da conversa: remote_jid (ou fallback para user_id/from)
         $subLastMessage = DB::table('evolution_messages')
-            ->select('user_id', DB::raw('MAX(id) as last_message_id'))
-            ->whereNotNull('user_id')
-            ->groupBy('user_id');
+            ->select(
+                DB::raw("COALESCE(remote_jid, CAST(user_id AS CHAR), `from`) as conv_key"),
+                DB::raw('MAX(id) as last_message_id')
+            )
+            ->groupBy(DB::raw("COALESCE(remote_jid, CAST(user_id AS CHAR), `from`)"));
 
         $conversations = DB::table('evolution_messages as em')
             ->joinSub($subLastMessage, 'last_msg', 'em.id', '=', 'last_msg.last_message_id')
-            ->join('users', 'users.id', '=', 'em.user_id')
+            ->leftJoin('users', 'users.id', '=', 'em.user_id')
             ->select(
+                'em.id as message_id',
                 'em.user_id',
+                'em.remote_jid',
+                'em.push_name',
+                'em.from',
+                'em.to',
                 'users.name as user_name',
                 'users.whatsapp as user_whatsapp',
                 'em.body as last_message_body',
@@ -90,28 +98,64 @@ class EvolutionChatController extends Controller
             ->get();
 
         $conversations->each(function ($conv) {
-            $conv->unread_count = DB::table('evolution_messages')
-                ->where('user_id', $conv->user_id)
+            $rawPhone = !str_contains($conv->remote_jid ?? '', '@lid') 
+                ? preg_replace('/\D+/', '', explode('@', $conv->remote_jid ?? '')[0] ?? '') 
+                : '';
+
+            $displayName = $conv->user_name 
+                ?: $conv->push_name 
+                ?: ($rawPhone ? ('+' . $rawPhone) : 'Contato WhatsApp');
+
+            $conv->display_name = $displayName;
+            $conv->display_phone = $conv->user_whatsapp ?: $rawPhone;
+
+            $unreadQuery = DB::table('evolution_messages')
                 ->where('direction', 'inbound')
-                ->where('status', '!=', 'read')
-                ->count();
+                ->where('status', '!=', 'read');
+
+            if ($conv->remote_jid) {
+                $unreadQuery->where('remote_jid', $conv->remote_jid);
+            } elseif ($conv->user_id) {
+                $unreadQuery->where('user_id', $conv->user_id);
+            } else {
+                $unreadQuery->where('from', $conv->from);
+            }
+
+            $conv->unread_count = $unreadQuery->count();
         });
 
         return response()->json($conversations);
     }
 
     /**
-     * Retorna histórico de mensagens de um usuário
+     * Retorna histórico de mensagens de uma conversa (por userId ou remoteJid)
      */
-    public function getMessages($userId)
+    public function getMessages(Request $request, $identifier = null)
     {
-        $userId = (int) $userId;
-        $limit = (int) request()->query('limit', 50);
+        $userId = $request->query('user_id');
+        $remoteJid = $request->query('remote_jid');
+        $limit = (int) $request->query('limit', 100);
 
-        $messages = DB::table('evolution_messages')
-            ->leftJoin('users as admin_user', 'evolution_messages.admin_id', '=', 'admin_user.id')
-            ->where('evolution_messages.user_id', $userId)
-            ->orderBy('evolution_messages.created_at', 'desc')
+        if (!$userId && !$remoteJid && $identifier) {
+            if (is_numeric($identifier)) {
+                $userId = (int) $identifier;
+            } else {
+                $remoteJid = $identifier;
+            }
+        }
+
+        $query = DB::table('evolution_messages')
+            ->leftJoin('users as admin_user', 'evolution_messages.admin_id', '=', 'admin_user.id');
+
+        if ($remoteJid) {
+            $query->where('evolution_messages.remote_jid', $remoteJid);
+        } elseif ($userId) {
+            $query->where('evolution_messages.user_id', $userId);
+        } else {
+            return response()->json([]);
+        }
+
+        $messages = $query->orderBy('evolution_messages.created_at', 'desc')
             ->take($limit)
             ->select('evolution_messages.*', 'admin_user.name as admin_name')
             ->get()
@@ -119,11 +163,15 @@ class EvolutionChatController extends Controller
             ->values();
 
         // Marca como lidas
-        DB::table('evolution_messages')
-            ->where('user_id', $userId)
+        $updateQuery = DB::table('evolution_messages')
             ->where('direction', 'inbound')
-            ->where('status', '!=', 'read')
-            ->update(['status' => 'read']);
+            ->where('status', '!=', 'read');
+
+        if ($remoteJid) {
+            $updateQuery->where('remote_jid', $remoteJid)->update(['status' => 'read']);
+        } elseif ($userId) {
+            $updateQuery->where('user_id', $userId)->update(['status' => 'read']);
+        }
 
         return response()->json($messages);
     }
@@ -134,22 +182,29 @@ class EvolutionChatController extends Controller
     public function sendMessage(Request $request)
     {
         $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
+            'user_id' => 'nullable|integer',
+            'remote_jid' => 'nullable|string',
             'body' => 'nullable|string|max:4000',
             'file' => 'nullable|file|max:25600',
         ]);
 
-        $userId = (int) $request->input('user_id');
+        $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+        $remoteJid = trim((string) $request->input('remote_jid', ''));
         $body = trim((string) $request->input('body', ''));
 
         if ($body === '' && !$request->hasFile('file')) {
             return response()->json(['success' => false, 'error' => 'Mensagem ou arquivo obrigatório.'], 422);
         }
 
-        $user = User::find($userId);
-        if (!$user || !$user->whatsapp) {
-            return response()->json(['success' => false, 'error' => 'Usuário sem telefone cadastrado.'], 404);
+        $user = $userId ? User::find($userId) : null;
+        $destination = $remoteJid ?: $user?->whatsapp ?: $user?->phone;
+
+        if (!$destination) {
+            return response()->json(['success' => false, 'error' => 'Destinatário sem identificador ou telefone.'], 404);
         }
+
+        $pushName = $user?->name 
+            ?: EvolutionMessage::where('remote_jid', $destination)->whereNotNull('push_name')->value('push_name');
 
         $adminId = auth()->id();
         $mediaUrl = null;
@@ -171,9 +226,9 @@ class EvolutionChatController extends Controller
                 default => 'document',
             };
 
-            $res = $this->evolution->sendMedia($user->whatsapp, $mediaUrl, $body, $mediaType, $fileName);
+            $res = $this->evolution->sendMedia($destination, $mediaUrl, $body, $mediaType, $fileName);
         } else {
-            $res = $this->evolution->sendText($user->whatsapp, $body);
+            $res = $this->evolution->sendText($destination, $body);
         }
 
         $status = ($res['success'] ?? false) ? 'sent' : 'failed';
@@ -181,13 +236,16 @@ class EvolutionChatController extends Controller
         $failedReason = ($status === 'failed') ? ($res['error'] ?? 'Falha no envio') : null;
 
         $msg = EvolutionMessage::create([
-            'user_id' => $userId,
+            'user_id' => $user?->id,
             'admin_id' => $adminId,
+            'instance_name' => 'sacolinhas',
+            'remote_jid' => $destination,
+            'push_name' => $pushName,
             'direction' => 'outbound',
             'status' => $status,
             'message_id' => $messageId,
             'from' => 'evolution',
-            'to' => $user->whatsapp,
+            'to' => $destination,
             'body' => $body,
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,

@@ -149,9 +149,13 @@ class EvolutionApiService
      */
     public function sendText(string $to, string $text): array
     {
-        $number = preg_replace('/\D+/', '', $to);
-        if (!str_starts_with($number, '55')) {
-            $number = '55' . $number;
+        if (str_contains($to, '@')) {
+            $number = $to;
+        } else {
+            $number = preg_replace('/\D+/', '', $to);
+            if (!str_starts_with($number, '55')) {
+                $number = '55' . $number;
+            }
         }
 
         try {
@@ -186,9 +190,13 @@ class EvolutionApiService
      */
     public function sendMedia(string $to, string $mediaUrl, string $caption = '', string $mediaType = 'document', string $fileName = 'arquivo.pdf'): array
     {
-        $number = preg_replace('/\D+/', '', $to);
-        if (!str_starts_with($number, '55')) {
-            $number = '55' . $number;
+        if (str_contains($to, '@')) {
+            $number = $to;
+        } else {
+            $number = preg_replace('/\D+/', '', $to);
+            if (!str_starts_with($number, '55')) {
+                $number = '55' . $number;
+            }
         }
 
         try {

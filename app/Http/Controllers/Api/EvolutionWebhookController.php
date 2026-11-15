@@ -63,19 +63,32 @@ class EvolutionWebhookController extends Controller
         $fromMe = $key['fromMe'] ?? false;
         $remoteJid = $key['remoteJid'] ?? '';
         $messageId = $key['id'] ?? null;
+        $pushName = $data['pushName'] ?? null;
 
         // Ignora status de broadcast/stories ou grupos
         if (str_contains($remoteJid, '@broadcast') || str_contains($remoteJid, '@g.us')) {
             return;
         }
 
-        $digits = preg_replace('/\D+/', '', explode('@', $remoteJid)[0] ?? '');
-        if (!$digits) {
+        if (!$remoteJid) {
             return;
         }
 
-        // Tenta achar usuário cadastrado pelo WhatsApp
-        $user = $this->findUserByDigits($digits);
+        $digits = preg_replace('/\D+/', '', explode('@', $remoteJid)[0] ?? '');
+
+        // Tenta achar usuário cadastrado pelo WhatsApp (apenas se for @s.whatsapp.net com número real)
+        $user = null;
+        if (!str_contains($remoteJid, '@lid') && strlen($digits) >= 8) {
+            $user = $this->findUserByDigits($digits);
+        }
+
+        // Se o pushName veio vazio na mensagem (ex: outbound), tenta recuperar push_name conhecido
+        if (empty($pushName)) {
+            $pushName = EvolutionMessage::where('remote_jid', $remoteJid)
+                ->whereNotNull('push_name')
+                ->where('push_name', '!=', '')
+                ->value('push_name');
+        }
 
         // Extrai texto da mensagem
         $messageContent = $data['message'] ?? [];
@@ -106,11 +119,13 @@ class EvolutionWebhookController extends Controller
 
         EvolutionMessage::create([
             'user_id' => $user?->id,
+            'remote_jid' => $remoteJid,
+            'push_name' => $pushName,
             'direction' => $fromMe ? 'outbound' : 'inbound',
             'status' => $fromMe ? 'sent' : 'received',
             'message_id' => $messageId,
-            'from' => $fromMe ? 'evolution' : $digits,
-            'to' => $fromMe ? $digits : 'evolution',
+            'from' => $fromMe ? 'evolution' : ($digits ?: $remoteJid),
+            'to' => $fromMe ? ($digits ?: $remoteJid) : 'evolution',
             'body' => $body,
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,

@@ -15,6 +15,8 @@ class EvolutionMessage extends Model
         'user_id',
         'admin_id',
         'instance_name',
+        'remote_jid',
+        'push_name',
         'direction',
         'status',
         'message_id',

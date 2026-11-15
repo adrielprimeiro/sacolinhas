@@ -792,7 +792,7 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     Route::get('/chat-evolution/api/refresh-qr', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'refreshQr']);
     Route::post('/chat-evolution/api/logout', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'logout']);
     Route::get('/chat-evolution/api/conversations', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getConversations']);
-    Route::get('/chat-evolution/api/messages/{userId}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getMessages']);
+    Route::get('/chat-evolution/api/messages/{userId?}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getMessages']);
     Route::post('/chat-evolution/api/send', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendMessage']);
 })->withoutMiddleware([VerifyCsrfToken::class]);
 

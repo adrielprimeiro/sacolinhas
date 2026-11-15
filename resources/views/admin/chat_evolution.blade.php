@@ -165,8 +165,12 @@
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 	<script>
 		const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-		let activeUserId = null;
-		let pollInterval = null;
+		let activeConv = {
+			userId: null,
+			remoteJid: null,
+			name: '',
+			phone: ''
+		};
 
 		// Checa status de conexão
 		async function checkStatus() {
@@ -214,37 +218,60 @@
 				const convs = await res.json();
 				const list = document.getElementById('conversationList');
 
-				if (!convs.length) {
+				if (!convs || !convs.length) {
 					list.innerHTML = '<div class="text-center p-4 text-muted">Nenhuma conversa encontrada.</div>';
 					return;
 				}
 
-				list.innerHTML = convs.map(c => `
-					<div class="conversation-item ${activeUserId === c.user_id ? 'active' : ''}" onclick="selectConversation(${c.user_id}, '${c.user_name.replace(/'/g, "\\'")}', '${c.user_whatsapp || ''}')">
-						<div class="conversation-avatar">${c.user_name.charAt(0).toUpperCase()}</div>
-						<div class="conversation-info">
-							<div class="d-flex justify-content-between align-items-center">
-								<h6 class="conversation-name">${c.user_name}</h6>
-								<span class="conversation-time">${c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+				list.innerHTML = convs.map(c => {
+					const isSelected = (activeConv.remoteJid && activeConv.remoteJid === c.remote_jid) 
+						|| (activeConv.userId && activeConv.userId === c.user_id);
+					const name = c.display_name || 'Contato';
+					const initial = name.charAt(0).toUpperCase() || '?';
+					const phone = c.display_phone || '';
+					const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+					const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
+
+					return `
+						<div class="conversation-item ${isSelected ? 'active' : ''}" 
+							 data-user-id="${c.user_id || ''}" 
+							 data-remote-jid="${escapeHtml(c.remote_jid || '')}" 
+							 data-name="${escapeHtml(name)}" 
+							 data-phone="${escapeHtml(phone)}"
+							 onclick="handleConvClick(this)">
+							<div class="conversation-avatar">${initial}</div>
+							<div class="conversation-info">
+								<div class="d-flex justify-content-between align-items-center">
+									<h6 class="conversation-name text-truncate">${escapeHtml(name)}</h6>
+									<span class="conversation-time">${time}</span>
+								</div>
+								<div class="conversation-last-message">
+									${c.last_message_direction === 'outbound' ? '<i class="bi bi-check2 text-muted"></i> ' : ''}
+									${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
+								</div>
 							</div>
-							<div class="conversation-last-message">
-								${c.last_message_direction === 'outbound' ? '<i class="bi bi-check2 text-muted"></i> ' : ''}
-								${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : (c.last_message_body || '')}
-							</div>
+							${unread}
 						</div>
-						${c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
-					</div>
-				`).join('');
+					`;
+				}).join('');
 			} catch (e) {
 				console.error(e);
 			}
 		}
 
+		function handleConvClick(el) {
+			const userId = el.getAttribute('data-user-id') ? parseInt(el.getAttribute('data-user-id')) : null;
+			const remoteJid = el.getAttribute('data-remote-jid') || null;
+			const name = el.getAttribute('data-name') || '';
+			const phone = el.getAttribute('data-phone') || '';
+			selectConversation(userId, remoteJid, name, phone);
+		}
+
 		// Seleciona conversa
-		async function selectConversation(userId, userName, userPhone) {
-			activeUserId = userId;
-			document.getElementById('currentUserName').innerText = userName;
-			document.getElementById('currentUserPhone').innerText = userPhone;
+		async function selectConversation(userId, remoteJid, name, phone) {
+			activeConv = { userId, remoteJid, name, phone };
+			document.getElementById('currentUserName').innerText = name;
+			document.getElementById('currentUserPhone').innerText = phone;
 			document.getElementById('chatInputArea').style.display = 'flex';
 
 			loadMessages();
@@ -253,11 +280,20 @@
 
 		// Carrega mensagens
 		async function loadMessages() {
-			if (!activeUserId) return;
+			if (!activeConv.remoteJid && !activeConv.userId) return;
 			try {
-				const res = await fetch(`/admin/chat-evolution/api/messages/${activeUserId}`);
+				const params = new URLSearchParams();
+				if (activeConv.remoteJid) params.append('remote_jid', activeConv.remoteJid);
+				if (activeConv.userId) params.append('user_id', activeConv.userId);
+
+				const res = await fetch(`/admin/chat-evolution/api/messages?${params.toString()}`);
 				const msgs = await res.json();
 				const container = document.getElementById('messagesContainer');
+
+				if (!msgs || !msgs.length) {
+					container.innerHTML = '<div class="text-center my-auto text-muted"><p>Nenhuma mensagem nesta conversa ainda.</p></div>';
+					return;
+				}
 
 				container.innerHTML = msgs.map(m => `
 					<div class="message-row">
@@ -285,10 +321,11 @@
 			const body = input.value.trim();
 
 			if (!body && !fileInput.files.length) return;
-			if (!activeUserId) return;
+			if (!activeConv.remoteJid && !activeConv.userId) return;
 
 			const formData = new FormData();
-			formData.append('user_id', activeUserId);
+			if (activeConv.userId) formData.append('user_id', activeConv.userId);
+			if (activeConv.remoteJid) formData.append('remote_jid', activeConv.remoteJid);
 			formData.append('body', body);
 			if (fileInput.files.length) {
 				formData.append('file', fileInput.files[0]);
@@ -316,10 +353,20 @@
 		}
 
 		function escapeHtml(text) {
+			if (!text) return '';
 			return text.replace(/[&<>"']/g, function(m) {
 				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
 			});
 		}
+
+		document.getElementById('searchContact').addEventListener('input', function(e) {
+			const term = e.target.value.toLowerCase();
+			document.querySelectorAll('.conversation-item').forEach(item => {
+				const name = (item.getAttribute('data-name') || '').toLowerCase();
+				const phone = (item.getAttribute('data-phone') || '').toLowerCase();
+				item.style.display = (name.includes(term) || phone.includes(term)) ? 'flex' : 'none';
+			});
+		});
 
 		document.getElementById('btnSendMessage').addEventListener('click', sendMessage);
 		document.getElementById('messageInput').addEventListener('keydown', (e) => {
@@ -344,8 +391,8 @@
 		setInterval(checkStatus, 15000);
 		setInterval(() => {
 			loadConversations();
-			if (activeUserId) loadMessages();
-		}, 5000);
+			if (activeConv.remoteJid || activeConv.userId) loadMessages();
+		}, 4000);
 	</script>
 </body>
 </html>
