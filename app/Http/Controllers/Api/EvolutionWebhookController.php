@@ -18,13 +18,43 @@ class EvolutionWebhookController extends Controller
 
         Log::info('EVOLUTION_WEBHOOK_RECEIVED', ['event' => $event]);
 
-        if ($event === 'messages.upsert') {
+        if ($event === 'qrcode.updated') {
+            $this->handleQrCodeUpdated($payload['data'] ?? []);
+        } elseif ($event === 'messages.upsert') {
             $this->handleMessageUpsert($payload['data'] ?? []);
         } elseif ($event === 'messages.update') {
             $this->handleMessageUpdate($payload['data'] ?? []);
+        } elseif ($event === 'connection.update') {
+            $this->handleConnectionUpdate($payload['data'] ?? []);
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    protected function handleQrCodeUpdated(array $data)
+    {
+        $qrcode = $data['qrcode'] ?? [];
+        $base64 = $qrcode['base64'] ?? null;
+        $pairingCode = $qrcode['pairingCode'] ?? null;
+        $instance = $qrcode['instance'] ?? 'sacolinhas';
+
+        if ($base64) {
+            \Illuminate\Support\Facades\Cache::put('evolution_qr_code_' . $instance, [
+                'base64' => $base64,
+                'pairingCode' => $pairingCode,
+                'updated_at' => now()->toDateTimeString(),
+            ], now()->addMinutes(2));
+            Log::info('EVOLUTION_QR_CACHED', ['instance' => $instance]);
+        }
+    }
+
+    protected function handleConnectionUpdate(array $data)
+    {
+        $state = $data['state'] ?? '';
+        $instance = $data['instance'] ?? 'sacolinhas';
+        if ($state === 'open' || $state === 'connected') {
+            \Illuminate\Support\Facades\Cache::forget('evolution_qr_code_' . $instance);
+        }
     }
 
     protected function handleMessageUpsert(array $data)

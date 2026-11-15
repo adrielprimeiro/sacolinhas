@@ -59,42 +59,38 @@ class EvolutionApiService
      */
     public function getOrConnectQrCode(): array
     {
+        // 1) Primeiro verifica se o Webhook recebeu o QR Code recente no Cache
+        $cached = \Illuminate\Support\Facades\Cache::get('evolution_qr_code_' . $this->instanceName);
+        if ($cached && !empty($cached['base64'])) {
+            return [
+                'success' => true,
+                'base64' => $cached['base64'],
+                'pairingCode' => $cached['pairingCode'] ?? null,
+            ];
+        }
+
         try {
             // Tenta conectar instância existente
             $connectResp = $this->client()->get("{$this->baseUrl}/instance/connect/{$this->instanceName}");
             if ($connectResp->successful()) {
                 $data = $connectResp->json();
-                return [
-                    'success' => true,
-                    'base64' => $data['base64'] ?? null,
-                    'code' => $data['code'] ?? null,
-                    'pairingCode' => $data['pairingCode'] ?? null,
-                ];
+                if (!empty($data['base64'])) {
+                    return [
+                        'success' => true,
+                        'base64' => $data['base64'],
+                        'code' => $data['code'] ?? null,
+                        'pairingCode' => $data['pairingCode'] ?? null,
+                    ];
+                }
             }
 
-            // Se retornar erro 404 (instância não existe), cria
-            $createPayload = [
-                'instanceName' => $this->instanceName,
-                'token' => $this->apiKey,
-                'qrcode' => true,
-                'integration' => 'WHATSAPP-BAILEYS',
-            ];
-
-            $createResp = $this->client()->post("{$this->baseUrl}/instance/create", $createPayload);
-            if ($createResp->successful()) {
-                $data = $createResp->json();
-                $qrcode = $data['qrcode'] ?? [];
-                return [
-                    'success' => true,
-                    'base64' => $qrcode['base64'] ?? null,
-                    'code' => $qrcode['code'] ?? null,
-                    'pairingCode' => $qrcode['pairingCode'] ?? null,
-                ];
-            }
+            // Se ainda não tem no cache nem na resposta direta, força restart da conexão para emitir novo QR
+            $this->client()->post("{$this->baseUrl}/instance/restart/{$this->instanceName}");
 
             return [
-                'success' => false,
-                'message' => 'Erro ao criar/conectar instância: ' . $createResp->body(),
+                'success' => true,
+                'base64' => null,
+                'message' => 'Gerando QR Code... aguarde 2 segundos e atualize.',
             ];
         } catch (\Throwable $e) {
             return [
