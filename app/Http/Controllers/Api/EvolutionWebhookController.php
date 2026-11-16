@@ -130,6 +130,11 @@ class EvolutionWebhookController extends Controller
             $mediaType = 'document';
         }
 
+        // Ignora eventos internos de protocolo sem texto e sem mídia
+        if (trim((string) $body) === '' && !$mediaType) {
+            return;
+        }
+
         // Evita duplicatas pelo messageId
         if ($messageId && EvolutionMessage::where('message_id', $messageId)->exists()) {
             return;

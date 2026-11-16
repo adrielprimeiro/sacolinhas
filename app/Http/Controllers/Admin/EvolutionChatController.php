@@ -121,7 +121,7 @@ class EvolutionChatController extends Controller
                     ->where('push_name', '!=', '')
                     ->orderBy('id', 'desc')
                     ->value('push_name')
-                ?: ($conv->direction === 'inbound' ? $conv->push_name : null);
+                ?: (($conv->last_message_direction ?? '') === 'inbound' ? $conv->push_name : null);
 
             $displayName = $contactName ?: ($rawPhone ? ('+' . $rawPhone) : 'Contato WhatsApp');
 

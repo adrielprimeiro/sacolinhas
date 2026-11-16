@@ -952,6 +952,26 @@ class LiveController extends Controller
 		// Envia imediatamente via Evolution API para o número de teste (5548984136870)
 		$evoRes = app(\App\Services\Whatsapp\EvolutionApiService::class)->sendText($telefoneTeste, $mensagemTeste);
 
+		if ($evoRes['success'] ?? false) {
+			$msgId = $evoRes['message_id'] ?? null;
+			if (!$msgId || !\App\Models\EvolutionMessage::where('message_id', $msgId)->exists()) {
+				\App\Models\EvolutionMessage::create([
+					'user_id' => $userId,
+					'admin_id' => auth()->id(),
+					'instance_name' => 'sacolinhas',
+					'remote_jid' => '554884136870@s.whatsapp.net',
+					'push_name' => 'Teste: ' . ($user->name ?? 'Cliente'),
+					'direction' => 'outbound',
+					'status' => 'sent',
+					'message_id' => $msgId,
+					'from' => 'evolution',
+					'to' => $telefoneTeste,
+					'body' => $mensagemTeste,
+					'raw_payload' => $evoRes,
+				]);
+			}
+		}
+
 		// Também dispara Msg1 via Twilio para o telefone de teste (5548984136870) caso queira testar o botão "Revisar e Confirmar"
 		SendWhatsAppMessage::dispatch($telefoneTeste, $liveId, $userId, 'first')
 			->onQueue('whatsapp');
