@@ -190,8 +190,8 @@ class SendWhatsAppMessage implements ShouldQueue
             return;
         }
 
-        // ✅ Verificação de duplicata (opcional)
-        if ($this->messageType === 'first') {
+        // ✅ Verificação de duplicata (ignora se for disparo de teste para 5548984136870)
+        if ($this->messageType === 'first' && !str_ends_with($digits, '84136870')) {
             $existing = DB::table('whatsapp_messages')
                 ->where('user_id', $this->userId)
                 ->where('live_id', $this->liveId)

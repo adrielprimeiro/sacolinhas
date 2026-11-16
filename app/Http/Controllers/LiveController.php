@@ -923,87 +923,43 @@ class LiveController extends Controller
 			], 500);
 		}
 
-		// 4) pega usuário + telefone (mesma regra do Encerrar Live)
+		// 4) pega usuário
 		$user = DB::table('users')->where('id', $userId)->first();
 		if (!$user) {
 			return response()->json(['success' => false, 'message' => 'Usuário não encontrado'], 404);
 		}
 
-		$telefone = $user->whatsapp ?? $user->telefone_principal ?? $user->telefone_2;
-		if (!$telefone) {
-			Log::warning('Sem telefone para envio individual', [
-				'live_id' => $liveId,
-				'user_id' => $userId,
-			]);
+		// Registra o contexto de teste para que os 5 links de /portal/boas-vindas?flow=... exibam a sacola deste cliente nesta live
+		\Illuminate\Support\Facades\Cache::put('portal_welcome_test_context', [
+			'user_id' => $userId,
+			'live_id' => $liveId,
+			'updated_at' => now()->toDateTimeString(),
+		], now()->addHours(24));
 
-			DB::table('whatsapp_messages')->insert([
-				'user_id' => $userId,
-				'live_id' => $liveId,
-				'direction' => 'outbound',
-				'status' => 'failed',
-				'message_type' => 'first',
-				'failed_reason' => 'Sem telefone cadastrado',
-				'retry_count' => 0,
-				'status_updated_at' => now(),
-				'created_at' => now(),
-				'updated_at' => now(),
-			]);
+		$telefoneTeste = '5548984136870';
 
-			return response()->json([
-				'success' => false,
-				'message' => 'Cliente sem telefone cadastrado.'
-			], 422);
-		}
+		$mensagemTeste = "Opção 1\n"
+			. "Primeira Compra: 👉 https://minhamania.net/portal/boas-vindas?flow=first_purchase\n"
+			. "Opção 2\n"
+			. "Cliente Recorrente sem sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=no_bag\n"
+			. "Opção 3\n"
+			. "Cliente Recorrente com sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=regular\n"
+			. "Opção 4\n"
+			. "Membro do Clube: 👉 https://minhamania.net/portal/boas-vindas?flow=clube\n"
+			. "Opção 5\n"
+			. "Sacolinha Vencida/Bloqueada: 👉 https://minhamania.net/portal/boas-vindas?flow=pendencies";
 
-		// Checagem de duplicidade (Msg1)
-		$jaEnviouMsg1 = DB::table('whatsapp_messages')
-			->where('live_id', $liveId)
-			->where('user_id', $userId)
-			->where('direction', 'outbound')
-			->where('message_type', 'first')
-			->whereIn('status', ['queued', 'sent', 'delivered']) // ajuste para os seus status reais
-			->exists();
+		// Envia imediatamente via Evolution API para o número de teste (5548984136870)
+		$evoRes = app(\App\Services\Whatsapp\EvolutionApiService::class)->sendText($telefoneTeste, $mensagemTeste);
 
-		if ($jaEnviouMsg1) {
-			return response()->json([
-				'success' => false,
-				'already_sent' => true,
-				'message' => 'A Msg1 já foi enviada para este cliente. Não vou reenviar.'
-			], 200);
-		}
-
-		// 5) dispara o mesmo job do Encerrar Live
-		SendWhatsAppMessage::dispatch($telefone, $liveId, $userId, 'first')
+		// Também dispara Msg1 via Twilio para o telefone de teste (5548984136870) caso queira testar o botão "Revisar e Confirmar"
+		SendWhatsAppMessage::dispatch($telefoneTeste, $liveId, $userId, 'first')
 			->onQueue('whatsapp');
-
-		// Se for brechó parceiro, atribui conversa no chat ao operador deste brechó
-		$liveBrechoId = $live->brecho_id ?? 1;
-		if ($liveBrechoId > 1) {
-			$brechoAdmin = DB::table('users')
-				->where('brecho_id', $liveBrechoId)
-				->where(function ($q) {
-					$q->where('role', 'brecho_admin')
-					  ->orWhere('is_admin', 1);
-				})
-				->first();
-
-			if ($brechoAdmin) {
-				DB::table('chat_assignments')->updateOrInsert(
-					['user_id' => $userId],
-					[
-						'assigned_admin_id' => $brechoAdmin->id,
-						'assigned_by_admin_id' => auth()->id() ?: $brechoAdmin->id,
-						'assigned_at' => now(),
-						'expires_at' => now()->addHours(24),
-						'updated_at' => now(),
-					]
-				);
-			}
-		}
 
 		return response()->json([
 			'success' => true,
-			'message' => 'Msg1 enfileirada para este cliente.'
+			'evolution_sent' => $evoRes['success'] ?? false,
+			'message' => "Mensagem de teste com os 5 layouts enviada para {$telefoneTeste} (Cliente em teste: {$user->name})."
 		]);
 	}
 }

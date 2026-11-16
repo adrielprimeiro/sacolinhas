@@ -820,10 +820,12 @@ Route::post('/admin/chat/api/mark-read/{userId}', [ChatController::class, 'markM
 // ============================================
 // PORTAL DO CLIENTE (NOVO)
 // ============================================
+// Boas-vindas inteligente / smart landing page (suporta cliente logado e teste via ?flow=...)
+Route::get('/portal/boas-vindas', [PortalClienteController::class, 'welcomeLanding'])
+    ->middleware('track.portal.access')
+    ->name('portal.welcome');
+
 Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('portal')->name('portal.')->group(function () {
-    
-    // Boas-vindas inteligente / smart landing page
-    Route::get('/boas-vindas', [PortalClienteController::class, 'welcomeLanding'])->name('welcome');
 
     // Dashboard do cliente
     Route::get('/dashboard', [PortalClienteController::class, 'dashboard'])->name('dashboard');

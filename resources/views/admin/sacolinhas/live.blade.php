@@ -410,7 +410,7 @@
     }
 
     async function enviarMensagemInicial(liveId, userId, btn) {
-        if (!confirm('Deseja realmente enviar a mensagem inicial da live (Msg1) para este cliente?')) {
+        if (!confirm('Enviar mensagem de teste com os 5 layouts de Boas-Vindas para o seu WhatsApp (5548984136870)?')) {
             return;
         }
 

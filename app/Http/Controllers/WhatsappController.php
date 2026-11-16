@@ -263,6 +263,26 @@ class WhatsappController extends Controller
 			|| ($buttonId !== '' && in_array(mb_strtolower($buttonId), ['confirmar', 'confirm', 'pdf']));
 
 		if ($isConfirm) {
+			if (str_ends_with($digits ?? '', '84136870')) {
+				$testContext = \Illuminate\Support\Facades\Cache::get('portal_welcome_test_context');
+				$testUserId = $testContext['user_id'] ?? ($user->id ?? null);
+				$testLiveId = $testContext['live_id'] ?? ($contextLiveId ?? null);
+
+				$msgTeste = "Opção 1\n"
+					. "Primeira Compra: 👉 https://minhamania.net/portal/boas-vindas?flow=first_purchase\n"
+					. "Opção 2\n"
+					. "Cliente Recorrente sem sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=no_bag\n"
+					. "Opção 3\n"
+					. "Cliente Recorrente com sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=regular\n"
+					. "Opção 4\n"
+					. "Membro do Clube: 👉 https://minhamania.net/portal/boas-vindas?flow=clube\n"
+					. "Opção 5\n"
+					. "Sacolinha Vencida/Bloqueada: 👉 https://minhamania.net/portal/boas-vindas?flow=pendencies";
+
+				$this->sendWhatsappText($to, $msgTeste, $testUserId, $testLiveId, 'second');
+				return $this->emptyTwiml();
+			}
+
 			if (!$user) {
 				$this->sendWhatsappText($to, 'Recebemos sua confirmação ✅, mas não localizamos seu cadastro.', null, null, 'chat');
 				return $this->emptyTwiml();

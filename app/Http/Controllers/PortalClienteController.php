@@ -560,16 +560,49 @@ class PortalClienteController extends Controller
     public function welcomeLanding()
     {
         $user = auth()->user();
+        $testContext = \Illuminate\Support\Facades\Cache::get('portal_welcome_test_context');
+        $isFlowTest = request()->has('flow') && in_array(request()->query('flow'), ['clube', 'first_purchase', 'pendencies', 'regular', 'no_bag']);
 
-        // 0. Se o cliente tiver algum pedido PENDENTE de pagamento, redireciona diretamente para a tela de checkout desse pedido
-        $pendingPedido = \App\Models\Pedido::where('user_id', $user->id)
-            ->where('status_pagamento', 'pendente')
-            ->where('status_pedido', '!=', 'cancelado')
-            ->orderByDesc('id')
-            ->first();
+        if ($isFlowTest && !empty($testContext['user_id'])) {
+            $testUser = \App\Models\User::find($testContext['user_id']);
+            if ($testUser) {
+                $user = $testUser;
+                // No celular (não logado ou logado como outro cliente), autentica o cliente em teste para que botões funcionem
+                if (!auth()->check() || (auth()->user()->role === 'client' && auth()->id() !== $testUser->id)) {
+                    auth()->login($testUser);
+                }
+            }
+        }
 
-        if ($pendingPedido) {
-            return redirect()->route('portal.checkout.show', $pendingPedido->id);
+        // Fallback para teste de ?flow=... caso o cache tenha expirado ou não esteja logado como cliente
+        if ($isFlowTest && (!$user || ($user->role ?? '') !== 'client')) {
+            $lastSacolaUserId = \Illuminate\Support\Facades\DB::table('sacolinhas')->orderByDesc('id')->value('user_id');
+            if ($lastSacolaUserId) {
+                $fallbackUser = \App\Models\User::find($lastSacolaUserId);
+                if ($fallbackUser) {
+                    $user = $fallbackUser;
+                    if (!auth()->check()) {
+                        auth()->login($fallbackUser);
+                    }
+                }
+            }
+        }
+
+        if (!$user) {
+            return redirect()->guest(route('login'))->with('error', 'Faça login no portal do cliente.');
+        }
+
+        // 0. Se o cliente tiver algum pedido PENDENTE de pagamento (e não estiver testando layout via ?flow=...), redireciona para o checkout
+        if (!$isFlowTest) {
+            $pendingPedido = \App\Models\Pedido::where('user_id', $user->id)
+                ->where('status_pagamento', 'pendente')
+                ->where('status_pedido', '!=', 'cancelado')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($pendingPedido) {
+                return redirect()->route('portal.checkout.show', $pendingPedido->id);
+            }
         }
 
         // 1. É do clube?
@@ -672,13 +705,49 @@ class PortalClienteController extends Controller
             }
         }
 
-        // Buscar dados da última live
-        $ultimaLive = \Illuminate\Support\Facades\DB::table('lives')->orderByDesc('id')->first();
+        // Buscar dados da live selecionada (em teste) ou última live do cliente
+        $targetLiveId = request()->query('live_id') ?? ($isFlowTest ? ($testContext['live_id'] ?? null) : null);
+        $ultimaLive = null;
+        if ($targetLiveId) {
+            $ultimaLive = \Illuminate\Support\Facades\DB::table('lives')->where('id', $targetLiveId)->first();
+        }
+        if (!$ultimaLive) {
+            $lastUserLiveId = $sacolinhaItens->max('live_id');
+            $ultimaLive = $lastUserLiveId
+                ? \Illuminate\Support\Facades\DB::table('lives')->where('id', $lastUserLiveId)->first()
+                : \Illuminate\Support\Facades\DB::table('lives')->orderByDesc('id')->first();
+        }
         
-        // Obter os itens da sacolinha relativos à última live (o pedido atual da live)
+        // Obter os itens da sacolinha relativos à live atual
         $itensLiveAtual = collect();
         if ($ultimaLive) {
             $itensLiveAtual = $sacolinhaItens->where('live_id', $ultimaLive->id);
+            // Em modo de teste, garante carregar os itens da live selecionada mesmo se já estiverem com status 'pedido'
+            if ($itensLiveAtual->isEmpty() && $isFlowTest) {
+                $itensLiveAtual = \Illuminate\Support\Facades\DB::table('sacolinhas')
+                    ->join('items', 'sacolinhas.item_id', '=', 'items.id')
+                    ->where('sacolinhas.user_id', $user->id)
+                    ->where('sacolinhas.live_id', $ultimaLive->id)
+                    ->select(
+                        'sacolinhas.id as sacolinha_id',
+                        'sacolinhas.item_id',
+                        'sacolinhas.live_id',
+                        'sacolinhas.price',
+                        'sacolinhas.quantity',
+                        'sacolinhas.add_at',
+                        'items.nome_do_produto as item_name',
+                        'items.codigo as item_sku',
+                        'items.marca as item_brand',
+                        'items.cor as item_color',
+                        'items.tamanho as item_size'
+                    )
+                    ->get();
+            }
+        }
+
+        if ($sacolinhaItens->isEmpty() && $itensLiveAtual->isNotEmpty()) {
+            $sacolinhaItens = $itensLiveAtual;
+            $hasSacolinha = true;
         }
 
         return view('portal.cliente.welcome', compact(

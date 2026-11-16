@@ -75,22 +75,19 @@
                 {{-- Brand --}}
                 @php
                     $brandName = 'Portal do Cliente';
-                    if (auth()->check()) {
-                        $nameToUse = auth()->user()->apelido ?: explode(' ', auth()->user()->name)[0];
+                    $displayUser = $user ?? auth()->user();
+                    if ($displayUser) {
+                        $nameToUse = $displayUser->apelido ?: explode(' ', $displayUser->name)[0];
                         $brandName = 'Mania de ' . $nameToUse;
                     }
                 @endphp
                 <a href="{{ route('portal.dashboard') }}"
                    class="text-2xl font-bold text-gray-800 hover:text-green-600 transition duration-300 flex items-center gap-2">
-                    @auth
-                        @if(auth()->user()->photo)
-                            <img src="{{ asset('storage/' . auth()->user()->photo) }}" alt="Foto" class="w-8 h-8 rounded-full object-cover">
-                        @else
-                            <i class="fas fa-user-circle text-gray-600"></i>
-                        @endif
+                    @if(!empty($displayUser?->photo))
+                        <img src="{{ asset('storage/' . $displayUser->photo) }}" alt="Foto" class="w-8 h-8 rounded-full object-cover">
                     @else
-                        <i class="fas fa-user-circle"></i>
-                    @endauth
+                        <i class="fas fa-user-circle text-gray-600"></i>
+                    @endif
                     <span class="brand-text-span">{{ $brandName }}</span>
                 </a>
             </div>
