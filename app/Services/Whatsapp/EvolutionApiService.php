@@ -122,6 +122,12 @@ class EvolutionApiService
             return $remoteJid;
         }
 
+        // 1) Checa primeiro no banco persistente
+        $existing = \App\Models\EvolutionContactMapping::where('lid', $remoteJid)->first();
+        if ($existing && $existing->remote_jid) {
+            return $existing->remote_jid;
+        }
+
         return \Illuminate\Support\Facades\Cache::remember('evolution_lid_map_' . $remoteJid, now()->addHours(24), function () use ($remoteJid) {
             try {
                 $resp = $this->client()->post("{$this->baseUrl}/chat/findContacts/{$this->instanceName}", []);
@@ -143,25 +149,55 @@ class EvolutionApiService
 
                 $targetPic = $target['profilePicUrl'] ?? null;
                 $targetName = $target['pushName'] ?? null;
+                $matchedJid = null;
 
-                // 1) Match por profilePicUrl (foto idêntica no WhatsApp)
+                // 1) Match por PATH da profilePicUrl (sem os parâmetros da query string assinada)
                 if ($targetPic) {
-                    foreach ($contacts as $c) {
-                        $jid = $c['remoteJid'] ?? '';
-                        if (str_ends_with($jid, '@s.whatsapp.net') && ($c['profilePicUrl'] ?? '') === $targetPic) {
-                            return $jid;
+                    $targetPath = parse_url($targetPic, PHP_URL_PATH);
+                    if ($targetPath && strlen($targetPath) > 10) {
+                        foreach ($contacts as $c) {
+                            $jid = $c['remoteJid'] ?? '';
+                            if (str_ends_with($jid, '@s.whatsapp.net')) {
+                                $cPath = parse_url($c['profilePicUrl'] ?? '', PHP_URL_PATH);
+                                if ($cPath && $cPath === $targetPath) {
+                                    $matchedJid = $jid;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
 
                 // 2) Match por pushName (nome do perfil no WhatsApp)
-                if ($targetName) {
+                if (!$matchedJid && $targetName) {
+                    $targetFirst = explode(' ', trim($targetName))[0] ?? '';
                     foreach ($contacts as $c) {
                         $jid = $c['remoteJid'] ?? '';
-                        if (str_ends_with($jid, '@s.whatsapp.net') && strcasecmp($c['pushName'] ?? '', $targetName) === 0) {
-                            return $jid;
+                        if (str_ends_with($jid, '@s.whatsapp.net')) {
+                            $name = $c['pushName'] ?? '';
+                            if (strcasecmp($name, $targetName) === 0) {
+                                $matchedJid = $jid;
+                                break;
+                            }
+                            if (strlen($targetFirst) >= 4 && str_starts_with(strtolower($name), strtolower($targetFirst))) {
+                                $matchedJid = $jid;
+                                break;
+                            }
                         }
                     }
+                }
+
+                if ($matchedJid) {
+                    $phone = preg_replace('/\D+/', '', explode('@', $matchedJid)[0] ?? '');
+                    \App\Models\EvolutionContactMapping::updateOrCreate(
+                        ['lid' => $remoteJid],
+                        [
+                            'phone' => $phone,
+                            'remote_jid' => $matchedJid,
+                            'name' => $targetName,
+                        ]
+                    );
+                    return $matchedJid;
                 }
 
                 return null;

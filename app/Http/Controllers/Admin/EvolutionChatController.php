@@ -98,6 +98,15 @@ class EvolutionChatController extends Controller
             ->get();
 
         $conversations->each(function ($conv) {
+            // Se ainda for LID, tenta resolver e migrar no banco
+            if (str_contains($conv->remote_jid ?? '', '@lid')) {
+                $resolved = $this->evolution->resolveLidToPhoneNumber($conv->remote_jid);
+                if ($resolved) {
+                    EvolutionMessage::where('remote_jid', $conv->remote_jid)->update(['remote_jid' => $resolved]);
+                    $conv->remote_jid = $resolved;
+                }
+            }
+
             $rawPhone = !str_contains($conv->remote_jid ?? '', '@lid') 
                 ? preg_replace('/\D+/', '', explode('@', $conv->remote_jid ?? '')[0] ?? '') 
                 : '';
@@ -212,6 +221,11 @@ class EvolutionChatController extends Controller
                 EvolutionMessage::where('remote_jid', $destination)->update(['remote_jid' => $resolved]);
                 $destination = $resolved;
                 $targetJid = $resolved;
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Não foi possível identificar o número WhatsApp deste contato para envio.'
+                ], 422);
             }
         }
 
