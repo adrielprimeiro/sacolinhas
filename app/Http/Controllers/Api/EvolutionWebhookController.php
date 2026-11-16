@@ -92,12 +92,20 @@ class EvolutionWebhookController extends Controller
             $user = $this->findUserByDigits($digits);
         }
 
-        // Se o pushName veio vazio na mensagem (ex: outbound), tenta recuperar push_name conhecido
-        if (empty($pushName)) {
-            $pushName = EvolutionMessage::where('remote_jid', $remoteJid)
-                ->whereNotNull('push_name')
-                ->where('push_name', '!=', '')
-                ->value('push_name');
+        if ($fromMe) {
+            // Mensagem enviada pelo admin/brechó: o pushName no payload do WhatsApp é o nome do aparelho (ex: Adriel).
+            // Recuperamos o nome real do contato/destinatário.
+            $pushName = $user?->name 
+                ?: \App\Models\EvolutionContactMapping::where('remote_jid', $remoteJid)->orWhere('phone', $digits)->value('name')
+                ?: EvolutionMessage::where('remote_jid', $remoteJid)->where('direction', 'inbound')->whereNotNull('push_name')->latest('id')->value('push_name');
+        } else {
+            // Mensagem recebida do contato: salva/atualiza mapeamento com o nome do cliente
+            if ($pushName && $remoteJid) {
+                \App\Models\EvolutionContactMapping::updateOrCreate(
+                    ['remote_jid' => $remoteJid],
+                    ['name' => $pushName, 'phone' => $digits]
+                );
+            }
         }
 
         // Extrai texto da mensagem

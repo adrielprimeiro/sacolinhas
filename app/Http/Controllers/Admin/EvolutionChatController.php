@@ -111,9 +111,19 @@ class EvolutionChatController extends Controller
                 ? preg_replace('/\D+/', '', explode('@', $conv->remote_jid ?? '')[0] ?? '') 
                 : '';
 
-            $displayName = $conv->user_name 
-                ?: $conv->push_name 
-                ?: ($rawPhone ? ('+' . $rawPhone) : 'Contato WhatsApp');
+            // Nome do contato (nunca o nome do admin que enviou mensagem outbound)
+            $contactName = $conv->user_name 
+                ?: \App\Models\EvolutionContactMapping::where('remote_jid', $conv->remote_jid)->orWhere('phone', $rawPhone)->value('name')
+                ?: DB::table('evolution_messages')
+                    ->where('remote_jid', $conv->remote_jid)
+                    ->where('direction', 'inbound')
+                    ->whereNotNull('push_name')
+                    ->where('push_name', '!=', '')
+                    ->orderBy('id', 'desc')
+                    ->value('push_name')
+                ?: ($conv->direction === 'inbound' ? $conv->push_name : null);
+
+            $displayName = $contactName ?: ($rawPhone ? ('+' . $rawPhone) : 'Contato WhatsApp');
 
             $conv->display_name = $displayName;
             $conv->display_phone = $conv->user_whatsapp ?: $rawPhone;
@@ -229,8 +239,10 @@ class EvolutionChatController extends Controller
             }
         }
 
+        $digits = preg_replace('/\D+/', '', explode('@', $targetJid)[0] ?? '');
         $pushName = $user?->name 
-            ?: EvolutionMessage::where('remote_jid', $targetJid)->whereNotNull('push_name')->value('push_name');
+            ?: \App\Models\EvolutionContactMapping::where('remote_jid', $targetJid)->orWhere('phone', $digits)->value('name')
+            ?: EvolutionMessage::where('remote_jid', $targetJid)->where('direction', 'inbound')->whereNotNull('push_name')->latest('id')->value('push_name');
 
         $adminId = auth()->id();
         $mediaUrl = null;
