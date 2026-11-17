@@ -209,9 +209,25 @@ class ConciliacaoService
             $valorBruto  = (float) $payment['transaction_amount'];
             $valorTaxa   = 0;
 
-            if (isset($payment['fee_details']) && is_array($payment['fee_details'])) {
-                foreach ($payment['fee_details'] as $fee) {
-                    $valorTaxa += (float) ($fee['amount'] ?? 0);
+            if (isset($payment['transaction_details']['net_received_amount']) && (float)$payment['transaction_details']['net_received_amount'] > 0 && !$isSaida) {
+                $netReceived = (float)$payment['transaction_details']['net_received_amount'];
+                $valorTaxa = round(max(0, $valorBruto - $netReceived), 2);
+            } else {
+                if (isset($payment['fee_details']) && is_array($payment['fee_details'])) {
+                    foreach ($payment['fee_details'] as $fee) {
+                        $valorTaxa += (float) ($fee['amount'] ?? 0);
+                    }
+                }
+                if (isset($payment['charges_details']) && is_array($payment['charges_details'])) {
+                    foreach ($payment['charges_details'] as $charge) {
+                        if (($charge['type'] ?? '') === 'fee' && !empty($charge['amounts']['original'])) {
+                            // Se já não tiver somado pelo fee_details
+                            $chargeAmount = (float) $charge['amounts']['original'];
+                            if ($valorTaxa < $chargeAmount) {
+                                $valorTaxa += $chargeAmount;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1965,17 +1981,17 @@ class ConciliacaoService
         $entradaDesc = mb_strtolower($entrada->descricao, 'UTF-8');
 
         // 1. Rejeição explícita: Pix enviado/recebido de Terceiro/Pessoa Física com chave CPF (ex: Cp :00360305-Fabio dos Santos)
-        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $saidaDesc) && !str_contains($saidaDesc, 'mania') && !str_contains($saidaDesc, 'sdb')) {
+        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $saidaDesc) && !str_contains($saidaDesc, 'mania') && !str_contains($saidaDesc, 'sdb') && !str_contains($saidaDesc, 'eloalef')) {
             return false;
         }
-        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $entradaDesc) && !str_contains($entradaDesc, 'mania') && !str_contains($entradaDesc, 'sdb')) {
+        if (preg_match('/cp\s*:[0-9]+-[a-z]/i', $entradaDesc) && !str_contains($entradaDesc, 'mania') && !str_contains($entradaDesc, 'sdb') && !str_contains($entradaDesc, 'eloalef')) {
             return false;
         }
 
         // 2. Termos obrigatórios de contas próprias / bancos da empresa
         $termosContasProprias = [
             'inter', 'banco inter', 'mercado pago', 'mercadopago', 'mp', 
-            'mania de melissa', 'minha mania', 'sdb comercio', 
+            'mania de melissa', 'minha mania', 'sdb comercio', 'eloalef', 'eloalef comercio',
             'mesma titularidade', 'entre contas', 'aplicacao', 'resgate', 'transf'
         ];
 
