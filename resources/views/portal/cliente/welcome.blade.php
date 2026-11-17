@@ -425,8 +425,13 @@
                             <span class="font-bold text-gray-800">R$ {{ number_format($itensLiveAtual->sum('price'), 2, ',', '.') }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Saldo em Carteira (Créditos):</span>
-                            <span class="font-bold text-blue-600">- R$ {{ number_format($saldoCliente, 2, ',', '.') }}</span>
+                            @if($saldoCliente < 0)
+                                <span>Saldo em Carteira (Débitos):</span>
+                                <span class="font-bold text-red-600">R$ {{ number_format($saldoCliente, 2, ',', '.') }}</span>
+                            @else
+                                <span>Saldo em Carteira (Créditos):</span>
+                                <span class="font-bold text-blue-600">R$ {{ number_format($saldoCliente, 2, ',', '.') }}</span>
+                            @endif
                         </div>
                     </div>
                     <div class="total-row-custom border-t border-gray-200/50 pt-4">
@@ -434,10 +439,29 @@
                         <span class="total-value-custom text-2xl md:text-3xl">R$ {{ number_format(max(0, $itensLiveAtual->sum('price') - $saldoCliente), 2, ',', '.') }}</span>
                     </div>
                     
-                    <button onclick="iniciarCheckout({{ json_encode($itensLiveAtual->pluck('sacolinha_id')->toArray()) }})" 
-                            class="pay-btn-custom">
-                        <i class="fas fa-wallet"></i> Adicionar à Sacolinha e Pagar
-                    </button>
+                    <div class="space-y-3 pt-1">
+                        <button type="button"
+                                onclick="iniciarCheckout({{ json_encode($itensLiveAtual->pluck('sacolinha_id')->values()->toArray()) }})" 
+                                class="pay-btn-custom">
+                            <i class="fas fa-shopping-bag"></i> Adicionar à Sacolinha
+                        </button>
+
+                        @if($itensLiveAtual->isNotEmpty())
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button type="button"
+                                        onclick="abrirModalCancelarItens()"
+                                        class="w-full py-3 px-4 bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 font-bold rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fas fa-check-square text-amber-600"></i> Cancelar algum item
+                                </button>
+                                <button type="button"
+                                        onclick="cancelarTodosItensLive({{ json_encode($itensLiveAtual->pluck('sacolinha_id')->values()->toArray()) }})"
+                                        class="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fas fa-trash-alt text-red-600"></i> Cancelar Tudo
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+
                     <div class="secure-note-custom">
                         <i class="fas fa-lock"></i> Checkout Seguro • Seus dados estão protegidos
                     </div>
@@ -782,8 +806,139 @@
 
 </div>
 
+{{-- MODAL PARA ESCOLHER ITENS PARA CANCELAR --}}
+<div id="modalCancelarItensLive" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-check-square text-amber-600"></i> Selecione os itens para cancelar
+            </h3>
+            <button type="button" onclick="fecharModalCancelarItens()" class="text-gray-500 hover:text-gray-800 p-1">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-4 max-h-80 overflow-y-auto divide-y divide-gray-100">
+            @foreach($itensLiveAtual as $item)
+                <label class="flex items-center justify-between py-3 px-2 hover:bg-gray-50 rounded-lg cursor-pointer gap-3">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox"
+                               name="cancel_sacolinha_item"
+                               value="{{ $item->sacolinha_id }}"
+                               onchange="atualizarResumoCancelamento()"
+                               class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                        <div>
+                            <div class="text-sm font-bold text-gray-800">{{ $item->item_name }}</div>
+                            <div class="text-xs text-gray-500">Cód: {{ $item->item_sku }} • Marca: {{ $item->item_brand }} • Tam: {{ $item->item_size }}</div>
+                        </div>
+                    </div>
+                    <div class="text-sm font-bold text-gray-900 whitespace-nowrap">
+                        R$ {{ number_format($item->price, 2, ',', '.') }}
+                    </div>
+                </label>
+            @endforeach
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span id="resumoItensSelecionadosCancelamento" class="text-xs font-semibold text-gray-600">
+                Nenhum item selecionado
+            </span>
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button type="button"
+                        onclick="fecharModalCancelarItens()"
+                        class="px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 font-bold rounded-xl text-xs transition">
+                    Voltar
+                </button>
+                <button type="button"
+                        id="btnConfirmarCancelarSelecionados"
+                        onclick="confirmarCancelamentoSelecionados()"
+                        disabled
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5">
+                    <i class="fas fa-trash-alt"></i> Confirmar Cancelamento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- SCRIPT PARA INTEGRAÇÃO AJAX --}}
 <script>
+    function abrirModalCancelarItens() {
+        const modal = document.getElementById('modalCancelarItensLive');
+        if (!modal) return;
+        document.querySelectorAll('input[name="cancel_sacolinha_item"]').forEach(cb => cb.checked = false);
+        atualizarResumoCancelamento();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function fecharModalCancelarItens() {
+        const modal = document.getElementById('modalCancelarItensLive');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function atualizarResumoCancelamento() {
+        const selecionados = document.querySelectorAll('input[name="cancel_sacolinha_item"]:checked');
+        const resumo = document.getElementById('resumoItensSelecionadosCancelamento');
+        const btn = document.getElementById('btnConfirmarCancelarSelecionados');
+        if (resumo) {
+            resumo.textContent = selecionados.length === 0
+                ? 'Nenhum item selecionado'
+                : `${selecionados.length} item(ns) selecionado(s) para cancelar`;
+        }
+        if (btn) {
+            btn.disabled = selecionados.length === 0;
+        }
+    }
+
+    async function executarCancelamentoItens(ids) {
+        if (!ids || ids.length === 0) return;
+
+        try {
+            const res = await fetch('{{ route("portal.sacolinha.cancelar_itens") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ sacolinha_ids: ids })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Erro ao cancelar os itens.');
+            }
+        } catch (e) {
+            alert('Erro de conexão ao cancelar os itens.');
+        }
+    }
+
+    async function confirmarCancelamentoSelecionados() {
+        const ids = Array.from(document.querySelectorAll('input[name="cancel_sacolinha_item"]:checked'))
+            .map(cb => parseInt(cb.value, 10));
+        if (ids.length === 0) return;
+
+        if (!confirm(`Confirmar o cancelamento de ${ids.length} item(ns) da sua sacolinha?`)) {
+            return;
+        }
+
+        await executarCancelamentoItens(ids);
+    }
+
+    async function cancelarTodosItensLive(ids) {
+        if (!ids || ids.length === 0) return;
+
+        if (!confirm('Tem certeza que deseja cancelar TODOS os itens desta live da sua sacolinha?')) {
+            return;
+        }
+
+        await executarCancelamentoItens(ids);
+    }
+
     async function iniciarCheckout(itensIds) {
         if (!itensIds || itensIds.length === 0) return;
         

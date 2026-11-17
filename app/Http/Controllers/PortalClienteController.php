@@ -829,6 +829,70 @@ class PortalClienteController extends Controller
     }
 
     /**
+     * Cancela (exclui) itens selecionados ou todos os itens da live na sacolinha do cliente.
+     */
+    public function cancelarItensLive(Request $request)
+    {
+        $user = auth()->user();
+        $testContext = \Illuminate\Support\Facades\Cache::get('portal_welcome_test_context');
+
+        if (!empty($testContext['user_id']) && (!$user || ($user->role ?? '') !== 'client')) {
+            $user = \App\Models\User::find($testContext['user_id']);
+        }
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada. Faça login novamente.'], 401);
+        }
+
+        $ids = array_values(array_filter(array_map('intval', (array) $request->input('sacolinha_ids', []))));
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'Selecione ao menos um item para cancelar.'], 422);
+        }
+
+        $sacolas = \Illuminate\Support\Facades\DB::table('sacolinhas')
+            ->whereIn('id', $ids)
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'pedido')
+            ->get();
+
+        if ($sacolas->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Nenhum item encontrado para cancelar.'], 404);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($sacolas) {
+            foreach ($sacolas as $sacola) {
+                \Illuminate\Support\Facades\DB::table('sacolinhas')->where('id', $sacola->id)->delete();
+
+                $outras = \Illuminate\Support\Facades\DB::table('sacolinhas')
+                    ->where('item_id', $sacola->item_id)
+                    ->where('status', '!=', 'pedido')
+                    ->exists();
+
+                if (!$outras) {
+                    \Illuminate\Support\Facades\DB::table('items')
+                        ->where('id', $sacola->item_id)
+                        ->update([
+                            'status' => 'estoque',
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+        });
+
+        $msg = $sacolas->count() === 1
+            ? 'Item cancelado e removido da sua sacolinha.'
+            : $sacolas->count() . ' itens cancelados e removidos da sua sacolinha.';
+
+        session()->flash('success', $msg);
+
+        return response()->json([
+            'success' => true,
+            'removed_count' => $sacolas->count(),
+            'message' => $msg,
+        ]);
+    }
+
+    /**
      * Exibe o resumo das avaliações do cliente.
      */
     public function avaliacoes()

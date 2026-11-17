@@ -825,6 +825,9 @@ Route::get('/portal/boas-vindas', [PortalClienteController::class, 'welcomeLandi
     ->middleware('track.portal.access')
     ->name('portal.welcome');
 
+Route::post('/portal/sacolinha/cancelar-itens', [PortalClienteController::class, 'cancelarItensLive'])
+    ->name('portal.sacolinha.cancelar_itens');
+
 Route::middleware(['auth', 'check.client', 'track.portal.access'])->prefix('portal')->name('portal.')->group(function () {
 
     // Dashboard do cliente

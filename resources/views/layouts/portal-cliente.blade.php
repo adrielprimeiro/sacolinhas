@@ -331,9 +331,6 @@
         </div>
     </div>
 
-        @yield('content')
-    </main>
-
     <script>
         // Script para fechar as mensagens de alerta
         document.addEventListener('DOMContentLoaded', function() {
